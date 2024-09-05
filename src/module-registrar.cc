@@ -109,7 +109,7 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 	if (r) {
 		addEventLogRecordFound(mEv, r, mContact);
-		mModule->reply(mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
+		mModule->reply(*mEv, 200, "Registration successful", r->getContacts(ms->getHome()));
 		if (mContact) {
 			string uid = r->extractUniqueId(mContact);
 			mModule->getAgent()->getRegistrarDb().publish(
@@ -127,17 +127,17 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		}
 	} else {
 		LOGE("OnRequestBindListener::onRecordFound(): Record is null");
-		mModule->reply(mEv, SIP_500_INTERNAL_SERVER_ERROR);
+		mModule->reply(*mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 }
 void OnRequestBindListener::onError(const SipStatus& response) {
 	LOGE("OnRequestBindListener::onError: reply %s", response.getReason());
-	mModule->reply(mEv, response.getCode(), response.getReason());
+	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
 void OnRequestBindListener::onInvalid(const SipStatus& response) {
 	LOGE("OnRequestBindListener::onInvalid: reply %s", response.getReason());
-	mModule->reply(mEv, response.getCode(), response.getReason());
+	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
 OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
@@ -291,15 +291,15 @@ ostream& operator<<(ostream& strm, const sip_contact_t* c) {
 	return strm;
 }
 
-static void replyPopulateEventLog(shared_ptr<SipEvent> ev, const sip_t* sip, int code, const char* reason) {
+static void replyPopulateEventLog(SipEvent& ev, const sip_t* sip, int code, const char* reason) {
 	if (sip->sip_request->rq_method == sip_method_invite) {
-		shared_ptr<CallLog> calllog = ev->getEventLog<CallLog>();
+		shared_ptr<CallLog> calllog = ev.getEventLog<CallLog>();
 		if (calllog) {
 			calllog->setStatusCode(code, reason);
 			calllog->setCompleted();
 		}
 	} else if (sip->sip_request->rq_method == sip_method_message) {
-		shared_ptr<MessageLog> mlog = ev->getEventLog<MessageLog>();
+		shared_ptr<MessageLog> mlog = ev.getEventLog<MessageLog>();
 		if (mlog) {
 			mlog->setStatusCode(code, reason);
 			mlog->setCompleted();
@@ -676,12 +676,9 @@ int ModuleRegistrar::numberOfContactHeaders(const sip_contact_t* rootHeader) {
 	return count;
 }
 
-void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
-                            int code,
-                            const char* reason,
-                            const sip_contact_t* contacts) {
+void ModuleRegistrar::reply(RequestSipEvent& ev, int code, const char* reason, const sip_contact_t* contacts) {
 	sip_contact_t* modified_contacts = nullptr;
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	sip_t* sip = ms->getSip();
 	int expire = sip->sip_expires ? normalizeMainDelta(sip->sip_expires, mMinExpires, mMaxExpires) : 0;
 	const char* supported = "path, outbound"; // indicate that the registrar supports these extensions
@@ -693,13 +690,13 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
 	}
 
 	if (contacts) {
-		modified_contacts = sip_contact_dup(ev->getHome(), contacts);
+		modified_contacts = sip_contact_dup(ev.getHome(), contacts);
 	}
 	// This ensures not all REGISTERs arrive at the same time on the flexisip
 	if (sip->sip_request->rq_method == sip_method_register && code == 200 && mExpireRandomizer > 0 && expire > 0) {
 		expire -= (int)(expire * su_randint(0, mExpireRandomizer) / 100.0);
 		if (contacts) {
-			su_home_t* home = ev->getHome();
+			su_home_t* home = ev.getHome();
 			msg_header_replace_param(home, (msg_common_t*)modified_contacts, su_sprintf(home, "expires=%i", expire));
 		}
 	}
@@ -708,37 +705,37 @@ void ModuleRegistrar::reply(shared_ptr<RequestSipEvent>& ev,
 	removeInternalParams(modified_contacts);
 	if (modified_contacts && !mServiceRoute.empty()) {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
-			          SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+			         SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
+			         SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+			         SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		}
 	} else if (modified_contacts) {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			          SIPTAG_EXPIRES_STR(expire_str.c_str()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			         SIPTAG_EXPIRES_STR(expire_str.c_str()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			          SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_CONTACT(modified_contacts), SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			         SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		}
 	} else if (!mServiceRoute.empty()) {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
-			          SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+			         SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_EXPIRES_STR(expire_str.c_str()),
+			         SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
-			          SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_SERVICE_ROUTE_STR(mServiceRoute.c_str()),
+			         SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		}
 	} else {
 		if (expire > 0) {
-			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()),
-			          SIPTAG_EXPIRES_STR(expire_str.c_str()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
+			ev.reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			         SIPTAG_EXPIRES_STR(expire_str.c_str()), SIPTAG_SUPPORTED_STR(supported), TAG_END());
 		} else {
-			ev->reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported),
-			          TAG_END());
+			ev.reply(code, reason, SIPTAG_SERVER_STR(getAgent()->getServerString()), SIPTAG_SUPPORTED_STR(supported),
+			         TAG_END());
 		}
 	}
 }
@@ -814,22 +811,22 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	const auto maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 	if (!checkHaveExpire(sip->sip_contact, maindelta)) {
 		SLOGD << "No global or local expire found in at least one contact";
-		reply(ev, 400, "Invalid request");
+		reply(*ev, 400, "Invalid request");
 		return;
 	}
 	for (auto contact = sip->sip_contact; contact != nullptr; contact = contact->m_next) {
 		if (!isValidSipUri(contact->m_url)) {
-			reply(ev, 400, "Invalid contact");
+			reply(*ev, 400, "Invalid contact");
 			return;
 		}
 	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
 		LOGD("The star rules are not respected.");
-		reply(ev, 400, "Invalid request");
+		reply(*ev, 400, "Invalid request");
 		return;
 	}
 	if (numberOfContactHeaders(sip->sip_contact) > mMaxContactsPerRegistration) {
-		reply(ev, 403, "Too many contacts in REGISTER");
+		reply(*ev, 403, "Too many contacts in REGISTER");
 		return;
 	}
 
@@ -843,7 +840,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
 		}
 	} else {
-		mAgent->getNatTraversalStrategy()->addPathOnRegister(ev, ev->getIncomingTport().get(), nullptr);
+		mAgent->getNatTraversalStrategy()->addPathOnRegister(*ev, ev->getIncomingTport().get(), nullptr);
 	}
 
 	/* Initialize a connection ID, so that registration can be matched with the tport,
@@ -862,7 +859,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
 		LOGE("Not accepting domain registration");
 		SLOGUE << "Not accepting domain registration:  " << sipurl;
-		reply(ev, 403, "Domain registration forbidden", nullptr);
+		reply(*ev, 403, "Domain registration forbidden", nullptr);
 		return;
 	}
 

@@ -188,16 +188,16 @@ bool MediaRelay::isInviteOrUpdate(sip_method_t method) const {
 
 bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
                                   const shared_ptr<OutgoingTransaction>& transaction,
-                                  const shared_ptr<RequestSipEvent>& ev) {
-	sip_t* sip = ev->getMsgSip()->getSip();
-	msg_t* msg = ev->getMsgSip()->getMsg();
+                                  RequestSipEvent& ev) {
+	sip_t* sip = ev.getMsgSip()->getSip();
+	msg_t* msg = ev.getMsgSip()->getMsg();
 
 	if (sip->sip_from == NULL || sip->sip_from->a_tag == NULL) {
 		LOGW("No tag in from !");
 		return false;
 	}
 	c->updateActivity();
-	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ev->getMsgSip()->getHome(), sip, mSdpMangledParam);
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ev.getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGW("Invalid SDP");
 		return false;
@@ -237,9 +237,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
 		if (auto forkContext = ForkContext::getFork(transaction)) {
 			forkContext->processInternalError(500, "RTP port pool exhausted");
-			ev->terminateProcessing();
+			ev.terminateProcessing();
 		} else {
-			ev->reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			ev.reply(500, "RTP port pool exhausted", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 		return false;
 	}
@@ -270,8 +270,8 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	if (m->update(msg, sip) == -1) {
 		LOGE("Cannot update SDP in message.");
-		ev->reply(500, "Media relay SDP processing internal error", SIPTAG_SERVER_STR(getAgent()->getServerString()),
-		          TAG_END());
+		ev.reply(500, "Media relay SDP processing internal error", SIPTAG_SERVER_STR(getAgent()->getServerString()),
+		         TAG_END());
 		return false;
 	}
 	c->getServer()->update();
@@ -315,9 +315,9 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			it->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
 			configureContext(c);
 		}
-		if (processNewInvite(c, ot, ev)) {
+		if (processNewInvite(c, ot, *ev)) {
 			// be in the record-route
-			ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
+			ModuleToolbox::addRecordRouteIncoming(getAgent(), *ev);
 			if (newContext) mCalls->store(c);
 			ot->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
 			// Let this transaction survive till it reaches the Forward module.

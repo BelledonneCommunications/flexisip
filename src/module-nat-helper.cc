@@ -38,7 +38,7 @@ void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	const auto rqMethod = ms->getSipMethod();
 	const auto& strategy = mAgent->getNatTraversalStrategy();
 
-	strategy->preProcessOnRequestNatHelper(ev);
+	strategy->preProcessOnRequestNatHelper(*ev);
 
 	// Processing of requests that may establish a dialog.
 	if ((rqMethod == sip_method_invite or rqMethod == sip_method_subscribe) and sip->sip_to->a_tag == nullptr) {
@@ -47,7 +47,7 @@ void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			fixRecordRouteInRequest(ms);
 		}
 
-		strategy->addRecordRouteNatHelper(ev);
+		strategy->addRecordRouteNatHelper(*ev);
 	}
 
 	// Fix potential "Path" header inserted before us by a flexisip "NATed" proxy.
@@ -61,7 +61,7 @@ void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
 }
 
 void NatHelper::onResponse(shared_ptr<ResponseSipEvent>& ev) {
-	mAgent->getNatTraversalStrategy()->onResponseNatHelper(ev);
+	mAgent->getNatTraversalStrategy()->onResponseNatHelper(*ev);
 
 	const auto* sip = ev->getSip();
 	auto* contact = sip->sip_contact;

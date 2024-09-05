@@ -71,13 +71,13 @@ private:
 	void onUnload() {
 	}
 
-	void route(shared_ptr<RequestSipEvent>& ev) {
+	void route(const shared_ptr<MsgSip>& msgSip) {
 		SLOGI << getModuleName() << " routing to [" << mDestRoute.str() << "]";
-		ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
-		                                    sip_route_create(ev->getMsgSip()->getHome(), mDestRoute.get(), nullptr));
+		ModuleToolbox::cleanAndPrependRoute(this->getAgent(), msgSip->getMsg(), msgSip->getSip(),
+		                                    sip_route_create(msgSip->getHome(), mDestRoute.get(), nullptr));
 	}
-	bool isMessageAPresenceMessage(shared_ptr<RequestSipEvent>& ev) {
-		sip_t* sip = ev->getSip();
+	bool isMessageAPresenceMessage(const MsgSip& ms) {
+		const sip_t* sip = ms.getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe) {
 			sip_supported_t* supported;
 			bool support_list_subscription = false;
@@ -87,7 +87,7 @@ private:
 					support_list_subscription = true;
 				}
 			}
-			return (!mOnlyListSubscription->eval(*ev->getSip()) || support_list_subscription) && sip->sip_event &&
+			return (!mOnlyListSubscription->eval(*sip) || support_list_subscription) && sip->sip_event &&
 			       strcmp(sip->sip_event->o_type, "presence") == 0;
 		} else if (sip->sip_request->rq_method == sip_method_publish) {
 			return sip->sip_event && strcmp(sip->sip_event->o_type, "presence") == 0;
@@ -96,9 +96,10 @@ private:
 	}
 
 	void onRequest(shared_ptr<RequestSipEvent>& ev) {
-		if (isMessageAPresenceMessage(ev)) route(ev);
+		const auto& msgSip = ev->getMsgSip();
+		if (isMessageAPresenceMessage(*msgSip)) route(msgSip);
 	}
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) {};
 
 	ModulePresence(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);

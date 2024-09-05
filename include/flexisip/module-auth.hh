@@ -39,8 +39,8 @@ public:
 	~Authentication() override;
 
 	void onLoad(const GenericStruct* mc) override;
-	bool tlsClientCertificatePostCheck(const std::shared_ptr<RequestSipEvent>& ev);
-	virtual bool handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent>& ev);
+	bool tlsClientCertificatePostCheck(RequestSipEvent& ev);
+	virtual bool handleTlsClientAuthentication(RequestSipEvent& ev);
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 	void onIdle() override;
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
@@ -55,7 +55,7 @@ private:
 
 	void processAuthentication(const std::shared_ptr<RequestSipEvent>& request, FlexisipAuthModuleBase& am) override;
 
-	const char* findIncomingSubjectInTrusted(const std::shared_ptr<RequestSipEvent>& ev, const char* fromDomain);
+	const char* findIncomingSubjectInTrusted(const RequestSipEvent& ev, const char* fromDomain);
 
 	static ModuleInfo<Authentication> sInfo;
 	std::list<std::string> mTrustedClientCertificates;

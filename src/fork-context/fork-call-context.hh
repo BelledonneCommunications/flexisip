@@ -46,7 +46,7 @@ public:
 	bool isCompleted() const;
 	bool isRingingSomewhere() const;
 
-	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
+	void onCancel(const MsgSip& ms) override;
 
 	void processInternalError(int status, const char* phrase) override;
 
@@ -82,7 +82,7 @@ private:
 	void onShortTimer();
 	void onLateTimeout() override;
 	void cancelOthers(const std::shared_ptr<BranchInfo>& br);
-	void cancelAll(sip_t* received_cancel);
+	void cancelAll(const sip_t* received_cancel);
 	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo>& br, ForkStatus status);
 	void logResponse(const std::shared_ptr<ResponseSipEvent>& ev, const BranchInfo*);
 	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);

@@ -133,8 +133,7 @@ public:
 
 	void idle();
 
-	void
-	reply(std::shared_ptr<RequestSipEvent>& ev, int code, const char* reason, const sip_contact_t* contacts = NULL);
+	void reply(RequestSipEvent& ev, int code, const char* reason, const sip_contact_t* contacts = NULL);
 
 	void readStaticRecords();
 

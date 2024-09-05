@@ -53,11 +53,11 @@ ModuleExternalAuthentication::createAuthModule(const std::string& domain, int no
 	return nullptr;
 }
 
-FlexisipAuthStatus* ModuleExternalAuthentication::createAuthStatus(const std::shared_ptr<RequestSipEvent>& ev) {
-	sip_t* sip = ev->getMsgSip()->getSip();
+FlexisipAuthStatus* ModuleExternalAuthentication::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
+	sip_t* sip = msgSip->getSip();
 
-	auto* as = new ExternalAuthModule::Status(ev);
-	configureAuthStatus(*as, ev);
+	auto* as = new ExternalAuthModule::Status(msgSip);
+	configureAuthStatus(*as);
 
 	as->domain(sip->sip_from->a_url->url_host);
 	as->fromHeader(sip_header_as_string(as->home(), reinterpret_cast<sip_header_t*>(sip->sip_from)));
@@ -82,7 +82,7 @@ FlexisipAuthStatus* ModuleExternalAuthentication::createAuthStatus(const std::sh
 }
 
 void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus& as) {
-	const shared_ptr<MsgSip>& ms = as.event()->getMsgSip();
+	const shared_ptr<MsgSip>& ms = as.getMsgSip();
 	sip_t* sip = ms->getSip();
 	const auto& authStatus = dynamic_cast<const ExternalAuthModule::Status&>(as);
 	ModuleAuthenticationBase::onSuccess(as);
@@ -92,13 +92,12 @@ void ModuleExternalAuthentication::onSuccess(const FlexisipAuthStatus& as) {
 	}
 }
 
-void ModuleExternalAuthentication::errorReply(const FlexisipAuthStatus& as) {
+void ModuleExternalAuthentication::errorReply(RequestSipEvent& ev, const FlexisipAuthStatus& as) {
 	const auto& authStatus = dynamic_cast<const ExternalAuthModule::Status&>(as);
-	const shared_ptr<RequestSipEvent>& ev = authStatus.event();
-	ev->reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
-	          SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
-	          SIPTAG_REASON_STR(authStatus.reason().empty() ? nullptr : authStatus.reason().c_str()),
-	          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	ev.reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
+	         SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
+	         SIPTAG_REASON_STR(authStatus.reason().empty() ? nullptr : authStatus.reason().c_str()),
+	         SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 }
 
 ModuleInfo<ModuleExternalAuthentication> ExternalAuthInfo(

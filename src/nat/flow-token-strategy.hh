@@ -49,7 +49,7 @@ public:
 		       const std::filesystem::path& hashKeyFilePath);
 
 		bool urlHasFlowToken(const url_t* url) const;
-		bool requestMeetsRequirements(const std::shared_ptr<RequestSipEvent>& ev) const;
+		bool requestMeetsRequirements(const MsgSip& ms) const;
 
 		const FlowFactory& getFlowFactory() const;
 		const std::shared_ptr<SipBooleanExpression>& getForceStrategyBoolExpr() const;
@@ -64,15 +64,12 @@ public:
 	                  const std::shared_ptr<SipBooleanExpression>& forceStrategyBoolExpr,
 	                  const std::filesystem::path& hashKeyFilePath);
 
-	void preProcessOnRequestNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const override;
-	void addRecordRouteNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const override;
-	void onResponseNatHelper(const std::shared_ptr<ResponseSipEvent>& ev) const override;
-	url_t* getTportDestFromLastRoute(const std::shared_ptr<RequestSipEvent>& ev,
-	                                 const sip_route_t* lastRoute) const override;
-	void addRecordRouteForwardModule(const std::shared_ptr<RequestSipEvent>& ev,
-	                                 tport_t* tport,
-	                                 url_t* lastRouteUrl) const override;
-	void addPathOnRegister(const std::shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq) const override;
+	void preProcessOnRequestNatHelper(const RequestSipEvent& ev) const override;
+	void addRecordRouteNatHelper(RequestSipEvent& ev) const override;
+	void onResponseNatHelper(const ResponseSipEvent& ev) const override;
+	url_t* getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const override;
+	void addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t* lastRouteUrl) const override;
+	void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const override;
 
 private:
 	Helper mHelper;

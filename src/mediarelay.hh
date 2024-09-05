@@ -51,7 +51,7 @@ private:
 	void createServers();
 	bool processNewInvite(const std::shared_ptr<RelayedCall>& c,
 	                      const std::shared_ptr<OutgoingTransaction>& transaction,
-	                      const std::shared_ptr<RequestSipEvent>& ev);
+	                      RequestSipEvent& ev);
 	void processResponseWithSDP(const std::shared_ptr<RelayedCall>& c,
 	                            const std::shared_ptr<OutgoingTransaction>& transaction,
 	                            const std::shared_ptr<MsgSip>& msgSip);

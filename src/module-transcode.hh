@@ -83,12 +83,12 @@ private:
 	Transcoder(Agent* ag, const ModuleInfoBase* moduleInfo);
 #ifdef ENABLE_TRANSCODER
 	TickerManager mTickerManager;
-	int handleOffer(TranscodedCall* c, std::shared_ptr<SipEvent> ev);
-	int handleAnswer(TranscodedCall* c, std::shared_ptr<SipEvent> ev);
-	int processInvite(TranscodedCall* c, std::shared_ptr<RequestSipEvent>& ev);
-	void process200OkforInvite(TranscodedCall* ctx, std::shared_ptr<ResponseSipEvent>& ev);
-	void processAck(TranscodedCall* ctx, std::shared_ptr<RequestSipEvent>& ev);
-	bool processSipInfo(TranscodedCall* c, std::shared_ptr<RequestSipEvent>& ev);
+	int handleOffer(TranscodedCall* c, MsgSip& ms);
+	int handleAnswer(TranscodedCall* c, MsgSip& ms);
+	int processInvite(TranscodedCall* c, RequestSipEvent& ev);
+	void process200OkforInvite(TranscodedCall* ctx, MsgSip& ms);
+	void processAck(TranscodedCall* ctx, MsgSip& ms);
+	bool processSipInfo(TranscodedCall* c, RequestSipEvent& ev);
 	void onTimer();
 	static void sOnTimer(void* unused, su_timer_t* t, void* zis);
 	bool canDoRateControl(sip_t* sip);

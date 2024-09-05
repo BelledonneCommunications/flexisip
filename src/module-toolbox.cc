@@ -74,13 +74,10 @@ void ModuleToolbox::cleanAndPrependRoute(Agent* ag, msg_t* msg, sip_t* sip, sip_
 	if (r) prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-void ModuleToolbox::addRecordRoute(Agent* ag,
-                                   const shared_ptr<RequestSipEvent>& ev,
-                                   const tport_t* tport,
-                                   const Flow::Token& token) {
-	msg_t* msg = ev->getMsgSip()->getMsg();
-	sip_t* sip = ev->getMsgSip()->getSip();
-	su_home_t* home = ev->getMsgSip()->getHome();
+void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t* tport, const Flow::Token& token) {
+	msg_t* msg = ev.getMsgSip()->getMsg();
+	sip_t* sip = ev.getMsgSip()->getSip();
+	su_home_t* home = ev.getMsgSip()->getHome();
 	url_t* url = NULL;
 
 	if (tport) {
@@ -136,19 +133,19 @@ void ModuleToolbox::addRecordRoute(Agent* ag,
 	}
 
 	LOGD("Record route added.");
-	ev->mRecordRouteAdded = true;
+	ev.mRecordRouteAdded = true;
 }
 
-void ModuleToolbox::addRecordRouteIncoming(Agent* ag, const shared_ptr<RequestSipEvent>& ev, const Flow::Token& token) {
-	if (ev->mRecordRouteAdded) return;
+void ModuleToolbox::addRecordRouteIncoming(Agent* ag, RequestSipEvent& ev, const Flow::Token& token) {
+	if (ev.mRecordRouteAdded) return;
 
-	const auto tport = ev->getIncomingTport();
+	const auto tport = ev.getIncomingTport();
 	if (!tport) {
 		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
 		return;
 	} else {
 		// We have a tport, check if we are in a case of proxy to proxy communication.
-		if (ev->getMsgSip()->getSip()->sip_record_route != NULL) { // There is already a record route.
+		if (ev.getMsgSip()->getSip()->sip_record_route != NULL) { // There is already a record route.
 			ag->applyProxyToProxyTransportSettings(tport.get());
 		}
 	}
@@ -411,11 +408,10 @@ sip_route_t* ModuleToolbox::prependNewRoutable(msg_t* msg, sip_t* sip, sip_route
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(
-    Agent* ag, const shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq, const Flow::Token& token) {
-	su_home_t* home = ev->getMsgSip()->getHome();
-	msg_t* msg = ev->getMsgSip()->getMsg();
-	sip_t* sip = ev->getMsgSip()->getSip();
+void ModuleToolbox::addPathHeader(Agent* ag, MsgSip& ms, tport_t* tport, const char* uniq, const Flow::Token& token) {
+	su_home_t* home = ms.getHome();
+	msg_t* msg = ms.getMsg();
+	sip_t* sip = ms.getSip();
 	url_t* url;
 	bool proxyToProxy = false;
 

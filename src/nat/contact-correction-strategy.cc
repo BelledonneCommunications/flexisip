@@ -117,11 +117,10 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 /*
  * Check whether the "Contact" header field needs to be fixed.
  */
-bool ContactCorrectionStrategy::Helper::contactNeedsToBeFixed(const tport_t* internalTport,
-                                                              const std::shared_ptr<SipEvent>& ev) const {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+bool ContactCorrectionStrategy::Helper::contactNeedsToBeFixed(const tport_t* internalTport, const SipEvent& ev) const {
+	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	sip_contact_t* ct = ms->getSip()->sip_contact;
-	tport_t* primary = tport_parent(ev->getIncomingTport().get());
+	tport_t* primary = tport_parent(ev.getIncomingTport().get());
 	return ct && !url_has_param(ct->m_url, mContactCorrectionParameter.c_str()) && !url_has_param(ct->m_url, "gr") &&
 	       !msg_params_find(ct->m_params, "isfocus") && internalTport != primary;
 }
@@ -134,8 +133,8 @@ ContactCorrectionStrategy::ContactCorrectionStrategy(Agent* agent, const std::st
     : NatTraversalStrategy(agent), mHelper(contactCorrectionParameter) {
 }
 
-void ContactCorrectionStrategy::preProcessOnRequestNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const {
-	const auto& ms = ev->getMsgSip();
+void ContactCorrectionStrategy::preProcessOnRequestNatHelper(const RequestSipEvent& ev) const {
+	const auto& ms = ev.getMsgSip();
 	auto* sip = ms->getSip();
 
 	// If we receive a request whose first via is wrong (received or rport parameters are present),
@@ -145,7 +144,7 @@ void ContactCorrectionStrategy::preProcessOnRequestNatHelper(const std::shared_p
 	}
 }
 
-void ContactCorrectionStrategy::addRecordRouteNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const {
+void ContactCorrectionStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
 	ModuleToolbox::addRecordRouteIncoming(mAgent, ev);
 }
 
@@ -153,10 +152,10 @@ void ContactCorrectionStrategy::addRecordRouteNatHelper(const std::shared_ptr<Re
  * TODO: Fixing contacts in responses is unreliable: we can't know if we are the first hop of the response.
  * This feature should be removed from Flexisip.
  */
-void ContactCorrectionStrategy::onResponseNatHelper(const std::shared_ptr<ResponseSipEvent>& ev) const {
-	const auto& ms = ev->getMsgSip();
+void ContactCorrectionStrategy::onResponseNatHelper(const ResponseSipEvent& ev) const {
+	const auto& ms = ev.getMsgSip();
 	auto* sip = ms->getSip();
-	auto* home = ev->getHome();
+	auto* home = ev.getHome();
 	const auto* st = sip->sip_status;
 	const auto* cseq = sip->sip_cseq;
 
@@ -187,21 +186,16 @@ void ContactCorrectionStrategy::onResponseNatHelper(const std::shared_ptr<Respon
 	}
 }
 
-url_t* ContactCorrectionStrategy::getTportDestFromLastRoute(const std::shared_ptr<RequestSipEvent>&,
-                                                            const sip_route_t*) const {
+url_t* ContactCorrectionStrategy::getTportDestFromLastRoute(const RequestSipEvent&, const sip_route_t*) const {
 	return nullptr;
 }
 
-void ContactCorrectionStrategy::addRecordRouteForwardModule(const std::shared_ptr<RequestSipEvent>& ev,
-                                                            tport_t* tport,
-                                                            url_t*) const {
+void ContactCorrectionStrategy::addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t*) const {
 	ModuleToolbox::addRecordRoute(mAgent, ev, (tport == (tport_t*)-1) ? nullptr : tport);
 }
 
-void ContactCorrectionStrategy::addPathOnRegister(const std::shared_ptr<RequestSipEvent>& ev,
-                                                  tport_t* tport,
-                                                  const char* uniq) const {
-	ModuleToolbox::addPathHeader(mAgent, ev, (tport == (tport_t*)-1) ? nullptr : tport, uniq);
+void ContactCorrectionStrategy::addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const {
+	ModuleToolbox::addPathHeader(mAgent, *ev.getMsgSip(), (tport == (tport_t*)-1) ? nullptr : tport, uniq);
 }
 
 } // namespace flexisip

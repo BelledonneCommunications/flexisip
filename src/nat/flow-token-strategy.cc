@@ -54,8 +54,8 @@ bool FlowTokenStrategy::Helper::urlHasFlowToken(const url_t* url) const {
 /*
  * Make sure the given request meets requirements for this strategy.
  */
-bool FlowTokenStrategy::Helper::requestMeetsRequirements(const std::shared_ptr<RequestSipEvent>& ev) const {
-	const auto* sip = ev->getSip();
+bool FlowTokenStrategy::Helper::requestMeetsRequirements(const MsgSip& ms) const {
+	const auto* sip = ms.getSip();
 
 	const auto* contact = sip->sip_contact;
 	if (contact == nullptr) {
@@ -79,23 +79,23 @@ FlowTokenStrategy::FlowTokenStrategy(Agent* agent,
     : NatTraversalStrategy(agent), mHelper(forceStrategyBoolExpr, hashKeyFilePath) {
 }
 
-void FlowTokenStrategy::preProcessOnRequestNatHelper(const std::shared_ptr<RequestSipEvent>&) const {
+void FlowTokenStrategy::preProcessOnRequestNatHelper(const RequestSipEvent&) const {
 }
 
-void FlowTokenStrategy::addRecordRouteNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const {
+void FlowTokenStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
 	// If request does not meet requirements to add a flow-token, add a simple record-route.
-	if (!mHelper.requestMeetsRequirements(ev)) {
+	if (!mHelper.requestMeetsRequirements(*ev.getMsgSip())) {
 		ModuleToolbox::addRecordRouteIncoming(mAgent, ev);
 		return;
 	};
 
-	const auto* sip = ev->getSip();
+	const auto* sip = ev.getSip();
 
 	if (sip->sip_via != nullptr and sip->sip_via->v_next == nullptr) {
-		const auto* tport = ev->getIncomingTport().get();
+		const auto* tport = ev.getIncomingTport().get();
 		const auto* localAddrInfo = reinterpret_cast<su_sockaddr_t*>(tport_get_address(tport_parent(tport))->ai_addr);
 
-		const auto remoteAddress = ev->getMsgAddress();
+		const auto remoteAddress = ev.getMsgAddress();
 		const auto localAddress = SocketAddress::make(localAddrInfo);
 
 		const auto flow = mHelper.getFlowFactory().create(localAddress, remoteAddress, tport_name(tport)->tpn_proto);
@@ -109,12 +109,11 @@ void FlowTokenStrategy::addRecordRouteNatHelper(const std::shared_ptr<RequestSip
 	ModuleToolbox::addRecordRouteIncoming(mAgent, ev);
 }
 
-void FlowTokenStrategy::onResponseNatHelper(const std::shared_ptr<ResponseSipEvent>&) const {
+void FlowTokenStrategy::onResponseNatHelper(const ResponseSipEvent&) const {
 }
 
-url_t* FlowTokenStrategy::getTportDestFromLastRoute(const std::shared_ptr<RequestSipEvent>& ev,
-                                                    const sip_route_t* lastRoute) const {
-	if (!mHelper.requestMeetsRequirements(ev)) return nullptr;
+url_t* FlowTokenStrategy::getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const {
+	if (!mHelper.requestMeetsRequirements(*ev.getMsgSip())) return nullptr;
 
 	if (lastRoute == nullptr) {
 		return nullptr;
@@ -122,11 +121,11 @@ url_t* FlowTokenStrategy::getTportDestFromLastRoute(const std::shared_ptr<Reques
 	if (!mHelper.urlHasFlowToken(lastRoute->r_url)) {
 		return nullptr;
 	}
-	const auto* tport = ev->getIncomingTport().get();
+	const auto* tport = ev.getIncomingTport().get();
 	if (tport == nullptr) {
 		return nullptr;
 	}
-	const auto remoteAddress = ev->getMsgAddress();
+	const auto remoteAddress = ev.getMsgAddress();
 	if (remoteAddress == nullptr) {
 		return nullptr;
 	}
@@ -150,7 +149,7 @@ url_t* FlowTokenStrategy::getTportDestFromLastRoute(const std::shared_ptr<Reques
 		THROW_LINE(ForbiddenRequestError);
 	}
 
-	auto* home = ev->getMsgSip()->getHome();
+	auto* home = ev.getMsgSip()->getHome();
 	auto* dest = url_hdup(home, lastRoute->r_url);
 	if (url_has_param(dest, "ob")) {
 		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "ob");
@@ -167,15 +166,13 @@ url_t* FlowTokenStrategy::getTportDestFromLastRoute(const std::shared_ptr<Reques
 	return dest;
 }
 
-void FlowTokenStrategy::addRecordRouteForwardModule(const std::shared_ptr<RequestSipEvent>& ev,
-                                                    tport_t* tport,
-                                                    url_t* lastRouteUrl) const {
+void FlowTokenStrategy::addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t* lastRouteUrl) const {
 	// There's no need to check whether the request meets the requirements, as this piece of code should be executed
 	// independently of the nat-traversal strategy.
 
 	if (lastRouteUrl != nullptr) {
-		if (url_has_param(lastRouteUrl, "ob") or mHelper.getForceStrategyBoolExpr()->eval(*ev->getSip())) {
-			ModuleToolbox::addRecordRoute(mAgent, ev, ev->getIncomingTport().get(), lastRouteUrl->url_user);
+		if (url_has_param(lastRouteUrl, "ob") or mHelper.getForceStrategyBoolExpr()->eval(*ev.getSip())) {
+			ModuleToolbox::addRecordRoute(mAgent, ev, ev.getIncomingTport().get(), lastRouteUrl->url_user);
 			return;
 		}
 	}
@@ -183,29 +180,28 @@ void FlowTokenStrategy::addRecordRouteForwardModule(const std::shared_ptr<Reques
 	ModuleToolbox::addRecordRoute(mAgent, ev, (tport == (tport_t*)-1) ? nullptr : tport);
 }
 
-void FlowTokenStrategy::addPathOnRegister(const std::shared_ptr<RequestSipEvent>& ev,
-                                          tport_t* tport,
-                                          const char* uniq) const {
-	if (!mHelper.requestMeetsRequirements(ev)) return;
+void FlowTokenStrategy::addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const {
+	auto& ms = *ev.getMsgSip();
+	if (!mHelper.requestMeetsRequirements(ms)) return;
 
-	const auto* sip = ev->getSip();
+	const auto* sip = ms.getSip();
 	tport = (tport == (tport_t*)-1) ? nullptr : tport;
 
 	if (sip->sip_via != nullptr and sip->sip_via->v_next == nullptr) {
-		const auto remoteAddr = ev->getMsgAddress();
-		const auto* primaryTport = tport_parent(ev->getIncomingTport().get());
+		const auto remoteAddr = ev.getMsgAddress();
+		const auto* primaryTport = tport_parent(ev.getIncomingTport().get());
 		const auto* localSuSockAddr = reinterpret_cast<su_sockaddr_t*>(tport_get_address(primaryTport)->ai_addr);
 		const auto localAddr = SocketAddress::make(localSuSockAddr);
 
 		const auto flow = mHelper.getFlowFactory().create(localAddr, remoteAddr, tport_name(primaryTport)->tpn_proto);
-		ModuleToolbox::addPathHeader(mAgent, ev, tport, uniq, flow.getToken());
+		ModuleToolbox::addPathHeader(mAgent, ms, tport, uniq, flow.getToken());
 
 		SLOGD << "Flow in \"Path\": " << flow.str();
 
 		return;
 	}
 
-	ModuleToolbox::addPathHeader(mAgent, ev, tport, uniq);
+	ModuleToolbox::addPathHeader(mAgent, ms, tport, uniq);
 }
 
 } // namespace flexisip

@@ -36,12 +36,8 @@ class ModuleToolbox {
 public:
 	static msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm);
 
-	static void
-	addRecordRouteIncoming(Agent* agent, const std::shared_ptr<RequestSipEvent>& ev, const Flow::Token& token = "");
-	static void addRecordRoute(Agent* agent,
-	                           const std::shared_ptr<RequestSipEvent>& ev,
-	                           const tport_t* tport,
-	                           const Flow::Token& token = "");
+	static void addRecordRouteIncoming(Agent* agent, RequestSipEvent& ev, const Flow::Token& token = "");
+	static void addRecordRoute(Agent* agent, RequestSipEvent& ev, const tport_t* tport, const Flow::Token& token = "");
 
 	static void cleanAndPrependRoute(Agent* agent, msg_t* msg, sip_t* sip, sip_route_t* route);
 
@@ -58,11 +54,8 @@ public:
 	static void
 	addRoutingParam(su_home_t* home, sip_contact_t* contacts, const std::string& routingParam, const char* domain);
 	static struct sip_route_s* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value);
-	static void addPathHeader(Agent* agent,
-	                          const std::shared_ptr<RequestSipEvent>& ev,
-	                          tport_t* tport,
-	                          const char* uniq = nullptr,
-	                          const Flow::Token& token = "");
+	static void
+	addPathHeader(Agent* agent, MsgSip& ms, tport_t* tport, const char* uniq = nullptr, const Flow::Token& token = "");
 
 	// These methods do host comparison taking into account that each one of argument can be an ipv6 address enclosed in
 	// brakets.

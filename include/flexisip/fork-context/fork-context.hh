@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -99,7 +99,7 @@ public:
 	virtual void
 	onNewRegister(const SipUri& dest, const std::string& uid, const std::shared_ptr<ExtendedContact>& newContact) = 0;
 	// Notifies the cancellation of the fork process.
-	virtual void onCancel(const std::shared_ptr<RequestSipEvent>& ev) = 0;
+	virtual void onCancel(const sofiasip::MsgSip& ms) = 0;
 	// Notifies the arrival of a new response on a given branch
 	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) = 0;
 	virtual const std::shared_ptr<RequestSipEvent>& getEvent() = 0;

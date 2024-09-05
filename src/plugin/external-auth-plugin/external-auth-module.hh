@@ -40,7 +40,7 @@ public:
 	 */
 	class Status : public FlexisipAuthStatus {
 	public:
-		Status(const std::shared_ptr<RequestSipEvent>& ev) : FlexisipAuthStatus(ev) {
+		Status(const std::shared_ptr<MsgSip>& msg) : FlexisipAuthStatus(msg) {
 		}
 
 		const std::string& reason() const {

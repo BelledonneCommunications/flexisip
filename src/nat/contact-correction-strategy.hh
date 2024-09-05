@@ -45,7 +45,7 @@ public:
 		static void fixContactInResponse(su_home_t* home, msg_t* msg, sip_t* sip);
 		static void fixContactFromVia(su_home_t* home, sip_t* msg, const sip_via_t* via);
 
-		bool contactNeedsToBeFixed(const tport_t* internalTport, const std::shared_ptr<SipEvent>& ev) const;
+		bool contactNeedsToBeFixed(const tport_t* internalTport, const SipEvent& ev) const;
 
 		const std::string& getContactCorrectionParameter() const;
 
@@ -56,15 +56,12 @@ public:
 	ContactCorrectionStrategy() = delete;
 	ContactCorrectionStrategy(Agent* agent, const std::string& contactCorrectionParameter);
 
-	void preProcessOnRequestNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const override;
-	void addRecordRouteNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const override;
-	void onResponseNatHelper(const std::shared_ptr<ResponseSipEvent>& ev) const override;
-	url_t* getTportDestFromLastRoute(const std::shared_ptr<RequestSipEvent>& ev,
-	                                 const sip_route_t* lastRoute) const override;
-	void addRecordRouteForwardModule(const std::shared_ptr<RequestSipEvent>& ev,
-	                                 tport_t* tport,
-	                                 url_t* lastRouteUrl) const override;
-	void addPathOnRegister(const std::shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq) const override;
+	void preProcessOnRequestNatHelper(const RequestSipEvent& ev) const override;
+	void addRecordRouteNatHelper(RequestSipEvent& ev) const override;
+	void onResponseNatHelper(const ResponseSipEvent& ev) const override;
+	url_t* getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const override;
+	void addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t* lastRouteUrl) const override;
+	void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const override;
 
 private:
 	Helper mHelper;

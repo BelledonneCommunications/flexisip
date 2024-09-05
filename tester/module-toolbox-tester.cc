@@ -89,7 +89,7 @@ private:
 		SLOGD << requestSipEvent->getMsgSip()->msgAsString();
 		SLOGD << "########################################################";
 
-		ModuleToolbox::addRecordRoute(mAgent.get(), requestSipEvent, nullptr);
+		ModuleToolbox::addRecordRoute(mAgent.get(), *requestSipEvent, nullptr);
 
 		SLOGD << "############# REQUEST WITH RECORD-ROUTE #############";
 		SLOGD << requestSipEvent->getMsgSip()->msgAsString();

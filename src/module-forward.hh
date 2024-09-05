@@ -53,13 +53,13 @@ public:
 	void sendRequest(std::shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest);
 
 private:
-	static unsigned int countVia(std::shared_ptr<RequestSipEvent>& ev);
+	static unsigned int countVia(const MsgSip& ms);
 	static url_t* getDestinationFromRoute(su_home_t* home, sip_t* sip);
-	static bool isLooping(std::shared_ptr<RequestSipEvent>& ev, const char* branch);
+	static bool isLooping(const MsgSip& ms, const char* branch);
 
 	bool isAClusterNode(const url_t* url);
-	url_t* overrideDest(std::shared_ptr<RequestSipEvent>& ev, url_t* dest);
-	tport_t* findTransportToDestination(const std::shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest);
+	url_t* overrideDest(MsgSip& ms, url_t* dest);
+	tport_t* findTransportToDestination(const RequestSipEvent& ev, url_t* dest, url_t* tportDest);
 
 	static ModuleInfo<ForwardModule> sInfo;
 	std::weak_ptr<ModuleRouter> mRouterModule;

@@ -56,36 +56,32 @@ public:
 	/*
 	 * Run a specific operation before running the code in NatHelper::onRequest().
 	 */
-	virtual void preProcessOnRequestNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const = 0;
+	virtual void preProcessOnRequestNatHelper(const RequestSipEvent& ev) const = 0;
 
 	/*
 	 * Add a record-route when a request is processed by NatHelper module.
 	 */
-	virtual void addRecordRouteNatHelper(const std::shared_ptr<RequestSipEvent>& ev) const = 0;
+	virtual void addRecordRouteNatHelper(RequestSipEvent& ev) const = 0;
 
 	/*
 	 * Code executed in NatHelper::onResponse().
 	 */
-	virtual void onResponseNatHelper(const std::shared_ptr<ResponseSipEvent>& ev) const = 0;
+	virtual void onResponseNatHelper(const ResponseSipEvent& ev) const = 0;
 
 	/*
 	 * Get the destination url that will be used to determine the transport for the outgoing request.
 	 */
-	virtual url_t* getTportDestFromLastRoute(const std::shared_ptr<RequestSipEvent>& ev,
-	                                         const sip_route_t* lastRoute) const = 0;
+	virtual url_t* getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const = 0;
 
 	/*
 	 * Add a "record-route" to the request when it goes through the "Forward" module.
 	 */
-	virtual void addRecordRouteForwardModule(const std::shared_ptr<RequestSipEvent>& ev,
-	                                         tport_t* tport,
-	                                         url_t* lastRouteUrl) const = 0;
+	virtual void addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t* lastRouteUrl) const = 0;
 
 	/*
 	 * Add "Path" header to the REGISTER request.
 	 */
-	virtual void
-	addPathOnRegister(const std::shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq) const = 0;
+	virtual void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const = 0;
 
 protected:
 	Agent* mAgent;

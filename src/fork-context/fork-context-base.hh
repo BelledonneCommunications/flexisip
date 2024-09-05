@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -65,7 +65,7 @@ public:
 	/**
 	 * Notifies the cancellation of the fork process.
 	 */
-	void onCancel(const std::shared_ptr<RequestSipEvent>& ev) override;
+	void onCancel(const sofiasip::MsgSip& ms) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
 	/**
 	 * See PushNotificationContextObserver::onPushSent().
@@ -104,7 +104,7 @@ protected:
 	// Notifies derived class of the creation of a new branch
 	virtual void onNewBranch(const std::shared_ptr<BranchInfo>& br);
 	// Notifies the expiry of the final fork timeout.
-	virtual void onLateTimeout(){};
+	virtual void onLateTimeout() {};
 	// Requests the derived class if the fork context should finish now.
 	virtual bool shouldFinish();
 	// Notifies the destruction of the fork context. Implementers should use it to perform their initialization, but

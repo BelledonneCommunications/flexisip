@@ -75,11 +75,11 @@ protected:
 	 * This method may be overridden in order to instantiate a specialization of #FlexisipAuthStatus. Should it be,
 	 * the overriding method might call #configureAuthStatus() for configuring the base of the returned object.
 	 */
-	virtual FlexisipAuthStatus* createAuthStatus(const std::shared_ptr<RequestSipEvent>& ev);
+	virtual FlexisipAuthStatus* createAuthStatus(const std::shared_ptr<MsgSip>& msgSip);
 	/**
 	 * Called by createAuthStatus() for setting #FlexisipAuthStatus attribute for the event request information.
 	 */
-	void configureAuthStatus(FlexisipAuthStatus& as, const std::shared_ptr<RequestSipEvent>& ev);
+	void configureAuthStatus(FlexisipAuthStatus& as);
 
 	void validateRequest(const std::shared_ptr<RequestSipEvent>& request);
 	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent>& request, FlexisipAuthModuleBase& am);
@@ -93,9 +93,9 @@ protected:
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
-	void processAuthModuleResponse(AuthStatus& as);
+	void processAuthModuleResponse(const std::shared_ptr<RequestSipEvent>& ev, AuthStatus& as);
 	virtual void onSuccess(const FlexisipAuthStatus& as);
-	virtual void errorReply(const FlexisipAuthStatus& as);
+	virtual void errorReply(RequestSipEvent& ev, const FlexisipAuthStatus& as);
 
 	void loadTrustedHosts(const ConfigStringList& trustedHosts);
 	bool empty(const char* value) {

@@ -42,7 +42,7 @@ public:
 
 private:
 	StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo);
-	int managePublishContent(const shared_ptr<RequestSipEvent> ev);
+	int managePublishContent(RequestSipEvent& ev);
 	bool containsMandatoryFields(char* data, usize_t len);
 
 	static ModuleInfo<StatisticsCollector> sInfo;
@@ -85,7 +85,7 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		if (sip->sip_content_type && (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0) &&
 		    (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) == 0)) {
 			// some treatment
-			int err = managePublishContent(ev);
+			int err = managePublishContent(*ev);
 			ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		} else {
 			LOGI("StatisticsCollector: received PUBLISH with invalid type, ignoring");
@@ -131,8 +131,8 @@ bool StatisticsCollector::containsMandatoryFields(char* body, [[maybe_unused]] u
 	return true;
 }
 
-int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+int StatisticsCollector::managePublishContent(RequestSipEvent& ev) {
+	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	const sip_t* sip = ms->getSip();
 	int err = 200;
 	std::string statusPhrase = "OK";
@@ -155,7 +155,7 @@ int StatisticsCollector::managePublishContent(const shared_ptr<RequestSipEvent> 
 	auto log = make_shared<CallQualityStatisticsLog>(sip);
 	log->setStatusCode(err, statusPhrase.c_str());
 	log->setCompleted();
-	ev->setEventLog(log);
+	ev.setEventLog(log);
 
 	return err;
 }

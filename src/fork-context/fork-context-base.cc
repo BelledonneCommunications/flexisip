@@ -455,7 +455,7 @@ bool ForkContextBase::shouldFinish() {
 void ForkContextBase::onNewBranch(const std::shared_ptr<BranchInfo>&) {
 }
 
-void ForkContextBase::onCancel(const std::shared_ptr<RequestSipEvent>&) {
+void ForkContextBase::onCancel(const MsgSip&) {
 	if (shouldFinish()) {
 		setFinished();
 	}
@@ -573,7 +573,7 @@ std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
 		}
 
 		if (br && forwardResponse(br)) {
-				return br;
+			return br;
 		}
 	}
 

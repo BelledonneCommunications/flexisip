@@ -130,7 +130,7 @@ public:
 		return mSavedConfig;
 	}
 
-	void onCancel([[maybe_unused]] const std::shared_ptr<RequestSipEvent>& ev) override {
+	void onCancel(const sofiasip::MsgSip&) override {
 		// Does nothing for fork late ForkMessageContext
 	}
 

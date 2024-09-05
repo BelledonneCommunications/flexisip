@@ -83,11 +83,11 @@ ForkCallContext::~ForkCallContext() {
 	}
 }
 
-void ForkCallContext::onCancel(const shared_ptr<RequestSipEvent>& ev) {
+void ForkCallContext::onCancel(const MsgSip& ms) {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
-	cancelAll(ev->getSip());
+	cancelAll(ms.getSip());
 
 	if (shouldFinish()) {
 		setFinished();
@@ -117,7 +117,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 	mNextBranchesTimer.reset();
 }
 
-void ForkCallContext::cancelAll(sip_t* received_cancel) {
+void ForkCallContext::cancelAll(const sip_t* received_cancel) {
 	if (!mCancel.has_value() && received_cancel && received_cancel->sip_reason) {
 		mCancel = make_optional<CancelInfo>(sip_reason_dup(mHome.home(), received_cancel->sip_reason));
 	}

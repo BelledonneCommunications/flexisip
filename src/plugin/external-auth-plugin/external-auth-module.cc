@@ -89,8 +89,6 @@ void ExternalAuthModule::popAndSendRequest() {
 }
 
 void ExternalAuthModule::onHttpResponse(HttpRequestCtx& ctx, nth_client_t* request, const http_t* http) {
-	shared_ptr<RequestSipEvent> ev;
-
 	try {
 		int sipCode = 0;
 		string phrase;
@@ -183,7 +181,7 @@ ExternalAuthModule::extractParameter(const Status& as, const msg_auth_t& credent
 		string headerName(paramName, 7);
 		if (!headerName.empty()) {
 			char encodedHeader[255];
-			msg_header_t* header = as.event()->getMsgSip()->findHeader(headerName, true);
+			msg_header_t* header = as.getMsgSip()->findHeader(headerName, true);
 			if (header) {
 				cmatch m;
 				sip_header_e(encodedHeader, sizeof(encodedHeader), reinterpret_cast<sip_header_t*>(header), 0);

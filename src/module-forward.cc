@@ -266,7 +266,7 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	msg_t* msg = ms->getMsg();
 
 	// Check max forwards
-	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(ev)) {
+	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(*ev->getMsgSip())) {
 		LOGD("Too Many Hops");
 		if (auto transaction = ev->getOutgoingTransaction()) {
 			if (auto forkContext = ForkContext::getFork(transaction)) {
@@ -313,8 +313,8 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
 		return;
 	}
-	dest = overrideDest(ev, dest);
-	sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(ev, lastRoute));
+	dest = overrideDest(*ms, dest);
+	sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(*ev, lastRoute));
 }
 
 void ForwardModule::onResponse(shared_ptr<ResponseSipEvent>& ev) {
@@ -334,7 +334,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	sip_t* sip = ms->getSip();
 	msg_t* msg = ms->getMsg();
 
-	auto* tport = findTransportToDestination(ev, dest, tportDest);
+	auto* tport = findTransportToDestination(*ev, dest, tportDest);
 
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
@@ -347,13 +347,13 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// with UDP, TCP.
 	const auto method = ms->getSipMethod();
 	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe)) {
-		mAgent->getNatTraversalStrategy()->addRecordRouteForwardModule(ev, tport, tportDest);
+		mAgent->getNatTraversalStrategy()->addRecordRouteForwardModule(*ev, tport, tportDest);
 	}
 
 	// Add path
 	if (ms->getSipMethod() == sip_method_register) {
 		if (mAddPath) {
-			mAgent->getNatTraversalStrategy()->addPathOnRegister(ev, tport, mAgent->getUniqueId().c_str());
+			mAgent->getNatTraversalStrategy()->addPathOnRegister(*ev, tport, mAgent->getUniqueId().c_str());
 		} else {
 			// Path headers are added for internal processing within Flexisip, and recorded into RegistrarDb.
 			// However, if Forward module has to send a REGISTER with path headers but add-path is set to false,
@@ -387,7 +387,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// Compute branch, output branch=XXXXX
 	char const* branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(), outTr);
 
-	if (isLooping(ev, branchStr + 7)) {
+	if (isLooping(*ev->getMsgSip(), branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
@@ -396,10 +396,9 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	ev->send(ms, (url_string_t*)dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 }
 
-unsigned int ForwardModule::countVia(shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+unsigned int ForwardModule::countVia(const MsgSip& ms) {
 	uint32_t via_count = 0;
-	for (sip_via_t* via = ms->getSip()->sip_via; via != nullptr; via = via->v_next)
+	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next)
 		++via_count;
 	return via_count;
 }
@@ -431,9 +430,8 @@ url_t* ForwardModule::getDestinationFromRoute(su_home_t* home, sip_t* sip) {
  * Detects loops.
  * Warning: does not work for requests forwarded through transaction.
  */
-bool ForwardModule::isLooping(shared_ptr<RequestSipEvent>& ev, const char* branch) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	for (sip_via_t* via = ms->getSip()->sip_via; via != nullptr; via = via->v_next) {
+bool ForwardModule::isLooping(const MsgSip& ms, const char* branch) {
+	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next) {
 		if (via->v_branch != nullptr && strcmp(via->v_branch, branch) == 0) {
 			LOGD("Loop detected: %s", via->v_branch);
 			return true;
@@ -450,12 +448,10 @@ bool ForwardModule::isAClusterNode(const url_t* url) {
 	return false;
 }
 
-url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-
+url_t* ForwardModule::overrideDest(MsgSip& ms, url_t* dest) {
 	if (!ModuleToolbox::urlIsResolved(dest)) {
 		if (mOutRoute) {
-			sip_t* sip = ms->getSip();
+			sip_t* sip = ms.getSip();
 			url_t* req_url = sip->sip_request->rq_url;
 			for (sip_via_t* via = sip->sip_via; via != nullptr; via = via->v_next) {
 				if (ModuleToolbox::urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
@@ -470,7 +466,7 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest)
 				}
 			}
 		} else if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport")) {
-			url_param_add(ev->getHome(), dest, mDefaultTransport.c_str());
+			url_param_add(ms.getHome(), dest, mDefaultTransport.c_str());
 		}
 	}
 	return dest;
@@ -485,9 +481,8 @@ url_t* ForwardModule::overrideDest(shared_ptr<RequestSipEvent>& ev, url_t* dest)
  *
  * @return					transport to be used in order to deliver the request to the destination.
  */
-tport_t*
-ForwardModule::findTransportToDestination(const shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, url_t* dest, url_t* tportDest) {
+	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	uintptr_t destConnId = 0;
 
 	string ip;
@@ -514,7 +509,7 @@ ForwardModule::findTransportToDestination(const shared_ptr<RequestSipEvent>& ev,
 	tp_name_t name{};
 	tport_t* tport = nullptr;
 	const auto* destToFindTportUrlStr = url_as_string(ms->getHome(), destToFindTport);
-	if (ev->getOutgoingAgent() != nullptr) {
+	if (ev.getOutgoingAgent() != nullptr) {
 		if (isAClusterNode(destToFindTport) && (tport = getAgent()->getInternalTport()) != nullptr) {
 			SLOGD << "Using internal transport to route message to a node of the cluster.";
 		} else if ((tport = getAgent()->getDRM()->lookupTport(destToFindTport)) != nullptr) {

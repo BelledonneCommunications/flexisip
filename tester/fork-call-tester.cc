@@ -487,7 +487,7 @@ void cancelStatusOnCancel() {
 		    ev, make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"}, "sip:127.0.0.1;transport=udp", ""));
 		auto branchListener = make_shared<BrCancelListener>();
 		branch->mListener = branchListener;
-		forkCallCtx->onCancel(ev);
+		forkCallCtx->onCancel(*ev->getMsgSip());
 		return branchListener->mCancelStatus;
 	};
 

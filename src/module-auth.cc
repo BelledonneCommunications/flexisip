@@ -131,9 +131,9 @@ void Authentication::onLoad(const GenericStruct* mc) {
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();
 }
 
-bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEvent>& ev) {
+bool Authentication::tlsClientCertificatePostCheck(RequestSipEvent& ev) {
 	if (mRequiredSubjectCheckSet) {
-		bool ret = ev->matchIncomingSubject(&mRequiredSubject);
+		bool ret = ev.matchIncomingSubject(&mRequiredSubject);
 		if (ret) {
 			SLOGD << "TLS certificate postcheck successful.";
 		} else {
@@ -148,9 +148,9 @@ bool Authentication::tlsClientCertificatePostCheck(const shared_ptr<RequestSipEv
  * true: if the tls authentication is handled (either successful or rejected)
  * false: if we have to fallback to digest
  */
-bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<RequestSipEvent>& ev) {
-	sip_t* sip = ev->getSip();
-	shared_ptr<tport_t> inTport = ev->getIncomingTport();
+bool Authentication::handleTlsClientAuthentication(RequestSipEvent& ev) {
+	sip_t* sip = ev.getSip();
+	shared_ptr<tport_t> inTport = ev.getIncomingTport();
 	unsigned int policy = 0;
 
 	tport_get_params(inTport.get(), TPTAG_TLS_VERIFY_POLICY_REF(policy), NULL);
@@ -170,7 +170,7 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 			searched_uri.url_user = from->url_user;
 			searched = url_as_string(home.home(), &searched_uri);
 
-			if (ev->findIncomingSubject(searched)) {
+			if (ev.findIncomingSubject(searched)) {
 				SLOGD << "Allowing message from matching TLS certificate";
 				goto postcheck;
 			} else if (sip->sip_request->rq_method != sip_method_register &&
@@ -181,7 +181,7 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 				/*case where the certificate would work for the entire domain*/
 				searched_uri.url_user = NULL;
 				searched = url_as_string(home.home(), &searched_uri);
-				if (ev->findIncomingSubject(searched)) {
+				if (ev.findIncomingSubject(searched)) {
 					SLOGD << "Found TLS certificate for entire domain";
 					goto postcheck;
 				}
@@ -191,7 +191,7 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 				searched_uri.url_user = NULL;
 				searched_uri.url_host = sip->sip_request->rq_url->url_host;
 				searched = url_as_string(home.home(), &searched_uri);
-				if (ev->findIncomingSubject(searched)) {
+				if (ev.findIncomingSubject(searched)) {
 					SLOGD << "Found trusted TLS certificate for the request URI domain";
 					goto postcheck;
 				}
@@ -211,7 +211,7 @@ bool Authentication::handleTlsClientAuthentication(const std::shared_ptr<Request
 
 	bad_certificate:
 		if (mRejectWrongClientCertificates) {
-			ev->reply(403, "Bad tls client certificate", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			ev.reply(403, "Bad tls client certificate", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return true; /*the request is responded, no further processing required*/
 		}
 		/*fallback to digest*/
@@ -279,23 +279,21 @@ FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& doma
 	return authModule;
 }
 
-void Authentication::processAuthentication(const std::shared_ptr<RequestSipEvent>& request,
-                                           FlexisipAuthModuleBase& am) {
+void Authentication::processAuthentication(const shared_ptr<RequestSipEvent>& request, FlexisipAuthModuleBase& am) {
 	// check if TLS client certificate provides sufficent authentication for this request.
-	if (handleTlsClientAuthentication(request)) throw StopRequestProcessing();
+	if (handleTlsClientAuthentication(*request)) throw StopRequestProcessing();
 
 	ModuleAuthenticationBase::processAuthentication(request, am);
 }
 
-const char* Authentication::findIncomingSubjectInTrusted(const shared_ptr<RequestSipEvent>& ev,
-                                                         const char* fromDomain) {
+const char* Authentication::findIncomingSubjectInTrusted(const RequestSipEvent& ev, const char* fromDomain) {
 	if (mTrustedClientCertificates.empty()) return NULL;
 	list<string> toCheck;
 	for (auto it = mTrustedClientCertificates.cbegin(); it != mTrustedClientCertificates.cend(); ++it) {
 		if (it->find("@") != string::npos) toCheck.push_back(*it);
 		else toCheck.push_back(*it + "@" + string(fromDomain));
 	}
-	const char* res = ev->findIncomingSubject(toCheck);
+	const char* res = ev.findIncomingSubject(toCheck);
 	return res;
 }
 

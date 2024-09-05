@@ -73,7 +73,7 @@ struct Helper : public NatTestHelper {
  */
 void contactNeedsToBeFixedNoContact() {
 	const Helper helper{};
-	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(false), helper.mTport);
+	RqSipEv event{helper.mAgent, Helper::getRegister(false), helper.mTport};
 
 	BC_ASSERT(helper.mHelper.contactNeedsToBeFixed(nullptr, event) == false);
 }
@@ -83,7 +83,7 @@ void contactNeedsToBeFixedNoContact() {
  */
 void contactNeedsToBeFixedContactUrlContainsContactParameter() {
 	const Helper helper{};
-	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true, ";verified"), helper.mTport);
+	RqSipEv event{helper.mAgent, Helper::getRegister(true, ";verified"), helper.mTport};
 
 	BC_ASSERT(helper.mHelper.contactNeedsToBeFixed(nullptr, event) == false);
 }
@@ -93,7 +93,7 @@ void contactNeedsToBeFixedContactUrlContainsContactParameter() {
  */
 void contactNeedsToBeFixedContactUrlContainsGrParameter() {
 	const Helper helper{};
-	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true, ";gr"), helper.mTport);
+	RqSipEv event{helper.mAgent, Helper::getRegister(true, ";gr"), helper.mTport};
 
 	BC_ASSERT(helper.mHelper.contactNeedsToBeFixed(nullptr, event) == false);
 }
@@ -103,7 +103,7 @@ void contactNeedsToBeFixedContactUrlContainsGrParameter() {
  */
 void contactNeedsToBeFixedContactContainsIsFocusParameter() {
 	const Helper helper{};
-	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true, "", "isFocus"), helper.mTport);
+	RqSipEv event{helper.mAgent, Helper::getRegister(true, "", "isFocus"), helper.mTport};
 
 	BC_ASSERT(helper.mHelper.contactNeedsToBeFixed(nullptr, event) == false);
 }
@@ -114,14 +114,14 @@ void contactNeedsToBeFixedContactContainsIsFocusParameter() {
  */
 void contactNeedsToBeFixedTransportIsSameAsInternalTransport() {
 	const Helper helper{};
-	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true), nullptr);
+	RqSipEv event{helper.mAgent, Helper::getRegister(true), nullptr};
 
 	BC_ASSERT(helper.mHelper.contactNeedsToBeFixed(nullptr, event) == false);
 }
 
 void contactNeedsToBeFixed() {
 	const Helper helper{};
-	const auto event = make_shared<RqSipEv>(helper.mAgent, Helper::getRegister(true), helper.mTport);
+	RqSipEv event{helper.mAgent, Helper::getRegister(true), helper.mTport};
 
 	BC_ASSERT(helper.mHelper.contactNeedsToBeFixed(nullptr, event) == true);
 }

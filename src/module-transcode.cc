@@ -214,14 +214,14 @@ bool Transcoder::canDoRateControl(sip_t* sip) {
 	return false;
 }
 
-bool Transcoder::processSipInfo(TranscodedCall* c, shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+bool Transcoder::processSipInfo(TranscodedCall* c, RequestSipEvent& ev) {
+	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	sip_t* sip = ms->getSip();
 	sip_payload_t* payload = sip->sip_payload;
 	if (payload != NULL && payload->pl_data != NULL) {
 		if (sip->sip_content_type != NULL && strcasecmp(sip->sip_content_type->c_subtype, "dtmf-relay") == 0) {
 			c->playTone(sip);
-			ev->reply(200, NULL, TAG_END());
+			ev.reply(200, NULL, TAG_END());
 			return true;
 		}
 	}
@@ -257,11 +257,10 @@ static void removeBandwidths(sdp_session_t* sdp) {
 	}
 }
 
-int Transcoder::handleOffer(TranscodedCall* c, shared_ptr<SipEvent> ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	msg_t* msg = ms->getMsg();
-	sip_t* sip = ms->getSip();
-	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip(), "");
+int Transcoder::handleOffer(TranscodedCall* c, MsgSip& ms) {
+	msg_t* msg = ms.getMsg();
+	sip_t* sip = ms.getSip();
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms.getHome(), ms.getSip(), "");
 
 	if (m == NULL) return -1;
 
@@ -321,29 +320,29 @@ int Transcoder::handleOffer(TranscodedCall* c, shared_ptr<SipEvent> ev) {
 	return -1;
 }
 
-int Transcoder::processInvite(TranscodedCall* c, shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+int Transcoder::processInvite(TranscodedCall* c, RequestSipEvent& ev) {
+	MsgSip& ms = *ev.getMsgSip();
 	int ret = 0;
-	if (SdpModifier::hasSdp(ms->getSip())) {
-		ret = handleOffer(c, ev);
+	if (SdpModifier::hasSdp(ms.getSip())) {
+		ret = handleOffer(c, ms);
 	}
 	if (ret == 0) {
 		// be in the record-route
 		ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
-		c->storeNewInvite(ms->getMsg());
+		c->storeNewInvite(ms.getMsg());
 	} else {
-		ev->reply(415, "Unsupported codecs", TAG_END());
+		ev.reply(415, "Unsupported codecs", TAG_END());
 	}
 	return ret;
 }
 
-void Transcoder::processAck(TranscodedCall* ctx, shared_ptr<RequestSipEvent>& ev) {
+void Transcoder::processAck(TranscodedCall* ctx, MsgSip& ms) {
 	LOGD("Processing ACK");
 	auto ioffer = ctx->getInitialOffer();
 	if (!ioffer.empty()) {
 		LOGE("Processing ACK with SDP but no offer was made or processed.");
 	} else {
-		handleAnswer(ctx, ev);
+		handleAnswer(ctx, ms);
 	}
 }
 
@@ -355,7 +354,7 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		ev->createIncomingTransaction();
 		auto ot = ev->createOutgoingTransaction();
 		auto c = make_shared<TranscodedCall>(mFactory, sip, getAgent()->getRtpBindIp());
-		if (processInvite(c.get(), ev) == 0) {
+		if (processInvite(c.get(), *ev) == 0) {
 			mCalls.store(c);
 			ot->setProperty<TranscodedCall>(getModuleName(), c);
 		} else {
@@ -368,14 +367,14 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			LOGD("Transcoder: couldn't find call context for ack");
 			return;
 		} else {
-			processAck(c.get(), ev);
+			processAck(c.get(), *ms);
 		}
 	} else if (sip->sip_request->rq_method == sip_method_info) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
 		if (c == NULL) {
 			LOGD("Transcoder: couldn't find call context for info");
 			return;
-		} else if (processSipInfo(c.get(), ev)) {
+		} else if (processSipInfo(c.get(), *ev)) {
 			/*stop the processing */
 			return;
 		}
@@ -389,12 +388,11 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	}
 }
 
-int Transcoder::handleAnswer(TranscodedCall* ctx, shared_ptr<SipEvent> ev) {
+int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {
 	LOGD("Transcoder::handleAnswer");
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	string addr;
 	int port;
-	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms->getHome(), ms->getSip());
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms.getHome(), ms.getSip());
 	int ptime;
 
 	if (m == NULL) return -1;
@@ -429,12 +427,12 @@ int Transcoder::handleAnswer(TranscodedCall* ctx, shared_ptr<SipEvent> ev) {
 
 	if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
 
-	m->update(ms->getMsg(), ms->getSip());
+	m->update(ms.getMsg(), ms.getSip());
 
 	normalizePayloads(common);
 	ctx->getFrontSide()->assignPayloads(common);
 
-	if (canDoRateControl(ms->getSip())) {
+	if (canDoRateControl(ms.getSip())) {
 		ctx->getBackSide()->enableRc(true);
 	}
 
@@ -442,12 +440,12 @@ int Transcoder::handleAnswer(TranscodedCall* ctx, shared_ptr<SipEvent> ev) {
 	return 0;
 }
 
-void Transcoder::process200OkforInvite(TranscodedCall* ctx, shared_ptr<ResponseSipEvent>& ev) {
+void Transcoder::process200OkforInvite(TranscodedCall* ctx, MsgSip& ms) {
 	LOGD("Processing 200 Ok");
 	if (SdpModifier::hasSdp((sip_t*)msg_object(ctx->getLastForwardedInvite()))) {
-		handleAnswer(ctx, ev);
+		handleAnswer(ctx, ms);
 	} else {
-		handleOffer(ctx, ev);
+		handleOffer(ctx, ms);
 	}
 }
 
@@ -488,7 +486,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			// Remove all call contexts maching the sip message
 			// Except the one from this outgoing transaction
 			mCalls.findAndRemoveExcept(getAgent(), sip, c, true);
-			process200OkforInvite(c.get(), ev);
+			process200OkforInvite(c.get(), *ev->getMsgSip());
 		}
 	}
 }

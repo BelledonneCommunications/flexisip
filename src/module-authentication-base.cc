@@ -29,7 +29,6 @@
 #include "module-toolbox.hh"
 #include "utils/string-utils.hh"
 
-
 using namespace std;
 
 namespace flexisip {
@@ -185,22 +184,24 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 	}
 }
 
-FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent>& ev) {
-	auto* as = new FlexisipAuthStatus(ev);
+FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
+	auto* as = new FlexisipAuthStatus(msgSip);
 	LOGD("New FlexisipAuthStatus [%p]", as);
-	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
+	ModuleAuthenticationBase::configureAuthStatus(*as);
 	return as;
 }
 
-void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const std::shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
+	const shared_ptr<MsgSip>& ms = as.getMsgSip();
+	if (ms == nullptr) return;
+
 	sip_t* sip = ms->getSip();
 	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
 	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 
 	string realm{};
 	if (mRealmExtractor) {
-		auto userUriStr = url_as_string(ev->getHome(), userUri);
+		auto userUriStr = url_as_string(ms->getHome(), userUri);
 		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)", &as, ppi ? "P-Prefered-Identity" : "From",
 		     userUriStr);
 
@@ -222,7 +223,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const
 		as.bodyLen(sip->sip_payload->pl_len);
 	}
 	as.usedAlgo() = mAlgorithms;
-	as.no403(mNo403Expr->eval(*ev->getSip()));
+	as.no403(mNo403Expr->eval(*sip));
 }
 
 void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent>& request) {
@@ -241,17 +242,17 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 	if (isTrustedPeer(request)) throw StopRequestProcessing();
 }
 
-void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<RequestSipEvent>& request,
+void ModuleAuthenticationBase::processAuthentication(const shared_ptr<RequestSipEvent>& request,
                                                      FlexisipAuthModuleBase& am) {
 	sip_t* sip = request->getMsgSip()->getSip();
 
 #if 0
-	const shared_ptr<MsgSip> &ms = request->getMsgSip();
+	const shared_ptr<MsgSip>& ms = request.getMsgSip();
 	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
 	// Reject if absent.
 	if (sip->sip_from->a_url->url_user == NULL) {
 		SLOGI << "Registration failure, no username in From header: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
-		request->reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		request.reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		throw StopRequestProcessing();
 	}
 #endif
@@ -263,7 +264,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 
 	LOGD("start digest authentication");
 
-	FlexisipAuthStatus* as = createAuthStatus(request);
+	FlexisipAuthStatus* as = createAuthStatus(request->getMsgSip());
 
 	// Attention: the auth_mod_verify method should not send by itself any message but
 	// return after having set the as status and phrase.
@@ -275,7 +276,7 @@ void ModuleAuthenticationBase::processAuthentication(const std::shared_ptr<Reque
 		am.verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
 	}
 
-	processAuthModuleResponse(*as);
+	processAuthModuleResponse(request, *as);
 }
 
 FlexisipAuthModuleBase* ModuleAuthenticationBase::findAuthModule(const std::string name) {
@@ -301,9 +302,8 @@ FlexisipAuthModuleBase* ModuleAuthenticationBase::findAuthModule(const std::stri
 	return it->second.get();
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus& as) {
+void ModuleAuthenticationBase::processAuthModuleResponse(const shared_ptr<RequestSipEvent>& ev, AuthStatus& as) {
 	auto& fAs = dynamic_cast<FlexisipAuthStatus&>(as);
-	const shared_ptr<RequestSipEvent>& ev = fAs.event();
 	if (as.status() == 0) {
 		onSuccess(fAs);
 		if (ev->isSuspended()) {
@@ -312,7 +312,7 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus& as) {
 		}
 	} else if (as.status() == 100) {
 		if (!ev->isSuspended()) ev->suspendProcessing();
-		as.callback(std::bind(&ModuleAuthenticationBase::processAuthModuleResponse, this, placeholders::_1));
+		as.callback([this, ev](AuthStatus& as) { processAuthModuleResponse(ev, as); });
 		return;
 	} else if (as.status() >= 400) {
 		if (as.status() == 401 || as.status() == 407) {
@@ -321,7 +321,7 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus& as) {
 			log->setCompleted();
 			ev->setEventLog(log);
 		}
-		errorReply(fAs);
+		errorReply(*ev, fAs);
 	} else {
 		ev->reply(500, "Internal error", TAG_END());
 	}
@@ -330,7 +330,7 @@ void ModuleAuthenticationBase::processAuthModuleResponse(AuthStatus& as) {
 
 void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus& as) {
 	msg_auth_t* au;
-	const shared_ptr<MsgSip>& ms = as.event()->getMsgSip();
+	const shared_ptr<MsgSip>& ms = as.getMsgSip();
 	sip_t* sip = ms->getSip();
 	if (sip->sip_request->rq_method == sip_method_register) {
 		au = ModuleToolbox::findAuthorizationForRealm(ms->getHome(), sip->sip_authorization, as.realm());
@@ -344,11 +344,10 @@ void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus& as) {
 	}
 }
 
-void ModuleAuthenticationBase::errorReply(const FlexisipAuthStatus& as) {
-	const std::shared_ptr<RequestSipEvent>& ev = as.event();
-	ev->reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
-	          SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
-	          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+void ModuleAuthenticationBase::errorReply(RequestSipEvent& ev, const FlexisipAuthStatus& as) {
+	ev.reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
+	         SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
+	         SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 }
 
 void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedHosts) {

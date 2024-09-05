@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,7 +47,7 @@ void ForkContext::processCancel(const shared_ptr<RequestSipEvent>& ev) {
 		auto ctx = ForkContext::getFork(transaction);
 
 		if (ctx) {
-			ctx->onCancel(ev);
+			ctx->onCancel(*ev->getMsgSip());
 		}
 	}
 }
