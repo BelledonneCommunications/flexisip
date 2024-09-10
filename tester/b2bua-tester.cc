@@ -35,11 +35,15 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
 #include "flexisip/flexisip-version.h"
+#include "flexisip/sofia-wrapper/sip-header.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
 
 #include "b2bua/sip-bridge/sip-bridge.hh"
 #include "module-toolbox.hh"
+#include "registrardb-internal.hh"
+#include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
@@ -48,9 +52,11 @@
 #include "utils/core-assert.hh"
 #include "utils/injected-module-info.hh"
 #include "utils/proxy-server.hh"
+#include "utils/string-formatter.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 
 namespace flexisip::tester::b2buatester {
 
@@ -1913,8 +1919,153 @@ void attendedCallTransfer() {
 	std::ignore = b2bua->stop();
 }
 
+/**
+ * Test parameter "b2bua-server/transport" and its interaction with "b2bua-server/one-connection-per-account".
+ * The "b2bua-server/one-connection-per-account" parameter should not be influenced by "b2bua-server/transport".
+ *
+ * Expected behavior of the server:
+ *   1. When parameter "b2bua-server/one-connection-per-account=false"
+ *     - If "b2bua-server/transport" sets a specific transport protocol, the server should still be able to create
+ *       outgoing connections on all the other transport protocols.
+ *     - In case "transport=TCP", source ports of outgoing connections should be random for all transports.
+ *     - In case "transport=UDP", the source port of outgoing connections should be the same as the one the server is
+ *       listening on. However, if a message is not sent through UDP, source ports of outgoing connections should be
+ *       different random ports.
+ *   2. When parameter "b2bua-server/one-connection-per-account=true"
+ *     - All outgoing connections should be done on different random ports independently of the selected transport in
+ *     parameter "b2bua-server/transport".
+ */
+template <const string& incomingTransport, const string& outgoingTransport, const bool oneConnectionPerAccount>
+void transportAndOneConnectionPerAccount() {
+	using namespace sofiasip;
+	TmpDir directory{string{"B2bua::"s + __func__}.c_str()};
+	const auto& b2buaConfigPath = directory.path() / "b2bua.conf";
+	const auto& providersConfigPath = directory.path() / "providers.json";
+
+	ofstream{b2buaConfigPath} << "[b2bua-server]\n"
+	                          << "application=sip-bridge\n"
+	                          << "transport=sip:127.0.0.1:0;transport=" << incomingTransport << '\n'
+	                          << "one-connection-per-account=" << boolalpha << oneConnectionPerAccount << '\n'
+	                          << "data-directory=" << bcTesterWriteDir().string() << '\n'
+	                          << "[b2bua-server::sip-bridge]\n"
+	                          << "providers=" << providersConfigPath.string();
+
+	StringFormatter providersConfig{
+	    R"json({
+		"schemaVersion": 2,
+		"providers": [],
+		"accountPools": {
+			"accounts": {
+				"outboundProxy": "<sip:127.0.0.2:#externalProxyPort#;transport=#externalProxyTransport#>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 10,
+				"loader": [
+					{"uri": "sip:user-1@external.example.org"},
+					{"uri": "sip:user-2@external.example.org"}
+				]
+			}
+		}
+	})json",
+	    '#',
+	    '#',
+	};
+
+	Server externalProxy{{
+	    {"global/transports", "sip:127.0.0.2:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "external.example.org"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+	externalProxy.start();
+	ofstream{providersConfigPath} << providersConfig.format({
+	    {"externalProxyPort", externalProxy.getFirstPort()},
+	    {"externalProxyTransport", outgoingTransport},
+	});
+
+	const auto suRoot = make_shared<SuRoot>();
+	const auto config = make_shared<ConfigManager>();
+	config->load(b2buaConfigPath);
+
+	// Instantiate B2BUA server.
+	const auto b2buaServer = make_shared<flexisip::B2buaServer>(suRoot, config);
+	b2buaServer->init();
+	const auto b2buaTcpPort = to_string(b2buaServer->getTcpPort());
+	const auto b2buaUdpPort = to_string(b2buaServer->getUdpPort());
+	const auto b2buaPort = incomingTransport == "tcp" ? b2buaTcpPort : b2buaUdpPort;
+	const auto b2buaServerUri = "sip:127.0.0.1:" + b2buaPort + ";transport=" + incomingTransport;
+
+	CoreAssert asserter{suRoot, externalProxy};
+	const auto& db = dynamic_cast<const RegistrarDbInternal&>(externalProxy.getRegistrarDb()->getRegistrarBackend());
+	const auto& registeredUsers = db.getAllRecords();
+	asserter
+	    .iterateUpTo(
+	        3, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 2); }, 40ms)
+	    .assert_passed();
+
+	BC_HARD_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
+	auto portsUsed = unordered_set<string>();
+	for (const auto& record : registeredUsers) {
+		const auto& contacts = record.second->getExtendedContacts();
+		BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
+		const SipUri uri{contacts.begin()->get()->mSipContact->m_url};
+		BC_ASSERT_CPP_EQUAL(uri.getParam("transport"), (outgoingTransport == "udp" ? "" : outgoingTransport));
+		portsUsed.emplace(uri.getPort());
+	}
+
+	// Test ports of (B2BUA) registered users on external proxy.
+	const auto& portUsed1 = *portsUsed.begin();
+	if constexpr (oneConnectionPerAccount) {
+
+		// TODO: fix non-working case (UDP-UDP), parameter one-connection-per-account does not have any effect.
+		if (incomingTransport == "udp" and outgoingTransport == "udp") {
+			BC_ASSERT_CPP_EQUAL(portsUsed.size(), 1);
+			BC_ASSERT_CPP_EQUAL(portUsed1, b2buaUdpPort);
+		} else {
+			BC_HARD_ASSERT_CPP_EQUAL(portsUsed.size(), 2);
+			const auto& portUsed2 = *(portsUsed.begin()++);
+
+			BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaUdpPort);
+			BC_ASSERT_CPP_NOT_EQUAL(portUsed2, b2buaUdpPort);
+
+			BC_ASSERT_CPP_NOT_EQUAL(portUsed2, b2buaTcpPort);
+		}
+
+		BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaTcpPort);
+	} else {
+		BC_ASSERT_CPP_EQUAL(portsUsed.size(), 1);
+
+		if (incomingTransport == "udp" and outgoingTransport == "udp") {
+			BC_ASSERT_CPP_EQUAL(portUsed1, b2buaUdpPort);
+		} else {
+			BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaTcpPort);
+			BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaUdpPort);
+		}
+	}
+
+	// Test connection with the B2BUA server.
+	NtaAgent client{suRoot, "sip:user-1@127.0.0.1:0;transport=" + incomingTransport};
+	const auto clientUri = "<sip:user-1@127.0.0.1:"s + client.getFirstPort() + ";transport=" + incomingTransport + ">";
+	MsgSip msg{};
+	msg.makeAndInsert<SipHeaderRequest>(sip_method_options, "sip:user-2@flexisip.example.org");
+	msg.makeAndInsert<SipHeaderFrom>("sip:user-1@flexisip.example.org", "stub-from-tag");
+	msg.makeAndInsert<SipHeaderTo>("sip:user-2@flexisip.example.org");
+	msg.makeAndInsert<SipHeaderCallID>("stub-call-id");
+	msg.makeAndInsert<SipHeaderCSeq>(20u, sip_method_options);
+	msg.makeAndInsert<SipHeaderContact>(clientUri);
+
+	const auto transaction = client.createOutgoingTransaction(msg.msgAsString(), b2buaServerUri);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted() and transaction->getStatus() == 200); },
+	        100ms)
+	    .assert_passed();
+}
+
 const char VP8[] = "vp8";
 // const char H264[] = "h264";
+const string UDP = "udp";
+const string TCP = "tcp";
 
 TestSuite _{
     "B2bua",
@@ -1956,6 +2107,14 @@ TestSuite _{
         CLASSY_TEST(onHoldCallIsTerminatedAfterNoRTPTimeoutTriggers),
         CLASSY_TEST(blindCallTransfer),
         CLASSY_TEST(attendedCallTransfer),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, TCP, false>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, TCP, true>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, UDP, false>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, UDP, true>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, TCP, false>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, TCP, true>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, UDP, false>)),
+        CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, UDP, true>)),
     },
 };
 
