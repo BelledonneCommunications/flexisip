@@ -580,9 +580,6 @@ static string version() {
 #if ENABLE_SOCI
 	version << "- Soci\n";
 #endif
-#if ENABLE_PROTOBUF
-	version << "- Protobuf\n";
-#endif
 #if ENABLE_PRESENCE
 	version << "- Presence\n";
 #endif

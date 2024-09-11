@@ -161,7 +161,7 @@ public:
 	ChangeSet update(const sip_t* sip,
 	                 const BindingParameters& parameters,
 	                 const std::shared_ptr<ContactUpdateListener>& listener);
-	// Deprecated: this one is used by protobuf serializer
+	// Deprecated: this one is used by serializer
 	void update(const ExtendedContactCommon& ecc,
 	            const char* sipuri,
 	            long int expireAt,

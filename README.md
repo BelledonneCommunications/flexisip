@@ -42,7 +42,6 @@ Flexisip is dual licensed, and can be licensed and distributed:
 | SQLite3         | Library for handling SQlite3 file                                                                                                     |     X     |                    |
 | libmysql-client | Client library for MySQL database.                                                                                                    |     X     |                    |
 | Hiredis         | Redis DB client library, used for Registrar DB and communications between Flexisip instances of a same cluster. (-DENABLE\_REDIS=YES) |           |         X          |
-| Protobuf        | Needed for migration from legacy registrar database format. (-DENABLE\_PROTOBUF=YES)                                                  |           |         X          |
 | NetSNMP         | SNMP library, used for SNMP support. (-DENABME\_SNMP=YES)                                                                             |           |         X          |
 | XercesC         | XML parser. (-DENABLE\_PRESENCE=YES)                                                                                                  |           |         X          |
 | jsoncpp         | JSON parsing and writing (-DENABLE\_B2BUA=YES)                                                                                        |           |         X          |

@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20240523_global_update
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20240912_cpp-jwt_no_protobuf
 ###############################################################################
 
 FROM debian:12
@@ -42,7 +42,6 @@ RUN apt-get -y update \
       libpq-dev \
       libmariadb-dev \
       libmariadb-dev-compat \
-      libprotobuf-dev \
       libsnmp-dev \
       libxerces-c-dev \
       libsrtp2-dev \
@@ -52,7 +51,6 @@ RUN apt-get -y update \
       libspeex-dev \
       libspeexdsp-dev \
       libxml2-dev \
-      protobuf-compiler \
       redis-server \
     # Dependencies of the B2BUA
       libvpx-dev \

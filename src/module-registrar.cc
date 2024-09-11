@@ -482,12 +482,6 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 
 	    // Deprecated parameters
 	    {
-	        String,
-	        "redis-record-serializer",
-	        "Serialize contacts with: [C, protobuf, json, msgpack]",
-	        "protobuf",
-	    },
-	    {
 	        DurationMS,
 	        "redis-server-timeout",
 	        "Timeout of the Redis connection.",
@@ -502,13 +496,6 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	    },
 	    config_item_end};
 	moduleConfig.addChildrenValues(configs);
-
-	moduleConfig.get<ConfigString>("redis-record-serializer")
-	    ->setDeprecated({
-	        "2020-01-28",
-	        "2.0.0",
-	        "This setting no longer has any effect. It should be removed from the config file.",
-	    });
 
 	auto* oldMessageExpiresParamName = moduleConfig.get<ConfigString>("name-message-expires");
 	oldMessageExpiresParamName->setDeprecated({

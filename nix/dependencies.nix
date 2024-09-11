@@ -32,7 +32,6 @@ with pkgs;
   nghttp2
   net-snmp
   hiredis
-  protobuf
   libmysqlclient
   yasm
   ninja # Optional. You can use "Unix makefiles" instead
