@@ -1,19 +1,19 @@
 /*
-	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
-	This program is free software: you can redistribute it and/or modify
-	it under the terms of the GNU Affero General Public License as
-	published by the Free Software Foundation, either version 3 of the
-	License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
 
-	You should have received a copy of the GNU Affero General Public License
-	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "recordserializer.hh"
@@ -36,42 +36,40 @@ using namespace flexisip;
 
 struct DumpListener : public ContactUpdateListener {
 
-  private:
-	su_root_t *root;
+private:
+	su_root_t* root;
 
-  private:
+private:
 	void su_break() {
 		if (root) {
 			su_root_break(root);
 		}
 	}
 
-  public:
+public:
 	bool listenerError;
 
-  public:
-	DumpListener(su_root_t *_root) : ContactUpdateListener(), root(_root), listenerError(false) {
+public:
+	DumpListener(su_root_t* _root) : ContactUpdateListener(), root(_root), listenerError(false) {
 	}
 
-	virtual void onRecordFound(Record *record) override{
-		if (record)
-			cout << *record << endl;
-		else
-			cout << "No record found" << endl;
+	virtual void onRecordFound(Record* record) override {
+		if (record) cout << *record << endl;
+		else cout << "No record found" << endl;
 		su_break();
 	}
-	virtual void onError() override{
+	virtual void onError() override {
 		SLOGE << "Connection error, aborting" << endl;
 		listenerError = true;
 		su_break();
 	}
-	virtual void onInvalid() override{
+	virtual void onInvalid() override {
 		SLOGW << "Invalid" << endl;
 		listenerError = true;
 		su_break();
 	}
 
-	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact> &ec) override{
+	virtual void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
 	}
 };
 
@@ -81,14 +79,10 @@ struct CTArgs {
 	string serializer;
 	string url;
 
-	static void usage(const char *app) {
+	static void usage(const char* app) {
 		CTArgs args;
-		cout << app << " -t host[" << args.redis.domain << "] "
-			 << "-p port[" << args.redis.port << "] "
-			 << "--debug "
-			 << "-a auth "
-			 << "-s serializer[" << args.serializer << "] "
-			 << "sip_uri " << endl;
+		cout << app << " -t host[" << args.redis.domain << "] " << "-p port[" << args.redis.port << "] " << "--debug "
+		     << "-a auth " << "-s serializer[" << args.serializer << "] " << "sip_uri " << endl;
 	}
 
 	CTArgs() {
@@ -96,10 +90,10 @@ struct CTArgs {
 		redis.port = 6379;
 		redis.timeout = 2000;
 		redis.domain = "sip";
-		serializer = "protobuf";
+		serializer = "json";
 	}
 
-	void parse(int argc, char **argv) {
+	void parse(int argc, char** argv) {
 #define EQ0(i, name) (strcmp(name, argv[i]) == 0)
 #define EQ1(i, name) (strcmp(name, argv[i]) == 0 && argc > i)
 		for (int i = 1; i < argc; ++i) {
@@ -116,7 +110,7 @@ struct CTArgs {
 				redis.auth = argv[++i];
 			} else if (EQ1(i, "-s")) {
 				serializer = argv[++i];
-				if (serializer != "protobuf" && serializer != "c" && serializer != "json") {
+				if (serializer != "c" && serializer != "json") {
 					cerr << "invalid serializer : " << serializer << endl;
 					exit(-1);
 				}
@@ -137,13 +131,13 @@ struct CTArgs {
 	}
 };
 
-static void timerfunc(su_root_magic_t *magic, su_timer_t *t, Agent *arg) {
+static void timerfunc(su_root_magic_t* magic, su_timer_t* t, Agent* arg) {
 	arg->idle();
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 	su_home_t home;
-	su_root_t *root;
+	su_root_t* root;
 	flexisip_sUseSyslog = false;
 	shared_ptr<Agent> agent;
 	CTArgs args;
@@ -167,7 +161,7 @@ int main(int argc, char **argv) {
 
 	registrardb->fetch(url, listener);
 
-	su_timer_t *timer = su_timer_create(su_root_task(root), 5000);
+	su_timer_t* timer = su_timer_create(su_root_task(root), 5000);
 	if (!listener->listenerError) {
 		su_timer_set_for_ever(timer, (su_timer_f)timerfunc, agent.get());
 		su_root_run(root);

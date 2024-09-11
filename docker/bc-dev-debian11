@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20230818_cmake_3.22.6
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian11:20240911_remove_protobuf
 ###############################################################################
 
 FROM debian:bullseye
@@ -39,7 +39,6 @@ RUN apt-get -y update \
                        libmariadb-dev \
                        libmariadb-dev-compat \
                        libnghttp2-dev \
-                       libprotobuf-dev \
                        libsnmp-dev \
                        libxerces-c-dev \
                        libsrtp2-dev \
@@ -49,7 +48,6 @@ RUN apt-get -y update \
                        libspeex-dev \
                        libspeexdsp-dev \
                        libxml2-dev \
-                       protobuf-compiler \
                        redis-server \
                      # Dependencies of the B2BUA
                        libvpx-dev \

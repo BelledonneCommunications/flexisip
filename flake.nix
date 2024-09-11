@@ -35,7 +35,6 @@
               perl
               xercesc
               nghttp2
-              protobuf
               sqlite
               speex
               libmysqlclient

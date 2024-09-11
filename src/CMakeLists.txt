@@ -234,21 +234,6 @@ if(ENABLE_REDIS)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
 	target_link_libraries(flexisip PRIVATE hiredis)
 endif()
-if(ENABLE_PROTOBUF)
-	# TODO: generate the protobuf wrapper
-	# protoc --proto_path=$(builddir) --cpp_out=$(builddir) $(pb_files)
-	set(PROTOBUF_GENERATED_FILES ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.cc ${CMAKE_CURRENT_BINARY_DIR}/recordserializer-protobuf.pb.h)
-	set(PROTOBUF_PROTO ${CMAKE_CURRENT_LIST_DIR}/recordserializer-protobuf.proto)
-	add_custom_command(OUTPUT ${PROTOBUF_GENERATED_FILES}
-		COMMAND "${PROTOBUF_PROTOC_EXECUTABLE}" "--proto_path=${CMAKE_CURRENT_SOURCE_DIR}" "--cpp_out=${CMAKE_CURRENT_BINARY_DIR}" "${PROTOBUF_PROTO}"
-		COMMENT "Generate protobuf wrappers")
-	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES GENERATED ON)
-	set_source_files_properties(${PROTOBUF_GENERATED_FILES} PROPERTIES COMPILE_OPTIONS "-Wno-unused-parameter")
-
-	target_sources(flexisip PRIVATE recordserializer-protobuf.cc ${PROTOBUF_GENERATED_FILES})
-	target_link_libraries(flexisip PRIVATE "protobuf::libprotobuf")
-	target_compile_definitions(flexisip PRIVATE "ENABLE_PROTOBUF")
-endif()
 if(ENABLE_PRESENCE OR ENABLE_CONFERENCE)
 	if(NOT XercesC_FOUND)
 		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")

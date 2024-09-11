@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20231010_remove_okay_repo
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20240911_remove_protobuf
 ###############################################################################
 
 FROM rockylinux:8
@@ -51,7 +51,6 @@ RUN sudo dnf -y install \
                    mariadb-devel \
                    nghttp2 \
                    libnghttp2-devel \
-                   protobuf-devel \
                    net-snmp-devel \
                    xerces-c-devel \
                    gsm-devel \
@@ -60,7 +59,6 @@ RUN sudo dnf -y install \
                    speex-devel \
                    speexdsp-devel \
                    libxml2-devel \
-                   protobuf-compiler \
                    redis \
                  # Dependencies of the B2BUA
                    libvpx-devel  \

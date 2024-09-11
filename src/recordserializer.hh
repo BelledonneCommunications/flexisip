@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,9 +28,7 @@ class RecordSerializer {
 	static RecordSerializer* sInstance;
 
 public:
-	virtual ~RecordSerializer() {
-	}
-	static RecordSerializer* get();
+	virtual ~RecordSerializer() = default;
 	static RecordSerializer* create(const std::string& name);
 	virtual bool parse(const char* str, int len, Record* r) = 0;
 	bool parse(const std::string& str, Record* r) {
@@ -44,26 +42,15 @@ public:
 
 class RecordSerializerC : public RecordSerializer {
 public:
-	virtual ~RecordSerializerC() {
-	}
-	virtual bool parse(const char* str, int len, Record* r);
-	virtual bool serialize(Record* r, std::string& serialized, bool log);
+	bool parse(const char* str, int len, Record* r) override;
+	bool serialize(Record* r, std::string& serialized, bool log) override;
 };
 
 class RecordSerializerJson : public RecordSerializer {
 public:
-	virtual bool parse(const char* str, int len, Record* r);
-	virtual bool serialize(Record* r, std::string& serialized, bool log);
+	bool parse(const char* str, int len, Record* r) override;
+	bool serialize(Record* r, std::string& serialized, bool log) override;
 };
-
-#ifdef ENABLE_PROTOBUF
-class RecordSerializerPb : public RecordSerializer {
-public:
-	RecordSerializerPb();
-	virtual bool parse(const char* str, int len, Record* r);
-	virtual bool serialize(Record* r, std::string& serialized, bool log);
-};
-#endif
 
 #ifdef ENABLE_MSGPACK
 class RecordSerializerMsgPack : public RecordSerializer {

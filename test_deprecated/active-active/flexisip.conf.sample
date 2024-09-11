@@ -12,7 +12,6 @@ port=5060
 #enabled=false
 reg-domains=SIP_DOMAIN
 db-implementation=redis-async
-redis-record-serializer=protobuf
 redis-auth-password=you_can_put_the_redis_password_here_if_any
 
 redis-server-port=6379

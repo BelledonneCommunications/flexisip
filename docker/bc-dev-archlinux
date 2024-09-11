@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20240909_compilers_update
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20240911_remove_protobuf
 ###############################################################################
 
 FROM archlinux:base
@@ -45,7 +45,6 @@ RUN pacman --noconfirm --noprogressbar -Syu \
         openssl \
         opus \
         postgresql \
-        protobuf \
         speex \
         speexdsp \
         sqlite \
