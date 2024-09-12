@@ -45,6 +45,7 @@ Flexisip is dual licensed, and can be licensed and distributed:
 | NetSNMP         | SNMP library, used for SNMP support. (-DENABME\_SNMP=YES)                                                                             |           |         X          |
 | XercesC         | XML parser. (-DENABLE\_PRESENCE=YES)                                                                                                  |           |         X          |
 | jsoncpp         | JSON parsing and writing (-DENABLE\_B2BUA=YES)                                                                                        |           |         X          |
+| cpp-jwt         | JSON Web Token support (-DENABLE\_OPENID\_CONNECT=YES)                                                                                        |           |         X          |
 
 # Compilation
 

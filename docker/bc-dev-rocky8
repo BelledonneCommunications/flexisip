@@ -100,3 +100,13 @@ ENV PS1='\[\e[34m\]\u@bc-dev-rocky8>\[\e[0m\] '
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *
+
+# Example build commands
+#
+# export CC=clang
+# export CXX=clang++
+# export BUILD_DIR_NAME="build.rocky8"
+# cd flexisip/
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON -DINTERNAL_LIBHIREDIS=ON -DINTERNAL_JSONCPP=ON -DENABLE_G729=ON
+# cd $BUILD_DIR_NAME
+# cmake --build . --target install

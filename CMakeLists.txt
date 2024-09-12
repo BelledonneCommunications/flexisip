@@ -78,7 +78,7 @@ option(ENABLE_SOCI "Build with SOCI support" ON)
 option(ENABLE_TRANSCODER "Build transcoder support" ON)
 option(ENABLE_G729 "Build with G729 audio codec support" OFF) # Disabled by default for license conformity
 option(ENABLE_MDNS "Build multicast DNS support" OFF)
-option(ENABLE_OPENID_CONNECT "Build OpenID Connect support" OFF)
+option(ENABLE_OPENID_CONNECT "Build OpenID Connect support" ON)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)

@@ -16,6 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <fstream>
 #include <string>
 #include <string_view>
 
@@ -25,9 +26,9 @@
 #include "rsa-keys.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "utils/server/proxy-server.hh"
-#include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 using namespace std::string_literals;
@@ -46,10 +47,17 @@ constexpr auto domainB = "b.example.org";
 constexpr auto audienceB = "testDomainB";
 string clientB = "sip:TeddyBear"s + "@" + domainB;
 
+struct SuiteScope {
+	TmpDir dir;
+	filesystem::path rsaPubKey;
+};
+
+auto sSuiteScope = std::optional<SuiteScope>();
+
 string readParamValue(const msg_param_t* msgParams, const char* field) {
 	auto fieldValue = msg_params_find(msgParams, field);
 	string value(fieldValue ? fieldValue : "");
-	if (value.find_first_of("\"") != 0) return value;
+	if (value.find_first_of('"') != 0) return value;
 
 	// quoted string
 	unsigned int quoteSize = 2;
@@ -71,7 +79,6 @@ string generateToken(string_view issuer, string_view sipUri, string_view kid, st
 }
 
 void rejectUnauthReq() {
-	TempFile keyFile(kRsaPubKey);
 	Server proxy({{"module::Registrar/reg-domains", "*"},
 	              {"module::AuthOpenIDConnect/enabled", "true"},
 	              {"module::AuthOpenIDConnect/authorization-server", "HtTPS://toto.example.org"},
@@ -79,7 +86,7 @@ void rejectUnauthReq() {
 	              {"module::AuthOpenIDConnect/audience", "test"},
 	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	              {"module::AuthOpenIDConnect/public-key-type", "file"},
-	              {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
+	              {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
 	              {"module::Authorization/enabled", "true"}});
 
 	const auto& root = proxy.getRoot();
@@ -112,7 +119,6 @@ void rejectUnauthReq() {
 }
 
 void bearerAuth() {
-	TempFile keyFile(kRsaPubKey);
 	const auto issuer = "https://example.org";
 	const auto realm = "testRealm";
 
@@ -123,7 +129,7 @@ void bearerAuth() {
 	              {"module::AuthOpenIDConnect/audience", audienceA},
 	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	              {"module::AuthOpenIDConnect/public-key-type", "file"},
-	              {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
+	              {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
 	              {"module::Authorization/enabled", "true"}});
 
 	const auto& root = proxy.getRoot();
@@ -172,7 +178,6 @@ void bearerMsgOfAToB() {
 	constexpr auto issuerA = "https://a.example.org";
 	constexpr auto issuerB = "https://b.example.org";
 	constexpr auto realm = "testRealm";
-	TempFile keyFile(kRsaPubKey);
 
 	// add an entry module that check a proxy remove its credentials
 	// the module registration is static, adding it to the 1st proxy will adding it to both
@@ -195,33 +200,35 @@ void bearerMsgOfAToB() {
 	auto root = make_shared<sofiasip::SuRoot>();
 
 	// register clientB contact address
-	TempFile regFileB("<" + clientB + "> <sip:127.0.0.1:5460>");
+	const auto& regFileB = sSuiteScope->dir.path() / "regFileB";
+	ofstream(regFileB) << "<" << clientB << "> <sip:127.0.0.1:5460>";
 	Server proxyB({{"module::Registrar/reg-domains", domainB},
-	               {"module::Registrar/static-records-file", regFileB.getFilename()},
+	               {"module::Registrar/static-records-file", regFileB},
 	               {"module::AuthOpenIDConnect/enabled", "true"},
 	               {"module::AuthOpenIDConnect/authorization-server", issuerB},
 	               {"module::AuthOpenIDConnect/realm", realm},
 	               {"module::AuthOpenIDConnect/audience", audienceB},
 	               {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	               {"module::AuthOpenIDConnect/public-key-type", "file"},
-	               {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
+	               {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
 	               {"module::Authorization/enabled", "true"}},
 	              root, &hooks);
 	proxyB.start();
 	SLOGD << "Start ProxyB with port: " << proxyB.getFirstPort();
 
 	// register clientB contact address to proxyB
-	TempFile regFileA("<" + clientB + "> <sip:127.0.0.1:" + proxyB.getFirstPort() + ">");
+	const auto& regFileA = sSuiteScope->dir.path() / "regFileA";
+	ofstream(regFileA) << "<" << clientB << "> <sip:127.0.0.1::" << proxyB.getFirstPort() << ">";
 
 	Server proxyA({{"module::Registrar/reg-domains", domainA},
-	               {"module::Registrar/static-records-file", regFileA.getFilename()},
+	               {"module::Registrar/static-records-file", regFileA},
 	               {"module::AuthOpenIDConnect/enabled", "true"},
 	               {"module::AuthOpenIDConnect/authorization-server", issuerA},
 	               {"module::AuthOpenIDConnect/realm", realm},
 	               {"module::AuthOpenIDConnect/audience", audienceA},
 	               {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
 	               {"module::AuthOpenIDConnect/public-key-type", "file"},
-	               {"module::AuthOpenIDConnect/public-key-location", keyFile.getFilename()},
+	               {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
 	               {"module::Authorization/enabled", "true"}},
 	              root);
 
@@ -273,10 +280,27 @@ void bearerMsgOfAToB() {
 	BC_ASSERT_CPP_EQUAL(expectedProxyAuth, 0);
 }
 
-TestSuite _("AuthOpenIDConnect",
-            {
-                CLASSY_TEST(rejectUnauthReq),
-                CLASSY_TEST(bearerAuth),
-                CLASSY_TEST(bearerMsgOfAToB),
-            });
+const TestSuite kSuite{
+    "AuthOpenIDConnect",
+    {
+        CLASSY_TEST(rejectUnauthReq),
+        CLASSY_TEST(bearerAuth),
+        CLASSY_TEST(bearerMsgOfAToB),
+    },
+    Hooks()
+        .beforeSuite([]() {
+	        auto dir = TmpDir(kSuite.getName());
+	        auto rsaPubKeyPath = dir.path() / "keyFile";
+	        ofstream(rsaPubKeyPath) << kRsaPubKey;
+	        sSuiteScope.emplace(SuiteScope{
+	            .dir = std::move(dir),
+	            .rsaPubKey = std::move(rsaPubKeyPath),
+	        });
+	        return 0;
+        })
+        .afterSuite([]() {
+	        sSuiteScope.reset();
+	        return 0;
+        }),
+};
 } // namespace

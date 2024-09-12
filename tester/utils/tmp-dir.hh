@@ -7,18 +7,20 @@
 #include <filesystem>
 #include <string>
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 /**
- * Creates a directory with the given suffix in the writable directory of flexisip_tester then deletes it and all its
+ * Creates a directory with the given prefix in the writable directory of flexisip_tester then deletes it and all its
  * contents on destruction.
- * The directory name will start with a random prefix.
+ * The directory name will start with a random suffix.
  */
 class TmpDir {
 public:
-	TmpDir(const char*);
+	explicit TmpDir(const char*);
 	~TmpDir();
+
+	TmpDir(const TmpDir&) = delete;
+	TmpDir(TmpDir&&) noexcept = default;
 
 	const auto& path() const {
 		return mPath;
@@ -28,5 +30,4 @@ private:
 	std::filesystem::path mPath;
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

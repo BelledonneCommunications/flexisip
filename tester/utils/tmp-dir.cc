@@ -3,22 +3,19 @@
  */
 
 #include "tester.hh"
-#include "utils/rand.hh"
 
 #include "tmp-dir.hh"
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
-TmpDir::TmpDir(const char* suffix)
-    : mPath(bcTesterWriteDir() / (Rand::generate(10, string{"0123456789abcdefghijklmnopqrstuvwxyz"}) + suffix)) {
+TmpDir::TmpDir(const char* prefix) : mPath(bcTesterWriteDir() / (prefix + randomString(10))) {
 	filesystem::create_directory(mPath);
 }
+
 TmpDir::~TmpDir() {
 	filesystem::remove_all(mPath);
 }
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

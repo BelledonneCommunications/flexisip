@@ -15,6 +15,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+#include <filesystem>
+#include <fstream>
 #include <memory>
 
 #include <jwt/jwt.hpp>
@@ -23,28 +25,36 @@
 #include "rsa-keys.hh"
 #include "utils/core-assert.hh"
 #include "utils/http-mock/http1-mock.hh"
-#include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace flexisip;
 using namespace flexisip::tester;
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 using namespace std::chrono_literals;
+using namespace std;
 
 namespace {
-const tester::TempFile kFile(kRsaPubKey);
+
 const Bearer::BearerParams kParams{
     .issuer = sofiasip::Url("https://example.org/realms/EXAMPLE"),
     .realm = "totoRealm",
     .audience = "testAuthz",
     .idClaimer = "sip-id",
 };
-const Bearer::KeyStoreParams kKeyStoreParams{
-    .keyType = Bearer::PubKeyType::file,
-    .keyPath = kFile.getFilename(),
+
+struct SuiteScope {
+	TmpDir dir;
+	filesystem::path rsaPubKey;
+	const Bearer::KeyStoreParams kKeyStoreParams{
+	    .keyType = Bearer::PubKeyType::file,
+	    .keyPath = rsaPubKey,
+	};
 };
+
+auto sSuiteScope = std::optional<SuiteScope>();
 
 jwt::jwt_object generateValidJwtObject() {
 	jwt::jwt_object obj{jwt::params::algorithm("RS256"), jwt::params::secret(kRsaPrivKey)};
@@ -63,7 +73,7 @@ auto check(const msg_param_t data, std::function<void(RequestSipEvent::AuthResul
 	msg_auth_t msg{};
 	msg.au_scheme = "Bearer";
 	msg.au_params = msgData;
-	Bearer bearerScheme(std::make_shared<sofiasip::SuRoot>(), kParams, kKeyStoreParams);
+	Bearer bearerScheme(std::make_shared<sofiasip::SuRoot>(), kParams, sSuiteScope->kKeyStoreParams);
 	return bearerScheme.check(&msg, std::move(onResult));
 }
 
@@ -80,10 +90,9 @@ void invalidMsgFormat() {
 		msg_auth_t msg{};
 		msg.au_scheme = "Bearer";
 		msg.au_params = nullptr;
-		Bearer bearerScheme(std::make_shared<sofiasip::SuRoot>(), kParams, kKeyStoreParams);
+		Bearer bearerScheme(std::make_shared<sofiasip::SuRoot>(), kParams, sSuiteScope->kKeyStoreParams);
 		BC_ASSERT(bearerScheme.check(&msg, onResult) == AuthScheme::State::Inapplicable);
 	}
-	return;
 	BC_ASSERT(check("", onResult) == AuthScheme::State::Inapplicable);
 	BC_ASSERT(check("notAtoken", onResult) == AuthScheme::State::Inapplicable);
 }
@@ -356,18 +365,35 @@ void bearerAuthWithWellknown() {
 	    .assert_passed();
 }
 
-TestSuite _("AuthBearerScheme",
-            {
-                CLASSY_TEST(invalidMsgFormat),
-                CLASSY_TEST(validToken),
-                CLASSY_TEST(validTokenOfAnotherIssuer),
-                CLASSY_TEST(badAlgo),
-                CLASSY_TEST(tokenSubject),
-                CLASSY_TEST(tokenMissingAudience),
-                CLASSY_TEST(tokenMissingIssuedTime),
-                CLASSY_TEST(invalidIdentity),
-                CLASSY_TEST(tokenExpiration),
-                CLASSY_TEST(verifySignature),
-                CLASSY_TEST(bearerAuthWithWellknown),
-            });
+const TestSuite kSuite = {
+    "AuthBearerScheme",
+    {
+        CLASSY_TEST(invalidMsgFormat),
+        CLASSY_TEST(validToken),
+        CLASSY_TEST(validTokenOfAnotherIssuer),
+        CLASSY_TEST(badAlgo),
+        CLASSY_TEST(tokenSubject),
+        CLASSY_TEST(tokenMissingAudience),
+        CLASSY_TEST(tokenMissingIssuedTime),
+        CLASSY_TEST(invalidIdentity),
+        CLASSY_TEST(tokenExpiration),
+        CLASSY_TEST(verifySignature),
+        CLASSY_TEST(bearerAuthWithWellknown),
+    },
+    Hooks()
+        .beforeSuite([]() {
+	        auto dir = TmpDir(kSuite.getName());
+	        auto rsaPubKeyPath = dir.path() / "keyFile";
+	        ofstream(rsaPubKeyPath) << kRsaPubKey;
+	        sSuiteScope.emplace(SuiteScope{
+	            .dir = std::move(dir),
+	            .rsaPubKey = std::move(rsaPubKeyPath),
+	        });
+	        return 0;
+        })
+        .afterSuite([]() {
+	        sSuiteScope.reset();
+	        return 0;
+        }),
+};
 } // namespace

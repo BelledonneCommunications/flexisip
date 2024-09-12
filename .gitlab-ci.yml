@@ -16,14 +16,14 @@ variables:
   DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/usr/lib/systemd/system'
 
   # Docker image version
-  ARCHLINUX_IMAGE_VERSION: 20240912_no_protobuf_no_unit_tests
+  ARCHLINUX_IMAGE_VERSION: 20240916_add_cpp-jwt
   ROCKY_8_IMAGE_VERSION: 20240912_cpp-jwt_no_protobuf
   ROCKY_9_IMAGE_VERSION: 20240912_cpp-jwt_no_protobuf
   DEBIAN_11_IMAGE_VERSION: 20240911_remove_protobuf
-  DEBIAN_12_IMAGE_VERSION: 20240912_cpp-jwt_no_protobuf
+  DEBIAN_12_IMAGE_VERSION: 20240916_add_coverage
   MINIMAL_IMAGE_VERSION: 20240911_remove_protobuf
   UBUNTU_22_04_IMAGE_VERSION: 20240911_remove_protobuf
-  UBUNTU_24_04_IMAGE_VERSION: 20240911_remove_protobuf
+  UBUNTU_24_04_IMAGE_VERSION: 20240916_add_cpp-jwt
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:

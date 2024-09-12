@@ -1,10 +1,10 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20240912_cpp-jwt_no_protobuf
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20240916_add_coverage
 ###############################################################################
 
 FROM debian:12
 
-MAINTAINER Thibault Lemaire <thibault.lemaire@belledonne-communications.com>
+LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
   # Update
 RUN apt-get -y update \
@@ -58,6 +58,10 @@ RUN apt-get -y update \
       mariadb-server \
     # Dependencies of CPack (to build the .deb)
       dpkg-dev \
+    # Dependencies of clang test coverage
+      llvm \
+    # Dependencies of lcov_cobertura
+      python3-setuptools \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
@@ -73,6 +77,13 @@ RUN wget https://github.com/nghttp2/nghttp2/releases/download/v1.51.0/nghttp2-1.
 	sudo make -C src install && \
 	cd - && \
 	rm -rf nghttp2-1.51.0.tar.gz nghttp2-1.51.0
+
+RUN apt-get -y install python3-pip \
+  # Dependency of clang test coverage (converts lcov format to cobertura so Gitlab can display code coverage for files in diff view)
+ && pip install --break-system-packages lcov_cobertura \
+ && apt-get -y remove python3-pip \
+ && apt-get -y autoremove \
+ && apt-get -y clean
 
 # Configure user 'bc'
 RUN useradd -ms /bin/bash bc && \
@@ -93,7 +104,7 @@ RUN git config --global --add safe.directory *
 # export CC=gcc
 # export CXX=g++
 # export BUILD_DIR_NAME="build.debian12"
-# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON -DENABLE_UNIT_TESTS=ON
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON
 # cd $BUILD_DIR_NAME
 # cmake --build . --target install
 # LSAN_OPTIONS="suppressions=../sanitizer_ignore.txt" bin/flexisip_tester --resource-dir "../tester/"

@@ -1,11 +1,11 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20240911_remove_protobuf
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20240916_add_cpp-jwt
 ###############################################################################
 
 FROM ubuntu:24.04
 RUN userdel -r ubuntu
 
-MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
+LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
   # Update
 RUN apt-get -y update \
@@ -35,6 +35,7 @@ RUN apt-get -y update \
                        libboost-dev \
                        libboost-system-dev \
                        libboost-thread-dev \
+                       libcpp-jwt-dev \
                        libhiredis-dev \
                        libjansson-dev \
                        libjsoncpp-dev \
@@ -75,3 +76,14 @@ WORKDIR /home/bc
 
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *
+
+# Example build commands
+#
+# cd flexisip/
+# export CC=gcc
+# export CXX=g++
+# export BUILD_DIR_NAME="build.ubuntu24"
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON
+# cd $BUILD_DIR_NAME
+# cmake --build . --target install
+# LSAN_OPTIONS="suppressions=../sanitizer_ignore.txt" bin/flexisip_tester --resource-dir "../tester/"

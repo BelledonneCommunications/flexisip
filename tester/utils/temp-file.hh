@@ -25,13 +25,12 @@
 #include <stdexcept>
 #include <string>
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 /**
  * Create a file in a temporary location on construction, delete it on destruction.
  */
-class TempFile {
+class [[deprecated("Use TmpDir")]] TempFile {
 public:
 	TempFile() {
 		char name[] = "/tmp/flexitest_XXXXXX"; // last 6 X characters are mandatory
@@ -42,7 +41,7 @@ public:
 	}
 
 	template <class Streamable>
-	TempFile(Streamable content) : TempFile() {
+	explicit TempFile(Streamable content) : TempFile() {
 		writeStream() << content;
 	}
 
@@ -64,5 +63,4 @@ private:
 	std::string filename;
 };
 
-} // namespace tester
 } // namespace flexisip

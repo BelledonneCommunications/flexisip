@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -9,8 +23,7 @@
 
 #include "bctoolbox/tester.h"
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 // Setup and teardown hooks to be called before tests
 class Hooks {
@@ -50,15 +63,19 @@ class TestSuite {
 public:
 	TestSuite(const char* name, std::vector<test_t>&& tests, const Hooks& hooks = {})
 	    : mTests(std::move(tests)), mSuite{
-	                                    name,               // Suite name
-	                                    hooks.mBeforeAll,   // Before suite
-	                                    hooks.mAfterAll,    // After suite
-	                                    hooks.mBeforeEach,  // Before each test
-	                                    hooks.mAfterEach,   // After each test
-	                                    int(mTests.size()), // test array length
-	                                    mTests.data()       // test array
+	                                    .name = name,
+	                                    .before_all = hooks.mBeforeAll,
+	                                    .after_all = hooks.mAfterAll,
+	                                    .before_each = hooks.mBeforeEach,
+	                                    .after_each = hooks.mAfterEach,
+	                                    .nb_tests = int(mTests.size()),
+	                                    .tests = mTests.data(),
 	                                } {
 		bc_tester_add_suite(&mSuite);
+	}
+
+	const char* getName() const {
+		return mSuite.name;
 	}
 
 	/**
@@ -67,7 +84,7 @@ public:
 	 */
 	class Disabled {
 	public:
-		Disabled(const char* name [[maybe_unused]], [[maybe_unused]] std::vector<test_t>&& tests, [[maybe_unused]] const Hooks& hooks = {}) {
+		Disabled(const char*, std::vector<test_t>&&, const Hooks& = {}) {
 		}
 	};
 
@@ -76,5 +93,4 @@ private:
 	test_suite_t mSuite;
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
