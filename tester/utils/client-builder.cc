@@ -98,7 +98,10 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	    .against([&core](port::Range range) { core->setAudioPortRange(range.min, range.max); },
 	             [&core](port::Port port) { core->setAudioPort(port.port); },
 	             [&core](port::Auto) { core->setAudioPort(LC_SIP_TRANSPORT_RANDOM); });
-	core->setVideoPort(LC_SIP_TRANSPORT_RANDOM);
+	Match(mVideoPort)
+	    .against([&core](port::Range range) { core->setVideoPortRange(range.min, range.max); },
+	             [&core](port::Port port) { core->setVideoPort(port.port); },
+	             [&core](port::Auto) { core->setVideoPort(LC_SIP_TRANSPORT_RANDOM); });
 	core->setUseFiles(true);
 	// final check on call successfully established is based on bandwidth used,
 	// so use file as input to make sure there is some traffic
@@ -212,6 +215,11 @@ ClientBuilder& ClientBuilder::setInactiveAudioOnPause(OnOff value) {
 
 ClientBuilder& ClientBuilder::setAudioPort(port::PortSetting setting) {
 	mAudioPort = setting;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setVideoPort(port::PortSetting setting) {
+	mVideoPort = setting;
 	return *this;
 }
 

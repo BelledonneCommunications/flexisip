@@ -55,7 +55,6 @@
 namespace flexisip::tester::b2buatester {
 
 using namespace std;
-using namespace linphone;
 using namespace flexisip;
 using namespace b2bua;
 using namespace bridge;
@@ -582,14 +581,14 @@ static void external_provider_bridge__override_special_options() {
 	                                    *proxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	sipBridge.init(core, proxy.getAgent()->getConfigManager());
 	auto params = core->createCallParams(call);
-	params->setMediaEncryption(MediaEncryption::ZRTP);
+	params->setMediaEncryption(linphone::MediaEncryption::ZRTP);
 	params->enableAvpf(true);
 
 	const auto calleeAddres = sipBridge.onCallCreate(*call, *params);
 
 	BC_ASSERT_TRUE(holds_alternative<shared_ptr<const linphone::Address>>(calleeAddres));
 	// Special call params overriden
-	BC_ASSERT_TRUE(params->getMediaEncryption() == MediaEncryption::None);
+	BC_ASSERT_TRUE(params->getMediaEncryption() == linphone::MediaEncryption::None);
 	BC_ASSERT_TRUE(params->avpfEnabled() == false);
 }
 
@@ -1016,97 +1015,98 @@ static void basic() {
 }
 
 /**
- * Scenario: Marie calls Pauline
- * encryptions on outgoing and incoming calls are checked
- * When video is enabled, perform
- * 		- a call with video enabled form start
- * 		. a call audio only updated to add video and then remove it
+ * @brief Scenario: Marie calls Pauline, encryption on outgoing and incoming calls are verified.
+ * When video is enabled, perform:
+ * 		- a call with audio and video enabled form start
+ * 		- an audio call updated to add video and then remove it
  *
  * @param[in] marieName			sip URI of user Marie
  * @param[in] marieEncryption	MediaEncryption used for outgoing call
  * @param[in] paulineName		sip URI of user Pauline
- * @param[in] paulineEncryption	MediaEncryption expected for incoming call (not enforced at callee callParams level)
+ * @param[in] paulineEncryption	MediaEncryption expected for incoming call (not enforced in callee callParams)
  * @param[in] video				perform video call when true
  *
  * @return true when everything went well
  */
-static bool mixedEncryption(const std::string& marieName,
+static bool mixedEncryption(const string& marieName,
                             linphone::MediaEncryption marieEncryption,
-                            const std::string& paulineName,
+                            const string& paulineName,
                             linphone::MediaEncryption paulineEncryption,
                             bool video) {
-	// initialize and start the proxy and B2bua server
-	auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
+	// Initialize and start proxy and B2bua servers.
+	const auto server = make_shared<B2buaServer>("config/flexisip_b2bua.conf");
 	ClientBuilder builder{*server->getAgent()};
-	builder.setVideoSend(OnOff::On);
-	// Create and register clients
+	builder.setVideoSend(static_cast<OnOff>(video)).setVideoReceive(static_cast<OnOff>(video));
+	// Create and register clients.
 	auto marie = builder.build(marieName);
 	auto pauline = builder.build(paulineName);
 
-	// Marie calls Pauline
-	auto marieCallParams = marie.getCore()->createCallParams(nullptr);
-	marieCallParams->setMediaEncryption(marieEncryption);
-	marieCallParams->enableVideo(video);
-	auto marieCall = marie.call(pauline, marieCallParams);
-	if (!BC_ASSERT_PTR_NOT_NULL(marieCall)) return false; // stop the test if we fail to establish the call
-	auto paulineCall = ClientCall::getLinphoneCall(pauline.getCurrentCall().value());
-	BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
-	BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
-	// we're going through a back-2-back user agent, so the callIds are not the same
-	BC_ASSERT_TRUE(marieCall->getCallLog()->getCallId() != paulineCall->getCallLog()->getCallId());
-	if (!BC_ASSERT_TRUE(marie.endCurrentCall(pauline))) return false;
-
-	// updating call to add and remove video
-	if (video) {
-		auto marieCallParams = marie.getCore()->createCallParams(nullptr);
+	// Establish an audio (and video if enabled) call using given encryption.
+	{
+		// Marie (caller) calls Pauline (callee).
+		const auto marieCallParams = marie.getCore()->createCallParams(nullptr);
 		marieCallParams->setMediaEncryption(marieEncryption);
-		// Call audio only
-		auto marieCall = marie.call(pauline, marieCallParams);
-		if (!BC_ASSERT_PTR_NOT_NULL(marieCall)) return false;
-		auto paulineCall = ClientCall::getLinphoneCall(pauline.getCurrentCall().value());
-		BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
-		BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
-		BC_ASSERT_FALSE(marieCall->getCurrentParams()->videoEnabled());
-		BC_ASSERT_FALSE(paulineCall->getCurrentParams()->videoEnabled());
-		// update call to add video
-		marieCallParams->enableVideo(true);
-		if (!BC_ASSERT_TRUE(marie.callUpdate(pauline, marieCallParams)))
-			return false; // The callUpdate checks that video is enabled
-		BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
-		BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
-		// update call to remove video
+		marieCallParams->enableVideo(video);
+		const auto marieCall = marie.call(pauline, marieCallParams);
+
+		// Stop the test if we fail to establish the call.
+		if (!BC_ASSERT(marieCall != nullptr)) return false;
+
+		const auto paulineCall = ClientCall::getLinphoneCall(pauline.getCurrentCall().value());
+		BC_ASSERT_ENUM_EQUAL(marieCall->getCurrentParams()->getMediaEncryption(), marieEncryption);
+		BC_ASSERT_ENUM_EQUAL(paulineCall->getCurrentParams()->getMediaEncryption(), paulineEncryption);
+		// We are going through a back-2-back user agent, so the callIds are not the same.
+		BC_ASSERT(marieCall->getCallLog()->getCallId() != paulineCall->getCallLog()->getCallId());
+
+		if (!BC_ASSERT(marie.endCurrentCall(pauline))) return false;
+	}
+
+	// Establish an audio call using given encryption.
+	// Then, update the call to add video.
+	// Finally, update the call to remove video.
+	if (video) {
+		const auto marieCallParams = marie.getCore()->createCallParams(nullptr);
+		marieCallParams->setMediaEncryption(marieEncryption);
 		marieCallParams->enableVideo(false);
-		if (!BC_ASSERT_TRUE(marie.callUpdate(pauline, marieCallParams)))
-			return false; // The callUpdate checks that video is disabled
-		BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == marieEncryption);
-		BC_ASSERT_TRUE(paulineCall->getCurrentParams()->getMediaEncryption() == paulineEncryption);
-		if (!BC_ASSERT_TRUE(marie.endCurrentCall(pauline))) return false;
+		// Audio call only.
+		const auto marieCall = marie.call(pauline, marieCallParams);
+
+		// Stop the test if we fail to establish the call.
+		if (!BC_ASSERT(marieCall != nullptr)) return false;
+
+		const auto paulineCall = ClientCall::getLinphoneCall(pauline.getCurrentCall().value());
+		BC_ASSERT_ENUM_EQUAL(marieCall->getCurrentParams()->getMediaEncryption(), marieEncryption);
+		BC_ASSERT_ENUM_EQUAL(paulineCall->getCurrentParams()->getMediaEncryption(), paulineEncryption);
+		BC_ASSERT(!marieCall->getCurrentParams()->videoEnabled());
+		BC_ASSERT(!paulineCall->getCurrentParams()->videoEnabled());
+
+		// Update call to add video.
+		marieCallParams->enableVideo(true);
+		// The callUpdate checks that video is enabled.
+		if (!BC_ASSERT(marie.callUpdate(pauline, marieCallParams))) return false;
+
+		BC_ASSERT_ENUM_EQUAL(marieCall->getCurrentParams()->getMediaEncryption(), marieEncryption);
+		BC_ASSERT_ENUM_EQUAL(paulineCall->getCurrentParams()->getMediaEncryption(), paulineEncryption);
+
+		// Update call to remove video.
+		marieCallParams->enableVideo(false);
+		// The callUpdate checks that video is disabled.
+		if (!BC_ASSERT(marie.callUpdate(pauline, marieCallParams))) return false;
+
+		BC_ASSERT_ENUM_EQUAL(marieCall->getCurrentParams()->getMediaEncryption(), marieEncryption);
+		BC_ASSERT_ENUM_EQUAL(paulineCall->getCurrentParams()->getMediaEncryption(), paulineEncryption);
+
+		if (!BC_ASSERT(marie.endCurrentCall(pauline))) return false;
 	}
 	return true;
 }
 
-static void forward() {
-	// Use uri not matching anything in the b2bua server config, so ougoing media encryption shall match incoming one
-	// SDES
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::SRTP,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::SRTP, false));
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::SRTP,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::SRTP, true));
-	// ZRTP
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::ZRTP,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::ZRTP, false));
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::ZRTP,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::ZRTP, true));
-	// DTLS
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::DTLS,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::DTLS, false));
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::DTLS,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::DTLS, true));
-	// None
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::None,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::None, false));
-	BC_ASSERT_TRUE(mixedEncryption("sip:marie@sip.example.org", linphone::MediaEncryption::None,
-	                               "sip:pauline@sip.example.org", linphone::MediaEncryption::None, true));
+template <const linphone::MediaEncryption mediaEncryption, const bool enableVideo>
+void forwardMediaEncryption() {
+	// Use URI not matching anything in the b2bua server config, so outgoing media encryption shall match incoming one.
+	const auto marieName = "sip:marie@sip.example.org"s;
+	const auto paulineName = "sip:pauline@sip.example.org"s;
+	BC_ASSERT(mixedEncryption(marieName, mediaEncryption, paulineName, mediaEncryption, enableVideo));
 }
 
 static void sdes2zrtp() {
@@ -1297,7 +1297,7 @@ static void videoRejected() {
 	}
 }
 
-class FailIfUpdatedByRemote : public CallListener {
+class FailIfUpdatedByRemote : public linphone::CallListener {
 public:
 	bool passed = true;
 
@@ -1932,7 +1932,14 @@ TestSuite _{
         CLASSY_TEST(request_header__user_agent),
         CLASSY_TEST(configuration__user_agent),
         TEST_NO_TAG("Basic", basic),
-        TEST_NO_TAG("Forward Media Encryption", forward),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::None, false>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::None, true>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::DTLS, false>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::DTLS, true>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::SRTP, false>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::SRTP, true>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::ZRTP, false>)),
+        CLASSY_TEST((forwardMediaEncryption<linphone::MediaEncryption::ZRTP, true>)),
         TEST_NO_TAG("SDES to ZRTP call", sdes2zrtp),
         TEST_NO_TAG("SDES to DTLS call", sdes2dtls),
         TEST_NO_TAG("ZRTP to DTLS call", zrtp2dtls),

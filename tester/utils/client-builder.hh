@@ -84,6 +84,8 @@ public:
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 	ClientBuilder& setInactiveAudioOnPause(OnOff);
 	ClientBuilder& setAudioPort(port::PortSetting);
+	ClientBuilder& setVideoPort(port::PortSetting);
+
 	/**
 	 * Add some Apple-specific push info to REGISTERs
 	 */
@@ -106,6 +108,7 @@ private:
 	OnOff mRegister : 1;
 	OnOff mSetAudioInactiveOnPause = OnOff::Off;
 	port::PortSetting mAudioPort = port::Auto();
+	port::PortSetting mVideoPort = port::Auto();
 	std::string mPassword{""};
 };
 
