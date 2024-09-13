@@ -526,13 +526,15 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Turn off all audio codecs except this one. This will effectively force this codec on both ends of all "
 	        "bridged calls. (If either end does not support the codec set here, the call will fail to establish.) "
 	        "Setting this option will also turn on the media payload forwarding optimisation which improves the "
-	        "performance of the B2BUA.",
+	        "performance of the B2BUA.\n"
+	        "Format: <codec>/<sample-rate>. Example: speex/8000",
 	        "",
 	    },
 	    {
 	        String,
 	        "video-codec",
-	        "Same as 'audio-codec' but for video.",
+	        "Same as 'audio-codec' but for video.\n"
+	        "Format: <codec>. Example: H264",
 	        "",
 	    },
 	    {

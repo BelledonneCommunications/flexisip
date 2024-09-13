@@ -27,6 +27,7 @@
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "exceptions/bad-configuration.hh"
 #include "utils/string-utils.hh"
 
 namespace flexisip::b2bua {
@@ -82,25 +83,33 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	const auto& forceCodec = [&config, &core = *core, &configLinphone](const auto& flexisipConfigName,
 	                                                                   const auto& linphoneConfigName,
-	                                                                   const auto& codecList) {
+	                                                                   const auto& codecList, const auto& regEx) {
 		const auto* configField = config.get<ConfigString>(flexisipConfigName);
-		const auto& payloadDesc = configField->read();
-		if (payloadDesc.empty()) return;
-		const auto& parts = StringUtils::split(string_view(payloadDesc), "/");
-		if (parts.size() < 2) {
-			throw runtime_error(configField->getCompleteName() +
-			                    " misconfigured. Expected something like <codec>/<sample rate>, e.g. 'speex/8000'");
-		}
-		const auto codec = parts[0];
-		const auto rate = parts[1];
+		const auto& configDesc = configField->read();
+		if (configDesc.empty()) return;
 
+		smatch res{};
+		if (!regex_match(configDesc, res, regEx))
+			throw BadConfiguration(configField->getCompleteName() + " (" + configDesc +
+			                       ") does not have the expected format.");
+		const auto& codec = res[1];
+		string rate;
+		if (res.size() == 3) rate = res[2];
+
+		bool enabled = false;
 		for (const auto& payloadType : (core.*codecList)()) {
-			if (payloadType->getMimeType() == codec && to_string(payloadType->getClockRate()) == rate) {
+			if (StringUtils::iequals(payloadType->getMimeType(), codec) &&
+			    (rate.empty() || to_string(payloadType->getClockRate()) == rate)) {
 				payloadType->enable(true);
+				enabled = true;
 			} else { // disable all other codecs
 				payloadType->enable(false);
-				SLOGD << "Disabling " << payloadType->getDescription() << " to force " << codec << "/" << rate;
+				SLOGD << "Disabling " << payloadType->getDescription() << " to force " << configDesc;
 			}
+		}
+		if (!enabled) {
+			throw BadConfiguration("B2bua core failed to enable " + configField->getCompleteName() + " with codec " +
+			                       configDesc);
 		}
 
 		// We know for certain that the codec used in both legs will be the same (the one we just forced), so we can
@@ -109,9 +118,12 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	};
 
 	// if an audio codec is set in config enable only that one
-	forceCodec("audio-codec", "sound", &linphone::Core::getAudioPayloadTypes);
+	// expected config format: <codec>/<sample rate>
+	forceCodec("audio-codec", "sound", &linphone::Core::getAudioPayloadTypes, regex("([a-zA-Z-0-9-]+)/([0-9]+)"));
+
 	// if a video codec is set in config enable only that one
-	forceCodec("video-codec", "video", &linphone::Core::getVideoPayloadTypes);
+	// expected config format: <codec>
+	forceCodec("video-codec", "video", &linphone::Core::getVideoPayloadTypes, regex("([a-zA-Z-0-9-]+)"));
 
 	const int audioPortMin = config.get<ConfigIntRange>("audio-port")->readMin();
 	const int audioPortMax = config.get<ConfigIntRange>("audio-port")->readMax();
