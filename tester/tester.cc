@@ -153,11 +153,13 @@ void flexisip_tester_init() {
 	constexpr auto kAuthDbLocalGrammarLocation = FLEXISIP_ROOT_DIR "/share";
 	constexpr auto kVCardLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belcard/src";
 	constexpr auto kSdpLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belle-sip/src/sdp";
+	constexpr auto kSipLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belle-sip/src/sip";
 	constexpr auto kLibLinphoneLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/liblinphone/share";
 
 	flexisip_tester_add_grammar_loader_path(kAuthDbLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kVCardLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kSdpLocalGrammarLocation);
+	flexisip_tester_add_grammar_loader_path(kSipLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kLibLinphoneLocalGrammarLocation);
 
 	flexisip_tester_set_factory_resources_path(FLEXISIP_ROOT_DIR);
