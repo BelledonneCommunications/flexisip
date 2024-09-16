@@ -228,6 +228,7 @@ if(ENABLE_B2BUA)
 		tests/b2bua/sip-bridge/invite-tweaker-tester.cc
 		tests/b2bua/sip-bridge/sip-bridge-tester.cc
 		tests/b2bua/sip-bridge/string-format-fields-tester.cc
+		tests/b2bua/trenscrypter/trenscrypter-tester.cc
 	)
 	if(ENABLE_G729)
 		target_sources(flexisip_tester PRIVATE

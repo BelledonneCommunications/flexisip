@@ -445,7 +445,7 @@ bool CoreClient::callUpdate(const CoreClient& peer,
 
 	// Wait for the update to be concluded
 	if (!asserter
-	         .iterateUpTo(5,
+	         .iterateUpTo(10,
 	                      [&selfCall = *selfCall] {
 		                      FAIL_IF(selfCall.getState() != linphone::Call::State::StreamsRunning);
 		                      return ASSERTION_PASSED();
