@@ -108,6 +108,7 @@ public:
 	ClientBuilder& setMwiServerAddress(const std::shared_ptr<linphone::Address>& address);
 
 	CoreClient build(const std::string&) const;
+	std::shared_ptr<CoreClient> make(const std::string&) const;
 
 private:
 	const std::shared_ptr<linphone::Factory> mFactory;

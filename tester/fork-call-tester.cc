@@ -34,38 +34,41 @@ using namespace std::chrono;
 using namespace linphone;
 
 namespace flexisip::tester {
+namespace {
 
-static void basicCall() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void basicCall() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 
-	callerClient->call(calleeClient);
-	callerClient->endCurrentCall(calleeClient);
+	BC_ASSERT_PTR_NOT_NULL(callerClient.call(calleeClient));
+	BC_ASSERT(callerClient.endCurrentCall(calleeClient));
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	if (moduleRouter) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1, int, "%i");
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1);
 	}
 }
 
-static void callWithEarlyCancel() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void callWithEarlyCancel() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 
-	callerClient->callWithEarlyCancel(calleeClient);
+	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	// Assert Fork is destroyed
-	CoreAssert(calleeClient, callerClient, server->getAgent())
+	CoreAssert(server, callerClient, calleeClient)
 	    .wait([&moduleRouter = *moduleRouter] {
 		    FAIL_IF(moduleRouter.mStats.mCountCallForks->start->read() != 1);
 		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() != 1);
@@ -74,35 +77,36 @@ static void callWithEarlyCancel() {
 	    .assert_passed();
 }
 
-static void callWithEarlyCancelCalleeOffline() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void callWithEarlyCancelCalleeOffline() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
-	const auto calleeIdleClient =
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
-	const auto calleeIdleClientCore = calleeIdleClient.getCore();
-	CoreAssert asserter{calleeIdleClientCore, server};
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+	const auto calleeIdleClient = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
-	// Check that call log is empty before test
-	if (!BC_ASSERT_TRUE(
-	        asserter.wait([&calleeIdleClientCore] { return calleeIdleClientCore->getCallLogs().empty(); }))) {
-	}
-
+	// Check that call log is empty before test.
+	CoreAssert asserter{server, callerClient, calleeClient, calleeIdleClient};
+	asserter
+	    .wait([&calleeIdleClientCore = calleeIdleClient.getCore()] {
+		    return LOOP_ASSERTION(calleeIdleClientCore->getCallLogs().empty());
+	    })
+	    .assert_passed();
 	calleeIdleClient.disconnect();
-	// Call with callee offline with one device
-	callerClient->callWithEarlyCancel(calleeClient, nullptr);
 
-	// Assert that fork is still present because callee has one device offline
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	// Call with callee offline with one device.
+	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
+
+	// Assert that fork is still present because callee has one device offline.
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
 
-	// Callee idle device came back online, sending a new Register
+	// Callee idle device came back online, sending a new Register.
 	calleeIdleClient.reconnect();
-	// Wait for registration OK and check that call log is not empty anymore
+	// Wait for registration OK and check that call log is not empty anymore.
 	asserter
 	    .wait([&calleeIdleClient] {
 		    FAIL_IF(calleeIdleClient.getAccount()->getState() != RegistrationState::Ok);
@@ -111,14 +115,16 @@ static void callWithEarlyCancelCalleeOffline() {
 	    })
 	    .assert_passed();
 
-	// Assert CANCEL is received
-	BC_ASSERT_TRUE(asserter.wait([&calleeIdleClientCore] {
-		return !calleeIdleClientCore->getCurrentCall() ||
-		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::End ||
-		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::Released;
-	}));
+	// Assert CANCEL is received.
+	asserter
+	    .wait([&calleeIdleClientCore = calleeIdleClient.getCore()] {
+		    return LOOP_ASSERTION(!calleeIdleClientCore->getCurrentCall() ||
+		                          calleeIdleClientCore->getCurrentCall()->getState() == Call::State::End ||
+		                          calleeIdleClientCore->getCurrentCall()->getState() == Call::State::Released);
+	    })
+	    .assert_passed();
 
-	// Assert Fork is destroyed
+	// Assert Fork is destroyed.
 	asserter
 	    .wait([&moduleRouter = *moduleRouter] {
 		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() < 1);
@@ -126,7 +132,8 @@ static void callWithEarlyCancelCalleeOffline() {
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
 }
 
 /**
@@ -137,86 +144,91 @@ static void callWithEarlyCancelCalleeOffline() {
  * The caller quickly terminates the call, and we assert that a terminal (503) response is received.
  * We then reconnect the iOS client to check that ForkCall was well preserved to send INVITE/CANCEL to the iOS client.
  */
-static void callWithEarlyCancelCalleeOnlyOffline() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void callWithEarlyCancelCalleeOnlyOffline() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	const auto calleeIdleClient =
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
-	const auto calleeIdleClientCore = calleeIdleClient.getCore();
-	CoreAssert asserter{calleeIdleClientCore, server};
+	ClientBuilder builder{*server.getAgent()};
+	const auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	const auto calleeIdleClient = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
-	// Check that call log is empty before test
-	asserter.wait([&calleeIdleClientCore] { return calleeIdleClientCore->getCallLogs().empty(); }).assert_passed();
+	// Check that call log is empty before test.
+	CoreAssert asserter{server, callerClient, calleeIdleClient};
+	asserter
+	    .wait([&calleeIdleClientCore = calleeIdleClient.getCore()] {
+		    return LOOP_ASSERTION(calleeIdleClientCore->getCallLogs().empty());
+	    })
+	    .assert_passed();
 	calleeIdleClient.disconnect();
 
 	bool isRequestAccepted = false;
 	bool is503Received = false;
 	bool isCancelRequestAccepted = false;
-	BellesipUtils inviteTransaction{"127.0.0.1", 56492, "TCP",
-	                                [&isRequestAccepted, &is503Received, &isCancelRequestAccepted](int status) {
-		                                if (status == 100) isRequestAccepted = true;
-		                                if (!isRequestAccepted) return;
+	BellesipUtils belleSipUtils{"127.0.0.1", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, "TCP",
+	                            [&isRequestAccepted, &is503Received, &isCancelRequestAccepted](int status) {
+		                            if (status == 100) isRequestAccepted = true;
+		                            if (!isRequestAccepted) return;
 
-		                                if (status == 503) is503Received = true;
-		                                if (status == 200) isCancelRequestAccepted = true;
-	                                },
-	                                nullptr};
-	asserter.registerSteppable(inviteTransaction);
+		                            if (status == 503) is503Received = true;
+		                            if (status == 200) isCancelRequestAccepted = true;
+	                            },
+	                            nullptr};
+	asserter.registerSteppable(belleSipUtils);
 
-	// Call with callee offline with all device
-	inviteTransaction.sendRawRequest(
-	    "INVITE sip:calleeClient@sip.test.org SIP/2.0\r\n"
-	    "Via: SIP/2.0/TCP 127.0.0.1:56492;branch=z9hG4bK.L~E42YLQ0;rport\r\n"
-	    "From: sip:callerClient@sip.test.org;tag=6er0DzzuB\r\n"
-	    "To: sip:calleeClient@sip.test.org\r\n"
-	    "CSeq: 20 INVITE\r\n"
-	    "Call-ID: AMVyfHFNUI\r\n"
-	    "Max-Forwards: 70\r\n"
-	    "Route: <sip:127.0.0.1:5760;transport=tcp;lr>\r\n"
-	    "Supported: replaces, outbound, gruu, path\r\n"
-	    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
-	    "Content-Type: application/sdp\r\n"
-	    "Contact: "
-	    "<sip:callerClient@sip.test.org;gr=urn:uuid:6e87dc22-b1bc-00ff-b0ab-cc59670f7cdd;>+sip.instance=\"urn:uuid:"
-	    "6e87dc22-b1bc-00ff-b0ab-cc59670f7cdd\";+org.linphone.specs=\"lime\"\r\n"
-	    "User-Agent: BelleSipUtils for Flexisip tests\r\n");
+	stringstream rawRequest{};
+	rawRequest
+	    << "INVITE sip:calleeClient@sip.test.org SIP/2.0\r\n"
+	    << "Via: SIP/2.0/TCP 127.0.0.1:" << belleSipUtils.getListeningPort() << ";branch=z9hG4bK.L~E42YLQ0\r\n"
+	    << "From: sip:callerClient@sip.test.org;tag=6er0DzzuB\r\n"
+	    << "To: sip:calleeClient@sip.test.org\r\n"
+	    << "CSeq: 20 INVITE\r\n"
+	    << "Call-ID: AMVyfHFNUI\r\n"
+	    << "Max-Forwards: 70\r\n"
+	    << "Route: <sip:127.0.0.1:" << server.getFirstPort() << ";transport=tcp;lr>\r\n"
+	    << "Supported: replaces, outbound, gruu, path\r\n"
+	    << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
+	    << "Content-Type: application/sdp\r\n"
+	    << "Contact: "
+	       "<sip:callerClient@sip.test.org>;+sip.instance=\"<urn:uuid:6e87dc22-b1bc-00ff-b0ab-cc59670f7cdd>\"\r\n"
+	    << "User-Agent: BelleSipUtils\r\n"
+	    << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(rawRequest.str());
 
-	BC_HARD_ASSERT(asserter.wait([&isRequestAccepted]() {
-		FAIL_IF(isRequestAccepted != true);
-		return ASSERTION_PASSED();
-	}));
+	asserter.wait([&isRequestAccepted]() { return LOOP_ASSERTION(isRequestAccepted == true); }).hard_assert_passed();
 
-	// Server can need one more loop to receive 503 after sending 100 trying
-	server->getRoot()->step(1ms);
+	// Server can need one more loop to receive 503 after sending 100 trying.
+	server.getRoot()->step(1ms);
 
-	inviteTransaction.sendRawRequest("CANCEL sip:calleeClient@sip.test.org SIP/2.0\r\n"
-	                                 "Via: SIP/2.0/TCP 127.0.0.1:56492;branch=z9hG4bK.L~E42YLQ0;rport\r\n"
-	                                 "Call-ID: AMVyfHFNUI\r\n"
-	                                 "From: <sip:callerClient@sip.test.org>;tag=6er0DzzuB\r\n"
-	                                 "To: <sip:calleeClient@sip.test.org>\r\n"
-	                                 "Route: <sip:127.0.0.1:5760;transport=tcp;lr>\r\n"
-	                                 "Max-Forwards: 70\r\n"
-	                                 "CSeq: 20 CANCEL\r\n"
-	                                 "User-Agent: BelleSipUtils for Flexisip tests\r\n"
-	                                 "Content-Length: 0");
+	rawRequest = {};
+	rawRequest << "CANCEL sip:calleeClient@sip.test.org SIP/2.0\r\n"
+	           << "Via: SIP/2.0/TCP 127.0.0.1:" << belleSipUtils.getListeningPort() << ";branch=z9hG4bK.L~E42YLQ0\r\n"
+	           << "From: <sip:callerClient@sip.test.org>;tag=6er0DzzuB\r\n"
+	           << "To: <sip:calleeClient@sip.test.org>\r\n"
+	           << "CSeq: 20 CANCEL\r\n"
+	           << "Call-ID: AMVyfHFNUI\r\n"
+	           << "Max-Forwards: 70\r\n"
+	           << "Route: <sip:127.0.0.1:" << server.getFirstPort() << ";transport=tcp;lr>\r\n"
+	           << "User-Agent: BelleSipUtils\r\n"
+	           << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(rawRequest.str());
 
-	BC_HARD_ASSERT(asserter.wait([&isCancelRequestAccepted, &is503Received]() {
-		FAIL_IF(isCancelRequestAccepted != true);
-		FAIL_IF(is503Received != true);
-		return ASSERTION_PASSED();
-	}));
+	asserter
+	    .wait([&isCancelRequestAccepted, &is503Received]() {
+		    FAIL_IF(isCancelRequestAccepted != true);
+		    FAIL_IF(is503Received != true);
+		    return ASSERTION_PASSED();
+	    })
+	    .hard_assert_passed();
 
-	// Assert that fork is still present because callee has only offline devices
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	// Assert that fork is still present because callee has only offline devices.
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
 
-	// Callee idle device came back online, sending a new Register
+	// Callee idle device came back online, sending a new Register.
 	calleeIdleClient.reconnect();
-	// Wait for registration OK and check that call log is not empty anymore
+	// Wait for registration OK and check that call log is not empty anymore.
 	asserter
 	    .wait([&calleeIdleClient] {
 		    FAIL_IF(calleeIdleClient.getAccount()->getState() != RegistrationState::Ok);
@@ -225,62 +237,63 @@ static void callWithEarlyCancelCalleeOnlyOffline() {
 	    })
 	    .assert_passed();
 
-	// Assert CANCEL is received
-	BC_ASSERT_TRUE(asserter.wait([&calleeIdleClientCore] {
-		return !calleeIdleClientCore->getCurrentCall() ||
-		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::End ||
-		       calleeIdleClientCore->getCurrentCall()->getState() == Call::State::Released;
-	}));
-
-	// Assert Fork is destroyed
+	// Assert CANCEL is received.
 	asserter
-	    .wait([&moduleRouter = *moduleRouter] {
-		    LOOP_ASSERTION(moduleRouter.mStats.mCountCallForks->finish->read() == 1);
-		    return ASSERTION_PASSED();
+	    .wait([&calleeIdleClientCore = calleeIdleClient.getCore()] {
+		    return LOOP_ASSERTION(!calleeIdleClientCore->getCurrentCall() ||
+		                          calleeIdleClientCore->getCurrentCall()->getState() == Call::State::End ||
+		                          calleeIdleClientCore->getCurrentCall()->getState() == Call::State::Released);
 	    })
 	    .assert_passed();
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+
+	// Assert Fork is destroyed.
+	asserter
+	    .wait([&moduleRouter = *moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter.mStats.mCountCallForks->finish->read() == 1);
+	    })
+	    .assert_passed();
+
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
 }
 
 /**
  * Reconnect two apple devices, one with voip push available and one not, after an early cancel.
  * Assert that only the device with voip push receive an INVITE+CANCEL on register.
  */
-static void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
-	const auto calleeIdleClientVoip =
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
-	const auto calleeIdleClientRemote =
-	    ClientBuilder(*server->getAgent()).setApplePushConfigRemoteOnly().build("sip:calleeClient@sip.test.org");
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+	auto calleeIdleClientVoip = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
+	auto calleeIdleClientRemote = builder.setApplePushConfigRemoteOnly().build("sip:calleeClient@sip.test.org");
 
-	// Prepare asserter
+	// Prepare asserter.
 	const auto calleeIdleClientVoipCore = calleeIdleClientVoip.getCore();
 	const auto calleeIdleClientRemoteCore = calleeIdleClientVoip.getCore();
-	CoreAssert asserter{calleeIdleClientVoip.getCore(), calleeIdleClientRemote.getCore(), server};
 
-	// Check that call log is empty before test
+	// Check that call log is empty before test.
 	BC_HARD_ASSERT_TRUE(calleeIdleClientVoipCore->getCallsNb() == 0);
 	BC_HARD_ASSERT_TRUE(calleeIdleClientRemoteCore->getCallsNb() == 0);
 
-	// Call with callee offline with two device
+	// Call with callee offline with two device.
 	calleeIdleClientVoip.disconnect();
 	calleeIdleClientRemote.disconnect();
-	callerClient->callWithEarlyCancel(calleeClient, nullptr);
+	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
-	// Assert that fork is still present because callee has two devices offline
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	// Assert that fork is still present because callee has two devices offline.
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
 
-	// Callee idle devices came back online, sending a new Register
+	// Callee idle devices came back online, sending a new Register.
 	calleeIdleClientVoip.reconnect();
 	calleeIdleClientRemote.reconnect();
-	// Wait for registration OK and check that call log is not empty anymore for client with VOIP push
+	// Wait for registration OK and check that call log is not empty anymore for client with VOIP push.
+	CoreAssert asserter{server, callerClient, calleeClient, calleeIdleClientVoip, calleeIdleClientRemote};
 	asserter
 	    .wait([&calleeIdleClientVoip, &calleeIdleClientRemote] {
 		    FAIL_IF(calleeIdleClientVoip.getAccount()->getState() != RegistrationState::Ok);
@@ -290,143 +303,163 @@ static void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
 	    })
 	    .assert_passed();
 
-	// Assert CANCEL is received client with VOIP push
-	BC_ASSERT_TRUE(asserter.wait([&calleeIdleClientVoipCore] {
-		return !calleeIdleClientVoipCore->getCurrentCall() ||
-		       calleeIdleClientVoipCore->getCurrentCall()->getState() == Call::State::End ||
-		       calleeIdleClientVoipCore->getCurrentCall()->getState() == Call::State::Released;
-	}));
+	// Assert CANCEL is received client with VOIP push.
+	asserter
+	    .wait([&calleeIdleClientVoipCore] {
+		    return LOOP_ASSERTION(!calleeIdleClientVoipCore->getCurrentCall() ||
+		                          calleeIdleClientVoipCore->getCurrentCall()->getState() == Call::State::End ||
+		                          calleeIdleClientVoipCore->getCurrentCall()->getState() == Call::State::Released);
+	    })
+	    .assert_passed();
 
 	// Assert call log is still empty for client with remote push only.
 	asserter
 	    .wait([&calleeIdleClientRemote] {
-		    FAIL_IF(!calleeIdleClientRemote.getCore()->getCallLogs().empty());
-		    return ASSERTION_PASSED();
+		    return LOOP_ASSERTION(calleeIdleClientRemote.getCore()->getCallLogs().empty());
 	    })
 	    .assert_passed();
 
 	// Fork not destroyed because a branch stay alive forever. Destroyed on timeout or Agent destruction.
 }
 
-static void calleeOfflineWithOneDevice() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void calleeOfflineWithOneDevice() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
-	auto calleeClientOfflineDevice =
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
-	auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+	auto calleeClientOfflineDevice = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
+	const auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
 	calleeClientOfflineDevice.disconnect();
 
-	callerClient->call(calleeClient);
-	callerClient->endCurrentCall(calleeClient);
+	BC_ASSERT_PTR_NOT_NULL(callerClient.call(calleeClient));
+	BC_ASSERT(callerClient.endCurrentCall(calleeClient));
 
-	// Assert that fork is still present because not all devices where online
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	// Assert that fork is still present because not all devices where online.
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
 
-	// Offline device came back online, sending a new Register
+	// Offline device came back online, sending a new Register.
 	calleeClientOfflineDevice.reconnect();
-	CoreAssert asserter{calleeOfflineDeviceCore, server};
-	// Wait for registration OK and check that call log is not empty anymore
-	BC_ASSERT_TRUE(asserter.wait([&calleeClientOfflineDevice] {
-		return calleeClientOfflineDevice.getAccount()->getState() == RegistrationState::Ok &&
-		       !calleeClientOfflineDevice.getCore()->getCallLogs().empty();
-	}));
+	// Wait for registration OK and check that call log is not empty anymore.
+	CoreAssert asserter{server, callerClient, calleeClient, calleeClientOfflineDevice};
+	asserter
+	    .wait([&calleeClientOfflineDevice] {
+		    FAIL_IF(calleeClientOfflineDevice.getAccount()->getState() != RegistrationState::Ok);
+		    FAIL_IF(calleeClientOfflineDevice.getCore()->getCallLogs().empty());
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
 
-	// Assert CANCEL is received
-	BC_ASSERT_TRUE(asserter.wait([&calleeOfflineDeviceCore] {
-		return !calleeOfflineDeviceCore->getCurrentCall() ||
-		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::End ||
-		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::Released;
-	}));
+	// Assert CANCEL is received.
+	asserter
+	    .wait([&calleeOfflineDeviceCore] {
+		    return LOOP_ASSERTION(!calleeOfflineDeviceCore->getCurrentCall() ||
+		                          calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::End ||
+		                          calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::Released);
+	    })
+	    .assert_passed();
 
-	// Assert Fork is destroyed
-	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent()] {
-		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
-	}));
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+	// Assert Fork is destroyed.
+	asserter
+	    .wait([agent = server.getAgent()] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 1);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
 }
 
-static void calleeOfflineWithOneDeviceEarlyDecline() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void calleeOfflineWithOneDeviceEarlyDecline() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
-	auto calleeClientOfflineDevice =
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org");
-	auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+	auto calleeClientOfflineDevice = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
+	const auto calleeOfflineDeviceCore = calleeClientOfflineDevice.getCore();
 	calleeClientOfflineDevice.disconnect();
 
-	callerClient->callWithEarlyDecline(calleeClient);
+	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyDecline(calleeClient));
 
-	// Assert that fork is still present because not all devices where online
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	// Assert that fork is still present because not all devices where online.
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
 
-	// Offline device came back online, sending a new Register
+	// Offline device came back online, sending a new Register.
 	calleeClientOfflineDevice.reconnect();
-	CoreAssert asserter{calleeOfflineDeviceCore, server};
-	// Wait for registration OK and check that call log is not empty anymore
-	BC_ASSERT_TRUE(asserter.wait([&calleeClientOfflineDevice] {
-		return calleeClientOfflineDevice.getAccount()->getState() == RegistrationState::Ok &&
-		       !calleeClientOfflineDevice.getCore()->getCallLogs().empty();
-	}));
+	// Wait for registration OK and check that call log is not empty anymore.
+	CoreAssert asserter{server, callerClient, calleeClient, calleeClientOfflineDevice};
+	asserter
+	    .wait([&calleeClientOfflineDevice] {
+		    FAIL_IF(calleeClientOfflineDevice.getAccount()->getState() != RegistrationState::Ok);
+		    FAIL_IF(calleeClientOfflineDevice.getCore()->getCallLogs().empty());
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
 
-	// Assert CANCEL is received
-	BC_ASSERT_TRUE(asserter.wait([&calleeOfflineDeviceCore] {
-		return !calleeOfflineDeviceCore->getCurrentCall() ||
-		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::End ||
-		       calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::Released;
-	}));
+	// Assert CANCEL is received.
+	asserter
+	    .wait([&calleeOfflineDeviceCore] {
+		    return LOOP_ASSERTION(!calleeOfflineDeviceCore->getCurrentCall() ||
+		                          calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::End ||
+		                          calleeOfflineDeviceCore->getCurrentCall()->getState() == Call::State::Released);
+	    })
+	    .assert_passed();
 
-	// Assert Fork is destroyed
-	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent()] {
-		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		return moduleRouter->mStats.mCountCallForks->finish->read() == 1;
-	}));
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
+	// Assert Fork is destroyed.
+	asserter
+	    .wait([agent = server.getAgent()] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 1);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
 }
 
-static void calleeMultipleOnlineDevices() {
-	auto server = make_shared<Server>("/config/flexisip_fork_call_context.conf");
-	server->start();
+void calleeMultipleOnlineDevices() {
+	Server server{"/config/flexisip_fork_call_context.conf"};
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 
 	vector<shared_ptr<CoreClient>> calleeIdleDevices{};
 	for (int i = 0; i < 10; ++i) {
-		calleeIdleDevices.emplace_back(make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent()));
+		calleeIdleDevices.emplace_back(builder.make("sip:calleeClient@sip.test.org"));
 	}
 
-	callerClient->call(calleeClient, nullptr, nullptr, calleeIdleDevices);
-	callerClient->endCurrentCall(calleeClient);
+	BC_ASSERT_PTR_NOT_NULL(callerClient.call(calleeClient, nullptr, nullptr, calleeIdleDevices));
+	BC_ASSERT(callerClient.endCurrentCall(calleeClient));
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1);
 }
 
-namespace {
 struct BrCancelListener : public BranchInfoListener {
-	void onBranchCanceled(const std::shared_ptr<BranchInfo>&, ForkStatus cancelStatus) noexcept {
+	void onBranchCanceled(const std::shared_ptr<BranchInfo>&, ForkStatus cancelStatus) noexcept override {
 		mCancelStatus = cancelStatus;
 	}
 	optional<ForkStatus> mCancelStatus{};
 };
 
-// check that the cancellation status is linked to the cancellation reason
+/**
+ * Verify that the cancellation status is linked to the cancellation reason.
+ */
 void cancelStatusOnCancel() {
 	Server proxy{{
 	    {"global/transports", "sip:127.0.0.1:0"},
@@ -435,18 +468,19 @@ void cancelStatusOnCancel() {
 	    {"module::Router/enabled", "true"},
 	}};
 	proxy.start();
-	auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
 
-	auto cancel = [&proxy, &moduleRouter](string reason) {
-		string rawSipCancel = "CANCEL sip:callee1@127.0.0.1:5360 SIP/2.0 \r\n"
-		                      "To: <sip:callee1@127.0.0.1>\r\n"
-		                      "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
-		                      "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
-		                      "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
-		                      "CSeq: 1 CANCEL\r\n"s +
-		                      reason + "Content-Length: 0\r\n"s;
+	const auto cancel = [&proxy, &moduleRouter](const string& reason) {
+		ostringstream rawSipCancel{};
+		rawSipCancel << "CANCEL sip:callee1@127.0.0.1:5360 SIP/2.0 \r\n"
+		             << "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
+		             << "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+		             << "To: <sip:callee1@127.0.0.1>\r\n"
+		             << "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+		             << "CSeq: 1 CANCEL\r\n"
+		             << reason << "Content-Length: 0\r\n\r\n";
 
-		auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipCancel));
+		auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipCancel.str()));
 		ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
 		auto forkCallCtx = ForkCallContext::make(moduleRouter, ev, sofiasip::MsgSipPriority::Urgent);
 		auto branch = forkCallCtx->addBranch(
@@ -458,24 +492,26 @@ void cancelStatusOnCancel() {
 	};
 
 	{
-		auto cancelStatus = cancel("Reason: SIP;cause=200;text=\"Call completed elsewhere\"\r\n");
+		const auto cancelStatus = cancel("Reason: SIP;cause=200;text=\"Call completed elsewhere\"\r\n");
 		BC_HARD_ASSERT(cancelStatus.has_value());
 		BC_ASSERT(cancelStatus.value() == ForkStatus::AcceptedElsewhere);
 	}
 	{
-		auto cancelStatus = cancel("Reason: SIP;cause=600;text=\"Busy Everywhere\"\r\n");
+		const auto cancelStatus = cancel("Reason: SIP;cause=600;text=\"Busy Everywhere\"\r\n");
 		BC_HARD_ASSERT(cancelStatus.has_value());
 		BC_ASSERT(cancelStatus.value() == ForkStatus::DeclinedElsewhere);
 	}
-	// check the default behavior if reason is not given
+	// Check the default behavior if reason is not given.
 	{
-		auto cancelStatus = cancel("");
+		const auto cancelStatus = cancel("");
 		BC_HARD_ASSERT(cancelStatus.has_value());
 		BC_ASSERT(cancelStatus.value() == ForkStatus::Standard);
 	}
 }
 
-// check that an accepted call on a branch leads to a cancel with AcceptedElseWhere status on another branch
+/**
+ * Check that an accepted call on a branch leads to a cancel with AcceptedElseWhere status on another branch.
+ */
 void cancelStatusOnResponse() {
 	Server proxy{{
 	    {"global/transports", "sip:127.0.0.1:0"},
@@ -484,18 +520,18 @@ void cancelStatusOnResponse() {
 	    {"module::Router/enabled", "true"},
 	}};
 	proxy.start();
-	auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
 
-	string rawSipInvite =
-	    "INVITE sip:callee@127.0.0.1:5360;pn-prid=EA88:remote;pn-provider=apns.dev;pn-param=XX.example.org; "
-	    "SIP/2.0 \r\n"
-	    "To: <sip:callee@127.0.0.1>\r\n"
-	    "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+	const string rawSipInvite =
+	    "INVITE sip:callee@127.0.0.1:5360;pn-prid=EA88:remote;pn-provider=apns.dev;pn-param=XX.example.org SIP/2.0\r\n"
 	    "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
+	    "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+	    "To: <sip:callee@127.0.0.1>\r\n"
 	    "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
 	    "CSeq: 1 INVITE\r\n"
 	    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
-	    "Content-Type: application/sdp\r\n";
+	    "Content-Type: application/sdp\r\n"
+	    "Content-Length: 0\r\n\r\n";
 
 	auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipInvite));
 	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
@@ -508,15 +544,16 @@ void cancelStatusOnResponse() {
 	branch->mListener = branchListener;
 
 	// create a response on another branch
-	string rawSipResponse = "SIP/2.0 200 Ok\r\n"
-	                        "To: <sip:callee2@127.0.0.1>\r\n"
-	                        "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
-	                        "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
-	                        "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
-	                        "CSeq: 1 INVITE\r\n"
-	                        "Allow: INVITE, ACK, CANCEL\r\n"
-	                        "Contact: <sip:callee2@127.0.0.1>\r\n"
-	                        "Content-Type: application/sdp\r\n";
+	const string rawSipResponse = "SIP/2.0 200 Ok\r\n"
+	                              "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
+	                              "From: <sip:caller@127.0.0.1>;tag=465687829\r\n"
+	                              "To: <sip:callee2@127.0.0.1>\r\n"
+	                              "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
+	                              "CSeq: 1 INVITE\r\n"
+	                              "Allow: INVITE, ACK, CANCEL\r\n"
+	                              "Contact: <sip:callee2@127.0.0.1>\r\n"
+	                              "Content-Type: application/sdp\r\n"
+	                              "Content-Length: 0\r\n\r\n";
 	auto response = make_shared<ResponseSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipResponse));
 	auto answeredBranch = BranchInfo::make(forkCallCtx);
 	((ForkContext*)(forkCallCtx.get()))->onResponse(answeredBranch, response);
@@ -525,18 +562,19 @@ void cancelStatusOnResponse() {
 	BC_ASSERT(branchListener->mCancelStatus.value() == ForkStatus::AcceptedElsewhere);
 }
 
-TestSuite _("Fork call context suite",
+TestSuite _("ForkCallContext",
             {
-                NAMED_CLASSY_TEST("Basic call -> terminate", basicCall),
-                NAMED_CLASSY_TEST("Call with early cancel", callWithEarlyCancel),
-                NAMED_CLASSY_TEST("Call with early decline", calleeOfflineWithOneDeviceEarlyDecline),
-                NAMED_CLASSY_TEST("Call an offline user, early cancel", callWithEarlyCancelCalleeOffline),
-                NAMED_CLASSY_TEST("Call an only offline user, early cancel", callWithEarlyCancelCalleeOnlyOffline),
-                NAMED_CLASSY_TEST("Call an online user, with an other offline device", calleeOfflineWithOneDevice),
-                NAMED_CLASSY_TEST("Call an online user, with other idle devices", calleeMultipleOnlineDevices),
+                CLASSY_TEST(basicCall),
+                CLASSY_TEST(callWithEarlyCancel),
+                CLASSY_TEST(calleeOfflineWithOneDeviceEarlyDecline),
+                CLASSY_TEST(callWithEarlyCancelCalleeOffline),
+                CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline),
+                CLASSY_TEST(calleeOfflineWithOneDevice),
+                CLASSY_TEST(calleeMultipleOnlineDevices),
                 CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
                 CLASSY_TEST(cancelStatusOnCancel),
                 CLASSY_TEST(cancelStatusOnResponse),
             });
+
 } // namespace
 } // namespace flexisip::tester

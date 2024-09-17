@@ -29,7 +29,6 @@
 
 #include "agent.hh"
 #include "dos-executor/iptables-executor.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "utils/thread/basic-thread-pool.hh"
 
 using namespace std;
@@ -37,29 +36,50 @@ using namespace flexisip;
 
 ModuleInfo<ModuleDoSProtection> ModuleDoSProtection::sInfo(
     "DoSProtection",
-    "This module bans user when they are sending too much packets within a given timeframe. "
-    "To see the list of currently banned IPs/ports, use iptables -L. ",
+    "Ban users when they send too much packets within a given timeframe. Execute \"iptables -L\" to see the list of "
+    "currently banned IPs/ports.",
     {""},
     ModuleInfoBase::ModuleOid::DoSProtection,
-
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor configs[] = {
-	        {DurationMS, "time-period", "Time to consider to compute the packet rate", "3000"},
-	        {Integer, "packet-rate-limit",
-	         "Maximum packet rate in packets/seconds,  averaged over [time-period] "
-	         "millisecond(s) to consider it as a DoS attack.",
-	         "20"},
-	        {DurationMIN, "ban-time", "Time to ban the ip/port using iptables", "2"},
-	        {String, "iptables-chain", "Name of the chain flexisip will create to store the banned IPs", "FLEXISIP"},
-	        {StringList, "white-list",
-	         "List of IP addresses or hostnames for which no DoS protection is made."
-	         " This is typically for trusted servers from which we can receive high traffic. "
-	         "Please note that nodes from the local flexisip cluster (see [cluster] section) are automatically "
-	         "added to the white list, as well as 127.0.0.1 and ::1.\n"
-	         "Example:\n"
-	         "white-list=sip.example.org sip.linphone.org 15.128.128.93",
-	         ""},
-	        config_item_end};
+	        {
+	            DurationMS,
+	            "time-period",
+	            "Time to consider to compute the packet rate",
+	            "3000",
+	        },
+	        {
+	            Integer,
+	            "packet-rate-limit",
+	            "Maximum packet rate in packets/seconds, averaged over [time-period] millisecond(s) to consider it as "
+	            "a DoS attack.",
+	            "20",
+	        },
+	        {
+	            DurationMIN,
+	            "ban-time",
+	            "Time duration for which an ip/port is banned.",
+	            "2",
+	        },
+	        {
+	            String,
+	            "iptables-chain",
+	            "Name of the chain the server will create to store banned IPs",
+	            "FLEXISIP",
+	        },
+	        {
+	            StringList,
+	            "white-list",
+	            "List of IP addresses or hostnames for which no DoS protection is applied. This is typically for "
+	            "trusted servers from which it is planned to receive high traffic. Please note that nodes from the "
+	            "local Flexisip cluster (see [cluster] section) are automatically added to the white list, as well as "
+	            "127.0.0.1 and ::1.\n"
+	            "Example:\n"
+	            "white-list=sip.example.org sip.linphone.org 15.128.128.93",
+	            "",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("true");
 	    moduleConfig.addChildrenValues(configs);
     });
@@ -263,7 +283,6 @@ void ModuleDoSProtection::onRequest(shared_ptr<RequestSipEvent>& ev) {
 }
 
 #ifdef ENABLE_UNIT_TESTS
-
 void ModuleDoSProtection::setBanExecutor(const shared_ptr<BanExecutor>& executor) {
 	if (mBanExecutor) {
 		mBanExecutor->onUnload();
@@ -271,5 +290,4 @@ void ModuleDoSProtection::setBanExecutor(const shared_ptr<BanExecutor>& executor
 	mBanExecutor = executor;
 	mBanExecutor->onLoad(nullptr);
 }
-
 #endif

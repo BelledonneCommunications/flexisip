@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -17,6 +17,8 @@
  */
 
 #include "bctoolbox/tester.h"
+
+#include "flexisip/flexisip-exception.hh"
 
 #include "bellesip-utils.hh"
 
@@ -98,7 +100,9 @@ BellesipUtils::~BellesipUtils() {
 
 void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBody) {
 	belle_sip_message_t* message = belle_sip_message_parse(rawMessage.c_str());
+	if (!message) throw FlexisipException{"failed to parse provided raw message"};
 	belle_sip_request_t* request = BELLE_SIP_REQUEST(message);
+	if (!request) throw FlexisipException{"failed to create request from message"};
 
 	if (!rawBody.empty()) {
 		belle_sip_message_set_body(BELLE_SIP_MESSAGE(request), rawBody.c_str(), rawBody.size());

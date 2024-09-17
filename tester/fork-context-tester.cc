@@ -29,71 +29,53 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-core.hh"
+#include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
-using namespace std::chrono_literals;
 using namespace std::chrono;
-using namespace flexisip;
-using namespace flexisip::tester;
 
-static bool responseReceived = false;
+namespace flexisip::tester {
+namespace {
 
-/**
- * Empty implementation for testing purpose
- */
-class BindListener : public ContactUpdateListener {
-public:
-	void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-	}
-	void onError(const SipStatus&) override {
-	}
-	void onInvalid(const SipStatus&) override {
-	}
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-	}
-};
+bool responseReceived = false;
 
-static void nullMaxForwardAndForkBasicContext() {
-	auto root = make_shared<sofiasip::SuRoot>();
-	// Agent initialization
-	auto cfg = std::make_shared<ConfigManager>();
-	cfg->load(bcTesterRes("config/flexisip_fork_context.conf"));
-	auto* globalConf = cfg->getRoot()->get<GenericStruct>("global");
+void nullMaxForwardAndForkBasicContext() {
+	// Agent initialization.
+	const auto& suRoot = make_shared<sofiasip::SuRoot>();
+	const auto& config = make_shared<ConfigManager>();
+	config->load(bcTesterRes("config/flexisip_fork_context.conf"));
+	const auto* globalConf = config->getRoot()->get<GenericStruct>("global");
 	globalConf->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5360");
-
-	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
+	const auto* registrarConf = config->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
-	// Inserting a contact into the registrarDB.
-	sofiasip::Home home{};
-	SipUri user{"sip:participant1@127.0.0.1"};
-	BindingParameters parameter{};
-	parameter.globalExpire = 1000;
-	parameter.callId = "random_id_necessary_to_bind_1";
-	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
-	parameter.withGruu = true;
-	auto participantContact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
-	auto registrarDb = make_shared<RegistrarDb>(root, cfg);
-	registrarDb->bind(user, participantContact, parameter, make_shared<BindListener>());
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), registrarDb);
+	// Inserting a new contact into the registrarDB.
+	const auto& registrarDb = make_shared<RegistrarDb>(suRoot, config);
+	ContactInserter inserter{*registrarDb};
+	inserter.withGruu(true).setExpire(1000s).setAor("sip:participant1@127.0.0.1").insert();
 
-	// Starting Flexisip
+	const auto agent = make_shared<Agent>(suRoot, config, make_shared<AuthDb>(config), registrarDb);
 	agent->start("", "");
 
-	// Sending a request with Max-Forwards = 0
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
-	                            [](int status) {
-		                            if (status != 100) {
-			                            BC_ASSERT_EQUAL(status, 483, int, "%i");
-			                            responseReceived = true;
-		                            }
-	                            },
-	                            nullptr};
-	bellesipUtils.sendRawRequest("OPTIONS sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
+	// Sending a request with Max-Forwards = 0.
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "UDP",
+	    [](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 483);
+			    responseReceived = true;
+		    }
+	    },
+	    nullptr,
+	};
+
+	belleSipUtils.sendRawRequest("OPTIONS sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
 	                             "Via: SIP/2.0/UDP 10.10.10.10:5060;rport;branch=z9hG4bK1439638806\r\n"
 	                             "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
 	                             "To: <sip:participant1@127.0.0.1>\r\n"
@@ -101,83 +83,69 @@ static void nullMaxForwardAndForkBasicContext() {
 	                             "CSeq: 1 OPTIONS\r\n"
 	                             "Contact: <sip:jehan-mac@192.168.1.8:5062>\r\n"
 	                             "Max-Forwards: 0\r\n"
-	                             "User-Agent: Linphone/3.3.99.10 (eXosip2/3.3.0)\r\n"
+	                             "User-Agent: BelleSipUtils\r\n"
 	                             "Content-Length: 0\r\n\r\n");
 
-	// Flexisip and belle-sip loop, until response is received by the belle-sip stack.
-	// If after 5s (MUST be inferior to ForkBasicContext timeout) nothing is received we break the loop and the test
+	// Loop on Agent and belleSipUtils, until a response is received by the belle-sip stack.
+	// If after 5s (MUST be inferior to ForkBasicContext timeout) nothing is received, we break the loop and the test
 	// should fail.
-	auto beforePlus5 = system_clock::now() + 5s;
-	while (!responseReceived && beforePlus5 >= system_clock::now()) {
-		agent->getRoot()->step(100ms);
-		bellesipUtils.stackSleep(100);
-	}
+	CoreAssert{suRoot, belleSipUtils}.waitUntil(5s, []() { return LOOP_ASSERTION(responseReceived); }).assert_passed();
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 1, int, "%i");
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 1);
 	}
 }
 
-static void notRtpPortAndForkCallContext() {
-	auto root = make_shared<sofiasip::SuRoot>();
-	// Agent initialization
-	auto cfg = std::make_shared<ConfigManager>();
-	cfg->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
-
-	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
+void notRtpPortAndForkCallContext() {
+	// Agent initialization.
+	const auto& suRoot = make_shared<sofiasip::SuRoot>();
+	const auto& config = make_shared<ConfigManager>();
+	config->load(bcTesterRes("config/flexisip_fork_context_media_relay.conf"));
+	const auto* registrarConf = config->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
 
-	// Inserting a contact into the registrarDB.
-	sofiasip::Home home{};
-	SipUri user{"sip:participant1@127.0.0.1"};
-	BindingParameters parameter{};
-	parameter.globalExpire = 1000;
-	parameter.callId = "random_id_necessary_to_bind_1";
-	parameter.userAgent = "Linphone1 (Ubuntu) LinphoneCore";
-	parameter.withGruu = true;
-	auto participantContact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
-	auto registrarDb = make_shared<RegistrarDb>(root, cfg);
-	registrarDb->bind(user, participantContact, parameter, make_shared<BindListener>());
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), registrarDb);
+	// Inserting a new contact into the registrarDB.
+	const auto& registrarDb = make_shared<RegistrarDb>(suRoot, config);
+	ContactInserter inserter{*registrarDb};
+	inserter.withGruu(true).setExpire(1000s).setAor("sip:participant1@127.0.0.1").insert();
 
-	// Starting Flexisip
+	const auto agent = make_shared<Agent>(suRoot, config, make_shared<AuthDb>(config), registrarDb);
 	agent->start("", "");
 
-	// Sending a request with Max-Forwards = 0
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
-	                            [](int status) {
-		                            if (status != 100) {
-			                            BC_ASSERT_EQUAL(status, 500, int, "%i");
-			                            responseReceived = true;
-		                            }
-	                            },
-	                            nullptr};
-	bellesipUtils.sendRawRequest(
-	    // Sip message
+	// Sending a request with Max-Forwards = 0.
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "UDP",
+	    [](const int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 500);
+			    responseReceived = true;
+		    }
+	    },
+	    nullptr,
+	};
+
+	belleSipUtils.sendRawRequest(
+	    // Sip message.
 	    "INVITE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
-	    "Via: SIP/2.0/UDP "
-	    "10.23.17.117:22600;branch=z9hG4bK-d8754z-4d7620d2feccbfac-1---d8754z-;rport=4820;received=202.165.193.129\r\n"
-	    "Max-Forwards: 70\r\n"
-	    "Contact: <sip:bcheong@202.165.193.129:4820>\r\n"
+	    "Via: SIP/2.0/UDP 12.34.56.78:12345;branch=z9hG4bK-d8754z-4d7620d2feccbfac-1---d8754z-\r\n"
 	    "To: <sip:participant1@127.0.0.1>\r\n"
 	    "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
-	    "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
-	    "CSeq: 1 INVITE\r\n"
+	    "Contact: <sip:anthony@127.0.0.1>\r\n"
+	    "Call-ID: stub-call-id\r\n"
+	    "CSeq: 20 INVITE\r\n"
+	    "Max-Forwards: 70\r\n"
 	    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n"
-	    "c: application/sdp\r\n"
-	    "Supported: replaces\r\n"
-	    "Supported: 100rel\r\n"
-	    "Authorization: Digest username=\"003332176\", realm=\"sip.ovh.net\", "
-	    "nonce=\"24212965507cde726e8bc37e04686459\", uri=\"sip:sip.ovh.net\", "
-	    "response=\"896e786e9c0525ca3085322c7f1bce7b\", algorithm=MD5, opaque=\"241b9fb347752f2\"\r\n"
-	    "User-Agent: X-Lite 4 release 4.0 stamp 58832\r\n",
-	    // Request body
+	    "Content-Type: application/sdp\r\n"
+	    "User-Agent: BelleSipUtils\r\n\r\n",
+	    // Request body.
 	    "v=0\r\n"
 	    "o=anthony.gauchy 3102 279 IN IP4 127.0.0.1\r\n"
 	    "s=Talk\r\n"
@@ -196,23 +164,19 @@ static void notRtpPortAndForkCallContext() {
 	    "a=rtpmap:99 MP4V-ES/90000\r\n"
 	    "a=fmtp:99 profile-level-id=3\r\n");
 
-	// Flexisip and belle-sip loop, until response is received by the belle-sip stack.
-	// If after 5s (MUST be inferior to ForkBasicContext timeout) nothing is received we break the loop and the test
+	// Loop on Agent and belleSipUtils, until a response is received by the belle-sip stack.
+	// If after 5s (MUST be inferior to ForkBasicContext timeout) nothing is received, we break the loop and the test
 	// should fail.
-	auto beforePlus5 = system_clock::now() + 5s;
-	while (!responseReceived && beforePlus5 >= system_clock::now()) {
-		root->step(100ms);
-		bellesipUtils.stackSleep(100);
-	}
+	CoreAssert{suRoot, belleSipUtils}.waitUntil(5s, []() { return LOOP_ASSERTION(responseReceived); }).assert_passed();
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1, int, "%i");
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1);
 	}
 }
 
@@ -221,73 +185,82 @@ static void notRtpPortAndForkCallContext() {
  * Then we put the client back online and see if the messages are correctly delivered AND IN ORDER.
  * All along we check fork stats and client state.
  */
-static void globalOrderTestNoSql() {
+void globalOrderTestNoSql() {
 	SLOGD << "Step 1: Setup";
-	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
-	server->start();
+	Server server{"/config/flexisip_fork_context.conf"};
+	server.start();
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
-	receiverClient->disconnect();
+	ClientBuilder builder{*server.getAgent()};
+	auto receiverClient = builder.build("sip:provencal_le_gaulois@sip.test.org");
+	receiverClient.disconnect();
 
-	uint isRequestAccepted = 0;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
-	                            [&isRequestAccepted](int status) {
-		                            if (status != 100) {
-			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
-			                            isRequestAccepted++;
-		                            }
-	                            },
-	                            nullptr};
+	auto isRequestAccepted = 0U;
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    [&isRequestAccepted](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 202);
+			    isRequestAccepted++;
+		    }
+	    },
+	    nullptr,
+	};
 
 	SLOGD << "Step 2: Send messages, non-urgent first";
-	uint nbOfMessages = 20;
-	for (uint i = 1; i <= nbOfMessages; ++i) {
-		std::string rawBody("C'est pas faux "s + to_string(i));
-		rawBody.append("\r\n\r\n");
-		bellesipUtils.sendRawRequest("MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
-		                             "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-		                             "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
-		                             "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
-		                             "CSeq: 20 MESSAGE\r\n"
-		                             "Call-ID: Tvw6USHXYv"s +
-		                                 to_string(i) +
-		                                 "\r\n"
-		                                 "Max-Forwards: 70\r\n"
-		                                 "Route: <sip:127.0.0.1:5360;transport=tcp;lr>\r\n"
-		                                 "Supported: replaces, outbound, gruu\r\n"
-		                                 "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
-		                                 "Content-Type: text/plain\r\n",
-		                             rawBody);
-		auto beforePlus2 = system_clock::now() + 2s;
-		while (isRequestAccepted != i && beforePlus2 >= system_clock::now()) {
-			server->getAgent()->getRoot()->step(10ms);
-			bellesipUtils.stackSleep(10);
-		}
+	auto nbOfMessages = 20U;
+	for (auto i = 1U; i <= nbOfMessages; ++i) {
+		string rawBody{"C'est pas faux "s + to_string(i) + "\r\n\r\n"};
+		stringstream rawRequest{};
+		rawRequest << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
+		           << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+		           << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		           << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
+		           << "CSeq: 20 MESSAGE\r\n"
+		           << "Call-ID: Tvw6USHXYv" << i << "\r\n"
+		           << "Max-Forwards: 70\r\n"
+		           << "Route: <sip:127.0.0.1:5360;transport=tcp;lr>\r\n"
+		           << "Supported: replaces, outbound, gruu\r\n"
+		           << "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+		           << "Content-Type: text/plain\r\n"
+		           << "Content-Length: " << rawBody.size() << "\r\n\r\n";
+		belleSipUtils.sendRawRequest(rawRequest.str(), rawBody);
+
+		CoreAssert{server, belleSipUtils}
+		    .wait([&isRequestAccepted, &i]() { return LOOP_ASSERTION(isRequestAccepted == i); })
+		    .assert_passed();
 	}
 
 	SLOGD << "Step 3: Assert that fork is still present because device is offline. No db fork because no db.";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	CoreAssert asserter{receiverClient, server};
-	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent(), &nbOfMessages] {
-		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		return moduleRouter->mStats.mCountMessageForks->start->read() == nbOfMessages;
-	}));
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 0, int, "%i");
+	CoreAssert asserter{server, receiverClient};
+	asserter
+	    .wait([&agent = server.getAgent(), &nbOfMessages] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() != nbOfMessages);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 0);
 
 	SLOGD << "Step 4: Client REGISTER, then receive message";
-	receiverClient->reconnect();
-	BC_ASSERT_TRUE(asserter.wait([receiverClient, &nbOfMessages] {
-		return receiverClient->getAccount()->getState() == linphone::RegistrationState::Ok &&
-		       (uint)receiverClient->getCore()->getUnreadChatMessageCount() == nbOfMessages;
-	}));
+	receiverClient.reconnect();
+	asserter
+	    .wait([&receiverClient, &nbOfMessages] {
+		    FAIL_IF(receiverClient.getAccount()->getState() != linphone::RegistrationState::Ok);
+		    FAIL_IF(static_cast<unsigned int>(receiverClient.getCore()->getUnreadChatMessageCount()) != nbOfMessages);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
 
 	SLOGD << "Step 5: Check messages order";
-	auto messages = receiverClient->getChatMessages();
-	uint order = 1;
-	for (auto message : messages) {
+	auto messages = receiverClient.getChatMessages();
+	auto order = 1U;
+	for (const auto& message : messages) {
 		auto actual = message->getUtf8Text();
 		string expected{"C'est pas faux "s + to_string(order) + "\r\n\r\n"};
 		BC_ASSERT_CPP_EQUAL(actual, expected);
@@ -296,14 +269,17 @@ static void globalOrderTestNoSql() {
 	BC_ASSERT_CPP_EQUAL(order - 1, nbOfMessages);
 
 	SLOGD << "Step 6: Check fork stats";
-	BC_ASSERT_TRUE(asserter.wait([agent = server->getAgent(), &nbOfMessages] {
-		const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		return moduleRouter->mStats.mCountMessageForks->finish->read() == nbOfMessages;
-	}));
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), nbOfMessages, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages, int, "%i");
+	asserter
+	    .wait([&agent = server.getAgent(), &nbOfMessages] {
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() != nbOfMessages);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), nbOfMessages);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages);
 }
 
 /**
@@ -318,32 +294,29 @@ static void globalOrderTestNoSql() {
  *   3 - Upon completion of the test and after the designated "message-delivery-timeout" period has elapsed, we verify
  * that the ForkMessageContext is destroyed while the ForkCallContext remains active.
  */
-static void messageDeliveryTimeoutTest() {
-	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
-	server->getConfigManager()
+void messageDeliveryTimeoutTest() {
+	Server server{"/config/flexisip_fork_context.conf"};
+	server.getConfigManager()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigValue>("message-delivery-timeout")
 	    ->set("1");
-	server->start();
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+	const auto calleeIdleClientVoip = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
-	const auto calleeIdleClientVoip = make_shared<CoreClient>(
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org"));
+	calleeIdleClientVoip.disconnect();
+	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
-	CoreAssert asserter{callerClient, calleeClient, calleeIdleClientVoip, server};
-
-	calleeIdleClientVoip->disconnect();
-
-	callerClient->callWithEarlyCancel(calleeClient, nullptr);
-
-	const auto chatroom = callerClient->chatroomBuilder().build({calleeClient->getMe()});
+	const auto chatroom = callerClient.chatroomBuilder().build({calleeClient.getMe()});
 	chatroom->createMessageFromUtf8("test")->send();
 
+	CoreAssert asserter{server, callerClient, calleeClient, calleeIdleClientVoip};
 	asserter
-	    .wait([agent = server->getAgent()] {
+	    .wait([&agent = server.getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
 		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
@@ -371,37 +344,35 @@ static void messageDeliveryTimeoutTest() {
  *   3 - Upon completion of the test and after the designated "call-fork-timeout" period has elapsed, we verify
  * that the ForkCallContext is destroyed while the ForkMessageContext remains active.
  */
-static void callForkTimeoutTest() {
-	auto server = make_shared<Server>("/config/flexisip_fork_context.conf");
-	server->getConfigManager()
+void callForkTimeoutTest() {
+	Server server{"/config/flexisip_fork_context.conf"};
+	server.getConfigManager()
 	    ->getRoot()
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigValue>("call-fork-timeout")
 	    ->set("1");
-	server->start();
+	server.start();
 
-	auto callerClient = make_shared<CoreClient>("sip:callerClient@sip.test.org", server->getAgent());
+	ClientBuilder builder{*server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+	const auto calleeIdleClientVoip = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
-	auto calleeClient = make_shared<CoreClient>("sip:calleeClient@sip.test.org", server->getAgent());
-	const auto calleeIdleClientVoip = make_shared<CoreClient>(
-	    ClientBuilder(*server->getAgent()).setApplePushConfig().build("sip:calleeClient@sip.test.org"));
-
-	CoreAssert asserter{callerClient, calleeClient, calleeIdleClientVoip, server};
-
-	calleeIdleClientVoip->disconnect();
+	calleeIdleClientVoip.disconnect();
 
 	// Quick call without asserts, just to create a ForkCall.
-	auto callParams = callerClient->getCore()->createCallParams(nullptr);
-	auto addressWithoutGr = calleeClient->getAccount()->getContactAddress()->clone();
+	auto callParams = callerClient.getCore()->createCallParams(nullptr);
+	auto addressWithoutGr = calleeClient.getAccount()->getContactAddress()->clone();
 	addressWithoutGr->removeUriParam("gr");
-	auto callerCall = callerClient->getCore()->inviteAddressWithParams(addressWithoutGr, callParams);
+	auto callerCall = callerClient.getCore()->inviteAddressWithParams(addressWithoutGr, callParams);
 	callerCall->terminate();
 
-	const auto chatroom = callerClient->chatroomBuilder().build({calleeClient->getMe()});
+	const auto chatroom = callerClient.chatroomBuilder().build({calleeClient.getMe()});
 	chatroom->createMessageFromUtf8("test")->send();
 
+	CoreAssert asserter{server, callerClient, calleeClient, calleeIdleClientVoip};
 	asserter
-	    .wait([agent = server->getAgent()] {
+	    .wait([&agent = server.getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
 		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
@@ -416,18 +387,17 @@ static void callForkTimeoutTest() {
 	    })
 	    .assert_passed();
 }
-///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// UNIT TESTS findBestBranch//////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
+
+/* ---------- Find best branch unit tests ---------- */
 
 class AgentMock : public AgentInterface {
 public:
 	~AgentMock() override = default;
 	std::shared_ptr<OutgoingAgent> getOutgoingAgent() override {
-		return std::shared_ptr<OutgoingAgent>();
+		return {};
 	}
 	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
-		return std::shared_ptr<IncomingAgent>();
+		return {};
 	}
 	nta_agent_t* getSofiaAgent() const override {
 		return nullptr;
@@ -463,7 +433,7 @@ private:
 
 class ForkContextForTest : public ForkContextBase {
 public:
-	ForkContextForTest(AgentInterface* agentMock)
+	explicit ForkContextForTest(AgentInterface* agentMock)
 	    : ForkContextBase(nullptr,
 	                      agentMock,
 	                      nullptr,
@@ -573,28 +543,24 @@ public:
 	}
 };
 
-///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////
-
-namespace {
-TestSuite _("Fork context",
+TestSuite _("ForkContext",
             {
-                TEST_NO_TAG("Max forward 0 and ForkBasicContext leak", nullMaxForwardAndForkBasicContext),
-                TEST_NO_TAG("No RTP port available and ForkCallContext leak", notRtpPortAndForkCallContext),
-                TEST_NO_TAG("Fork message context with fork late and no database : retention and order check",
-                            globalOrderTestNoSql),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch6xxTest>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch4xxTest>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch3xxTest>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranch2xxTest>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchAvoid503Test>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchAvoid408Test>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid503Test>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchDontAvoid408Test>),
-                TEST_NO_TAG_AUTO_NAMED(run<FindBestBranchNoBranchConsidered>),
+                CLASSY_TEST(nullMaxForwardAndForkBasicContext),
+                CLASSY_TEST(notRtpPortAndForkCallContext),
+                CLASSY_TEST(globalOrderTestNoSql),
+                CLASSY_TEST(run<FindBestBranch6xxTest>),
+                CLASSY_TEST(run<FindBestBranch4xxTest>),
+                CLASSY_TEST(run<FindBestBranch3xxTest>),
+                CLASSY_TEST(run<FindBestBranch2xxTest>),
+                CLASSY_TEST(run<FindBestBranchAvoid503Test>),
+                CLASSY_TEST(run<FindBestBranchAvoid408Test>),
+                CLASSY_TEST(run<FindBestBranchDontAvoid503Test>),
+                CLASSY_TEST(run<FindBestBranchDontAvoid408Test>),
+                CLASSY_TEST(run<FindBestBranchNoBranchConsidered>),
                 CLASSY_TEST(messageDeliveryTimeoutTest),
                 CLASSY_TEST(callForkTimeoutTest),
             },
             Hooks().beforeEach([] { responseReceived = false; }));
+
 } // namespace
+} // namespace flexisip::tester

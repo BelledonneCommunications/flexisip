@@ -17,87 +17,97 @@
 */
 
 #include "utils/bellesip-utils.hh"
+#include "utils/core-assert.hh"
 #include "utils/test-patterns/presence-test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
+namespace {
 
-////////// ABSTRACT CLASS FOR ALL SUBSCRIBE/NOTIFY TESTS ///////////////////////////////
+/**
+ * Abstract class for all SUBSCRIBE/NOTIFY related tests.
+ */
 class SubscribeNotifyTest : public PresenceTest {
 public:
 	void testExec() override {
-		auto isRequestAccepted = false;
-		auto isNotifyReceived = 0;
-
 		insertRegistrarContact();
 
-		BellesipUtils bellesipUtilsSender{"0.0.0.0", 9999, "TCP",
-		                                  [&isRequestAccepted](int status) {
-			                                  if (status != 100) {
-				                                  BC_ASSERT_EQUAL(status, 200, int, "%i");
-				                                  isRequestAccepted = true;
-			                                  }
-		                                  },
-		                                  [&isNotifyReceived, this](const belle_sip_request_event_t* event) {
-			                                  isNotifyReceived++;
-			                                  if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
-				                                  return;
-			                                  }
-			                                  auto request = belle_sip_request_event_get_request(event);
-			                                  auto message = BELLE_SIP_MESSAGE(request);
-			                                  mNotifiesBodyConcat += belle_sip_message_get_body(message);
-		                                  }};
+		auto isRequestAccepted = false;
+		auto isNotifyReceived = 0;
+		BellesipUtils belleSipUtils{
+		    "0.0.0.0",
+		    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+		    "tcp",
+		    [&isRequestAccepted](int status) {
+			    if (status != 100) {
+				    BC_ASSERT_CPP_EQUAL(status, 200);
+				    isRequestAccepted = true;
+			    }
+		    },
+		    [&isNotifyReceived, this](const belle_sip_request_event_t* event) {
+			    isNotifyReceived++;
+			    if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
+				    return;
+			    }
+			    const auto* request = belle_sip_request_event_get_request(event);
+			    const auto message = BELLE_SIP_MESSAGE(request);
+			    mNotifiesBodyConcat += belle_sip_message_get_body(message);
+		    },
+		};
+		mClientPort = to_string(belleSipUtils.getListeningPort());
 
-		bellesipUtilsSender.sendRawRequest(getSubscribeHeaders(), getSubscribeBody());
+		const auto body = getSubscribeBody();
+		belleSipUtils.sendRawRequest(getSubscribeHeaders(body.size()), body);
 
-		auto beforePlus2 = system_clock::now() + 2s;
-		while ((!isRequestAccepted || isNotifyReceived != 2) && beforePlus2 >= system_clock::now()) {
-			mPresence->_run();
-			waitFor(10ms);
-			bellesipUtilsSender.stackSleep(10);
-		}
+		CoreAssert{mPresence, belleSipUtils}
+		    .wait([&isRequestAccepted, &isNotifyReceived]() {
+			    return LOOP_ASSERTION(isRequestAccepted && isNotifyReceived == 2);
+		    })
+		    .assert_passed();
 
 		doAssert();
 	}
 
 protected:
 	virtual void insertRegistrarContact() = 0;
-	virtual string getSubscribeHeaders() = 0;
+	virtual string getSubscribeHeaders(size_t contentLength) = 0;
 	virtual string getSubscribeBody() = 0;
 	virtual void doAssert() = 0;
 
-	string mNotifiesBodyConcat = "";
+	string mNotifiesBodyConcat{};
+	string mClientPort{};
 };
-////////////////////////////////////////////////////////////////////////////////////////////
 
-class PidfOneDevicesTest : public SubscribeNotifyTest {
+class PidfOneDevice : public SubscribeNotifyTest {
 protected:
 	void insertRegistrarContact() override {
 		mInserter->setAor("sip:test@127.0.0.1")
 		    .setContactParams({"+org.linphone.specs=\"conference/2.4,ephemeral\""})
 		    .setExpire(100s)
-		    .insert({"sip:test@127.0.0.1:9999;transport=tcp;"});
+		    .insert({"sip:test@127.0.0.1:" + mClientPort + ";transport=tcp;"});
 	};
 
-	string getSubscribeHeaders() override {
-		return "SUBSCRIBE sip:rls@sip.linphone.org SIP/2.0\r\n"
-		       "Via: SIP/2.0/TCP 127.0.0.1:5065;alias;branch=z9hG4bK.t5WuIfh8s;rport\r\n"
-		       "From: <sip:anthony.gauchy@127.0.0.1:9999>;tag=8yWIE9wnu\r\n"
-		       "To: sips:rls@sip.linphone.org\r\n"
-		       "CSeq: 20 SUBSCRIBE\r\n"
-		       "Call-ID: wwIxEBATmW\r\n"
-		       "Route: <sip:127.0.0.1:5065;transport=tcp;lr>\r\n"
-		       "Supported: eventlist\r\n"
-		       "Event: presence\r\n"
-		       "Content-Type: application/resource-lists+xml\r\n"
-		       "Contact: "
-		       "<sip:anthony.gauchy@127.0.0.1:9999;transport=tcp;gr=urn:uuid:7060a5a2-fce1-0039-b49f-378c6f22c8ff>\r\n"
-		       "Content-Disposition: recipient-list\r\n";
+	string getSubscribeHeaders(size_t contentLength) override {
+		stringstream request{};
+		request << "SUBSCRIBE sip:rls@sip.linphone.org SIP/2.0\r\n"
+		        << "Via: SIP/2.0/TCP 127.0.0.1:5065;branch=z9hG4bK.t5WuIfh8s\r\n"
+		        << "From: <sip:anthony.gauchy@127.0.0.1>;tag=8yWIE9wnu\r\n"
+		        << "To: sips:rls@sip.linphone.org\r\n"
+		        << "CSeq: 20 SUBSCRIBE\r\n"
+		        << "Call-ID: wwIxEBATmW\r\n"
+		        << "Route: <sip:127.0.0.1:5065;transport=tcp;lr>\r\n"
+		        << "Supported: eventlist\r\n"
+		        << "Event: presence\r\n"
+		        << "Content-Type: application/resource-lists+xml\r\n"
+		        << "Contact: <sip:anthony.gauchy@127.0.0.1:" << mClientPort << ";transport=tcp>\r\n"
+		        << "Content-Disposition: recipient-list\r\n"
+		        << "Content-Length: " << contentLength << "\r\n\r\n";
+		return request.str();
 	}
+
 	string getSubscribeBody() override {
 		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
 		       "<resource-lists xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
@@ -116,32 +126,35 @@ protected:
 	}
 };
 
-class PidfMultipleDevicesTest : public SubscribeNotifyTest {
+class PidfMultipleDevices : public SubscribeNotifyTest {
 protected:
 	void insertRegistrarContact() override {
 		mInserter->setAor("sip:test@127.0.0.1")
 		    .setExpire(100s)
 		    .setContactParams({"+org.linphone.specs=\"conference/1.8,ephemeral\""})
-		    .insert({"sip:test@127.0.0.1:9999;transport=tcp;"})
+		    .insert({"sip:test@127.0.0.1:" + mClientPort + ";transport=tcp;"})
 		    .setContactParams({"+org.linphone.specs=\"groupchat/1.2,lime\""})
-		    .insert({"sip:test@127.0.0.1:8888;transport=tcp;"});
+		    .insert({"sip:test@127.0.0.1:12345;transport=tcp;"});
 	};
 
-	string getSubscribeHeaders() override {
-		return "SUBSCRIBE sip:rls@sip.linphone.org SIP/2.0\r\n"
-		       "Via: SIP/2.0/TCP 127.0.0.1:5065;alias;branch=z9hG4bK.t5WuIfh8s;rport\r\n"
-		       "From: <sip:anthony.gauchy@127.0.0.1:9999>;tag=8yWIE9wnu\r\n"
-		       "To: sips:rls@sip.linphone.org\r\n"
-		       "CSeq: 20 SUBSCRIBE\r\n"
-		       "Call-ID: wwIxEBATmW\r\n"
-		       "Route: <sip:127.0.0.1:5065;transport=tcp;lr>\r\n"
-		       "Supported: eventlist\r\n"
-		       "Event: presence\r\n"
-		       "Content-Type: application/resource-lists+xml\r\n"
-		       "Contact: "
-		       "<sip:anthony.gauchy@127.0.0.1:9999;transport=tcp;gr=urn:uuid:7060a5a2-fce1-0039-b49f-378c6f22c8ff>\r\n"
-		       "Content-Disposition: recipient-list\r\n";
+	string getSubscribeHeaders(size_t contentLength) override {
+		stringstream request{};
+		request << "SUBSCRIBE sip:rls@sip.linphone.org SIP/2.0\r\n"
+		        << "Via: SIP/2.0/TCP 127.0.0.1:5065;alias;branch=z9hG4bK.t5WuIfh8s\r\n"
+		        << "From: <sip:anthony.gauchy@127.0.0.1>;tag=8yWIE9wnu\r\n"
+		        << "To: sips:rls@sip.linphone.org\r\n"
+		        << "CSeq: 20 SUBSCRIBE\r\n"
+		        << "Call-ID: wwIxEBATmW\r\n"
+		        << "Route: <sip:127.0.0.1:5065;transport=tcp;lr>\r\n"
+		        << "Supported: eventlist\r\n"
+		        << "Event: presence\r\n"
+		        << "Content-Type: application/resource-lists+xml\r\n"
+		        << "Contact: <sip:anthony.gauchy@127.0.0.1:" << mClientPort << ";transport=tcp>\r\n"
+		        << "Content-Disposition: recipient-list\r\n"
+		        << "Content-Length: " << contentLength << "\r\n\r\n";
+		return request.str();
 	}
+
 	string getSubscribeBody() override {
 		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
 		       "<resource-lists xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
@@ -163,13 +176,11 @@ protected:
 	}
 };
 
-namespace {
-
-TestSuite _("PIDF presence unit tests",
+TestSuite _("PidfPresence",
             {
-                CLASSY_TEST(PidfOneDevicesTest),
-                CLASSY_TEST(PidfMultipleDevicesTest),
+                CLASSY_TEST(PidfOneDevice),
+                CLASSY_TEST(PidfMultipleDevices),
             });
+
 } // namespace
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
