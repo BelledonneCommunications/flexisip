@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <chrono>
 #include <csignal>
 #include <sstream>
 #include <string>
@@ -41,42 +40,42 @@
 
 using namespace std;
 using namespace std::chrono;
-using namespace std::chrono_literals;
 using namespace sofiasip;
 
 namespace flexisip::tester {
+namespace {
 
-static int responseReceived = 0;
-static int expectedResponseReceived = 0;
-static int notSoRandomId = 0;
-static int bidingDone = 0;
-static int expectedBidingDone = 0;
-static int fetchingDone = 0;
-static int expectedFetchingDone = 0;
+int responseReceived = 0;
+int expectedResponseReceived = 0;
+int notSoRandomId = 0;
+int doneBindings = 0;
+int expectedDoneBindings = 0;
+int fetchingDone = 0;
+int expectedFetchingDone = 0;
 
 class RegisterBindListener : public ContactUpdateListener {
 public:
-	RegisterBindListener(const std::string& user) : mExpectedUser(user) {
+	RegisterBindListener(const string& user) : mExpectedUser(user) {
 	}
-	void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-		bidingDone++;
+	void onRecordFound(const shared_ptr<Record>&) override {
+		doneBindings++;
 	}
 	void onError(const SipStatus&) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
 	void onInvalid(const SipStatus&) override {
-		std::ostringstream debugStream{};
+		stringstream debugStream{};
 		debugStream << "Unexpected call to onInvalid while trying to bind user : " << mExpectedUser;
 		bc_assert(__FILE__, __LINE__, false, debugStream.str().c_str());
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override {
-		std::ostringstream debugStream{};
+	void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
+		stringstream debugStream{};
 		debugStream << "contact " << *ec << " unexpectedly updated while trying to bind user : " << mExpectedUser;
 		bc_assert(__FILE__, __LINE__, false, debugStream.str().c_str());
 	}
 
 private:
-	std::string mExpectedUser;
+	string mExpectedUser;
 };
 
 class RegisterFetchListener : public ContactUpdateListener {
@@ -90,16 +89,16 @@ public:
 			BC_FAIL("At least one record must be found.");
 			return;
 		}
-		auto extendedContactList = r->getExtendedContacts();
+		const auto& extendedContactList = r->getExtendedContacts();
 		if (extendedContactList.size() != static_cast<usize_t>(mExpectedNumberOfContact)) {
-			ostringstream msg{};
+			stringstream msg{};
 			msg << "Expected " << mExpectedNumberOfContact << " contact but found " << extendedContactList.size()
 			    << " in " << *r;
 			bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
 		}
 		if (!mMustBePresentUuid.empty()) {
-			auto isPresent = any_of(extendedContactList.begin(), extendedContactList.end(),
-			                        [this](const auto& ec) { return ec->mKey == this->mMustBePresentUuid; });
+			const auto isPresent = any_of(extendedContactList.begin(), extendedContactList.end(),
+			                              [this](const auto& ec) { return ec->mKey == this->mMustBePresentUuid; });
 			BC_ASSERT_TRUE(isPresent);
 			if (!isPresent) {
 				string actualUuid{};
@@ -117,7 +116,7 @@ public:
 	void onInvalid(const SipStatus&) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
+	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
 		BC_FAIL("Only onRecordFound must be called.");
 	}
 
@@ -129,23 +128,20 @@ private:
 /**
  * Insert a contact into the registrarDB.
  */
-static void insertUserContact(Agent& agent, const SipUri& user, const sip_contact_t* contact) {
+void insertUserContact(Agent& agent, const SipUri& user, const sip_contact_t* contact) {
 	BindingParameters parameter{};
 	parameter.globalExpire = 1000;
 	parameter.callId = "random_id_necessary_to_bind_" + to_string(notSoRandomId++);
 	parameter.withGruu = true;
 
 	agent.getRegistrarDb().bind(user, contact, parameter, make_shared<RegisterBindListener>(user.str()));
-	expectedBidingDone++;
-	auto root = agent.getRoot();
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (bidingDone != expectedBidingDone && beforePlus2 >= system_clock::now()) {
-		root->step(20ms);
-	}
+	expectedDoneBindings++;
+
+	CoreAssert{agent}.wait([]() { return LOOP_ASSERTION(doneBindings == expectedDoneBindings); }).hard_assert_passed();
 }
 
-static void insertContact(Agent& agent, const string& sipUri, const string& paramList) {
-	sofiasip::Home home{};
+void insertContact(Agent& agent, const string& sipUri, const string& paramList) {
+	Home home{};
 	SipUri user{sipUri + ";" + paramList};
 	auto contact = sip_contact_create(home.home(), (url_string_t*)user.str().c_str(), nullptr);
 	insertUserContact(agent, user, contact);
@@ -154,56 +150,57 @@ static void insertContact(Agent& agent, const string& sipUri, const string& para
 /**
  * Send REGISTER requests
  */
-static void sendRegisterRequest(const std::shared_ptr<sofiasip::SuRoot>& root,
-                                const string& sipUri,
-                                const string& paramList,
-                                const string& uuid) {
+void sendRegisterRequest(const shared_ptr<SuRoot>& root,
+                         const string& sipUri,
+                         const string& paramList,
+                         const string& uuid) {
 
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
-	                            [](int status) {
-		                            if (status != 100) {
-			                            BC_ASSERT_EQUAL(status, 200, int, "%i");
-			                            responseReceived++;
-		                            }
-	                            },
-	                            nullptr};
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "UDP",
+	    [](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 200);
+			    responseReceived++;
+		    }
+	    },
+	    nullptr,
+	};
 
-	// clang-format off
-	bellesipUtils.sendRawRequest(
-	    "REGISTER sip:127.0.0.1:5160 SIP/2.0\r\n"
-	    "Via: SIP/2.0/UDP 10.10.10.10:5060;rport;branch=z9hG4bK1439638806\r\n"
-	    "From: <" + sipUri + ">;tag=465687829\r\n"
-	    "To: <" + sipUri + ">\r\n"
-		"Call-ID: 1053183492" + to_string(notSoRandomId++)+"\r\n"
-	    "CSeq: 1 REGISTER\r\n"
-	    "Contact: <" + sipUri + ";" + paramList + ">;+sip.instance=" + uuid + "\r\n"
-	    "Max-Forwards: 42\r\n"
-	    "Expires: 3600"
-	    "User-Agent: Linphone/3.3.99.10 (eXosip2/3.3.0)\r\n"
-	    "Content-Length: 0\r\n\r\n");
-	// clang-format on
+	stringstream request{};
+	request << "REGISTER sip:127.0.0.1:5160 SIP/2.0\r\n"
+	        << "Via: SIP/2.0/UDP 10.10.10.10:5060;branch=z9hG4bK1439638806\r\n"
+	        << "From: <" << sipUri << ">;tag=465687829\r\n"
+	        << "To: <" << sipUri << ">\r\n"
+	        << "Call-ID: call-id-" << notSoRandomId++ << "\r\n"
+	        << "CSeq: 20 REGISTER\r\n"
+	        << "Contact: <" << sipUri << ";" << paramList << ">;+sip.instance=" << uuid << "\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Expires: 3600\r\n"
+	        << "User-Agent: BelleSipUtils\r\n"
+	        << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(request.str());
 
 	// Flexisip and belle-sip loop, until response is received by the belle-sip stack.
 	// If after 5s nothing is received we break the loop and the test should fail.
 	expectedResponseReceived++;
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (responseReceived != expectedResponseReceived && beforePlus2 >= system_clock::now()) {
-		root->step(20ms);
-		bellesipUtils.stackSleep(20);
-	}
+
+	CoreAssert{root, belleSipUtils}
+	    .wait([]() { return LOOP_ASSERTION(responseReceived == expectedResponseReceived); })
+	    .hard_assert_passed();
 }
 
-static void checkResultInDb(Agent& agent, SipUri uri, shared_ptr<RegisterFetchListener> fetchListener, bool recursive) {
+void checkResultInDb(Agent& agent,
+                     const SipUri& uri,
+                     const shared_ptr<RegisterFetchListener>& fetchListener,
+                     bool recursive = true) {
 	agent.getRegistrarDb().fetch(uri, fetchListener, recursive);
 	expectedFetchingDone++;
-	auto root = agent.getRoot();
-	auto beforePlus1 = system_clock::now() + 1s;
-	while (fetchingDone != expectedFetchingDone && beforePlus1 >= system_clock::now()) {
-		root->step(20ms);
-	}
+	CoreAssert{agent}.wait([]() { return LOOP_ASSERTION(fetchingDone == expectedFetchingDone); }).hard_assert_passed();
 }
 
-static void startTest(Agent& agent) {
+void startTest(Agent& agent) {
 	// Starting Flexisip
 	agent.start("", "");
 
@@ -281,7 +278,7 @@ static void startTest(Agent& agent) {
 	sleep(1);
 
 	// FCM
-	auto root = agent.getRoot();
+	const auto& root = agent.getRoot();
 	sendRegisterRequest(root, "sip:fcm1@sip.example.org", "pn-provider=fcm;pn-prid=aFcmToken;pn-param=aProjectId",
 	                    "fcm1Reg");
 	sendRegisterRequest(root, "sip:fcm2@sip.example.org",
@@ -377,82 +374,76 @@ static void startTest(Agent& agent) {
 
 	// FCM
 	// Same prid and param --> replaced
-	checkResultInDb(agent, SipUri{"sip:fcm1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm1Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:fcm1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm1Reg"));
 	// Different prid and param --> both kept
-	checkResultInDb(agent, SipUri{"sip:fcm2@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm2@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Different prid but same param --> both kept
-	checkResultInDb(agent, SipUri{"sip:fcm3@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm3@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Same prid but different param --> both kept
-	checkResultInDb(agent, SipUri{"sip:fcm4@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm4@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 
 	// APNS (simple ones)
 	// Same prid and param --> replaced
-	checkResultInDb(agent, SipUri{"sip:apns1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns1Reg"),
-	                true);
+	checkResultInDb(agent, SipUri{"sip:apns1@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns1Reg"));
 	// Different prid but same param --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns2@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns2@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Same prid but different param --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns3@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns3@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 
 	// APNS (with 2 tokens)
 	// All same (only param suffix is reversed) --> replaced
-	checkResultInDb(agent, SipUri{"sip:apns4@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns4Reg"),
-	                true);
+	checkResultInDb(agent, SipUri{"sip:apns4@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns4Reg"));
 	// Same PushKitToken, different RemoteToken, same param --> replaced
-	checkResultInDb(agent, SipUri{"sip:apns5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns5Reg"),
-	                true);
+	checkResultInDb(agent, SipUri{"sip:apns5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns5Reg"));
 	// Different PushKitToken, same RemoteToken, same param --> replaced
-	checkResultInDb(agent, SipUri{"sip:apns6@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns6Reg"),
-	                true);
+	checkResultInDb(agent, SipUri{"sip:apns6@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns6Reg"));
 	// Same PushKitToken, same RemoteToken, Different param --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns7@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns7@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Badly formated register, can't really compare --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns8@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns8@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Invalid prid ('&' not present), can't really compare --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns9@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns9@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Invalid prid (only remote present), can't really compare --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns10@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns10@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Invalid prid (only suffix for remote and voip), can't really compare --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns11@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns11@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Invalid pn-param ('_' before instead of '.'), can't really compare --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns12@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns12@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 	// Invalid pn-param (no '.'), can't really compare --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns13@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns13@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 
 	// Multiples ones, all with the same tokens, only the last inserted must remain (cleaning done at biding
 	// with internalDB, at fetching with Redis)
-	checkResultInDb(agent, SipUri{"sip:elisa@sip.example.org"}, make_shared<RegisterFetchListener>(1, "elisa15"), true);
+	checkResultInDb(agent, SipUri{"sip:elisa@sip.example.org"}, make_shared<RegisterFetchListener>(1, "elisa15"));
 
 	// Legacy contact parameters (apple)
 	// Same prid and param --> replaced
-	checkResultInDb(agent, SipUri{"sip:apns14@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns14Reg"),
-	                true);
+	checkResultInDb(agent, SipUri{"sip:apns14@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns14Reg"));
 	// Same prid and param --> replaced
-	checkResultInDb(agent, SipUri{"sip:apns15@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns15Reg"),
-	                true);
+	checkResultInDb(agent, SipUri{"sip:apns15@sip.example.org"}, make_shared<RegisterFetchListener>(1, "apns15Reg"));
 	// Different prid but same param --> both kept
-	checkResultInDb(agent, SipUri{"sip:apns16@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:apns16@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 
 	// Legacy contact parameters (firebase)
 	// Same prid and param --> replaced
-	checkResultInDb(agent, SipUri{"sip:fcm5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm5Reg"), true);
+	checkResultInDb(agent, SipUri{"sip:fcm5@sip.example.org"}, make_shared<RegisterFetchListener>(1, "fcm5Reg"));
 	// Different prid but same param --> both kept
-	checkResultInDb(agent, SipUri{"sip:fcm6@sip.example.org"}, make_shared<RegisterFetchListener>(2), true);
+	checkResultInDb(agent, SipUri{"sip:fcm6@sip.example.org"}, make_shared<RegisterFetchListener>(2));
 }
 
-static void duplicatePushTokenRegisterInternalDbTest() {
-	auto root = std::make_shared<sofiasip::SuRoot>();
+void duplicatePushTokenRegisterInternalDbTest() {
+	const auto& root = make_shared<SuRoot>();
 	// Agent initialization
-	auto cfg = make_shared<ConfigManager>();
+	const auto& cfg = make_shared<ConfigManager>();
 	cfg->load(bcTesterRes("config/flexisip_register.conf"));
 
-	auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
+	const auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
-	auto agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), make_shared<RegistrarDb>(root, cfg));
+	const auto& agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), make_shared<RegistrarDb>(root, cfg));
 	startTest(*agent);
 }
 
-static void duplicatePushTokenRegisterRedisTest() {
+void duplicatePushTokenRegisterRedisTest() {
 	RedisServer redis{};
 	Server proxyServer({
 	    {"global/transports", "sip:*:5160"},
@@ -460,13 +451,11 @@ static void duplicatePushTokenRegisterRedisTest() {
 	    {"module::Registrar/reg-domains", "sip.example.org"},
 	    {"module::Registrar/db-implementation", "redis"},
 	    {"module::Registrar/redis-server-domain", "localhost"},
-	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	    {"module::Registrar/redis-server-port", to_string(redis.port())},
 	    {"module::DoSProtection/enabled", "false"},
 	});
 	startTest(*proxyServer.getAgent());
 }
-
-namespace {
 
 // Check that a REGISTER request with an invalid contact added after a valid contact is detected and leads to a 400 -
 // Bad request reply
@@ -479,35 +468,32 @@ void invalidContactInRequest() {
 	    {"module::Registrar/max-contacts-per-registration", "2"},
 	    {"module::Registrar/db-implementation", "redis"},
 	    {"module::Registrar/redis-server-domain", "localhost"},
-	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	    {"module::Registrar/redis-server-port", to_string(redis.port())},
 	    {"module::DoSProtection/enabled", "false"},
 	});
 	proxyServer.start();
 
-	const std::string sipUri("sip:user@sip.example.org");
-	const std::string uuid("fcm1Reg");
+	const string sipUri("sip:user@sip.example.org");
+	const string uuid("fcm1Reg");
 
-	// clang-format off
-	const std::string badRequest(
-	    "REGISTER "+ sipUri+ " SIP/2.0\r\n"
-	    "From: <" + sipUri + ">;tag=465687829\r\n"
-	    "To: <" + sipUri + ">\r\n"
-		"Call-ID: 1053183492" + "\r\n"
-	    "CSeq: 20 REGISTER\r\n"
-	    "Contact: <" + sipUri + ";>;+sip.instance=" + uuid + "\r\n"
-	    "Contact: badContact\r\n"
-	    "Expires: 3600\r\n"
-	    "Content-Length: 0\r\n\r\n");
-	// clang-format on
+	stringstream badRequest{};
+	badRequest << "REGISTER " << sipUri << " SIP/2.0\r\n"
+	           << "From: <" << sipUri << ">;tag=465687829\r\n"
+	           << "To: <" << sipUri << ">\r\n"
+	           << "Call-ID: stub-call-id\r\n"
+	           << "CSeq: 20 REGISTER\r\n"
+	           << "Contact: <" << sipUri << ">;+sip.instance=" << uuid << "\r\n"
+	           << "Contact: badContact\r\n"
+	           << "Expires: 3600\r\n"
+	           << "Content-Length: 0\r\n\r\n";
 
-	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
-	auto transaction = client.createOutgoingTransaction(badRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
+	NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction =
+	    client.createOutgoingTransaction(badRequest.str(), "sip:127.0.0.1:"s + proxyServer.getFirstPort());
 
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (!transaction->isCompleted() && beforePlus2 >= system_clock::now()) {
-		proxyServer.getRoot()->step(20ms);
-	}
-	BC_ASSERT(transaction->isCompleted());
+	CoreAssert{proxyServer}
+	    .wait([&transaction]() { return LOOP_ASSERTION(transaction->isCompleted()); })
+	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 400);
 }
 
@@ -521,18 +507,18 @@ void invalidContactInDb() {
 	    {"module::Registrar/reg-domains", "sip.example.org"},
 	    {"module::Registrar/db-implementation", "redis"},
 	    {"module::Registrar/redis-server-domain", "localhost"},
-	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	    {"module::Registrar/redis-server-port", to_string(redis.port())},
 	    {"module::DoSProtection/enabled", "false"},
 	});
 	proxyServer.start();
 
-	const std::string sipUri("sip:user@sip.example.org");
-	const std::string uuid("fcm1Reg");
+	const string sipUri("sip:user@sip.example.org");
+	const string uuid("fcm1Reg");
 	const SipUri userUri(sipUri);
 
 	// fill the database with a valid and an invalid contact
 	{
-		sofiasip::Home home{};
+		Home home{};
 		auto createContact = [&](const char* url) {
 			return sip_contact_create(home.home(), (url_string_t*)(url), nullptr);
 		};
@@ -542,30 +528,27 @@ void invalidContactInDb() {
 	}
 
 	// send a valid REGISTER request
-	// clang-format off
-	const std::string validRequest(
-	    "REGISTER "+ sipUri+ " SIP/2.0\r\n"
-	    "From: <" + sipUri + ">;tag=465687829\r\n"
-	    "To: <" + sipUri + ">\r\n"
-		"Call-ID: 1053183492" + "\r\n"
-	    "CSeq: 20 REGISTER\r\n"
-	    "Contact: <" + sipUri + ";>;+sip.instance=" + uuid + "\r\n"
-	    "Expires: 3600\r\n"
-	    "Content-Length: 0\r\n\r\n");
-	// clang-format on
+	stringstream validRequest{};
+	validRequest << "REGISTER " << sipUri << " SIP/2.0\r\n"
+	             << "From: <" << sipUri << ">;tag=465687829\r\n"
+	             << "To: <" << sipUri << ">\r\n"
+	             << "Call-ID: stub-call-id\r\n"
+	             << "CSeq: 20 REGISTER\r\n"
+	             << "Contact: <" << sipUri << ">;+sip.instance=" << uuid << "\r\n"
+	             << "Expires: 3600\r\n"
+	             << "Content-Length: 0\r\n\r\n";
 
-	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
-	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
+	NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction =
+	    client.createOutgoingTransaction(validRequest.str(), "sip:127.0.0.1:"s + proxyServer.getFirstPort());
 
-	auto beforePlus2 = system_clock::now() + 2s;
-	while (!transaction->isCompleted() && beforePlus2 >= system_clock::now()) {
-		proxyServer.getRoot()->step(20ms);
-	}
-	BC_ASSERT(transaction->isCompleted());
+	CoreAssert{proxyServer}
+	    .wait([&transaction]() { return LOOP_ASSERTION(transaction->isCompleted()); })
+	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
 
 	auto const expectedContact{2};
-	checkResultInDb(*proxyServer.getAgent(), userUri, make_shared<RegisterFetchListener>(expectedContact, uuid), true);
+	checkResultInDb(*proxyServer.getAgent(), userUri, make_shared<RegisterFetchListener>(expectedContact, uuid));
 }
 
 // Check that the registrar min-expires parameter is taken into account in the server response
@@ -578,26 +561,27 @@ void minExpires() {
 	});
 	proxyServer.start();
 
-	const std::string sipUri("sip:user@sip.example.org");
+	const string sipUri("sip:user@sip.example.org");
 
 	// send a valid REGISTER request with an expire smaller than min-expires
-	// clang-format off
-	const std::string validRequest(
-	    "REGISTER "+ sipUri+ " SIP/2.0\r\n"
-	    "From: <" + sipUri + ">;tag=465687829\r\n"
-	    "To: <" + sipUri + ">\r\n"
-	    "Call-ID: 1053183492" + "\r\n"
-	    "CSeq: 20 REGISTER\r\n"
-	    "Contact: <" + sipUri + ";>;+sip.instance=fcm1Reg \r\n"
-	    "Expires: 600\r\n"
-	    "Content-Length: 0\r\n\r\n");
-	// clang-format on
+	stringstream validRequest{};
+	validRequest << "REGISTER " << sipUri << " SIP/2.0\r\n"
+	             << "From: <" << sipUri << ">;tag=465687829\r\n"
+	             << "To: <" << sipUri << ">\r\n"
+	             << "Call-ID: stub-call-id\r\n"
+	             << "CSeq: 20 REGISTER\r\n"
+	             << "Contact: <" << sipUri << ">\r\n"
+	             << "Expires: 600\r\n"
+	             << "Content-Length: 0\r\n\r\n";
 
-	sofiasip::NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
-	auto transaction = client.createOutgoingTransaction(validRequest, "sip:127.0.0.1:"s + proxyServer.getFirstPort());
+	NtaAgent client{proxyServer.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction =
+	    client.createOutgoingTransaction(validRequest.str(), "sip:127.0.0.1:"s + proxyServer.getFirstPort());
 
-	BC_ASSERT_TRUE(CoreAssert{proxyServer}.iterateUpTo(
-	    5, [&transaction] { return transaction->isCompleted(); }, 2s));
+	CoreAssert{proxyServer}
+	    .iterateUpTo(
+	        5, [&transaction] { return transaction->isCompleted(); }, 2s)
+	    .assert_passed();
 
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
 	auto response = transaction->getResponse();
@@ -624,9 +608,8 @@ void registerUserWithTooManyContactHeaders() {
 	    {"module::Registrar/reg-domains", "localhost"},
 	}};
 	proxy.start();
-	CoreAssert asserter{proxy};
-	const string clientSipIdentity = "sip:user@localhost";
-	const string proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+	static const string clientSipIdentity = "sip:user@localhost";
+	static const string proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
 
 	// Create a REGISTER request with 2 "Contact:" headers
 	auto request = make_unique<MsgSip>();
@@ -643,8 +626,10 @@ void registerUserWithTooManyContactHeaders() {
 	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
 	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
 
-	BC_ASSERT(asserter.iterateUpTo(
-	    32, [&transaction]() { return transaction->isCompleted(); }, 2s));
+	CoreAssert{proxy}
+	    .iterateUpTo(
+	        32, [&transaction]() { return transaction->isCompleted(); }, 2s)
+	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 403);
 }
 
@@ -693,26 +678,24 @@ void clientCanDeleteExistingBindingWhenRegistering() {
 	BC_ASSERT(contacts.latest()->get()->urlAsString() != existingContact);
 }
 
-TestSuite _{
-    "Register",
-    {
-        CLASSY_TEST(duplicatePushTokenRegisterInternalDbTest),
-        CLASSY_TEST(duplicatePushTokenRegisterRedisTest),
-        CLASSY_TEST(invalidContactInRequest),
-        CLASSY_TEST(invalidContactInDb),
-        CLASSY_TEST(minExpires),
-        CLASSY_TEST(registerUserWithTooManyContactHeaders),
-        CLASSY_TEST(clientCanDeleteExistingBindingWhenRegistering),
-    },
-    Hooks().beforeEach([] {
-	    responseReceived = 0;
-	    expectedResponseReceived = 0;
-	    bidingDone = 0;
-	    expectedBidingDone = 0;
-	    fetchingDone = 0;
-	    expectedFetchingDone = 0;
-    }),
-};
-} // namespace
+TestSuite _("Register",
+            {
+                CLASSY_TEST(duplicatePushTokenRegisterInternalDbTest),
+                CLASSY_TEST(duplicatePushTokenRegisterRedisTest),
+                CLASSY_TEST(invalidContactInRequest),
+                CLASSY_TEST(invalidContactInDb),
+                CLASSY_TEST(minExpires),
+                CLASSY_TEST(registerUserWithTooManyContactHeaders),
+                CLASSY_TEST(clientCanDeleteExistingBindingWhenRegistering),
+            },
+            Hooks().beforeEach([] {
+	            responseReceived = 0;
+	            expectedResponseReceived = 0;
+	            doneBindings = 0;
+	            expectedDoneBindings = 0;
+	            fetchingDone = 0;
+	            expectedFetchingDone = 0;
+            }));
 
+} // namespace
 } // namespace flexisip::tester

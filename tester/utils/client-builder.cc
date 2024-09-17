@@ -18,6 +18,7 @@
 
 #include "client-builder.hh"
 
+#include <memory>
 #include <stdexcept>
 
 #include <linphone/core.h>
@@ -30,8 +31,7 @@
 #include "utils/string-utils.hh"
 #include "utils/variant-utils.hh"
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 ClientBuilder::ClientBuilder(const Agent& agent)
     : mFactory(linphone::Factory::get()), mCoreTemplate(tester::minimalCore(*mFactory)),
@@ -159,7 +159,12 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		                 })
 		    .assert_passed();
 	}
-	return CoreClient(std::move(core), std::move(account), std::move(myAddress), mAgent);
+
+	return CoreClient{std::move(core), std::move(account), std::move(myAddress), mAgent};
+}
+
+std::shared_ptr<CoreClient> ClientBuilder::make(const std::string& baseAddress) const {
+	return std::make_shared<CoreClient>(build(baseAddress));
 }
 
 ClientBuilder& ClientBuilder::setConferenceFactoryUri(const std::string& uri) {
@@ -249,5 +254,4 @@ ClientBuilder& ClientBuilder::setPassword(const std::string_view& password) {
 	return *this;
 }
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

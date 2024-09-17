@@ -175,9 +175,41 @@ public:
 	 * @return the established call from caller side, nullptr on failure
 	 */
 	std::shared_ptr<linphone::Call>
+	callWithEarlyDecline(const CoreClient& callee,
+	                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                     const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Establish a call, but decline the call before it starts.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call params used by the caller to answer the call (nullptr -> use default)
+	 * @param[in] externalProxy     external proxy on which iterate
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
+	std::shared_ptr<linphone::Call>
 	callWithEarlyDecline(const std::shared_ptr<CoreClient>& callee,
 	                     const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
 	                     const std::shared_ptr<Agent>& externalProxy = nullptr);
+	/**
+	 * Establish a call, but cancel before callee receive it.
+	 *
+	 * @note if needed, you can provide an external proxy on which iterate during this process
+	 *
+	 * @param[in] callee 			client to call
+	 * @param[in] callerCallParams	call params used by the caller to answer the call (nullptr -> use default)
+	 * @param[in] calleeCallParams	call params used by the callee to accept the call (nullptr -> use default)
+	 * @param[in] externalProxy     external proxy on which iterate
+	 *
+	 * @return the established call from caller side, nullptr on failure
+	 */
+	std::shared_ptr<linphone::Call>
+	callWithEarlyCancel(const CoreClient& callee,
+	                    const std::shared_ptr<linphone::CallParams>& callerCallParams = nullptr,
+	                    bool isCalleeAway = false,
+	                    const std::shared_ptr<Agent>& externalProxy = nullptr);
 	/**
 	 * Establish a call, but cancel before callee receive it.
 	 *

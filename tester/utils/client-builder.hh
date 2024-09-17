@@ -94,6 +94,7 @@ public:
 	ClientBuilder& setPassword(const std::string_view& password);
 
 	CoreClient build(const std::string&) const;
+	std::shared_ptr<CoreClient> make(const std::string&) const;
 
 private:
 	const std::shared_ptr<linphone::Factory> mFactory;

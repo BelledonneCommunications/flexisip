@@ -29,238 +29,201 @@
 
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/injected-module-info.hh"
-#include "utils/proxy-server.hh"
+#include "utils/core-assert.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
-using namespace std::chrono_literals;
 using namespace std::chrono;
-using namespace flexisip;
-using namespace flexisip::tester;
 using namespace sofiasip;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
+namespace {
 
-class FallbackRouteFilterTest : public AgentTest {
-private:
-	void onAgentConfiguration(ConfigManager& cfg) override {
-		AgentTest::onAgentConfiguration(cfg);
-		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5260");
+void fallbackRouteFilter() {
+	const auto fallbackPort = 8282;
+	Server server{{
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Registrar/reg-domains", "127.0.0.1"},
+	    {"module::Router/enabled", "true"},
+	    {"module::Router/fallback-route", "sip:127.0.0.1:" + to_string(fallbackPort) + ";transport=udp"},
+	    {"module::Router/fallback-route-filter", "request.method != 'INVITE'"},
+	}};
+	server.start();
 
-		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("false");
+	bool requestReceived = false;
+	BellesipUtils belleSipUtilsFallback{
+	    "0.0.0.0",
+	    fallbackPort,
+	    "UDP",
+	    static_cast<BellesipUtils::ProcessResponseStatusCb>(nullptr),
+	    [&requestReceived](const belle_sip_request_event_t*) { requestReceived = true; },
+	};
+	bool responseReceived = false;
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "UDP",
+	    [&responseReceived](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 200);
+			    responseReceived = true;
+		    }
+	    },
+	};
 
-		auto registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-		registrarConf->get<ConfigStringList>("reg-domains")->set("127.0.0.1");
+	// Send a request matching the filter.
+	stringstream requestMatchingFilter{};
+	requestMatchingFilter << "OPTIONS sip:participant1@127.0.0.1:" << server.getFirstPort() << " SIP/2.0\r\n"
+	                      << "Via: SIP/2.0/UDP 10.10.10.10:5060;branch=z9hG4bK1439638806\r\n"
+	                      << "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                      << "To: <sip:participant1@127.0.0.1>\r\n"
+	                      << "CSeq: 1 OPTIONS\r\n"
+	                      << "Call-ID: 1053183492\r\n"
+	                      << "Contact: <sip:jehan-mac@192.168.1.8:5062>\r\n"
+	                      << "Max-Forwards: 70\r\n"
+	                      << "User-Agent: BelleSipUtils\r\n"
+	                      << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(requestMatchingFilter.str());
 
-		auto routerConf = cfg.getRoot()->get<GenericStruct>("module::Router");
+	CoreAssert asserter{server, belleSipUtilsFallback, belleSipUtils};
+	asserter
+	    .wait([&responseReceived, &requestReceived]() {
+		    // ... so the fallback route MUST have received the request...
+		    FAIL_IF(!requestReceived);
+		    // ... and the sender MUST have received the "200 Ok" from the fallback route.
+		    FAIL_IF(!responseReceived);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
 
-		// Setting up a fallback-route and BelleSip stack waiting for request.
-		routerConf->get<ConfigString>("fallback-route")->set("sip:127.0.0.1:8282;transport=udp");
+	responseReceived = false;
+	requestReceived = false;
+	BellesipUtils belleSipUtilsBis{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "UDP",
+	    [&responseReceived](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 404);
+			    responseReceived = true;
+		    }
+	    },
+	    nullptr,
+	};
 
-		// Configuring a filter to use the fallback only if, applied to the request, the filter is true.
-		routerConf->get<ConfigBooleanExpression>("fallback-route-filter")
-		    ->set(
-		        "request.method != 'INVITE' || ( request.uri.user != 'conference-factory' && !(request.uri.user regexp "
-		        "'chatroom-.*' ))");
-	}
+	// This time we send a request not matching the filter...
+	stringstream requestNotMatchingFilter{};
+	requestNotMatchingFilter << "INVITE sip:participant1@127.0.0.1:" << server.getFirstPort() << " SIP/2.0\r\n"
+	                         << "Via: SIP/2.0/UDP 10.10.10.10:5060;branch=z9hG4bK1439638806\r\n"
+	                         << "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
+	                         << "To: <sip:participant1@127.0.0.1>\r\n"
+	                         << "CSeq: 1 INVITE\r\n"
+	                         << "Call-ID: 1053183493\r\n"
+	                         << "Contact: <sip:jehan-mac@192.168.1.8:5062>\r\n"
+	                         << "Max-Forwards: 70\r\n"
+	                         << "User-Agent: BelleSipUtils\r\n"
+	                         << "Content-Length: 0\r\n\r\n";
+	belleSipUtilsBis.sendRawRequest(requestNotMatchingFilter.str());
 
-	void testExec() override {
-		bool responseReceived = false;
-		bool requestReceived = false;
-		BellesipUtils bellesipUtilsFallback{
-		    "0.0.0.0", 8282, "UDP", (BellesipUtils::ProcessResponseStatusCb) nullptr,
-		    [&requestReceived](const belle_sip_request_event_t*) { requestReceived = true; }};
-		BellesipUtils bellesipUtils{"0.0.0.0", -1, "UDP",
-		                            [&responseReceived](int status) {
-			                            if (status != 100) {
-				                            BC_ASSERT_EQUAL(status, 200, int, "%i");
-				                            responseReceived = true;
-			                            }
-		                            },
-		                            nullptr};
+	asserter.registerSteppable(belleSipUtilsBis);
+	asserter
+	    .wait([&responseReceived, &requestReceived]() {
+		    // ... so the fallback route MUST NOT have received the request...
+		    FAIL_IF(requestReceived);
+		    // ... and the sender MUST have received the "404 Not Found" from flexisip (no user in the registrar db).
+		    FAIL_IF(!responseReceived);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+}
 
-		// We are sending a request matching the filter...
-		bellesipUtils.sendRawRequest("OPTIONS sip:participant1@127.0.0.1:5260 SIP/2.0\r\n"
-		                             "Via: SIP/2.0/UDP 10.10.10.10:5060;rport;branch=z9hG4bK1439638806\r\n"
-		                             "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
-		                             "To: <sip:participant1@127.0.0.1>\r\n"
-		                             "Call-ID: 1053183492\r\n"
-		                             "CSeq: 1 OPTIONS\r\n"
-		                             "Contact: <sip:jehan-mac@192.168.1.8:5062>\r\n"
-		                             "Max-Forwards: 42\r\n"
-		                             "User-Agent: Linphone/3.3.99.10 (eXosip2/3.3.0)\r\n"
-		                             "Content-Length: 0\r\n\r\n");
-
-		auto beforePlus2 = system_clock::now() + 2s;
-		while ((!responseReceived || !requestReceived) && beforePlus2 >= system_clock::now()) {
-			waitFor(10ms);
-			bellesipUtils.stackSleep(10);
-			bellesipUtilsFallback.stackSleep(10);
-		}
-		// ... so the fallback route MUST have received the request...
-		BC_ASSERT_TRUE(requestReceived);
-		// ... and the sender MUST have received the "200 Ok" from the fallback route.
-		BC_ASSERT_TRUE(responseReceived);
-
-		responseReceived = false;
-		requestReceived = false;
-
-		BellesipUtils bellesipUtils2{"0.0.0.0", -1, "UDP",
-		                             [&responseReceived](int status) {
-			                             if (status != 100) {
-				                             BC_ASSERT_EQUAL(status, 404, int, "%i");
-				                             responseReceived = true;
-			                             }
-		                             },
-		                             nullptr};
-
-		// This time we send a request not matching the filter...
-		bellesipUtils2.sendRawRequest(
-		    // Sip message
-		    "INVITE sip:chatroom-1212@127.0.0.1:5260 SIP/2.0\r\n"
-		    "Via: SIP/2.0/UDP "
-		    "10.23.17.117:22600;branch=z9hG4bK-d8754z-4d7620d2feccbfac-1---d8754z-;rport=4820;received=202.165.193."
-		    "129\r\n"
-		    "Max-Forwards: 70\r\n"
-		    "Contact: <sip:anthony@127.0.0.1>\r\n"
-		    "To: <sip:chatroom-1212@127.0.0.1>\r\n"
-		    "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
-		    "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
-		    "CSeq: 1 INVITE\r\n"
-		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n"
-		    "c: application/sdp\r\n"
-		    "Supported: replaces\r\n"
-		    "Supported: 100rel\r\n"
-		    "Authorization: Digest username=\"003332176\", realm=\"sip.ovh.net\", "
-		    "nonce=\"24212965507cde726e8bc37e04686459\", uri=\"sip:sip.ovh.net\", "
-		    "response=\"896e786e9c0525ca3085322c7f1bce7b\", algorithm=MD5, opaque=\"241b9fb347752f2\"\r\n"
-		    "User-Agent: X-Lite 4 release 4.0 stamp 58832\r\n",
-		    // Request body
-		    "v=0\r\n"
-		    "o=anthony.gauchy 3102 279 IN IP4 127.0.0.1\r\n"
-		    "s=Talk\r\n"
-		    "c=IN IP4 127.0.0.1\r\n"
-		    "t=0 0\r\n"
-		    "m=audio 7078 RTP/AVP 111 110 3 0 8 101\r\n"
-		    "a=rtpmap:111 speex/16000\r\n"
-		    "a=fmtp:111 vbr=on\r\n"
-		    "a=rtpmap:110 speex/8000\r\n"
-		    "a=fmtp:110 vbr=on\r\n"
-		    "a=rtpmap:101 telephone-event/8000\r\n"
-		    "a=fmtp:101 0-11\r\n"
-		    "m=video 8078 RTP/AVP 99 97 98\r\n"
-		    "c=IN IP4 192.168.0.18\r\n"
-		    "b=AS:380\r\n"
-		    "a=rtpmap:99 MP4V-ES/90000\r\n"
-		    "a=fmtp:99 profile-level-id=3\r\n");
-
-		beforePlus2 = system_clock::now() + 2s;
-		while ((!responseReceived || !requestReceived) && beforePlus2 >= system_clock::now()) {
-			waitFor(10ms);
-			bellesipUtils2.stackSleep(10);
-			bellesipUtilsFallback.stackSleep(10);
-		}
-
-		// ... so the fallback route MUST NOT have received the request...
-		BC_ASSERT_FALSE(requestReceived);
-		// ... and the sender MUST have received the "404 Not Found" from flexisip (no user in the registrar db).
-		BC_ASSERT_TRUE(responseReceived);
-	}
-};
-
-/*
- * Check that module router remove route to itself.
+/**
+ * Verify that RouterModule removes route to itself.
  *
- * In this test we want to verify that every request that enter module::Router
+ * In this test we want to verify that every request that enter the module::Router
  * with a "Route:" header pointing to itself are actually resolved by using the
- * registrar DB and goes out the module::Router with the
- * route header removed.
+ * registrar DB and goes out the module::Router with the "Route:" header removed.
  */
-class SelfRouteHeaderRemovingTest : public RegistrarDbTest<DbImplementation::Internal> {
-public:
-	SelfRouteHeaderRemovingTest() noexcept : RegistrarDbTest(true){};
+void selfRouteHeaderRemoving() {
+	SLOGD << "Step 1: Setup";
+	Server server{{
+	    {"global/aliases", "test.flexisip.org"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Registrar/reg-domains", "test.flexisip.org"},
+	}};
+	server.start();
 
-private:
-	void onAgentConfiguration(ConfigManager& cfg) override {
-		SLOGD << "Step 1: Setup";
-		RegistrarDbTest::onAgentConfiguration(cfg);
-		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigStringList>("transports")->set("sip:127.0.0.1:6060");
-		globalCfg->get<ConfigStringList>("aliases")->set("test.flexisip.org");
+	bool isRequestReceived = false;
+	BellesipUtils belleSipUtilsReceiver{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    static_cast<BellesipUtils::ProcessResponseStatusCb>(nullptr),
+	    [&isRequestReceived](const belle_sip_request_event_t* event) {
+		    isRequestReceived = true;
+		    if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
+			    return;
+		    }
+		    auto request = belle_sip_request_event_get_request(event);
+		    auto message = BELLE_SIP_MESSAGE(request);
+		    auto routes = belle_sip_message_get_headers(message, "Route");
+		    if (routes != nullptr) {
+			    BC_FAIL("Route was not removed");
+		    }
+	    },
+	};
+	bool isRequestAccepted = false;
+	BellesipUtils belleSipUtilsSender{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    [&isRequestAccepted](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 200);
+			    isRequestAccepted = true;
+		    }
+	    },
+	    nullptr,
+	};
 
-		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("false");
+	ContactInserter inserter{*server.getRegistrarDb()};
+	inserter.setAor("sip:provencal_le_gaulois@test.flexisip.org")
+	    .setExpire(30s)
+	    .insert({"sip:provencal_le_gaulois@127.0.0.1:" + to_string(belleSipUtilsReceiver.getListeningPort()) +
+	             ";transport=tcp"});
 
-		auto registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-		registrarConf->get<ConfigStringList>("reg-domains")->set("test.flexisip.org");
-	}
+	CoreAssert asserter{server, belleSipUtilsReceiver, belleSipUtilsSender};
+	asserter.wait([&inserter] { return LOOP_ASSERTION(inserter.finished()); }).assert_passed();
 
-	void testExec() override {
-		bool isRequestAccepted = false;
-		bool isRequestReceived = false;
-		BellesipUtils bellesipUtilsReceiver{
-		    "0.0.0.0", 8383, "TCP", (BellesipUtils::ProcessResponseStatusCb) nullptr,
-		    [&isRequestReceived](const belle_sip_request_event_t* event) {
-			    isRequestReceived = true;
-			    if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
-				    return;
-			    }
-			    auto request = belle_sip_request_event_get_request(event);
-			    auto message = BELLE_SIP_MESSAGE(request);
-			    auto routes = belle_sip_message_get_headers(message, "Route");
-			    if (routes != nullptr) {
-				    BC_FAIL("Route was not removed");
-			    }
-		    }};
+	SLOGD << "Step 2: Send message";
+	const string body{"C'est pas faux \r\n\r\n"};
+	stringstream request{};
+	request << "MESSAGE sip:provencal_le_gaulois@test.flexisip.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:" << belleSipUtilsSender.getListeningPort() << ";branch=z9hG4bK.PAWTmC\r\n"
+	        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	        << "To: <sip:provencal_le_gaulois@test.flexisip.org>\r\n"
+	        << "CSeq: 20 MESSAGE\r\n"
+	        << "Call-ID: Tvw6USHXYv\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Route: <sip:127.0.0.1:" << server.getFirstPort() << ";transport=tcp;lr>\r\n"
+	        << "Supported: replaces, outbound, gruu\r\n"
+	        << "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+	        << "Content-Type: text/plain\r\n"
+	        << "Content-Length: " << body.size() << "\r\n\r\n";
+	belleSipUtilsSender.sendRawRequest(request.str(), body);
 
-		BellesipUtils bellesipUtilsSender{"0.0.0.0", -1, "TCP",
-		                                  [&isRequestAccepted](int status) {
-			                                  if (status != 100) {
-				                                  BC_ASSERT_EQUAL(status, 200, int, "%i");
-				                                  isRequestAccepted = true;
-			                                  }
-		                                  },
-		                                  nullptr};
+	SLOGD << "Step 3: Assert that request received an answer (200) and is received";
+	asserter
+	    .wait([&isRequestAccepted, &isRequestReceived]() {
+		    return LOOP_ASSERTION(isRequestAccepted && isRequestReceived);
+	    })
+	    .assert_passed();
+}
 
-		mInserter->setAor("sip:user@test.flexisip.org")
-		    .setExpire(30s)
-		    .insert({"sip:user@127.0.0.1:8383;transport=tcp;"});
-		BC_ASSERT_TRUE(this->waitFor([this] { return mInserter->finished(); }, 1s));
-
-		SLOGD << "Step 2: Send message";
-		// clang-format off
-		bellesipUtilsSender.sendRawRequest("MESSAGE sip:user@test.flexisip.org SIP/2.0\r\n"
-									 "Via: SIP/2.0/TCP 127.0.0.1:6060;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-									 "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
-									 "To: <sip:user@test.flexisip.org>\r\n"
-									 "CSeq: 20 MESSAGE\r\n"
-									 "Call-ID: Tvw6USHXYv\r\n"
-									 "Max-Forwards: 70\r\n"
-									 "Route: <sip:127.0.0.1:6060;transport=tcp;lr>\r\n"
-									 "Supported: replaces, outbound, gruu\r\n"
-									 "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
-									 "Content-Type: text/plain\r\n",
-									 "C'est pas faux \r\n\r\n");
-		// clang-format on
-		auto beforePlus2 = system_clock::now() + 2s;
-		while ((!isRequestAccepted || !isRequestReceived) && beforePlus2 >= system_clock::now()) {
-			waitFor(10ms);
-			bellesipUtilsSender.stackSleep(10);
-			bellesipUtilsReceiver.stackSleep(10);
-		}
-
-		SLOGD << "Step 3: Assert that request received an answer (200) and is received.";
-		BC_ASSERT_TRUE(isRequestAccepted);
-		BC_ASSERT_TRUE(isRequestReceived);
-	}
-};
-
-/*
+/**
  * Check that module router don't remove route to others.
  *
  * In this test the message contains two "Route:" headers :
@@ -269,149 +232,156 @@ private:
  *  We want to assert that the header pointing to itself is removed.
  *  We want to assure that the module::Router is skipped (no contact is resolved) and
  *  the request directly forwarded to the other proxy, with the second route header preserved.
- *
  */
-class OtherRouteHeaderNotRemovedTest : public RegistrarDbTest<DbImplementation::Internal> {
-public:
-	OtherRouteHeaderNotRemovedTest() noexcept : RegistrarDbTest(true){};
+void otherRouteHeaderNotRemoved() {
+	SLOGD << "Step 1: Setup";
+	Server server{{
+	    {"global/aliases", "test.flexisip.org"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Registrar/reg-domains", "test.flexisip.org"},
+	}};
+	server.start();
 
-private:
-	void onAgentConfiguration(ConfigManager& cfg) override {
-		SLOGD << "Step 1: Setup";
-		RegistrarDbTest::onAgentConfiguration(cfg);
-		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigStringList>("transports")->set("sip:127.0.0.1:6060");
-		globalCfg->get<ConfigStringList>("aliases")->set("test.flexisip.org");
+	bool isRequestReceived = false;
+	auto belleSipUtilsReceiverPort = "0"s;
+	BellesipUtils belleSipUtilsReceiver{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    static_cast<BellesipUtils::ProcessResponseStatusCb>(nullptr),
+	    [&isRequestReceived, &belleSipUtilsReceiverPort](const belle_sip_request_event_t* event) {
+		    isRequestReceived = true;
+		    const auto* request = belle_sip_request_event_get_request(event);
+		    BC_HARD_ASSERT_NOT_NULL(request);
+		    const auto* message = BELLE_SIP_MESSAGE(request);
+		    BC_HARD_ASSERT_NOT_NULL(message);
+		    const auto* routes = belle_sip_message_get_headers(message, BELLE_SIP_ROUTE);
+		    BC_HARD_ASSERT_NOT_NULL(routes);
+		    if (bctbx_list_last_elem(routes) != bctbx_list_first_elem(routes)) {
+			    BC_FAIL("Both routes were preserved");
+		    } else {
+			    const auto* routeActual =
+			        reinterpret_cast<belle_sip_header_route_t*>(bctbx_list_first_elem(routes)->data);
+			    const auto* routeExpected = belle_sip_header_route_parse(
+			        string{"Route: <sip:127.0.0.1:" + belleSipUtilsReceiverPort + ";transport=tcp;lr>"}.c_str());
+			    BC_ASSERT_TRUE(belle_sip_header_route_equals(routeActual, routeExpected) == 0);
+		    }
+	    },
+	};
+	belleSipUtilsReceiverPort = to_string(belleSipUtilsReceiver.getListeningPort());
 
-		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("false");
+	bool isRequestAccepted = false;
+	BellesipUtils belleSipUtilsSender{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    [&isRequestAccepted](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 200);
+			    isRequestAccepted = true;
+		    }
+	    },
+	    nullptr,
+	};
 
-		auto registrarConf = cfg.getRoot()->get<GenericStruct>("module::Registrar");
-		registrarConf->get<ConfigStringList>("reg-domains")->set("test.flexisip.org");
-	}
+	// Because we want to assert that module::Router is skipped and that no user is resolved we insert
+	// a contact pointing to nowhere.
+	ContactInserter inserter{*server.getRegistrarDb()};
+	inserter.setAor("sip:provencal_le_gaulois@test.flexisip.org")
+	    .setExpire(30s)
+	    .insert({"sip:provencal_le_gaulois@127.0.0.1:0;transport=tcp"});
 
-	void testExec() override {
-		bool isRequestAccepted = false;
-		bool isRequestReceived = false;
-		BellesipUtils bellesipUtilsReceiver{
-		    "0.0.0.0", 8383, "TCP", (BellesipUtils::ProcessResponseStatusCb) nullptr,
-		    [&isRequestReceived](const belle_sip_request_event_t* event) {
-			    isRequestReceived = true;
-			    auto request = belle_sip_request_event_get_request(event);
-			    BC_HARD_ASSERT_NOT_NULL(request);
-			    auto message = BELLE_SIP_MESSAGE(request);
-			    BC_HARD_ASSERT_NOT_NULL(message);
-			    auto routes = belle_sip_message_get_headers(message, BELLE_SIP_ROUTE);
-			    BC_HARD_ASSERT_NOT_NULL(routes);
-			    if (bctbx_list_last_elem(routes) != bctbx_list_first_elem(routes)) {
-				    BC_FAIL("Both routes were preserved");
-			    } else {
-				    auto* routeActual = (belle_sip_header_route_t*)bctbx_list_first_elem(routes)->data;
-				    auto* routeExpected = belle_sip_header_route_parse("Route: <sip:127.0.0.1:8383;transport=tcp;lr>");
-				    BC_ASSERT_TRUE(belle_sip_header_route_equals(routeActual, routeExpected) == 0);
-			    }
-		    }};
+	CoreAssert asserter{server, belleSipUtilsReceiver, belleSipUtilsSender};
+	asserter.wait([&inserter] { return LOOP_ASSERTION(inserter.finished()); }).assert_passed();
 
-		BellesipUtils bellesipUtilsSender{"0.0.0.0", -1, "TCP",
-		                                  [&isRequestAccepted](int status) {
-			                                  if (status != 100) {
-				                                  BC_ASSERT_EQUAL(status, 200, int, "%i");
-				                                  isRequestAccepted = true;
-			                                  }
-		                                  },
-		                                  nullptr};
+	SLOGD << "Step 2: Send message";
+	const string body{"C'est pas faux \r\n\r\n"};
+	stringstream request{};
+	request << "MESSAGE sip:provencal_le_gaulois@test.flexisip.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:" << belleSipUtilsReceiver.getListeningPort() << ";branch=z9hG4bK.PAWTmC\r\n"
+	        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	        << "To: <sip:provencal_le_gaulois@test.flexisip.org>\r\n"
+	        << "CSeq: 20 MESSAGE\r\n"
+	        << "Call-ID: Tvw6USHXYv\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Route: <sip:127.0.0.1:" << server.getFirstPort() << ";transport=tcp;lr>\r\n"
+	        << "Route: <sip:127.0.0.1:" << belleSipUtilsReceiverPort << ";transport=tcp;lr>\r\n"
+	        << "Supported: replaces, outbound, gruu\r\n"
+	        << "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+	        << "Content-Type: text/plain\r\n"
+	        << "Content-Length: " << body.size() << "\r\n\r\n";
+	belleSipUtilsSender.sendRawRequest(request.str(), body);
 
-		// Because we want to assert that module::Router is skipped and that no user is resolved we insert
-		// a contact pointing to nowhere.
-		mInserter->setAor("sip:user@test.flexisip.org")
-		    .setExpire(30s)
-		    .insert({"sip:user@127.0.0.1:9999;transport=tcp;"});
-		BC_ASSERT_TRUE(this->waitFor([this] { return mInserter->finished(); }, 1s));
-
-		SLOGD << "Step 2: Send message";
-		// clang-format off
-		bellesipUtilsSender.sendRawRequest("MESSAGE sip:user@test.flexisip.org SIP/2.0\r\n"
-									 "Via: SIP/2.0/TCP 127.0.0.1:6060;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-									 "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
-									 "To: <sip:user@test.flexisip.org>\r\n"
-									 "CSeq: 20 MESSAGE\r\n"
-									 "Call-ID: Tvw6USHXYv\r\n"
-									 "Max-Forwards: 70\r\n"
-                                     "Route: <sip:127.0.0.1:6060;transport=tcp;lr>\r\n"
-									 "Route: <sip:127.0.0.1:8383;transport=tcp;lr>\r\n"
-									 "Supported: replaces, outbound, gruu\r\n"
-									 "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
-									 "Content-Type: text/plain\r\n",
-									 "C'est pas faux \r\n\r\n");
-		// clang-format on
-		auto beforePlus2 = system_clock::now() + 2s;
-		while ((!isRequestAccepted || !isRequestReceived) && beforePlus2 >= system_clock::now()) {
-			waitFor(10ms);
-			bellesipUtilsSender.stackSleep(10);
-			bellesipUtilsReceiver.stackSleep(10);
-		}
-
-		SLOGD << "Step 3: Assert that request received an answer (200) and is received.";
-		BC_ASSERT_TRUE(isRequestAccepted);
-		BC_ASSERT_TRUE(isRequestReceived);
-	}
-};
+	SLOGD << "Step 3: Assert that request received an answer (200) and is received";
+	asserter
+	    .wait([&isRequestAccepted, &isRequestReceived]() {
+		    return LOOP_ASSERTION(isRequestAccepted && isRequestReceived);
+	    })
+	    .assert_passed();
+}
 
 template <typename Database>
-void message_expires() {
+void messageExpires() {
 	Database db{};
-	Server proxyServer{[&db]() {
+	Server server{[&db]() {
 		auto config = db.configAsMap();
 		config.emplace("global/transports", "sip:127.0.0.1:0;transport=udp");
 		config.emplace("module::Registrar/reg-domains", "127.0.0.1");
 		return config;
 	}()};
-	proxyServer.start();
-	BcAssert asserter{};
-	asserter.addCustomIterate([&root = *proxyServer.getRoot()] { root.step(1ms); });
-	const auto& agent = proxyServer.getAgent();
-	const auto routerModule = static_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+	server.start();
+
 	auto responseCount = 0;
-	BellesipUtils bellesipUtils{"0.0.0.0", 0, "UDP",
-	                            [&responseCount](int status) {
-		                            if (status != 100) {
-			                            ++responseCount;
-		                            }
-	                            },
-	                            nullptr};
-	const string proxyPort = proxyServer.getFirstPort();
-	const string clientPort = to_string(bellesipUtils.getListeningPort());
-	ContactInserter inserter(proxyServer.getAgent()->getRegistrarDb());
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    0,
+	    "UDP",
+	    [&responseCount](int status) {
+		    if (status != 100) {
+			    ++responseCount;
+		    }
+	    },
+	    nullptr,
+	};
+
+	ContactInserter inserter{server.getAgent()->getRegistrarDb()};
 	inserter.setAor("sip:message_expires@127.0.0.1")
 	    .setExpire(0s)
 	    .setContactParams({"message-expires=1609"})
-	    .insert({"sip:message_expires@127.0.0.1:" + clientPort});
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(5, [&inserter] { return inserter.finished(); }));
-	asserter.addCustomIterate([&bellesipUtils] { bellesipUtils.stackSleep(1); });
+	    .insert({"sip:message_expires@127.0.0.1:" + to_string(belleSipUtils.getListeningPort())});
+
+	CoreAssert asserter{server, belleSipUtils};
+	asserter.wait([&inserter] { return LOOP_ASSERTION(inserter.finished()); }).hard_assert_passed();
+
+	const auto& routerModule = static_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	BC_HARD_ASSERT(routerModule != nullptr);
 	auto* forks = routerModule->mStats.mCountForks->start;
 	BC_ASSERT_CPP_EQUAL(forks->read(), 0);
 
-	bellesipUtils.sendRawRequest(
-	    "OPTIONS sip:message_expires@127.0.0.1:" + proxyPort + " SIP/2.0\r\n" +
-	    "From: <sip:message_expires_placeholder2@127.0.0.1>;tag=message_expires_placeholder1\r\n"
-	    "To: <sip:message_expires@127.0.0.1>\r\n"
-	    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
-	    "Call-ID: message_expires_placeholder4\r\n"
-	    "CSeq: 55 OPTIONS\r\n");
-	bellesipUtils.sendRawRequest(
-	    "MESSAGE sip:message_expires@127.0.0.1:" + proxyPort + " SIP/2.0\r\n" +
-	    "From: <sip:message_expires_placeholder6@127.0.0.1>;tag=message_expires_placeholder3\r\n"
-	    "To: <sip:message_expires@127.0.0.1>\r\n"
-	    "Via: SIP/2.0/TCP 127.0.0.1\r\n"
-	    "Call-ID: message_expires_placeholder8\r\n"
-	    "CSeq: 2178 MESSAGE\r\n"
-	    "Content-Type: text/plain\r\n"
-	    "\r\n"
-	    "Expiration Date High Score: 24.3\r\n");
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(5, [&responseCount] { return responseCount == 2; }));
+	stringstream rawRequest{};
+	rawRequest << "OPTIONS sip:message_expires@127.0.0.1:" << server.getFirstPort() << " SIP/2.0\r\n"
+	           << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	           << "From: <sip:from@127.0.0.1>;tag=stub-from-tag-1\r\n"
+	           << "To: <sip:message_expires@127.0.0.1>\r\n"
+	           << "CSeq: 20 OPTIONS\r\n"
+	           << "Call-ID: stub-call-id-1\r\n"
+	           << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(rawRequest.str());
+
+	rawRequest = {};
+	rawRequest << "MESSAGE sip:message_expires@127.0.0.1:" << server.getFirstPort() << " SIP/2.0\r\n"
+	           << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	           << "From: <sip:from@127.0.0.1>;tag=stub-from-tag-2\r\n"
+	           << "To: <sip:message_expires@127.0.0.1>\r\n"
+	           << "CSeq: 20 MESSAGE\r\n"
+	           << "Call-ID: stub-call-id-2\r\n"
+	           << "Content-Type: text/plain\r\n"
+	           << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(rawRequest.str());
+
+	asserter.wait([&responseCount] { return LOOP_ASSERTION(responseCount == 2); }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(forks->read(), 1);
 }
-
-namespace {
 
 struct Contact {
 	string aor;
@@ -419,7 +389,7 @@ struct Contact {
 };
 
 /*
- * Test helper for unit tests about routing requests with non-empty "module::Router/static-targets" parameter.
+ * Test helper for unit tests about routing requests with "module::Router/static-targets" parameter.
  */
 struct RoutingWithStaticTargets {
 	RoutingWithStaticTargets(const vector<Contact>& contacts, const vector<string>& staticTargets)
@@ -434,7 +404,6 @@ struct RoutingWithStaticTargets {
 	      mProxy(
 	          {
 	              {"global/aliases", "localhost"},
-	              {"global/transports", "sip:127.0.0.1:0"},
 	              {"module::NatHelper/enabled", "false"},
 	              {"module::DoSProtection/enabled", "false"},
 	              {"module::Registrar/reg-domains", "localhost"},
@@ -444,14 +413,12 @@ struct RoutingWithStaticTargets {
 	      mClient(mProxy.getRoot(), "sip:127.0.0.1:0") {
 
 		mProxy.start();
-		mAsserter.addCustomIterate([&root = *mProxy.getRoot()] { root.step(1ms); });
 
 		ContactInserter inserter(mProxy.getAgent()->getRegistrarDb());
 		for (const auto& contact : contacts) {
 			inserter.setAor(contact.aor).setExpire(1min).insert({contact.uri});
 		}
-		BC_HARD_ASSERT_TRUE(mAsserter.iterateUpTo(
-		    5, [&inserter] { return inserter.finished(); }, 2s));
+		mAsserter.wait([&inserter] { return inserter.finished(); }).hard_assert_passed();
 	}
 
 	vector<string> mActualTargets{};
@@ -459,11 +426,11 @@ struct RoutingWithStaticTargets {
 	InjectedHooks mInjectedModule;
 	Server mProxy;
 	sofiasip::NtaAgent mClient;
-	BcAssert<> mAsserter{};
+	CoreAssert<kDefaultSleepInterval> mAsserter{mProxy};
 };
 
 /*
- * Test that INVITE request is both routed to the callee and to provided static targets.
+ * Test that INVITE request is both routed to the callee and to the provided static targets.
  */
 void requestIsAlsoRoutedToStaticTargets() {
 	// Set up expected targets without transport and port 0 so the server does not try to send forked INVITE requests.
@@ -480,17 +447,17 @@ void requestIsAlsoRoutedToStaticTargets() {
 	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
 	        << "From: \"Caller\" <" << helper.mCaller.aor << ">;tag=stub-tag\r\n"
 	        << "To: \"Callee\" <" << callee.aor << ">\r\n"
-	        << "Call-ID: stub-id\r\n"
 	        << "CSeq: 20 INVITE\r\n"
+	        << "Call-ID: stub-id\r\n"
 	        << "Contact: <" << helper.mCaller.aor << ";transport=tcp>\r\n"
-	        << "User-Agent: stub-user-agent\r\n"
+	        << "User-Agent: NtaAgent\r\n"
 	        << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
 	        << "Supported: replaces, outbound, gruu\r\n"
-	        << "Content-Type: application/sdp\r\n";
+	        << "Content-Type: application/sdp\r\n"
+	        << "Content-Length: 0\r\n\r\n";
 
 	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
-	BC_ASSERT(helper.mAsserter.iterateUpTo(
-	              5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
+	helper.mAsserter.wait([&transaction]() { return transaction->isCompleted(); }).assert_passed();
 
 	BC_HARD_ASSERT_CPP_EQUAL(helper.mActualTargets.size(), expectedTargets.size());
 	for (auto targetId = 0U; targetId < expectedTargets.size(); ++targetId) {
@@ -500,8 +467,7 @@ void requestIsAlsoRoutedToStaticTargets() {
 
 /*
  * Test that INVITE request is both routed to the list of targets defined in the "X-Target-Uris" header and to provided
- * static targets.
- * In this case, it should not be routed to the callee.
+ * static targets. In this case, it should not be routed to the callee.
  */
 void requestIsRoutedToXTargetUrisAndStaticTargets() {
 	// Set up expected targets without transport and port 0 so the server does not try to send forked INVITE requests.
@@ -520,18 +486,18 @@ void requestIsRoutedToXTargetUrisAndStaticTargets() {
 	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
 	        << "From: \"Caller\" <" << helper.mCaller.aor << ">;tag=stub-tag\r\n"
 	        << "To: \"Callee\" <" << callee.aor << ">\r\n"
-	        << "X-Target-Uris: <" << xTarget.aor << ">,<" << xTargetBis.aor << ">\r\n"
-	        << "Call-ID: stub-id\r\n"
 	        << "CSeq: 20 INVITE\r\n"
+	        << "Call-ID: stub-id\r\n"
 	        << "Contact: <" << helper.mCaller.aor << ";transport=tcp>\r\n"
-	        << "User-Agent: stub-user-agent\r\n"
+	        << "X-Target-Uris: <" << xTarget.aor << ">,<" << xTargetBis.aor << ">\r\n"
+	        << "User-Agent: NtaAgent\r\n"
 	        << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK, UPDATE\r\n"
 	        << "Supported: replaces, outbound, gruu\r\n"
-	        << "Content-Type: application/sdp\r\n";
+	        << "Content-Type: application/sdp\r\n"
+	        << "Content-Length: 0\r\n\r\n";
 
 	const auto transaction = helper.mClient.createOutgoingTransaction(request.str(), routeUri);
-	BC_ASSERT(helper.mAsserter.iterateUpTo(
-	              5, [&transaction]() { return transaction->isCompleted(); }, 2s) == true);
+	helper.mAsserter.wait([&transaction]() { return transaction->isCompleted(); }).assert_passed();
 
 	BC_HARD_ASSERT_CPP_EQUAL(helper.mActualTargets.size(), expectedTargets.size());
 	for (auto targetId = 0U; targetId < expectedTargets.size(); ++targetId) {
@@ -539,21 +505,16 @@ void requestIsRoutedToXTargetUrisAndStaticTargets() {
 	}
 }
 
-} // namespace
+TestSuite _("RouterModule",
+            {
+                CLASSY_TEST(fallbackRouteFilter),
+                CLASSY_TEST(selfRouteHeaderRemoving),
+                CLASSY_TEST(otherRouteHeaderNotRemoved),
+                CLASSY_TEST(messageExpires<DbImplementation::Internal>),
+                CLASSY_TEST(messageExpires<DbImplementation::Redis>),
+                CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
+                CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
+            });
 
-namespace {
-TestSuite
-    _("RouterModule",
-      {
-          CLASSY_TEST(message_expires<DbImplementation::Internal>),
-          CLASSY_TEST(message_expires<DbImplementation::Redis>),
-          TEST_NO_TAG("Disable fallback route for requests not matching fallback-route-filter",
-                      run<FallbackRouteFilterTest>),
-          TEST_NO_TAG("Check that module router remove route to itself", run<SelfRouteHeaderRemovingTest>),
-          TEST_NO_TAG("Check that module router don't remove route to others", run<OtherRouteHeaderNotRemovedTest>),
-          CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
-          CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
-      });
 } // namespace
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

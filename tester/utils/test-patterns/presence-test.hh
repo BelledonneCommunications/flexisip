@@ -30,16 +30,14 @@
 #include "tester.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class PresenceTest : public RegistrarDbTest<DbImplementation::Internal> {
 public:
 	PresenceTest() noexcept : RegistrarDbTest<DbImplementation::Internal>(false) {
 	}
 
-	~PresenceTest() {
-	}
+	~PresenceTest() override = default;
 
 	void onTestInit() override {
 		mPresence->_init();
@@ -47,10 +45,8 @@ public:
 	};
 
 protected:
-	virtual void onAgentConfiguration(ConfigManager& cfg) override {
+	void onAgentConfiguration(ConfigManager& cfg) override {
 		RegistrarDbTest::onAgentConfiguration(cfg);
-		auto* globalConf = cfg.getRoot()->get<GenericStruct>("global");
-		globalConf->get<ConfigStringList>("transports")->set("sips:127.0.0.1:5066;");
 
 		auto* authConf = cfg.getRoot()->get<GenericStruct>("module::Authentication");
 		authConf->get<ConfigBoolean>("enabled")->set("true");
@@ -59,6 +55,7 @@ protected:
 		authConf->get<ConfigString>("file-path")->set(bcTesterRes("config/flexisip_presence.auth"));
 
 		auto* presenceConf = cfg.getRoot()->get<GenericStruct>("presence-server");
+		presenceConf->get<ConfigStringList>("transports")->set("sip:127.0.0.1:5065;transport=tcp");
 		presenceConf->get<ConfigBoolean>("long-term-enabled")->set("true");
 	}
 
@@ -72,5 +69,4 @@ protected:
 	std::shared_ptr<PresenceServer> mPresence{nullptr};
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

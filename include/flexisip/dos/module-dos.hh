@@ -38,7 +38,7 @@ class ModuleDoSProtection : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleDoSProtection>::create(Agent*);
 
 public:
-	~ModuleDoSProtection() = default;
+	~ModuleDoSProtection() override = default;
 
 #ifdef ENABLE_UNIT_TESTS
 	void clearWhiteList() {
@@ -51,6 +51,19 @@ public:
 private:
 	explicit ModuleDoSProtection(Agent* ag, ModuleInfoBase* moduleInfo);
 
+	void onLoad(const GenericStruct* mc) override;
+	void onUnload() override;
+	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	void onResponse(std::shared_ptr<ResponseSipEvent>&) override{};
+	void onIdle() override;
+
+	bool isValidNextConfig(const ConfigValue& value) override;
+
+	bool isIpWhiteListed(const char* ip);
+
+	void registerUnbanTimer(const std::string& ip, const std::string& port, const std::string& protocol);
+	void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol);
+
 	static ModuleInfo<ModuleDoSProtection> sInfo;
 	int mTimePeriod;
 	int mPacketRateLimit;
@@ -61,18 +74,6 @@ private:
 	std::unordered_map<std::string, DosContext>::iterator mDOSHashtableIterator;
 	std::unique_ptr<ThreadPool> mThreadPool;
 	std::shared_ptr<BanExecutor> mBanExecutor;
-
-	void onLoad(const GenericStruct* mc);
-	void onUnload();
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev);
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
-	void onIdle();
-
-	virtual bool isValidNextConfig(const ConfigValue& value);
-
-	bool isIpWhiteListed(const char* ip);
-
-	void registerUnbanTimer(const std::string& ip, const std::string& port, const std::string& protocol);
-	void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol);
 };
+
 } // namespace flexisip
