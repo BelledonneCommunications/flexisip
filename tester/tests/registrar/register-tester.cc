@@ -21,17 +21,18 @@
 #include <sstream>
 #include <string>
 
-#include "flexisip/module-router.hh"
-
 #include "agent.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
+#include "registrardb-internal.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
 #include "utils/redis-server.hh"
@@ -624,8 +625,8 @@ void registerUserWithTooManyContactHeaders() {
 	}};
 	proxy.start();
 	CoreAssert asserter{proxy};
-	static const string clientSipIdentity = "sip:user@localhost";
-	static const string proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+	const string clientSipIdentity = "sip:user@localhost";
+	const string proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
 
 	// Create a REGISTER request with 2 "Contact:" headers
 	auto request = make_unique<MsgSip>();
@@ -647,23 +648,71 @@ void registerUserWithTooManyContactHeaders() {
 	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 403);
 }
 
-TestSuite _("Register",
-            {
-                CLASSY_TEST(duplicatePushTokenRegisterInternalDbTest),
-                CLASSY_TEST(duplicatePushTokenRegisterRedisTest),
-                CLASSY_TEST(invalidContactInRequest),
-                CLASSY_TEST(invalidContactInDb),
-                CLASSY_TEST(minExpires),
-                CLASSY_TEST(registerUserWithTooManyContactHeaders),
-            },
-            Hooks().beforeEach([] {
-	            responseReceived = 0;
-	            expectedResponseReceived = 0;
-	            bidingDone = 0;
-	            expectedBidingDone = 0;
-	            fetchingDone = 0;
-	            expectedFetchingDone = 0;
-            }));
+/*
+ * With the default proxy configuration, a UAC should be able to delete an existing binding (with expire=0) while also
+ * setting a new contact in the same REGISTER
+ */
+void clientCanDeleteExistingBindingWhenRegistering() {
+	auto proxy = Server({
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "internal"},
+	});
+	proxy.start();
+	auto asserter = CoreAssert(proxy);
+	const auto& clientSipIdentity = "sip:user@localhost"s;
+	const auto& proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+	constexpr auto& existingContact = "sip:127.0.0.1:666;transport=tcp";
+	auto& regDb = proxy.getAgent()->getRegistrarDb();
+	ContactInserter(regDb).setAor(clientSipIdentity).setExpire(10s).insert({existingContact});
+	const auto& records = dynamic_cast<const RegistrarDbInternal&>(regDb.getRegistrarBackend()).getAllRecords();
+	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 1);
+
+	// Create a REGISTER request that deletes the existing binding and inserts a new one
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+	request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderContact>("<"s + existingContact + ">;expires=0");
+	request->makeAndInsert<SipHeaderContact>("<" + clientSipIdentity + ":1324;transport=tcp>");
+	request->makeAndInsert<SipHeaderExpires>(10);
+
+	// Instantiate the client and send the request through an outgoing transaction
+	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+	asserter.iterateUpTo(16, [&transaction]() { return transaction->isCompleted(); }).assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
+
+	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 1);
+	const auto& contacts = records.begin()->second->getExtendedContacts();
+	BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
+	BC_ASSERT(contacts.latest()->get()->urlAsString() != existingContact);
+}
+
+TestSuite _{
+    "Register",
+    {
+        CLASSY_TEST(duplicatePushTokenRegisterInternalDbTest),
+        CLASSY_TEST(duplicatePushTokenRegisterRedisTest),
+        CLASSY_TEST(invalidContactInRequest),
+        CLASSY_TEST(invalidContactInDb),
+        CLASSY_TEST(minExpires),
+        CLASSY_TEST(registerUserWithTooManyContactHeaders),
+        CLASSY_TEST(clientCanDeleteExistingBindingWhenRegistering),
+    },
+    Hooks().beforeEach([] {
+	    responseReceived = 0;
+	    expectedResponseReceived = 0;
+	    bidingDone = 0;
+	    expectedBidingDone = 0;
+	    fetchingDone = 0;
+	    expectedFetchingDone = 0;
+    }),
+};
 } // namespace
 
 } // namespace flexisip::tester
