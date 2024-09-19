@@ -52,7 +52,6 @@ static char const* compute_branch(nta_agent_t* sa,
                                   char const* string_server,
                                   const shared_ptr<OutgoingTransaction>& outTr);
 
-
 ModuleInfo<ForwardModule> ForwardModule::sInfo(
     "Forward",
     "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
@@ -301,26 +300,21 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		dest = getDestinationFromRoute(ms->getHome(), sip);
 	}
 
-	try {
-		SipUri destUri(dest);
+	SipUri destUri(dest);
 
-		auto routerModule = mRouterModule.lock(); // Used to be a basic pointer
-		// "gruu" processing in forward module is only done if dialog is established. In other cases, router module is
-		// involved instead
-		if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) &&
-		    routerModule->isManagedDomain(dest)) {
-			// gruu case, ask registrar db for AOR
-			ev->suspendProcessing();
-			auto listener = make_shared<RegistrarListener>(this, ev);
-			mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
-			return;
-		}
-		dest = overrideDest(ev, dest);
-		sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(ev, lastRoute));
-	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << e.what();
-		ev->reply(SIP_400_BAD_REQUEST, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	auto routerModule = mRouterModule.lock(); // Used to be a basic pointer
+	// "gruu" processing in forward module is only done if dialog is established. In other cases, router module is
+	// involved instead
+	if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) &&
+	    routerModule->isManagedDomain(dest)) {
+		// gruu case, ask registrar db for AOR
+		ev->suspendProcessing();
+		auto listener = make_shared<RegistrarListener>(this, ev);
+		mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
+		return;
 	}
+	dest = overrideDest(ev, dest);
+	sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(ev, lastRoute));
 }
 
 void ForwardModule::onResponse(shared_ptr<ResponseSipEvent>& ev) {

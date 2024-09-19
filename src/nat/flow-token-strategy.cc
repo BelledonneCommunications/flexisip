@@ -147,7 +147,7 @@ url_t* FlowTokenStrategy::getTportDestFromLastRoute(const std::shared_ptr<Reques
 	}
 
 	if (flow.isFalsified()) {
-		ev->reply(SIP_403_FORBIDDEN, SIPTAG_SERVER_STR(mAgent->getServerString()), TAG_END());
+		THROW_LINE(ForbiddenRequestError);
 	}
 
 	auto* home = ev->getMsgSip()->getHome();

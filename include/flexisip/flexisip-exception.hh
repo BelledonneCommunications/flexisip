@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -131,6 +131,18 @@ public:
 	    : GenericSipException(500, std::string(sip_status_phrase(500)) + " - " + reasonSuffix.data(), additionalMsg) {
 	}
 	virtual ~InternalError() = default;
+};
+
+/**
+ * @brief This exception inherits \ref GenericSipException and reports attempted access to restricted ressources.
+ *
+ */
+class ForbiddenRequestError : public GenericSipException {
+public:
+	ForbiddenRequestError() : ForbiddenRequestError("") {
+	}
+	ForbiddenRequestError(std::string_view additionalMsg) : GenericSipException(SIP_403_FORBIDDEN, additionalMsg) {
+	}
 };
 
 #define THROW_LINE(myException, ...)                                                                                   \
