@@ -349,7 +349,7 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	        "max-contacts-per-registration",
 	        "Limits the number of authorized \"Contact:\" headers in a REGISTER request. If the number of \"Contact:\" "
 	        "headers exceeds this limit, the request is rejected.",
-	        "1",
+	        "12",
 	    },
 	    {
 	        StringList,

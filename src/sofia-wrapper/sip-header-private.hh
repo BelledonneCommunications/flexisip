@@ -266,7 +266,9 @@ public:
 	/**
 	 * Create a Contact header.
 	 * @param uri The contact URI or well-formatted SIP header containing a SIP URI.
-	 * @param params List of header parameters.
+	 * @param params List of header parameters. Ignored if @param uri is already a well-formatted header.
+	 * 
+	 * @note Example of a well-formatted header: "Display Name <sip:contact@host:port;transport=tcp>;expires=0"
 	 */
 	template <typename UriT, typename... Args>
 	explicit SipHeaderContact(const UriT& uri, Args... params) {
