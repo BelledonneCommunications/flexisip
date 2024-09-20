@@ -80,7 +80,7 @@ option(ENABLE_G729 "Build with G729 audio codec support" OFF) # Disabled by defa
 option(ENABLE_MDNS "Build with multicast DNS support" OFF)
 option(ENABLE_OPENID_CONNECT "Build with OpenID Connect support" ON)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
-option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
+option(ENABLE_JWE_AUTH_PLUGIN "[Deprecated] Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
 add_ccache_option(ON)
 option(ENABLE_COVERAGE "Enable flexisip clang test coverage reports (add instrumentation)" OFF)

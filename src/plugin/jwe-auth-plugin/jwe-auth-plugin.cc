@@ -264,6 +264,7 @@ class JweAuth : public Module {
 
 private:
 	JweAuth(Agent* agent, const ModuleInfoBase* moduleInfo) : Module(agent, moduleInfo) {
+		SLOGW << "The JweAuth plugin is deprecated, it will be remove in Flexisip 2.5";
 	}
 
 	json_t* decryptJwe(const char* text) const;
