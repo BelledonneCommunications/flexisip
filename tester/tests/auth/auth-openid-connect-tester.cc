@@ -184,9 +184,9 @@ void bearerMsgOfAToB() {
 	auto expectedProxyAuth = 2;
 	InjectedHooks hooks{
 	    .onRequest =
-	        [&expectedProxyAuth](const std::shared_ptr<RequestSipEvent>& responseEvent) {
+	        [&expectedProxyAuth](std::unique_ptr<RequestSipEvent>&& requestEvent) {
 		        auto numProxyAuth = 0;
-		        const auto* sip = responseEvent->getSip();
+		        const auto* sip = requestEvent->getSip();
 		        auto* credentials = sip->sip_proxy_authorization;
 		        while (credentials != nullptr) {
 			        ++numProxyAuth;
@@ -194,6 +194,7 @@ void bearerMsgOfAToB() {
 		        }
 		        BC_ASSERT_CPP_EQUAL(numProxyAuth, expectedProxyAuth);
 		        --expectedProxyAuth;
+		        return std::move(requestEvent);
 	        },
 	};
 

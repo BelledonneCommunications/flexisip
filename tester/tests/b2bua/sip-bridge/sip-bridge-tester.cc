@@ -246,17 +246,18 @@ void bidirectionalBridging() {
 	InjectedHooks hooks{
 	    // Save SIP uris from "To" and "From" headers when Jabiru receive INVITE requests.
 	    .onRequest =
-	        [&toUriOnJabiru, &fromUriOnJabiru](const std::shared_ptr<RequestSipEvent>& requestEvent) {
+	        [&toUriOnJabiru, &fromUriOnJabiru](std::unique_ptr<RequestSipEvent>&& requestEvent) {
 		        const auto* sip = requestEvent->getSip();
 		        if (!sip or !sip->sip_request or sip->sip_request->rq_method != sip_method_invite or !sip->sip_cseq or
 		            sip->sip_cseq->cs_seq != 20) {
-			        return;
+			        return std::move(requestEvent);
 		        }
 		        if (!BC_ASSERT(sip->sip_from and sip->sip_to and sip->sip_request)) {
-			        return;
+			        return std::move(requestEvent);
 		        }
 		        toUriOnJabiru = SipUri{sip->sip_to->a_url}.str();
 		        fromUriOnJabiru = SipUri{sip->sip_from->a_url}.str();
+		        return std::move(requestEvent);
 	        },
 	};
 	TempFile providersJson{};

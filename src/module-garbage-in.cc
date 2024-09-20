@@ -31,12 +31,13 @@ public:
 	~ModuleGarbageIn() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev) {
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		SLOGD << "Garbage: processing terminated";
 		ev->terminateProcessing();
+		return {};
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev) {
+	void onResponse(shared_ptr<ResponseSipEvent>& ev) override {
 		SLOGD << "Garbage: processing terminated";
 		ev->terminateProcessing();
 	}

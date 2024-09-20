@@ -16,7 +16,9 @@ namespace flexisip::tester {
 // Inject custom behaviour into the Agent's requests and responses handling.
 struct InjectedHooks {
 	std::string injectAfterModule{};
-	std::function<void(std::shared_ptr<RequestSipEvent>&)> onRequest = [](auto&) {};
+	std::function<std::unique_ptr<RequestSipEvent>(std::unique_ptr<RequestSipEvent>&&)> onRequest = [](auto&& ev) {
+		return std::move(ev);
+	};
 	std::function<void(std::shared_ptr<ResponseSipEvent>&)> onResponse = [](auto&) {};
 };
 
@@ -46,8 +48,8 @@ private:
 		}
 
 	private:
-		void onRequest(std::shared_ptr<RequestSipEvent>& ev) override {
-			mHooks.onRequest(ev);
+		std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
+			return mHooks.onRequest(std::move(ev));
 		}
 		void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override {
 			mHooks.onResponse(ev);

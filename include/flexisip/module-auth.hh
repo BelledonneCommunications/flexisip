@@ -53,7 +53,8 @@ protected:
 private:
 	FlexisipAuthModuleBase* createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) override;
 
-	void processAuthentication(const std::shared_ptr<RequestSipEvent>& request, FlexisipAuthModuleBase& am) override;
+	std::unique_ptr<RequestSipEvent> processAuthentication(std::unique_ptr<RequestSipEvent>&& request,
+	                                                       FlexisipAuthModuleBase& am) override;
 
 	const char* findIncomingSubjectInTrusted(const RequestSipEvent& ev, const char* fromDomain);
 

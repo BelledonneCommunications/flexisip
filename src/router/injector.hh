@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -44,14 +44,17 @@ public:
 	 * @param fork ForkContext associated to the request, can be optional.
 	 * @param contactId unique id for the contact targeted by ev, can be optional.
 	 */
-	virtual void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev,
+	virtual void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
 	                                const std::shared_ptr<ForkContext>& fork,
 	                                const std::string& contactId) = 0;
 
-	virtual void addContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork, [[maybe_unused]] const std::string& contactId){};
-	virtual void addContext([[maybe_unused]] const std::vector<std::shared_ptr<ForkContext>>& forks, [[maybe_unused]] const std::string& contactId){};
+	virtual void addContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork,
+	                        [[maybe_unused]] const std::string& contactId) {};
+	virtual void addContext([[maybe_unused]] const std::vector<std::shared_ptr<ForkContext>>& forks,
+	                        [[maybe_unused]] const std::string& contactId) {};
 
-	virtual void removeContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork, [[maybe_unused]] const std::string& contactId){};
+	virtual void removeContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork,
+	                           [[maybe_unused]] const std::string& contactId) {};
 
 protected:
 	explicit Injector(Module* aModule) : mModule(aModule){};

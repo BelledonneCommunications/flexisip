@@ -57,11 +57,12 @@ void registerUser() {
 	InjectedHooks injectedModuleHooks{
 	    .injectAfterModule = "GarbageIn",
 	    .onRequest =
-	        [&expectedContactHost, &expectedContactPort](std::shared_ptr<RequestSipEvent>& ev) {
+	        [&expectedContactHost, &expectedContactPort](std::unique_ptr<RequestSipEvent>&& ev) {
 		        // Modify "rport" and "received" in "VIA" header, so it triggers "Contact" header correction.
 		        auto* via = ev->getMsgSip()->getSip()->sip_via;
 		        via->v_rport = expectedContactPort.c_str();
 		        via->v_received = expectedContactHost.c_str();
+		        return std::move(ev);
 	        },
 	};
 	Server proxy{
@@ -114,7 +115,7 @@ void makeCall() {
 	InjectedHooks injectedModuleHooks{
 	    .injectAfterModule = "GarbageIn",
 	    .onRequest =
-	        [](std::shared_ptr<RequestSipEvent>& ev) {
+	        [](std::unique_ptr<RequestSipEvent>&& ev) {
 		        const auto* sip = ev->getSip();
 		        const auto sipm = ev->getMsgSip()->getSipMethod();
 		        if (sipm == sip_method_register or (sipm == sip_method_invite and sip->sip_to->a_tag == nullptr)) {
@@ -123,6 +124,7 @@ void makeCall() {
 			        contact->m_url->url_host = "1.2.3.4";
 			        contact->m_url->url_port = "1234";
 		        }
+		        return std::move(ev);
 	        },
 	};
 	Server proxy{
@@ -169,9 +171,10 @@ void registerUser() {
 	const string proxyHost = "127.0.0.1";
 	InjectedHooks injectedModuleHooks{
 	    .onRequest =
-	        [&clientPort](std::shared_ptr<RequestSipEvent>& ev) {
+	        [&clientPort](std::unique_ptr<RequestSipEvent>&& ev) {
 		        // Retrieve client port that was randomly chosen.
 		        clientPort = ev->getMsgSip()->getSip()->sip_via->v_rport;
+		        return std::move(ev);
 	        },
 	};
 	Server proxy{
@@ -256,7 +259,7 @@ void makeCall() {
 	InjectedHooks injectedModuleHooks{
 	    .injectAfterModule = "NatHelper",
 	    .onRequest =
-	        [&firstInvite, &recordRoute, &callerTcpPort](std::shared_ptr<RequestSipEvent>& ev) {
+	        [&firstInvite, &recordRoute, &callerTcpPort](std::unique_ptr<RequestSipEvent>&& ev) {
 		        if (firstInvite and ev->getMsgSip()->getSipMethod() == sip_method_invite) {
 			        auto const* rr = ev->getMsgSip()->getSip()->sip_record_route;
 			        auto const* rrUrl = rr->r_url;
@@ -264,6 +267,7 @@ void makeCall() {
 			        callerTcpPort = ev->getMsgAddress()->getPortStr();
 			        firstInvite = false;
 		        }
+		        return std::move(ev);
 	        },
 	};
 	Server proxy{
@@ -313,12 +317,13 @@ void makeCallNoNeedForNatHelper() {
 	InjectedHooks injectedModuleHooks{
 	    .injectAfterModule = "NatHelper",
 	    .onRequest =
-	        [&firstInvite, &recordRouteUrl](std::shared_ptr<RequestSipEvent>& ev) {
+	        [&firstInvite, &recordRouteUrl](std::unique_ptr<RequestSipEvent>&& ev) {
 		        if (firstInvite and ev->getMsgSip()->getSipMethod() == sip_method_invite) {
 			        auto const* rr = ev->getMsgSip()->getSip()->sip_record_route;
 			        recordRouteUrl = rr ? url_as_string(ev->getHome(), rr->r_url) : "expected";
 			        firstInvite = false;
 		        }
+		        return std::move(ev);
 	        },
 	};
 	Server proxy{

@@ -46,7 +46,7 @@ using namespace std;
 using namespace flexisip;
 
 template <typename SipEventT>
-static void addEventLogRecordFound(shared_ptr<SipEventT> ev, shared_ptr<Record> r, const sip_contact_t* contacts) {
+static void addEventLogRecordFound(SipEventT& ev, shared_ptr<Record> r, const sip_contact_t* contacts) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	string id(contacts ? r->extractUniqueId(contacts) : "");
 	auto evLog = make_shared<RegistrationLog>(ms->getSip(), contacts);
@@ -84,12 +84,12 @@ static void _onContactUpdated(ModuleRegistrar* module, tport_t* new_tport, const
 }
 
 OnRequestBindListener::OnRequestBindListener(ModuleRegistrar* module,
-                                             std::shared_ptr<RequestSipEvent> ev,
+                                             unique_ptr<RequestSipEvent>&& ev,
                                              const sip_from_t* sipuri,
                                              sip_contact_t* contact,
                                              sip_path_t* path)
-    : mModule(module), mEv(ev), mSipFrom(nullptr), mContact(nullptr), mPath(nullptr) {
-	ev->suspendProcessing();
+    : mModule(module), mEv(std::move(ev)), mSipFrom(nullptr), mContact(nullptr), mPath(nullptr) {
+	mEv->suspendProcessing();
 	su_home_init(&mHome);
 	if (contact) mContact = sip_contact_copy(&mHome, contact);
 	if (path) mPath = sip_path_copy(&mHome, path);
@@ -227,10 +227,10 @@ void FakeFetchListener::onInvalid(const SipStatus&) {
 void FakeFetchListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
 }
 
-ResponseContext::ResponseContext(shared_ptr<RequestSipEvent>&& ev, int globalDelta) : mRequestSipEvent{std::move(ev)} {
+ResponseContext::ResponseContext(unique_ptr<RequestSipEvent>&& ev, int globalDelta) : mRequestSipEvent{std::move(ev)} {
 	mRequestSipEvent->suspendProcessing();
-
 	sip_t* sip = mRequestSipEvent->getSip();
+
 	for (sip_contact_t* it = sip->sip_contact; it; it = it->m_next) {
 		int cExpire = ExtendedContact::resolveExpire(it->m_expires, globalDelta);
 		it->m_expires = su_sprintf(mRequestSipEvent->getHome(), "%d", cExpire);
@@ -629,9 +629,9 @@ void ModuleRegistrar::idle() {
 	}
 }
 
-std::shared_ptr<RequestSipEvent> ModuleRegistrar::createUpstreamRequestEvent(std::shared_ptr<RequestSipEvent>&& ev,
+std::unique_ptr<RequestSipEvent> ModuleRegistrar::createUpstreamRequestEvent(unique_ptr<RequestSipEvent>&& ev,
                                                                              int globalDelta) {
-	auto upstreamEv = make_shared<RequestSipEvent>(ev);
+	auto upstreamEv = make_unique<RequestSipEvent>(*ev);
 	auto otr = upstreamEv->createOutgoingTransaction();
 	auto context = make_shared<ResponseContext>(std::move(ev), globalDelta);
 	otr->setProperty(getModuleName(), context);
@@ -780,10 +780,10 @@ bool ModuleRegistrar::isAdjacentRegistration(const sip_t* sip) {
 	return sip->sip_path == nullptr || sip->sip_path->r_next == nullptr;
 }
 
-void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const auto& ms = ev->getMsgSip();
 	auto* sip = ms->getSip();
-	if (sip->sip_request->rq_method != sip_method_register) return;
+	if (sip->sip_request->rq_method != sip_method_register) return std::move(ev);
 
 	// Check that From-URI is a SIP URI
 	SipUri sipurl{};
@@ -792,18 +792,18 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	} catch (const sofiasip::InvalidUrlError& e) {
 		SLOGE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
 		ev->reply(400, "Bad request", TAG_END());
-		return;
+		return {};
 	}
 
 	// From managed domains
-	if (!isManagedDomain(sipurl.get())) return;
+	if (!isManagedDomain(sipurl.get())) return {};
 
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {
 		LOGD("No sip contact, it is a fetch only request for %s.", sipurl.str().c_str());
-		auto listener = make_shared<OnRequestBindListener>(this, ev);
+		auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
 		mAgent->getRegistrarDb().fetch(sipurl, listener);
-		return;
+		return {};
 	}
 
 	// Reject malformed registrations
@@ -812,22 +812,22 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	if (!checkHaveExpire(sip->sip_contact, maindelta)) {
 		SLOGD << "No global or local expire found in at least one contact";
 		reply(*ev, 400, "Invalid request");
-		return;
+		return {};
 	}
 	for (auto contact = sip->sip_contact; contact != nullptr; contact = contact->m_next) {
 		if (!isValidSipUri(contact->m_url)) {
 			reply(*ev, 400, "Invalid contact");
-			return;
+			return {};
 		}
 	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
 		LOGD("The star rules are not respected.");
 		reply(*ev, 400, "Invalid request");
-		return;
+		return {};
 	}
 	if (numberOfContactHeaders(sip->sip_contact) > mMaxContactsPerRegistration) {
 		reply(*ev, 403, "Too many contacts in REGISTER");
-		return;
+		return {};
 	}
 
 	// Use path as a contact route in all cases
@@ -860,7 +860,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		LOGE("Not accepting domain registration");
 		SLOGUE << "Not accepting domain registration:  " << sipurl;
 		reply(*ev, 403, "Domain registration forbidden", nullptr);
-		return;
+		return {};
 	}
 
 	/* Evaluate whether the REGISTER needs to be answered and processed directly, or forwarded to an upstream server
@@ -880,12 +880,12 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	if (!updateOnResponse) {
 		// Main case: the module directly answers to the REGISTER.
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
-			auto listener = make_shared<OnRequestBindListener>(this, ev);
+			auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
 			mStats.mCountClear->incrStart();
 			LOGD("Clearing bindings");
 			listener->addStatCounter(mStats.mCountClear->finish);
 			mAgent->getRegistrarDb().clear(*ms, listener);
-			return;
+			return {};
 		} else {
 			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
@@ -893,7 +893,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			}
 			BindingParameters parameter;
 			auto listener =
-			    make_shared<OnRequestBindListener>(this, ev, sip->sip_from, sip->sip_contact, sip->sip_path);
+			    make_shared<OnRequestBindListener>(this, std::move(ev), sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD("Updating binding");
 			listener->addStatCounter(mStats.mCountBind->finish);
@@ -904,7 +904,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 				return isAdjacentRegistration(ms->getSip()) && isManagedDomain(ct);
 			};
 			mAgent->getRegistrarDb().bind(*ms, parameter, listener);
-			return;
+			return {};
 		}
 	} else {
 		/* Case where the module let the REGISTER being forwared upstream.
@@ -919,8 +919,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		url_t* gruuAddress;
 		if (mAgent->getRegistrarDb().gruuEnabled() &&
 		    (gruuAddress = mAgent->getRegistrarDb().synthesizePubGruu(home, *ev->getMsgSip()))) {
-			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are going to
-			 * create for the contact.*/
+			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are
+			 * going to create for the contact.*/
 			msg_header_remove_all(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(),
 			                      (msg_header_t*)ev->getSip()->sip_contact);
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(),
@@ -933,6 +933,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		}
 		// Let the modified initial event flow (will not be forked).
 	}
+	return std::move(ev);
 }
 
 void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {

@@ -33,13 +33,13 @@ unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
 } // namespace
 
 std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
-                                                                           const shared_ptr<RequestSipEvent>& event,
+                                                                           unique_ptr<RequestSipEvent>&& event,
                                                                            sofiasip::MsgSipPriority priority) {
 	SLOGD << "Make ForkMessageContextDbProxy";
 	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, priority)};
 
-	shared->mForkMessage = ForkMessageContext::make(router, event, shared, priority);
+	shared->mForkMessage = ForkMessageContext::make(router, shared, std::move(event), priority);
 
 	return shared;
 }

@@ -191,13 +191,13 @@ void ModuleDoSProtection::registerUnbanTimer(const string& ip, const string& por
 	                                   chrono::minutes{mBanTime});
 }
 
-void ModuleDoSProtection::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	shared_ptr<tport_t> inTport = ev->getIncomingTport();
 	tport_t* tport = inTport.get();
 
 	if (tport == NULL) {
 		LOGE("Tport is null, can't check the packet count rate");
-		return;
+		return std::move(ev);
 	}
 
 	if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we
@@ -280,6 +280,7 @@ void ModuleDoSProtection::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			}
 		}
 	}
+	return std::move(ev);
 }
 
 #ifdef ENABLE_UNIT_TESTS

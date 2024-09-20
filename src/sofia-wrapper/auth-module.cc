@@ -22,6 +22,7 @@
 #include "sofia-sip/auth_plugin.h"
 #include "sofia-sip/su_tagarg.h"
 
+#include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/auth-module.hh"
 
 using namespace std;

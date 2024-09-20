@@ -286,7 +286,7 @@ void MediaRelay::configureContext([[maybe_unused]] shared_ptr<RelayedCall>& c) {
 #endif
 }
 
-void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 
@@ -305,7 +305,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 				LOGW("Maximum number of relayed calls reached (%i), call is rejected", mMaxCalls);
 				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()),
 				          TAG_END());
-				return;
+				return {};
 			}
 
 			c = make_shared<RelayedCall>(mServers[mCurServer], sip);
@@ -338,6 +338,7 @@ void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			mCalls->remove(c);
 		}
 	}
+	return std::move(ev);
 }
 
 void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,

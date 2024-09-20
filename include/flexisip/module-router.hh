@@ -54,9 +54,9 @@ public:
 
 	void onLoad(const GenericStruct* mc) override;
 
-	void onUnload() override{};
+	void onUnload() override {};
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 
@@ -69,12 +69,8 @@ public:
 	                                   const std::string& uid,
 	                                   const DispatchStatus reason) override;
 
-	void sendReply(std::shared_ptr<RequestSipEvent>& ev,
-	               int code,
-	               const char* reason,
-	               int warn_code = 0,
-	               const char* warning = nullptr);
-	void routeRequest(std::shared_ptr<RequestSipEvent>& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
+	void sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code = 0, const char* warning = nullptr);
+	void routeRequest(std::unique_ptr<RequestSipEvent>&& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
 	void onContactRegistered(const std::shared_ptr<OnContactRegisteredListener>& listener,
 	                         const std::string& uid,
 	                         const std::shared_ptr<Record>& aor);
@@ -110,7 +106,7 @@ public:
 		return mOtherForkCfg;
 	}
 
-	void sendToInjector(const std::shared_ptr<RequestSipEvent>& ev,
+	void sendToInjector(std::unique_ptr<RequestSipEvent>&& ev,
 	                    const std::shared_ptr<ForkContext>& context,
 	                    const std::string& contactId) override;
 

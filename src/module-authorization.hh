@@ -36,7 +36,7 @@ public:
 private:
 	ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	std::unordered_map<std::string, std::shared_ptr<AuthScheme>> mAuthModules;

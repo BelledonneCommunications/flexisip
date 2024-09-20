@@ -999,7 +999,20 @@ shared_ptr<Module> Agent::findModuleByFunction(const std::string& moduleFunction
 }
 
 template <typename SipEventT, typename ModuleIter>
-void Agent::doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter& begin, const ModuleIter& end) {
+void Agent::doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end) {
+	for (auto it = begin; it != end; ++it) {
+		ev->mCurrModule = *it;
+		ev = (*it)->process(std::move(ev));
+		if (!ev) return;
+		if (ev->isTerminated() || ev->isSuspended()) break;
+	}
+	if (!ev->isTerminated() && !ev->isSuspended()) {
+		LOGA("Event not handled %p", ev.get());
+	}
+}
+
+template <typename ModuleIter>
+void Agent::doSendEvent(std::shared_ptr<ResponseSipEvent> ev, const ModuleIter& begin, const ModuleIter& end) {
 	for (auto it = begin; it != end; ++it) {
 		ev->mCurrModule = *it;
 		(*it)->process(ev);
@@ -1010,7 +1023,7 @@ void Agent::doSendEvent(std::shared_ptr<SipEventT> ev, const ModuleIter& begin, 
 	}
 }
 
-void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
+void Agent::sendRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 	SipLogContext ctx(ev->getMsgSip());
 	sip_t* sip = ev->getMsgSip()->getSip();
 	const sip_request_t* req = sip->sip_request;
@@ -1056,7 +1069,7 @@ void Agent::sendRequestEvent(shared_ptr<RequestSipEvent> ev) {
 			break;
 	}
 
-	doSendEvent(ev, mModules.begin(), mModules.end());
+	doSendEvent(std::move(ev), mModules.begin(), mModules.end());
 }
 
 void Agent::sendResponseEvent(const shared_ptr<ResponseSipEvent>& ev) {
@@ -1119,14 +1132,14 @@ void Agent::sendResponseEvent(const shared_ptr<ResponseSipEvent>& ev) {
 	doSendEvent(ev, mModules.begin(), mModules.end());
 }
 
-void Agent::injectRequestEvent(const shared_ptr<RequestSipEvent>& ev) {
+void Agent::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	SLOGD << "Inject request SIP event [" << ev << "] after " << currModule->getModuleName() << ":\n"
+	SLOGD << "Inject request SIP event [" << ev.get() << "] after " << currModule->getModuleName() << ":\n"
 	      << *ev->getMsgSip();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
-	doSendEvent(ev, ++it, mModules.cend());
+	doSendEvent(std::move(ev), ++it, mModules.cend());
 	printEventTailSeparator();
 }
 
@@ -1170,8 +1183,7 @@ int Agent::onIncomingMessage(msg_t* msg, const sip_t* sip) {
 	// Assuming sip is derived from msg
 	auto ms = make_shared<MsgSip>(ownership::owned(msg));
 	if (sip->sip_request) {
-		auto ev = make_shared<RequestSipEvent>(shared_from_this(), ms, getIncomingTport(ms->getMsg()));
-		sendRequestEvent(ev);
+		sendRequestEvent(make_unique<RequestSipEvent>(shared_from_this(), ms, getIncomingTport(ms->getMsg())));
 	} else {
 		auto ev = make_shared<ResponseSipEvent>(shared_from_this(), ms, getIncomingTport(msg));
 		sendResponseEvent(ev);

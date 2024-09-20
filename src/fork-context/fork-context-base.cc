@@ -33,15 +33,15 @@ const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
 
 ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
                                  AgentInterface* agent,
-                                 const std::shared_ptr<RequestSipEvent>& event,
                                  const std::shared_ptr<ForkContextConfig>& cfg,
                                  const std::weak_ptr<ForkContextListener>& listener,
+                                 std::unique_ptr<RequestSipEvent>&& event,
                                  const std::weak_ptr<StatPair>& counter,
                                  sofiasip::MsgSipPriority priority,
                                  bool isRestored)
-    : mCurrentPriority(-1), mAgent(agent), mRouter(router), mEvent(event), mCfg(cfg), mLateTimer(mAgent->getRoot()),
+    : mCurrentPriority(-1), mAgent(agent), mRouter(router), mCfg(cfg), mLateTimer(mAgent->getRoot()),
       mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority),
-      mListener(listener), mStatCounter(counter) {
+      mListener(listener), mEvent(std::move(event)), mStatCounter(counter) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
@@ -80,7 +80,7 @@ struct dest_finder {
 		// don't care about transport
 	}
 	bool operator()(const shared_ptr<BranchInfo>& br) {
-		SipUri destUri{br->mRequest->getMsgSip()->getSip()->sip_request->rq_url};
+		SipUri destUri{br->mRequestMsg->getSip()->sip_request->rq_url};
 		return cttport == destUri.getPort() && ctthost == destUri.getHost();
 	}
 	string ctthost;
@@ -287,7 +287,7 @@ bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<Br
 	return lhs->mPriority > rhs->mPriority;
 }
 
-shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
                                                   const std::shared_ptr<ExtendedContact>& contact) {
 	auto ot = ev->createOutgoingTransaction();
 	auto br = createBranchInfo();
@@ -301,11 +301,12 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
 	// them.
 	ev->unlinkTransactions();
-	br->mRequest = ev;
+	br->mRequestMsg = ev->getMsgSip();
 	br->mTransaction = ot;
 	br->mUid = contact->mKey;
 	br->mContact = contact;
 	br->mPriority = contact->mQ;
+	br->setRequest(std::move(ev));
 
 	BranchInfo::setBranchInfo(ot, weak_ptr<BranchInfo>{br});
 
@@ -339,9 +340,9 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(const std::shared_ptr<RequestS
 	if (mCurrentPriority != -1 && mCurrentPriority <= br->mPriority) {
 		mCurrentBranches.push_back(br);
 		if (auto router = mRouter.lock()) {
-			router->sendToInjector(br->mRequest, shared_from_this(), contact->contactId());
+			router->sendToInjector(br->extractRequest(), shared_from_this(), contact->contactId());
 		} else {
-			mAgent->injectRequestEvent(br->mRequest);
+			mAgent->injectRequestEvent(br->extractRequest());
 		}
 	}
 
@@ -400,9 +401,9 @@ void ForkContextBase::start() {
 	/* Start the processing */
 	for (const auto& br : mCurrentBranches) {
 		if (auto router = mRouter.lock()) {
-			router->sendToInjector(br->mRequest, shared_from_this(), br->mContact->contactId());
+			router->sendToInjector(br->extractRequest(), shared_from_this(), br->mContact->contactId());
 		} else {
-			mAgent->injectRequestEvent(br->mRequest);
+			mAgent->injectRequestEvent(br->extractRequest());
 		}
 		if (mCurrentBranches.empty()) {
 			// Can only occur if an internal error append
@@ -417,8 +418,8 @@ void ForkContextBase::start() {
 	}
 }
 
-const shared_ptr<RequestSipEvent>& ForkContextBase::getEvent() {
-	return mEvent;
+RequestSipEvent& ForkContextBase::getEvent() {
+	return *mEvent;
 }
 
 void ForkContextBase::onFinished() {

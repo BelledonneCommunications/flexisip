@@ -74,15 +74,15 @@ public:
 	bool isEnabled() const;
 	ModuleClass getClass() const;
 
-	void processRequest(std::shared_ptr<RequestSipEvent>& ev);
+	std::unique_ptr<RequestSipEvent> processRequest(std::unique_ptr<RequestSipEvent>&& ev);
 	void processResponse(std::shared_ptr<ResponseSipEvent>& ev);
-	void process(std::shared_ptr<RequestSipEvent>& ev) {
-		processRequest(ev);
+	std::unique_ptr<RequestSipEvent> process(std::unique_ptr<RequestSipEvent>&& ev) {
+		return processRequest(std::move(ev));
 	}
 	void process(std::shared_ptr<ResponseSipEvent>& ev) {
 		processResponse(ev);
 	}
-	virtual void injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev);
+	virtual void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev);
 
 	const ModuleInfoBase* getInfo() const {
 		return mInfo;
@@ -94,7 +94,7 @@ protected:
 	virtual void onUnload() {
 	}
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev) = 0;
+	virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev) = 0;
 
 	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state);

@@ -364,13 +364,13 @@ class GatewayAdapter : public Module {
 public:
 	~GatewayAdapter();
 
-	virtual void onLoad(const GenericStruct* module_config);
+	void onLoad(const GenericStruct* module_config) override;
 
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
+	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
 
-	virtual bool isValidNextConfig(const ConfigValue& cv);
+	bool isValidNextConfig(const ConfigValue& cv) override;
 
 private:
 	GatewayAdapter(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -435,7 +435,7 @@ void GatewayAdapter::onLoad(const GenericStruct* module_config) {
 	}
 }
 
-void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 
@@ -469,6 +469,7 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			// Thrown by GatewayRegister::start() when From URI isn't a SIP URI.
 			SLOGE << "Invalid 'From' Uri [" << e.what() << "]";
 			ev->reply(400, "Bad request", TAG_END());
+			return {};
 		}
 	} else {
 		/* check if request-uri contains a routing-domain parameter, so that we can route back to the client */
@@ -481,6 +482,7 @@ void GatewayAdapter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			sip->sip_to->a_url[0].url_host = su_strdup(ms->getHome(), routing_param);
 		}
 	}
+	return std::move(ev);
 }
 
 void GatewayAdapter::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {

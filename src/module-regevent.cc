@@ -36,7 +36,7 @@ private:
 	su_home_t mHome;
 	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
 
-	bool isValidNextConfig(const ConfigValue& cv) {
+	bool isValidNextConfig(const ConfigValue& cv) override {
 		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
 		if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 		if (cv.getName() == "regevent-server") {
@@ -51,7 +51,7 @@ private:
 		return true;
 	}
 
-	void onLoad(const GenericStruct* mc) {
+	void onLoad(const GenericStruct* mc) override {
 		string destRouteStr = mc->get<ConfigString>("regevent-server")->read();
 		try {
 			mDestRoute.reset(new SipUri(destRouteStr));
@@ -63,19 +63,18 @@ private:
 		SLOGI << getModuleName() << ": presence server is [" << mDestRoute->str() << "]";
 	}
 
-	void onUnload() {
-	}
-
-	void onRequest(shared_ptr<RequestSipEvent>& ev) {
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		sip_t* sip = ev->getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe && strcasecmp(sip->sip_event->o_type, "reg") == 0 &&
 		    sip->sip_to->a_tag == nullptr) {
 			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
 			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
 		}
+		return std::move(ev);
 	}
 
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
+	}
 
 	RegEvent(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);

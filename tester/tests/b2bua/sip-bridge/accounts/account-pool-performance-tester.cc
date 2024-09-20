@@ -98,17 +98,17 @@ void reRegisterManyAccounts() {
 	InjectedHooks hooks{
 	    .injectAfterModule = "Authentication",
 	    .onRequest =
-	        [&registeredUserNames, &duplicatedUserNames,
-	         &sync](const shared_ptr<RequestSipEvent>& requestEvent) mutable {
+	        [&registeredUserNames, &duplicatedUserNames, &sync](unique_ptr<RequestSipEvent>&& requestEvent) mutable {
 		        const auto* sip = requestEvent->getSip();
 		        if (sip->sip_request->rq_method != sip_method_register) {
-			        return;
+			        return std::move(requestEvent);
 		        }
 
 		        const auto _lock = lock_guard(sync);
 		        const auto& [username, successfullyInserted] =
 		            registeredUserNames.emplace(sip->sip_from->a_url->url_user);
 		        if (!successfullyInserted) ignore = duplicatedUserNames.emplace(*username);
+		        return std::move(requestEvent);
 	        },
 	};
 	auto externalProxyPromise = promise<const Server&>();

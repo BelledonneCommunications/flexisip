@@ -43,10 +43,10 @@ void transcoderAddsSupportedCodecsInSdp() {
 	auto hooks = InjectedHooks{
 	    .injectAfterModule = "Transcoder",
 	    .onRequest =
-	        [&expectedCodecs](const auto& requestEvent) {
+	        [&expectedCodecs](auto&& requestEvent) {
 		        auto& message = *requestEvent->getMsgSip();
 		        const auto sip = message.getSip();
-		        if (sip->sip_cseq->cs_method != sip_method_invite) return;
+		        if (sip->sip_cseq->cs_method != sip_method_invite) return std::move(requestEvent);
 
 		        const auto* sipPayload = sip->sip_payload;
 		        auto sdpParser = SdpParser::parse({sipPayload->pl_data, sipPayload->pl_len});
@@ -62,8 +62,9 @@ void transcoderAddsSupportedCodecsInSdp() {
 
 			        BC_ASSERT_CPP_EQUAL(rtpmap.rate(), 8000);
 			        expectedCodecs.erase(found);
-			        if (expectedCodecs.empty()) return;
+			        if (expectedCodecs.empty()) return std::move(requestEvent);
 		        }
+		        return std::move(requestEvent);
 	        },
 	};
 	auto proxy = Server{
@@ -107,9 +108,8 @@ void transcoderAddsSupportedCodecsInSdp() {
 	auto client = NtaAgent(proxy.getRoot(), "sip:127.0.0.1:0");
 	auto transaction = client.createOutgoingTransaction(invite, "sip:127.0.0.1:"s + proxy.getFirstPort());
 
-	asserter
-	    .iterateUpTo(
-	        1, [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted()); }, 300ms)
+	asserter.iterateUpTo(
+	            1, [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted()); }, 300ms)
 	    .assert_passed();
 	// All expected codecs were found
 	BC_ASSERT_CPP_EQUAL(expectedCodecs, decltype(expectedCodecs)());

@@ -126,11 +126,11 @@ void forwardMidDialogRequestRouteIsNotUs() {
 	        << "Content-Length: 0\r\n";
 
 	auto transaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
-	auto event = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
+	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
 	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
-	module->onRequest(event);
+	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT(transaction->mRequestSent == true);
 	BC_ASSERT(transaction->mRequestMethod == sip_method_bye);
@@ -191,11 +191,11 @@ void forwardMidDialogRequestPathIsNextHop() {
 	        << "Content-Length: 0\r\n";
 
 	auto transaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
-	auto event = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
+	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
 	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
-	module->onRequest(event);
+	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT(transaction->mRequestSent == true);
 	BC_ASSERT(transaction->mRequestMethod == sip_method_bye);
@@ -251,11 +251,11 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	        << "Content-Length: 0\r\n";
 
 	auto transaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
-	auto event = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
+	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
 	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
-	module->onRequest(event);
+	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT(transaction->mRequestSent == true);
 	BC_ASSERT(transaction->mRequestMethod == sip_method_bye);

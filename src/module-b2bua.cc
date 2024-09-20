@@ -48,7 +48,7 @@ private:
 	void onLoad(const GenericStruct* moduleConfig) override;
 	void onUnload() override;
 
-	void onRequest(shared_ptr<RequestSipEvent>& ev) override;
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
 
 	static ModuleInfo<B2bua> sInfo;
@@ -117,7 +117,7 @@ void B2bua::onLoad(const GenericStruct* moduleConfig) {
 void B2bua::onUnload() {
 }
 
-void B2bua::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> B2bua::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	sip_t* sip = ev->getSip();
 	if (sip->sip_request->rq_method == sip_method_invite || sip->sip_request->rq_method == sip_method_cancel) {
 		// Is the request coming from the B2BUA? If no, we must intercept it.
@@ -131,6 +131,7 @@ void B2bua::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			SLOGD << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
 		}
 	}
+	return std::move(ev);
 }
 
 void B2bua::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {

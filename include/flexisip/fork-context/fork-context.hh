@@ -62,7 +62,7 @@ public:
 	static void setFork(const std::shared_ptr<IncomingTransaction>& tr, const std::shared_ptr<ForkContext>& fork);
 
 	// Called by the router module to notify a cancellation.
-	static void processCancel(const std::shared_ptr<RequestSipEvent>& ev);
+	static void processCancel(const RequestSipEvent& ev);
 	// called by the router module to notify the arrival of a response.
 	static bool processResponse(const std::shared_ptr<ResponseSipEvent>& ev);
 
@@ -71,7 +71,7 @@ public:
 	}
 
 	// Called by the Router module to create a new branch.
-	virtual std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	virtual std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
 	virtual bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const = 0;
 	// Request if the fork has other branches with lower priorities to try
@@ -102,7 +102,7 @@ public:
 	virtual void onCancel(const sofiasip::MsgSip& ms) = 0;
 	// Notifies the arrival of a new response on a given branch
 	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) = 0;
-	virtual const std::shared_ptr<RequestSipEvent>& getEvent() = 0;
+	virtual RequestSipEvent& getEvent() = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
 	virtual bool isFinished() const = 0;
 	/**

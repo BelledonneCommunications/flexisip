@@ -33,7 +33,7 @@ class ModuleRouterInterface {
 public:
 	virtual ~ModuleRouterInterface() = default;
 
-	virtual void sendToInjector(const std::shared_ptr<RequestSipEvent>& ev,
+	virtual void sendToInjector(std::unique_ptr<RequestSipEvent>&& ev,
 	                            const std::shared_ptr<ForkContext>& context,
 	                            const std::string& contactId) = 0;
 };

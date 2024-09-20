@@ -177,7 +177,7 @@ static bool isUs(Agent* ag, sip_route_t* r) {
 
 class RegistrarListener : public ContactUpdateListener {
 public:
-	RegistrarListener(ForwardModule* module, shared_ptr<RequestSipEvent> ev)
+	RegistrarListener(ForwardModule* module, unique_ptr<RequestSipEvent>&& ev)
 	    : ContactUpdateListener(), mModule(module), mEv(std::move(ev)) {
 	}
 	~RegistrarListener() override = default;
@@ -257,10 +257,10 @@ public:
 
 private:
 	ForwardModule* mModule;
-	shared_ptr<RequestSipEvent> mEv;
+	unique_ptr<RequestSipEvent> mEv;
 };
 
-void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 	msg_t* msg = ms->getMsg();
@@ -272,11 +272,11 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			if (auto forkContext = ForkContext::getFork(transaction)) {
 				forkContext->processInternalError(SIP_483_TOO_MANY_HOPS);
 				ev->terminateProcessing();
-				return;
+				return {};
 			}
 		}
 		ev->reply(SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return;
+		return {};
 	}
 	// Decrease max forward
 	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
@@ -309,12 +309,13 @@ void ForwardModule::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	    routerModule->isManagedDomain(dest)) {
 		// gruu case, ask registrar db for AOR
 		ev->suspendProcessing();
-		auto listener = make_shared<RegistrarListener>(this, ev);
+		auto listener = make_shared<RegistrarListener>(this, std::move(ev));
 		mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
-		return;
+		return {};
 	}
 	dest = overrideDest(*ms, dest);
 	sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(*ev, lastRoute));
+	return std::move(ev);
 }
 
 void ForwardModule::onResponse(shared_ptr<ResponseSipEvent>& ev) {
@@ -329,7 +330,7 @@ void ForwardModule::onResponse(shared_ptr<ResponseSipEvent>& ev) {
  * @param[in]	dest		destination url of the request
  * @param[in]	tportDest	destination url eventually used to find the transport (optional)
  */
-void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest) {
+void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 	msg_t* msg = ms->getMsg();

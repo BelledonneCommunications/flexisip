@@ -31,6 +31,7 @@
 #include "flexisip/sofia-wrapper/auth-status.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "utils/stl-backports.hh"
 #include "utils/transport/http/http1-client.hh"
 
 namespace flexisip {
@@ -70,6 +71,12 @@ public:
 	       const KeyStoreParams& keyStoreParams);
 	std::string schemeType() const override;
 	void challenge(AuthStatus& as, const auth_challenger_t* ach) override;
+	/**
+	 * Check a credentials and returns:
+	 * - Inapplicable if the credential is not for us
+	 * - Done if the process and the callback were executed synchronously
+	 * - Pending if the process and the callback will be executed asynchronously
+	 */
 	State check(const msg_auth_t* credentials, std::function<void(ChallengeResult&&)>&& onResult) override;
 	void notifyPubKeyRequest();
 
@@ -115,7 +122,7 @@ private:
 		std::string kid;
 		bool retry;
 		ChallengeResult result;
-		std::function<void(ChallengeResult&&)> callback;
+		stl_backports::move_only_function<void(ChallengeResult&&)> callback;
 	};
 
 	BearerParams mParams;

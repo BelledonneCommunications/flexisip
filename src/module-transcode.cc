@@ -80,8 +80,9 @@ void Transcoder::onLoad(const GenericStruct*) {
 }
 void Transcoder::onIdle() {
 }
-void Transcoder::onRequest(shared_ptr<RequestSipEvent>&) {
+unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	LOGA("Transcoder support is not compiled");
+	return std::move(ev);
 }
 void Transcoder::onResponse(shared_ptr<ResponseSipEvent>&) {
 	LOGA("Transcoder support is not compiled");
@@ -179,7 +180,7 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 				    strcmp("telephone-event", pt->mime_type) == 0) {
 					ret.push_back(pt);
 				} else {
-					SLOGE << "Codec " << name << "/" << rate << " is configured but is not supported (missing plugin ?)";
+					SLOGE << "Codec " << name << "/" << rate << " is configured but is not supported (missing plugin?)";
 				}
 			}
 		}
@@ -346,7 +347,7 @@ void Transcoder::processAck(TranscodedCall* ctx, MsgSip& ms) {
 	}
 }
 
-void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 
@@ -359,13 +360,13 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			ot->setProperty<TranscodedCall>(getModuleName(), c);
 		} else {
 			LOGD("Transcoder: couldn't process invite, stopping processing");
-			return;
+			return {};
 		}
 	} else if (sip->sip_request->rq_method == sip_method_ack) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
 		if (c == NULL) {
 			LOGD("Transcoder: couldn't find call context for ack");
-			return;
+			return {};
 		} else {
 			processAck(c.get(), *ms);
 		}
@@ -373,10 +374,10 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
 		if (c == NULL) {
 			LOGD("Transcoder: couldn't find call context for info");
-			return;
+			return {};
 		} else if (processSipInfo(c.get(), *ev)) {
 			/*stop the processing */
-			return;
+			return {};
 		}
 	} else if (sip->sip_request->rq_method == sip_method_bye) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
@@ -386,6 +387,7 @@ void Transcoder::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	} else {
 		// all other requests go through
 	}
+	return std::move(ev);
 }
 
 int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {

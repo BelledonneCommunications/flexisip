@@ -31,7 +31,7 @@ private:
 	// Private methods
 	using Module::Module;
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>&) override {
 	}
 

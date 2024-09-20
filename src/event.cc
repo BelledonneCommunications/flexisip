@@ -193,14 +193,14 @@ void RequestSipEvent::checkContentLength(const url_t* url) {
 	}
 }
 
-std::shared_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<IncomingAgent> incomingAgent,
+std::unique_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<IncomingAgent> incomingAgent,
                                                                const std::shared_ptr<MsgSip>& msgSip,
                                                                const std::weak_ptr<Module>& currModule) {
-	auto shared = make_shared<RequestSipEvent>(incomingAgent, msgSip);
-	shared->mCurrModule = currModule;
-	shared->mState = State::SUSPENDED;
+	auto reqEv = make_unique<RequestSipEvent>(incomingAgent, msgSip);
+	reqEv->mCurrModule = currModule;
+	reqEv->mState = State::SUSPENDED;
 
-	return shared;
+	return reqEv;
 }
 
 RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
@@ -209,8 +209,8 @@ RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
     : SipEvent(incomingAgent, msgSip, tport), mRecordRouteAdded(false) {
 }
 
-RequestSipEvent::RequestSipEvent(const shared_ptr<RequestSipEvent>& sipEvent)
-    : SipEvent(*sipEvent), mRecordRouteAdded(sipEvent->mRecordRouteAdded) {
+RequestSipEvent::RequestSipEvent(const RequestSipEvent& sipEvent)
+    : SipEvent(sipEvent), mRecordRouteAdded(sipEvent.mRecordRouteAdded) {
 }
 
 void RequestSipEvent::send(

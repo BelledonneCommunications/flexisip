@@ -53,8 +53,9 @@ private:
 
 	void onLoad(const GenericStruct* mc) override;
 	void onUnload() override;
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
-	void onResponse(std::shared_ptr<ResponseSipEvent>&) override{};
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
+	void onResponse(std::shared_ptr<ResponseSipEvent>&) override {
+	}
 	void onIdle() override;
 
 	bool isValidNextConfig(const ConfigValue& value) override;

@@ -30,7 +30,8 @@ class DummyModule : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<DummyModule>::create(Agent*);
 
 public:
-	void onRequest([[maybe_unused]] std::shared_ptr<RequestSipEvent>& ev) override {
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
+		return std::move(ev);
 	}
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
 	}

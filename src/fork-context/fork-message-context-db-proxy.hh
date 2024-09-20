@@ -55,7 +55,7 @@ public:
 	 * Used to create a ForkMessageContextDbProxy and its inner ForkMessageContext when needed at runtime.
 	 */
 	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
-	                                                       const std::shared_ptr<RequestSipEvent>& event,
+	                                                       std::unique_ptr<RequestSipEvent>&& event,
 	                                                       sofiasip::MsgSipPriority priority);
 
 	~ForkMessageContextDbProxy() override;
@@ -70,10 +70,10 @@ public:
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 
-	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override {
 		checkState(__FUNCTION__, State::IN_MEMORY);
-		auto newBranch = mForkMessage->addBranch(ev, contact);
+		auto newBranch = mForkMessage->addBranch(std::move(ev), contact);
 		newBranch->mForkCtx = shared_from_this();
 
 		return newBranch;
@@ -121,7 +121,7 @@ public:
 		return mForkMessage->checkFinished();
 	}
 
-	const std::shared_ptr<RequestSipEvent>& getEvent() override {
+	RequestSipEvent& getEvent() override {
 		checkState(__FUNCTION__, State::IN_MEMORY);
 		return mForkMessage->getEvent();
 	}

@@ -164,10 +164,10 @@ public:
 	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent,
 	                const std::shared_ptr<MsgSip>& msgSip,
 	                tport_t* tport = NULL);
-	RequestSipEvent(const std::shared_ptr<RequestSipEvent>& sipEvent);
+	RequestSipEvent(const RequestSipEvent& sipEvent);
 
 	// Sip event extends enable_shared_from_this and constructor should be private.
-	static std::shared_ptr<RequestSipEvent> makeRestored(std::shared_ptr<IncomingAgent> incomingAgent,
+	static std::unique_ptr<RequestSipEvent> makeRestored(std::shared_ptr<IncomingAgent> incomingAgent,
 	                                                     const std::shared_ptr<MsgSip>& msgSip,
 	                                                     const std::weak_ptr<Module>& currModule);
 

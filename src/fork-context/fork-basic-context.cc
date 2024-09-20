@@ -28,13 +28,13 @@ using namespace std;
 using namespace flexisip;
 
 ForkBasicContext::ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
-                                   const std::shared_ptr<RequestSipEvent>& event,
+                                   std::unique_ptr<RequestSipEvent>&& event,
                                    sofiasip::MsgSipPriority priority)
     : ForkContextBase(router,
                       router->getAgent(),
-                      event,
                       router->getOtherForkCfg(),
                       router,
+                      std::move(event),
                       router->mStats.mCountBasicForks,
                       priority) {
 	LOGD("New ForkBasicContext %p", this);

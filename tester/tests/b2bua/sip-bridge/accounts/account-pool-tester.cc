@@ -49,10 +49,10 @@ struct ProxyServer {
 	vector<sofiasip::Url> unregisters = {};
 	InjectedHooks hooks = {
 	    .onRequest =
-	        [&](const std::shared_ptr<RequestSipEvent>& requestEvent) mutable {
+	        [&](std::unique_ptr<RequestSipEvent>&& requestEvent) mutable {
 		        const auto* sip = requestEvent->getSip();
 		        if (sip->sip_request->rq_method != sip_method_register) {
-			        return;
+			        return std::move(requestEvent);
 		        }
 
 		        const auto* contact = sip->sip_contact;
@@ -65,6 +65,7 @@ struct ProxyServer {
 		        } else {
 			        registers.emplace_back(uri);
 		        }
+		        return std::move(requestEvent);
 	        },
 	};
 	Server proxy{

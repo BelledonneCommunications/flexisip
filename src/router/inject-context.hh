@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,10 +22,11 @@
 #include <map>
 #include <memory>
 
+#include "flexisip/event.hh"
+
 namespace flexisip {
 
 class ForkContext;
-class RequestSipEvent;
 
 /**
  * Used by ScheduleInjector to store ForkContext and the RequestSipEvent associated while waiting to inject them.
@@ -45,7 +46,7 @@ private:
 	static std::chrono::milliseconds sMaxRequestRetentionTime;
 
 	std::shared_ptr<ForkContext> mFork;
-	std::shared_ptr<RequestSipEvent> waitForInject{nullptr};
+	std::unique_ptr<RequestSipEvent> waitForInject{nullptr};
 	std::chrono::steady_clock::time_point mCreationDate = std::chrono::steady_clock::now();
 };
 

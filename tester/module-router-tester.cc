@@ -397,9 +397,10 @@ struct RoutingWithStaticTargets {
 	    : mInjectedModule({
 	          .injectAfterModule = {"Router"},
 	          .onRequest =
-	              [this](const shared_ptr<RequestSipEvent>& ev) {
-		              if (ev->getMsgSip()->getSipMethod() != sip_method_invite) return;
+	              [this](unique_ptr<RequestSipEvent>&& ev) {
+		              if (ev->getMsgSip()->getSipMethod() != sip_method_invite) return std::move(ev);
 		              mActualTargets.emplace_back(url_as_string(ev->getHome(), ev->getSip()->sip_request->rq_url));
+		              return std::move(ev);
 	              },
 	      }),
 	      mProxy(

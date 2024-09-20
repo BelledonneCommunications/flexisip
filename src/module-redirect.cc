@@ -35,7 +35,7 @@ private:
 	sip_contact_t* mContact;
 	su_home_t mHome;
 
-	bool isValidNextConfig(const ConfigValue& cv) {
+	bool isValidNextConfig(const ConfigValue& cv) override {
 		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
 		if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 		if (cv.getName() == "contact") {
@@ -49,20 +49,19 @@ private:
 		return true;
 	}
 
-	void onLoad(const GenericStruct* mc) {
+	void onLoad(const GenericStruct* mc) override {
 		mContact = sip_contact_make(&mHome, mc->get<ConfigString>("contact")->read().c_str());
 		SLOGI << this->getModuleName() << ": redirect contact is [" << mc->get<ConfigString>("contact")->read().c_str()
 		      << "]";
 	}
 
-	void onUnload() {
-	}
-
-	void onRequest(shared_ptr<RequestSipEvent>& ev) {
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		ev->reply(SIP_302_MOVED_TEMPORARILY, SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
 		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return std::move(ev);
 	}
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev){};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
+	}
 
 	ModuleRedirect(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);

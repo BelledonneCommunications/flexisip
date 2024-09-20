@@ -36,9 +36,9 @@ class StatisticsCollector : public Module {
 
 public:
 	~StatisticsCollector();
-	virtual void onLoad(const GenericStruct* root);
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
+	void onLoad(const GenericStruct* root) override;
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
+	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
 
 private:
 	StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -75,7 +75,7 @@ void StatisticsCollector::onLoad(const GenericStruct* mc) {
 	LOGI("StatisticsCollector: setup with collector address '%s'", value.c_str());
 }
 
-void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> StatisticsCollector::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 	url_t url = *sip->sip_request->rq_url;
@@ -91,6 +91,7 @@ void StatisticsCollector::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			LOGI("StatisticsCollector: received PUBLISH with invalid type, ignoring");
 		}
 	}
+	return std::move(ev);
 }
 
 void StatisticsCollector::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {

@@ -48,9 +48,9 @@ public:
 	~ForwardModule() override;
 
 	void onLoad(const GenericStruct* mc) override;
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
-	void sendRequest(std::shared_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest);
+	void sendRequest(std::unique_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest);
 
 private:
 	static unsigned int countVia(const MsgSip& ms);

@@ -45,10 +45,11 @@ void chooseAccountForThisCall() {
 	const SipUri incomingTo{"sip:expected-to@sip.example.org"};
 	InjectedHooks hooks{
 	    .onRequest =
-	        [&incomingTo](const std::shared_ptr<RequestSipEvent>& requestEvent) {
+	        [&incomingTo](std::unique_ptr<RequestSipEvent>&& requestEvent) {
 		        const auto* sip = requestEvent->getSip();
 		        // Mangle To header
 		        sip->sip_to->a_url[0] = *incomingTo.get();
+		        return std::move(requestEvent);
 	        },
 	};
 	Server proxy{

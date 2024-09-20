@@ -375,15 +375,16 @@ void usesAORButNotContact() {
 	SipUri injectedRequestUrl{unexpectedRecipient};
 	InjectedHooks hooks{
 	    .onRequest =
-	        [&injectedRequestUrl](const std::shared_ptr<RequestSipEvent>& responseEvent) {
+	        [&injectedRequestUrl](std::unique_ptr<RequestSipEvent>&& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
 		        if (sip->sip_request->rq_method != sip_method_invite ||
 		            ModuleToolbox::getCustomHeaderByName(sip, flexisip::B2buaServer::kCustomHeader)) {
-			        return;
+			        return std::move(responseEvent);
 		        }
 
 		        // Mangle the request address
 		        sip->sip_request->rq_url[0] = *injectedRequestUrl.get();
+		        return std::move(responseEvent);
 	        },
 	};
 	B2buaAndProxyServer server{"config/flexisip_b2bua.conf", true, &hooks};
@@ -410,14 +411,15 @@ void userAgentHeader() {
 
 	InjectedHooks hooks{
 	    .onRequest =
-	        [&userAgentValue](const std::shared_ptr<RequestSipEvent>& responseEvent) {
+	        [&userAgentValue](std::unique_ptr<RequestSipEvent>&& responseEvent) {
 		        const auto* sip = responseEvent->getSip();
 		        if (sip->sip_request->rq_method != sip_method_invite ||
 		            ModuleToolbox::getCustomHeaderByName(sip, flexisip::B2buaServer::kCustomHeader) == nullptr) {
-			        return;
+			        return std::move(responseEvent);
 		        }
 
 		        userAgentValue = sip_user_agent(sip)->g_string;
+		        return std::move(responseEvent);
 	        },
 	};
 	B2buaAndProxyServer server{"config/flexisip_b2bua.conf", false, &hooks};
@@ -1015,7 +1017,20 @@ void unknownMediaAttrAreFilteredOutOnReinvites() {
 	auto customAttrInRequest = "hook did not trigger"sv;
 	auto customAttrInResponse = "hook did not trigger"sv;
 	auto hooks = InjectedHooks{
-	    .onRequest = findMediaAttribute(customAttrInRequest),
+	    .onRequest =
+	        [&customAttrInRequest](auto&& event) mutable {
+		        const auto* sip = event->getSip();
+		        if (sip->sip_cseq->cs_method != sip_method_invite) return std::move(event);
+		        if (sip->sip_from->a_url->url_user != "reinviter"sv) return std::move(event);
+
+		        const auto* const payload = sip->sip_payload;
+		        if (!payload) return std::move(event);
+
+		        const auto notFound =
+		            string_view(payload->pl_data, payload->pl_len).find(mediaAttribute) == string_view::npos;
+		        customAttrInRequest = notFound ? "not found" : "found";
+		        return std::move(event);
+	        },
 	    .onResponse = findMediaAttribute(customAttrInResponse),
 	};
 	auto proxy = Server{
@@ -1703,9 +1718,8 @@ void transportAndOneConnectionPerAccount() {
 	CoreAssert asserter{suRoot, externalProxy};
 	const auto& db = dynamic_cast<const RegistrarDbInternal&>(externalProxy.getRegistrarDb()->getRegistrarBackend());
 	const auto& registeredUsers = db.getAllRecords();
-	asserter
-	    .iterateUpTo(
-	        3, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 2); }, 40ms)
+	asserter.iterateUpTo(
+	            3, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 2); }, 40ms)
 	    .assert_passed();
 
 	BC_HARD_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);

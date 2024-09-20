@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,6 +22,7 @@
 #include <string>
 
 #include <sofia-sip/auth_module.h>
+#include <utils/stl-backports.hh>
 
 namespace flexisip {
 
@@ -36,9 +37,10 @@ namespace flexisip {
  * @see See http://sofia-sip.sourceforge.net/refdocs/iptsec/structauth__status__t.html
  * for more documentation.
  */
+class RequestSipEvent;
 class AuthStatus {
 public:
-	using ResponseCb = std::function<void(AuthStatus& as)>;
+	using ResponseCb = flexisip::stl_backports::move_only_function<std::unique_ptr<RequestSipEvent>(AuthStatus& as)>;
 
 	AuthStatus() {
 		su_home_init(&mHome);
@@ -89,8 +91,8 @@ public:
 	const ResponseCb& callback() const {
 		return mResponseCb;
 	}
-	void callback(const ResponseCb& cb) {
-		mResponseCb = cb;
+	void callback(ResponseCb&& cb) {
+		mResponseCb = std::move(cb);
 	}
 
 	const char* display() const {

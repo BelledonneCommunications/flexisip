@@ -41,7 +41,7 @@ public:
 	/**
 	 * Called by the Router module to create a new branch.
 	 */
-	std::shared_ptr<BranchInfo> addBranch(const std::shared_ptr<RequestSipEvent>& ev,
+	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override;
 	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override;
 	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
@@ -71,7 +71,7 @@ public:
 	 * See PushNotificationContextObserver::onPushSent().
 	 */
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
-	const std::shared_ptr<RequestSipEvent>& getEvent() override;
+	RequestSipEvent& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
 		return mCfg;
 	}
@@ -89,9 +89,9 @@ public:
 protected:
 	ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
 	                AgentInterface* agent,
-	                const std::shared_ptr<RequestSipEvent>& event,
 	                const std::shared_ptr<ForkContextConfig>& cfg,
 	                const std::weak_ptr<ForkContextListener>& listener,
+	                std::unique_ptr<RequestSipEvent>&& event,
 	                const std::weak_ptr<StatPair>& counter,
 	                sofiasip::MsgSipPriority priority,
 	                bool isRestored = false);
@@ -162,7 +162,6 @@ protected:
 	float mCurrentPriority;
 	AgentInterface* mAgent;
 	std::weak_ptr<ModuleRouterInterface> mRouter;
-	std::shared_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
@@ -179,6 +178,7 @@ private:
 	void nextBranches();
 	void onNextBranches();
 
+	std::unique_ptr<RequestSipEvent> mEvent;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	std::weak_ptr<StatPair> mStatCounter;
 };

@@ -402,7 +402,7 @@ public:
 	nta_agent_t* getSofiaAgent() const override {
 		return nullptr;
 	}
-	void injectRequestEvent([[maybe_unused]] const shared_ptr<RequestSipEvent>& ev) override {
+	void injectRequestEvent(unique_ptr<RequestSipEvent>&&) override {
 	}
 	void injectResponseEvent([[maybe_unused]] const shared_ptr<ResponseSipEvent>& ev) override {
 	}
@@ -437,8 +437,8 @@ public:
 	    : ForkContextBase(nullptr,
 	                      agentMock,
 	                      nullptr,
-	                      nullptr,
 	                      std::weak_ptr<ForkContextListener>(),
+	                      nullptr,
 	                      std::weak_ptr<StatPair>(),
 	                      sofiasip::MsgSipPriority::Normal,
 	                      true) {
@@ -449,7 +449,7 @@ public:
 	}
 	void onNewRegister([[maybe_unused]] const SipUri& dest,
 	                   [[maybe_unused]] const std::string& uid,
-	                   [[maybe_unused]] const std::shared_ptr<ExtendedContact>& newContact) override{};
+	                   [[maybe_unused]] const std::shared_ptr<ExtendedContact>& newContact) override {};
 
 	const char* getClassName() const override {
 		return "ForkContextForTest";

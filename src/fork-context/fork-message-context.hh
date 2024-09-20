@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,8 +39,8 @@ class ModuleRouter;
 class ForkMessageContext : public ForkContextBase {
 public:
 	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
-	                                                const std::shared_ptr<RequestSipEvent>& event,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
+	                                                std::unique_ptr<RequestSipEvent>&& event,
 	                                                sofiasip::MsgSipPriority priority);
 
 	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter> router,
@@ -78,15 +78,15 @@ protected:
 
 private:
 	ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
-	                   const std::shared_ptr<RequestSipEvent>& event,
 	                   const std::weak_ptr<ForkContextListener>& listener,
+	                   std::unique_ptr<RequestSipEvent>&& event,
 	                   sofiasip::MsgSipPriority msgPriority,
 	                   bool isRestored = false);
 
 	void acceptMessage();
 	void onAcceptanceTimer();
-	void logResponseToSender(const std::shared_ptr<RequestSipEvent>&, const std::shared_ptr<ResponseSipEvent>&);
-	void logResponseFromRecipient(const BranchInfo&, const std::shared_ptr<ResponseSipEvent>&);
+	void logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv);
+	void logResponseFromRecipient(const BranchInfo& br, ResponseSipEvent& event);
 
 	/**
 	 * Timeout after which an answer must be sent through the incoming transaction even if no success response was

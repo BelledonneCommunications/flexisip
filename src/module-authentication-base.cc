@@ -155,11 +155,11 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 	mNo403Expr = mc->get<ConfigBooleanExpression>("no-403")->read();
 }
 
-void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	sip_t* sip = ev->getMsgSip()->getSip();
 
 	try {
-		validateRequest(ev);
+		if (!validateRequest(*ev->getMsgSip())) return std::move(ev);
 
 		sip_p_preferred_identity_t* ppi = nullptr;
 		const char* fromDomain = sip->sip_from->a_url[0].url_host;
@@ -173,15 +173,16 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 		if (am == nullptr) {
 			SLOGI << "Registration failure, domain is forbidden: " << fromDomain;
 			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-			return;
+			return {};
 		}
 
-		processAuthentication(ev, *am);
+		processAuthentication(std::move(ev), *am);
 	} catch (const runtime_error& e) {
 		SLOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
-	} catch (const StopRequestProcessing&) {
+		return {};
 	}
+	return std::move(ev);
 }
 
 FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
@@ -226,8 +227,8 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 	as.no403(mNo403Expr->eval(*sip));
 }
 
-void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipEvent>& request) {
-	sip_t* sip = request->getMsgSip()->getSip();
+bool ModuleAuthenticationBase::validateRequest(const MsgSip& ms) {
+	const sip_t* sip = ms.getSip();
 
 	// Do it first to make sure no transaction is created which
 	// would send an inappropriate 100 trying response.
@@ -235,15 +236,16 @@ void ModuleAuthenticationBase::validateRequest(const std::shared_ptr<RequestSipE
 	    sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
 	) {
 		/*ack and cancel shall never be challenged according to the RFC.*/
-		throw StopRequestProcessing();
+		return false;
 	}
 
 	// Check trusted peer
-	if (isTrustedPeer(request)) throw StopRequestProcessing();
+	if (isTrustedPeer(ms)) return false;
+	return true;
 }
 
-void ModuleAuthenticationBase::processAuthentication(const shared_ptr<RequestSipEvent>& request,
-                                                     FlexisipAuthModuleBase& am) {
+unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthentication(unique_ptr<RequestSipEvent>&& request,
+                                                                            FlexisipAuthModuleBase& am) {
 	sip_t* sip = request->getMsgSip()->getSip();
 
 #if 0
@@ -253,7 +255,7 @@ void ModuleAuthenticationBase::processAuthentication(const shared_ptr<RequestSip
 	if (sip->sip_from->a_url->url_user == NULL) {
 		SLOGI << "Registration failure, no username in From header: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
 		request.reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		throw StopRequestProcessing();
+		return {};
 	}
 #endif
 
@@ -276,7 +278,7 @@ void ModuleAuthenticationBase::processAuthentication(const shared_ptr<RequestSip
 		am.verify(*as, sip->sip_proxy_authorization, &mProxyChallenger);
 	}
 
-	processAuthModuleResponse(request, *as);
+	return processAuthModuleResponse(std::move(request), *as);
 }
 
 FlexisipAuthModuleBase* ModuleAuthenticationBase::findAuthModule(const std::string name) {
@@ -302,18 +304,21 @@ FlexisipAuthModuleBase* ModuleAuthenticationBase::findAuthModule(const std::stri
 	return it->second.get();
 }
 
-void ModuleAuthenticationBase::processAuthModuleResponse(const shared_ptr<RequestSipEvent>& ev, AuthStatus& as) {
+unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthModuleResponse(unique_ptr<RequestSipEvent>&& ev,
+                                                                                AuthStatus& as) {
 	auto& fAs = dynamic_cast<FlexisipAuthStatus&>(as);
 	if (as.status() == 0) {
 		onSuccess(fAs);
 		if (ev->isSuspended()) {
 			// The event is re-injected
-			getAgent()->injectRequestEvent(ev);
+			getAgent()->injectRequestEvent(std::move(ev));
 		}
 	} else if (as.status() == 100) {
 		if (!ev->isSuspended()) ev->suspendProcessing();
-		as.callback([this, ev](AuthStatus& as) { processAuthModuleResponse(ev, as); });
-		return;
+		as.callback([this, request = std::move(ev)](AuthStatus& as) mutable {
+			return processAuthModuleResponse(std::move(request), as);
+		});
+		return {};
 	} else if (as.status() >= 400) {
 		if (as.status() == 401 || as.status() == 407) {
 			auto log = make_shared<AuthLog>(ev->getMsgSip()->getSip(), fAs.passwordFound());
@@ -326,6 +331,8 @@ void ModuleAuthenticationBase::processAuthModuleResponse(const shared_ptr<Reques
 		ev->reply(500, "Internal error", TAG_END());
 	}
 	delete &as;
+	// event is suspended or has been replied to
+	return {};
 }
 
 void ModuleAuthenticationBase::onSuccess(const FlexisipAuthStatus& as) {
@@ -400,11 +407,11 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 	}
 }
 
-bool ModuleAuthenticationBase::isTrustedPeer(const shared_ptr<RequestSipEvent>& ev) {
-	sip_t* sip = ev->getSip();
+bool ModuleAuthenticationBase::isTrustedPeer(const MsgSip& ms) {
+	const sip_t* sip = ms.getSip();
 
 	// Check for trusted host
-	sip_via_t* via = sip->sip_via;
+	const sip_via_t* via = sip->sip_via;
 	const char* printableReceivedHost = !empty(via->v_received) ? via->v_received : via->v_host;
 
 	BinaryIp receivedHost(printableReceivedHost);

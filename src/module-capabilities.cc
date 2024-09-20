@@ -23,7 +23,7 @@
 
 namespace flexisip {
 
-void ModuleCapabilities::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
+std::unique_ptr<RequestSipEvent> ModuleCapabilities::onRequest(std::unique_ptr<RequestSipEvent>&& ev) {
 	// Test that the request is an OPTIONS
 	const auto& msg = ev->getMsgSip();
 	if (msg && msg->getSip()->sip_request->rq_method == sip_method_options) {
@@ -35,8 +35,10 @@ void ModuleCapabilities::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 		if (msg->getSip()->sip_route == nullptr && requestURI->url_user == nullptr && mAgent->isUs(requestURI, true)) {
 			SLOGI << "Replying to OPTIONS request";
 			ev->reply(SIP_200_OK, TAG_END());
+			return {};
 		}
 	}
+	return std::move(ev);
 }
 
 const ModuleInfo<ModuleCapabilities> ModuleCapabilities::sInfo{

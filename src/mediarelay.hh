@@ -38,11 +38,11 @@ class MediaRelay : public Module {
 
 public:
 	~MediaRelay();
-	virtual void onLoad(const GenericStruct* modconf);
-	virtual void onUnload();
-	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev);
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
-	virtual void onIdle();
+	void onLoad(const GenericStruct* modconf) override;
+	void onUnload() override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
+	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	void onIdle() override;
 
 private:
 	MediaRelay(Agent* ag, const ModuleInfoBase* moduleInfo);

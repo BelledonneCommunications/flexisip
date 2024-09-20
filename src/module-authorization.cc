@@ -42,8 +42,8 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     [](GenericStruct& moduleConfig) { moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false"); });
 
 // duplicate fromModuleAuthenticationBase ModuleAuthenticationBase
-bool validateRequest(const std::shared_ptr<RequestSipEvent>& request) {
-	sip_t* sip = request->getMsgSip()->getSip();
+bool validateRequest(const MsgSip& msgSip) {
+	const sip_t* sip = msgSip.getSip();
 
 	// Do it first to make sure no transaction is created which
 	// would send an inappropriate 100 trying response.
@@ -61,13 +61,13 @@ bool validateRequest(const std::shared_ptr<RequestSipEvent>& request) {
 ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
 
-void ModuleAuthorization::onRequest(shared_ptr<RequestSipEvent>& ev) {
-	if (!validateRequest(ev)) return;
+unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSipEvent>&& ev) {
+	if (!validateRequest(*ev->getMsgSip())) return std::move(ev);
 
 	const auto& authResult = ev->getAuthResult();
 	if (authResult.trustedHost) {
 		LOGD("Access granted: trusted host.");
-		return;
+		return std::move(ev);
 	}
 
 	LOGD("Checking asserted identities.");
@@ -85,7 +85,7 @@ void ModuleAuthorization::onRequest(shared_ptr<RequestSipEvent>& ev) {
 				continue;
 			}
 			LOGD("Accept authorization.");
-			return; // on first valid
+			return std::move(ev); // on first valid
 		}
 	}
 
@@ -105,6 +105,7 @@ void ModuleAuthorization::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
 	} else ev->reply(500, sip_500_Internal_server_error, TAG_END());
+	return {};
 }
 
 void ModuleAuthorization::onResponse(shared_ptr<ResponseSipEvent>&) {

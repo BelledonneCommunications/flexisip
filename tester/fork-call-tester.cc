@@ -480,14 +480,17 @@ void cancelStatusOnCancel() {
 		             << "CSeq: 1 CANCEL\r\n"
 		             << reason << "Content-Length: 0\r\n\r\n";
 
-		auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipCancel.str()));
-		ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
-		auto forkCallCtx = ForkCallContext::make(moduleRouter, ev, sofiasip::MsgSipPriority::Urgent);
-		auto branch = forkCallCtx->addBranch(
-		    ev, make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"}, "sip:127.0.0.1;transport=udp", ""));
+		auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipCancel.str()));
+		auto new_ev = make_unique<RequestSipEvent>(*ev);
+		auto msg = ev->getMsgSip();
+		ev->setEventLog(make_shared<CallLog>(msg->getSip()));
+		auto forkCallCtx = ForkCallContext::make(moduleRouter, std::move(ev), sofiasip::MsgSipPriority::Urgent);
+		auto branch =
+		    forkCallCtx->addBranch(std::move(new_ev), make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"},
+		                                                                           "sip:127.0.0.1;transport=udp", ""));
 		auto branchListener = make_shared<BrCancelListener>();
 		branch->mListener = branchListener;
-		forkCallCtx->onCancel(*ev->getMsgSip());
+		forkCallCtx->onCancel(*msg);
 		return branchListener->mCancelStatus;
 	};
 
@@ -533,12 +536,14 @@ void cancelStatusOnResponse() {
 	    "Content-Type: application/sdp\r\n"
 	    "Content-Length: 0\r\n\r\n";
 
-	auto ev = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipInvite));
+	auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipInvite));
+	auto ev2 = make_unique<RequestSipEvent>(*ev);
 	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
-	auto forkCallCtx = ForkCallContext::make(moduleRouter, ev, sofiasip::MsgSipPriority::Urgent);
+	auto forkCallCtx = ForkCallContext::make(moduleRouter, std::move(ev), sofiasip::MsgSipPriority::Urgent);
 	// add a branch to ForkCallCtx
-	auto branch = forkCallCtx->addBranch(
-	    ev, make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5360"}, "sip:127.0.0.1;transport=udp", ""));
+	auto branch =
+	    forkCallCtx->addBranch(std::move(ev2), make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5360"},
+	                                                                        "sip:127.0.0.1;transport=udp", ""));
 
 	auto branchListener = make_shared<BrCancelListener>();
 	branch->mListener = branchListener;

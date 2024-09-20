@@ -37,7 +37,7 @@ public:
 private:
 	ModuleAuthTrustedHosts(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 	void loadTrustedHosts(const ConfigStringList& trustedHosts);
 

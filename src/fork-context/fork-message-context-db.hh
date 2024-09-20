@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -29,7 +29,7 @@ namespace flexisip {
  *<br>
  * You can get one ForkMessageContextDb object from ForkMessageContext::getDbObject().<br>
  * You can create one ForkMessageContext object from ForkMessageContextDb using ForkMessageContext::make(Agent* agent,
- * const std::shared_ptr<RequestSipEvent>& event, const std::shared_ptr<ForkContextConfig>& cfg, const
+ * std::unique_ptr<RequestSipEvent>&& event, const std::shared_ptr<ForkContextConfig>& cfg, const
  * std::weak_ptr<ForkContextListener>& listener, const std::weak_ptr<StatPair>& counter, ForkMessageContextDb&
  * forkFromDb).
  *

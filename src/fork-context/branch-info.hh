@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -116,10 +116,17 @@ public:
 	}
 
 	BranchInfoDb getDbObject() {
-		std::string request{mRequest->getMsgSip()->msgAsString()};
+		std::string request{mRequestMsg->msgAsString()};
 		std::string lastResponse{mLastResponse->getMsgSip()->msgAsString()};
 		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount};
 		return branchInfoDb;
+	}
+
+	std::unique_ptr<RequestSipEvent>&& extractRequest() {
+		return std::move(mRequestEvent);
+	}
+	void setRequest(std::unique_ptr<RequestSipEvent>&& req) {
+		mRequestEvent = std::move(req);
 	}
 
 #ifdef ENABLE_UNIT_TESTS
@@ -127,7 +134,7 @@ public:
 		BC_ASSERT_STRING_EQUAL(mUid.c_str(), expected->mUid.c_str());
 		BC_ASSERT_EQUAL(mPriority, expected->mPriority, float, "%f");
 
-		BC_ASSERT_TRUE(mRequest->getMsgSip()->msgAsString() == expected->mRequest->getMsgSip()->msgAsString());
+		BC_ASSERT_TRUE(mRequestMsg->msgAsString() == expected->mRequestMsg->msgAsString());
 		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->msgAsString() ==
 		               expected->mLastResponse->getMsgSip()->msgAsString());
 	}
@@ -136,7 +143,7 @@ public:
 	std::weak_ptr<ForkContext> mForkCtx{};
 	std::weak_ptr<BranchInfoListener> mListener{};
 	std::string mUid{};
-	std::shared_ptr<RequestSipEvent> mRequest{};
+	std::shared_ptr<MsgSip> mRequestMsg{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
 	std::shared_ptr<ResponseSipEvent> mLastResponse{};
 	std::shared_ptr<ExtendedContact> mContact{};
@@ -171,13 +178,16 @@ protected:
 		mUid = dbObject.contactUid;
 		mClearedCount = dbObject.clearedCount;
 		mPriority = dbObject.priority;
-		auto request = std::make_shared<MsgSip>(0, dbObject.request);
-		mRequest = std::make_shared<RequestSipEvent>(agent->getIncomingAgent(), request);
+		mRequestMsg = std::make_shared<MsgSip>(0, dbObject.request);
+		mRequestEvent = std::make_unique<RequestSipEvent>(agent->getIncomingAgent(), mRequestMsg);
 		auto lastResponse =
 		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
 		mLastResponse = std::make_shared<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
 		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 	}
+
+private:
+	std::unique_ptr<RequestSipEvent> mRequestEvent{};
 };
 
 inline std::ostream& operator<<(std::ostream& os, const BranchInfo* br) noexcept {

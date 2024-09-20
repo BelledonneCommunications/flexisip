@@ -40,14 +40,14 @@ void ForkContext::setFork(const shared_ptr<IncomingTransaction>& tr, const share
 	tr->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{fork});
 }
 
-void ForkContext::processCancel(const shared_ptr<RequestSipEvent>& ev) {
-	auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+void ForkContext::processCancel(const RequestSipEvent& ev) {
+	auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev.getIncomingAgent());
 
-	if (transaction && ev->getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
+	if (transaction && ev.getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
 		auto ctx = ForkContext::getFork(transaction);
 
 		if (ctx) {
-			ctx->onCancel(*ev->getMsgSip());
+			ctx->onCancel(*ev.getMsgSip());
 		}
 	}
 }

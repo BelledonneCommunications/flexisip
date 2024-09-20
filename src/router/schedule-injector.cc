@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,7 +26,7 @@ using namespace std;
 using namespace flexisip;
 using namespace sofiasip;
 
-void ScheduleInjector::injectRequestEvent(const std::shared_ptr<RequestSipEvent>& ev,
+void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
                                           const shared_ptr<ForkContext>& fork,
                                           const std::string& contactId) {
 	SLOGT << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "]";
@@ -39,7 +39,7 @@ void ScheduleInjector::injectRequestEvent(const std::shared_ptr<RequestSipEvent>
 		// This should not happen, but we prefer to send in wrong order than not at all.
 		SLOGE << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
 		      << ev->getMsgSip()->getCallID() << "]. No map found. Injected out of order to " << contactId;
-		mModule->injectRequestEvent(ev);
+		mModule->injectRequestEvent(std::move(ev));
 		return;
 	}
 
@@ -48,12 +48,12 @@ void ScheduleInjector::injectRequestEvent(const std::shared_ptr<RequestSipEvent>
 	if (const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
 	                             [&fork](const auto& i) { return i.isEqual(fork); });
 	    it != contactInjectContexts.end()) {
-		it->waitForInject = ev;
+		it->waitForInject = std::move(ev);
 	} else {
 		// This should not happen, but we prefer to send in wrong order than not at all.
 		SLOGE << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
 		      << ev->getMsgSip()->getCallID() << "], was not found in and is injected out of order to " << contactId;
-		mModule->injectRequestEvent(ev);
+		mModule->injectRequestEvent(std::move(ev));
 	}
 
 	startInject(contactId);
@@ -73,7 +73,7 @@ void ScheduleInjector::startInject(const std::string& contactId) {
 		auto it = contactInjectContexts.begin();
 		while (it != contactInjectContexts.end()) {
 			if (it->waitForInject) {
-				mModule->injectRequestEvent(it->waitForInject);
+				mModule->injectRequestEvent(std::move(it->waitForInject));
 				it = contactInjectContexts.erase(it);
 			} else if (it->isExpired()) {
 				SLOGE << "ScheduleInjector::startInject. ForkContext[" << it->mFork->getPtrForEquality()

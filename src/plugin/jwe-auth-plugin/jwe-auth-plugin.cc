@@ -49,8 +49,8 @@ constexpr char JwkFileExtension[] = "jwk";
 // =============================================================================
 
 template <typename... T>
-static constexpr auto makeArray(T&&... values)
-    -> array<typename decay<typename common_type<T...>::type>::type, sizeof...(T)> {
+static constexpr auto
+makeArray(T&&... values) -> array<typename decay<typename common_type<T...>::type>::type, sizeof...(T)> {
 	return array<typename decay<typename common_type<T...>::type>::type, sizeof...(T)>{{std::forward<T>(values)...}};
 }
 
@@ -272,7 +272,7 @@ private:
 	void onLoad(const GenericStruct* moduleConfig) override;
 	void onUnload() override;
 
-	void onRequest(shared_ptr<RequestSipEvent>& ev) override;
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
 
 	void insertJweContext(string&& jweKey, const shared_ptr<JweContext>& jweContext, int timeout);
@@ -311,7 +311,7 @@ ModuleInfo<JweAuth> JweAuthInfo(
 	        config_item_end};
 	    moduleConfig.addChildrenValues(configs);
     });
-}
+} // namespace
 
 FLEXISIP_DECLARE_PLUGIN(JweAuthInfo, JweAuthPluginName, JweAuthPluginVersion);
 
@@ -355,14 +355,14 @@ void JweAuth::onUnload() {
 		json_decref(jwk);
 }
 
-void JweAuth::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> JweAuth::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const sip_t* sip = ev->getSip();
 	const sip_method_t method = sip->sip_request->rq_method;
-	if (method != sip_method_invite && method != sip_method_message) return;
+	if (method != sip_method_invite && method != sip_method_message) return std::move(ev);
 
 	if (auto authModule = mAuthModule.lock()) {
 		// Allow requests coming from trusted peers.
-		if (authModule->isTrustedPeer(ev)) return;
+		if (authModule->isTrustedPeer(*ev->getMsgSip())) return std::move(ev);
 	} else {
 		LOGE("Authentication module not found, trusted peers are unknown.");
 	}
@@ -405,10 +405,12 @@ void JweAuth::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	if (error) {
 		SLOGW << "Rejecting request because: `" << error << "`.";
 		ev->reply(403, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return {};
 	} else {
 		shared_ptr<IncomingTransaction> incomingTransaction = ev->createIncomingTransaction();
 		incomingTransaction->setProperty(getModuleName(), jweContext);
 	}
+	return std::move(ev);
 }
 
 void JweAuth::onResponse(shared_ptr<ResponseSipEvent>& ev) {

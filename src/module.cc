@@ -104,7 +104,7 @@ void Module::reload() {
 	load();
 }
 
-void Module::processRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> Module::processRequest(unique_ptr<RequestSipEvent>&& ev) {
 	auto errorReply = [&](int code, string_view reason, string_view error_msg) {
 		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << error_msg;
 		SLOGD << "Replying with message " << code << " and reason " << reason.data();
@@ -115,7 +115,7 @@ void Module::processRequest(shared_ptr<RequestSipEvent>& ev) {
 	try {
 		if (mFilter->canEnter(ms)) {
 			SLOGD << "Invoking onRequest() on module " << getModuleName();
-			onRequest(ev);
+			return onRequest(std::move(ev));
 		} else {
 			SLOGD << "Skipping onRequest() on module " << getModuleName();
 		}
@@ -133,6 +133,7 @@ void Module::processRequest(shared_ptr<RequestSipEvent>& ev) {
 	} catch (const std::exception& e) {
 		errorReply(SIP_500_INTERNAL_SERVER_ERROR, e.what());
 	}
+	return std::move(ev);
 }
 
 void Module::processResponse(shared_ptr<ResponseSipEvent>& ev) {
@@ -171,8 +172,8 @@ ModuleClass Module::getClass() const {
 	return mInfo->getClass();
 }
 
-void Module::injectRequestEvent(const shared_ptr<RequestSipEvent>& ev) {
-	mAgent->injectRequestEvent(ev);
+void Module::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
+	mAgent->injectRequestEvent(std::move(ev));
 }
 
 void Module::sendTrap(const std::string& msg) {
@@ -278,8 +279,7 @@ void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
 			continue;
 		}
 
-		SLOGW << "Module "
-		      << "[" << moduleName << "] will replace module [" << replace << "].";
+		SLOGW << "Module " << "[" << moduleName << "] will replace module [" << replace << "].";
 		*replacedModule = module;
 	}
 }

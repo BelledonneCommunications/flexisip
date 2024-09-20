@@ -31,20 +31,23 @@ public:
 	~ModuleSanityChecker() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev) {
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		sip_t* sip = ev->getMsgSip()->getSip();
 
 		const char* error = checkHeaders(sip);
 		if (error) {
 			LOGW("Rejecting request because of %s", error);
 			ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			return {};
 		}
 		if (sip->sip_request == NULL || sip->sip_request->rq_url->url_host == NULL) {
 			ev->reply(400, "Bad request URI", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			return {};
 		}
+		return std::move(ev);
 	}
 
-	virtual void onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
+	void onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) override {
 		// don't check our responses ;)
 	}
 

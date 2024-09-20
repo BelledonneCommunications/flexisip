@@ -36,10 +36,11 @@ void test() {
 	const SipUri expectedToAddress{"sip:*%23expected-to@to.example.org:666;custom-param=%26$To"};
 	InjectedHooks hooks{
 	    .onRequest =
-	        [&expectedToAddress](const std::shared_ptr<RequestSipEvent>& requestEvent) {
+	        [&expectedToAddress](std::unique_ptr<RequestSipEvent>&& requestEvent) {
 		        const auto* sip = requestEvent->getSip();
 		        // Mangle To header
 		        sip->sip_to->a_url[0] = *expectedToAddress.get();
+		        return std::move(requestEvent);
 	        },
 	};
 	Server proxy{

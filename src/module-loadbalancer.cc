@@ -31,10 +31,10 @@ class LoadBalancer : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<LoadBalancer>::create(Agent*);
 
 public:
-	virtual ~LoadBalancer();
-	virtual void onLoad(const GenericStruct* modconf);
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev);
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev);
+	~LoadBalancer() override;
+	void onLoad(const GenericStruct* modconf) override;
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
+	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
 
 private:
 	LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -63,13 +63,13 @@ void LoadBalancer::onLoad(const GenericStruct* modconf) {
 	mRoutesCount = mRoutes.size();
 }
 
-void LoadBalancer::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> LoadBalancer::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	uint32_t call_hash;
 	sip_t* sip = ms->getSip();
 	int index;
 
-	if (mRoutesCount == 0) return;
+	if (mRoutesCount == 0) return std::move(ev);
 
 	/* very simple load sharing algorithm, based on randomness of call id*/
 	if (sip->sip_call_id) {
@@ -81,6 +81,7 @@ void LoadBalancer::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	} else {
 		LOGW("request has no call id");
 	}
+	return std::move(ev);
 }
 
 void LoadBalancer::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {

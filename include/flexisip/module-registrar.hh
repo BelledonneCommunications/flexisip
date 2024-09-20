@@ -37,10 +37,9 @@ class ModuleRegistrar;
 class Agent;
 class ResponseContext;
 
-// Listener class NEED to copy the shared pointer
 class OnRequestBindListener : public ContactUpdateListener {
 	ModuleRegistrar* mModule;
-	std::shared_ptr<RequestSipEvent> mEv;
+	std::unique_ptr<RequestSipEvent> mEv;
 	sip_from_t* mSipFrom;
 	su_home_t mHome;
 	sip_contact_t* mContact;
@@ -48,7 +47,7 @@ class OnRequestBindListener : public ContactUpdateListener {
 
 public:
 	OnRequestBindListener(ModuleRegistrar* module,
-	                      std::shared_ptr<RequestSipEvent> ev,
+	                      std::unique_ptr<RequestSipEvent>&& ev,
 	                      const sip_from_t* sipuri = NULL,
 	                      sip_contact_t* contact = NULL,
 	                      sip_path_t* path = NULL);
@@ -77,7 +76,6 @@ public:
 	void onInvalid(const SipStatus& response) override;
 };
 
-// Listener class NEED to copy the shared pointer
 class OnStaticBindListener : public ContactUpdateListener {
 	friend class ModuleRegistrar;
 	sofiasip::Home mHome;
@@ -106,8 +104,8 @@ public:
 
 class ResponseContext {
 public:
-	ResponseContext(std::shared_ptr<RequestSipEvent>&& ev, int globalDelta);
-	const std::shared_ptr<RequestSipEvent> mRequestSipEvent;
+	ResponseContext(std::unique_ptr<RequestSipEvent>&& ev, int globalDelta);
+	std::unique_ptr<RequestSipEvent> mRequestSipEvent;
 };
 
 class ModuleRegistrar : public Module {
@@ -120,13 +118,13 @@ public:
 	~ModuleRegistrar() {
 	}
 
-	virtual void onLoad(const GenericStruct* mc);
+	void onLoad(const GenericStruct* mc) override;
 
-	virtual void onUnload();
+	void onUnload() override;
 
-	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev);
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
+	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 
 	template <typename SipEventT, typename ListenerT>
 	void processUpdateRequest(std::shared_ptr<SipEventT>& ev, const sip_t* sip);
@@ -145,7 +143,7 @@ protected:
 private:
 	static int numberOfContactHeaders(const sip_contact_t* rootHeader);
 
-	std::shared_ptr<RequestSipEvent> createUpstreamRequestEvent(std::shared_ptr<RequestSipEvent>&& ev, int globalDelta);
+	std::unique_ptr<RequestSipEvent> createUpstreamRequestEvent(std::unique_ptr<RequestSipEvent>&& ev, int globalDelta);
 	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
 	void updateLocalRegExpire();

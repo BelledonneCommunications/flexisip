@@ -63,23 +63,23 @@ ForkCallContext::CancelInfo::CancelInfo(sip_reason_t* reason) : mReason(reason) 
 }
 
 ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
-                                 const std::shared_ptr<RequestSipEvent>& event,
+                                 std::unique_ptr<RequestSipEvent>&& event,
                                  sofiasip::MsgSipPriority priority)
     : ForkContextBase(router,
                       router->getAgent(),
-                      event,
                       router->getCallForkCfg(),
                       router,
+                      std::move(event),
                       router->mStats.mCountCallForks,
                       priority),
-      mLog{event->getEventLog<CallLog>()} {
+      mLog{getEvent().getEventLog<CallLog>()} {
 	SLOGD << "New ForkCallContext " << this;
 }
 
 ForkCallContext::~ForkCallContext() {
 	SLOGD << "Destroy ForkCallContext " << this;
 	if (mIncoming) {
-		mEvent->reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
+		getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
 	}
 }
 
@@ -107,11 +107,12 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 			cancelBranch(brit);
 			brit->notifyBranchCanceled(mCancel->mStatus);
 
-			auto eventLog = make_shared<CallLog>(mEvent->getMsgSip()->getSip());
+			auto& event = getEvent();
+			auto eventLog = make_shared<CallLog>(event.getMsgSip()->getSip());
 			eventLog->setDevice(*brit->mContact);
 			eventLog->setCancelled();
 			eventLog->setForkStatus(mCancel->mStatus);
-			mEvent->writeLog(eventLog);
+			event.writeLog(eventLog);
 		}
 	}
 	mNextBranchesTimer.reset();
@@ -177,7 +178,8 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 		cancelOthersWithStatus(br, ForkStatus::AcceptedElsewhere);
 	} else if (code >= 100) {
 		if (code == 180) {
-			mEvent->writeLog(make_shared<CallRingingEventLog>(*mEvent->getMsgSip()->getSip(), br.get()));
+			auto& event = getEvent();
+			event.writeLog(make_shared<CallRingingEventLog>(*event.getMsgSip()->getSip(), br.get()));
 		}
 
 		forwardThenLogResponse(br);
@@ -309,7 +311,8 @@ void ForkCallContext::start() {
 	if (firstStart) {
 		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that
 		// presumes there are no branches answered yet. We also presume all branches have been added by now.
-		mEvent->writeLog(make_shared<CallStartedEventLog>(*mEvent->getMsgSip()->getSip(), getBranches()));
+		auto& event = getEvent();
+		event.writeLog(make_shared<CallStartedEventLog>(*event.getMsgSip()->getSip(), getBranches()));
 	}
 
 	ForkContextBase::start();

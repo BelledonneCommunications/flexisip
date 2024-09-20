@@ -112,12 +112,13 @@ void ModuleAuthTrustedHosts::loadTrustedHosts(const ConfigStringList& trustedHos
 	}
 }
 
-void ModuleAuthTrustedHosts::onRequest(shared_ptr<RequestSipEvent>& ev) {
+std::unique_ptr<RequestSipEvent> ModuleAuthTrustedHosts::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	sip_t* sip = ev->getMsgSip()->getSip();
 	sip_via_t* via = sip->sip_via;
 	const char* printableReceivedHost = !isEmpty(via->v_received) ? via->v_received : via->v_host;
 	BinaryIp receivedHost{printableReceivedHost};
 	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()) ev->setTrustedHost();
+	return std::move(ev);
 }
 
 void ModuleAuthTrustedHosts::onResponse(shared_ptr<ResponseSipEvent>&) {

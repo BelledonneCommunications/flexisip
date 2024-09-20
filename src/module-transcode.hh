@@ -70,10 +70,10 @@ class Transcoder : public Module {
 
 public:
 	~Transcoder();
-	virtual void onLoad(const GenericStruct* module_config);
-	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev);
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
-	virtual void onIdle();
+	void onLoad(const GenericStruct* module_config) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
+	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	void onIdle() override;
 
 #ifdef ENABLE_TRANSCODER
 	const std::list<const PayloadType*>& getSupportedPayloads() const;

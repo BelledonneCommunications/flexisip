@@ -59,7 +59,7 @@ protected:
 
 private:
 	ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
-	                 const std::shared_ptr<RequestSipEvent>& event,
+	                 std::unique_ptr<RequestSipEvent>&& event,
 	                 sofiasip::MsgSipPriority priority);
 
 	void finishIncomingTransaction();

@@ -41,7 +41,7 @@ public:
 	ModuleAuthenticationBase(Agent* agent, const ModuleInfoBase* moduleInfo);
 	~ModuleAuthenticationBase();
 
-	bool isTrustedPeer(const std::shared_ptr<RequestSipEvent>& ev);
+	bool isTrustedPeer(const sofiasip::MsgSip& ms);
 	static void declareConfig(GenericStruct& root);
 
 protected:
@@ -49,19 +49,8 @@ protected:
 	//  Protected types
 	// ================
 
-	/**
-	 * This exception is globally caught by ModuleAuthenticationBase::onRequest()
-	 * causing onRequest() return. It is to used in any sub-functions
-	 * of onRequest() in order to stop the request event processing
-	 * and pass to the next Flexisip module.
-	 */
-	class StopRequestProcessing : public std::exception {};
-
-	// ==================
-	//  Protected methods
-	// ==================
 	void onLoad(const GenericStruct* root) override;
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
 	}
 
@@ -81,8 +70,9 @@ protected:
 	 */
 	void configureAuthStatus(FlexisipAuthStatus& as);
 
-	void validateRequest(const std::shared_ptr<RequestSipEvent>& request);
-	virtual void processAuthentication(const std::shared_ptr<RequestSipEvent>& request, FlexisipAuthModuleBase& am);
+	bool validateRequest(const sofiasip::MsgSip& ms);
+	virtual std::unique_ptr<RequestSipEvent> processAuthentication(std::unique_ptr<RequestSipEvent>&& request,
+	                                                               FlexisipAuthModuleBase& am);
 
 	/**
 	 * Called by onRequest() for getting a #FlexisipAuthModuleBase instance from a domain name.
@@ -93,7 +83,7 @@ protected:
 	 * This method is called synchronously or asynchronously on result of AuthModule::verify() method.
 	 * It calls onSuccess() and errorReply() according the authentication result.
 	 */
-	void processAuthModuleResponse(const std::shared_ptr<RequestSipEvent>& ev, AuthStatus& as);
+	std::unique_ptr<RequestSipEvent> processAuthModuleResponse(std::unique_ptr<RequestSipEvent>&& ev, AuthStatus& as);
 	virtual void onSuccess(const FlexisipAuthStatus& as);
 	virtual void errorReply(RequestSipEvent& ev, const FlexisipAuthStatus& as);
 

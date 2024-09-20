@@ -36,7 +36,7 @@ private:
 	su_home_t mHome;
 	shared_ptr<SipBooleanExpression> mOnlyListSubscription;
 
-	bool isValidNextConfig(const ConfigValue& cv) {
+	bool isValidNextConfig(const ConfigValue& cv) override {
 		GenericStruct* module_config = dynamic_cast<GenericStruct*>(cv.getParent());
 		if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 		if (cv.getName() == "presence-server") {
@@ -51,7 +51,7 @@ private:
 		return true;
 	}
 
-	void onLoad(const GenericStruct* mc) {
+	void onLoad(const GenericStruct* mc) override {
 		auto presenceServerSetting = mc->get<ConfigString>("presence-server");
 		auto destRouteStr = presenceServerSetting->read();
 		if (destRouteStr.empty()) LOGF("[%s] parameter must be set", presenceServerSetting->getCompleteName().c_str());
@@ -68,7 +68,7 @@ private:
 		      << " redirected by presence server";
 	}
 
-	void onUnload() {
+	void onUnload() override {
 	}
 
 	void route(const shared_ptr<MsgSip>& msgSip) {
@@ -95,11 +95,13 @@ private:
 		return false;
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent>& ev) {
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		const auto& msgSip = ev->getMsgSip();
 		if (isMessageAPresenceMessage(*msgSip)) route(msgSip);
+		return std::move(ev);
 	}
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) {};
+	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
+	}
 
 	ModulePresence(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 		su_home_init(&mHome);

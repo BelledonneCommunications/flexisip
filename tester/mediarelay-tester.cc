@@ -128,11 +128,11 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	auto hooks = InjectedHooks{
 	    .injectAfterModule = "MediaRelay",
 	    .onRequest =
-	        [&](const auto& request) {
+	        [&](auto&& request) {
 		        using namespace sofiasip;
 
 		        const auto* sip = request->getSip();
-		        if (sip->sip_request->rq_method != sip_method_invite) return;
+		        if (sip->sip_request->rq_method != sip_method_invite) return std::move(request);
 
 		        const auto* sipPayload = sip->sip_payload;
 		        auto sdpParser = SdpParser::parse({sipPayload->pl_data, sipPayload->pl_len});
@@ -144,11 +144,10 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 
 				        // Found an ICE candidate added by the media relay. Let's stop here
 				        anyRelayCandidate = value;
-				        return;
+				        return std::move(request);
 			        }
 		        }
-
-		        return;
+		        return std::move(request);
 	        },
 	};
 	auto server = Server(CONFIG, &hooks);
@@ -196,9 +195,8 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	BC_ASSERT(!anyRelayCandidate.empty());
 	anyRelayCandidate = noCandidateFound;
 
-	asserter
-	    .iterateUpTo(
-	        120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
+	asserter.iterateUpTo(
+	            120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
 	    .assert_passed();
 	// Video ICE re-INVITE does not contain relay candidates
 	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
@@ -237,12 +235,13 @@ void address_masquerading_in_sdp_with_call_update() {
 	auto hooks = InjectedHooks{
 	    .injectAfterModule = "MediaRelay",
 	    .onRequest =
-	        [&](const auto& request) {
+	        [&](auto&& request) {
 		        const auto* sip = request->getSip();
 		        if (!sip or !sip->sip_request or sip->sip_request->rq_method != sip_method_invite or !sip->sip_cseq) {
-			        return;
+			        return std::move(request);
 		        }
 		        getHostInMediaConnection(sip, hostAfterRequest);
+		        return std::move(request);
 	        },
 	    .onResponse =
 	        [&](const auto& response) {
@@ -274,9 +273,8 @@ void address_masquerading_in_sdp_with_call_update() {
 	BC_HARD_ASSERT(call != nullptr);
 	recipient.hasReceivedCallFrom(inviter, asserter).hard_assert_passed();
 	recipient.getCurrentCall()->accept();
-	asserter
-	    .iterateUpTo(
-	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	asserter.iterateUpTo(
+	            0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
 	    .hard_assert_passed();
 	asserter
 	    .iterateUpTo(
@@ -292,9 +290,8 @@ void address_masquerading_in_sdp_with_call_update() {
 	const auto& enableVideo = call->getCore()->createCallParams(call);
 	enableVideo->enableVideo(true);
 	call->update(enableVideo);
-	asserter
-	    .iterateUpTo(
-	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	asserter.iterateUpTo(
+	            0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
 	    .hard_assert_passed();
 	asserter
 	    .iterateUpTo(

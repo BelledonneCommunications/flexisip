@@ -74,7 +74,7 @@ protected:
 private:
 	// Private ctors
 	ForkCallContext(const std::shared_ptr<ModuleRouter>& router,
-	                const std::shared_ptr<RequestSipEvent>& event,
+	                std::unique_ptr<RequestSipEvent>&& event,
 	                sofiasip::MsgSipPriority priority);
 
 	// Private methods

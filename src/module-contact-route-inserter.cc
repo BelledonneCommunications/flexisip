@@ -28,7 +28,7 @@ class ContactRouteInserter : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<ContactRouteInserter>::create(Agent*);
 
 public:
-	void onLoad(const GenericStruct* mc) {
+	void onLoad(const GenericStruct* mc) override {
 		mCtRtParamName = string("CtRt") + getAgent()->getUniqueId();
 		mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 		mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
@@ -36,17 +36,17 @@ public:
 		mContactMasquerader = unique_ptr<ContactMasquerader>(new ContactMasquerader(mAgent, mCtRtParamName));
 	}
 
-	void onRequest(shared_ptr<RequestSipEvent>& ev) {
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 		sip_t* sip = ms->getSip();
 		const sip_method_t rq_method = sip->sip_request->rq_method;
 
 		if (mMasqueradeRegisters && rq_method == sip_method_register) {
 			LOGD("Masquerading contact");
-			mContactMasquerader->masquerade(ev, mInsertDomain);
+			mContactMasquerader->masquerade(*ev->getMsgSip(), mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
 			LOGD("Masquerading contact");
-			mContactMasquerader->masquerade(ev);
+			mContactMasquerader->masquerade(*ev->getMsgSip());
 		}
 
 		if (rq_method != sip_method_register) {
@@ -63,14 +63,15 @@ public:
 				LOGD("No countact route parameter found");
 			}
 		}
+		return std::move(ev);
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev) {
+	void onResponse(shared_ptr<ResponseSipEvent>& ev) override {
 		const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 		sip_t* sip = ms->getSip();
 		if (mMasqueradeInvites &&
 		    (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
-			mContactMasquerader->masquerade(ev);
+			mContactMasquerader->masquerade(*ev->getMsgSip());
 		}
 	}
 

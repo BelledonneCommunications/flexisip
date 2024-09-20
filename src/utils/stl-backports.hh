@@ -6,9 +6,8 @@
 
 #include <memory>
 
-namespace flexisip {
 // Backports of the C++ Standard Library
-namespace stl_backports {
+namespace flexisip::stl_backports {
 
 template <typename Signature>
 class move_only_function;
@@ -22,8 +21,10 @@ public:
 	move_only_function() noexcept = default;
 	move_only_function(move_only_function&& other) = default;
 	template <typename TFunction>
-	move_only_function(TFunction&& function) : mPtr(std::make_unique<WrappedFunction<TFunction>>(std::move(function))) {
+	move_only_function(TFunction&& function)
+	    : mPtr(std::make_unique<WrappedFunction<TFunction>>(std::forward<TFunction>(function))) {
 	}
+	move_only_function& operator=(move_only_function&& other) = default;
 
 	// "Unlike std::function, invoking an empty std::move_only_function results in undefined behavior."
 	TReturn operator()(Args&&... args) {
@@ -45,7 +46,7 @@ private:
 	template <typename TFunction>
 	class WrappedFunction : public TypeErasedFunction {
 	public:
-		WrappedFunction(TFunction&& function) : mWrapped(std::move(function)) {
+		WrappedFunction(TFunction&& function) : mWrapped(std::forward<TFunction>(function)) {
 		}
 
 		TReturn operator()(Args&&... args) {
@@ -59,5 +60,4 @@ private:
 	std::unique_ptr<TypeErasedFunction> mPtr{};
 };
 
-} // namespace stl_backports
-} // namespace flexisip
+} // namespace flexisip::stl_backports

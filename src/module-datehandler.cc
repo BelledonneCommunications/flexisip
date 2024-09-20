@@ -32,8 +32,8 @@ public:
 	~DateHandler() {
 	}
 
-	virtual void onRequest(shared_ptr<RequestSipEvent>& ev) {
-		if (mCommand.empty()) return;
+	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
+		if (mCommand.empty()) return std::move(ev);
 		const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 		sip_t* sip = ms->getSip();
 		if (sip->sip_date) {
@@ -44,13 +44,14 @@ public:
 				LOGE("Command invocation '%s' failed: %s", command, strerror(errno));
 			}
 		}
+		return std::move(ev);
 	}
 
-	virtual void onResponse(shared_ptr<ResponseSipEvent>& ev) {
+	void onResponse(shared_ptr<ResponseSipEvent>&) override {
 	}
 
 protected:
-	virtual void onLoad(const GenericStruct* root) {
+	void onLoad(const GenericStruct* root) override {
 		mCommand = root->get<ConfigString>("assign-date-command")->read();
 	}
 

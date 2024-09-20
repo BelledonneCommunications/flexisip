@@ -279,11 +279,12 @@ FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& doma
 	return authModule;
 }
 
-void Authentication::processAuthentication(const shared_ptr<RequestSipEvent>& request, FlexisipAuthModuleBase& am) {
+unique_ptr<RequestSipEvent> Authentication::processAuthentication(unique_ptr<RequestSipEvent>&& request,
+                                                                  FlexisipAuthModuleBase& am) {
 	// check if TLS client certificate provides sufficent authentication for this request.
-	if (handleTlsClientAuthentication(*request)) throw StopRequestProcessing();
+	if (handleTlsClientAuthentication(*request)) return std::move(request);
 
-	ModuleAuthenticationBase::processAuthentication(request, am);
+	return ModuleAuthenticationBase::processAuthentication(std::move(request), am);
 }
 
 const char* Authentication::findIncomingSubjectInTrusted(const RequestSipEvent& ev, const char* fromDomain) {

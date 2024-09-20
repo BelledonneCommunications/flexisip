@@ -537,7 +537,7 @@ bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) {
 	return false;
 }
 
-void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> PushNotification::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const auto& ms = ev->getMsgSip();
 	if (needsPush(ms)) {
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
@@ -554,6 +554,7 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 			}
 		}
 	}
+	return std::move(ev);
 }
 
 void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent>& ev) {

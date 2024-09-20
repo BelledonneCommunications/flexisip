@@ -31,7 +31,7 @@ constexpr auto* kFlowTokenHashKeyFilePath = DEFAULT_LIB_DIR "/flow-token-hash-ke
 NatHelper::NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
 
-void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
+unique_ptr<RequestSipEvent> NatHelper::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const auto& ms = ev->getMsgSip();
 	const auto* sip = ms->getSip();
 	const auto* path = sip->sip_path;
@@ -58,6 +58,7 @@ void NatHelper::onRequest(shared_ptr<RequestSipEvent>& ev) {
 
 	// Idea for future: for the case where a "NATed" proxy forwards a REGISTER (which can be detected), we could
 	// add a "Path" header corresponding to this proxy.
+	return std::move(ev);
 }
 
 void NatHelper::onResponse(shared_ptr<ResponseSipEvent>& ev) {

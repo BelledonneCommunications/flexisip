@@ -323,10 +323,10 @@ protected:
 class PushModuleTest : public PushNotificationTest {
 protected:
 	void postRequestEvent(const std::shared_ptr<MsgSip>& request) {
-		auto reqSipEvent = std::make_shared<RequestSipEvent>(mAgent, request);
+		auto reqSipEvent = std::make_unique<RequestSipEvent>(mAgent, request);
 		reqSipEvent->setOutgoingAgent(mAgent);
 		reqSipEvent->createOutgoingTransaction();
-		mPushModule->onRequest(reqSipEvent);
+		mPushModule->onRequest(std::move(reqSipEvent));
 	}
 
 	std::shared_ptr<MsgSip> forgeInvite(bool replaceHeader = false) {

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <memory>
+#include <unordered_map>
 
 #include <sofia-sip/auth_module.h>
 
@@ -39,9 +40,10 @@ public:
 private:
 	ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	void onRequest(std::shared_ptr<RequestSipEvent>& ev) override;
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
 
+	std::unordered_map<RequestSipEvent*, std::unique_ptr<RequestSipEvent>> mSuspendedEvents;
 	std::shared_ptr<Bearer> mBearerAuth;
 };
 
