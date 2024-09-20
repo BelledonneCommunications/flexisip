@@ -58,9 +58,9 @@ Group changes to describe their impact on the project, as follows:
   really deprecated. It is not used for the moment but may be used in the future.
 
 ### [Removed]
-- **Ubuntu 18.04:** support discontinued as distribution end-of-life has exceeded (2023-05-31).
-- **CentOS 7:** support discontinued as distribution end-of-life is scheduled for 2024-06-30.
-- **Debian 10:** support discontinued as distribution end-of-life is scheduled for 2024-06-30.
+- **Ubuntu 18.04:** support discontinued as distribution has reached end-of-life (2023-05-31).
+- **CentOS 7:** support discontinued as distribution has reached end-of-life (2024-06-30).
+- **Debian 10:** support discontinued as distribution has reached end-of-life (2024-06-30).
 
 ## [2.3.4] - 2024-07-24
 ### [Added]
