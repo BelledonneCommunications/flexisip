@@ -3,11 +3,14 @@
 Flexisip is a comprehensive, modular and scalable SIP server suite written in C++17. It offers a wide range of
 functionalities, including:
 
-* **SIP Proxy**: acts as a central hub for routing SIP messages.
+* **Proxy Server**: acts as a central hub for routing SIP messages.
+    * **Push Notification Service**: delivers SIP notifications (in-calls, messages) to mobile devices even when the app
+      is not actively running.
 * **Presence Server**: enables users to see the online status of others and their availability for calls.
 * **Conference Server**: enables group voice and video calls.
-* **Push Notification Service**: delivers SIP notifications (in-calls, messages) to mobile devices even when the app is
-  not actively running.
+* **Back-to-Back User Agent (B2BUA) Server**: enables caller identity translation, media-level transcoding and SIP
+  trunking.
+* **RegEvent Server**: notify tier domains of user registration
 
 ## Deployment and Applications:
 
@@ -25,7 +28,7 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 - under a GNU Affero GPLv3 license for free (see COPYING file for details)
 - under a proprietary license, for closed source projects. Contact Belledonne Communications for any question about
-  costs and services.
+  [costs and services](https://linphone.org/licensing-services).
 
 # Documentation
 
@@ -72,6 +75,7 @@ make -C ./build -j<njobs>
 ```
 
 ### Custom
+When built outside a git repository, you have to manually mention Flexisip and Linphone-SDK versions.
 
 ```bash
 mkdir ./build
@@ -81,16 +85,16 @@ make -C ./build -j<njobs>
 
 ### Some tips
 
-Check *CMakeLists.txt* to know the list of the available options and their default value. To change an option, you just
-need to invoke *CMake* again and specifying the option you need to change only.
-For instance, to disable the presence server feature:
+Check *CMakeLists.txt* to know the list of the available options and their default value. To change an option, invoke
+*CMake* again and specify the option you need to change.
+For instance, here is how to disable the presence server feature:
 
 ```bash
 cmake ./build -DENABLE_PRESENCE=OFF
 make -C ./build -j<njobs>
 ```
 
-You may also use *ccmake* or *cmake-gui* utilities to configure the project interactively:
+You may also use *ccmake* or *cmake-gui* utilities to interactively configure the project:
 
 ```bash
 ccmake ./build
@@ -99,8 +103,8 @@ make -C ./build -j<njobs>
 
 ## Building RPM or DEB packages
 
-This procedure will generate a unique RPM package containing Flexisip, all its dependencies and the corresponding
-package for debug symbols.
+This procedure will help you generate a unique RPM package containing Flexisip, all its dependencies and the
+corresponding package for debug symbols.
 The following options are relevant for packaging:
 
 | Option                 | Description                                                                |
@@ -115,7 +119,7 @@ cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DCMAKE_BUIL
 make -C ./build -j<njobs> package
 ```
 
-Packages are now available in ./build directory.
+Packages are now available in the `./build` directory.
 
 [More info on RPM packaging](./packaging/rpm/README.md)
 
@@ -167,14 +171,9 @@ Use `./flexisip --dump-all-default > flexisip.conf` to generate a documented def
 
 # Developer notes
 
-With sofia-sip, you have the choice between `msg_dup()` and `msg_copy()`,
-`sip_from_dup()` and `sip_from_copy()`, _etc_.
-The difference isn't well documented in sofia-sip documentation, but it is important to understand that:
+With sofia-sip, you can choose between `msg_dup()` and `msg_copy()`, `sip_from_dup()` and `sip_from_copy()`, _etc_.
+The difference isn't well documented in the sofia-sip documentation, but it is important to understand that:
 
-- `*_dup()` makes a copy of the structure plus all included strings inside. (deep copy)
-- `*_copy()` just makes a copy of the structure, not the strings pointed by it. (shallow copy) **These functions are
+- `*_dup()` makes a copy of the structure plus all included strings inside (deep copy).
+- `*_copy()` just makes a copy of the structure, not the strings pointed by it (shallow copy). **These functions are
   dangerous**; use `*_dup()` versions in doubt.
-
-Your build is broken, but you don't see how that's your fault? (E.g. trying to compile a file you removed, and you've
-double-checked it is not referenced anywhere in the source code anymore) Try reconfiguring and regenerating. (With
-e.g. `ccmake`)

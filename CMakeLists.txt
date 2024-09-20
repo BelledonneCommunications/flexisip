@@ -22,7 +22,7 @@
 
 cmake_minimum_required(VERSION 3.22)
 
-# CMP0076 is required to use relative path in target_sources
+# CMP0076 is required to use relative path in target_sources.
 cmake_policy(SET CMP0076 NEW)
 # CMP0077 is required to correctly force the value of subprojects' cache variables.
 cmake_policy(SET CMP0077 NEW)
@@ -71,12 +71,12 @@ option(ENABLE_STRICT_LINPHONESDK "Pass strict flags to the compiler for all Linp
 option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
 option(ENABLE_PDFDOC "Build PDF documentation" OFF)
 option(ENABLE_MONOTONIC_CLOCK_REGISTRATIONS "Enable monotonic clock for registrations" OFF)
-option(ENABLE_PRESENCE "Build presence support" ON)
+option(ENABLE_PRESENCE "Build with presence server support" ON)
 option(ENABLE_REDIS "Build with Redis support" ON)
 option(ENABLE_SNMP "Build with SNMP support" ON)
 option(ENABLE_SOCI "Build with SOCI support" ON)
-option(ENABLE_TRANSCODER "Build transcoder support" ON)
-option(ENABLE_MDNS "Build multicast DNS support" OFF)
+option(ENABLE_TRANSCODER "Build with transcoder support" ON)
+option(ENABLE_MDNS "Build with multicast DNS support" OFF)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_JWE_AUTH_PLUGIN "Enable JweAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
