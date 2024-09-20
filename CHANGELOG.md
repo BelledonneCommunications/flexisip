@@ -56,6 +56,7 @@ Group changes to describe their impact on the project, as follows:
     - parameter `module::PushNotification/windowsphone-application-secret` no longer has an effect.
 - **Proxy/registrar:** parameter `module::Registrar/redis-server-timeout` no longer has an effect. This parameter is not
   really deprecated. It is not used for the moment but may be used in the future.
+- **Plugin:** The JweAuth plugin will be removed in Flexisip 2.5.
 
 ### [Removed]
 - **Ubuntu 18.04:** support discontinued as distribution has reached end-of-life (2023-05-31).
