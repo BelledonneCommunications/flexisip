@@ -20,7 +20,6 @@
 
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
-#include "utils/server/proxy-server.hh"
 #include "utils/client-core.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -28,6 +27,7 @@
 
 namespace flexisip::tester {
 namespace {
+
 using namespace flexisip::b2bua::bridge;
 using namespace std::chrono_literals;
 
@@ -132,7 +132,7 @@ void test() {
 }
 
 TestSuite _{
-    "B2bua::sip-bridge::InviteTweaker",
+    "b2bua::sip-bridge::InviteTweaker",
     {
         CLASSY_TEST(test),
     },

@@ -31,7 +31,6 @@ using namespace std;
 using namespace flexisip;
 
 namespace flexisip::tester::b2buatester {
-
 namespace {
 
 /** Test that configuring an "audio-codec" in the "b2bua-server" section will force all calls -- incoming *and* outgoing
@@ -84,12 +83,11 @@ void forcedAudioCodec() {
 }
 
 TestSuite _{
-    "B2bua::G729",
+    "b2bua::G729",
     {
         CLASSY_TEST(forcedAudioCodec),
     },
 };
 
 } // namespace
-
 } // namespace flexisip::tester::b2buatester

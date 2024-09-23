@@ -1006,7 +1006,7 @@ const string UDP = "udp";
 const string TCP = "tcp";
 
 TestSuite _{
-    "B2bua",
+    "b2bua",
     {
         CLASSY_TEST(basicCall),
         CLASSY_TEST(usesAORButNotContact),

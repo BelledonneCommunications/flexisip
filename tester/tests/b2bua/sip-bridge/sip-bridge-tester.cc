@@ -58,7 +58,7 @@ using V1AccountDesc = flexisip::b2bua::bridge::config::v1::AccountDesc;
 
 // The external SIP proxy that the B2BUA will bridge calls to. (For test purposes, it's actually the same proxy)
 // MUST match config/flexisip_b2bua.conf:[b2bua-server]:outbound-proxy
-static constexpr auto outboundProxy = "sip:127.0.0.1:5860;transport=tcp";
+constexpr auto outboundProxy = "sip:127.0.0.1:5860;transport=tcp";
 
 class ExternalClient;
 
@@ -2300,7 +2300,7 @@ const auto UDP = "udp"s;
 const auto TCP = "tcp"s;
 
 TestSuite _{
-    "B2bua::sip-bridge",
+    "b2bua::sip-bridge",
     {
         CLASSY_TEST((bidirectionalBridging<TCP, TCP>)),
         CLASSY_TEST((bidirectionalBridging<UDP, UDP>)),

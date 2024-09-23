@@ -26,6 +26,7 @@
 
 namespace flexisip::tester {
 namespace {
+
 using namespace utils::string_interpolation;
 using namespace b2bua::bridge;
 
@@ -80,7 +81,7 @@ void missingClosingDelim() {
 }
 
 TestSuite _{
-    "B2bua::sip-bridge::variable_substitution",
+    "b2bua::sip-bridge::variable_substitution",
     {
         CLASSY_TEST(knownFields),
         CLASSY_TEST(unknownFields),

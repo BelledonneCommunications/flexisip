@@ -259,7 +259,7 @@ const string VP8 = "vp8"s;
 // const char H264[] = "h264";
 
 TestSuite _{
-    "B2bua::trenscrypter",
+    "b2bua::trenscrypter",
     {
         CLASSY_TEST(sdesToZrtpCall),
         CLASSY_TEST(sdesToDtlsCall),
