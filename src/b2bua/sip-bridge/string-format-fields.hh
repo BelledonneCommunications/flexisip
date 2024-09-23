@@ -14,6 +14,7 @@
 
 #include "b2bua/sip-bridge/accounts/account.hh"
 #include "utils/string-interpolation/variable-substitution.hh"
+#include "utils/uri-utils.hh"
 
 namespace flexisip::b2bua::bridge {
 
@@ -23,7 +24,9 @@ using utils::string_interpolation::resolve;
 
 const auto kLinphoneAddressFields = FieldsOf<std::shared_ptr<const linphone::Address>>{
     {"", leaf([](const auto& address) { return address->asStringUriOnly(); })},
-    {"user", leaf([](const std::shared_ptr<const linphone::Address>& address) { return address->getUsername(); })},
+    {"user", leaf([](const std::shared_ptr<const linphone::Address>& address) {
+	     return UriUtils::escape(address->getUsername(), UriUtils::sipUserReserved);
+     })},
     {"hostport", leaf([](const auto& address) {
 	     auto hostport = address->getDomain();
 	     const auto port = address->getPort();
