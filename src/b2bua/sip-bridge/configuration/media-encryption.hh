@@ -22,7 +22,7 @@ struct adl_serializer<linphone::MediaEncryption> {
 	}
 
 	static void from_json(const json& j, linphone::MediaEncryption& encryption) {
-		encryption = *StringUtils::string2MediaEncryption(j.get<std::string>());
+		encryption = *flexisip::string_utils::string2MediaEncryption(j.get<std::string>());
 	}
 };
 NLOHMANN_JSON_NAMESPACE_END

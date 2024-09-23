@@ -139,16 +139,18 @@ void MsgSip::setShowBodyFor(const string& filterString) {
 }
 
 MsgSipPriority MsgSip::getPriority() const {
+	using namespace flexisip::string_utils;
+
 	const auto sip = getSip();
 	const auto priorityString = sip->sip_priority && sip->sip_priority->g_string ? sip->sip_priority->g_string : ""s;
 
-	if (StringUtils::iequals(priorityString, "") || StringUtils::iequals(priorityString, "normal")) {
+	if (iequals(priorityString, "") || iequals(priorityString, "normal")) {
 		return MsgSipPriority::Normal;
-	} else if (StringUtils::iequals(priorityString, "non-urgent")) {
+	} else if (iequals(priorityString, "non-urgent")) {
 		return MsgSipPriority::NonUrgent;
-	} else if (StringUtils::iequals(priorityString, "urgent")) {
+	} else if (iequals(priorityString, "urgent")) {
 		return MsgSipPriority::Urgent;
-	} else if (StringUtils::iequals(priorityString, "emergency")) {
+	} else if (iequals(priorityString, "emergency")) {
 		return MsgSipPriority::Emergency;
 	}
 
