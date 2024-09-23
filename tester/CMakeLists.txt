@@ -87,7 +87,6 @@ add_executable(flexisip_tester
 	tests/auth/rsa-keys.hh
 	tests/callcontext-mediarelay-tester.cc
 	tests/configmanager-tester.cc
-	tests/transaction-tester.cc
 	tests/eventlogs/events/auth-log-tester.cc
 	tests/eventlogs/events/event-id-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
@@ -119,6 +118,8 @@ add_executable(flexisip_tester
 	tests/registrar/registrardb-redis-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc
+	tests/transaction/outgoing-transaction-tester.cc
+	tests/transaction/transaction-tester.cc
 	tests/utils/cast-to-const-tester.cc
 	tests/utils/flow-data-tester.cc
 	tests/utils/flow-factory-tester.cc

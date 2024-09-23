@@ -178,6 +178,7 @@ void OutgoingTransaction::queueFree() {
 	if (mOutgoing) {
 		// avoid callbacks
 		nta_outgoing_remove_custom_deinit(mOutgoing.borrow());
-		nta_outgoing_bind(mOutgoing.borrow(), nullptr, nullptr);
+		nta_outgoing_bind(
+		    mOutgoing.borrow(), [](nta_outgoing_magic_t*, nta_outgoing_t*, const sip_t*) { return 0; }, nullptr);
 	}
 }

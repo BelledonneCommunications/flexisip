@@ -36,7 +36,8 @@ public:
 	              int port,
 	              const std::string& transport,
 	              const ProcessResponseStatusCb& processResponseStatusCb,
-	              const ProcessRequestEventCb& processRequestEventCb);
+	              const ProcessRequestEventCb& processRequestEventCb,
+	              bool default200Response = true);
 
 	BellesipUtils(const std::string& ipaddress,
 	              int port,
@@ -61,6 +62,7 @@ private:
 	belle_sip_provider_t* mProvider = nullptr;
 	belle_sip_listener_t* mListener = nullptr;
 	belle_sip_listening_point_t* mListeningPoint = nullptr;
+	bool mSendDefault200Response = true;
 
 	ProcessResponseStatusCb mProcessResponseStatusCb = nullptr;
 	ProcessRequestEventCb mProcessRequestEventCb = nullptr;
