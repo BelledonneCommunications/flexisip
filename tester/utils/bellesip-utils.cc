@@ -30,8 +30,10 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
                              int port,
                              const string& transport,
                              const ProcessResponseStatusCb& processResponseStatusCb,
-                             const ProcessRequestEventCb& processRequestEventCb)
-    : mProcessResponseStatusCb(processResponseStatusCb), mProcessRequestEventCb(processRequestEventCb) {
+                             const ProcessRequestEventCb& processRequestEventCb,
+                             bool default200Response)
+    : mSendDefault200Response(default200Response), mProcessResponseStatusCb(processResponseStatusCb),
+      mProcessRequestEventCb(processRequestEventCb) {
 	mStack = belle_sip_stack_new(nullptr);
 	mListeningPoint = belle_sip_stack_create_listening_point(mStack, ipaddress.c_str(), port, transport.c_str());
 	mProvider = belle_sip_stack_create_provider(mStack, mListeningPoint);
@@ -63,9 +65,11 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
 		belle_sip_message("caller_process_request_event received [%s] message",
 		                  belle_sip_request_get_method(belle_sip_request_event_get_request(event)));
 		auto thiz = static_cast<BellesipUtils*>(userCtx);
-		belle_sip_response_t* resp;
-		resp = belle_sip_response_create_from_request(belle_sip_request_event_get_request(event), 200);
-		belle_sip_provider_send_response(thiz->mProvider, resp);
+		if (thiz->mSendDefault200Response) {
+			belle_sip_response_t* resp;
+			resp = belle_sip_response_create_from_request(belle_sip_request_event_get_request(event), 200);
+			belle_sip_provider_send_response(thiz->mProvider, resp);
+		}
 
 		if (thiz->mProcessRequestEventCb != nullptr) {
 			thiz->mProcessRequestEventCb.operator()(event);
