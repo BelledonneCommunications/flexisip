@@ -52,7 +52,7 @@ public:
 	static constexpr const char* sipReserved = "\"#$%&+,/:;<=>?@[\\]^`{|}";
 
 	/**< Reserved characters for user in SIP URI */
-	static constexpr const char* sipUserReseverd = "\"#%:<>@[\\]^`{|}";
+	static constexpr const char* sipUserReserved = "\"#%:<>@[\\]^`{|}";
 
 	/**< Reserved characters for passwords in SIP URI */
 	static constexpr const char* sipPasswordReserved = "\"#%/:;<>?@[\\]^`{|}";
