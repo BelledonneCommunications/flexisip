@@ -210,7 +210,9 @@ void OutgoingTransaction::queueFree() {
 	mAgent->getRoot()->addToMainLoop([self = std::move(mSelfRef)] {});
 	mIncoming.reset();
 	if (mOutgoing) {
-		nta_outgoing_bind(mOutgoing.borrow(), NULL, NULL); // avoid callbacks
+		// avoid callbacks
+		nta_outgoing_bind(
+		    mOutgoing.borrow(), [](nta_outgoing_magic_t*, nta_outgoing_t*, const sip_t*) { return 0; }, nullptr);
 	}
 }
 
