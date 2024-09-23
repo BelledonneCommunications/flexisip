@@ -27,13 +27,15 @@
 
 using namespace std;
 
-vector<string> StringUtils::split(const string& str, const string& delimiter) noexcept {
+namespace flexisip::string_utils {
+
+vector<string> split(const string& str, const string& delimiter) noexcept {
 	const auto views = split(string_view{str}, string_view{delimiter});
 
 	return {views.begin(), views.end()};
 }
 
-vector<string_view> StringUtils::split(string_view str, string_view delimiter) noexcept {
+vector<string_view> split(string_view str, string_view delimiter) noexcept {
 	vector<string_view> out;
 
 	if (!str.empty()) {
@@ -46,26 +48,26 @@ vector<string_view> StringUtils::split(string_view str, string_view delimiter) n
 	return out;
 }
 
-optional<pair<string_view, string_view>> StringUtils::splitOnce(string_view str, string_view delimiter) noexcept {
+optional<pair<string_view, string_view>> splitOnce(string_view str, string_view delimiter) noexcept {
 	const auto pos = str.find(delimiter);
 	if (pos == string_view::npos) return nullopt;
 
 	return {{str.substr(0, pos), str.substr(pos + delimiter.size())}};
 }
 
-std::string StringUtils::strip(const char* str, char c) noexcept {
+string strip(const char* str, char c) noexcept {
 	auto start = str, end = const_cast<const char*>(index(str, '\0'));
 	strip(start, end, c);
 	return string{start, end};
 }
 
-std::string StringUtils::strip(const std::string& str, char c) noexcept {
+string strip(const string& str, char c) noexcept {
 	auto start = str.cbegin(), end = str.cend();
 	strip(start, end, c);
 	return string{start, end};
 }
 
-std::string StringUtils::stripAll(const char* str, char c) {
+string stripAll(const char* str, char c) {
 	const char* start = str;
 	const char* end = index(str, '\0');
 	while (end > start && *end == c)
@@ -75,29 +77,28 @@ std::string StringUtils::stripAll(const char* str, char c) {
 	return string(start, end - start);
 }
 
-std::string StringUtils::stripAll(const std::string& str, char c) {
+string stripAll(const string& str, char c) {
 	auto start = str.cbegin();
 	auto end = str.cend();
 	stripAll(start, end, c);
 	return string(start, end);
 }
 
-void StringUtils::stripAll(std::string::const_iterator& start, std::string::const_iterator& end, char c) {
+void stripAll(string::const_iterator& start, string::const_iterator& end, char c) {
 	while (end > start && *(end - 1) == c)
 		end--;
 	while (end > start && *start == c)
 		start++;
 }
 
-optional<string_view> StringUtils::removePrefix(const string_view& str, const string_view& prefix) {
+optional<string_view> removePrefix(const string_view& str, const string_view& prefix) {
 	if (!startsWith(str, prefix)) {
 		return nullopt;
 	}
 	return str.substr(prefix.size());
 }
 
-std::string&
-StringUtils::searchAndReplace(std::string& str, const std::string& key, const std::string& value) noexcept {
+string& searchAndReplace(string& str, const string& key, const string& value) noexcept {
 	auto index = str.find(key);
 	while (index != string::npos) {
 		str.replace(index, key.size(), value);
@@ -106,7 +107,7 @@ StringUtils::searchAndReplace(std::string& str, const std::string& key, const st
 	return str;
 }
 
-std::string StringUtils::transform(const std::string& str, const std::map<char, std::string>& transMap) noexcept {
+string transform(const string& str, const map<char, string>& transMap) noexcept {
 	string res{};
 	for (const auto& c : str) {
 		auto transEntry = transMap.find(c);
@@ -119,10 +120,8 @@ std::string StringUtils::transform(const std::string& str, const std::map<char, 
 	return res;
 }
 
-std::map<std::string, std::string> StringUtils::parseKeyValue(const std::string& toParse,
-                                                              const char lineDelimiter,
-                                                              const char delimiter,
-                                                              const char comment) {
+map<string, string>
+parseKeyValue(const string& toParse, const char lineDelimiter, const char delimiter, const char comment) {
 	map<string, string> kvMap;
 	istringstream values(toParse);
 
@@ -147,14 +146,14 @@ std::map<std::string, std::string> StringUtils::parseKeyValue(const std::string&
 	return kvMap;
 }
 
-bool StringUtils::iequals(string_view a, string_view b) {
-	return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
+bool iequals(string_view a, string_view b) {
+	return equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
 		return tolower(static_cast<unsigned char>(a)) == tolower(static_cast<unsigned char>(b));
 	});
 }
 
 #ifdef HAVE_LIBLINPHONECXX
-std::optional<linphone::MediaEncryption> StringUtils::string2MediaEncryption(const std::string& str) {
+optional<linphone::MediaEncryption> string2MediaEncryption(const string& str) {
 	using enc = linphone::MediaEncryption;
 	if (str == "zrtp") {
 		return enc::ZRTP;
@@ -171,3 +170,12 @@ std::optional<linphone::MediaEncryption> StringUtils::string2MediaEncryption(con
 	return {};
 }
 #endif // HAVE_LIBLINPHONECXX
+
+bool startsWith(const std::string_view& str, const std::string_view& prefix) noexcept {
+	// https://stackoverflow.com/a/40441240
+	return str.rfind(prefix, 0) == 0;
+}
+bool endsWith(const std::string& str, const std::string& suffix) noexcept {
+	return str.size() >= suffix.size() && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+} // namespace flexisip::string_utils

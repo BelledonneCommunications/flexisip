@@ -159,7 +159,7 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 	list<string>::const_iterator cfg_it;
 
 	for (const auto& configName : config) {
-		auto splitConfigName = StringUtils::splitOnce(configName, "/");
+		auto splitConfigName = string_utils::splitOnce(configName, "/");
 		if (!splitConfigName.has_value()) {
 			LOGF("Error parsing audio codec list, no '/' found in config name");
 		}
@@ -173,7 +173,7 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 		if (ec == std::errc::result_out_of_range)
 			LOGF("Error parsing audio codec list, rate information is larger than int integer");
 		for (auto* pt : l) {
-			if (StringUtils::iequals(pt->mime_type, name) && rate == pt->clock_rate) {
+			if (string_utils::iequals(pt->mime_type, name) && rate == pt->clock_rate) {
 				if (ms_factory_codec_supported(mFactory, pt->mime_type) ||
 				    strcmp("telephone-event", pt->mime_type) == 0) {
 					ret.push_back(pt);
