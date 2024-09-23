@@ -15,32 +15,13 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/assertion-debug-print.hh"
 
 namespace flexisip::tester {
 namespace {
 using namespace std;
 using namespace b2bua;
 using namespace b2bua::bridge;
-
-template <typename T>
-ostream& operator<<(ostream& stream, const unordered_set<T>& set) {
-	stream << "std::unordered_set{";
-	if (set.empty()) {
-		return stream << "∅}";
-	}
-
-	constexpr auto printUpToExcluding = 5;
-	auto printed = 0;
-	for (auto iter = set.begin(); (printed < printUpToExcluding) && iter != set.end(); iter++, printed++) {
-		stream << "\n\t" << *iter;
-	}
-	const auto remaining = set.size() - printed;
-	if (0 < remaining) {
-		stream << "\n\t... and " << remaining << " more elements";
-	}
-
-	return stream << "\n}";
-}
 
 /** Attempt to load the given amount of accounts into a linphone::Core.
  *  Fail if it took more the given amount of milliseconds

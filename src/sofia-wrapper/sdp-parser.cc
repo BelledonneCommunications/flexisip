@@ -79,8 +79,10 @@ SdpAttribute* SdpAttribute::wrap(::sdp_attribute_t* raw) {
 	return static_cast<SdpAttribute*>(raw);
 }
 
-SdpMediaList SdpSession::medias() {
-	return SdpMediaList(sdp_media);
+SdpRtpmap* SdpRtpmap::wrap(SdpRtpmap::SofiaType* raw) {
+	static_assert(sizeof(SdpRtpmap) == sizeof(*raw),
+	              "You cannot add members to an SdpRtpmap. It is meant as a transparent wrapper.");
+	return static_cast<SdpRtpmap*>(raw);
 }
 
 SdpConnection& SdpSession::connection() {

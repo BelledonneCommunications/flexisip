@@ -58,10 +58,7 @@ public:
 	/**
 	 * Compare string a and string b ignoring case.
 	 */
-	static bool iequals(const std::string& a, const std::string& b) {
-		return std::equal(a.begin(), a.end(), b.begin(), b.end(),
-		                  [](char a, char b) { return tolower(a) == tolower(b); });
-	}
+	static bool iequals(std::string_view a, std::string_view b);
 
 	/* Remove the surrounding given character, if present. */
 	static std::string strip(const char* str, char c) noexcept;

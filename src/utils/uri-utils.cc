@@ -72,15 +72,17 @@ std::string UriUtils::grToUniqueId(const std::string& gr) noexcept {
 }
 
 std::optional<std::string> UriUtils::getConferenceId(const url_t& url) noexcept {
+	using namespace flexisip;
+
 	// Before Flexisip 2.5, chatroom uris all started with the conference::CHATROOM_PREFIX prefix followed by a random
 	// sequence of characters. From Flexisip 2.5 onward, chatrooms can be identified from each other by the
 	// conference::CONFERENCE_ID uri parameter that must be unique.
 	std::optional<std::string> conferenceId;
-	auto chatRoomId{StringUtils::removePrefix(url.url_user, flexisip::conference::CHATROOM_PREFIX)};
+	auto chatRoomId{string_utils::removePrefix(url.url_user, conference::CHATROOM_PREFIX)};
 	if (chatRoomId) {
 		conferenceId = chatRoomId;
 	} else if (url.url_params) {
-		auto value = UriUtils::getParamValue(url.url_params, flexisip::conference::CONFERENCE_ID, "");
+		auto value = UriUtils::getParamValue(url.url_params, conference::CONFERENCE_ID, "");
 		if (!value.empty()) {
 			conferenceId = value;
 		}

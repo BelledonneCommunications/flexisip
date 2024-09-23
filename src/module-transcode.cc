@@ -24,6 +24,10 @@
 #include "module-toolbox.hh"
 #include "transaction/outgoing-transaction.hh"
 
+#ifdef ENABLE_TRANSCODER
+#include "sdp-modifier.hh"
+#endif
+
 using namespace std;
 using namespace flexisip;
 
@@ -144,6 +148,8 @@ Transcoder::Transcoder(Agent* ag, const ModuleInfoBase* moduleInfo)
 
 Transcoder::~Transcoder() {
 	if (mTimer) getAgent()->stopTimer(mTimer);
+	// Prevent double-free by deleting calls before factory
+	mCalls = {};
 	if (mFactory) {
 		ms_factory_destroy(mFactory);
 	}
@@ -154,11 +160,11 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 	list<string>::const_iterator cfg_it;
 
 	for (const auto& configName : config) {
-		auto splitedConfigName = StringUtils::splitOnce(configName, "/");
-		if (!splitedConfigName.has_value()) {
+		auto splitConfigName = StringUtils::splitOnce(configName, "/");
+		if (!splitConfigName.has_value()) {
 			LOGF("Error parsing audio codec list, no '/' found in config name");
 		}
-		const auto& [name, rateString] = *splitedConfigName;
+		const auto& [name, rateString] = *splitConfigName;
 		if (name.empty()) LOGF("Error parsing audio codec list, missing name information");
 		if (rateString.empty()) LOGF("Error parsing audio codec list, missing rate information");
 		int rate{};
@@ -168,12 +174,12 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 		if (ec == std::errc::result_out_of_range)
 			LOGF("Error parsing audio codec list, rate information is larger than int integer");
 		for (auto* pt : l) {
-			if (pt->mime_type == name && rate == pt->clock_rate) {
+			if (StringUtils::iequals(pt->mime_type, name) && rate == pt->clock_rate) {
 				if (ms_factory_codec_supported(mFactory, pt->mime_type) ||
 				    strcmp("telephone-event", pt->mime_type) == 0) {
 					ret.push_back(pt);
 				} else {
-					SLOGE << "Codec" << name << "/" << rate << " is configured but is not supported (missing plugin ?)";
+					SLOGE << "Codec " << name << "/" << rate << " is configured but is not supported (missing plugin ?)";
 				}
 			}
 		}
@@ -495,6 +501,10 @@ void Transcoder::onTimer() {
 
 void Transcoder::sOnTimer([[maybe_unused]] void* unused, [[maybe_unused]] su_timer_t* t, void* zis) {
 	((Transcoder*)zis)->onTimer();
+}
+
+const std::list<const PayloadType*>& flexisip::Transcoder::getSupportedPayloads() const {
+	return castToConst(mSupportedAudioPayloads);
 }
 
 #endif

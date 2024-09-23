@@ -92,7 +92,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 		if (!regex_match(configDesc, res, regEx))
 			throw BadConfiguration(configField->getCompleteName() + " (" + configDesc +
 			                       ") does not have the expected format.");
-		const auto& codec = res[1];
+		const auto& codec = res[1].str();
 		string rate;
 		if (res.size() == 3) rate = res[2];
 
