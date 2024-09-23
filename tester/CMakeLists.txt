@@ -223,6 +223,12 @@ if(ENABLE_B2BUA)
 	)
 endif()
 
+if(ENABLE_TRANSCODER)
+	target_sources(flexisip_tester PRIVATE
+		tests/module-transcode-tester.cc
+	)
+endif()
+
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
 	Boost::system

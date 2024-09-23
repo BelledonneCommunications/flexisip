@@ -36,7 +36,9 @@ MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
 
 MsgSip::MsgSip(int flags, std::string_view msg) : mMsg(msg_make(sip_default_mclass(), flags, msg.data(), msg.size())) {
 	if (!mMsg || msg_has_error(mMsg)) {
-		throw runtime_error("Error during message parsing from string_view: \n"s + msg.data());
+		auto error = std::runtime_error("Error during message parsing from string_view:\n'"s + msg.data() + "'");
+		msg_destroy(mMsg.take());
+		throw error;
 	}
 }
 

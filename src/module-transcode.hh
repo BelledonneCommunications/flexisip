@@ -33,7 +33,6 @@
 
 #ifdef ENABLE_TRANSCODER
 #include "callcontext-transcoder.hh"
-#include "sdp-modifier.hh"
 #endif
 
 namespace flexisip {
@@ -75,6 +74,10 @@ public:
 	virtual void onRequest(std::shared_ptr<RequestSipEvent>& ev);
 	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev);
 	virtual void onIdle();
+
+#ifdef ENABLE_TRANSCODER
+	const std::list<const PayloadType*>& getSupportedPayloads() const;
+#endif
 
 private:
 	Transcoder(Agent* ag, const ModuleInfoBase* moduleInfo);

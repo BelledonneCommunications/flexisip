@@ -17,6 +17,7 @@
 #pragma once
 
 #include <array>
+#include <list>
 #include <map>
 #include <memory>
 #include <type_traits>
@@ -48,6 +49,11 @@ struct add_interior_const<Tmpl<Args...>> {
 };
 
 template <typename T>
+struct add_interior_const<T*> {
+	using type = std::add_pointer_t<std::add_const_t<add_interior_const_t<T>>>;
+};
+
+template <typename T>
 struct add_interior_const<std::unique_ptr<T>> {
 	using type = std::unique_ptr<std::add_const_t<add_interior_const_t<T>>>;
 };
@@ -65,6 +71,11 @@ struct add_interior_const<std::shared_ptr<T>> {
 template <typename T, std::size_t S>
 struct add_interior_const<std::array<T, S>> {
 	using type = std::array<add_interior_const_t<T>, S>;
+};
+
+template <typename T>
+struct add_interior_const<std::list<T>> {
+	using type = std::list<add_interior_const_t<T>>;
 };
 
 template <typename T>

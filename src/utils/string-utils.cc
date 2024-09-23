@@ -147,6 +147,12 @@ std::map<std::string, std::string> StringUtils::parseKeyValue(const std::string&
 	return kvMap;
 }
 
+bool StringUtils::iequals(string_view a, string_view b) {
+	return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
+		return tolower(static_cast<unsigned char>(a)) == tolower(static_cast<unsigned char>(b));
+	});
+}
+
 #ifdef HAVE_LIBLINPHONECXX
 std::optional<linphone::MediaEncryption> StringUtils::string2MediaEncryption(const std::string& str) {
 	using enc = linphone::MediaEncryption;
