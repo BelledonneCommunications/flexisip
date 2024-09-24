@@ -25,6 +25,7 @@
 
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
+#include "utils/media/media.hh"
 
 namespace flexisip::b2bua {
 
@@ -95,13 +96,11 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	const int audioPortMin = config.get<ConfigIntRange>("audio-port")->readMin();
 	const int audioPortMax = config.get<ConfigIntRange>("audio-port")->readMax();
-	core->setAudioPort(audioPortMin == audioPortMax ? audioPortMin : -1);
-	core->setAudioPortRange(audioPortMin, audioPortMax);
+	setMediaPort(audioPortMin, audioPortMax, *core, &linphone::Core::setAudioPort, &linphone::Core::setAudioPortRange);
 
 	const int videoPortMin = config.get<ConfigIntRange>("video-port")->readMin();
 	const int videoPortMax = config.get<ConfigIntRange>("video-port")->readMax();
-	core->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
-	core->setVideoPortRange(videoPortMin, videoPortMax);
+	setMediaPort(videoPortMin, videoPortMax, *core, &linphone::Core::setVideoPort, &linphone::Core::setVideoPortRange);
 
 	const auto* noRTPTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
 	const auto noRTPTimeout = noRTPTimeoutParameter->read();

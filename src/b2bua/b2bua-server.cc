@@ -333,7 +333,7 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    {
 	        String,
 	        "application",
-	        "The type of application that will handle calls bridged through the B2BUA. Possible values:\n"
+	        "The type of application that will handle calls bridged through the server. Possible values:\n"
 	        "- `trenscrypter` Bridge different encryption types on both ends transparently.\n"
 	        "- `sip-bridge` Bridge calls through an external SIP provider. (e.g. for PSTN gateways)",
 	        "trenscrypter",
@@ -341,22 +341,24 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    {
 	        String,
 	        "transport",
-	        "SIP uri on which the back-to-back user agent server is listening on.",
+	        "Unique SIP URI on which the server is listening.",
 	        "sip:127.0.0.1:6067;transport=tcp",
 	    },
 	    {
 	        IntegerRange,
 	        "audio-port",
-	        "Audio port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
-	        "Examples: 'audio-port=12345' or 'audio-port=1024-65535'",
-	        "1024-65535",
+	        "Audio port to use for RTP and RTCP traffic. You can set a specific port, a range of ports or let the "
+	        "server ask the kernel for an available port (special value: 0).\n"
+	        "Examples: 'audio-port=0' or 'audio-port=12345' or 'audio-port=1024-65535'",
+	        "0",
 	    },
 	    {
 	        IntegerRange,
 	        "video-port",
-	        "Video port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
-	        "Examples: 'video-port=12345' or 'video-port=1024-65535'",
-	        "1024-65535",
+	        "Video port to use for RTP and RTCP traffic. You can set a specific port, a range of ports or let the "
+	        "server ask the kernel for an available port (special value: 0).\n"
+	        "Examples: 'video-port=0' or 'video-port=12345' or 'video-port=1024-65535'",
+	        "0",
 	    },
 	    {
 	        String,
@@ -368,50 +370,48 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    {
 	        String,
 	        "data-directory",
-	        "Directory where to store b2bua core local files\n"
-	        "Default",
+	        "Directory where to store server local files\n",
 	        DEFAULT_B2BUA_DATA_DIR,
 	    },
 	    {
 	        String,
 	        "outbound-proxy",
-	        "The Flexisip proxy URI to which the B2bua server should send all its outgoing SIP requests.",
+	        "The SIP proxy URI to which the server will send all outgoing requests.",
 	        "sip:127.0.0.1:5060;transport=tcp",
 	    },
 	    {
 	        DurationS,
 	        "no-rtp-timeout",
-	        "Duration after which the B2BUA will terminate a call if no RTP packets are received from the other call "
-	        "participant.",
+	        "Duration after which the server will terminate a call if no RTP packets are received from the other call "
+	        "participant. For performance reasons, this parameter cannot be disabled.",
 	        "30",
 	    },
 	    {
 	        DurationS,
 	        "max-call-duration",
-	        "Any call bridged through the B2BUA that has been running for longer than this amount of seconds will be "
-	        "terminated. Set to 0 to disable and let calls run unbounded.",
+	        "The server will terminate any bridged call that has been running for longer than this amount of time.\n"
+	        "Set to 0 to disable and let calls run unbounded.",
 	        "0",
 	    },
 	    {
 	        String,
 	        "video-codec",
-	        "When not null, force outgoing video call to use the specified codec.\n"
-	        "Warning: all outgoing calls will list only this codec, which means incoming calls must use it too.",
+	        "Force outgoing video call to use the specified codec. Leave empty to disable this feature.\n"
+	        "Warning: all outgoing calls will only list this codec, which means incoming calls must use it too.",
 	        "",
 	    },
 	    {
 	        Boolean,
 	        "one-connection-per-account",
-	        "Make the B2BUA use a separate connection (port) for each (external) account it manages. This can be used "
-	        "to "
-	        "work around DoS protection and rate-limiting systems on external proxies.",
+	        "The server shall use a separate connection (port) for each (external) account it manages.\n"
+	        "This can be used to work around DoS protection and rate-limiting systems on external proxies.",
 	        "false",
 	    },
 	    config_item_end,
 	};
 
-	root.addChild(
-	        make_unique<GenericStruct>(b2bua::configSection, "Flexisip back-to-back user agent server parameters.", 0))
+	root.addChild(make_unique<GenericStruct>(b2bua::configSection,
+	                                         "Flexisip back-to-back user agent (B2BUA) server parameters.", 0))
 	    ->addChildrenValues(items);
 });
 
