@@ -31,6 +31,7 @@
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registration-events/client.hh"
+#include "utils/media/media.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -155,13 +156,11 @@ void ConferenceServer::_init() {
 
 	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
 	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
-	mCore->setAudioPort(audioPortMin == audioPortMax ? audioPortMin : -1);
-	mCore->setAudioPortRange(audioPortMin, audioPortMax);
+	setMediaPort(audioPortMin, audioPortMax, *mCore, &linphone::Core::setAudioPort, &linphone::Core::setAudioPortRange);
 
 	const int videoPortMin = config->get<ConfigIntRange>("video-port")->readMin();
 	const int videoPortMax = config->get<ConfigIntRange>("video-port")->readMax();
-	mCore->setVideoPort(videoPortMin == videoPortMax ? videoPortMin : -1);
-	mCore->setVideoPortRange(videoPortMin, videoPortMax);
+	setMediaPort(videoPortMin, videoPortMax, *mCore, &linphone::Core::setVideoPort, &linphone::Core::setVideoPortRange);
 
 	mCore->setUseFiles(true); // No sound card shall be used in calls.
 	/*
@@ -396,11 +395,11 @@ void ConferenceServer::bindAddresses() {
 	if (mMediaConfig.textEnabled) {
 		// Binding loaded chat room
 		for (const auto& chatRoom : mCore->getChatRooms()) {
-			const auto &peerAddress = chatRoom->getPeerAddress();
+			const auto& peerAddress = chatRoom->getPeerAddress();
 			// If the peer address is not one of the focus uris
-			if (std::find_if(mConfServerUris.cbegin(), mConfServerUris.cend(), [&peerAddress] (const auto &p) {
-				return peerAddress->weakEqual(linphone::Factory::get()->createAddress(p.second));
-			}) == mConfServerUris.cend()) {
+			if (std::find_if(mConfServerUris.cbegin(), mConfServerUris.cend(), [&peerAddress](const auto& p) {
+				    return peerAddress->weakEqual(linphone::Factory::get()->createAddress(p.second));
+			    }) == mConfServerUris.cend()) {
 				bindChatRoom(peerAddress->asStringUriOnly(), mTransport.str(), nullptr);
 			}
 		}
@@ -544,127 +543,189 @@ namespace {
 // Statically define default configuration items
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {Boolean, "enabled",
-	     "Enable conference server", /* Do we need this ? The systemd enablement should be sufficient. */
-	     "true"},
-	    {String, "transport", "URI where the conference server must listen. Only one URI can be specified.",
-	     "sip:127.0.0.1:6064;transport=tcp"},
-	    {StringList, "conference-factory-uris",
-	     "List of SIP URIs used by clients to create a conference. This implicitely defines the list of SIP domains "
-	     "managed by the conference server. For example:\n"
-	     "conference-factory-uris=sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org",
-	     ""},
-	    {StringList, "conference-focus-uris",
-	     "List of respective template SIP focus URIs to use for conferences created by the factory URIs given in "
-	     "'conference-factory-uris'. "
-	     "The focus URIs are unique SIP URIs targeting a specific conference. A 'conf-id' URI parameter providing "
-	     "uniqueness is automatically "
-	     "appended at runtime. For example, setting:\n"
-	     "conference-focus-uris=sip:conference-focus@sip.linphone.org\n"
-	     "causes the conference server to generate conference URIs in the form of "
-	     "'sip:conference-focus@sip.linphone.org;conf-id=<something random>' "
-	     "when requested to create a conference. ",
-	     ""},
-	    {String, "outbound-proxy",
-	     "The SIP proxy URI to which the conference server should sent all its outgoing SIP requests.",
-	     "sip:127.0.0.1:5060;transport=tcp"},
-	    {StringList, "local-domains",
-	     "Domains managed by the local SIP service, ie domains for which user registration information "
-	     "can be found directly from the local registrar database (redis database). "
-	     "For external domains (not in this list), a 'reg' SUBSCRIBE (RFC3680) will be emitted."
-	     "It is not necessary to list here domains that appear in the 'conference-factory-uris' property. "
-	     "They are assumed to be local domains already.\n"
-	     "Ex: local-domains=sip.linphone.org conf.linphone.org linhome.org",
-	     ""},
-	    {IntegerRange, "audio-port",
-	     "Audio port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
-	     "Examples: 'audio-port=12345' or 'audio-port=1024-65535'",
-	     "1024-65535"},
-	    {IntegerRange, "video-port",
-	     "Video port to use for RTP and RTCP traffic. You can set a specific port or a range of ports.\n"
-	     "Examples: 'video-port=12345' or 'video-port=1024-65535'",
-	     "1024-65535"},
-	    {String, "database-backend",
-	     "Choose the type of database backend that the conference server will use persistency of chatrooms and "
-	     "conferences data.\n"
-	     "Provided that the requested Soci modules are installed, the supported database backends are: "
-	     "`mysql`, `sqlite3`",
-	     "mysql"},
-	    {String, "database-connection-string",
-	     "The configuration parameters of the database backend used for persistency of chatrooms and conference data.\n"
-	     "The basic format is \"key=value key2=value2\". For a MySQL backend, this "
-	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-	     "Please refer to the Soci documentation of your backend, for instance: "
-	     "http://soci.sourceforge.net/doc/3.2/backends/mysql.html"
-	     "http://soci.sourceforge.net/doc/3.2/backends/sqlite3.html",
-	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
-	    {Boolean, "check-capabilities",
-	     "Whether the conference server shall check device capabilities before inviting them to a session.\n"
-	     "The capability check is currently limited to Linphone client that put a +org.linphone.specs contact parameter"
-	     " in order to indicate whether they support group chat and secured group chat.",
-	     "true"},
-	    {StringList, "supported-media-types",
-	     "List of media supported by the conference server. This typically allows to specify whether this conference "
-	     "server "
-	     "instance is able to provide chat service or audio/video conference service, or both."
-	     "Valid values are: audio, video and text. For example:\n"
-	     "supported-media-types=audio video text",
-	     "text"},
-	    {String, "media-engine-type",
-	     "Choose the media engine that will be used by the conference server.\n"
-	     "In mixer mode, the conference server will mix the audio streams and handle any necessary modification to the "
-	     "streams before sending data.\n"
-	     "In SFU mode, all streams are simply forwarded to destination without any modification. This is the required "
-	     "mode if you want end to end encryption.\n"
-	     "Valid values are: mixer and sfu.",
-	     "mixer"},
-	    {String, "encryption",
-	     "The media encryption the conference server will offer when calling participants to an audio or video "
-	     "conference .\n"
-	     "Valid values are: none, sdes, zrtp and dtls.",
-	     "none"},
-	    {StringList, "nat-addresses",
-	     "Public host name or IP addresses of the conference server machine. Configuring this property is required "
-	     "when the conference server "
-	     "is deployed behind a firewall, so that the public IP address (v4, v6) can be advertised in SDP, as ICE "
-	     "server-reflexive candidates in order for the conference server to receive RTP media packets from clients. "
-	     "If no hostname is given, the v4 and v6 IP address can be listed separated by whitespaces, in any order. It "
-	     "is not possible "
-	     " to configure several v4 addresses or several v6 addresses."
-	     "For example:\n"
-	     "nat-addresses=conference.linphone.org\n"
-	     "nat-addresses=5.135.31.160   2001:41d0:303:3aee::1",
-	     ""},
-	    {Boolean, "empty-chat-room-deletion",
-	     "Whether the conference server will delete chat rooms that have no participants registered.\n", "true"},
-	    {String, "state-directory", "Directory where the conference server state files are stored.\n", DEFAULT_LIB_DIR},
+	    {
+	        Boolean,
+	        "enabled",
+	        "Enable conference server", /* Do we need this ? The systemd enablement should be sufficient. */
+	        "true",
+	    },
+	    {
+	        String,
+	        "transport",
+	        "Unique SIP URI on which the server is listening.",
+	        "sip:127.0.0.1:6064;transport=tcp",
+	    },
+	    {
+	        StringList,
+	        "conference-factory-uris",
+	        "List of SIP URIs used by clients to create conferences. This implicitly defines the list of SIP domains "
+	        "managed by the conference server. Example:\n"
+	        "sip:conference-factory@sip.linphone.org sip:conference-factory@sip.linhome.org",
+	        "",
+	    },
+	    {
+	        StringList,
+	        "conference-focus-uris",
+	        "List of template focus URIs to use when conferences are created through the conference factory.\n"
+	        "Focus URIs are unique SIP URIs targeting a specific conference. A 'conf-id' URI parameter providing "
+	        "uniqueness is automatically appended at runtime. Example, setting:\n"
+	        "conference-focus-uris=sip:conference-focus@sip.linphone.org\n"
+	        "instructs the server to generate conference URIs in the form of "
+	        "'sip:conference-focus@sip.linphone.org;conf-id=<random string>'\n"
+	        "when a client requests to create a conference.",
+	        "",
+	    },
+	    {
+	        String,
+	        "outbound-proxy",
+	        "The SIP proxy URI to which the server will send all outgoing requests.",
+	        "sip:127.0.0.1:5060;transport=tcp",
+	    },
+	    {
+	        StringList,
+	        "local-domains",
+	        "Domains managed by the local SIP service, i.e. domains for which user registration information "
+	        "can be found directly in the local registrar database (Redis database).\n"
+	        "For external domains (not in this list), a 'reg' SUBSCRIBE (RFC3680) will be emitted. "
+	        "It is not necessary to list domains that appear in the 'conference-factory-uris' property. "
+	        "They are assumed to be local domains already.\n"
+	        "Example: sip.linphone.org conf.linphone.org linhome.org",
+	        "",
+	    },
+	    {
+	        IntegerRange,
+	        "audio-port",
+	        "Audio port to use for RTP and RTCP traffic. You can set a specific port, a range of ports or let the "
+	        "server ask the kernel for an available port (special value: 0).\n"
+	        "Examples: 'audio-port=0' or 'audio-port=12345' or 'audio-port=1024-65535'",
+	        "0",
+	    },
+	    {
+	        IntegerRange,
+	        "video-port",
+	        "Video port to use for RTP and RTCP traffic. You can set a specific port, a range of ports or let the "
+	        "server ask the kernel for an available port (special value: 0).\n"
+	        "Examples: 'video-port=0' or 'video-port=12345' or 'video-port=1024-65535'",
+	        "0",
+	    },
+	    {
+	        String,
+	        "database-backend",
+	        "Type of database the server will use to store chat room and conference data. Provided that the required "
+	        "Soci modules are installed, the supported databases are: `mysql`, `sqlite3`",
+	        "mysql",
+	    },
+	    {
+	        String,
+	        "database-connection-string",
+	        "Configuration parameters of the database to store chat room and conference data.\n"
+	        "The basic format is \"key=value key2=value2\"."
+	        "For MySQL, the following is a valid configuration: db='mydb' user='myuser' password='mypass' "
+	        "host='myhost.com'.\n"
+	        "Please refer to the Soci documentation of your selected backend:\n"
+	        "https://soci.sourceforge.net/doc/release/3.2/backends/mysql.html\n"
+	        "https://soci.sourceforge.net/doc/release/3.2/backends/sqlite3.html",
+	        "db='mydb' user='myuser' password='mypass' host='myhost.com'",
+	    },
+	    {
+	        Boolean,
+	        "check-capabilities",
+	        "True to make the server check device capabilities before inviting them to a session.\n"
+	        "The capability check is currently limited to Linphone clients that put a '+org.linphone.specs' contact "
+	        "parameter. This parameter indicates whether they support group chat and secured group chat or not.",
+	        "true",
+	    },
+	    {
+	        StringList,
+	        "supported-media-types",
+	        "List of media types supported by the server.\n"
+	        "This allows to specify if this instance is able to provide chat services or audio/video conference "
+	        "services, or both.\n"
+	        "Valid values: audio, video, text.\n"
+	        "Example: audio video text",
+	        "text",
+	    },
+	    {
+	        String,
+	        "media-engine-type",
+	        "Type of media engine to use.\n"
+	        "In mixer mode, the server will mix audio streams and handle any necessary modification to the streams "
+	        "before sending data.\n"
+	        "In SFU mode, all streams are simply forwarded to destinations without any modification. This is the mode "
+	        "required for end to end encryption.\n"
+	        "Valid values: mixer, sfu.",
+	        "mixer",
+	    },
+	    {
+	        String,
+	        "encryption",
+	        "Type of media encryption the server will offer when calling participants to an audio or video "
+	        "conference.\n"
+	        "Valid values: none, sdes, zrtp, dtls.",
+	        "none",
+	    },
+	    {
+	        StringList,
+	        "nat-addresses",
+	        "Public host name or IP addresses of the server.\n"
+	        "Setting this parameter is required when the conference server is deployed behind a firewall. This way, "
+	        "public IP address (v4, v6) can be advertised in SDP, as ICE server-reflexive candidates in order for the "
+	        "server to receive RTP media packets from clients.\n"
+	        "If no hostname is given, the v4 and v6 IP addresses can be listed, in any order. It is not possible to "
+	        "configure several v4 addresses or several v6 addresses.\n"
+	        "Example:\n"
+	        "nat-addresses=conference.linphone.org\n"
+	        "nat-addresses=5.135.31.160   2001:41d0:303:3aee::1",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "empty-chat-room-deletion",
+	        "Server shall delete chat rooms that have no registered participants.",
+	        "true",
+	    },
+	    {
+	        String,
+	        "state-directory",
+	        "Directory where the server state files are stored.\n",
+	        DEFAULT_LIB_DIR,
+	    },
+	    {
+	        DurationS,
+	        "call-timeout",
+	        "Server will kill all incoming calls that last longer than the defined value.\n"
+	        "Special value 0 disables this feature.",
+	        "0",
+	    },
 
-	    // Deprecated paramters:
-	    {String, "conference-factory-uri",
-	     "uri where the client must ask to create a conference. For example:\n"
-	     "conference-factory-uri=sip:conference-factory@sip.linphone.org",
-	     ""},
-	    {Boolean, "enable-one-to-one-chat-room", "Whether one-to-one chat room creation is allowed or not.", "true"},
-	    {DurationS, "call-timeout",
-	     "Call timeout.\n"
-	     "This settings allows the conference server to kill all incoming calls that last longer than the call-timeout "
-	     "setting.\n"
-	     "A value of 0 prevents the conference server to kill any call due to this timeout",
-	     "0"},
-	    config_item_end};
+	    // Deprecated parameters:
+	    {
+	        String,
+	        "conference-factory-uri",
+	        "uri where the client must ask to create a conference. For example:\n"
+	        "conference-factory-uri=sip:conference-factory@sip.linphone.org",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "enable-one-to-one-chat-room",
+	        "Whether one-to-one chat room creation is allowed or not.",
+	        "true",
+	    },
+	    config_item_end,
+	};
 
 	auto uS = make_unique<GenericStruct>(
 	    "conference-server",
 	    "Flexisip conference server parameters.\n"
-	    "The Flexisip conference server is in charge of groupchat and audio/video conferences."
-	    "It follows the concepts of RFC4579 for conference establishment and management, and as such factory and focus "
-	    "URIs must be configured.\n"
-	    "It requires a MariaDB/MySQL database in order to persistently store chatroom or conference state "
-	    "(participants and their devices). "
-	    "For chat, it requires the Registrar backend (see section module::Registrar) to discover devices (or client "
-	    "instances) "
-	    "of each participant, which creates an explicit dependency on Flexisip proxy server.\n"
-	    "This dependency is not required for audio/video conferences.",
+	    "The Flexisip conference server manages group chat and audio/video conferences.\n"
+	    "It follows the concepts of RFC4579 for conference establishment and management. Factory and focus URIs must "
+	    "be configured.\n"
+	    "The server requires a MariaDB/MySQL database in order to store chatroom or conference states (participants "
+	    "and their devices).\n"
+	    "For chatting capabilities, the server requires a Registrar backend (see section module::Registrar) to "
+	    "discover devices (or client instances) of each participant. This requirement creates an explicit dependency "
+	    "on the Flexisip proxy server. Please note that this dependency is not required for audio/video conferences.",
 	    0);
 	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
