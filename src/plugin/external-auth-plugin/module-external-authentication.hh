@@ -48,7 +48,6 @@ private:
 	void onSuccess(const FlexisipAuthStatus& as) override;
 	void errorReply(const FlexisipAuthStatus& as) override;
 
-	std::map<nth_client_t*, std::shared_ptr<RequestSipEvent>> mPendingEvent;
 	std::string mRemoteUri;
 };
 

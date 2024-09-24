@@ -216,31 +216,6 @@ void ForkMessageContext::onAcceptanceTimer() {
 	mAcceptanceTimer.reset(nullptr);
 }
 
-bool isMessageARCSFileTransferMessage(shared_ptr<RequestSipEvent>& ev) {
-	sip_t* sip = ev->getSip();
-
-	if (sip->sip_content_type && sip->sip_content_type->c_type &&
-	    strcasecmp(sip->sip_content_type->c_type, "application/vnd.gsma.rcs-ft-http+xml") == 0) {
-		return true;
-	}
-	return false;
-}
-
-bool isConversionFromRcsToExternalBodyUrlNeeded(shared_ptr<ExtendedContact>& ec) {
-	list<string> acceptHeaders = ec->mAcceptHeader;
-	if (acceptHeaders.size() == 0) {
-		return true;
-	}
-
-	for (auto it = acceptHeaders.begin(); it != acceptHeaders.end(); ++it) {
-		string header = *it;
-		if (header.compare("application/vnd.gsma.rcs-ft-http+xml") == 0) {
-			return false;
-		}
-	}
-	return true;
-}
-
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 	if (br->mUid.size() > 0) {
 		/*check for a branch already existing with this uid, and eventually clean it*/

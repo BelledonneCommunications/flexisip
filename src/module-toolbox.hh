@@ -35,7 +35,6 @@ namespace flexisip {
 class ModuleToolbox {
 public:
 	static msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm);
-	static const tport_t* getIncomingTport(const std::shared_ptr<RequestSipEvent>& ev, Agent* agent);
 
 	static void
 	addRecordRouteIncoming(Agent* agent, const std::shared_ptr<RequestSipEvent>& ev, const Flow::Token& token = "");
