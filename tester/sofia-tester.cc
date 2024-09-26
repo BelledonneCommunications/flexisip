@@ -36,6 +36,9 @@
 #include "utils/server/tls-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tls/certificate.hh"
+#include "utils/tls/private-key.hh"
+#include "utils/tmp-dir.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
@@ -246,6 +249,110 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	    2s));
 }
 
+void updateTlsCertificate() {
+	auto dir = TmpDir("certs-");
+	const auto keyPath = dir.path() / "key.pem";
+	const auto certPath = dir.path() / "cert.pem";
+	const TlsPrivateKey privateKey{};
+	privateKey.writeToFile(keyPath);
+	const TlsCertificate cert{privateKey};
+	cert.writeToFile(certPath);
+	const auto ciphers = "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL";
+	const auto policy = SSL_VERIFY_NONE;
+
+	Server proxy{{
+	    {"global/transports", "sips:127.0.0.1:0"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"global/tls-certificates-check-interval", "1min"},
+	    {"global/tls-certificates-file", certPath},
+	    {"global/tls-certificates-private-key", keyPath},
+	    {"global/tls-ciphers", ciphers},
+	}};
+	proxy.start();
+
+	const auto proxyUri = "sips:127.0.0.1:"s + proxy.getFirstPort();
+	Url url{proxyUri};
+
+	// No changes
+	{
+		auto error = nta_agent_update_tport_certificates(
+		    proxy.getAgent()->getSofiaAgent(), (const url_string_t*)url.get(), TPTAG_CERTIFICATE_FILE(certPath.c_str()),
+		    TPTAG_CERTIFICATE_PRIVATE_KEY(keyPath.c_str()), TPTAG_TLS_PASSPHRASE(""), TPTAG_TLS_CIPHERS(ciphers),
+		    TPTAG_TLS_VERIFY_POLICY(policy), TAG_END());
+		BC_ASSERT_CPP_EQUAL(error, 0);
+	}
+	{
+		// Mismatch the key
+		const TlsPrivateKey newKey{};
+		newKey.writeToFile(keyPath);
+
+		auto error = nta_agent_update_tport_certificates(
+		    proxy.getAgent()->getSofiaAgent(), (const url_string_t*)url.get(), TPTAG_CERTIFICATE_FILE(certPath.c_str()),
+		    TPTAG_CERTIFICATE_PRIVATE_KEY(keyPath.c_str()), TPTAG_TLS_PASSPHRASE(""), TPTAG_TLS_CIPHERS(ciphers),
+		    TPTAG_TLS_VERIFY_POLICY(policy), TAG_END());
+		BC_ASSERT_CPP_NOT_EQUAL(error, 0);
+
+		// New certificate matching the key
+		const TlsCertificate newCert{newKey};
+		newCert.writeToFile(certPath);
+
+		error = nta_agent_update_tport_certificates(
+		    proxy.getAgent()->getSofiaAgent(), (const url_string_t*)url.get(), TPTAG_CERTIFICATE_FILE(certPath.c_str()),
+		    TPTAG_CERTIFICATE_PRIVATE_KEY(keyPath.c_str()), TPTAG_TLS_PASSPHRASE(""), TPTAG_TLS_CIPHERS(ciphers),
+		    TPTAG_TLS_VERIFY_POLICY(policy), TAG_END());
+		BC_ASSERT_CPP_EQUAL(error, 0);
+	}
+	// Mismatch the certificate
+	{
+		const TlsPrivateKey anotherKey{};
+		const TlsCertificate newCert{anotherKey};
+		newCert.writeToFile(certPath);
+
+		auto error = nta_agent_update_tport_certificates(
+		    proxy.getAgent()->getSofiaAgent(), (const url_string_t*)url.get(), TPTAG_CERTIFICATE_FILE(certPath.c_str()),
+		    TPTAG_CERTIFICATE_PRIVATE_KEY(keyPath.c_str()), TPTAG_TLS_PASSPHRASE(""), TPTAG_TLS_CIPHERS(ciphers),
+		    TPTAG_TLS_VERIFY_POLICY(policy), TAG_END());
+		BC_ASSERT_CPP_NOT_EQUAL(error, 0);
+	}
+}
+
+void updateTlsWithExpiredCertificate() {
+	auto dir = TmpDir("certs-");
+	const auto keyPath = dir.path() / "key.pem";
+	const auto certPath = dir.path() / "cert.pem";
+	const TlsPrivateKey privateKey{};
+	privateKey.writeToFile(keyPath);
+	const TlsCertificate cert{privateKey};
+	cert.writeToFile(certPath);
+	const auto ciphers = "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL";
+	const auto policy = SSL_VERIFY_NONE;
+
+	Server proxy{{
+	    {"global/transports", "sips:127.0.0.1:0"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"global/tls-certificates-check-interval", "1min"},
+	    {"global/tls-certificates-file", certPath},
+	    {"global/tls-certificates-private-key", keyPath},
+	    {"global/tls-ciphers", ciphers},
+	}};
+	proxy.start();
+
+	const auto proxyUri = "sips:127.0.0.1:"s + proxy.getFirstPort();
+	Url url{proxyUri};
+
+	// Change with expired certificate
+	{
+		const TlsCertificate expiredCert{privateKey, -10};
+		expiredCert.writeToFile(certPath);
+
+		auto error = nta_agent_update_tport_certificates(
+		    proxy.getAgent()->getSofiaAgent(), (const url_string_t*)url.get(), TPTAG_CERTIFICATE_FILE(certPath.c_str()),
+		    TPTAG_CERTIFICATE_PRIVATE_KEY(keyPath.c_str()), TPTAG_TLS_PASSPHRASE(""), TPTAG_TLS_CIPHERS(ciphers),
+		    TPTAG_TLS_VERIFY_POLICY(policy), TAG_END());
+		BC_ASSERT_CPP_NOT_EQUAL(error, 0);
+	}
+}
+
 TestSuite _("Sofia-SIP",
             {
                 CLASSY_TEST(nthEngineWithSni<true>),
@@ -264,6 +371,8 @@ TestSuite _("Sofia-SIP",
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
                 CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
                 CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers),
+                CLASSY_TEST(updateTlsCertificate),
+                CLASSY_TEST(updateTlsWithExpiredCertificate),
             });
 
 } // namespace

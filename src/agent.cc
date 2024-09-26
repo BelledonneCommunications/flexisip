@@ -39,6 +39,7 @@
 #include "auth/db/authdb.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
@@ -206,9 +207,8 @@ void Agent::checkAllowedParams(const url_t* uri) {
 	params = url_strip_param_string(params, "tls-allow-missing-client-certificate");
 	params = url_strip_param_string(params, "tls-verify-outgoing");
 	// make sure that there is no misstyped params in the url:
-	if (params && strlen(params) > 0) {
-		LOGF("Bad parameters '%s' given in transports definition.", params);
-	}
+	if (params && strlen(params) > 0)
+		throw runtime_error{"bad parameters '"s + params + "' given in transports definition."};
 }
 
 void Agent::initializePreferredRoute() {
@@ -223,9 +223,9 @@ void Agent::initializePreferredRoute() {
 			SLOGW << "using '\%auto' token in '" << internalTransportParam->getCompleteName() << "' is deprecated";
 			char result[NI_MAXHOST] = {0};
 			// Currently only IpV4
-			if (bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result)) != 0) {
-				LOGF("%%auto couldn't be resolved");
-			}
+			if (bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result)) != 0)
+				throw runtime_error{"%%auto couldn't be resolved"};
+
 			internalTransport.replace(pos, sizeof("\%auto") - 1, result);
 		}
 
@@ -234,7 +234,7 @@ void Agent::initializePreferredRoute() {
 			mPreferredRouteV4 = url_hdup(&mHome, url.get());
 			LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
 		} catch (const sofiasip::InvalidUrlError& e) {
-			LOGF("invalid URI in '%s': %s", internalTransportParam->getCompleteName().c_str(), e.getReason().c_str());
+			throw runtime_error{"invalid URI in '" + internalTransportParam->getCompleteName() + "': " + e.getReason()};
 		}
 	}
 }
@@ -262,7 +262,7 @@ void Agent::startMdns() {
 	GenericStruct* mdns = mConfigManager->getRoot()->get<GenericStruct>("mdns-register");
 	bool mdnsEnabled = mdns->get<ConfigBoolean>("enabled")->read();
 	if (mdnsEnabled) {
-		if (!belle_sip_mdns_register_available()) LOGF("Belle-sip does not have mDNS activated!");
+		if (!belle_sip_mdns_register_available()) throw runtime_error{"Belle-sip does not have mDNS activated!"};
 
 		string mdnsDomain =
 		    mConfigManager->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
@@ -302,8 +302,20 @@ void Agent::startMdns() {
 #endif
 }
 
-static void timerfunc([[maybe_unused]] su_root_magic_t* magic, [[maybe_unused]] su_timer_t* t, Agent* a) {
-	a->idle();
+/**
+ * @brief Get the last time a file used for a TLS connection was modified.
+ *
+ * @param[in] tlsInfo Structure containing the path to the certificate files.
+ * @return The last time any of those file was modified.
+ */
+static filesystem::file_time_type getLastCertUpdate(TlsConfigInfo& tlsInfo) {
+	auto lastUpdate = filesystem::last_write_time(tlsInfo.certifFile);
+	lastUpdate = max(lastUpdate, filesystem::last_write_time(tlsInfo.certifPrivateKey));
+	if (!tlsInfo.certifCaFile.empty()) {
+		lastUpdate = max(lastUpdate, filesystem::last_write_time(tlsInfo.certifCaFile));
+	}
+
+	return lastUpdate;
 }
 
 void Agent::start(const string& transport_override, const string& passphrase) {
@@ -313,7 +325,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 	string currDir = cCurrDir;
 
-	GenericStruct* global = mConfigManager->getRoot()->get<GenericStruct>("global");
+	auto* global = mConfigManager->getRoot()->get<GenericStruct>("global");
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in milliseconds.
@@ -323,7 +335,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
 	auto incompleteIncomingMessageTimeout = 600L * 1000L; /*milliseconds*/
 	auto keepAliveInterval = global->get<ConfigDuration<chrono::seconds>>("keepalive-interval")->read().count();
-	unsigned int queueSize = (unsigned int)global->get<ConfigInt>("tport-message-queue-size")->read();
+	auto queueSize = (unsigned int)global->get<ConfigInt>("tport-message-queue-size")->read();
 
 	mProxyToProxyKeepAliveInterval =
 	    global->get<ConfigDuration<chrono::seconds>>("proxy-to-proxy-keepalive-interval")->read().count();
@@ -341,8 +353,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		throw runtime_error("unknown value for \"nat-traversal-strategy\" (" + strategy + ")");
 	}
 
-	mTimer = su_timer_create(mRoot->getTask(), 5000);
-	su_timer_set_for_ever(mTimer, reinterpret_cast<su_timer_f>(timerfunc), this);
+	mTimer.setForEver([this] { idle(); });
 
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64), NTATAG_RPORT(1), NTATAG_TCP_RPORT(1),
 	                     NTATAG_TLS_RPORT(1),    // use rport in vias added to outgoing requests for all protocols
@@ -388,17 +399,17 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				finalTlsConfigInfo.certifDir = absolutePath(currDir, finalTlsConfigInfo.certifDir);
 
 				err = nta_agent_add_tport(
-				    mAgent, (const url_string_t*)url.get(), TPTAG_CERTIFICATE(finalTlsConfigInfo.certifDir.c_str()),
-				    TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-				    TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
-				    TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_KEEPALIVE(keepAliveInterval),
-				    TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
+				    mAgent, reinterpret_cast<const url_string_t*>(url.get()),
+				    TPTAG_CERTIFICATE(finalTlsConfigInfo.certifDir.c_str()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
+				    TPTAG_TLS_CIPHERS(ciphers.c_str()), TPTAG_TLS_VERIFY_POLICY(tls_policy),
+				    TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
 			} else {
 				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
 				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
 				finalTlsConfigInfo.certifCaFile = absolutePath(currDir, finalTlsConfigInfo.certifCaFile);
 
-				err = nta_agent_add_tport(mAgent, (const url_string_t*)url.get(),
+				err = nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
 				                          TPTAG_CERTIFICATE_FILE(finalTlsConfigInfo.certifFile.c_str()),
 				                          TPTAG_CERTIFICATE_PRIVATE_KEY(finalTlsConfigInfo.certifPrivateKey.c_str()),
 				                          TPTAG_CERTIFICATE_CA_FILE(finalTlsConfigInfo.certifCaFile.c_str()),
@@ -407,45 +418,67 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
 				                          TPTAG_QUEUESIZE(queueSize), TAG_END());
+				if (!err) {
+					try {
+						auto lastUpdateTime = getLastCertUpdate(finalTlsConfigInfo);
+						mTlsTransportsList.emplace_back(url, std::move(finalTlsConfigInfo), ciphers, tls_policy,
+						                                lastUpdateTime);
+					} catch (exception& e) {
+						// This should not happen as the file are already tested while adding a transport.
+						SLOGE << "Failed to get the last modification time for the certificate files of transport "
+						      << url.str() << ". It will not be periodically updated. Cause: " << e.what();
+					}
+				}
 			}
 		} else {
-			err =
-			    nta_agent_add_tport(mAgent, (const url_string_t*)url.get(), TPTAG_IDLE(tports_idle_timeout),
-			                        TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_KEEPALIVE(keepAliveInterval),
-			                        TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
+			err = nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
+			                          TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+			                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+			                          TPTAG_QUEUESIZE(queueSize), TAG_END());
 		}
+		su_home_deinit(&home);
 		if (err == -1) {
 			const auto transport = url.getParam("transport");
 			if (strcasecmp(transport.c_str(), "tls") == 0) {
-				LOGF("Specifying an URI with transport=tls is not understood in flexisip configuration. Use 'sips' uri "
-				     "scheme instead.");
+				throw BadConfiguration{"specifying a URI with 'transport=tls' is not valid in Flexisip configuration. "
+				                       "Use 'sips' uri scheme instead."};
 			}
-			LOGF("Could not enable transport %s: %s", uri.c_str(), strerror(errno));
+			throw runtime_error("could not enable transport " + uri + ", " + strerror(errno));
 		}
-		su_home_deinit(&home);
+	}
+	if (!mTlsTransportsList.empty()) {
+		auto certUpdatePeriod = mConfigManager->getGlobal()
+		                            ->get<ConfigDuration<chrono::minutes>>("tls-certificates-check-interval")
+		                            ->read();
+
+		mCertificateUpdateTimer.emplace(mRoot, certUpdatePeriod);
+		mCertificateUpdateTimer->setForEver([this] {
+			for (auto& transport : mTlsTransportsList) {
+				updateTransport(transport);
+			}
+		});
 	}
 
-	/* Setup the internal transport*/
+	/* Set up the internal transport*/
 	if (mPreferredRouteV4 != nullptr) {
-		if (nta_agent_add_tport(mAgent, (const url_string_t*)mPreferredRouteV4, TPTAG_IDLE(tports_idle_timeout),
-		                        TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_IDENT(sInternalTransportIdent),
-		                        TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1),
-		                        TAG_END()) == -1) {
+		if (nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(mPreferredRouteV4),
+		                        TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+		                        TPTAG_IDENT(sInternalTransportIdent), TPTAG_KEEPALIVE(keepAliveInterval),
+		                        TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1), TAG_END()) == -1) {
 			char prefRouteV4[266];
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
-			LOGF("Could not enable internal transport %s: %s", prefRouteV4, strerror(errno));
+			throw runtime_error{"could not enable internal transport "s + prefRouteV4 + ", " + strerror(errno)};
 		}
 		tp_name_t tn = {0};
 		tn.tpn_ident = (char*)sInternalTransportIdent;
 		mInternalTport = tport_by_name(nta_agent_tports(mAgent), &tn);
 		if (!mInternalTport) {
-			LOGF("Could not obtain pointer to internal tport. Bug somewhere.");
+			throw runtime_error{"could not obtain pointer to internal tport. Bug somewhere."};
 		}
 	}
 
 	tport_t* primaries = tport_primaries(nta_agent_tports(mAgent));
-	if (primaries == NULL) LOGF("No sip transport defined.");
-
+	if (primaries == nullptr) throw runtime_error{"no SIP transport defined"};
 	startMdns();
 
 	/*
@@ -462,7 +495,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	su_md5_init(&ctx);
 
 	LOGD("Agent 's primaries are:");
-	for (tport_t* tport = primaries; tport != NULL; tport = tport_next(tport)) {
+	for (tport_t* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
 		auto name = tport_name(tport);
 		char url[512];
 		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
@@ -536,8 +569,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 
 	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()) {
-		LOGF("The default public address of the server could not be resolved (%s / %s). Cannot continue.",
-		     mPublicIpV4.c_str(), mPublicIpV6.c_str());
+		throw runtime_error{"the default public address of the server could not be resolved (" + mPublicIpV4 + " / " +
+		                    mPublicIpV6 + "). Cannot continue."};
 	}
 
 	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
@@ -597,8 +630,7 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 		PluginLoader pluginLoader(pluginDir + "/lib" + pluginName + ".so");
 		const ModuleInfoBase* moduleInfo = pluginLoader.getModuleInfo();
 		if (!moduleInfo) {
-			LOGF("Unable to load plugin [%s]: %s", pluginName.c_str(), pluginLoader.getError().c_str());
-			return;
+			throw runtime_error{"unable to load plugin [" + pluginName + "]: " + pluginLoader.getError()};
 		}
 		moduleInfo->declareConfig(*cr);
 	}
@@ -609,7 +641,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
              const std::shared_ptr<AuthDb>& authDb,
              const std::shared_ptr<RegistrarDb>& registrarDb)
-    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb} {
+    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mTimer(mRoot, 5s) {
 	LOGT("New Agent[%p]", this);
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = cm->getRoot();
@@ -619,7 +651,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
 	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
 
-	// Instanciate the modules.
+	// Instantiate the modules.
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
 		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
 		mModules.push_back(moduleInfo->create(this));
@@ -633,10 +665,10 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	int err = getifaddrs(&net_addrs);
 	if (err == 0) {
 		struct ifaddrs* ifa = net_addrs;
-		while (ifa != NULL) {
-			if (ifa->ifa_netmask != NULL && ifa->ifa_addr != NULL) {
+		while (ifa != nullptr) {
+			if (ifa->ifa_netmask != nullptr && ifa->ifa_addr != nullptr) {
 				LOGD("New network: %s", Network::print(ifa).c_str());
-				mNetworks.push_front(Network(ifa));
+				mNetworks.emplace_front(ifa);
 			}
 			ifa = ifa->ifa_next;
 		}
@@ -689,8 +721,9 @@ Agent::~Agent() {
 	// We need to clear modules before calling destroy on sofia agent.
 	mModules.clear();
 
-	if (mTimer) su_timer_destroy(mTimer);
-	if (mDrm) delete mDrm;
+	mTimer.reset();
+	if (mCertificateUpdateTimer.has_value()) mCertificateUpdateTimer->reset();
+	delete mDrm;
 	if (mAgent) nta_agent_destroy(mAgent);
 	if (mHttpEngine) nth_engine_destroy(mHttpEngine);
 	su_home_deinit(&mHome);
@@ -701,11 +734,11 @@ const char* Agent::getServerString() const {
 }
 
 string Agent::getPreferredRoute() const {
-	if (!mPreferredRouteV4) return string();
+	if (!mPreferredRouteV4) return string{};
 
 	char prefUrl[266];
 	url_e(prefUrl, sizeof(prefUrl), mPreferredRouteV4);
-	return string(prefUrl);
+	return string{prefUrl};
 }
 
 bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
@@ -857,7 +890,7 @@ bool Agent::Network::isInNetwork(const struct sockaddr* addr) const {
 		}
 		return true;
 	} else {
-		LOGF("Network::isInNetwork: cannot happen");
+		throw runtime_error{"Network::isInNetwork: cannot happen"};
 	}
 
 	return false;
@@ -1267,6 +1300,33 @@ bool Agent::shouldUseRfc2543RecordRoute() const {
 void Agent::sendTrap(const GenericEntry* source, const std::string& msg) const {
 	if (auto p = mNotifier.lock()) {
 		p->sendNotification(source, msg);
+	}
+}
+
+void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
+	filesystem::file_time_type lastModificationTime{};
+	try {
+		lastModificationTime = getLastCertUpdate(tlsTpInfo.tlsConfigInfo);
+	} catch (exception& e) {
+		SLOGW << "Failed to get last modification date of the certificates for TLS transport " << tlsTpInfo.url.str()
+		      << ": " << e.what();
+		return;
+	}
+	if (lastModificationTime > tlsTpInfo.lastModificationTime) {
+		SLOGD << "Updating TLS certificate for transport: " << tlsTpInfo.url.str();
+		if (nta_agent_update_tport_certificates(
+		        mAgent, reinterpret_cast<const url_string_t*>(tlsTpInfo.url.get()),
+		        TPTAG_CERTIFICATE_FILE(tlsTpInfo.tlsConfigInfo.certifFile.c_str()),
+		        TPTAG_CERTIFICATE_PRIVATE_KEY(tlsTpInfo.tlsConfigInfo.certifPrivateKey.c_str()),
+		        TPTAG_CERTIFICATE_CA_FILE(tlsTpInfo.tlsConfigInfo.certifCaFile.c_str()),
+		        TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(tlsTpInfo.ciphers.c_str()),
+		        TPTAG_TLS_VERIFY_POLICY(tlsTpInfo.policy), TAG_END())) {
+			SLOGE << "Error while updating the TLS transport. " << tlsTpInfo.url.str()
+			      << " cert: " << tlsTpInfo.tlsConfigInfo.certifFile
+			      << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey << " (" << strerror(errno) << ").";
+		}
+
+		tlsTpInfo.lastModificationTime = lastModificationTime;
 	}
 }
 

@@ -26,6 +26,9 @@
 #include "utils/rand.hh"
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tls/certificate.hh"
+#include "utils/tls/private-key.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 
@@ -38,7 +41,8 @@ namespace tester {
  */
 class RFC5626ReconnectOnPongTimeoutBase : public AgentTest {
 public:
-	RFC5626ReconnectOnPongTimeoutBase(bool useTls) : AgentTest{true}, mUseTls{useTls} {
+	RFC5626ReconnectOnPongTimeoutBase(bool useTls)
+	    : AgentTest{true}, mUseTls{useTls}, mTmpDir{"ReconnectOnPongTimeoutBase"} {
 		mRemoteProxyPort = Rand::generate(1025, numeric_limits<uint16_t>::max());
 		mRemoteProxyTransport = mUseTls ? "sips:127.0.0.1:" + to_string(mRemoteProxyPort)
 		                                : "sip:127.0.0.1:" + to_string(mRemoteProxyPort) + ";transport=tcp";
@@ -63,6 +67,14 @@ private:
 	// Private methods
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
+
+		filesystem::path pemPath = mTmpDir.path() / "agent.pem";
+		const TlsPrivateKey privateKey{};
+		const TlsCertificate certificate{privateKey};
+		privateKey.writeToFile(pemPath);
+		certificate.appendToFile(pemPath);
+		cfg.getRoot()->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->set(mTmpDir.path());
+
 		auto localProxyPort = Rand::generate(1025, numeric_limits<uint16_t>::max());
 		auto localProxyTransport = mUseTls ? "sips:127.0.0.1:" + to_string(localProxyPort) + ";tls-verify-outgoing=0"
 		                                   : "sip:127.0.0.1:" + to_string(localProxyPort) + ";transport=tcp";
@@ -111,6 +123,7 @@ private:
 	bool mUseTls{false};
 	std::chrono::seconds mKeepAliveInterval{2};
 	std::chrono::seconds mPingPongTimoutDelay{1};
+	TmpDir mTmpDir;
 };
 
 template <typename ProtoT>

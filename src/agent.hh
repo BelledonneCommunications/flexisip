@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <ifaddrs.h>
 #include <memory>
 #include <sstream>
@@ -264,13 +265,31 @@ private:
 
 	public:
 		Network(const Network& net);
-		Network(const struct ifaddrs* ifaddr);
+		explicit Network(const struct ifaddrs* ifaddr);
 		bool isInNetwork(const struct sockaddr* addr) const;
 		const std::string getIP() const;
 		static std::string print(const struct ifaddrs* ifaddr);
 	};
+	class TlsTransportInfo {
+	public:
+		TlsTransportInfo(sofiasip::Url url,
+		                 sofiasip::TlsConfigInfo tlsConfigInfo,
+		                 const std::string& ciphers,
+		                 unsigned int tlsPolicy,
+		                 std::filesystem::file_time_type lastModificationTime)
+		    : url(std::move(url)), tlsConfigInfo(std::move(tlsConfigInfo)), ciphers(ciphers), policy(tlsPolicy),
+		      lastModificationTime(lastModificationTime) {
+		}
+
+		sofiasip::Url url;
+		sofiasip::TlsConfigInfo tlsConfigInfo;
+		std::string ciphers;
+		unsigned int policy;
+		std::filesystem::file_time_type lastModificationTime;
+	};
 
 	// Private methods
+	void updateTransport(TlsTransportInfo& info);
 	int onIncomingMessage(msg_t* msg, const sip_t* sip);
 	void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
@@ -299,7 +318,7 @@ private:
 	const std::shared_ptr<ConfigManager> mConfigManager;
 	const std::shared_ptr<AuthDb> mAuthDb;
 	std::list<std::shared_ptr<Module>> mModules;
-	// Disconnecting the Redis registar DB may trigger callbacks on mModules,
+	// Disconnecting the Redis registrar DB may trigger callbacks on mModules,
 	// so they must still be alive when dtor()ing it.
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
@@ -318,13 +337,15 @@ private:
 	nta_agent_t* mAgent = nullptr;
 	nth_engine_t* mHttpEngine = nullptr;
 	su_home_t mHome;
-	su_timer_t* mTimer = nullptr;
+	sofiasip::Timer mTimer;
+	std::optional<sofiasip::Timer> mCertificateUpdateTimer;
 	unsigned int mProxyToProxyKeepAliveInterval = 0;
 	std::unique_ptr<EventLogWriter> mLogWriter;
 	DomainRegistrationManager* mDrm = nullptr;
 	std::string mPassphrase;
 	tport_t* mInternalTport = nullptr;
 	bool mTerminating = false;
+	std::vector<TlsTransportInfo> mTlsTransportsList{};
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;
 #endif

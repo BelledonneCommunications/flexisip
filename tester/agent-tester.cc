@@ -32,10 +32,14 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tls/certificate.hh"
+#include "utils/tls/private-key.hh"
+#include "utils/tmp-dir.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
@@ -46,7 +50,15 @@ class TransportsAndIsUsTest : public AgentTest {
 private:
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
+
+		filesystem::path pemPath = mTmpDir.path() / "agent.pem";
+		const TlsPrivateKey privateKey{};
+		const TlsCertificate certificate{privateKey};
+		privateKey.writeToFile(pemPath);
+		certificate.appendToFile(pemPath);
+
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
+		globalCfg->get<ConfigString>("tls-certificates-dir")->set(mTmpDir.path());
 		globalCfg->get<ConfigStringList>("transports")->set("sips:localhost:6060;maddr=127.0.0.2 sips:localhost:6062");
 		globalCfg->get<ConfigStringList>("aliases")->set("localhost aRandomAlias 8.8.8.8");
 
@@ -79,6 +91,8 @@ private:
 		// No match with aliases
 		BC_ASSERT_FALSE(mAgent->isUs("anotherRandomAlias", "6060", true));
 	}
+
+	TmpDir mTmpDir{"TransportsAndIsUsTest"};
 };
 
 /**
@@ -450,6 +464,27 @@ private:
 const std::string ReplyToOptionRequestTest::kProxyURI =
     "sip:"s + kDomain + ":" + kProxyPort + ";maddr=127.0.0.1;transport=tcp";
 
+void proxyDoesNotStartWithInvalidCertificates() {
+	auto dir = TmpDir("certs-");
+	const auto keyPath = dir.path() / "key.pem";
+	const auto certPath = dir.path() / "cert.pem";
+	const TlsPrivateKey privateKey{};
+	const TlsCertificate expiredCertificate{privateKey, -1};
+	privateKey.writeToFile(keyPath);
+	expiredCertificate.writeToFile(certPath);
+
+	const auto ciphers = "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL";
+
+	Server proxy{{
+	    {"global/transports", "sips:127.0.0.1:0"},
+	    {"global/tls-certificates-file", certPath},
+	    {"global/tls-certificates-private-key", keyPath},
+	    {"global/tls-ciphers", ciphers},
+	}};
+
+	BC_ASSERT_THROWN(proxy.start(), std::runtime_error);
+}
+
 namespace {
 using TCP = TcpConfig;
 using NewTLS = NewTlsConfig;
@@ -471,6 +506,7 @@ TestSuite _{"Agent unit tests",
                 TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) - no PONG if 'outbound' not supported",
                             run<RFC5626KeepAliveWithCRLF<OutboundNotSupported>>),
                 TEST_NO_TAG("Agent replies to OPTION requests", run<ReplyToOptionRequestTest>),
+                CLASSY_TEST(proxyDoesNotStartWithInvalidCertificates),
             }};
 } // namespace
 

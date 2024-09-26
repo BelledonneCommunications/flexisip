@@ -25,6 +25,9 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tls/certificate.hh"
+#include "utils/tls/private-key.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -42,7 +45,7 @@ class AddRecordRouteTest : public AgentTest {
 protected:
 	AddRecordRouteTest(bool mUseRfc2543RecordRoute, const string& mTransport, const string& mRecordRouteExpected)
 	    : mUseRfc2543RecordRoute(mUseRfc2543RecordRoute), mTransport(mTransport),
-	      mRecordRouteExpected(mRecordRouteExpected) {
+	      mRecordRouteExpected(mRecordRouteExpected), mTmpDir{"AddRecordRouteTest"} {
 	}
 
 	bool mUseRfc2543RecordRoute;
@@ -63,6 +66,14 @@ private:
 
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
+
+		filesystem::path pemPath = mTmpDir.path() / "agent.pem";
+		const TlsPrivateKey privateKey{};
+		const TlsCertificate certificate{privateKey};
+		privateKey.writeToFile(pemPath);
+		certificate.appendToFile(pemPath);
+		cfg.getRoot()->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->set(mTmpDir.path());
+
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigStringList>("transports")->set(mTransport);
 		globalCfg->get<ConfigBoolean>("use-rfc2543-record-route")->set(mUseRfc2543RecordRoute ? "true" : "false");
@@ -86,6 +97,8 @@ private:
 
 		BC_ASSERT_TRUE(requestSipEvent->getMsgSip()->msgAsString().find(mRecordRouteExpected) != std::string::npos);
 	}
+
+	TmpDir mTmpDir;
 };
 
 class SipAddRecordRouteTest : public AddRecordRouteTest {

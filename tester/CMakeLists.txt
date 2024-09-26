@@ -157,6 +157,8 @@ add_executable(flexisip_tester
 	utils/test-patterns/agent-test.hh
 	utils/test-patterns/presence-test.hh
 	utils/test-patterns/test.hh
+	utils/tls/private-key.cc utils/tls/private-key.hh
+	utils/tls/certificate.cc utils/tls/certificate.hh
 	utils/tmp-dir.cc utils/tmp-dir.hh
 	utils/utf8-string-tester.cc
 )

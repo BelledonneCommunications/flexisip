@@ -318,8 +318,9 @@ void ConfigValue::setDefault(const string& value) {
 
 const string& ConfigValue::get() const {
 	if (mIsDefault && mFallback && !mFallback->isDefault()) {
-		LOGW("'%s' isn't set but its old name is. Fallbacking on '%s'", getCompleteName().c_str(),
-		     mFallback->getCompleteName().c_str());
+		SLOGW << "'" << getCompleteName() << "' is not set but its old name is, falling back on '"
+		      << mFallback->getCompleteName() << "'";
+
 		return mFallback->get();
 	}
 	return mValue;
@@ -806,7 +807,8 @@ ConfigManager::ConfigManager()
 	     "the domain part of the uris are used as public domain or ip address.\n"
 	     "The 'sips' transport definitions accept two optional parameters:\n"
 	     " - 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
-	     "property of this section and overriding it for this given transport.\n"
+	     "property of this section and overriding it for this given transport. This is deprecated, use  "
+	     "'tls-certificates-file' and 'tls-certificates-private-key' instead.\n"
 	     " - 'tls-certificates-file' taking for value a file path, with the same meaning as the "
 	     "'tls-certificates-file' "
 	     "property of this section and overriding it for this given transport.\n"
@@ -828,7 +830,7 @@ ConfigManager::ConfigManager()
 	     "It is HIGHLY RECOMMENDED to specify a canonical name for 'sips' transport, so that the proxy can advertise "
 	     "this information in Record-Route headers, which allows TLS cname check to be performed by clients.\n"
 	     "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested "
-	     "by SIP RFC, IPv6 address must be enclosed within brakets.\n"
+	     "by SIP RFC, IPv6 address must be enclosed within brackets.\n"
 	     "Here are some examples to understand:\n"
 	     " - listen on all local interfaces for udp and tcp, on standard port:\n"
 	     "\ttransports=sip:*\n"
@@ -884,6 +886,9 @@ ConfigManager::ConfigManager()
 	     " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
 	     "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
 	     "/etc/flexisip/tls/"},
+	    {DurationMIN, "tls-certificates-check-interval",
+	     "Interval at which the server will check if TLS certificates have been updated. Apply update once detected.F",
+	     "1"},
 	    {String, "tls-certificates-file",
 	     "Path to the file containing the server certificate chain. The file must be in PEM format, see OpenSSL"
 	     "SSL_CTX_use_certificate_chain_file documentation. If used tls-certificates-private-key MUST be set.",
