@@ -211,9 +211,10 @@
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
     GIT_STRATEGY: fetch
+    LSAN_SUPPRESSIONS_FILE_PATH: "./sanitizer_ignore.txt"
   script:
     - export LD_LIBRARY_PATH=/usr/local/lib
-    - export LSAN_OPTIONS="suppressions=./sanitizer_ignore.txt"
+    - export LSAN_OPTIONS="suppressions=$LSAN_SUPPRESSIONS_FILE_PATH"
     - ./work/bin/flexisip_tester --verbose --xml || exit $?
   artifacts:
     reports:

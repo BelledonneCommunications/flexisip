@@ -55,6 +55,8 @@ job-debian11-unit-test:
   artifacts:
     paths:
       - work/lib/libflexisip.so
+  variables:
+    LSAN_SUPPRESSIONS_FILE_PATH: "./sanitizer_ignore_debian11.txt"
 
 #################################################
 # DEB
