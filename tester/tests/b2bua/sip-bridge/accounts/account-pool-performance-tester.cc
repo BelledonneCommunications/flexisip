@@ -24,12 +24,12 @@
 #include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
 #include "tester.hh"
+#include "utils/assertion-debug-print.hh"
 #include "utils/background-thread.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/assertion-debug-print.hh"
 
 namespace flexisip::tester {
 namespace {
@@ -221,8 +221,8 @@ const TestSuite _{
     {
         // Smoke tests
         CLASSY_TEST((loadManyAccounts<3, 1'000>)).tag("benchmark"),
-        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 110, WithAuth::No>)).tag("benchmark"),
-        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 200, WithAuth::Yes>)).tag("benchmark"),
+        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 220, WithAuth::No>)).tag("benchmark"),
+        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 400, WithAuth::Yes>)).tag("benchmark"),
         // Keep benchmarking out of the default (regression tests) runs
         CLASSY_TEST((loadManyAccounts<300, 2'100>)).tag("benchmark").tag("Skip"),
         CLASSY_TEST((loadManyAccounts<3000, 90'000>)).tag("benchmark").tag("Skip"),

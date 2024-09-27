@@ -23,6 +23,7 @@
 #include "flexisip/dos/module-dos.hh"
 
 #include "dos/dos-executor/ban-executor.hh"
+#include "sofia-wrapper/nta-agent.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
@@ -31,6 +32,7 @@
 
 using namespace std;
 using namespace std::chrono;
+using namespace sofiasip;
 
 namespace flexisip::tester {
 namespace {
@@ -48,64 +50,66 @@ public:
 	int banIPCalls = 0;
 };
 
+/**
+ * TODO: we can't test unban for now because configuration is in minutes.
+ */
 template <const string& transportProtocol>
 void ban() {
-	const auto timePeriod = 1000ms;
-	const auto packetRateLimit = 15;
+	const auto timePeriod = 100ms;
+	const auto packetRateLimit = 20;
 	Server server{{
 	    {"module::DoSProtection/enabled", "true"},
 	    {"module::DoSProtection/packet-rate-limit", to_string(packetRateLimit)},
 	    {"module::DoSProtection/time-period", to_string(timePeriod.count())},
 	}};
 	server.start();
+	const auto serverUri = "sip:127.0.0.1:"s + server.getFirstPort() + ";transport=" + transportProtocol;
 
 	const auto& testExecutor = make_shared<TestBanExecutor>();
 	const auto& moduleDos = dynamic_pointer_cast<ModuleDoSProtection>(server.getAgent()->findModule("DoSProtection"));
 	moduleDos->clearWhiteList();
 	moduleDos->setBanExecutor(testExecutor);
 
-	BellesipUtils belleSipUtils{"0.0.0.0", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, transportProtocol, nullptr};
-	const auto port = server.getFirstPort();
+	NtaAgent client{server.getRoot(), "sip:provencal_le_gaulois@127.0.0.1:0"};
+	const auto* clientPort = client.getFirstPort();
 
-	int nbRequests = 0;
-	const auto before = system_clock::now();
-	CoreAssert<kNoSleep>{server, belleSipUtils}
-	    .waitUntil(2 * timePeriod,
-	               [&belleSipUtils, &nbRequests, &port, &testExecutor]() {
-		               stringstream request{};
-		               request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
-		                       << "Via: SIP/2.0/TCP 127.0.0.1:12345;branch=z9hG4bK.PAWTmCZv1\r\n"
-		                       << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
-		                       << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
-		                       << "CSeq: 20 MESSAGE\r\n"
-		                       << "Call-ID: stub-call-id-" << nbRequests++ << "\r\n"
-		                       << "Max-Forwards: 70\r\n"
-		                       << "Route: <sip:127.0.0.1:" << port << ";transport=" << transportProtocol << ">\r\n"
-		                       << "Supported: replaces, outbound, gruu\r\n"
-		                       << "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
-		                       << "Content-Type: text/plain\r\n"
-		                       << "Content-Length: 0\r\n\r\n";
-		               belleSipUtils.sendRawRequest(request.str());
-		               FAIL_IF(testExecutor->banIPCalls <= 0);
-		               return ASSERTION_PASSED();
-	               })
+	// Prepare requests.
+	vector<string> requests{};
+	const auto maxNbRequests = 100;
+	for (auto requestId = 0; requestId < maxNbRequests; requestId++) {
+		stringstream request{};
+		request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
+		        << "Via: SIP/2.0/TCP 127.0.0.1:" << clientPort << ";branch=z9hG4bK.PAWTmCZv1\r\n"
+		        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
+		        << "CSeq: 20 MESSAGE\r\n"
+		        << "Call-ID: stub-call-id-" << requestId << "\r\n"
+		        << "Max-Forwards: 70\r\n"
+		        << "Route: <" << serverUri << ">\r\n"
+		        << "Supported: replaces, outbound, gruu\r\n"
+		        << "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+		        << "Content-Type: text/plain\r\n"
+		        << "Content-Length: 0\r\n\r\n";
+		requests.push_back(request.str());
+	}
+
+	auto nbRequests = 0;
+	CoreAssert{server}
+	    .iterateUpTo(
+	        2 * maxNbRequests,
+	        [&client, requests, &nbRequests, &serverUri, &testExecutor]() {
+		        if (nbRequests >= maxNbRequests)
+			        throw runtime_error("no more requests available, this should not happen");
+
+		        std::ignore = client.createOutgoingTransaction(requests[nbRequests++], serverUri);
+		        if (testExecutor->banIPCalls >= 1) return ASSERTION_PASSED();
+
+		        return ASSERTION_FAILED("failed to ban IP address in given amount of time");
+	        },
+	        2 * timePeriod)
 	    .assert_passed();
 
-	const auto after = system_clock::now();
-	const auto testDuration = duration_cast<milliseconds>(after - before);
-
-	BC_ASSERT_GREATER_STRICT(testDuration.count(), timePeriod.count(), int, "%i");
-	const auto maxTestTime = timePeriod + timePeriod * 0.20;
-	BC_ASSERT_LOWER_STRICT(testDuration.count(), maxTestTime.count(), int, "%i");
-
-	BC_ASSERT_GREATER(nbRequests, packetRateLimit, int, "%i");
-	// BC_ASSERT_LOWER(i, (timePeriod.count() / 1000) * packetRateLimit, int, "%i");
-	// --> Impossible because packet-rate is only checked when time-elapsed > time-period, so packet rate can
-	// already be higher at this point.
-
 	BC_ASSERT_GREATER_STRICT(testExecutor->banIPCalls, 0, int, "%i");
-
-	// TODO: we can't test unban for now because configuration is in minutes.
 }
 
 const string UDP = "udp";

@@ -973,24 +973,28 @@ void mwiBridging() {
 	asserter.registerSteppable(subscriber);
 
 	asserter
-	    .waitUntil(std::chrono::milliseconds{200},
-	               [&subscribeeMwiListener] {
-		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeReceived != 1 &&
-		                       subscribeeMwiListener->getStats().nbSubscribeActive != 1);
-		               return ASSERTION_PASSED();
-	               })
+	    .iterateUpTo(
+	        0x20,
+	        [&subscribeeMwiListener] {
+		        FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeReceived != 1 &&
+		                subscribeeMwiListener->getStats().nbSubscribeActive != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        400ms)
 	    .assert_passed();
 	asserter
-	    .waitUntil(std::chrono::milliseconds{200},
-	               [&subscriberMwiListener] {
-		               const auto& stats = subscriberMwiListener->getStats();
-		               FAIL_IF(stats.nbMwiReceived != 1);
-		               FAIL_IF(stats.nbNewMWIVoice != 4);
-		               FAIL_IF(stats.nbOldMWIVoice != 8);
-		               FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
-		               FAIL_IF(stats.nbOldUrgentMWIVoice != 2);
-		               return ASSERTION_PASSED();
-	               })
+	    .iterateUpTo(
+	        0x20,
+	        [&subscriberMwiListener] {
+		        const auto& stats = subscriberMwiListener->getStats();
+		        FAIL_IF(stats.nbMwiReceived != 1);
+		        FAIL_IF(stats.nbNewMWIVoice != 4);
+		        FAIL_IF(stats.nbOldMWIVoice != 8);
+		        FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
+		        FAIL_IF(stats.nbOldUrgentMWIVoice != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        400ms)
 	    .assert_passed();
 
 	// Un-register the subscriber to check that the subscription is correctly ended on
@@ -1001,11 +1005,13 @@ void mwiBridging() {
 	subscriberAccount->setParams(newAccountParams);
 
 	asserter
-	    .waitUntil(std::chrono::milliseconds{200},
-	               [&subscribeeMwiListener] {
-		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeTerminated != 1);
-		               return ASSERTION_PASSED();
-	               })
+	    .iterateUpTo(
+	        0x20,
+	        [&subscribeeMwiListener] {
+		        FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeTerminated != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        400ms)
 	    .assert_passed();
 
 	std::ignore = b2buaServer->stop();
@@ -1792,24 +1798,28 @@ void mwiB2buaSubscription() {
 	asserter.registerSteppable(subscriber);
 
 	asserter
-	    .waitUntil(std::chrono::milliseconds{200},
-	               [&subscribeeMwiListener] {
-		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeReceived != 1);
-		               FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeActive != 1);
-		               return ASSERTION_PASSED();
-	               })
+	    .iterateUpTo(
+	        0x20,
+	        [&subscribeeMwiListener] {
+		        FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeReceived != 1);
+		        FAIL_IF(subscribeeMwiListener->getStats().nbSubscribeActive != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        400ms)
 	    .assert_passed();
 	asserter
-	    .waitUntil(std::chrono::milliseconds{200},
-	               [&subscriberMwiListener] {
-		               const MwiCoreStats& stats = subscriberMwiListener->getStats();
-		               FAIL_IF(stats.nbMwiReceived != 1);
-		               FAIL_IF(stats.nbNewMWIVoice != 4);
-		               FAIL_IF(stats.nbOldMWIVoice != 8);
-		               FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
-		               FAIL_IF(stats.nbOldUrgentMWIVoice != 2);
-		               return ASSERTION_PASSED();
-	               })
+	    .iterateUpTo(
+	        0x20,
+	        [&subscriberMwiListener] {
+		        const MwiCoreStats& stats = subscriberMwiListener->getStats();
+		        FAIL_IF(stats.nbMwiReceived != 1);
+		        FAIL_IF(stats.nbNewMWIVoice != 4);
+		        FAIL_IF(stats.nbOldMWIVoice != 8);
+		        FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
+		        FAIL_IF(stats.nbOldUrgentMWIVoice != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        400ms)
 	    .assert_passed();
 
 	std::ignore = b2buaServer->stop();
