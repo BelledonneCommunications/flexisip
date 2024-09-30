@@ -510,7 +510,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<R
 	if (mIncoming) {
 		int code = ev->getMsgSip()->getSip()->sip_status->st_status;
 		ev->setIncomingAgent(mIncoming);
-		mLastResponseSent = ev;
+		mLastResponseSent = ev->getMsgSip();
 
 		if (ev->isSuspended()) {
 			mAgent->injectResponseEvent(ev);
@@ -531,7 +531,7 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<R
 }
 
 int ForkContextBase::getLastResponseCode() const {
-	if (mLastResponseSent) return mLastResponseSent->getMsgSip()->getSip()->sip_status->st_status;
+	if (mLastResponseSent) return mLastResponseSent->getSip()->sip_status->st_status;
 
 	return 0;
 }

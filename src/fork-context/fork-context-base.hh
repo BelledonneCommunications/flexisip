@@ -162,7 +162,7 @@ protected:
 	float mCurrentPriority;
 	AgentInterface* mAgent;
 	std::weak_ptr<ModuleRouterInterface> mRouter;
-	std::shared_ptr<ResponseSipEvent> mLastResponseSent;
+	std::shared_ptr<MsgSip> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
 	sofiasip::Timer mLateTimer;
