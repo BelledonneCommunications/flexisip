@@ -163,6 +163,7 @@ void sdesToZrtpCall() {
 	                defaultClientSdesSrtpSuite, defaultZrtpSrtpSuite);
 	mixedEncryption(srtpUri, linphone::MediaEncryption::SRTP, zrtpUri, linphone::MediaEncryption::ZRTP, true, {},
 	                defaultClientSdesSrtpSuite, defaultZrtpSrtpSuite);
+
 	// zrtp to sdes
 	mixedEncryption(zrtpUri, linphone::MediaEncryption::ZRTP, srtpUri, linphone::MediaEncryption::SRTP, false, {},
 	                defaultZrtpSrtpSuite, defaultServerSdesSrtpSuite);
@@ -171,16 +172,17 @@ void sdesToZrtpCall() {
 }
 
 void sdesToDtlsCall() {
-	// sdes to dtls
-	mixedEncryption(srtpUri, linphone::MediaEncryption::SRTP, dtlsUri, linphone::MediaEncryption::DTLS, false, {},
-	                defaultClientSdesSrtpSuite, defaultDtlsSrtpSuite);
-	mixedEncryption(srtpUri, linphone::MediaEncryption::SRTP, dtlsUri, linphone::MediaEncryption::DTLS, true, {},
-	                defaultClientSdesSrtpSuite, defaultDtlsSrtpSuite);
 	// dtls to sdes
 	mixedEncryption(dtlsUri, linphone::MediaEncryption::DTLS, srtpUri, linphone::MediaEncryption::SRTP, false, {},
 	                defaultDtlsSrtpSuite, defaultServerSdesSrtpSuite);
 	mixedEncryption(dtlsUri, linphone::MediaEncryption::DTLS, srtpUri, linphone::MediaEncryption::SRTP, true, {},
 	                defaultDtlsSrtpSuite, defaultServerSdesSrtpSuite);
+
+	// sdes to dtls
+	mixedEncryption(srtpUri, linphone::MediaEncryption::SRTP, dtlsUri, linphone::MediaEncryption::DTLS, false, {},
+	                defaultClientSdesSrtpSuite, defaultDtlsSrtpSuite);
+	mixedEncryption(srtpUri, linphone::MediaEncryption::SRTP, dtlsUri, linphone::MediaEncryption::DTLS, true, {},
+	                defaultClientSdesSrtpSuite, defaultDtlsSrtpSuite);
 }
 
 template <const bool enableVideo>
