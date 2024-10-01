@@ -242,6 +242,8 @@ private:
 	void linkTransactions();
 
 	AuthResult mAuthResult{};
+	// keep ownership of transactions
+	std::shared_ptr<IncomingTransaction> mIncomingTransactionOwner;
 	std::shared_ptr<OutgoingTransaction> mOutgoingTransactionOwner;
 };
 
@@ -252,13 +254,13 @@ public:
 	                 tport_t* tport = NULL);
 	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent>& sipEvent);
 
-	virtual void send(const std::shared_ptr<MsgSip>& msg,
-	                  url_string_t const* u = NULL,
-	                  tag_type_t tag = 0,
-	                  tag_value_t value = 0,
-	                  ...);
+	void send(const std::shared_ptr<MsgSip>& msg,
+	          url_string_t const* u = NULL,
+	          tag_type_t tag = 0,
+	          tag_value_t value = 0,
+	          ...) override;
 
-	virtual void setOutgoingAgent(const std::shared_ptr<OutgoingAgent>& agent);
+	void setOutgoingAgent(const std::shared_ptr<OutgoingAgent>& agent) override;
 
 	~ResponseSipEvent();
 

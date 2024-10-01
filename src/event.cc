@@ -211,6 +211,7 @@ RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
 
 RequestSipEvent::RequestSipEvent(const RequestSipEvent& sipEvent)
     : SipEvent(sipEvent), mRecordRouteAdded(sipEvent.mRecordRouteAdded) {
+	// transaction ownership is not copied, only the event that created it owns it
 }
 
 void RequestSipEvent::send(
@@ -251,7 +252,8 @@ std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction(
 	auto transaction = dynamic_pointer_cast<IncomingTransaction>(getIncomingAgent());
 	auto sharedAgent = mAgent.lock();
 	if (transaction == nullptr && sharedAgent) {
-		transaction = make_shared<IncomingTransaction>(sharedAgent->getAgent());
+		mIncomingTransactionOwner = make_shared<IncomingTransaction>(sharedAgent->getAgent());
+		transaction = mIncomingTransactionOwner;
 		SipEvent::setIncomingAgent(transaction);
 		transaction->handle(mMsgSip);
 		linkTransactions();
@@ -313,6 +315,7 @@ void RequestSipEvent::suspendProcessing() {
 
 void RequestSipEvent::terminateProcessing() {
 	SipEvent::terminateProcessing();
+	mIncomingTransactionOwner.reset();
 	mOutgoingTransactionOwner.reset();
 }
 
