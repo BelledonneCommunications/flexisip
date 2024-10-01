@@ -59,7 +59,8 @@ bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent>& ev) {
 		if (bInfo) {
 			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
 			copyEv->suspendProcessing();
-			bInfo->mLastResponse = copyEv;
+			bInfo->mLastResponseEvent = copyEv;
+			bInfo->mLastResponse = bInfo->mLastResponseEvent->getMsgSip();
 
 			auto forkCtx = bInfo->mForkCtx.lock();
 			forkCtx->onResponse(bInfo, copyEv);

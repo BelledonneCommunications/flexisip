@@ -488,17 +488,17 @@ shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {
 // called by implementers to request the forwarding of a response from this branch, regardless of whether it was
 // retained previously or not*/
 shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
-	if (br->mLastResponse) {
+	if (br->mLastResponseEvent) {
 		if (mIncoming) {
-			int code = br->mLastResponse->getMsgSip()->getSip()->sip_status->st_status;
-			forwardResponse(br->mLastResponse);
+			int code = br->mLastResponseEvent->getMsgSip()->getSip()->sip_status->st_status;
+			forwardResponse(br->mLastResponseEvent);
 
 			if (code >= 200) {
 				br->mTransaction.reset();
 			}
 
-			return br->mLastResponse;
-		} else br->mLastResponse->setIncomingAgent(shared_ptr<IncomingAgent>());
+			return br->mLastResponseEvent;
+		} else br->mLastResponseEvent->setIncomingAgent(shared_ptr<IncomingAgent>());
 	} else {
 		SLOGE << errorLogPrefix() << "forwardResponse(): no response received on this branch";
 	}

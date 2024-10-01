@@ -90,7 +90,7 @@ public:
 	}
 
 	virtual int getStatus() {
-		return mLastResponse ? mLastResponse->getMsgSip()->getSip()->sip_status->st_status : 0;
+		return mLastResponse ? mLastResponse->getSip()->sip_status->st_status : 0;
 	}
 
 	// Obtain the BranchInfo corresponding to an outgoing transaction
@@ -117,7 +117,7 @@ public:
 
 	BranchInfoDb getDbObject() {
 		std::string request{mRequestMsg->msgAsString()};
-		std::string lastResponse{mLastResponse->getMsgSip()->msgAsString()};
+		std::string lastResponse{mLastResponse->msgAsString()};
 		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount};
 		return branchInfoDb;
 	}
@@ -135,8 +135,7 @@ public:
 		BC_ASSERT_EQUAL(mPriority, expected->mPriority, float, "%f");
 
 		BC_ASSERT_TRUE(mRequestMsg->msgAsString() == expected->mRequestMsg->msgAsString());
-		BC_ASSERT_TRUE(mLastResponse->getMsgSip()->msgAsString() ==
-		               expected->mLastResponse->getMsgSip()->msgAsString());
+		BC_ASSERT_TRUE(mLastResponse->msgAsString() == expected->mLastResponse->msgAsString());
 	}
 #endif
 
@@ -145,7 +144,8 @@ public:
 	std::string mUid{};
 	std::shared_ptr<MsgSip> mRequestMsg{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
-	std::shared_ptr<ResponseSipEvent> mLastResponse{};
+	std::shared_ptr<ResponseSipEvent> mLastResponseEvent{};
+	std::shared_ptr<MsgSip> mLastResponse{};
 	std::shared_ptr<ExtendedContact> mContact{};
 	float mPriority{1.0f};
 
@@ -182,8 +182,9 @@ protected:
 		mRequestEvent = std::make_unique<RequestSipEvent>(agent->getIncomingAgent(), mRequestMsg);
 		auto lastResponse =
 		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
-		mLastResponse = std::make_shared<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
-		mLastResponse->setIncomingAgent(std::shared_ptr<IncomingAgent>());
+		mLastResponseEvent = std::make_shared<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
+		mLastResponseEvent->setIncomingAgent(std::shared_ptr<IncomingAgent>());
+		mLastResponse = mLastResponseEvent->getMsgSip();
 	}
 
 private:

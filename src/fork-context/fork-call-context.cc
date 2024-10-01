@@ -186,7 +186,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_
 	}
 
 	if (auto forwardedBr = checkFinished(); forwardedBr) {
-		logResponse(forwardedBr->mLastResponse, forwardedBr.get());
+		logResponse(forwardedBr->mLastResponseEvent, forwardedBr.get());
 	}
 }
 
