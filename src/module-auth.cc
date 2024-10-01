@@ -221,14 +221,14 @@ bool Authentication::handleTlsClientAuthentication(RequestSipEvent& ev) {
 	return false;
 }
 
-void Authentication::onResponse(shared_ptr<ResponseSipEvent>& ev) {
-	if (!mNewAuthOn407) return; /*nop*/
+unique_ptr<ResponseSipEvent> Authentication::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	if (!mNewAuthOn407) return std::move(ev); /*nop*/
 
 	shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction == NULL) return;
+	if (transaction == NULL) return std::move(ev);
 
 	shared_ptr<string> proxyRealm = transaction->getProperty<string>("this_proxy_realm");
-	if (proxyRealm == NULL) return;
+	if (proxyRealm == NULL) return std::move(ev);
 
 	sip_t* sip = ev->getMsgSip()->getSip();
 	if (sip->sip_status->st_status == 407 && sip->sip_proxy_authenticate) {
@@ -246,6 +246,7 @@ void Authentication::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 	} else {
 		LOGD("not handled newauthon401");
 	}
+	return std::move(ev);
 }
 
 void Authentication::onIdle() {

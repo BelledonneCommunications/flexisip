@@ -66,13 +66,14 @@ public:
 		return std::move(ev);
 	}
 
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override {
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
 		const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 		sip_t* sip = ms->getSip();
 		if (mMasqueradeInvites &&
 		    (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
 			mContactMasquerader->masquerade(*ev->getMsgSip());
 		}
+		return std::move(ev);
 	}
 
 	unique_ptr<ContactMasquerader> mContactMasquerader;

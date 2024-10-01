@@ -150,12 +150,12 @@ const int* ForkCallContext::getUrgentCodes() {
 	return sUrgentCodesWithout603;
 }
 
-void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
+void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
 	LOGD("ForkCallContext[%p]::onResponse()", this);
 
 	ForkContextBase::onResponse(br, event);
 
-	const auto code = event->getMsgSip()->getSip()->sip_status->st_status;
+	const auto code = event.getMsgSip()->getSip()->sip_status->st_status;
 	if (code >= 300) {
 		/*
 		 * In fork-late mode, we must not consider that 503 and 408 response codes (which are sent by sofia in case of
@@ -198,10 +198,10 @@ void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingP
 }
 
 void ForkCallContext::forwardThenLogResponse(const shared_ptr<BranchInfo>& branch) {
-	logResponse(forwardResponse(branch), branch.get());
+	if (forwardResponse(branch)) logResponse(branch->mLastResponseEvent, branch.get());
 }
 
-void ForkCallContext::logResponse(const shared_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) {
+void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) {
 	if (ev) {
 		if (branch) {
 			mLog->setDevice(*branch->mContact);

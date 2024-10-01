@@ -61,7 +61,7 @@ unique_ptr<RequestSipEvent> NatHelper::onRequest(unique_ptr<RequestSipEvent>&& e
 	return std::move(ev);
 }
 
-void NatHelper::onResponse(shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> NatHelper::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	mAgent->getNatTraversalStrategy()->onResponseNatHelper(*ev);
 
 	const auto* sip = ev->getSip();
@@ -75,6 +75,7 @@ void NatHelper::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			SLOGD << "Proxy is last hop, removed \"" << mContactCorrectionParameter << R"(" from "Contact" header)";
 		}
 	}
+	return std::move(ev);
 }
 
 void NatHelper::onLoad(const GenericStruct* sec) {

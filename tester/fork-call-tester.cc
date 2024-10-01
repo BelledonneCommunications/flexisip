@@ -559,7 +559,7 @@ void cancelStatusOnResponse() {
 	                              "Contact: <sip:callee2@127.0.0.1>\r\n"
 	                              "Content-Type: application/sdp\r\n"
 	                              "Content-Length: 0\r\n\r\n";
-	auto response = make_shared<ResponseSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipResponse));
+	ResponseSipEvent response{proxy.getAgent(), make_shared<MsgSip>(0, rawSipResponse)};
 	auto answeredBranch = BranchInfo::make(forkCallCtx);
 	((ForkContext*)(forkCallCtx.get()))->onResponse(answeredBranch, response);
 

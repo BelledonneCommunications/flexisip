@@ -134,7 +134,7 @@ public:
 	static bool needsPush(const std::shared_ptr<MsgSip>& msgSip);
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void onLoad(const GenericStruct* mc) override;
 
 	const std::shared_ptr<pushnotification::Service>& getService() const {

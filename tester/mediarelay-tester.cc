@@ -58,11 +58,11 @@ const std::map<std::string, std::string> CONFIG{
 void ice_candidates_in_response_only() {
 	InjectedHooks hooks{
 	    .onResponse =
-	        [](const auto& responseEvent) {
+	        [](auto&& responseEvent) {
 		        auto& message = *responseEvent->getMsgSip();
 		        const auto sip = message.getSip();
-		        if (sip->sip_status->st_status != 200) return;
-		        if (sip->sip_cseq->cs_method != sip_method_invite) return;
+		        if (sip->sip_status->st_status != 200) return std::move(responseEvent);
+		        if (sip->sip_cseq->cs_method != sip_method_invite) return std::move(responseEvent);
 
 		        auto msg = message.getMsg();
 		        const auto sdpModifier = SdpModifier::createFromSipMsg(message.getHome(), sip);
@@ -80,6 +80,7 @@ void ice_candidates_in_response_only() {
 		            mediaLine, "candidate",
 		            "6796095525 2 udp 2130706430 2604:a880:4:1d0::76b:0 27151 typ host generation 0");
 		        BC_ASSERT_TRUE(sdpModifier->update(msg, sip) != -1);
+		        return std::move(responseEvent);
 	        },
 	};
 	Server server(CONFIG, &hooks);
@@ -244,13 +245,14 @@ void address_masquerading_in_sdp_with_call_update() {
 		        return std::move(request);
 	        },
 	    .onResponse =
-	        [&](const auto& response) {
+	        [&](auto&& response) {
 		        const auto* sip = response->getSip();
 		        if (!sip or !sip->sip_cseq or sip->sip_cseq->cs_method != sip_method_invite or !sip->sip_status or
 		            sip->sip_status->st_status != 200) {
-			        return;
+			        return std::move(response);
 		        }
 		        getHostInMediaConnection(sip, hostAfterResponse);
+		        return std::move(response);
 	        },
 	};
 

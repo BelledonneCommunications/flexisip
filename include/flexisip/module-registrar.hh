@@ -61,13 +61,13 @@ public:
 
 class OnResponseBindListener : public ContactUpdateListener {
 	ModuleRegistrar* mModule;
-	std::shared_ptr<ResponseSipEvent> mEv;
+	std::unique_ptr<ResponseSipEvent> mEv;
 	std::shared_ptr<OutgoingTransaction> mTr;
 	std::shared_ptr<ResponseContext> mCtx;
 
 public:
 	OnResponseBindListener(ModuleRegistrar* module,
-	                       std::shared_ptr<ResponseSipEvent> ev,
+	                       std::unique_ptr<ResponseSipEvent>&& ev,
 	                       std::shared_ptr<OutgoingTransaction> tr,
 	                       std::shared_ptr<ResponseContext> ctx);
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
@@ -124,7 +124,7 @@ public:
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
 	template <typename SipEventT, typename ListenerT>
 	void processUpdateRequest(std::shared_ptr<SipEventT>& ev, const sip_t* sip);

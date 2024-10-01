@@ -557,7 +557,7 @@ unique_ptr<RequestSipEvent> PushNotification::onRequest(unique_ptr<RequestSipEve
 	return std::move(ev);
 }
 
-void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> PushNotification::onResponse(std::unique_ptr<ResponseSipEvent>&& ev) {
 	const auto& code = ev->getMsgSip()->getSip()->sip_status->st_status;
 	if (code >= 200 && code != 503) {
 		/* any response >= 200 except 503 (which is SofiaSip's internal response for broken transports) should cancel
@@ -571,6 +571,7 @@ void PushNotification::onResponse(std::shared_ptr<ResponseSipEvent>& ev) {
 			removePushNotification(pnr.get());
 		}
 	}
+	return std::move(ev);
 }
 
 } // namespace flexisip

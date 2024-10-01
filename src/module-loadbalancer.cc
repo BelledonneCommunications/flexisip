@@ -34,7 +34,7 @@ public:
 	~LoadBalancer() override;
 	void onLoad(const GenericStruct* modconf) override;
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
 
 private:
 	LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -84,8 +84,9 @@ unique_ptr<RequestSipEvent> LoadBalancer::onRequest(unique_ptr<RequestSipEvent>&
 	return std::move(ev);
 }
 
-void LoadBalancer::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> LoadBalancer::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	/*nothing to do*/
+	return std::move(ev);
 }
 
 ModuleInfo<LoadBalancer> LoadBalancer::sInfo(

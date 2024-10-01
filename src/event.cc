@@ -362,8 +362,7 @@ ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent,
 	mPopVia = dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent()) != nullptr;
 }
 
-ResponseSipEvent::ResponseSipEvent(const shared_ptr<ResponseSipEvent>& sipEvent)
-    : SipEvent(*sipEvent), mPopVia(sipEvent->mPopVia) {
+ResponseSipEvent::ResponseSipEvent(const ResponseSipEvent& sipEvent) : SipEvent(sipEvent), mPopVia(sipEvent.mPopVia) {
 }
 
 void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const sip_via_t* via) {

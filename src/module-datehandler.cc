@@ -47,7 +47,8 @@ public:
 		return std::move(ev);
 	}
 
-	void onResponse(shared_ptr<ResponseSipEvent>&) override {
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
 	}
 
 protected:

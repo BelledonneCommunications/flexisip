@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -142,10 +142,9 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*,
 	if (sip != nullptr) {
 		auto msgSip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
 		const auto& agent = otr->mAgent.lock();
-		auto sipEvent =
-		    make_shared<ResponseSipEvent>(otr->shared_from_this(), msgSip, agent->getIncomingTport(msgSip->getMsg()));
 
-		agent->sendResponseEvent(sipEvent);
+		agent->sendResponseEvent(
+		    make_unique<ResponseSipEvent>(otr->shared_from_this(), msgSip, agent->getIncomingTport(msgSip->getMsg())));
 
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {
 			otr->queueFree();

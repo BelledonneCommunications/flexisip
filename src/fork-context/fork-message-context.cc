@@ -163,10 +163,10 @@ void ForkMessageContext::logResponseToSender(const RequestSipEvent& reqEv, Respo
 	respEv.writeLog(log);
 }
 
-void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, const shared_ptr<ResponseSipEvent>& event) {
+void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
 	ForkContextBase::onResponse(br, event);
 
-	const auto code = event->getMsgSip()->getSip()->sip_status->st_status;
+	const auto code = event.getMsgSip()->getSip()->sip_status->st_status;
 	LOGD("ForkMessageContext[%p]::onResponse()", this);
 
 	if (code > 100 && code < 300) {
@@ -175,19 +175,19 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, const shar
 			if (mAcceptanceTimer) {
 				if (mIncoming)
 					// in the sender's log will appear the status code from the receiver
-					logResponseToSender(getEvent(), *event);
+					logResponseToSender(getEvent(), event);
 
 				mAcceptanceTimer.reset(nullptr);
 			}
 		}
-		logResponseFromRecipient(*br, *event);
+		logResponseFromRecipient(*br, event);
 		forwardResponse(br);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)) {
 		/*expedite back any urgent replies if late forking is disabled */
-		logResponseFromRecipient(*br, *event);
+		logResponseFromRecipient(*br, event);
 		forwardResponse(br);
 	} else {
-		logResponseFromRecipient(*br, *event);
+		logResponseFromRecipient(*br, event);
 	}
 	checkFinished();
 	if (mAcceptanceTimer && allBranchesAnswered(FinalStatusMode::RFC) && !isFinished()) {
@@ -203,8 +203,9 @@ void ForkMessageContext::acceptMessage() {
 
 	/*in fork late mode, never answer a service unavailable*/
 	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
-	shared_ptr<ResponseSipEvent> ev(new ResponseSipEvent(mAgent->getOutgoingAgent(), msgsip));
-	forwardResponse(ev);
+	auto ev = make_unique<ResponseSipEvent>(ResponseSipEvent(mAgent->getOutgoingAgent(), msgsip));
+	ev = forwardResponse(std::move(ev));
+
 	// in the sender's log will appear the 202 accepted from Flexisip server
 	logResponseToSender(getEvent(), *ev);
 }

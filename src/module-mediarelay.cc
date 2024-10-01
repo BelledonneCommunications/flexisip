@@ -406,7 +406,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	m->update(msg, sip);
 }
 
-void MediaRelay::onResponse(shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	shared_ptr<MsgSip> ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 	msg_t* msg = ms->getMsg();
@@ -470,6 +470,7 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			ev->terminateProcessing();
 		}
 	}
+	return std::move(ev);
 }
 
 void MediaRelay::onIdle() {

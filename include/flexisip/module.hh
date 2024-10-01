@@ -48,8 +48,8 @@ enum class ModuleClass { Experimental, Production };
  * Abstract base class for all Flexisip module.
  * A module is an object that is able to process sip requests and sip responses.
  * It must implements at least:
- * virtual void onRequest(SipEvent *ev)=0;
- * virtual void onResponse(SipEvent *ev)=0;
+ * virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
+ * virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
  **/
 class Module : protected ConfigValueListener {
 	template <typename T>
@@ -75,12 +75,12 @@ public:
 	ModuleClass getClass() const;
 
 	std::unique_ptr<RequestSipEvent> processRequest(std::unique_ptr<RequestSipEvent>&& ev);
-	void processResponse(std::shared_ptr<ResponseSipEvent>& ev);
+	std::unique_ptr<ResponseSipEvent> processResponse(std::unique_ptr<ResponseSipEvent>&& ev);
 	std::unique_ptr<RequestSipEvent> process(std::unique_ptr<RequestSipEvent>&& ev) {
 		return processRequest(std::move(ev));
 	}
-	void process(std::shared_ptr<ResponseSipEvent>& ev) {
-		processResponse(ev);
+	std::unique_ptr<ResponseSipEvent> process(std::unique_ptr<ResponseSipEvent>&& ev) {
+		return processResponse(std::move(ev));
 	}
 	virtual void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev);
 
@@ -95,7 +95,7 @@ protected:
 	}
 
 	virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
-	virtual void onResponse(std::shared_ptr<ResponseSipEvent>& ev) = 0;
+	virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
 
 	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state);
 	virtual void onIdle() {

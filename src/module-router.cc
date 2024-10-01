@@ -998,8 +998,9 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 	return std::move(ev);
 }
 
-void ModuleRouter::onResponse(shared_ptr<ResponseSipEvent>& ev) {
-	ForkContext::processResponse(ev);
+unique_ptr<ResponseSipEvent> ModuleRouter::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	ForkContext::processResponse(*ev);
+	return std::move(ev);
 }
 
 void ModuleRouter::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {

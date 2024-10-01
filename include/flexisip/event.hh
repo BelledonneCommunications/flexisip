@@ -252,7 +252,7 @@ public:
 	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent,
 	                 const std::shared_ptr<MsgSip>& msgSip,
 	                 tport_t* tport = NULL);
-	ResponseSipEvent(const std::shared_ptr<ResponseSipEvent>& sipEvent);
+	ResponseSipEvent(const ResponseSipEvent& sipEvent);
 
 	void send(const std::shared_ptr<MsgSip>& msg,
 	          url_string_t const* u = NULL,

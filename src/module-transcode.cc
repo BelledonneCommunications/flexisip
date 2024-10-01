@@ -84,8 +84,9 @@ unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& 
 	LOGA("Transcoder support is not compiled");
 	return std::move(ev);
 }
-void Transcoder::onResponse(shared_ptr<ResponseSipEvent>&) {
+unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	LOGA("Transcoder support is not compiled");
+	return std::move(ev);
 }
 #endif
 
@@ -458,7 +459,7 @@ static bool isEarlyMedia(sip_t* sip) {
 	return false;
 }
 
-void Transcoder::onResponse(shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
 	msg_t* msg = ms->getMsg();
@@ -467,7 +468,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 		if (mAgent->countUsInVia(sip->sip_via) > 1) {
 			LOGD("We are more than 1 time in via headers,"
 			     "wait until next time we receive this message for any processing");
-			return;
+			return std::move(ev);
 		}
 
 		ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
@@ -475,13 +476,13 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction == NULL) {
 			LOGD("No transaction found");
-			return;
+			return std::move(ev);
 		}
 
 		shared_ptr<TranscodedCall> c = transaction->getProperty<TranscodedCall>(getModuleName());
 		if (c == NULL) {
 			LOGD("No transcoded call context found");
-			return;
+			return std::move(ev);
 		}
 
 		if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
@@ -491,6 +492,7 @@ void Transcoder::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			process200OkforInvite(c.get(), *ev->getMsgSip());
 		}
 	}
+	return std::move(ev);
 }
 
 void Transcoder::onTimer() {

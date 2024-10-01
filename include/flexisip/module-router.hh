@@ -58,7 +58,7 @@ public:
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,

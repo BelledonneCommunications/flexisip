@@ -54,7 +54,7 @@ public:
 
 protected:
 	// Protected methods
-	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) override;
+	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
 
 	/**
 	 * See PushNotificationContextObserver::onPushSent()
@@ -84,7 +84,7 @@ private:
 	void cancelOthers(const std::shared_ptr<BranchInfo>& br);
 	void cancelAll(const sip_t* received_cancel);
 	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo>& br, ForkStatus status);
-	void logResponse(const std::shared_ptr<ResponseSipEvent>& ev, const BranchInfo*);
+	void logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo*);
 	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);
 	void cancelBranch(const std::shared_ptr<BranchInfo>& brit);
 	bool shouldFinish() override {

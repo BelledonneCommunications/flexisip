@@ -79,10 +79,10 @@ void wrongContactInResponse() {
 	// Create dummy incoming transport to make NatHelper::needToBeFixed return true.
 	tp_name_t name{"tcp", nullptr, "127.0.0.1", "0", nullptr, nullptr};
 	auto* incomingTport = tport_by_name(nta_agent_tports(proxy.getAgent()->getSofiaAgent()), &name);
-	auto event = make_shared<ResponseSipEvent>(proxy.getAgent(), msg, incomingTport);
+	auto event = make_unique<ResponseSipEvent>(proxy.getAgent(), msg, incomingTport);
 
 	const auto module = dynamic_pointer_cast<NatHelper>(proxy.getAgent()->findModule("NatHelper"));
-	module->onResponse(event);
+	event = module->onResponse(std::move(event));
 
 	const auto* contact = event->getSip()->sip_contact;
 	BC_HARD_ASSERT(contact != nullptr);
@@ -150,11 +150,11 @@ void onResponseNatHelperRemoveContactCorrectionParameter() {
 	        << "Content-Length: 0\r\n";
 
 	const auto msg = make_shared<MsgSip>(0, request.str());
-	auto event = make_shared<ResponseSipEvent>(proxy.getAgent(), msg, nullptr);
+	auto event = make_unique<ResponseSipEvent>(proxy.getAgent(), msg, nullptr);
 	BC_HARD_ASSERT(event->getSip()->sip_contact != nullptr);
 	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == true);
 
-	dynamic_cast<NatHelper&>(*proxy.getAgent()->findModule("NatHelper")).onResponse(event);
+	event = dynamic_cast<NatHelper&>(*proxy.getAgent()->findModule("NatHelper")).onResponse(std::move(event));
 
 	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == false);
 }

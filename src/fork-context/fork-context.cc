@@ -52,26 +52,26 @@ void ForkContext::processCancel(const RequestSipEvent& ev) {
 	}
 }
 
-bool ForkContext::processResponse(const shared_ptr<ResponseSipEvent>& ev) {
-	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+bool ForkContext::processResponse(ResponseSipEvent& ev) {
+	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
 	if (transaction) {
 		auto bInfo = BranchInfo::getBranchInfo(transaction);
 		if (bInfo) {
-			auto copyEv = make_shared<ResponseSipEvent>(ev); // make a copy
-			copyEv->suspendProcessing();
-			bInfo->mLastResponseEvent = copyEv;
+			bInfo->mLastResponseEvent = make_unique<ResponseSipEvent>(ev); // make a copy
 			bInfo->mLastResponse = bInfo->mLastResponseEvent->getMsgSip();
 
+			bInfo->mLastResponseEvent->suspendProcessing();
+
 			auto forkCtx = bInfo->mForkCtx.lock();
-			forkCtx->onResponse(bInfo, copyEv);
+			forkCtx->onResponse(bInfo, *bInfo->mLastResponseEvent);
 
 			// the event may go through but it will not be sent*/
-			ev->setIncomingAgent(nullptr);
+			ev.setIncomingAgent(nullptr);
 
-			if (!copyEv->isSuspended()) {
+			if (!bInfo->mLastResponseEvent || !bInfo->mLastResponseEvent->isSuspended()) {
 				// LOGD("A response has been submitted");
-				// copyEv has been resubmited, so stop original event.
-				ev->terminateProcessing();
+				// mLastResponseEvent has been resubmitted, so stop original event.
+				ev.terminateProcessing();
 			} else {
 				// LOGD("The response has been retained");
 			}

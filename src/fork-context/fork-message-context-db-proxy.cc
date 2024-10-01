@@ -188,8 +188,7 @@ void ForkMessageContextDbProxy::runSavingThread() {
 	    });
 }
 
-void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br,
-                                           const shared_ptr<ResponseSipEvent>& event) {
+void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
 	LOGD("ForkMessageContextDbProxy[%p] onResponse", this);
 	checkState(__FUNCTION__, State::IN_MEMORY);
 

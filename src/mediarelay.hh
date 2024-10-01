@@ -41,7 +41,7 @@ public:
 	void onLoad(const GenericStruct* modconf) override;
 	void onUnload() override;
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void onIdle() override;
 
 private:

@@ -33,7 +33,8 @@ public:
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
 		return std::move(ev);
 	}
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
 	}
 
 private:

@@ -53,7 +53,9 @@ protected:
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
 		return std::move(ev);
 	};
-	void onResponse(std::shared_ptr<ResponseSipEvent>&) override {};
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
+	};
 
 private:
 	std::unique_ptr<ModuleInfoBase> mInfoKeeper;

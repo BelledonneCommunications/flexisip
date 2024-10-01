@@ -144,7 +144,7 @@ public:
 	std::string mUid{};
 	std::shared_ptr<MsgSip> mRequestMsg{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
-	std::shared_ptr<ResponseSipEvent> mLastResponseEvent{};
+	std::unique_ptr<ResponseSipEvent> mLastResponseEvent{};
 	std::shared_ptr<MsgSip> mLastResponse{};
 	std::shared_ptr<ExtendedContact> mContact{};
 	float mPriority{1.0f};
@@ -182,7 +182,7 @@ protected:
 		mRequestEvent = std::make_unique<RequestSipEvent>(agent->getIncomingAgent(), mRequestMsg);
 		auto lastResponse =
 		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
-		mLastResponseEvent = std::make_shared<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
+		mLastResponseEvent = std::make_unique<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
 		mLastResponseEvent->setIncomingAgent(std::shared_ptr<IncomingAgent>());
 		mLastResponse = mLastResponseEvent->getMsgSip();
 	}

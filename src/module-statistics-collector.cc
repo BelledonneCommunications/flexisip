@@ -38,7 +38,7 @@ public:
 	~StatisticsCollector();
 	void onLoad(const GenericStruct* root) override;
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
 
 private:
 	StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -94,7 +94,8 @@ unique_ptr<RequestSipEvent> StatisticsCollector::onRequest(unique_ptr<RequestSip
 	return std::move(ev);
 }
 
-void StatisticsCollector::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> StatisticsCollector::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	return std::move(ev);
 }
 
 /*avoid crash if x is NULL on libc versions <4.5.26 */

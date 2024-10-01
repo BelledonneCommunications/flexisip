@@ -37,9 +37,10 @@ public:
 		return {};
 	}
 
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override {
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
 		SLOGD << "Garbage: processing terminated";
 		ev->terminateProcessing();
+		return {};
 	}
 
 private:

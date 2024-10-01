@@ -404,9 +404,11 @@ public:
 	}
 	void injectRequestEvent(unique_ptr<RequestSipEvent>&&) override {
 	}
-	void injectResponseEvent([[maybe_unused]] const shared_ptr<ResponseSipEvent>& ev) override {
+	unique_ptr<ResponseSipEvent> injectResponseEvent(unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
 	}
-	void sendResponseEvent([[maybe_unused]] const shared_ptr<ResponseSipEvent>& ev) override {
+	unique_ptr<ResponseSipEvent> sendResponseEvent(unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
 	}
 	const shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
 		return mRoot;

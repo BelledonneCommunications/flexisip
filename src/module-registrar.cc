@@ -141,10 +141,10 @@ void OnRequestBindListener::onInvalid(const SipStatus& response) {
 }
 
 OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
-                                               shared_ptr<ResponseSipEvent> ev,
+                                               unique_ptr<ResponseSipEvent>&& ev,
                                                shared_ptr<OutgoingTransaction> tr,
                                                shared_ptr<ResponseContext> ctx)
-    : mModule(module), mEv(ev), mTr(tr), mCtx(ctx) {
+    : mModule(module), mEv(std::move(ev)), mTr(tr), mCtx(ctx) {
 	mEv->suspendProcessing();
 }
 
@@ -173,7 +173,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	mModule->removeInternalParams(reMs->getSip()->sip_contact);
 
 	addEventLogRecordFound(mEv, r, dbContacts);
-	mModule->getAgent()->injectResponseEvent(mEv);
+	mModule->getAgent()->injectResponseEvent(std::move(mEv));
 }
 void OnResponseBindListener::onError(const SipStatus& response) {
 	LOGE("OnResponseBindListener::onError: reply %s", response.getReason());
@@ -936,27 +936,27 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	return std::move(ev);
 }
 
-void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
-	if (!mUpdateOnResponse) return;
+unique_ptr<ResponseSipEvent> ModuleRegistrar::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	if (!mUpdateOnResponse) return std::move(ev);
 	const shared_ptr<MsgSip>& reMs = ev->getMsgSip();
 	sip_t* reSip = reMs->getSip();
 
 	// Only handle response to registers
-	if (reSip->sip_cseq->cs_method != sip_method_register) return;
+	if (reSip->sip_cseq->cs_method != sip_method_register) return std::move(ev);
 	// Handle db update on response
 	const url_t* reSipurl = reSip->sip_from->a_url;
-	if (!reSipurl->url_host || !isManagedDomain(reSipurl)) return;
+	if (!reSipurl->url_host || !isManagedDomain(reSipurl)) return std::move(ev);
 
 	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	if (transaction == nullptr) {
 		/*not a response we want to manage*/
-		return;
+		return std::move(ev);
 	}
 
 	auto context = transaction->getProperty<ResponseContext>(getModuleName());
 	if (!context) {
 		LOGD("No response context found");
-		return;
+		return std::move(ev);
 	}
 
 	if (reSip->sip_status->st_status == 200) {
@@ -969,7 +969,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			expires = reSip->sip_expires;
 		}
 		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
-		auto listener = make_shared<OnResponseBindListener>(this, ev, transaction, context);
+		auto listener = make_shared<OnResponseBindListener>(this, std::move(ev), transaction, context);
 
 		if ('*' == request->getSip()->sip_contact->m_url[0].url_scheme[0]) {
 			mStats.mCountClear->incrStart();
@@ -996,6 +996,7 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 		/*for all final responses, drop the context anyway*/
 		deleteResponseContext(context);
 	}
+	return std::move(ev);
 }
 
 void ModuleRegistrar::readStaticRecords() {

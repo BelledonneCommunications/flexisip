@@ -100,7 +100,8 @@ private:
 		if (isMessageAPresenceMessage(*msgSip)) route(msgSip);
 		return std::move(ev);
 	}
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
+	unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
 	}
 
 	ModulePresence(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {

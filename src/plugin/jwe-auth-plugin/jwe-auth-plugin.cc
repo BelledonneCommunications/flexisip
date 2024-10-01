@@ -273,7 +273,7 @@ private:
 	void onUnload() override;
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
 
 	void insertJweContext(string&& jweKey, const shared_ptr<JweContext>& jweContext, int timeout);
 	static void removeJweContext(su_root_magic_t* magic, su_timer_t* timer, su_timer_arg_t* arg);
@@ -413,16 +413,17 @@ unique_ptr<RequestSipEvent> JweAuth::onRequest(unique_ptr<RequestSipEvent>&& ev)
 	return std::move(ev);
 }
 
-void JweAuth::onResponse(shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> JweAuth::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	int status = ev->getMsgSip()->getSip()->sip_status->st_status;
-	if (status == 401 || status == 407) return;
+	if (status == 401 || status == 407) return std::move(ev);
 
 	shared_ptr<IncomingTransaction> incomingTransaction(
 	    dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent()));
-	if (!incomingTransaction) return;
+	if (!incomingTransaction) return std::move(ev);
 
 	shared_ptr<JweContext> jweContext(incomingTransaction->getProperty<JweContext>(getModuleName()));
 	if (jweContext) jweContext->consumed = true;
+	return std::move(ev);
 }
 
 void JweAuth::insertJweContext(string&& jweKey, const shared_ptr<JweContext>& jweContext, int timeout) {

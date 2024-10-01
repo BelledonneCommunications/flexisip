@@ -41,7 +41,7 @@ public:
 	void onLoad(const GenericStruct* mc) override;
 	bool tlsClientCertificatePostCheck(RequestSipEvent& ev);
 	virtual bool handleTlsClientAuthentication(RequestSipEvent& ev);
-	void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void onIdle() override;
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 

@@ -368,7 +368,7 @@ public:
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
 
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
 
 	bool isValidNextConfig(const ConfigValue& cv) override;
 
@@ -485,7 +485,8 @@ unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent
 	return std::move(ev);
 }
 
-void GatewayAdapter::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> GatewayAdapter::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	return std::move(ev);
 }
 
 void GatewayAdapter::nua_callback(nua_event_t event,

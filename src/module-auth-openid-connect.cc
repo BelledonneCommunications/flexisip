@@ -177,7 +177,8 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 	return std::move(ev);
 }
 
-void ModuleAuthOpenIDConnect::onResponse(shared_ptr<ResponseSipEvent>&) {
+std::unique_ptr<ResponseSipEvent> ModuleAuthOpenIDConnect::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	return std::move(ev);
 }
 
 } // namespace flexisip

@@ -49,7 +49,7 @@ private:
 	void onUnload() override;
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	void onResponse(shared_ptr<ResponseSipEvent>& ev) override;
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
 
 	static ModuleInfo<B2bua> sInfo;
 	unique_ptr<SipUri> mDestRoute;
@@ -134,7 +134,8 @@ unique_ptr<RequestSipEvent> B2bua::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	return std::move(ev);
 }
 
-void B2bua::onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) {
+std::unique_ptr<ResponseSipEvent> B2bua::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	return std::move(ev);
 }
 
 } // namespace flexisip

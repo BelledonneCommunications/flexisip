@@ -121,7 +121,8 @@ std::unique_ptr<RequestSipEvent> ModuleAuthTrustedHosts::onRequest(unique_ptr<Re
 	return std::move(ev);
 }
 
-void ModuleAuthTrustedHosts::onResponse(shared_ptr<ResponseSipEvent>&) {
+std::unique_ptr<ResponseSipEvent> ModuleAuthTrustedHosts::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
+	return std::move(ev);
 }
 
 } // namespace flexisip

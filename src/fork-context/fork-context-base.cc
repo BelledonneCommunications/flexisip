@@ -272,7 +272,7 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 	auto msgsip = mIncoming->createResponse(code, phrase);
 	if (!msgsip) return;
 
-	auto ev = make_shared<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
+	auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
 
 	// add a to tag, no set by sofia here.
 	if (addToTag) {
@@ -280,7 +280,7 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
 	}
 
-	forwardResponse(ev);
+	forwardResponse(std::move(ev));
 }
 
 bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<BranchInfo>& rhs) {
@@ -462,7 +462,7 @@ void ForkContextBase::onCancel(const MsgSip&) {
 	}
 }
 
-void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>&) {
+void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent&) {
 	if (br->getStatus() >= 200) br->notifyBranchCompleted();
 }
 
@@ -487,35 +487,36 @@ shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {
 
 // called by implementers to request the forwarding of a response from this branch, regardless of whether it was
 // retained previously or not*/
-shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
+bool ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
 	if (br->mLastResponseEvent) {
 		if (mIncoming) {
 			int code = br->mLastResponseEvent->getMsgSip()->getSip()->sip_status->st_status;
-			forwardResponse(br->mLastResponseEvent);
+			br->mLastResponseEvent = forwardResponse(std::move(br->mLastResponseEvent));
 
 			if (code >= 200) {
 				br->mTransaction.reset();
 			}
+			return true;
 
-			return br->mLastResponseEvent;
 		} else br->mLastResponseEvent->setIncomingAgent(shared_ptr<IncomingAgent>());
+
 	} else {
 		SLOGE << errorLogPrefix() << "forwardResponse(): no response received on this branch";
 	}
 
-	return shared_ptr<ResponseSipEvent>();
+	return false;
 }
 
-shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	if (mIncoming) {
 		int code = ev->getMsgSip()->getSip()->sip_status->st_status;
 		ev->setIncomingAgent(mIncoming);
 		mLastResponseSent = ev->getMsgSip();
 
 		if (ev->isSuspended()) {
-			mAgent->injectResponseEvent(ev);
+			ev = mAgent->injectResponseEvent(std::move(ev));
 		} else {
-			mAgent->sendResponseEvent(ev);
+			ev = mAgent->sendResponseEvent(std::move(ev));
 		}
 
 		if (code >= 200) {
@@ -524,10 +525,10 @@ shared_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(const shared_ptr<R
 			if (shouldFinish()) setFinished();
 		}
 
-		return ev;
+		return std::move(ev);
 	}
 
-	return shared_ptr<ResponseSipEvent>();
+	return {};
 }
 
 int ForkContextBase::getLastResponseCode() const {
@@ -536,22 +537,22 @@ int ForkContextBase::getLastResponseCode() const {
 	return 0;
 }
 
-shared_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
+unique_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
 	if (mIncoming == nullptr) {
 		SLOGW << logPrefix() << "cannot forward SIP response [" << status << " " << phrase
 		      << "]: no incoming transaction.";
-		return nullptr;
+		return {};
 	}
 	auto msgsip = mIncoming->createResponse(status, phrase);
 	if (msgsip) {
-		auto ev = make_shared<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
-		return forwardResponse(ev);
+		auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
+		return forwardResponse(std::move(ev));
 	} else { // Should never happen
 		SLOGE << errorLogPrefix()
 		      << "Because MsgSip can't be created fork is finished without forwarding any response.";
 		setFinished();
 	}
-	return nullptr;
+	return {};
 }
 
 void ForkContextBase::processInternalError(int status, const char* phrase) {

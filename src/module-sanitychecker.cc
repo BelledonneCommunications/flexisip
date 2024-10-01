@@ -47,8 +47,9 @@ public:
 		return std::move(ev);
 	}
 
-	void onResponse([[maybe_unused]] shared_ptr<ResponseSipEvent>& ev) override {
+	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
 		// don't check our responses ;)
+		return std::move(ev);
 	}
 
 private:

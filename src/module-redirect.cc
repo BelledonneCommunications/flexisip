@@ -60,7 +60,8 @@ private:
 		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return std::move(ev);
 	}
-	void onResponse([[maybe_unused]] std::shared_ptr<ResponseSipEvent>& ev) override {
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
+		return std::move(ev);
 	}
 
 	ModuleRedirect(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {

@@ -64,7 +64,7 @@ public:
 	// Called by the router module to notify a cancellation.
 	static void processCancel(const RequestSipEvent& ev);
 	// called by the router module to notify the arrival of a response.
-	static bool processResponse(const std::shared_ptr<ResponseSipEvent>& ev);
+	static bool processResponse(ResponseSipEvent& ev);
 
 	bool isEqual(const std::shared_ptr<ForkContext>& other) const {
 		return getPtrForEquality() == other->getPtrForEquality();
@@ -101,7 +101,7 @@ public:
 	// Notifies the cancellation of the fork process.
 	virtual void onCancel(const sofiasip::MsgSip& ms) = 0;
 	// Notifies the arrival of a new response on a given branch
-	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& event) = 0;
+	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) = 0;
 	virtual RequestSipEvent& getEvent() = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
 	virtual bool isFinished() const = 0;

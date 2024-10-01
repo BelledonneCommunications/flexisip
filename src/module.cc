@@ -136,19 +136,20 @@ unique_ptr<RequestSipEvent> Module::processRequest(unique_ptr<RequestSipEvent>&&
 	return std::move(ev);
 }
 
-void Module::processResponse(shared_ptr<ResponseSipEvent>& ev) {
+unique_ptr<ResponseSipEvent> Module::processResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 
 	try {
 		if (mFilter->canEnter(ms)) {
 			LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
-			onResponse(ev);
+			return onResponse(std::move(ev));
 		} else {
 			LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
 		}
 	} catch (FlexisipException& fe) {
 		SLOGD << "Skipping onResponse() on module" << getModuleName() << " because " << fe;
 	}
+	return std::move(ev);
 }
 
 void Module::idle() {

@@ -123,9 +123,8 @@ class Agent : public AgentInterface,
 
 private:
 	template <typename SipEventT, typename ModuleIter>
-	void doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
-	template <typename ModuleIter>
-	void doSendEvent(std::shared_ptr<ResponseSipEvent> ev, const ModuleIter& begin, const ModuleIter& end);
+	std::unique_ptr<SipEventT>
+	doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
 
 public:
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
@@ -228,9 +227,9 @@ public:
 	su_timer_t* createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating = true);
 	void stopTimer(su_timer_t* t);
 	void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev) override;
-	void injectResponseEvent(const std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> injectResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void sendRequestEvent(std::unique_ptr<RequestSipEvent>&& ev);
-	void sendResponseEvent(const std::shared_ptr<ResponseSipEvent>& ev) override;
+	std::unique_ptr<ResponseSipEvent> sendResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 	std::shared_ptr<Module> findModule(const std::string& moduleName) const;

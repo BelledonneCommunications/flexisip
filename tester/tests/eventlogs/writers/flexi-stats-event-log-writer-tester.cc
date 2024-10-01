@@ -50,9 +50,9 @@ namespace flexisip::tester::eventlogs {
 using namespace flexisip::tester::http_mock;
 
 void callStartedAndEnded() {
-	std::atomic_int requestsReceivedCount{0};
-	HttpMock httpMock{{"/"}, &requestsReceivedCount};
-	int port = httpMock.serveAsync();
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 
 	// See makeAndStartProxy for event-log configuration
@@ -70,11 +70,13 @@ void callStartedAndEnded() {
 	const auto expectedDeviceId = mike.getGruu();
 
 	tony.call(mike);
+	// expect to received 3 event logs: INVITE, 180 Ringing, 200 OK
 
 	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(10, [&requestsReceivedCount] { return requestsReceivedCount == 3; }));
+	BC_HARD_ASSERT_TRUE(
+	    asserter.iterateUpTo(0, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 3; }));
 
-	const auto startedEvent = httpMock.popRequestReceived();
+	const auto startedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(startedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/stats/calls");
@@ -98,7 +100,7 @@ void callStartedAndEnded() {
 	     }},
 	};
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
-	const auto ringingEvent = httpMock.popRequestReceived();
+	const auto ringingEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(ringingEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(ringingEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(ringingEvent->path, "/api/stats/calls/" + logId + "/devices/" + expectedDeviceId);
@@ -108,7 +110,7 @@ void callStartedAndEnded() {
 		BC_FAIL("json::parse exception with received body");
 	}
 	BC_ASSERT_TRUE(actualJson.contains("rang_at"));
-	const auto acceptedEvent = httpMock.popRequestReceived();
+	const auto acceptedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(acceptedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(acceptedEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(acceptedEvent->path, "/api/stats/calls/" + logId + "/devices/" + expectedDeviceId);
@@ -126,13 +128,14 @@ void callStartedAndEnded() {
 	}
 	)"_json;
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
-	requestsReceivedCount = 0;
+	eventLogRequestsReceivedCount = 0;
 
 	tony.endCurrentCall(mike);
 
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(10, [&requestsReceivedCount] { return requestsReceivedCount == 1; }));
+	BC_HARD_ASSERT_TRUE(
+	    asserter.iterateUpTo(10, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 1; }));
 
-	const auto endedEvent = httpMock.popRequestReceived();
+	const auto endedEvent = flexiapiServer.popRequestReceived();
 	BC_ASSERT_CPP_EQUAL(endedEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(endedEvent->path, "/api/stats/calls/" + logId);
 	try {
@@ -146,9 +149,9 @@ void callStartedAndEnded() {
 void callToConference() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
-	std::atomic_int requestsReceivedCount{0};
-	HttpMock httpMock{{"/"}, &requestsReceivedCount};
-	int port = httpMock.serveAsync();
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
 	                                                                    "", "aRandomApiToken"));
@@ -160,9 +163,10 @@ void callToConference() {
 	CoreAssert asserter{johan, fakeConfServer, agent};
 
 	johan.invite(chatroom);
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(4, [&requestsReceivedCount] { return 0 < requestsReceivedCount; }, 1s));
+	BC_HARD_ASSERT_TRUE(
+	    asserter.iterateUpTo(4, [&eventLogRequestsReceivedCount] { return 0 < eventLogRequestsReceivedCount; }, 1s));
 
-	const auto startedEvent = httpMock.popRequestReceived();
+	const auto startedEvent = flexiapiServer.popRequestReceived();
 	json actualJson;
 	try {
 		actualJson = json::parse(startedEvent->body);
@@ -175,9 +179,9 @@ void callToConference() {
 void messageSentAndReceived() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
-	std::atomic_int requestsReceivedCount{0};
-	HttpMock httpMock{{"/"}, &requestsReceivedCount};
-	int port = httpMock.serveAsync();
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
 	                                                                    "/api/stats/", "aRandomApiToken"));
@@ -200,8 +204,8 @@ void messageSentAndReceived() {
 	directChat->createMessageFromUtf8("We're out of lemon tea...")->send();
 	asserter
 	    .iterateUpTo(6,
-	                 [&forkMessageContextsStats, &requestsReceivedCount]() {
-		                 FAIL_IF(requestsReceivedCount < 2 /* Sent + Delivered */);
+	                 [&forkMessageContextsStats, &eventLogRequestsReceivedCount]() {
+		                 FAIL_IF(eventLogRequestsReceivedCount < 2 /* Sent + Delivered */);
 		                 const auto started = forkMessageContextsStats->start->read();
 		                 FAIL_IF(started < 2 /* MSG + IMDN */);
 		                 FAIL_IF(forkMessageContextsStats->finish->read() != started);
@@ -209,8 +213,8 @@ void messageSentAndReceived() {
 	                 })
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(requestsReceivedCount, 2);
-	const auto sentEvent = httpMock.popRequestReceived();
+	BC_HARD_ASSERT_CPP_EQUAL(eventLogRequestsReceivedCount, 2);
+	const auto sentEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/api/stats/messages");
@@ -238,7 +242,7 @@ void messageSentAndReceived() {
 	};
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 	BC_ASSERT_TRUE(before <= sentAt);
-	const auto deliveredEvent = httpMock.popRequestReceived();
+	const auto deliveredEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(deliveredEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(deliveredEvent->path,
@@ -263,9 +267,9 @@ void messageSentAndReceived() {
 void messageDeviceUnavailable() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
-	std::atomic_int requestsReceivedCount{0};
-	HttpMock httpMock{{"/"}, &requestsReceivedCount};
-	int port = httpMock.serveAsync();
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
@@ -288,8 +292,8 @@ void messageDeviceUnavailable() {
 	asserter
 	    .iterateUpTo(
 	        8,
-	        [&forkMessageContextsStats, &requestsReceivedCount]() {
-		        FAIL_IF(requestsReceivedCount < 3 /* Sent + Delivered x 2 */);
+	        [&forkMessageContextsStats, &eventLogRequestsReceivedCount]() {
+		        FAIL_IF(eventLogRequestsReceivedCount < 3 /* Sent + Delivered x 2 */);
 		        const auto started = forkMessageContextsStats->start->read();
 		        FAIL_IF(started < 2 /* MSG + IMDN */);
 		        FAIL_IF(forkMessageContextsStats->finish->read() < 1);
@@ -298,8 +302,8 @@ void messageDeviceUnavailable() {
 	        1s)
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(requestsReceivedCount, 3);
-	const auto sentEvent = httpMock.popRequestReceived();
+	BC_HARD_ASSERT_CPP_EQUAL(eventLogRequestsReceivedCount, 3);
+	const auto sentEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/messages");
@@ -333,8 +337,8 @@ void messageDeviceUnavailable() {
 		BC_ASSERT(event != nullptr);
 		deliveredEvents.emplace(event->path, std::move(event));
 	};
-	emplaceDeliveredEvent(httpMock.popRequestReceived());
-	emplaceDeliveredEvent(httpMock.popRequestReceived());
+	emplaceDeliveredEvent(flexiapiServer.popRequestReceived());
+	emplaceDeliveredEvent(flexiapiServer.popRequestReceived());
 	const auto patchMessagePrefix = "/messages/" + logId + "/to/" + expectedTo + "/devices/";
 	const auto phoneEvent = deliveredEvents.find(patchMessagePrefix + phoneId);
 	const auto desktopEvent = deliveredEvents.find(patchMessagePrefix + desktopId);
@@ -374,15 +378,16 @@ void messageDeviceUnavailable() {
 		BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 		BC_ASSERT_TRUE(sentAt <= receivedAt);
 	}
-	requestsReceivedCount = 0;
+	eventLogRequestsReceivedCount = 0;
 
 	mikeDesktop.reconnect();
 	asserter
 	    .iterateUpTo(
 	        4,
-	        [&forkMessageContextsStats, &requestsReceivedCount, &mikeDesktopAccount = *mikeDesktop.getAccount()]() {
+	        [&forkMessageContextsStats, &eventLogRequestsReceivedCount,
+	         &mikeDesktopAccount = *mikeDesktop.getAccount()]() {
 		        FAIL_IF(mikeDesktopAccount.getState() != linphone::RegistrationState::Ok);
-		        FAIL_IF(requestsReceivedCount < 1);
+		        FAIL_IF(eventLogRequestsReceivedCount < 1);
 		        const auto started = forkMessageContextsStats->start->read();
 		        FAIL_IF(started < 3);
 		        FAIL_IF(forkMessageContextsStats->finish->read() != started);
@@ -391,9 +396,9 @@ void messageDeviceUnavailable() {
 	        1s)
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(requestsReceivedCount, 1);
+	BC_HARD_ASSERT_CPP_EQUAL(eventLogRequestsReceivedCount, 1);
 	{
-		const auto& deliveredEvent = httpMock.popRequestReceived();
+		const auto& deliveredEvent = flexiapiServer.popRequestReceived();
 		BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
 		BC_ASSERT_CPP_EQUAL(deliveredEvent->path, patchMessagePrefix + desktopId);
 		try {
@@ -449,9 +454,9 @@ void messageToChatroomClearText() {
 	                          .setSubject("GYM")
 	                          .build({pauline.getMe(), tony.getMe(), mike.getMe()});
 	BC_HARD_ASSERT_TRUE(clemChat != nullptr);
-	std::atomic_int requestsReceivedCount{0};
-	HttpMock httpMock{{"/"}, &requestsReceivedCount};
-	int port = httpMock.serveAsync();
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
 	mysqlServer.waitReady();
@@ -461,13 +466,13 @@ void messageToChatroomClearText() {
 	clemChat->createMessageFromUtf8("💃🏼")->send();
 	asserter
 	    .iterateUpTo(0x10,
-	                 [&requestsReceivedCount]() {
-		                 FAIL_IF(requestsReceivedCount < 1 /* sent */ + recipientCount);
+	                 [&eventLogRequestsReceivedCount]() {
+		                 FAIL_IF(eventLogRequestsReceivedCount < 1 /* sent */ + recipientCount);
 		                 return ASSERTION_PASSED();
 	                 })
 	    .assert_passed();
 
-	const auto sentEvent = httpMock.popRequestReceived();
+	const auto sentEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/messages");
@@ -492,7 +497,7 @@ void messageToChatroomClearText() {
 	unordered_map<string, shared_ptr<Request>> deliveredEvents{};
 	const regex extractEventIdAndDeviceFromPath{R"regex(/messages/(.+)/to/(.+)/devices/.+)regex"};
 	for (auto _ = 0; _ < recipientCount; ++_) {
-		auto event = httpMock.popRequestReceived();
+		auto event = flexiapiServer.popRequestReceived();
 		BC_ASSERT(event != nullptr);
 		std::smatch match{};
 		BC_ASSERT_TRUE(std::regex_match(event->path, match, extractEventIdAndDeviceFromPath));

@@ -66,7 +66,7 @@ public:
 	 * Notifies the cancellation of the fork process.
 	 */
 	void onCancel(const sofiasip::MsgSip& ms) override;
-	void onResponse(const std::shared_ptr<BranchInfo>& br, const std::shared_ptr<ResponseSipEvent>& ev) override;
+	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) override;
 	/**
 	 * See PushNotificationContextObserver::onPushSent().
 	 */
@@ -110,17 +110,21 @@ protected:
 	// Notifies the destruction of the fork context. Implementers should use it to perform their initialization, but
 	// shall never forget to upcall to the parent class !*/
 	void onFinished();
-	// Request the forwarding the last response from a given branch
-	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<BranchInfo>& br);
+	/**
+	 * Request the forwarding of the last response from a given branch
+	 * @param br The branch containing the response to send.
+	 * @return true if a ResponseSipEvent is sent.
+	 */
+	bool forwardResponse(const std::shared_ptr<BranchInfo>& br);
 	// Request the forwarding of a response supplied in argument.
-	std::shared_ptr<ResponseSipEvent> forwardResponse(const std::shared_ptr<ResponseSipEvent>& br);
+	std::unique_ptr<ResponseSipEvent> forwardResponse(std::unique_ptr<ResponseSipEvent>&& ev);
 	/**
 	 * Request the forwarding of a custom response created from parameters.
 	 * @param status The status of the custom response to send.
 	 * @param phrase The content of the custom response to send.
-	 * @return A shared_ptr containing the ResponseSipEvent sent, can be empty.
+	 * @return A unique_ptr containing the ResponseSipEvent sent, can be empty.
 	 */
-	std::shared_ptr<ResponseSipEvent> forwardCustomResponse(int status, const char* phrase);
+	std::unique_ptr<ResponseSipEvent> forwardCustomResponse(int status, const char* phrase);
 
 	// Get a branch by specifying its unique id
 	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);

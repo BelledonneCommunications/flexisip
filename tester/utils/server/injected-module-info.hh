@@ -19,7 +19,9 @@ struct InjectedHooks {
 	std::function<std::unique_ptr<RequestSipEvent>(std::unique_ptr<RequestSipEvent>&&)> onRequest = [](auto&& ev) {
 		return std::move(ev);
 	};
-	std::function<void(std::shared_ptr<ResponseSipEvent>&)> onResponse = [](auto&) {};
+	std::function<std::unique_ptr<ResponseSipEvent>(std::unique_ptr<ResponseSipEvent>&&)> onResponse = [](auto&& ev) {
+		return std::move(ev);
+	};
 };
 
 // A helper class to register a custom module instance to the Agent's module chain
@@ -51,8 +53,8 @@ private:
 		std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
 			return mHooks.onRequest(std::move(ev));
 		}
-		void onResponse(std::shared_ptr<ResponseSipEvent>& ev) override {
-			mHooks.onResponse(ev);
+		std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
+			return mHooks.onResponse(std::move(ev));
 		}
 		const InjectedHooks& mHooks;
 	};

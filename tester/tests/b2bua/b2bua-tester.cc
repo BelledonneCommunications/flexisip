@@ -1001,36 +1001,24 @@ void resumeCallPausedOnBothSides() {
 void unknownMediaAttrAreFilteredOutOnReinvites() {
 	static const auto& mediaAttribute = "filtered-out-custom-media-attribute"s;
 	constexpr auto findMediaAttribute = [](auto& result) {
-		return [&result](const auto& event) {
+		return [&result](auto&& event) {
 			const auto* sip = event->getSip();
-			if (sip->sip_cseq->cs_method != sip_method_invite) return;
-			if (sip->sip_from->a_url->url_user != "reinviter"sv) return;
+			if (sip->sip_cseq->cs_method != sip_method_invite) return std::move(event);
+			if (sip->sip_from->a_url->url_user != "reinviter"sv) return std::move(event);
 
 			const auto* const payload = sip->sip_payload;
-			if (!payload) return;
+			if (!payload) return std::move(event);
 
 			const auto notFound =
 			    string_view(payload->pl_data, payload->pl_len).find(mediaAttribute) == string_view::npos;
 			result = notFound ? "not found" : "found";
+			return std::move(event);
 		};
 	};
 	auto customAttrInRequest = "hook did not trigger"sv;
 	auto customAttrInResponse = "hook did not trigger"sv;
 	auto hooks = InjectedHooks{
-	    .onRequest =
-	        [&customAttrInRequest](auto&& event) mutable {
-		        const auto* sip = event->getSip();
-		        if (sip->sip_cseq->cs_method != sip_method_invite) return std::move(event);
-		        if (sip->sip_from->a_url->url_user != "reinviter"sv) return std::move(event);
-
-		        const auto* const payload = sip->sip_payload;
-		        if (!payload) return std::move(event);
-
-		        const auto notFound =
-		            string_view(payload->pl_data, payload->pl_len).find(mediaAttribute) == string_view::npos;
-		        customAttrInRequest = notFound ? "not found" : "found";
-		        return std::move(event);
-	        },
+	    .onRequest = findMediaAttribute(customAttrInRequest),
 	    .onResponse = findMediaAttribute(customAttrInResponse),
 	};
 	auto proxy = Server{
