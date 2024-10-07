@@ -53,6 +53,9 @@ linphone::Reason ClientCall::getReason() const {
 linphone::MediaDirection ClientCall::getAudioDirection() const {
 	return mCall->getCurrentParams()->getAudioDirection();
 }
+std::shared_ptr<linphone::CallStats> ClientCall::getAudioStats() const {
+	return mCall->getAudioStats();
+}
 std::shared_ptr<const linphone::PayloadType> ClientCall::getAudioPayloadType() const {
 	return mCall->getCurrentParams()->getUsedAudioPayloadType();
 }

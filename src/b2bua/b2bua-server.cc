@@ -68,6 +68,7 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			auto outgoingCallParams = mCore->createCallParams(call);
 			// Add this custom header so this call will not be intercepted by the B2BUA.
 			outgoingCallParams->addCustomHeader(kCustomHeader, "ignore");
+			outgoingCallParams->enableEarlyMediaSending(true);
 
 			const auto callee = Match(mApplication->onCallCreate(*call, *outgoingCallParams))
 			                        .against([](shared_ptr<const linphone::Address> callee) { return callee; },
@@ -117,9 +118,13 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			if (legA) legA->notifyRinging();
 		} break;
 		case linphone::Call::State::OutgoingEarlyMedia: {
-			// LegB call sends early media: relay a 180
+			// LegB call sends early media: relay a 183.
 			const auto& legA = getPeerCall(call);
-			if (legA) legA->notifyRinging();
+			if (legA) {
+				const auto callParams = mCore->createCallParams(legA);
+				callParams->enableEarlyMediaSending(true);
+				legA->acceptEarlyMediaWithParams(callParams);
+			}
 		} break;
 		case linphone::Call::State::Connected: {
 		} break;
@@ -529,7 +534,7 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Setting this option will also turn on the media payload forwarding optimization which improves the "
 	        "performances of the B2BUA.\n"
 	        "Format: <codec>/<sample-rate>.\n"
-			"Example: speex/8000",
+	        "Example: speex/8000",
 	        "",
 	    },
 	    {
@@ -537,7 +542,7 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "video-codec",
 	        "Same as 'audio-codec' but for video.\n"
 	        "Format: <codec>.\n"
-			"Example: H264",
+	        "Example: H264",
 	        "",
 	    },
 	    {

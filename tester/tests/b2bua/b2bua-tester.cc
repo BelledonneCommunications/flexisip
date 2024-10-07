@@ -100,6 +100,97 @@ void basicCall() {
 }
 
 /**
+ * @brief Establish a call where the callee first accepts with early media.
+ *
+ * For each step of the call (acceptWithEarlyMedia and accept): test that both clients are in the right call state and
+ * that media is being sent/received on both call legs.
+ */
+void basicCallWithEarlyMedia() {
+	Server proxy{{
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/enabled", "false"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	}};
+	proxy.start();
+
+	// Set b2bua-server/outbound parameter value in configuration.
+	const auto& confMan = proxy.getConfigManager();
+	const auto& configRoot = *confMan->getRoot();
+	const auto proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp";
+	configRoot.get<GenericStruct>("b2bua-server")->get<ConfigString>("outbound-proxy")->set(proxyUri);
+
+	// Instantiate and start B2BUA server.
+	const auto& b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), confMan);
+	b2bua->init();
+
+	// Set module::B2bua/b2bua-server parameter value in configuration.
+	const auto b2buaUri = "sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp";
+	configRoot.get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
+	proxy.getAgent()->findModule("B2bua")->reload();
+
+	ClientBuilder builder{*proxy.getAgent()};
+	auto caller = builder.build("sip:caller@sip.example.org");
+	auto callee = builder.build("sip:callee@sip.example.org");
+
+	// Caller invites callee.
+	const auto callerCall = caller.invite(callee);
+	callee.hasReceivedCallFrom(caller).hard_assert_passed();
+
+	// Callee accepts with early media.
+	const auto calleeCall = callee.getCurrentCall();
+	calleeCall->acceptEarlyMedia();
+
+	CoreAssert asserter{proxy, b2bua, caller, callee};
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&callerCall, &calleeCall]() {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingEarlyMedia);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::IncomingEarlyMedia);
+
+		        const auto callerAudioStats = callerCall->getAudioStats();
+		        FAIL_IF(callerAudioStats == nullptr);
+		        const auto calleeAudioStats = calleeCall->getAudioStats();
+		        FAIL_IF(calleeAudioStats == nullptr);
+
+		        FAIL_IF(callerAudioStats->getDownloadBandwidth() < 10 || callerAudioStats->getUploadBandwidth() < 10);
+		        FAIL_IF(calleeAudioStats->getDownloadBandwidth() < 10 || calleeAudioStats->getUploadBandwidth() < 10);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// Callee finally accepts call.
+	calleeCall->accept();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&callerCall, &calleeCall]() {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+
+		        const auto callerAudioStats = callerCall->getAudioStats();
+		        FAIL_IF(callerAudioStats == nullptr);
+		        const auto calleeAudioStats = calleeCall->getAudioStats();
+		        FAIL_IF(calleeAudioStats == nullptr);
+
+		        FAIL_IF(callerAudioStats->getDownloadBandwidth() < 10 || callerAudioStats->getUploadBandwidth() < 10);
+		        FAIL_IF(calleeAudioStats->getDownloadBandwidth() < 10 || calleeAudioStats->getUploadBandwidth() < 10);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	BC_ASSERT(callee.endCurrentCall(caller));
+
+	std::ignore = b2bua->stop();
+}
+
+/**
  * @brief Forge an INVITE request with an erroneous request address, but appropriate "To:" header. The B2BUA should only
  * use the "To:" header to build the other leg of the call.
  */
@@ -1009,6 +1100,7 @@ TestSuite _{
     "b2bua",
     {
         CLASSY_TEST(basicCall),
+        CLASSY_TEST(basicCallWithEarlyMedia),
         CLASSY_TEST(usesAORButNotContact),
         CLASSY_TEST(userAgentHeader),
         CLASSY_TEST(userAgentParameterConfiguration),
