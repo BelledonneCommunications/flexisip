@@ -91,6 +91,7 @@ add_executable(flexisip_tester
 	tests/eventlogs/events/event-id-tester.cc
 	tests/eventlogs/events/event-log-stats-tester.cc
 	tests/flexiapi/schemas/iso-8601-date-tester.cc
+	tests/integration/domotic-tester.cc
 	tests/libhiredis-wrapper/redis-async-session-tester.cc
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/libhiredis-wrapper/replication/redis-client-tester.cc

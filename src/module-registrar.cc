@@ -145,7 +145,7 @@ OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
                                                shared_ptr<OutgoingTransaction> tr,
                                                shared_ptr<ResponseContext> ctx)
     : mModule(module), mEv(ev), mTr(tr), mCtx(ctx) {
-	ev->suspendProcessing();
+	mEv->suspendProcessing();
 }
 
 void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
@@ -158,7 +158,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		return;
 	}
 
-	string uid = r->extractUniqueId(mCtx->mOriginalContacts);
+	string uid = r->extractUniqueId(mCtx->mRequestSipEvent->getSip()->sip_contact);
 	mModule->getAgent()->getRegistrarDb().publish(Record::Key(mCtx->mRequestSipEvent->getSip()->sip_from->a_url,
 	                                                          mModule->getAgent()->getRegistrarDb().useGlobalDomain()),
 	                                              uid);
@@ -227,10 +227,11 @@ void FakeFetchListener::onInvalid(const SipStatus&) {
 void FakeFetchListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
 }
 
-ResponseContext::ResponseContext(const shared_ptr<RequestSipEvent>& ev, int globalDelta) : mRequestSipEvent{ev} {
-	sip_t* sip = ev->getMsgSip()->getSip();
-	mOriginalContacts = sip_contact_dup(mRequestSipEvent->getHome(), sip->sip_contact);
-	for (sip_contact_t* it = mOriginalContacts; it; it = it->m_next) {
+ResponseContext::ResponseContext(shared_ptr<RequestSipEvent>&& ev, int globalDelta) : mRequestSipEvent{std::move(ev)} {
+	mRequestSipEvent->suspendProcessing();
+
+	sip_t* sip = mRequestSipEvent->getSip();
+	for (sip_contact_t* it = sip->sip_contact; it; it = it->m_next) {
 		int cExpire = ExtendedContact::resolveExpire(it->m_expires, globalDelta);
 		it->m_expires = su_sprintf(mRequestSipEvent->getHome(), "%d", cExpire);
 	}
@@ -620,12 +621,13 @@ void ModuleRegistrar::idle() {
 	}
 }
 
-std::shared_ptr<ResponseContext> ModuleRegistrar::createResponseContext(const std::shared_ptr<RequestSipEvent>& ev,
-                                                                        int globalDelta) {
-	auto otr = ev->createOutgoingTransaction();
-	auto context = make_shared<ResponseContext>(ev, globalDelta);
+std::shared_ptr<RequestSipEvent> ModuleRegistrar::createUpstreamRequestEvent(std::shared_ptr<RequestSipEvent>&& ev,
+                                                                             int globalDelta) {
+	auto upstreamEv = make_shared<RequestSipEvent>(ev);
+	auto otr = upstreamEv->createOutgoingTransaction();
+	auto context = make_shared<ResponseContext>(std::move(ev), globalDelta);
 	otr->setProperty(getModuleName(), context);
-	return context;
+	return upstreamEv;
 }
 
 void ModuleRegistrar::deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx) {
@@ -906,7 +908,7 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		ev->createIncomingTransaction();
 		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 
-		auto context = createResponseContext(ev, maindelta);
+		ev = createUpstreamRequestEvent(std::move(ev), maindelta);
 
 		su_home_t* home = ev->getMsgSip()->getHome();
 		url_t* gruuAddress;
@@ -980,14 +982,8 @@ void ModuleRegistrar::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 			};
 			listener->addStatCounter(mStats.mCountBind->finish);
 
-			/* Before submiting the bind() request to the RegistrarDb, restore the Contact header as it was found in the
-			 * original request received from the client.*/
-			msg_header_remove_all(request->getMsg(), (msg_pub_t*)request->getSip(),
-			                      (msg_header_t*)request->getSip()->sip_contact);
-			msg_header_insert(request->getMsg(), (msg_pub_t*)request->getSip(),
-			                  (msg_header_t*)context->mOriginalContacts);
-
-			mAgent->getRegistrarDb().bind(*request, parameter, listener);
+			// bind with the original request received from the client
+			mAgent->getRegistrarDb().bind(*context->mRequestSipEvent->getMsgSip(), parameter, listener);
 		}
 	}
 	if (reSip->sip_status->st_status >= 200) {

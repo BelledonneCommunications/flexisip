@@ -170,7 +170,7 @@ public:
 };
 
 /**
- * Class that represents a vector of header of the same type.
+ * Class that represents a vector of non-empty header of the same type.
  */
 template <class Header>
 class SipHeaderCollection {
@@ -179,14 +179,15 @@ public:
 
 	template <typename UriT>
 	void add(const UriT& uri) {
-		mCollection.emplace_back(uri);
+		add(Header{uri});
 	}
 
+	// collect only initialized header
 	void add(const Header& value) {
-		mCollection.push_back(value);
+		if (value.getNativePtr()) mCollection.push_back(value);
 	}
 	void add(Header&& value) {
-		mCollection.push_back(std::move(value));
+		if (value.getNativePtr()) mCollection.push_back(std::move(value));
 	}
 
 	const std::vector<Header>& getCollection() const {
@@ -267,7 +268,7 @@ public:
 	 * Create a Contact header.
 	 * @param uri The contact URI or well-formatted SIP header containing a SIP URI.
 	 * @param params List of header parameters. Ignored if @param uri is already a well-formatted header.
-	 * 
+	 *
 	 * @note Example of a well-formatted header: "Display Name <sip:contact@host:port;transport=tcp>;expires=0"
 	 */
 	template <typename UriT, typename... Args>

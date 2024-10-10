@@ -263,7 +263,8 @@ std::shared_ptr<OutgoingTransaction> RequestSipEvent::createOutgoingTransaction(
 	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent());
 	auto sharedAgent = mAgent.lock();
 	if (transaction == nullptr && sharedAgent) {
-		transaction = make_shared<OutgoingTransaction>(sharedAgent->getAgent());
+		mOutgoingTransactionOwner = make_shared<OutgoingTransaction>(sharedAgent->getAgent());
+		transaction = mOutgoingTransactionOwner;
 		setOutgoingAgent(transaction);
 		linkTransactions();
 	}
@@ -308,6 +309,11 @@ void RequestSipEvent::suspendProcessing() {
 		// Become stateful if not already the case.
 		createIncomingTransaction();
 	}
+}
+
+void RequestSipEvent::terminateProcessing() {
+	SipEvent::terminateProcessing();
+	mOutgoingTransactionOwner.reset();
 }
 
 RequestSipEvent::~RequestSipEvent() {
