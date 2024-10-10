@@ -330,7 +330,7 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 	const auto& key = context->mRecord->getKey();
 	cmdSession->timedCommand({"HGETALL", key.toRedisKey()}, [context = std::move(context), this](Session&,
 	                                                                                             Reply reply) mutable {
-		SLOGD << "Got current Record content for key [fs" << context->mRecord->getKey() << "]";
+		SLOGD << "Got current Record content for key [fs:" << context->mRecord->getKey() << "]";
 		auto* array = std::get_if<reply::Array>(&reply);
 		if (array == nullptr) {
 			SLOGE << "Unexpected reply on Redis pre-bind fetch: " << StreamableVariant(reply);

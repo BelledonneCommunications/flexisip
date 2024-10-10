@@ -170,19 +170,20 @@ public:
 	                                                     const std::shared_ptr<MsgSip>& msgSip,
 	                                                     const std::weak_ptr<Module>& currModule);
 
-	virtual void suspendProcessing();
+	void suspendProcessing() override;
+	void terminateProcessing() override;
 	std::shared_ptr<IncomingTransaction> createIncomingTransaction();
 	std::shared_ptr<OutgoingTransaction> createOutgoingTransaction();
 
-	virtual void send(const std::shared_ptr<MsgSip>& msg,
-	                  url_string_t const* u = NULL,
-	                  tag_type_t tag = 0,
-	                  tag_value_t value = 0,
-	                  ...);
+	void send(const std::shared_ptr<MsgSip>& msg,
+	          url_string_t const* u = NULL,
+	          tag_type_t tag = 0,
+	          tag_value_t value = 0,
+	          ...) override;
 
-	virtual void reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...);
+	void reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...);
 
-	virtual void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent);
+	void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent) override;
 
 	~RequestSipEvent();
 
@@ -196,6 +197,7 @@ public:
 private:
 	void checkContentLength(const url_t* url);
 	void linkTransactions();
+	std::shared_ptr<OutgoingTransaction> mOutgoingTransactionOwner;
 };
 
 class ResponseSipEvent : public SipEvent {

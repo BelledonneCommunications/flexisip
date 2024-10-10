@@ -106,9 +106,8 @@ public:
 
 class ResponseContext {
 public:
-	ResponseContext(const std::shared_ptr<RequestSipEvent>& ev, int globalDelta);
+	ResponseContext(std::shared_ptr<RequestSipEvent>&& ev, int globalDelta);
 	const std::shared_ptr<RequestSipEvent> mRequestSipEvent;
-	sip_contact_t* mOriginalContacts{nullptr};
 };
 
 class ModuleRegistrar : public Module {
@@ -147,7 +146,7 @@ protected:
 private:
 	static int numberOfContactHeaders(const sip_contact_t* rootHeader);
 
-	std::shared_ptr<ResponseContext> createResponseContext(const std::shared_ptr<RequestSipEvent>& ev, int globalDelta);
+	std::shared_ptr<RequestSipEvent> createUpstreamRequestEvent(std::shared_ptr<RequestSipEvent>&& ev, int globalDelta);
 	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
 	void updateLocalRegExpire();
