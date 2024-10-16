@@ -185,7 +185,8 @@ auto callScript(const std::string& command, int expected_status, BcAssert<>& ass
 		return output;
 	});
 
-	asserter.iterateUpTo(33, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == std::future_status::ready); })
+	asserter.iterateUpTo(
+	            33, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == std::future_status::ready); }, 7s)
 	    .hard_assert_passed();
 
 	return fut.get();
@@ -228,7 +229,8 @@ void flexisip_cli_dot_py() {
 			return handle.recv(0xFFFF);
 		});
 
-		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(7, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }));
+		BC_HARD_ASSERT_TRUE(
+		    asserter.iterateUpTo(7, [&fut] { return fut.wait_for(0s) == std::future_status::ready; }, 2s));
 
 		return fut.get();
 	};
