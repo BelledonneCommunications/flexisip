@@ -153,7 +153,7 @@ void verifySignature(string_view token,
 		// result is valid if decoding did not throw
 		result.accept();
 	} catch (const std::exception& e) {
-		LOGW("Bearer authentication is rejected: %s.", e.what());
+		SLOGW << kOpenIDConnect << ": Bearer authentication is rejected: " << e.what();
 	}
 }
 
@@ -197,24 +197,24 @@ std::pair<string, ASN1_TIME> extractKey(string_view certificate) {
 	std::unique_ptr<X509, decltype(&X509_free)> x509Cert{PEM_read_bio_X509(certbio.get(), nullptr, nullptr, nullptr),
 	                                                     X509_free};
 	if (!x509Cert) {
-		LOGW("%s: error loading cert into memory.", kOpenIDConnect);
+		SLOGW << kOpenIDConnect << ": error loading cert into memory";
 		return {};
 	}
 
 	const auto* notAfter = X509_get0_notAfter(x509Cert.get());
 	if (!notAfter) {
-		LOGW("%s: no certificate validity found,", kOpenIDConnect);
+		SLOGW << kOpenIDConnect << ": no certificate validity found";
 		return {};
 	}
 	auto* pkey = X509_get0_pubkey(x509Cert.get()); // get pointer, no allocation
 	if (!pkey) {
-		LOGW("%s: failed to get public key from certificate.", kOpenIDConnect);
+		SLOGW << kOpenIDConnect << ": failed to get public key from certificate";
 		return {};
 	}
 
 	uniqueBioPtr outbio{BIO_new(BIO_s_mem())};
 	if (!PEM_write_bio_PUBKEY(outbio.get(), pkey)) {
-		LOGE("%s: error writing public key data in PEM format.", kOpenIDConnect);
+		SLOGE << kOpenIDConnect << ": error writing public key data in PEM format";
 	}
 
 	char* buf{};
@@ -231,11 +231,11 @@ unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
 	const auto payload = JsonWrapper(nlohmann::json::parse(response));
 	constexpr auto keys = "keys"sv;
 	if (!payload.hasArray(keys)) {
-		LOGW("%s: failed to parse the JWKS authority server response.", kOpenIDConnect);
+		SLOGW << kOpenIDConnect << ": failed to parse the JWKS authority server response";
 		return {};
 	}
 
-	LOGD("%s: a JWKS response has been received from the authority server.", kOpenIDConnect);
+	SLOGD << kOpenIDConnect << ": a JWKS response has been received from the authority server";
 
 	unordered_map<string, Bearer::KeyInfo> pubKeys{};
 
@@ -250,11 +250,11 @@ unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
 			string cert = k.hasArray(x5c) ? k[x5c][0] : "";
 			const auto pemCert = "-----BEGIN CERTIFICATE-----\n"s + cert + "\n-----END CERTIFICATE-----";
 			auto [publicKey, notAfter] = extractKey(pemCert);
-			if (publicKey.empty()) LOGW("%s: rejected certificate, kid \"%s\".", kOpenIDConnect, keyId.c_str());
-			else if (!isKeyValid(notAfter)) LOGD("%s: expired certificate, kid \"%s\".", kOpenIDConnect, keyId.c_str());
+			if (publicKey.empty()) SLOGW << kOpenIDConnect << ": rejected certificate, kid \"" << keyId << "\"";
+			else if (!isKeyValid(notAfter)) SLOGD << kOpenIDConnect << ": expired certificate, kid \"" << keyId << "\"";
 			else {
 				pubKeys[keyId] = {.key = publicKey, .algo = k[alg], .notAfter = notAfter};
-				LOGD("%s: valid certificate, kid \"%s\".", kOpenIDConnect, keyId.c_str());
+				SLOGD << kOpenIDConnect << ": valid certificate, kid \"" << keyId << "\"";
 			}
 		}
 	}
@@ -315,7 +315,7 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 
 		const auto issuer = sofiasip::Url(checkMandatoryClaim(claim::kIssuer).get<string>());
 		if (!acceptIssuer(issuer, mParams.issuer)) {
-			LOGD("Bearer authentication stops: unknown issuer: %s.", issuer.str().c_str());
+			SLOGD << kOpenIDConnect << ": Bearer authentication stops, unexpected issuer \"" << issuer.str() << "\"";
 			return resState;
 		}
 		// issuer is the one expected, the authorization message is for us
@@ -356,7 +356,7 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 		onResult(std::move(result));
 
 	} catch (const std::exception& e) {
-		LOGW("Bearer authentication is rejected: %s.", e.what());
+		SLOGW << kOpenIDConnect << ": Bearer authentication is rejected, " << e.what();
 	}
 	return resState;
 }
@@ -370,7 +370,7 @@ void Bearer::processPendingTokens() {
 				++pendingToken;
 				continue;
 			}
-			LOGW("Bearer authentication is rejected: unknown kid.");
+			SLOGW << kOpenIDConnect << ": Bearer authentication is rejected, unknown kid";
 		} else {
 			verifySignature(pendingToken->token, pubKey, pendingToken->result);
 		}
@@ -409,35 +409,36 @@ void Bearer::KeyStore::askForWellKnown() {
 
 void Bearer::KeyStore::onWellKnownResponse(string_view response) {
 	if (response.empty()) {
-		LOGW("%s: failed to get the .well-known content from the authority server. Retry in 5 minutes.",
-		     kOpenIDConnect);
+		SLOGW << kOpenIDConnect
+		      << ": failed to get the .well-known content from the authority server, retry in 5 minutes";
 		const auto timeout = 5min;
 		mWellKnownTimer.set([this] { askForWellKnown(); }, timeout);
 		return;
 	}
 
-	LOGD("%s: a .well-known response has been received from the authority server.", kOpenIDConnect);
+	SLOGD << kOpenIDConnect << ": a .well-known response has been received from the authority server";
 	mWellKnownTimer.set([this] { askForWellKnown(); });
 	auto payload = JsonWrapper(nlohmann::json::parse(response));
 
 	constexpr auto issuer = "issuer"sv;
 	if (!payload.hasString(issuer)) {
-		LOGW("%s: failed to find %s in .well-known server response.", kOpenIDConnect, issuer.data());
+		SLOGW << kOpenIDConnect << ": failed to find \"" << issuer.data()
+		      << "\" in .well-known authority server response";
 	} else {
 		try {
 			auto iss = payload[issuer].get<string>();
 			auto issUrl = sofiasip::Url(iss);
 			if (!acceptIssuer(issUrl, mIssuer))
-				LOGW("%s: a different issuer has been received from .well-known: %s while expecting %s.",
-				     kOpenIDConnect, issUrl.str().c_str(), mIssuer.str().c_str());
+				SLOGW << kOpenIDConnect << ": received an unexpected issuer \"" << issUrl.str()
+				      << "\" from .well-known (expecting to be strictly equal to \"" << mIssuer.str() << "\")";
 		} catch (const exception& e) {
-			LOGW("%s: an invalid issuer has been received from .well-known: %s.", kOpenIDConnect, e.what());
+			SLOGW << kOpenIDConnect << ": received an invalid issuer from .well-known, " << e.what();
 		}
 	}
 
 	constexpr auto jwksUri = "jwks_uri"sv;
 	if (!payload.hasString(jwksUri)) {
-		LOGW("%s: failed to find %s in .well-known server response.", kOpenIDConnect, jwksUri.data());
+		SLOGW << kOpenIDConnect << ": failed to find " << jwksUri.data() << " in .well-known server response";
 	}
 	mKeyPath = payload[jwksUri].get<string>();
 	askForJWKS();
@@ -455,7 +456,7 @@ void Bearer::KeyStore::onJWKSResponse(string_view response) {
 	mJWKSTimer.set([this] { askForJWKS(); });
 
 	if (response.empty()) {
-		LOGW("%s: failed to get the JWKS from the authority server.", kOpenIDConnect);
+		SLOGW << kOpenIDConnect << ": failed to get the JWKS content from the authority server";
 		checkKeysValidity();
 		// check if url has changed
 		askForWellKnown();
@@ -479,7 +480,7 @@ void Bearer::KeyStore::checkKeysValidity() {
 			++pubKey;
 			continue;
 		}
-		LOGI("%s: remove expired key with kid \"%s\".", kOpenIDConnect, pubKey->first.c_str());
+		SLOGI << kOpenIDConnect << ": remove expired key with kid \"" << pubKey->first << "\"";
 		pubKey = mPubKeys.erase(pubKey);
 	}
 }
