@@ -23,6 +23,17 @@
 #include "flexisip/logmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 namespace flexisip {
+namespace {
+std::string readData(const http_payload_t* httpPayload) {
+	std::string body{};
+	auto payload = httpPayload;
+	while (payload && payload->pl_len && payload->pl_data) {
+		body += std::string{payload->pl_data, payload->pl_len};
+		payload = payload->pl_next;
+	}
+	return body;
+}
+} // namespace
 
 Http1Client::Http1Client(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {
 	mNthEngine.reset(nth_engine_create(mRoot->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END()));
@@ -46,8 +57,7 @@ void Http1Client::sendNextRequest() {
 			thiz->onRequestResponse("");
 			return 1;
 		}
-
-		thiz->onRequestResponse(rep->http_payload->pl_data);
+		thiz->onRequestResponse(readData(rep->http_payload));
 		return 0;
 	};
 

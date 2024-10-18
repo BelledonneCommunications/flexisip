@@ -36,9 +36,9 @@ class Http1Srv {
 public:
 	explicit Http1Srv(const std::shared_ptr<sofiasip::SuRoot>& root);
 
-	const char* getFirstPort();
+	std::string getUrl();
 
-	void addPage(std::string_view subPath, std::string_view body);
+	std::string addPage(std::string_view subPath, std::string_view body);
 
 	std::string_view getResponse(const std::string& page) {
 		const auto response = mResponses.find(page);

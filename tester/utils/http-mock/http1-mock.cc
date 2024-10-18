@@ -23,8 +23,14 @@
 #include <sofia-sip/http_header.h>
 
 #include "flexisip/sofia-wrapper/home.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip::tester::http_mock {
+namespace {
+std::string getUrlStr(nth_site_t* site) {
+	return sofiasip::Url(nth_site_url(site)).str();
+}
+} // namespace
 
 Http1Srv::Http1Srv(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {
 	auto cb = [](nth_site_magic_t*, nth_site_t*, nth_request_t* req, http_t const*, char const*) {
@@ -33,16 +39,20 @@ Http1Srv::Http1Srv(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} 
 	};
 	mSite.reset(nth_site_create(nullptr, cb, this, reinterpret_cast<const url_string_t*>("http://127.0.0.1:0"),
 	                            NTHTAG_ROOT(mRoot->getCPtr()), TAG_END()));
+
+	// the port was set to 0 on creation, replace it whith the port actually used
+	auto* url = const_cast<url_t*>(nth_site_url(mSite.get()));
+	url->url_port = nth_site_get_first_port(mSite.get());
 }
 
-const char* Http1Srv::getFirstPort() {
-	return nth_site_get_first_port(mSite.get());
+std::string Http1Srv::getUrl() {
+	return getUrlStr(mSite.get());
 }
 
-void Http1Srv::addPage(std::string_view subPath, std::string_view body) {
+std::string Http1Srv::addPage(std::string_view subPath, std::string_view body) {
 	auto cb = [](nth_site_magic_t* ctx, nth_site_t* s, nth_request_t* req, http_t const*, char const*) {
 		auto thiz = static_cast<flexisip::tester::http_mock::Http1Srv*>(ctx);
-		auto rep = thiz->getResponse(nth_site_url(s)->url_path);
+		auto rep = thiz->getResponse(getUrlStr(s));
 		if (rep.empty()) return 500;
 		sofiasip::Home home{};
 		auto payload = http_payload_create(home.home(), rep.data(), static_cast<isize_t>(rep.size()));
@@ -51,7 +61,11 @@ void Http1Srv::addPage(std::string_view subPath, std::string_view body) {
 	};
 	auto page =
 	    nth_site_create(mSite.get(), cb, this, reinterpret_cast<const url_string_t*>(subPath.data()), TAG_END());
-	if (page) mResponses[nth_site_url(page)->url_path] = body;
+	if (!page) return {};
+
+	auto url = getUrlStr(page);
+	mResponses[url] = body;
+	return url;
 }
 
 } // namespace flexisip::tester::http_mock

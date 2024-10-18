@@ -408,40 +408,51 @@ void Bearer::KeyStore::askForWellKnown() {
 }
 
 void Bearer::KeyStore::onWellKnownResponse(string_view response) {
+	auto quickRetry = [this] {
+		const auto timeout = 5min;
+		mWellKnownTimer.set([this] { askForWellKnown(); }, timeout);
+	};
+
 	if (response.empty()) {
 		SLOGW << kOpenIDConnect
 		      << ": failed to get the .well-known content from the authority server, retry in 5 minutes";
-		const auto timeout = 5min;
-		mWellKnownTimer.set([this] { askForWellKnown(); }, timeout);
+		quickRetry();
 		return;
 	}
 
 	SLOGD << kOpenIDConnect << ": a .well-known response has been received from the authority server";
 	mWellKnownTimer.set([this] { askForWellKnown(); });
-	auto payload = JsonWrapper(nlohmann::json::parse(response));
+	try {
+		auto payload = JsonWrapper(nlohmann::json::parse(response));
+		constexpr auto issuer = "issuer"sv;
 
-	constexpr auto issuer = "issuer"sv;
-	if (!payload.hasString(issuer)) {
-		SLOGW << kOpenIDConnect << ": failed to find \"" << issuer.data()
-		      << "\" in .well-known authority server response";
-	} else {
-		try {
-			auto iss = payload[issuer].get<string>();
-			auto issUrl = sofiasip::Url(iss);
-			if (!acceptIssuer(issUrl, mIssuer))
-				SLOGW << kOpenIDConnect << ": received an unexpected issuer \"" << issUrl.str()
-				      << "\" from .well-known (expecting to be strictly equal to \"" << mIssuer.str() << "\")";
-		} catch (const exception& e) {
-			SLOGW << kOpenIDConnect << ": received an invalid issuer from .well-known, " << e.what();
+		if (!payload.hasString(issuer)) {
+			SLOGW << kOpenIDConnect << ": failed to find \"" << issuer.data()
+			      << "\" in .well-known authority server response";
+		} else {
+			try {
+				auto iss = payload[issuer].get<string>();
+				auto issUrl = sofiasip::Url(iss);
+				if (!acceptIssuer(issUrl, mIssuer))
+					SLOGW << kOpenIDConnect << ": received an unexpected issuer \"" << issUrl.str()
+					      << "\" from .well-known (expecting to be strictly equal to \"" << mIssuer.str() << "\")";
+			} catch (const exception& e) {
+				SLOGW << kOpenIDConnect << ": received an invalid issuer from .well-known, " << e.what();
+			}
 		}
-	}
 
-	constexpr auto jwksUri = "jwks_uri"sv;
-	if (!payload.hasString(jwksUri)) {
-		SLOGW << kOpenIDConnect << ": failed to find " << jwksUri.data() << " in .well-known server response";
+		constexpr auto jwksUri = "jwks_uri"sv;
+		if (!payload.hasString(jwksUri)) {
+			SLOGW << kOpenIDConnect << ": failed to find " << jwksUri.data() << " in .well-known server response";
+		}
+		mKeyPath = payload[jwksUri].get<string>();
+		askForJWKS();
+
+	} catch (const exception& e) {
+		SLOGE << kOpenIDConnect
+		      << ": unexpected error while parsing .well-known authority server response: " << e.what();
+		quickRetry();
 	}
-	mKeyPath = payload[jwksUri].get<string>();
-	askForJWKS();
 }
 
 void Bearer::KeyStore::askForJWKS() {
@@ -455,17 +466,22 @@ void Bearer::KeyStore::askForJWKS() {
 void Bearer::KeyStore::onJWKSResponse(string_view response) {
 	mJWKSTimer.set([this] { askForJWKS(); });
 
-	if (response.empty()) {
-		SLOGW << kOpenIDConnect << ": failed to get the JWKS content from the authority server";
-		checkKeysValidity();
-		// check if url has changed
-		askForWellKnown();
-		mKeyCacheUpdate = KeyCache::Required;
-		return;
-	}
+	try {
+		if (response.empty()) {
+			SLOGW << kOpenIDConnect << ": failed to get the JWKS content from the authority server";
+			checkKeysValidity();
+			// check if url has changed
+			askForWellKnown();
+			mKeyCacheUpdate = KeyCache::Required;
+			return;
+		}
 
-	auto keys = parseJWKSResponse(response);
-	updateKeys(keys);
+		auto keys = parseJWKSResponse(response);
+		updateKeys(keys);
+
+	} catch (const exception& e) {
+		SLOGE << kOpenIDConnect << ": unexpected error while parsing JWKS authority server response: " << e.what();
+	}
 }
 
 void Bearer::KeyStore::updateKeys(const unordered_map<std::string, KeyInfo>& pubKeys) {

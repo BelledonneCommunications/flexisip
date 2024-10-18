@@ -279,7 +279,7 @@ void bearerAuthWithWellknown() {
 	// mock an authorization server
 	http_mock::Http1Srv httpSvr(root);
 	const auto realm = "testRealm";
-	const auto issuer = std::string("http://127.0.0.1:") + httpSvr.getFirstPort() + "/TEST";
+	const auto issuer = httpSvr.getUrl() + "/TEST";
 
 	auto rsaCert = removePemMarker(kRsaCert);
 	nlohmann::json jwksBody = {{"keys",
