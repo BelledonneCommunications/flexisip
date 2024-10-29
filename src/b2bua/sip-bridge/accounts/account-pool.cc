@@ -370,24 +370,31 @@ void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::asyn
 		const auto messageType = std::get<reply::String>(array[0]);
 		if (messageType == "message") {
 			replyAsString = std::get<reply::String>(array[2]);
+			SLOGD << "AccountPool::handleAccountUpdatePublish - 'message' received, " << replyAsString;
 			auto redisPub = json::parse(replyAsString).get<RedisAccountPub>();
 			accountUpdateNeeded(redisPub);
-		} else {
-			const auto channel = std::get<reply::String>(array[1]);
-			assert(channel == topic);
-			if (messageType == "subscribe") {
-				const auto subscriptionCount = std::get<reply::Integer>(array[2]);
-				SLOGD << "AccountPool::handleAccountUpdatePublish - 'subscribe' request on '" << channel
-				      << "' channel succeeded. This session currently has " << subscriptionCount << " subscriptions";
-
-				initialLoad();
-
-			} else if (messageType == "unsubscribe") {
-				SLOGW << "AccountPool::handleAccountUpdatePublish - Channel '" << channel
-				      << "' unexpectedly unsubscribed. This should never happen, if you see this in your log, please "
-				         "open a ticket.";
-			}
+			return;
 		}
+		const auto channel = std::get<reply::String>(array[1]);
+		assert(channel == topic);
+		if (messageType == "subscribe") {
+			const auto subscriptionCount = std::get<reply::Integer>(array[2]);
+			SLOGD << "AccountPool::handleAccountUpdatePublish - 'subscribe' request on '" << channel
+			      << "' channel succeeded. This session currently has " << subscriptionCount << " subscriptions";
+			initialLoad();
+			return;
+		}
+		if (messageType == "unsubscribe") {
+			SLOGW << "AccountPool::handleAccountUpdatePublish - Channel '" << channel
+			      << "' unexpectedly unsubscribed. This should never happen, if you see this in your log, please "
+			         "open a ticket.";
+			return;
+		}
+
+		SLOGW << "AccountPool::handleAccountUpdatePublish - unexpected '" << messageType << "' received, "
+		      << StreamableVariant(array[2])
+		      << ". This should never happen, if you see this in your log, please open a ticket.";
+
 	} catch (const std::bad_variant_access&) {
 		SLOGE << "AccountPool::subscribeToAccountUpdate::callback : publish from redis not well formatted";
 	} catch (const json::parse_error& e) {
