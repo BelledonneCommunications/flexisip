@@ -135,6 +135,7 @@ add_executable(flexisip_tester
 	utils/asserts.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
 	utils/call-builder.cc utils/call-builder.hh
+	utils/call-listeners.cc utils/call-listeners.hh
 	utils/chat-room-builder.cc utils/chat-room-builder.hh
 	utils/client-builder.cc utils/client-builder.hh
 	utils/client-call.cc utils/client-call.hh
@@ -218,7 +219,7 @@ endif()
 
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
-		utils/server/b2bua-and-proxy-server.hh
+		utils/server/b2bua-and-proxy-server.cc utils/server/b2bua-and-proxy-server.hh
 		tests/b2bua/b2bua-tester.cc
 		tests/b2bua/sip-bridge/accounts/account-pool-tester.cc
 		tests/b2bua/sip-bridge/accounts/account-pool-performance-tester.cc

@@ -176,11 +176,14 @@ public:
 #undef getUrlAttr
 
 	/**
-	 * Create a new URL by replacing the user past by another string.
-	 * @throw UrlModificationError when the actual URL is empty or
-	 * the new URL would be invalid.
+	 * @brief Create a new URL by replacing the value of selected attribute by the given value.
+	 *
+	 * @param[in] attribute attribute whose value will be replaced
+	 * @param[in] value     new value
+	 *
+	 * @throw UrlModificationError if the Url is empty
 	 */
-	Url replaceUser(const std::string& newUser) const;
+	Url replace(const char* url_t::*attribute, std::string_view value) const;
 
 	/**
 	 * Test whether the URL has a given param by its name.
@@ -280,10 +283,19 @@ public:
 	SipUri& operator=(SipUri&& src) noexcept = default;
 
 	/**
-	 * @throw sofiasip::UrlModificationError if the URL is empty or
-	 * the result would be an invalid SIP URI.
+	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
-	SipUri replaceUser(const std::string& newUser) const;
+	SipUri replaceUser(std::string_view newUser) const;
+
+	/**
+	 * @throw sofiasip::UrlModificationError if the URL is empty
+	 */
+	SipUri replaceHost(std::string_view newHost) const;
+
+	/**
+	 * @throw sofiasip::UrlModificationError if the URL is empty
+	 */
+	SipUri replacePort(std::string_view newPort) const;
 
 	/**
 	 * True if this URI is the same as the other according to RFC 3261.

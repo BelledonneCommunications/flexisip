@@ -28,6 +28,7 @@
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
 #include "b2bua/sip-bridge/invite-tweaker.hh"
 #include "b2bua/sip-bridge/notify-tweaker.hh"
+#include "b2bua/sip-bridge/refer-tweaker.hh"
 #include "b2bua/sip-bridge/trigger-strategy.hh"
 
 namespace flexisip::b2bua::bridge {
@@ -43,6 +44,7 @@ public:
 	onCallCreate(const linphone::Call& incomingCall,
 	             linphone::CallParams& outgoingCallParams,
 	             std::unordered_map<std::string, std::weak_ptr<Account>>& occupiedSlots);
+	std::shared_ptr<const linphone::Address> onTransfer(const linphone::Call& call);
 	std::optional<b2bua::Application::ActionToTake> onSubscribeCreate(const linphone::Event& incomingEvent,
 	                                                                  const std::string& subscribeEvent);
 	std::optional<b2bua::Application::NotifyDestination> onNotifyToBeSent(const linphone::Event& incomingEvent);
@@ -54,6 +56,7 @@ private:
 	            std::unique_ptr<account_strat::AccountSelectionStrategy>&& accountStrat,
 	            config::v2::OnAccountNotFound onAccountNotFound,
 	            InviteTweaker&& inviteTweaker,
+	            ReferTweaker&& referTweaker,
 	            NotifyTweaker&& notifyTweaker,
 	            std::string&& name);
 
@@ -61,6 +64,7 @@ private:
 	std::unique_ptr<account_strat::AccountSelectionStrategy> mAccountStrat;
 	config::v2::OnAccountNotFound mOnAccountNotFound;
 	InviteTweaker mInviteTweaker;
+	ReferTweaker mReferTweaker;
 	NotifyTweaker mNotifyTweaker;
 	std::string name;
 };

@@ -24,6 +24,7 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/core-assert.hh"
 
 namespace flexisip::tester {
 namespace {
@@ -55,7 +56,7 @@ void test() {
 	const auto& caller = builder.build("sip:expected-from@sip.example.org;custom-param=%40/From");
 	const auto& b2bua = builder.build("sip:expected-request-uri@sip.example.org;custom-param=RequestUri");
 	caller.invite(b2bua);
-	BC_HARD_ASSERT_TRUE(b2bua.hasReceivedCallFrom(caller));
+	BC_HARD_ASSERT_TRUE(b2bua.hasReceivedCallFrom(caller, CoreAssert{proxy, caller, b2bua}));
 	const auto forgedCall = ClientCall::getLinphoneCall(*b2bua.getCurrentCall());
 	{
 		const auto& requestUri = forgedCall->getRequestAddress();

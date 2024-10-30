@@ -236,9 +236,9 @@ void callInviteStatuses() {
 
 	{
 		auto tonyCall = tony.invite(mike);
-		mikePhone.hasReceivedCallFrom(tony).hard_assert_passed();
-		mikeDesktop.hasReceivedCallFrom(tony).hard_assert_passed();
-		mikeTablet.hasReceivedCallFrom(tony).hard_assert_passed();
+		mikePhone.hasReceivedCallFrom(tony, asserter).hard_assert_passed();
+		mikeDesktop.hasReceivedCallFrom(tony, asserter).hard_assert_passed();
+		mikeTablet.hasReceivedCallFrom(tony, asserter).hard_assert_passed();
 		tonyCall->terminate();
 		asserter
 		    .iterateUpTo(4,
@@ -266,9 +266,9 @@ void callInviteStatuses() {
 
 	{
 		auto tonyCall = tony.invite(mike);
-		mikePhone.hasReceivedCallFrom(tony).assert_passed();
-		mikeDesktop.hasReceivedCallFrom(tony).assert_passed();
-		mikeTablet.hasReceivedCallFrom(tony).assert_passed();
+		mikePhone.hasReceivedCallFrom(tony, asserter).assert_passed();
+		mikeDesktop.hasReceivedCallFrom(tony, asserter).assert_passed();
+		mikeTablet.hasReceivedCallFrom(tony, asserter).assert_passed();
 		mikePhone.getCurrentCall()->decline(linphone::Reason::Declined);
 		asserter
 		    .iterateUpTo(4,
@@ -311,9 +311,9 @@ void callInviteStatuses() {
 
 	{
 		auto tonyCall = tony.invite(mike);
-		mikePhone.hasReceivedCallFrom(tony).hard_assert_passed();
-		mikeDesktop.hasReceivedCallFrom(tony).hard_assert_passed();
-		mikeTablet.hasReceivedCallFrom(tony).hard_assert_passed();
+		mikePhone.hasReceivedCallFrom(tony, asserter).hard_assert_passed();
+		mikeDesktop.hasReceivedCallFrom(tony, asserter).hard_assert_passed();
+		mikeTablet.hasReceivedCallFrom(tony, asserter).hard_assert_passed();
 		ClientCall::getLinphoneCall(mikePhone.getCurrentCall().value())->accept();
 		asserter
 		    .iterateUpTo(4,
@@ -407,7 +407,7 @@ void doubleForkContextStart() {
 	CoreAssert asserter{lux, paulClient, agent};
 
 	auto luxCall = lux.invite(paul);
-	paulClient.hasReceivedCallFrom(lux).assert_passed();
+	paulClient.hasReceivedCallFrom(lux, asserter).assert_passed();
 	paulClient.getCurrentCall()->decline(linphone::Reason::Declined);
 
 	BC_HARD_ASSERT_CPP_EQUAL(callsStarted.size(), 1);

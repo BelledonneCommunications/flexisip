@@ -330,15 +330,19 @@ public:
 	 * Iterate the two sides of a fresh call and evaluates whether this client is in
 	 * linphone::Call::State::IncomingReceived or not.
 	 *
-	 * @note if needed, you can provide an external proxy on which iterate during this process
-	 *
-	 * @param[in] peer          the other client involved in the call
-	 * @param[in] externalProxy external proxy on which iterate
+	 * @param[in] peer     the other client involved in the call
+	 * @param[in] asserter asserter
 	 *
 	 * @return true if there is a current call in IncomingReceived state
 	 */
-	[[nodiscard]] AssertionResult hasReceivedCallFrom(const CoreClient& peer,
-	                                                  const std::shared_ptr<Agent>& externalProxy = nullptr) const;
+	[[nodiscard]] AssertionResult hasReceivedCallFrom(const CoreClient&, const BcAssert<>& asserter) const {
+		return asserter.waitUntil(mCallInviteReceivedDelay, [this] {
+			const auto& call = mCore->getCurrentCall();
+			FAIL_IF(call == nullptr);
+			FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
+			return ASSERTION_PASSED();
+		});
+	}
 
 	/**
 	 * Invite another CoreClient but makes no asserts. Does not iterate any of the Cores.

@@ -18,25 +18,30 @@
 
 #pragma once
 
-#include "account-selection-strategy.hh"
+#include <sstream>
+#include <stdexcept>
 
-namespace flexisip::b2bua::bridge::account_strat {
+namespace flexisip::b2bua::bridge {
 
-class PickRandomInPool : public AccountSelectionStrategy {
+class InvalidAddress : public std::runtime_error {
 public:
-	PickRandomInPool(const std::shared_ptr<AccountPool>& accountPool) : AccountSelectionStrategy(accountPool) {
+	explicit InvalidAddress(const char* headerName, const std::string& invalidAddress)
+	    : std::runtime_error(headerName), mWhat(invalidAddress) {
 	}
 
-	std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const override {
-		return getAccountPool().getAccountRandomly();
+	const char* what() const noexcept override {
+		const auto* headerName = std::runtime_error::what();
+		const auto& invalidAddress = mWhat;
+		auto msg = std::ostringstream();
+		msg << "Attempting to send an outgoing invite with an invalid URI in its '" << headerName << "' header: '"
+		    << invalidAddress << "'";
+		mWhat = msg.str();
+
+		return mWhat.c_str();
 	}
-	std::shared_ptr<Account> chooseAccountForThisTransfer(const linphone::Call &) const override {
-		SLOGW << "PickRandomInPool strategy is not implemented for call transfers yet: undefined behavior";
-		return getAccountPool().getAccountRandomly();
-	}
-	std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const override {
-		return getAccountPool().getAccountRandomly();
-	}
+
+private:
+	mutable std::string mWhat;
 };
 
-} // namespace flexisip::b2bua::bridge::account_strat
+} // namespace flexisip::b2bua::bridge

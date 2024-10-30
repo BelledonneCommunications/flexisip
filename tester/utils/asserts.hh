@@ -88,7 +88,7 @@ public:
 		mIterateFuncs.push_back(iterate);
 	}
 	template <typename Func>
-	[[nodiscard]] AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func&& condition) {
+	[[nodiscard]] AssertionResult waitUntil(const std::chrono::duration<double> timeout, Func&& condition) const {
 		const auto timeLimit = std::chrono::steady_clock::now() + timeout;
 
 		return loopAssert([&timeLimit] { return timeLimit < std::chrono::steady_clock::now(); },
@@ -115,7 +115,7 @@ public:
 	}
 
 	template <typename AssertFunc, typename StopFunc>
-	[[nodiscard]] AssertionResult loopAssert(StopFunc stopCondition, AssertFunc assertion) {
+	[[nodiscard]] AssertionResult loopAssert(StopFunc stopCondition, AssertFunc assertion) const {
 		const auto before = std::chrono::system_clock::now();
 		for (uint32_t iterations = 0;; ++iterations) {
 			iterateAllOnce();
@@ -163,7 +163,7 @@ public:
 	}
 
 private:
-	void iterateAllOnce() {
+	void iterateAllOnce() const {
 		for (const auto& iterate : mIterateFuncs) {
 			iterate();
 		}

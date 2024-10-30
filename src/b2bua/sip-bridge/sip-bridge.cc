@@ -15,6 +15,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
 #include "sip-bridge.hh"
 
 #include <fstream>
@@ -30,22 +31,28 @@
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
 #include "b2bua/sip-bridge/accounts/selection-strategy/find-in-pool.hh"
 #include "b2bua/sip-bridge/accounts/selection-strategy/pick-random-in-pool.hh"
+#include "exceptions/bad-configuration.hh"
 #include "utils/variant-utils.hh"
+
+#define FUNC_LOG_PREFIX (mLogPrefix + "::" + __func__ + "()")
 
 using namespace std;
 
 namespace flexisip::b2bua::bridge {
 
 namespace {
-// Name of the corresponding section in the configuration file
+
+// Name of the corresponding section in the configuration file.
 constexpr auto configSection = "b2bua-server::sip-bridge";
 constexpr auto providersConfigItem = "providers";
 
-// Statically define default configuration items
+// Statically define default configuration items.
 const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {String, providersConfigItem,
-	     R"(Path to a file containing the accounts to use for external SIP bridging, organised by provider, in JSON format.
+	    {
+	        String,
+	        providersConfigItem,
+	        R"(Path to a file containing the accounts to use for external SIP bridging, organised by provider, in JSON format.
 Here is a template of what should be in this file:
 {
 	"schemaVersion": 2,
@@ -106,25 +113,28 @@ Here is a template of what should be in this file:
 		}
 	}
 })"
-	     "\nFull documentation is available here: "
-	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/"
-	     "Back-to-back%20User%20Agent%20%28b2bua%29/SIP%20Bridge/#sip-bridge\n",
-	     "example-path.json"},
-	    config_item_end};
+	        "\nFull documentation is available here: "
+	        "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/"
+	        "Back-to-back%20User%20Agent%20%28b2bua%29/SIP%20Bridge/#sip-bridge\n",
+	        "example-path.json",
+	    },
+	    config_item_end,
+	};
 
 	root.addChild(make_unique<GenericStruct>(configSection, "External SIP Provider Bridge parameters.", 0))
 	    ->addChildrenValues(items);
 });
+
 } // namespace
 
 AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolConfigMap& accountPoolConfigMap) {
 	auto accountPoolMap = AccountPoolImplMap();
 	for (auto& [poolName, pool] : accountPoolConfigMap) {
 		if (pool.outboundProxy.empty()) {
-			LOGF("Please provide an `outboundProxy` for AccountPool '%s'", poolName.c_str());
+			throw BadConfiguration{"please provide an `outboundProxy` for AccountPool " + poolName};
 		}
 		if (pool.maxCallsPerLine == 0) {
-			SLOGW << "AccountPool '" << poolName
+			SLOGW << FUNC_LOG_PREFIX << ": AccountPool '" << poolName
 			      << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
 		}
 
@@ -132,9 +142,9 @@ AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolC
 		auto redisConf = std::optional<redis::async::RedisParameters>(std::nullopt);
 		Match(pool.loader)
 		    .against(
-		        [&loader, &capPoolName = poolName](config::v2::StaticLoader& staticPool) {
+		        [&loader, &capPoolName = poolName, logPrefix = FUNC_LOG_PREFIX](config::v2::StaticLoader& staticPool) {
 			        if (staticPool.empty()) {
-				        SLOGW << "AccountPool '" << capPoolName
+				        SLOGW << logPrefix << ":AccountPool '" << capPoolName
 				              << "' has no `accounts` and will not be used to bridge calls";
 			        }
 
@@ -162,7 +172,7 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 	providers.reserve(rootConfig.providers.size());
 	for (auto& provDesc : rootConfig.providers) {
 		if (provDesc.name.empty()) {
-			LOGF("One of your external SIP providers has an empty `name`");
+			throw BadConfiguration{"one of your external SIP providers has an empty `name`"};
 		}
 		auto triggerStrat =
 		    Match(provDesc.triggerCondition)
@@ -173,13 +183,13 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 		            [&providerName = provDesc.name](const config::v2::trigger_cond::MatchRegex& matchRegex)
 		                -> std::unique_ptr<trigger_strat::TriggerStrategy> {
 			            if (matchRegex.pattern.empty()) {
-				            LOGF("Please provide a `pattern` for provider '%s'", providerName.c_str());
+				            throw BadConfiguration{"please provide a `pattern` for provider" + providerName};
 			            }
 			            return std::make_unique<trigger_strat::MatchRegex>(matchRegex);
 		            });
 		const auto& accountPoolIt = accountPools.find(provDesc.accountPool);
 		if (accountPoolIt == accountPools.cend()) {
-			LOGF("Please provide an existing `accountPools` for provider '%s'", provDesc.name.c_str());
+			throw BadConfiguration{"please provide an existing `accountPools` for provider " + provDesc.name};
 		}
 		auto accountStrat =
 		    Match(provDesc.accountToUse)
@@ -198,6 +208,7 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 		    std::move(accountStrat),
 		    provDesc.onAccountNotFound,
 		    InviteTweaker(provDesc.outgoingInvite, *mCore),
+		    ReferTweaker(provDesc.outgoingInvite),
 		    NotifyTweaker(provDesc.outgoingNotify, *mCore),
 		    std::move(provDesc.name),
 		});
@@ -223,7 +234,7 @@ void SipBridge::init(const shared_ptr<B2buaCore>& core, const flexisip::ConfigMa
 	auto fileStream = ifstream(filePath);
 	constexpr auto fileDesignation = "external SIP providers JSON configuration file";
 	if (!fileStream.is_open()) {
-		LOGF("Failed to open %s '%s'", fileDesignation, filePath.c_str());
+		throw BadConfiguration{"failed to open "s + fileDesignation + " '" + filePath + "'"};
 	}
 
 	// Parse file
@@ -249,8 +260,21 @@ b2bua::Application::ActionToTake SipBridge::onCallCreate(const linphone::Call& i
 		}
 	}
 
-	SLOGD << "No provider could handle the call to " << incomingCall.getToAddress()->asStringUriOnly();
+	SLOGD << FUNC_LOG_PREFIX << ": no provider could handle the call to "
+	      << incomingCall.getToAddress()->asStringUriOnly();
 	return linphone::Reason::NotAcceptable;
+}
+
+std::shared_ptr<const linphone::Address> SipBridge::onTransfer(const linphone::Call& call) {
+	for (auto& provider : providers) {
+		if (const auto referToAddress = provider.onTransfer(call)) {
+			return referToAddress;
+		}
+	}
+
+	SLOGW << FUNC_LOG_PREFIX << ": no provider could handle the call transfer to "
+	      << call.getReferToAddress()->asString() << ", sending REFER request with untranslated \"Refer-To\" header";
+	return call.getReferToAddress();
 }
 
 void SipBridge::onCallEnd(const linphone::Call& call) {
@@ -271,7 +295,7 @@ b2bua::Application::ActionToTake SipBridge::onSubscribe(const linphone::Event& e
 		}
 	}
 
-	SLOGD << "No provider could handle the " << subscribeEvent << " SUBSCRIBE to "
+	SLOGD << FUNC_LOG_PREFIX << ": no provider could handle the " << subscribeEvent << " SUBSCRIBE to "
 	      << event.getToAddress()->asStringUriOnly();
 	return linphone::Reason::NotAcceptable;
 }
@@ -283,7 +307,7 @@ std::optional<b2bua::Application::NotifyDestination> SipBridge::onNotifyToBeSent
 		}
 	}
 
-	SLOGD << "No provider could handle the NOTIFY to " << event.getToAddress()->asStringUriOnly();
+	SLOGD << FUNC_LOG_PREFIX << ": no provider could handle the NOTIFY to " << event.getToAddress()->asStringUriOnly();
 	return nullopt;
 }
 

@@ -35,11 +35,13 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "registrardb-internal.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "utils/asserts.hh"
+#include "utils/call-listeners.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/core-assert.hh"
@@ -135,15 +137,16 @@ void basicCallWithEarlyMedia() {
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto callee = builder.build("sip:callee@sip.example.org");
 
+	CoreAssert asserter{proxy, b2bua, caller, callee};
+
 	// Caller invites callee.
 	const auto callerCall = caller.invite(callee);
-	callee.hasReceivedCallFrom(caller).hard_assert_passed();
+	callee.hasReceivedCallFrom(caller, asserter).hard_assert_passed();
 
 	// Callee accepts with early media.
 	const auto calleeCall = callee.getCurrentCall();
 	calleeCall->acceptEarlyMedia();
 
-	CoreAssert asserter{proxy, b2bua, caller, callee};
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -191,6 +194,46 @@ void basicCallWithEarlyMedia() {
 }
 
 /**
+ * @brief Establish a call where the callee declines the call.
+ */
+void basicCallDeclined() {
+	B2buaAndProxyServer B2buaAndProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+
+	ClientBuilder builder{*B2buaAndProxy.getAgent()};
+	auto caller = builder.build("sip:caller@sip.example.org");
+	auto callee = builder.build("sip:callee@sip.example.org");
+
+	CoreAssert asserter{B2buaAndProxy, caller, callee};
+
+	// Caller invites callee.
+	const ClientCall callerCall{caller.invite(callee)};
+	callee.hasReceivedCallFrom(caller, asserter).hard_assert_passed();
+
+	// Callee declines the call.
+	const auto calleeCall = callee.getCurrentCall().value();
+	calleeCall.decline(linphone::Reason::Declined);
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&callerCall, &calleeCall]() {
+		        FAIL_IF(callerCall.getState() != linphone::Call::State::Released);
+		        FAIL_IF(calleeCall.getState() != linphone::Call::State::Released);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
+/**
  * @brief Forge an INVITE request with an erroneous request address, but appropriate "To:" header. The B2BUA should only
  * use the "To:" header to build the other leg of the call.
  */
@@ -219,8 +262,9 @@ void usesAORButNotContact() {
 
 	auto call = caller.invite(intendedRecipient);
 
-	intended.hasReceivedCallFrom(caller).assert_passed();
-	BC_ASSERT(!unexpected.hasReceivedCallFrom(caller));
+	CoreAssert asserter{server, caller, intended};
+	intended.hasReceivedCallFrom(caller, asserter).assert_passed();
+	BC_ASSERT(!unexpected.hasReceivedCallFrom(caller, asserter));
 }
 
 /**
@@ -272,68 +316,68 @@ void userAgentHeader() {
  * @brief Test value of "user-agent" parameter in b2bua-server.
  */
 void userAgentParameterConfiguration() {
-	const auto getServerConfig = [](const B2buaAndProxyServer& server) {
-		return server.getAgent()->getConfigManager().getRoot()->get<GenericStruct>("b2bua-server");
+	const auto getServerConfig = [](const B2buaAndProxyServer& b2bua) {
+		return b2bua.getAgent()->getConfigManager().getRoot()->get<GenericStruct>("b2bua-server");
 	};
 
 	// Test exception is thrown when parameter is ill-formed: string is empty.
 	{
-		B2buaAndProxyServer server{"", false};
-		getServerConfig(server)->get<ConfigString>("user-agent")->set("");
-		BC_ASSERT_THROWN(server.init(), FlexisipException);
+		B2buaAndProxyServer b2bua{"", false};
+		getServerConfig(b2bua)->get<ConfigString>("user-agent")->set("");
+		BC_ASSERT_THROWN(b2bua.startB2bua(), BadConfiguration);
 	}
 
 	// Test when value is well-formed: <name>.
 	{
-		B2buaAndProxyServer server{"", false};
+		B2buaAndProxyServer b2bua{"", false};
 		const auto expected = ".!%*_+`'~-12-Hello-";
-		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected);
+		getServerConfig(b2bua)->get<ConfigString>("user-agent")->set(expected);
 
-		server.init();
+		b2bua.startB2bua();
 
-		BC_ASSERT_CPP_EQUAL(server.getCore()->getUserAgent(), expected);
+		BC_ASSERT_CPP_EQUAL(b2bua.getCore()->getUserAgent(), expected);
 	}
 
 	// Test when value is well-formed: <name>/<version>.
 	{
-		B2buaAndProxyServer server{"", false};
+		B2buaAndProxyServer b2bua{"", false};
 		const auto expected = "1-.!%*_+`'~-test-name/test_version-.!%*_+`'~";
-		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected);
+		getServerConfig(b2bua)->get<ConfigString>("user-agent")->set(expected);
 
-		server.init();
+		b2bua.startB2bua();
 
-		BC_ASSERT_CPP_EQUAL(server.getCore()->getUserAgent(), expected);
+		BC_ASSERT_CPP_EQUAL(b2bua.getCore()->getUserAgent(), expected);
 	}
 
 	// Test when value is well-formed: <name>/{version}.
 	{
-		B2buaAndProxyServer server{"", false};
+		B2buaAndProxyServer b2bua{"", false};
 		const auto expected = "a-test-.!%*_+`'~/";
-		getServerConfig(server)->get<ConfigString>("user-agent")->set(expected + string("{version}"));
+		getServerConfig(b2bua)->get<ConfigString>("user-agent")->set(expected + string("{version}"));
 
-		server.init();
+		b2bua.startB2bua();
 
-		BC_ASSERT_CPP_EQUAL(server.getCore()->getUserAgent(), expected + string(FLEXISIP_GIT_VERSION));
+		BC_ASSERT_CPP_EQUAL(b2bua.getCore()->getUserAgent(), expected + string(FLEXISIP_GIT_VERSION));
 	}
 
 	// Test exception is thrown when parameter is ill-formed: <wrong_name>/<version>|{version}.
 	{
-		B2buaAndProxyServer server{"", false};
-		const auto serverConfig = getServerConfig(server);
-		serverConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/.!%*_+`'~-0-Test-version");
-		BC_ASSERT_THROWN(server.init(), FlexisipException);
+		B2buaAndProxyServer b2bua{"", false};
+		const auto b2buaConfig = getServerConfig(b2bua);
+		b2buaConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/.!%*_+`'~-0-Test-version");
+		BC_ASSERT_THROWN(b2bua.startB2bua(), BadConfiguration);
 
-		serverConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/{version}");
-		BC_ASSERT_THROWN(server.init(), FlexisipException);
+		b2buaConfig->get<ConfigString>("user-agent")->set("name-with-illegal-character-{/{version}");
+		BC_ASSERT_THROWN(b2bua.startB2bua(), BadConfiguration);
 	}
 
 	// Test exception is thrown when parameter is ill-formed: <name>/<wrong_version>.
 	{
-		B2buaAndProxyServer server{"", false};
-		getServerConfig(server)
+		B2buaAndProxyServer b2bua{"", false};
+		getServerConfig(b2bua)
 		    ->get<ConfigString>("user-agent")
 		    ->set("1-.!%*_+`'~-test-name/version-with-illegal-character-{");
-		BC_ASSERT_THROWN(server.init(), FlexisipException);
+		BC_ASSERT_THROWN(b2bua.startB2bua(), BadConfiguration);
 	}
 }
 
@@ -457,7 +501,7 @@ void pauseWithAudioInactive() {
 	CoreAssert asserter{pauser, proxy, pausee};
 	const auto& callFromPauser = pauser.invite(pausee);
 	BC_HARD_ASSERT(callFromPauser != nullptr);
-	ASSERT_PASSED(pausee.hasReceivedCallFrom(pauser));
+	ASSERT_PASSED(pausee.hasReceivedCallFrom(pauser, asserter));
 	const auto& pauserCall = pauser.getCurrentCall();
 	const auto& pauseeCall = pausee.getCurrentCall();
 	BC_HARD_ASSERT(pauseeCall.has_value());
@@ -554,7 +598,7 @@ void answerToPauseWithAudioInactive() {
 	CoreAssert asserter{pauser, proxy, pausee};
 	const auto& callFromPauser = pauser.invite(pausee);
 	BC_HARD_ASSERT(callFromPauser != nullptr);
-	ASSERT_PASSED(pausee.hasReceivedCallFrom(pauser));
+	ASSERT_PASSED(pausee.hasReceivedCallFrom(pauser, asserter));
 	const auto& pauserCall = pauser.getCurrentCall();
 	const auto& pauseeCall = pausee.getCurrentCall();
 	BC_HARD_ASSERT(pauseeCall.has_value());
@@ -655,7 +699,7 @@ void unknownMediaAttrAreFilteredOutOnReinvites() {
 	const auto& reinviter = builder.build("sip:reinviter@example.org");
 	auto asserter = CoreAssert{caller, proxy, reinviter};
 	caller.invite(reinviter);
-	ASSERT_PASSED(reinviter.hasReceivedCallFrom(caller));
+	ASSERT_PASSED(reinviter.hasReceivedCallFrom(caller, asserter));
 	const auto& reinviterCall = reinviter.getCurrentCall();
 	BC_HARD_ASSERT(reinviterCall.has_value());
 	reinviterCall->accept();
@@ -727,227 +771,313 @@ void forcedAudioCodec() {
 }
 
 /*
- * Test blind call transfer.
- *
- * As of 2024-08-23, this test mostly verifies the B2BUA-server does not crash when a REFER request is received.
+ * Test successful blind call transfer.
  *
  * Scenario:
- * 1. A call is established through the B2BUA between "transferor" and "transferee".
- * 2. Transferor transfers its call with transferee to the transfer target "transfer-t".
- * 3. The call between transferor et transferee should be paused until transfer-t answers (pick up or decline) to the
- *    INVITE it received from transferee.
- * 4. Finally, when transfer-t answers, the call should run between transferee and transfer-t. The call between
- *    transferor and transferee is released as soon as NOTIFY/200 OK was received by transferor.
- * ...
- * TODO: correct this test and description once the feature is developed.
+ * 1. A call is established through the B2BUA between "transferee" and "transferor".
+ * 2. "Transferor" transfers its call with "transferee" to "transferTarget".
+ * 3. The call between "transferee" and "transferor" should be paused until "transferTarget" answers (pick up or
+ *    decline) to the INVITE request it received from "transferee".
+ * 4. Finally, when "transferTarget" answers, the call should run between "transferee" and "transferTarget". The call
+ *    between "transferee" and "transferor" should be released as soon as "NOTIFY/200 OK" was received by transferor
+ *    (Linphone specific behaviour).
  */
-void blindCallTransfer() {
-	Server proxy{{
+void blindCallTransferSuccessful() {
+	B2buaAndProxyServer B2buaAndProxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/application", "trenscrypter"},
-	    {"module::B2bua/enabled", "true"},
 	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "example.org"},
-	    // Media Relay has problem when everyone is running on localhost
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
 	    {"module::MediaRelay/enabled", "false"},
-	    // B2bua use writable-dir instead of var folder
-	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
-	proxy.start();
-
-	// Instantiate and start B2BUA server.
-	const auto& confMan = proxy.getConfigManager();
-	const auto& configRoot = *confMan->getRoot();
-	const auto proxyUri = "sip:127.0.0.1:" + string{proxy.getFirstPort()} + ";transport=tcp";
-	configRoot.get<GenericStruct>("b2bua-server")->get<ConfigString>("outbound-proxy")->set(proxyUri);
-	const auto& b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), confMan);
-	b2bua->init();
-	const auto b2buaUri = "sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp";
-	configRoot.get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
-	proxy.getAgent()->findModule("B2bua")->reload();
 
 	// Instantiate clients.
-	auto builder = ClientBuilder{*proxy.getAgent()};
-	auto transferor = builder.build("transferor@example.org");
-	auto transferee = builder.build("transferee@example.org");
-	auto transferTarget = builder.build("transfer-t@example.org");
-	// The B2BUA-server uses the same sofia-loop as the proxy.
-	CoreAssert asserter{proxy, transferor, transferee, transferTarget};
+	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto transferor = builder.build("transferor@sip.example.org");
+	auto transferee = builder.build("transferee@sip.example.org");
+	auto transferTarget = builder.build("transferTarget@sip.example.org");
 
-	// Create call.
-	const auto& callFromTransferor = transferor.invite(transferee);
-	BC_HARD_ASSERT(callFromTransferor != nullptr);
-	transferee.hasReceivedCallFrom(transferor).hard_assert_passed();
-	const auto& transferorCall = transferor.getCurrentCall();
-	const auto& transfereeCall = transferee.getCurrentCall();
-	BC_HARD_ASSERT(transfereeCall.has_value());
+	CoreAssert asserter{B2buaAndProxy, transferor, transferee, transferTarget};
+	
+	// Create call from "transferee" to "transferor".
+	const ClientCall transfereeCallToTransferor{transferee.invite(transferor.getMe()->asStringUriOnly())};
+	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
-	// Accept call from transferor.
-	transfereeCall->accept();
+	// Accept call from "transferee".
+	const auto transferorCallFromTransferee = transferor.getCurrentCall().value();
+	transferorCallFromTransferee.accept();
+
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCall->getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transfereeCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// Transfer call to transfer target.
-	callFromTransferor->transferTo(transferTarget.getAccount()->getContactAddress());
+	// Attach a call listener to transferor's call in order to verify receipt of NOTIFY requests.
+	const auto transferListener = make_shared<CallTransferListener>();
+	transferorCallFromTransferee.addListener(transferListener);
+
+	// Transfer call to "transferTarget", initiated by "transferor".
+	transferorCallFromTransferee.transferTo(transferTarget.getMe()->clone());
+	transferTarget.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
+
+	const auto transfereeCallToTransferTarget = transferee.getCurrentCall().value();
+	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall().value();
+
+	// Verify that call between "transferee" and "transferor" is paused while waiting for "transferTarget" answer.
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCall->getState() != linphone::Call::State::PausedByRemote);
-		        // As of 2024-08-23, transferee does not receive the REFER request, so it does not send an INVITE
-		        // request to transfer-t.
-		        // FAIL_IF(transfereeCall->getState() != linphone::Call::State::OutgoingRinging);
-		        FAIL_IF(transfereeCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::OutgoingRinging);
+		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::IncomingReceived);
+		        // Verify "transferor" received NOTIFY 100 Trying.
+		        FAIL_IF(transferListener->mLastState != linphone::Call::State::OutgoingProgress);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// Verify transfer-t received a call and answer to it.
-	transferTarget.hasReceivedCallFrom(transferee).hard_assert_passed();
-	const auto& transferTargetCall = transferTarget.getCurrentCall();
-	BC_HARD_ASSERT(transferTargetCall.has_value());
-	transferTargetCall->accept();
+	// Verify content of "Referred-By" header.
+	const SipUri referredByAddress{transferTargetCallFromTransferee.getReferredByAddress()->asStringUriOnly()};
+	const SipUri transferorAddress{transferor.getMe()->asStringUriOnly()};
+	BC_ASSERT(referredByAddress.compareAll(transferorAddress));
+
+	// Accept call from "transferee" to "transferTarget".
+	transferTargetCallFromTransferee.accept();
+
+	// Verify "transferor" received NOTIFY 200 Ok.
+	transferListener->assertNotifyReceived(asserter, linphone::Call::State::Connected).assert_passed();
+
+	// Verify that calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCall->getState() != linphone::Call::State::Released);
-		        // As of 2024-08-23, transferee does not establish a call with transfer-t and the call gets released
-		        // because transferor answered BYE after receiving NOTIFY/200 OK.
-		        // FAIL_IF(transfereeCall->getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transfereeCall->getState() != linphone::Call::State::Released);
-		        FAIL_IF(transferTargetCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::Released);
+		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// As of 2024-08-23, transfer-t has a call with b2bua and not transferee.
-	// BC_ASSERT(transferTarget.endCurrentCall(transferee));
-	transferTargetCall->terminate();
-
-	std::ignore = b2bua->stop();
+	BC_ASSERT(transferTarget.endCurrentCall(transferee));
 }
 
 /*
- * Test attended call transfer.
+ * Test blind call transfer when "transferTarget" declines the call.
+ *
+ * Scenario:
+ * 1. A call is established through the B2BUA between "transferee" and "transferor".
+ * 2. "Transferor" transfers its call with "transferee" to "transferTarget".
+ * 3. The call between "transferee" and "transferor" should be paused until "transferTarget" answers (pick up or
+ *    decline) to the INVITE request it received from "transferee".
+ * 4. When "transferTarget" declines, the call should be release between "transferee" and "transferTarget". The call
+ *    between "transferee" and "transferor" should still be paused.
+ * 5. Finally, "transferee" resumes the call with "transferor", it should resume normally.
+ */
+void blindCallTransferDeclined() {
+	B2buaAndProxyServer B2buaAndProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+
+	// Instantiate clients.
+	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto transferor = builder.build("transferor@sip.example.org");
+	auto transferee = builder.build("transferee@sip.example.org");
+	auto transferTarget = builder.build("transferTarget@sip.example.org");
+
+	CoreAssert asserter{B2buaAndProxy, transferor, transferee, transferTarget};
+
+	// Create call from "transferee" to "transferor".
+	const ClientCall transfereeCallToTransferor{transferee.invite(transferor.getMe()->asStringUriOnly())};
+	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
+
+	// Accept call from "transferee".
+	const auto transferorCallFromTransferee = transferor.getCurrentCall().value();
+	transferorCallFromTransferee.accept();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Attach a call listener to transferor's call in order to verify receipt of NOTIFY requtests.
+	const auto transferListener = make_shared<CallTransferListener>();
+	transferorCallFromTransferee.addListener(transferListener);
+
+	// Transfer call to "transferTarget", initiated by "transferor".
+	transferorCallFromTransferee.transferTo(transferTarget.getMe()->clone());
+	transferTarget.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
+
+	const auto transfereeCallToTransferTarget = transferee.getCurrentCall().value();
+	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall().value();
+
+	// Verify that call between "transferee" and "transferor" is paused while waiting for "transferTarget" answer.
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::OutgoingRinging);
+		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::IncomingReceived);
+		        // Verify "transferor" received NOTIFY 100 Trying.
+		        FAIL_IF(transferListener->mLastState != linphone::Call::State::OutgoingProgress);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Verify content of "Referred-By" header.
+	const SipUri referredByAddress{transferTargetCallFromTransferee.getReferredByAddress()->asStringUriOnly()};
+	const SipUri transferorAddress{transferor.getMe()->asStringUriOnly()};
+	BC_ASSERT(referredByAddress.compareAll(transferorAddress));
+
+	// Decline call from "transferee" to "transferTarget".
+	transferTargetCallFromTransferee.decline(linphone::Reason::Declined);
+
+	// Verify "transferor" received NOTIFY 500 Internal Server Error.
+	transferListener->assertNotifyReceived(asserter, linphone::Call::State::Error).assert_passed();
+
+	// Resume call after failed call transfer.
+	transfereeCallToTransferor.resume();
+
+	// Verify calls are in the right state.
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::Released);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	BC_ASSERT(transferee.endCurrentCall(transferor));
+}
+
+/*
+ * Test successful attended call transfer.
  *
  * As of 2024-08-23, this test mostly verifies the B2BUA-server does not crash when a REFER request is received.
  *
  * Scenario:
- * 1. A call is established through the B2BUA between "transferor" and "transferee".
- * 2. Another call is established through the B2BUA between "transferor" and "transfer-t".
- * 3. Transferor transfers its call with transferee to the transfer target "transfer-t".
+ * 1. A call is established through the B2BUA between "transferee" and "transferor".
+ * 2. Another call is established through the B2BUA between "transferor" and "transferTarget".
+ * 3. "Transferor" transfers its call with "transferee" to "transferTarget".
  * ...
  * TODO: finish test once the feature is developed.
  */
-void attendedCallTransfer() {
-	Server proxy{{
+void attendedCallTransferSuccessful() {
+	B2buaAndProxyServer B2buaAndProxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"b2bua-server/application", "trenscrypter"},
-	    {"module::B2bua/enabled", "true"},
 	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "example.org"},
-	    // Media Relay has problem when everyone is running on localhost
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
 	    {"module::MediaRelay/enabled", "false"},
-	    // B2bua use writable-dir instead of var folder
-	    {"b2bua-server/data-directory", bcTesterWriteDir()},
 	}};
-	proxy.start();
-
-	// Instantiate and start B2BUA server.
-	const auto& confMan = proxy.getConfigManager();
-	const auto& configRoot = *confMan->getRoot();
-	const auto proxyUri = "sip:127.0.0.1:" + string{proxy.getFirstPort()} + ";transport=tcp";
-	configRoot.get<GenericStruct>("b2bua-server")->get<ConfigString>("outbound-proxy")->set(proxyUri);
-	const auto& b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), confMan);
-	b2bua->init();
-	const auto b2buaUri = "sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp";
-	configRoot.get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
-	proxy.getAgent()->findModule("B2bua")->reload();
 
 	// Instantiate clients.
-	auto builder = ClientBuilder{*proxy.getAgent()};
-	auto transferor = builder.build("transferor@example.org");
-	auto transferee = builder.build("transferee@example.org");
-	auto transferTarget = builder.build("transfer-t@example.org");
-	// The B2BUA-server uses the same sofia-loop as the proxy.
-	CoreAssert asserter{proxy, transferor, transferee, transferTarget};
+	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto transferor = builder.build("transferor@sip.example.org");
+	auto transferee = builder.build("transferee@sip.example.org");
+	auto transferTarget = builder.build("transferTarget@sip.example.org");
 
-	// Create call from transferor to transferee.
-	const auto& callFromTransferorToTransferee = transferor.invite(transferee);
-	BC_HARD_ASSERT(callFromTransferorToTransferee != nullptr);
-	transferee.hasReceivedCallFrom(transferor).hard_assert_passed();
-	const auto& transferorCallWithTransferee = transferor.getCurrentCall();
-	const auto& transfereeCallWithTransferor = transferee.getCurrentCall();
-	BC_HARD_ASSERT(transfereeCallWithTransferor.has_value());
+	CoreAssert asserter{B2buaAndProxy, transferor, transferee, transferTarget};
+	
+	// Create call from "transferee" to "transferor".
+	const ClientCall transfereeCallToTransferor{transferee.invite(transferor.getMe()->asStringUriOnly())};
+	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
-	// Accept call from transferor to transferee.
-	transfereeCallWithTransferor->accept();
+	// Accept call from "transferee".
+	const auto transferorCallFromTransferee = transferor.getCurrentCall().value();
+	transferorCallFromTransferee.accept();
+
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCallWithTransferee->getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transfereeCallWithTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// Create call from transferor to transfer-t.
-	const auto& callFromTransferorToTransferTarget = transferor.invite(transferTarget);
-	BC_HARD_ASSERT(callFromTransferorToTransferTarget != nullptr);
-	transferTarget.hasReceivedCallFrom(transferor).hard_assert_passed();
-	const auto& transferorCallWithTransferTarget = transferor.getCurrentCall();
-	const auto& transferTargetCallWithTransferor = transferTarget.getCurrentCall();
-	BC_HARD_ASSERT(transferTargetCallWithTransferor.has_value());
+	// Create call from "transferor" to "transferTarget".
+	const ClientCall transferorCallToTransferTarget{transferor.invite(transferTarget)};
+	transferTarget.hasReceivedCallFrom(transferor, asserter).hard_assert_passed();
 
-	// Accept call from transferor to transfer-t.
-	transferTargetCallWithTransferor->accept();
+	// Accept call from transferor.
+	const auto transferTargetCallFromTransferor = transferTarget.getCurrentCall().value();
+	transferTargetCallFromTransferor.accept();
+
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCallWithTransferTarget->getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferTargetCallWithTransferor->getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transfereeCallWithTransferor->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallToTransferTarget.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferor.getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// Transfer call to transfer target.
-	// As of 2024-08-23, the B2BUA reacts badly to REFER requests (invites himself to a new call).
-	callFromTransferorToTransferTarget->transferToAnother(callFromTransferorToTransferee);
+	// Transfer call between "transferee" and "transferor" to call between "transferor" and "transferTarget", initiated
+	// by "transferor".
+	transferorCallFromTransferee.transferToAnother(transferorCallToTransferTarget);
+
+	// TODO: verify call is received by "transferTarget" from "transferee".
+	// TODO: accept call transfer.
+	// TODO: verify receipt of NOTIFY requests.
+
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCallWithTransferee->getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transfereeCallWithTransferor->getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transferorCallWithTransferTarget->getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transferTargetCallWithTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallToTransferTarget.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferor.getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// TODO: verify the call between transferee and transfer-t is established.
+	// TODO: verify the call between transferee and transferTarget is established.
 	// TODO: verify the call between transferor and transferee is released.
-
-	std::ignore = b2bua->stop();
+	// TODO: verify receipt of NOTIFY requests.
 }
 
 /**
@@ -1101,6 +1231,7 @@ TestSuite _{
     {
         CLASSY_TEST(basicCall),
         CLASSY_TEST(basicCallWithEarlyMedia),
+        CLASSY_TEST(basicCallDeclined),
         CLASSY_TEST(usesAORButNotContact),
         CLASSY_TEST(userAgentHeader),
         CLASSY_TEST(userAgentParameterConfiguration),
@@ -1109,8 +1240,9 @@ TestSuite _{
         CLASSY_TEST(answerToPauseWithAudioInactive),
         CLASSY_TEST(unknownMediaAttrAreFilteredOutOnReinvites),
         CLASSY_TEST(forcedAudioCodec),
-        CLASSY_TEST(blindCallTransfer),
-        CLASSY_TEST(attendedCallTransfer),
+        CLASSY_TEST(blindCallTransferSuccessful),
+        CLASSY_TEST(blindCallTransferDeclined),
+        CLASSY_TEST(attendedCallTransferSuccessful),
         CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, TCP, false>)),
         CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, TCP, true>)),
         CLASSY_TEST((transportAndOneConnectionPerAccount<TCP, UDP, false>)),

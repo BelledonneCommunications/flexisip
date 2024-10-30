@@ -9,39 +9,30 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
-#include <filesystem>
-#include <string>
+#include "core-assert.hh"
 
 namespace flexisip::tester {
 
-/**
- * Creates a directory with the given prefix in the writable directory of flexisip_tester then deletes it and all its
- * contents on destruction.
- * The directory name will start with a random suffix.
- */
-class TmpDir {
+class CallTransferListener : public linphone::CallListener {
 public:
-	explicit TmpDir(const std::string&);
-	~TmpDir();
+	void onTransferStateChanged(const std::shared_ptr<linphone::Call>&, linphone::Call::State state) override;
 
-	TmpDir(const TmpDir&) = delete;
-	TmpDir(TmpDir&&) noexcept = default;
-
-	const auto& path() const {
-		return mPath;
+	[[nodiscard]] AssertionResult assertNotifyReceived(CoreAssert<>& asserter, linphone::Call::State expectedState) {
+		mLastState = static_cast<linphone::Call::State>(-1);
+		return asserter.iterateUpTo(
+		    0x20, [this, &expectedState]() { return LOOP_ASSERTION(mLastState == expectedState); }, std::chrono::seconds{2});
 	}
 
-private:
-	std::filesystem::path mPath;
+	linphone::Call::State mLastState{};
 };
 
 } // namespace flexisip::tester

@@ -43,6 +43,7 @@ target_sources(flexisip PRIVATE
         sip-bridge/sip-provider.cc sip-bridge/sip-provider.hh
         sip-bridge/invite-tweaker.cc sip-bridge/invite-tweaker.hh
         sip-bridge/notify-tweaker.cc sip-bridge/notify-tweaker.hh
+        sip-bridge/refer-tweaker.cc sip-bridge/refer-tweaker.hh
         sip-bridge/trigger-strategy.cc sip-bridge/trigger-strategy.hh
         trenscrypter.cc trenscrypter.hh
 )

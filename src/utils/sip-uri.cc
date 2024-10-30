@@ -21,7 +21,6 @@
 #include <stdexcept>
 #include <string_view>
 
-#include "sofia-sip/sip_extra.h"
 #include "sofia-sip/url.h"
 
 #include "flexisip/configmanager.hh"
@@ -88,17 +87,11 @@ const std::string& Url::str() const noexcept {
 	return _urlAsStr;
 }
 
-Url Url::replaceUser(const std::string& newUser) const {
-	try {
-		if (empty()) throw UrlModificationError("empty Url");
-		url_t newUrl = *_url;
-		newUrl.url_user = newUser.empty() ? nullptr : newUser.c_str();
-		return Url(&newUrl);
-	} catch (const InvalidUrlError& e) {
-		ostringstream msg;
-		msg << "replacing user part of '" << str() << "' by '" << newUser << "'";
-		throw UrlModificationError(msg.str());
-	}
+Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
+	if (empty()) throw UrlModificationError{"url is empty, cannot replace attribute"};
+	auto url = *_url;
+	url.*attribute = value.empty() ? nullptr : value.data();
+	return Url{&url};
 }
 
 std::string Url::getParam(const string& paramName) const {
@@ -223,9 +216,16 @@ SipUri::SipUri(sofiasip::Url&& src) {
 	static_cast<sofiasip::Url*>(this)->operator=(std::move(src));
 }
 
-SipUri SipUri::replaceUser(const std::string& newUser) const {
-	Url url = sofiasip::Url::replaceUser(newUser);
-	return SipUri(std::move(url));
+SipUri SipUri::replaceUser(std::string_view newUser) const {
+	return SipUri(Url::replace(&url_t::url_user, newUser));
+}
+
+SipUri SipUri::replaceHost(std::string_view newHost) const {
+	return SipUri(Url::replace(&url_t::url_host, newHost));
+}
+
+SipUri SipUri::replacePort(std::string_view newPort) const {
+	return SipUri(Url::replace(&url_t::url_port, newPort));
 }
 
 void SipUri::checkUrl(const sofiasip::Url& url) {

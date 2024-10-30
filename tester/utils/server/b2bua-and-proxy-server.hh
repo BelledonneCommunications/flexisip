@@ -29,75 +29,33 @@ namespace flexisip::tester {
 using V1ProviderDesc = b2bua::bridge::config::v1::ProviderDesc;
 
 class B2buaAndProxyServer : public Server {
-private:
-	std::shared_ptr<flexisip::B2buaServer> mB2buaServer;
-
 public:
 	explicit B2buaAndProxyServer(const std::string& configFile = std::string(),
 	                             bool start = true,
-	                             InjectedHooks* injectedModule = nullptr)
-	    : Server(configFile, injectedModule) {
+	                             InjectedHooks* injectedModule = nullptr);
 
-		// Configure B2bua Server
-		auto* b2buaServerConf = getConfigManager()->getRoot()->get<GenericStruct>("b2bua-server");
+	explicit B2buaAndProxyServer(const std::map<std::string, std::string>& customConfig,
+	                             bool start = true,
+	                             InjectedHooks* injectedHooks = nullptr);
 
-		if (!configFile.empty()) {
-			// b2bua server needs an outbound proxy to route all sip messages to the proxy, set it to the first
-			// transport of the proxy.
-			auto proxyTransports = getAgent()
-			                           ->getConfigManager()
-			                           .getRoot()
-			                           ->get<GenericStruct>("global")
-			                           ->get<ConfigStringList>("transports")
-			                           ->read();
-			b2buaServerConf->get<ConfigString>("outbound-proxy")->set(proxyTransports.front());
-		}
+	~B2buaAndProxyServer() override;
 
-		// need a writable dir to store DTLS-SRTP self signed certificate (even if the config file is empty)
-		// Force to use writable-dir instead of var directory
-		b2buaServerConf->get<ConfigString>("data-directory")->set(bcTesterWriteDir());
+	void startB2bua();
+	void startProxy();
+	/**
+	 * @brief Start Proxy then B2BUA.
+	 */
+	void start() override;
 
-		mB2buaServer = std::make_shared<flexisip::B2buaServer>(this->getRoot(), this->getConfigManager());
+	b2bua::bridge::SipBridge& configureExternalProviderBridge(std::initializer_list<V1ProviderDesc>&& provDescs);
 
-		if (start) {
-			this->start();
-		}
-	}
-	~B2buaAndProxyServer() override {
-		std::ignore = mB2buaServer->stop();
-	}
+	flexisip::b2bua::Application& getModule();
+	std::shared_ptr<b2bua::B2buaCore>& getCore() const;
+	SipUri getFirstProxyUri() const;
 
-	void init() {
-		mB2buaServer->init();
-	}
-
-	void start() override {
-		init();
-
-		// Configure module b2bua
-		const auto* configRoot = getAgent()->getConfigManager().getRoot();
-		const auto& transport = configRoot->get<GenericStruct>("b2bua-server")->get<ConfigString>("transport")->read();
-		configRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(transport);
-
-		// Start proxy
-		Server::start();
-	}
-
-	auto& configureExternalProviderBridge(std::initializer_list<V1ProviderDesc>&& provDescs) {
-		using namespace b2bua::bridge;
-		mB2buaServer->mApplication =
-		    std::make_unique<SipBridge>(std::make_shared<sofiasip::SuRoot>(), mB2buaServer->mCore,
-		                                config::v2::fromV1(std::vector<V1ProviderDesc>(std::move(provDescs))),
-		                                getAgent()->getConfigManager().getRoot());
-		return static_cast<SipBridge&>(*mB2buaServer->mApplication);
-	}
-
-	flexisip::b2bua::Application& getModule() {
-		return *mB2buaServer->mApplication;
-	}
-
-	auto& getCore() const {
-		return mB2buaServer->mCore;
-	}
+private:
+	bool mProxyIsStarted{false};
+	std::shared_ptr<flexisip::B2buaServer> mB2buaServer{};
 };
+
 } // namespace flexisip::tester

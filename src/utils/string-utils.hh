@@ -221,9 +221,9 @@ inline bool isEndOfLineCharacter(char c) {
 
 #ifdef HAVE_LIBLINPHONECXX
 /**
- * Parse a string into a linphone::MediaEncryption
+ * @brief Parse a string into a linphone::MediaEncryption
  *
- * @param[in]	configString	the configuration string, one of: zrtp, sdes, dtls-srtp, none
+ * @param[in] configString the configuration string, one of: {zrtp, sdes, dtls-srtp, none}
  **/
 std::optional<linphone::MediaEncryption> string2MediaEncryption(const std::string& str);
 #endif // HAVE_LIBLINPHONECXX

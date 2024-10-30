@@ -20,18 +20,17 @@
 
 #include "trenscrypter.hh"
 
-namespace flexisip {
-namespace b2bua {
-namespace trenscrypter {
+#define FUNC_LOG_PREFIX (mLogPrefix + "::" + __func__ + "()")
 
-// unamed namespace for local functions
+namespace flexisip::b2bua::trenscrypter {
+
 namespace {
 
 /**
- * convert a linphone::MediaEncryption to string
+ * @brief Convert a linphone::MediaEncryption to string.
  *
- * @param[in]	encryptionMode	The MediaEncryption to be converted
- * @return	The corresponding string, one of: zrtp, sdes, dtls-srtp, none. An error message if no match were found.
+ * @param[in] encryptionMode the MediaEncryption to be converted
+ * @return the corresponding string, one of: {zrtp, sdes, dtls-srtp, none}, or an error message if no match was found.
  **/
 std::string MediaEncryption2string(const linphone::MediaEncryption mode) {
 	switch (mode) {
@@ -48,14 +47,14 @@ std::string MediaEncryption2string(const linphone::MediaEncryption mode) {
 }
 
 /**
- * convert a configuration string to a linphone::SrtpSuite
+ * @brief Convert a configuration string to a linphone::SrtpSuite.
  *
- * @param[in]	configString	the configuration string, one of: AES_CM_128_HMAC_SHA1_80, AES_CM_128_HMAC_SHA1_32,
- *								AES_192_CM_HMAC_SHA1_80, AES_192_CM_HMAC_SHA1_32,
- *								AES_256_CM_HMAC_SHA1_80, AES_256_CM_HMAC_SHA1_32
- *								AEAD_AES_128_GCM, AEAD_AES_256_GCM
- * @param[out]	encryptionMode	the converted value, Invalid if the input string was invalid
- * @return		true if the given string is valid, false otherwise:%s
+ * @param[in] configString the configuration string, one of: AES_CM_128_HMAC_SHA1_80, AES_CM_128_HMAC_SHA1_32,
+ *                         AES_192_CM_HMAC_SHA1_80, AES_192_CM_HMAC_SHA1_32,
+ *                         AES_256_CM_HMAC_SHA1_80, AES_256_CM_HMAC_SHA1_32
+ *                         AEAD_AES_128_GCM, AEAD_AES_256_GCM
+ *
+ * @return the converted value, Invalid if the input string was invalid
  **/
 linphone::SrtpSuite string2SrtpSuite(const std::string configString) {
 	if (configString == std::string{"AES_CM_128_HMAC_SHA1_80"}) {
@@ -108,6 +107,7 @@ std::string SrtpSuite2string(const linphone::SrtpSuite suite) {
 	}
 	return "Invalid";
 }
+
 std::string SrtpSuite2string(const std::list<linphone::SrtpSuite> suites) {
 	std::string ret{};
 	for (const auto suite : suites) {
@@ -115,12 +115,13 @@ std::string SrtpSuite2string(const std::list<linphone::SrtpSuite> suites) {
 	}
 	return ret;
 }
+
 /**
- * Explode a string into a vector of strings according to a delimiter
+ * @brief Explode a string into a vector of strings according to a delimiter
  *
- * @param[in]	s 			the string to explode
- * @param[in]	delimiter	the delimiter to use
- * @return	a vector of strings
+ * @param[in] s         the string to explode
+ * @param[in] delimiter the delimiter to use
+ * @return a vector of strings
  */
 std::vector<std::string> explode(const std::string& s, char delimiter) {
 	std::vector<std::string> tokens;
@@ -139,31 +140,32 @@ constexpr auto configSection = "b2bua-server::trenscrypter";
 
 std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) {
-	const auto callee = incomingCall.getToAddress();
+	auto callee = incomingCall.getToAddress();
 	const auto calleeAddressUriOnly = callee->asStringUriOnly();
 	outgoingCallParams.setFromHeader(incomingCall.getRemoteAddress()->asString());
 
-	// select an outgoing encryption
+	// Select an outgoing encryption.
 	bool outgoingEncryptionSet = false;
 	for (auto& outEncSetting : mOutgoingEncryption) {
 		if (std::regex_match(calleeAddressUriOnly, outEncSetting.pattern)) {
-			SLOGD << "b2bua server: call to " << calleeAddressUriOnly << " matches regex "
+			SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " matches regex "
 			      << outEncSetting.stringPattern << " assign encryption mode "
 			      << MediaEncryption2string(outEncSetting.mode);
 			outgoingCallParams.setMediaEncryption(outEncSetting.mode);
 			outgoingEncryptionSet = true;
-			break; // stop at the first matching regexp
+			// Stop at the first matching regexp.
+			break;
 		}
 	}
 	if (outgoingEncryptionSet == false) {
-		SLOGD << "b2bua server: call to " << calleeAddressUriOnly << " uses incoming encryption setting";
+		SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " uses incoming encryption setting";
 	}
 
-	// When outgoing encryption mode is sdes, select a crypto suite list setting if a pattern matches
+	// When outgoing encryption mode is sdes, select a crypto suite list setting if a pattern matches.
 	if (outgoingCallParams.getMediaEncryption() == linphone::MediaEncryption::SRTP) {
 		for (auto& outSrtpSetting : mSrtpConf) {
 			if (std::regex_match(calleeAddressUriOnly, outSrtpSetting.pattern)) {
-				SLOGD << "b2bua server: call to " << calleeAddressUriOnly << " matches SRTP suite regex "
+				SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " matches SRTP suite regex "
 				      << outSrtpSetting.stringPattern << " assign Srtp Suites to "
 				      << SrtpSuite2string(outSrtpSetting.suites);
 				outgoingCallParams.setSrtpSuites(outSrtpSetting.suites);
@@ -172,9 +174,9 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 		}
 	}
 
-	// Check the selected outgoing encryption setting is available
+	// Check the selected outgoing encryption setting is available.
 	if (!mCore->isMediaEncryptionSupported(outgoingCallParams.getMediaEncryption())) {
-		SLOGD << "b2bua server tries to place an output call using "
+		SLOGD << FUNC_LOG_PREFIX << ": trying to place an outgoing call using "
 		      << MediaEncryption2string(outgoingCallParams.getMediaEncryption())
 		      << " encryption mode but it is not available";
 		return linphone::Reason::NotAcceptable;
@@ -188,11 +190,12 @@ void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::
 	const auto* configRoot = cfg.getRoot();
 	const auto* config = configRoot->get<GenericStruct>(configSection);
 
-	// create a non registered account to force route outgoing call through the proxy
-	auto route = mCore->createAddress(
+	// Create a non registered account to force route outgoing call through the proxy.
+	const auto factory = linphone::Factory::get();
+	auto route = factory->createAddress(
 	    configRoot->get<GenericStruct>(b2bua::configSection)->get<ConfigString>("outbound-proxy")->read());
 	auto accountParams = mCore->createAccountParams();
-	accountParams->setIdentityAddress(mCore->createAddress(mCore->getPrimaryContact()));
+	accountParams->setIdentityAddress(factory->createAddress(mCore->getPrimaryContact()));
 	accountParams->enableRegister(false);
 	accountParams->setServerAddress(route);
 	accountParams->setRoutesAddresses({route});
@@ -200,44 +203,44 @@ void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::
 	mCore->addAccount(account);
 	mCore->setDefaultAccount(account);
 
-	// Parse configuration for outgoing encryption mode
+	// Parse configuration for outgoing encryption mode.
 	auto outgoingEncryptionList = config->get<ConfigStringList>("outgoing-enc-regex")->read();
-	// parse from the list begining, we shall have couple : encryption_mode regex
+	// Parse from the list beginning, we shall have couple: encryption_mode regex.
 	while (outgoingEncryptionList.size() >= 2) {
 		if (const auto outgoingEncryption = StringUtils::string2MediaEncryption(outgoingEncryptionList.front())) {
 			outgoingEncryptionList.pop_front();
 			try {
 				mOutgoingEncryption.emplace_back(*outgoingEncryption, outgoingEncryptionList.front());
-			} catch (std::exception& e) {
-				BCTBX_SLOGE << "b2bua configuration error: outgoing-enc-regex contains invalid regex : "
-				            << outgoingEncryptionList.front();
+			} catch (const std::exception& e) {
+				SLOGW << mLogPrefix << ": configuration error, outgoing-enc-regex contains invalid regex ("
+				      << outgoingEncryptionList.front() << ")";
 			}
 			outgoingEncryptionList.pop_front();
 		} else {
-			BCTBX_SLOGE << "b2bua configuration error: outgoing-enc-regex contains invalid encryption mode: "
-			            << outgoingEncryptionList.front()
-			            << " valids modes are : zrtp, sdes, dtls-srtp, none. Ignore this setting";
+			SLOGW << mLogPrefix << ": configuration error, outgoing-enc-regex contains invalid encryption mode ("
+			      << outgoingEncryptionList.front()
+			      << "), valid modes are {zrtp, sdes, dtls-srtp, none}, ignore this setting";
 			outgoingEncryptionList.pop_front();
 			outgoingEncryptionList.pop_front();
 		}
 	}
 
-	// Parse configuration for outgoing SRTP suite
-	// we shall have a space separated list of suites regex suites regex ... suites regex
-	// If no regexp match, use the default configuration from rcfile
-	// each suites is a ; separated list of suites
+	// Parse configuration for outgoing SRTP suite.
+	// We shall have a space separated list of "suites regex suites regex ... suites regex".
+	// If no regexp match, use the default configuration from rcfile.
+	// Each suite is a ';' separated list of suites.
 	auto outgoingSrptSuiteList = config->get<ConfigStringList>("outgoing-srtp-regex")->read();
 	while (outgoingSrptSuiteList.size() >= 2) {
-		// first part is a ; separated list of suite, explode it and get each one of them
+		// First part is a ';' separated list of suites, explode it and get each one of them.
 		auto srtpSuites = explode(outgoingSrptSuiteList.front(), ';');
 		std::list<linphone::SrtpSuite> srtpCryptoSuites{};
-		// turn the string list into a std::list of linphone::SrtpSuite
+		// Turn the string list into an std::list of linphone::SrtpSuite.
 		for (auto& suiteName : srtpSuites) {
 			srtpCryptoSuites.push_back(string2SrtpSuite(suiteName));
 		}
 		if (srtpCryptoSuites.size() > 0) {
 			outgoingSrptSuiteList.pop_front();
-			// get the associated regex
+			// Get the associated regex.
 			try {
 				mSrtpConf.emplace_back(srtpCryptoSuites, outgoingSrptSuiteList.front());
 			} catch (std::exception& e) {
@@ -255,79 +258,96 @@ void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::
 }
 
 namespace {
-// Statically define default configuration items
+
+// Statically define default configuration items.
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {StringList, "outgoing-enc-regex",
-	     "Select the call outgoing encryption mode, this is a list of regular expressions and encryption mode.\n"
-	     "Valid encryption modes are: zrtp, dtls-srtp, sdes, none.\n\n"
-	     "The list is formatted in the following mode:\n"
-	     "mode1 regex1 mode2 regex2 ... moden regexn\n"
-	     "regex use posix syntax, any invalid one is skipped\n"
-	     "Each regex is applied, in the given order, on the callee sip uri(including parameters if any). First match "
-	     "found determines the encryption mode. "
-	     "if no regex matches, the incoming call encryption mode is used.\n\n"
-	     "Example: zrtp .*@sip\\.secure-example\\.org dtsl-srtp .*dtls@sip\\.example\\.org zrtp "
-	     ".*zrtp@sip\\.example\\.org sdes .*@sip\\.example\\.org\n"
-	     "In this example: the address is matched in order with\n"
-	     ".*@sip\\.secure-example\\.org so any call directed to an address on domain sip.secure-example-org uses zrtp "
-	     "encryption mode\n"
-	     ".*dtls@sip\\.example\\.org any call on sip.example.org to a username ending with dtls uses dtls-srtp "
-	     "encryption mode\n"
-	     ".*zrtp@sip\\.example\\.org any call on sip.example.org to a username ending with zrtp uses zrtp encryption "
-	     "mode\n"
-	     "The previous example will fail to match if the call is directed to a specific device(having a GRUU as callee "
-	     "address)\n"
-	     "To ignore sip URI parameters, use (;.*)? at the end of the regex. Example: "
-	     ".*@sip\\.secure-example\\.org(;.*)?\n"
-	     "Default:"
-	     "Selected encryption mode(if any) is enforced and the call will fail if the callee does not support this mode",
-	     ""},
-	    {StringList, "outgoing-srtp-regex",
-	     "Outgoing SRTP crypto suite in SDES encryption mode:\n"
-	     "Select the call outgoing SRTP crypto suite when outgoing encryption mode is SDES, this is a list of regular "
-	     "expressions and crypto suites list.\n"
-	     "Valid srtp crypto suites are :\n"
-	     "AES_CM_128_HMAC_SHA1_80, AES_CM_128_HMAC_SHA1_32\n"
-	     "AES_192_CM_HMAC_SHA1_80, AES_192_CM_HMAC_SHA1_32 // currently not supported\n"
-	     "AES_256_CM_HMAC_SHA1_80, AES_256_CM_HMAC_SHA1_80\n"
-	     "AEAD_AES_128_GCM, AEAD_AES_256_GCM\n"
-	     "\n"
-	     "The list is formatted in the following mode:\n"
-	     "cryptoSuiteList1 regex1 cryptoSuiteList2 regex2 ... crytoSuiteListn regexn\n"
-	     "with cryptoSuiteList being a ; separated list of crypto suites.\n"
-	     "\n"
-	     "Regex use posix syntax, any invalid one is skipped\n"
-	     "Each regex is applied, in the given order, on the callee sip uri(including parameters if any). First match "
-	     "found determines the crypto suite list used.\n"
-	     "\n"
-	     "if no regex matches, core setting is applied\n"
-	     "or default to "
-	     "AES_CM_128_HMAC_SHA1_80;AES_CM_128_HMAC_SHA1_32;AES_256_CM_HMAC_SHA1_80;AES_256_CM_HMAC_SHA1_32 when no core "
-	     "setting is available\n"
-	     "\n"
-	     "Example:\n"
-	     "AES_256_CM_HMAC_SHA1_80;AES_256_CM_HMAC_SHA1_32 .*@sip\\.secure-example\\.org AES_CM_128_HMAC_SHA1_80 "
-	     ".*@sip\\.example\\.org\n"
-	     "\n"
-	     "In this example: the address is matched in order with\n"
-	     ".*@sip\\.secure-example\\.org so any call directed to an address on domain sip.secure-example-org uses "
-	     "AES_256_CM_HMAC_SHA1_80;AES_256_CM_HMAC_SHA1_32 suites (in that order)\n"
-	     ".*@sip\\.example\\.org any call directed to an address on domain sip.example.org use AES_CM_128_HMAC_SHA1_80 "
-	     "suite\n"
-	     "The previous example will fail to match if the call is directed to a specific device(having a GRUU as callee "
-	     "address)\n"
-	     "To ignore sip URI parameters, use (;.*)? at the end of the regex. Example: "
-	     ".*@sip\\.secure-example\\.org(;.*)?\n"
-	     "Default:",
-	     ""},
-	    config_item_end};
+	    {
+	        StringList,
+	        "outgoing-enc-regex",
+	        "Select the call outgoing encryption mode, this is a list of regular expressions and encryption mode.\n"
+	        "Valid encryption modes are: zrtp, dtls-srtp, sdes, none.\n\n"
+	        "The list is formatted in the following mode:\n"
+	        "mode1 regex1 mode2 regex2 ... moden regexn\n"
+	        "regex use posix syntax, any invalid one is skipped\n"
+	        "Each regex is applied, in the given order, on the callee sip uri(including parameters if any). First "
+	        "match "
+	        "found determines the encryption mode. "
+	        "if no regex matches, the incoming call encryption mode is used.\n\n"
+	        "Example: zrtp .*@sip\\.secure-example\\.org dtsl-srtp .*dtls@sip\\.example\\.org zrtp "
+	        ".*zrtp@sip\\.example\\.org sdes .*@sip\\.example\\.org\n"
+	        "In this example: the address is matched in order with\n"
+	        ".*@sip\\.secure-example\\.org so any call directed to an address on domain sip.secure-example-org uses "
+	        "zrtp "
+	        "encryption mode\n"
+	        ".*dtls@sip\\.example\\.org any call on sip.example.org to a username ending with dtls uses dtls-srtp "
+	        "encryption mode\n"
+	        ".*zrtp@sip\\.example\\.org any call on sip.example.org to a username ending with zrtp uses zrtp "
+	        "encryption "
+	        "mode\n"
+	        "The previous example will fail to match if the call is directed to a specific device(having a GRUU as "
+	        "callee "
+	        "address)\n"
+	        "To ignore sip URI parameters, use (;.*)? at the end of the regex. Example: "
+	        ".*@sip\\.secure-example\\.org(;.*)?\n"
+	        "Default:"
+	        "Selected encryption mode(if any) is enforced and the call will fail if the callee does not support this "
+	        "mode",
+	        "",
+	    },
+	    {
+	        StringList,
+	        "outgoing-srtp-regex",
+	        "Outgoing SRTP crypto suite in SDES encryption mode:\n"
+	        "Select the call outgoing SRTP crypto suite when outgoing encryption mode is SDES, this is a list of "
+	        "regular "
+	        "expressions and crypto suites list.\n"
+	        "Valid srtp crypto suites are :\n"
+	        "AES_CM_128_HMAC_SHA1_80, AES_CM_128_HMAC_SHA1_32\n"
+	        "AES_192_CM_HMAC_SHA1_80, AES_192_CM_HMAC_SHA1_32 // currently not supported\n"
+	        "AES_256_CM_HMAC_SHA1_80, AES_256_CM_HMAC_SHA1_80\n"
+	        "AEAD_AES_128_GCM, AEAD_AES_256_GCM\n"
+	        "\n"
+	        "The list is formatted in the following mode:\n"
+	        "cryptoSuiteList1 regex1 cryptoSuiteList2 regex2 ... crytoSuiteListn regexn\n"
+	        "with cryptoSuiteList being a ; separated list of crypto suites.\n"
+	        "\n"
+	        "Regex use posix syntax, any invalid one is skipped\n"
+	        "Each regex is applied, in the given order, on the callee sip uri(including parameters if any). First "
+	        "match "
+	        "found determines the crypto suite list used.\n"
+	        "\n"
+	        "if no regex matches, core setting is applied\n"
+	        "or default to "
+	        "AES_CM_128_HMAC_SHA1_80;AES_CM_128_HMAC_SHA1_32;AES_256_CM_HMAC_SHA1_80;AES_256_CM_HMAC_SHA1_32 when no "
+	        "core "
+	        "setting is available\n"
+	        "\n"
+	        "Example:\n"
+	        "AES_256_CM_HMAC_SHA1_80;AES_256_CM_HMAC_SHA1_32 .*@sip\\.secure-example\\.org AES_CM_128_HMAC_SHA1_80 "
+	        ".*@sip\\.example\\.org\n"
+	        "\n"
+	        "In this example: the address is matched in order with\n"
+	        ".*@sip\\.secure-example\\.org so any call directed to an address on domain sip.secure-example-org uses "
+	        "AES_256_CM_HMAC_SHA1_80;AES_256_CM_HMAC_SHA1_32 suites (in that order)\n"
+	        ".*@sip\\.example\\.org any call directed to an address on domain sip.example.org use "
+	        "AES_CM_128_HMAC_SHA1_80 "
+	        "suite\n"
+	        "The previous example will fail to match if the call is directed to a specific device(having a GRUU as "
+	        "callee "
+	        "address)\n"
+	        "To ignore sip URI parameters, use (;.*)? at the end of the regex. Example: "
+	        ".*@sip\\.secure-example\\.org(;.*)?\n"
+	        "Default:",
+	        "",
+	    },
+	    config_item_end,
+	};
 
 	root.addChild(std::make_unique<GenericStruct>(configSection, "Encryption transcoder bridge parameters.", 0))
 	    ->addChildrenValues(items);
 });
+
 } // namespace
 
-} // namespace trenscrypter
-} // namespace b2bua
-} // namespace flexisip
+} // namespace flexisip::b2bua::trenscrypter

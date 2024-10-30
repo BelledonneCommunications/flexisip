@@ -39,46 +39,56 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	const auto& configLinphone = factory.createConfig("");
 	configLinphone->setBool("misc", "conference_server_enabled", true);
 	configLinphone->setInt("misc", "max_calls", 1000);
-	configLinphone->setInt("misc", "media_resources_mode", 1); // share media resources
+	// Share media resources.
+	configLinphone->setInt("misc", "media_resources_mode", 1);
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
-	configLinphone->setBool("sip", "use_rfc2833", true); // Forward DTMF via out-of-band RTP...
-	configLinphone->setBool("sip", "use_info", true);    // ...or via SIP INFO if unsupported by media
-	configLinphone->setBool("sip", "defer_update_default",
-	                        true); // do not automatically accept update: we might want to update peer call before
+	// Forward DTMF via out-of-band RTP ...
+	configLinphone->setBool("sip", "use_rfc2833", true);
+	// ... or via SIP INFO if unsupported by media
+	configLinphone->setBool("sip", "use_info", true);
+	// Do not automatically accept update: we might want to update peer call before.
+	configLinphone->setBool("sip", "defer_update_default", true);
 	configLinphone->setBool("misc", "conference_event_log_enabled", false);
 	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::Conference::Layout::ActiveSpeaker));
 	// Prevent the default log handler from being reset while LinphoneCore construction.
 	configLinphone->setBool("logging", "disable_stdout", true);
-	// we may want to use unsupported codecs (h264) in the conference
+	// We may want to use unsupported codecs (h264) in the conference.
 	configLinphone->setBool("video", "dont_check_codecs", true);
-	// make sure the videostream can be started when using unsupported codec
+	// Make sure the videostream can be started when using unsupported codec.
 	configLinphone->setBool("video", "fallback_to_dummy_codec", true);
 	configLinphone->setBool("sip", "accounts_channel_isolation",
 	                        config.get<ConfigBoolean>("one-connection-per-account")->read());
 	configLinphone->setRange("sip", "refresh_window", 50, 90);
+	// Instructs the core not to automatically accept REFER requests. So we can transfer them to the other call leg.
+	configLinphone->setInt("sip", "auto_accept_refer", 0);
+	// Do not automatically terminate calls once transfer has succeeded (NOTIFY 200 OK received).
+	configLinphone->setInt("sip", "terminate_call_upon_transfer_completion", 0);
 
 	const auto& core = factory.createCoreWithConfig(configLinphone, nullptr);
 	core->setLabel("Flexisip B2BUA");
 	core->getConfig()->setString("storage", "backend", "sqlite3");
 	core->getConfig()->setString("storage", "uri", ":memory:");
-	core->setUseFiles(true); // No sound card shall be used in calls
+	// No sound card shall be used in calls.
+	core->setUseFiles(true);
 	core->enableEchoCancellation(false);
-	core->setPrimaryContact("sip:b2bua@localhost"); // TODO: get primary contact from config, do we really need one?
-	core->enableAutoSendRinging(false); // Do not auto answer 180 on incoming calls, relay the one from the other part.
+	// TODO: get primary contact from config, do we really need one?
+	core->setPrimaryContact("sip:b2bua@localhost");
+	// Do not auto answer 180 on incoming calls, relay the one from the other part.
+	core->enableAutoSendRinging(false);
 	core->setZrtpSecretsFile(":memory:");
-	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing
-	// See RFC 3261 §16.6 step 11 for the duration
+	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing.
+	// See RFC 3261 §16.6 step 11 for the duration.
 	core->setIncTimeout(4 * 60);
 
-	// Read user-agent parameter.
 	const auto userAgent = parseUserAgentFromConfig(config.get<ConfigString>("user-agent")->read());
 	core->setUserAgent(userAgent.first, userAgent.second);
 
-	// b2bua shall never take the initiative of accepting or starting video calls
-	// stick to incoming call parameters for that
+	// B2BUA shall never take the initiative of accepting or starting video calls.
+	// Stick to incoming call parameters for that.
 	auto policy = linphone::Factory::get()->createVideoActivationPolicy();
-	policy->setAutomaticallyAccept(true); // accept incoming video call so the request is forwarded to legB, acceptance
-	                                      // from legB is checked before accepting legA
+	// Accept incoming video call so the request is forwarded to legB.
+	// Acceptance from legB is checked before accepting legA.
+	policy->setAutomaticallyAccept(true);
 	policy->setAutomaticallyInitiate(false);
 	core->setVideoActivationPolicy(policy);
 
@@ -109,21 +119,21 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 			}
 		}
 		if (!enabled) {
-			throw BadConfiguration("B2bua core failed to enable " + configField->getCompleteName() + " with codec " +
+			throw BadConfiguration("B2BUA core failed to enable " + configField->getCompleteName() + " with codec " +
 			                       configDesc);
 		}
 
 		// We know for certain that the codec used in both legs will be the same (the one we just forced), so we can
-		// enable media bridging (payload forwarding without decoding)
+		// enable media bridging (payload forwarding without decoding).
 		configLinphone->setInt(linphoneConfigName, "conference_mode", MSConferenceModeRouterPayload);
 	};
 
-	// if an audio codec is set in config enable only that one
-	// expected config format: <codec>/<sample rate>
+	// If an audio codec is set in configuration, enable only that one.
+	// Expected config format: <codec>/<sample rate>
 	forceCodec("audio-codec", "sound", &linphone::Core::getAudioPayloadTypes, regex("([a-zA-Z-0-9-]+)/([0-9]+)"));
 
-	// if a video codec is set in config enable only that one
-	// expected config format: <codec>
+	// If a video codec is set in config enable only that one.
+	// Expected config format: <codec>
 	forceCodec("video-codec", "video", &linphone::Core::getVideoPayloadTypes, regex("([a-zA-Z-0-9-]+)"));
 
 	const int audioPortMin = config.get<ConfigIntRange>("audio-port")->readMin();
@@ -150,7 +160,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	}
 	core->setInCallTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(maxCallDuration).count()));
 
-	// Get transport from flexisip configuration
+	// Get transport from flexisip configuration.
 	const auto& b2buaTransport = factory.createTransports();
 	b2buaTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
 	b2buaTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
@@ -183,7 +193,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 					b2buaTransport->setTlsPort(listeningPort);
 				} else {
 					throw sofiasip::InvalidUrlError{
-					    mTransport, "invalid transport parameter value for 'sips' scheme: "s + transportParam};
+					    mTransport, "invalid transport parameter value for 'sips' scheme: "s + transportParam};
 				}
 			}
 		} catch (const sofiasip::InvalidUrlError& e) {
@@ -206,7 +216,7 @@ pair<string, string> parseUserAgentFromConfig(const string& value) {
 		return {res[1], res[2] == "{version}" ? FLEXISIP_GIT_VERSION : res[2].str()};
 	}
 
-	throw FlexisipException{"user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]"};
+	throw BadConfiguration{"user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]"};
 }
 
 } // namespace flexisip::b2bua

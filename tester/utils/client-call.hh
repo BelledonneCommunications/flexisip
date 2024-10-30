@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -15,36 +29,55 @@
 #include <ortp/rtp.h>
 #include <ortp/rtpsession.h>
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
+/**
+ * @brief Extends linphone::Call for testing purposes.
+ */
 class ClientCall {
 public:
 	ClientCall(std::shared_ptr<linphone::Call>&&);
 
-	const ::rtp_stats& getVideoRtpStats() const;
-	const ::RtpTransport& getMetaRtpTransport() const;
-	const ::RtpSession* getRtpSession() const;
+	/* CHEATS ~~ Use only for quick prototyping */
+	static const std::shared_ptr<linphone::Call>& getLinphoneCall(const ClientCall&);
+
 	linphone::Status accept() const;
 	linphone::Status acceptEarlyMedia() const;
+	linphone::Status
+	update(const std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)>&) const;
+	linphone::Status pause() const;
+	linphone::Status resume() const;
+	linphone::Status transferTo(const std::shared_ptr<linphone::Address>& referToAddress) const;
+	linphone::Status transferToAnother(const ClientCall& otherCall) const;
 	linphone::Status decline(linphone::Reason) const;
 	linphone::Status terminate() const;
-	linphone::Call::State getState() const;
+
 	linphone::Reason getReason() const;
+	linphone::Call::State getState() const;
+
+	std::shared_ptr<const linphone::Address> getRemoteAddress() const;
+	std::shared_ptr<const linphone::Address> getReferredByAddress() const;
+
+	const ::RtpSession* getRtpSession() const;
+	const ::RtpTransport& getMetaRtpTransport() const;
+	std::shared_ptr<linphone::CallStats> getStats(linphone::StreamType type) const;
+
 	linphone::MediaDirection getAudioDirection() const;
 	std::shared_ptr<linphone::CallStats> getAudioStats() const;
 	std::shared_ptr<const linphone::PayloadType> getAudioPayloadType() const;
-	std::shared_ptr<const linphone::Address> getRemoteAddress() const;
-	std::shared_ptr<linphone::CallStats> getStats(linphone::StreamType type) const;
-	const bool& videoFrameDecoded();
 
-	linphone::Status
-	    update(std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)>) const;
+	const bool& videoFrameDecoded();
+	const ::rtp_stats& getVideoRtpStats() const;
+
+	std::shared_ptr<linphone::Core> getCore() const;
 
 	void setStaticPictureFps(float fps);
 
-	/* CHEATS ~~ Use only for quick prototyping */
-	static const std::shared_ptr<linphone::Call>& getLinphoneCall(const ClientCall&);
+	void addListener(const std::shared_ptr<linphone::CallListener>& listener) const;
+	std::shared_ptr<linphone::CallParams> createCallParams(const ClientCall& call) const;
+
+	bool operator==(const ClientCall& other) const;
+	bool operator!=(const ClientCall& other) const;
 
 private:
 	class VideoDecodedListener : public linphone::CallListener {
@@ -61,5 +94,4 @@ private:
 	std::shared_ptr<VideoDecodedListener> mListener{nullptr};
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

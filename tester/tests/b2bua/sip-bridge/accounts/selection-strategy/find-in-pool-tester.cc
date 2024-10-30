@@ -27,6 +27,7 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/core-assert.hh"
 
 namespace flexisip::tester {
 namespace {
@@ -64,7 +65,7 @@ void chooseAccountForThisCall() {
 	const auto& caller = builder.build(incomingFrom);
 	const auto& b2buaStub = builder.build("stub@sip.example.org");
 	caller.invite(b2buaStub);
-	BC_HARD_ASSERT_TRUE(b2buaStub.hasReceivedCallFrom(caller));
+	BC_HARD_ASSERT_TRUE(b2buaStub.hasReceivedCallFrom(caller, CoreAssert{proxy, caller, b2buaStub}));
 	const auto forgedCall = ClientCall::getLinphoneCall(*b2buaStub.getCurrentCall());
 	// For this test, it's okay that this client core isn't configured exactly as that of a B2buaServer
 	const auto& b2buaStubCore = reinterpret_pointer_cast<B2buaCore>(b2buaStub.getCore());

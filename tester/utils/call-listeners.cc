@@ -9,39 +9,22 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "call-listeners.hh"
 
-#include <filesystem>
-#include <string>
+#include <chrono>
 
 namespace flexisip::tester {
 
-/**
- * Creates a directory with the given prefix in the writable directory of flexisip_tester then deletes it and all its
- * contents on destruction.
- * The directory name will start with a random suffix.
- */
-class TmpDir {
-public:
-	explicit TmpDir(const std::string&);
-	~TmpDir();
-
-	TmpDir(const TmpDir&) = delete;
-	TmpDir(TmpDir&&) noexcept = default;
-
-	const auto& path() const {
-		return mPath;
-	}
-
-private:
-	std::filesystem::path mPath;
-};
+void CallTransferListener::onTransferStateChanged(const std::shared_ptr<linphone::Call>&,
+                                                      linphone::Call::State state) {
+	mLastState = state;
+}
 
 } // namespace flexisip::tester

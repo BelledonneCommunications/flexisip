@@ -26,10 +26,11 @@ SipProvider::SipProvider(decltype(SipProvider::mTriggerStrat)&& triggerStrat,
                          decltype(SipProvider::mAccountStrat)&& accountStrat,
                          decltype(mOnAccountNotFound) onAccountNotFound,
                          InviteTweaker&& inviteTweaker,
+                         ReferTweaker&& referTweaker,
                          NotifyTweaker&& notifyTweaker,
                          string&& name)
     : mTriggerStrat(std::move(triggerStrat)), mAccountStrat(std::move(accountStrat)),
-      mOnAccountNotFound(onAccountNotFound), mInviteTweaker(std::move(inviteTweaker)),
+      mOnAccountNotFound(onAccountNotFound), mInviteTweaker(std::move(inviteTweaker)), mReferTweaker(referTweaker),
       mNotifyTweaker(std::move(notifyTweaker)), name(std::move(name)) {
 }
 
@@ -70,6 +71,24 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 		      << ". Declining legA. Exception:\n"
 		      << err.what();
 		return linphone::Reason::NotAcceptable;
+	}
+}
+
+std::shared_ptr<const linphone::Address> SipProvider::onTransfer(const linphone::Call& call) {
+	try {
+		if (!mTriggerStrat->shouldHandleThisCall(call)) {
+			return nullptr;
+		}
+
+		const auto account = mAccountStrat->chooseAccountForThisTransfer(call);
+		if (!account) return nullptr;
+
+		return mReferTweaker.tweakRefer(call, *account);
+	} catch (const std::exception& err) {
+		SLOGE << "Exception occurred while trying to bridge a REFER request to " << call.getReferTo()
+		      << ". Exception:\n"
+		      << err.what();
+		return nullptr;
 	}
 }
 

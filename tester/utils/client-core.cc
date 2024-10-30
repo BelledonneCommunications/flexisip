@@ -176,7 +176,7 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 	}
 
 	// Check call get the incoming call and caller is in OutgoingRinging state.
-	if (!callee.hasReceivedCallFrom(*this, externalProxy).assert_passed()) {
+	if (!callee.hasReceivedCallFrom(*this, asserter).assert_passed()) {
 		return nullptr;
 	}
 
@@ -510,20 +510,6 @@ void CoreClient::runFor(std::chrono::milliseconds duration) {
 	while (beforePlusDuration >= steady_clock::now()) {
 		mCore->iterate();
 	}
-}
-
-AssertionResult CoreClient::hasReceivedCallFrom(const CoreClient& peer,
-                                                const std::shared_ptr<Agent>& externalProxy) const {
-	auto asserter = CoreAssert(mCore, mAgent, peer.mCore, peer.mAgent);
-	if (externalProxy) {
-		asserter.registerSteppable(externalProxy);
-	}
-	return asserter.waitUntil(mCallInviteReceivedDelay, [this] {
-		const auto& call = mCore->getCurrentCall();
-		FAIL_IF(call == nullptr);
-		FAIL_IF(call->getState() != linphone::Call::State::IncomingReceived);
-		return ASSERTION_PASSED();
-	});
 }
 
 std::shared_ptr<linphone::Call> CoreClient::invite(const CoreClient& peer) const {

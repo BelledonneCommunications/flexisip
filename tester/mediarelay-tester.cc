@@ -161,7 +161,7 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 
 	const auto& call = inviter.invite(recipient);
 	BC_HARD_ASSERT(call != nullptr);
-	BC_HARD_ASSERT(recipient.hasReceivedCallFrom(inviter).assert_passed());
+	BC_HARD_ASSERT(recipient.hasReceivedCallFrom(inviter, asserter).assert_passed());
 	recipient.getCurrentCall()->accept();
 	// Initial INVITE contains relay candidates
 	BC_ASSERT(!anyRelayCandidate.empty());
@@ -272,7 +272,7 @@ void address_masquerading_in_sdp_with_call_update() {
 	// Initiate call.
 	const auto& call = inviter.invite(recipient);
 	BC_HARD_ASSERT(call != nullptr);
-	recipient.hasReceivedCallFrom(inviter).hard_assert_passed();
+	recipient.hasReceivedCallFrom(inviter, asserter).hard_assert_passed();
 	recipient.getCurrentCall()->accept();
 	asserter
 	    .iterateUpTo(
@@ -325,7 +325,7 @@ void early_media_video_sendrecv_takeover() {
 	callBuilder.setVideo(OnOff::On).setEarlyMediaSending(OnOff::On);
 
 	auto doorCall = callBuilder.call(appUri);
-	BC_HARD_ASSERT_TRUE(appExtension.hasReceivedCallFrom(doorBell));
+	BC_HARD_ASSERT_TRUE(appExtension.hasReceivedCallFrom(doorBell, asserter));
 	auto appExtCall = appExtension.getCurrentCall().value();
 	appExtCall.acceptEarlyMedia();
 
@@ -346,7 +346,7 @@ void early_media_video_sendrecv_takeover() {
 	 * Test that a second 183 Session Progress takes the SendRecv stream from the app extension
 	 */
 
-	BC_HARD_ASSERT_TRUE(app.hasReceivedCallFrom(doorBell));
+	BC_HARD_ASSERT_TRUE(app.hasReceivedCallFrom(doorBell, asserter));
 	const auto appCall = app.getCurrentCall().value();
 	appCall.acceptEarlyMedia();
 
@@ -384,8 +384,8 @@ void early_media_bidirectional_video() {
 	callBuilder.setVideo(OnOff::On).setEarlyMediaSending(OnOff::On);
 
 	auto callerCall = callBuilder.call(callee);
-	BC_HARD_ASSERT_TRUE(calleePhone.hasReceivedCallFrom(caller));
-	BC_HARD_ASSERT_TRUE(calleeLaptop.hasReceivedCallFrom(caller));
+	BC_HARD_ASSERT_TRUE(calleePhone.hasReceivedCallFrom(caller, asserter));
+	BC_HARD_ASSERT_TRUE(calleeLaptop.hasReceivedCallFrom(caller, asserter));
 	auto calleePhoneCall = calleePhone.getCurrentCall().value();
 	auto calleeLaptopCall = calleeLaptop.getCurrentCall().value();
 	calleePhoneCall.acceptEarlyMedia();

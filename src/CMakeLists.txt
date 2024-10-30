@@ -65,6 +65,7 @@ add_library(flexisip SHARED
 	eventlogs/writers/filesystem-event-log-writer.cc eventlogs/writers/filesystem-event-log-writer.hh
 	exceptions/bad-configuration.hh
 	exceptions/exit.hh
+	exceptions/invalid-address.hh
 	fork-context/branch-info.hh
 	fork-context/branch-info-db.hh
 	fork-context/fork-basic-context.cc fork-context/fork-basic-context.hh

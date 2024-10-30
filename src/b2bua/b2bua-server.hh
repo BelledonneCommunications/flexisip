@@ -39,8 +39,11 @@ class B2buaAndProxyServer;
 
 namespace b2bua {
 // Name of the corresponding section in the configuration file
-constexpr auto configSection = "b2bua-server";
+inline constexpr auto& configSection = "b2bua-server";
 
+/**
+ * @brief Execute specific operations when bridging calls.
+ */
 class Application {
 public:
 	using DeclineCall = linphone::Reason;
@@ -50,28 +53,67 @@ public:
 
 	virtual ~Application() = default;
 
+	/**
+	 * @brief Initialize B2BUA server application.
+	 */
 	virtual void init(const std::shared_ptr<B2buaCore>& core, const ConfigManager& cfg) = 0;
 
 	/**
-	 * lets the application run some business logic before the outgoing call is placed.
+	 * @brief Run some business logic before placing the outgoing call.
 	 *
-	 * @param[in]	incomingCall	the call that triggered the B2BUA.
-	 * @param[inout]	callee	the address to call, can be mangled according to internal business logic.
-	 * @param[inout]	outgoingCallParams	the params of the outgoing call to be created. They will be modified
-	 *according to the business logic of the application.
-	 * @return		a reason to abort the bridging and decline the incoming call. Reason::None if the call should go
-	 *through.
+	 * @param[in]     incomingCall       the call that triggered the server
+	 * @param[inout]  outgoingCallParams the params of the outgoing call to place (modified according to the business
+	 *                                   logic of the application)
+	 *
+	 * @return a reason to abort the bridging and decline the incoming call, none if the call should go through.
 	 **/
 	virtual ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
+	/**
+	 * @brief Run some business logic before transferring the call.
+	 *
+	 * @param[in] call call that received the REFER request
+	 */
+	virtual std::shared_ptr<const linphone::Address> onTransfer(const linphone::Call& call) {
+		return call.getReferToAddress();
+	}
+	/**
+	 * @brief Execute a specific operation once a call has ended.
+	 */
 	virtual void onCallEnd(const linphone::Call&) {
 	}
-
+	/**
+	 * @brief Execute a specific operation upon receiving a SUBSCRIBE request.
+	 *
+	 * @warning not supported yet
+	 *
+	 * @return linphone::Reason::NotAcceptable
+	 */
 	virtual ActionToTake onSubscribe(const linphone::Event&, const std::string&) {
 		return linphone::Reason::NotAcceptable;
 	}
 	virtual std::optional<NotifyDestination> onNotifyToBeSent(const linphone::Event&) {
 		return std::nullopt;
 	}
+};
+
+/**
+ * @brief Call listener needed in case of call transfer. Allows to forward NOTIFY requests to peer call.
+ */
+class CallTransferListener : public linphone::CallListener {
+public:
+	explicit CallTransferListener(const std::weak_ptr<linphone::Call>& peerCall) : mPeerCall(peerCall) {
+	}
+	void onTransferStateChanged(const std::shared_ptr<linphone::Call>& call, linphone::Call::State state) override;
+
+private:
+	/**
+	 * @brief Send NOTIFY request to peer call.
+	 *
+	 * @param[in] request body, example: "SIP/2.0 100 Trying\\r\\n"
+	 */
+	void sendNotify(const std::string& body);
+
+	std::weak_ptr<linphone::Call> mPeerCall{};
 };
 
 } // namespace b2bua
@@ -83,13 +125,13 @@ class B2buaServer : public ServiceServer,
 public:
 	friend class tester::B2buaAndProxyServer;
 
-	// Used to flag invites emitted by the B2BUA, so they are not re-routed back to it by the B2bua module.
+	// Used to flag invites emitted by the B2BUA server, so they are not re-routed back to it by the B2bua module.
 	static constexpr auto& kCustomHeader = "X-Flexisip-B2BUA";
+	static constexpr auto& kLogPrefix = "B2buaServer";
 
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
-	~B2buaServer();
+	~B2buaServer() override = default;
 
-	// CoreListener
 	void onCallStateChanged(const std::shared_ptr<linphone::Core>& core,
 	                        const std::shared_ptr<linphone::Call>& call,
 	                        linphone::Call::State state,
@@ -101,7 +143,7 @@ public:
 	                      const std::shared_ptr<linphone::Event>&,
 	                      const std::string&,
 	                      const std::shared_ptr<const linphone::Content>&) override {
-		// Dummy override to prevent compilation errors (mismatch with onNotifyReceived from EventListener)
+		// Dummy override to prevent compilation errors (mismatch with onNotifyReceived from EventListener).
 	}
 	void onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
 	                         const std::shared_ptr<linphone::Event>& linphoneEvent,
@@ -112,11 +154,10 @@ public:
 	                                  const std::shared_ptr<linphone::Event>& event,
 	                                  const std::shared_ptr<const linphone::MessageWaitingIndication>& mwi) override;
 
-	// EventListener
 	void onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
 	                      const std::shared_ptr<const linphone::Content>& content) override;
 	void onSubscribeReceived(const std::shared_ptr<linphone::Event>&) override {
-		// Dummy override to prevent compilation errors (mismatch with onSubscribeReceived from CoreListener)
+		// Dummy override to prevent compilation errors (mismatch with onSubscribeReceived from CoreListener).
 	}
 	void onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
 	                             linphone::SubscriptionState state) override;
@@ -137,17 +178,17 @@ protected:
 	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
-	std::shared_ptr<linphone::Call> getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
-
-	const std::string mLogPrefix{"B2BUA-server"};
-	std::shared_ptr<ConfigManager> mConfigManager;
-	CommandLineInterface mCli;
-	std::shared_ptr<b2bua::B2buaCore> mCore;
-	std::unordered_map<std::shared_ptr<linphone::Call>, std::weak_ptr<linphone::Call>> mPeerCalls;
 	struct EventInfo {
 		std::weak_ptr<linphone::Event> peerEvent;
 		bool isLegA;
 	};
+
+	std::shared_ptr<linphone::Call> getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
+
+	std::shared_ptr<ConfigManager> mConfigManager;
+	CommandLineInterface mCli;
+	std::shared_ptr<b2bua::B2buaCore> mCore;
+	std::unordered_map<std::shared_ptr<linphone::Call>, std::weak_ptr<linphone::Call>> mPeerCalls;
 	std::unordered_map<std::shared_ptr<linphone::Event>, EventInfo> mPeerEvents;
 	std::unique_ptr<b2bua::Application> mApplication = nullptr;
 };

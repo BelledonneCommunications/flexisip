@@ -19,9 +19,7 @@
 
 #include "b2bua-server.hh"
 
-namespace flexisip {
-namespace b2bua {
-namespace trenscrypter {
+namespace flexisip::b2bua::trenscrypter {
 
 class encryptionConfiguration {
 	friend class Trenscrypter;
@@ -63,8 +61,9 @@ public:
 	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) override;
 	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
+
+private:
+	const std::string mLogPrefix{B2buaServer::kLogPrefix + std::string{"::trenscrypter"}};
 };
 
-} // namespace trenscrypter
-} // namespace b2bua
-} // namespace flexisip
+} // namespace flexisip::b2bua::trenscrypter
