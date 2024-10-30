@@ -2,11 +2,10 @@
 , enableUnitTests
 , enableB2bua
 , enableOpenId
+, nghttp2 ? pkgs.nghttp2
 }:
 
 let
-  # https://github.com/NixOS/nixpkgs/blob/7adc9c14ec74b27358a8df9b973087e351425a79/pkgs/development/libraries/nghttp2/default.nix#L8
-  nghttp2 = pkgs.nghttp2.override { enableAsioLib = enableUnitTests; };
   python = pkgs.python3.withPackages (ps: with ps; [ pystache six ]);
   inherit (pkgs.lib) optional optionals;
 in

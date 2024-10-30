@@ -1,10 +1,16 @@
 {
-  description = "A very basic flake";
+  description = "Flexisip development environments";
 
-  outputs = { self, nixpkgs }: {
+  inputs = {
+    nixpkgs-with-nghttp2-asio.url = github:NixOS/nixpkgs/a565059a348422af5af9026b5174dc5c0dcefdae;
+  };
+
+  outputs = { self, nixpkgs, nixpkgs-with-nghttp2-asio }: {
 
     devShells.x86_64-linux.default = import ./shell.nix {
       pkgs = nixpkgs.legacyPackages.x86_64-linux;
+      # https://github.com/NixOS/nixpkgs/blob/7adc9c14ec74b27358a8df9b973087e351425a79/pkgs/development/libraries/nghttp2/default.nix#L8
+      nghttp2 = nixpkgs-with-nghttp2-asio.legacyPackages.x86_64-linux.nghttp2.override { enableAsioLib = true; };
     };
     devShells.x86_64-linux.embedded-like = with nixpkgs.legacyPackages.x86_64-linux;
       /* CC=gcc CXX=g++ BUILD_DIR_NAME="build" cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install"
