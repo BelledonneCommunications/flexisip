@@ -291,6 +291,9 @@ public:
 		// Send an AUTH command
 		// https://redis.io/commands/auth/
 		void auth(std::variant<auth::ACL, auth::Legacy>, Session::CommandCallback&& callback) const;
+		// Send a ping, expect to receive pong
+		void ping(std::function<void(const Reply&)>&& callback) const;
+
 		// Get a view into this session's subscriptions. This is the only way to add or remove subscriptions
 		Subscriptions subscriptions() const;
 

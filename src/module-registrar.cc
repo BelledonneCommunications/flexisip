@@ -459,6 +459,14 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	        "true",
 	    },
 	    {
+	        DurationS,
+	        "redis-subscription-keep-alive-check-period",
+	        "The frequency of activation of the subscription session keep alive mechanism. Flexisip will periodically "
+	        "ping Redis subscription session. It will then determine whether it is connected, and if not, will try to "
+	        "reconnect.",
+	        "60",
+	    },
+	    {
 	        String,
 	        "service-route",
 	        "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)",

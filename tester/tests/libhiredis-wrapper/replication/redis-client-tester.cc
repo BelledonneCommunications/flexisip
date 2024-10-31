@@ -19,8 +19,8 @@
 #include "libhiredis-wrapper/replication/redis-client.hh"
 
 #include "utils/core-assert.hh"
-#include "utils/server/redis-server.hh"
 #include "utils/redis-sync-access.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -57,6 +57,7 @@ void autoReconnectToMaster() {
 	    .auth = auth,
 	    .port = redisReplica.port(),
 	    .mSlaveCheckTimeout = 0xbeads,
+	    .mSubSessionKeepAliveTimeout = 60s,
 	};
 	auto listener = ClientListener();
 	auto client = RedisClient(root, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(listener));
@@ -97,17 +98,13 @@ void autoReconnectToMaster() {
 			BC_ASSERT_CPP_EQUAL(status->substr(0, expected.size()), expected);
 		});
 	}
-	asserter
-	    .iterateUpTo(
-	        1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
+	asserter.iterateUpTo(
+	            1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
 	    .assert_passed();
 
 	// Let the client auto-reconnect to the master
 	BC_ASSERT(!listener.connected);
-	asserter
-	    .iterateUpTo(
-	        6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms)
-	    .assert_passed();
+	asserter.iterateUpTo(6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms).assert_passed();
 
 	// Try sending the write command again. This time it succeeds.
 	writeCommandReturned = false;
@@ -121,9 +118,8 @@ void autoReconnectToMaster() {
 			BC_ASSERT_CPP_EQUAL(*status, "OK");
 		});
 	}
-	asserter
-	    .iterateUpTo(
-	        1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
+	asserter.iterateUpTo(
+	            1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
 	    .assert_passed();
 }
 

@@ -281,6 +281,15 @@ void subscriptionsSession_subscriptionFreedOnUnsubscribe() {
 	BC_ASSERT_CPP_EQUAL(capturedData.use_count(), 1);
 }
 
+void subscriptionsSession_ping() {
+	redis::async::SubscriptionSession subscriptionsSession{};
+	auto* subsReady = std::get_if<decltype(subscriptionsSession)::Ready>(&SUITE_SCOPE->connect(subscriptionsSession));
+	BC_HARD_ASSERT(subsReady != nullptr);
+	bool called = false;
+	subsReady->ping([&called](const redis::async::Reply&) { called = true; });
+	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&called]() { return called == true; }));
+}
+
 namespace {
 TestSuite _("redis::async::Context",
             {
@@ -293,6 +302,7 @@ TestSuite _("redis::async::Context",
                 CLASSY_TEST(subscriptionsSession_exceptionInCallback),
                 CLASSY_TEST(subscriptionsSession_autoReSub),
                 CLASSY_TEST(subscriptionsSession_subscriptionFreedOnUnsubscribe),
+                CLASSY_TEST(subscriptionsSession_ping),
             },
             Hooks()
                 .beforeSuite([]() {
@@ -303,5 +313,5 @@ TestSuite _("redis::async::Context",
 	                SUITE_SCOPE.reset();
 	                return 0;
                 }));
-}
+} // namespace
 } // namespace flexisip::tester

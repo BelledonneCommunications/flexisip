@@ -20,6 +20,7 @@ struct RedisParameters {
 	int port = 0;
 	std::chrono::seconds mSlaveCheckTimeout{0};
 	bool useSlavesAsBackup = true;
+	std::chrono::seconds mSubSessionKeepAliveTimeout{0};
 
 	static RedisParameters fromRegistrarConf(GenericStruct const*);
 };
