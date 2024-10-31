@@ -64,6 +64,16 @@ private:
 	 */
 	void onTryReconnectTimer();
 
+	/**
+	 * This callback is called periodically to check if the REDIS subscription session connection is still valid
+	 */
+	void onHandleSubSessionKeepAliveTimer();
+	/**
+	 * This callback is called when the Redis instance answered our "ping".
+	 * @param reply Redis answer
+	 */
+	void handlePingReply(const redis::async::Reply& reply);
+
 	std::string logPrefix() const;
 
 	// First members so they are destructed last and still valid when destructing the redis sessions
@@ -75,6 +85,9 @@ private:
 
 	RedisParameters mParams;
 	RedisParameters mLastActiveParams{mParams};
+	enum class SubSessionState { DISCONNECTED, PENDING, ACTIVE };
+	SubSessionState mSubSessionState{SubSessionState::DISCONNECTED};
+	sofiasip::Timer mSubSessionKeepAliveTimer;
 	std::vector<RedisHost> mSlaves{};
 	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
 	std::optional<sofiasip::Timer> mReplicationTimer{std::nullopt};

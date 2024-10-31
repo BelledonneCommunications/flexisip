@@ -18,7 +18,8 @@ RedisClient::RedisClient(const sofiasip::SuRoot& root,
                          SoftPtr<SessionListener>&& listener)
     : mRoot{root}, mSessionListener{std::move(listener)},
       mCmdSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
-      mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mParams(redisParams) {
+      mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mParams(redisParams),
+      mSubSessionKeepAliveTimer{mRoot.getCPtr(), mParams.mSubSessionKeepAliveTimeout} {
 }
 
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::connect() {
@@ -44,6 +45,7 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 
 	mLastActiveParams = mParams;
 	mLastReconnectRotation = {};
+	mSubSessionKeepAliveTimer.run([this]() { onHandleSubSessionKeepAliveTimer(); });
 
 	return {{*cmdSession, *subsSession}};
 }
@@ -285,6 +287,44 @@ void RedisClient::onTryReconnectTimer() {
 	tryReconnect();
 	// reset order doesn't matter. Because we cannot trigger the timer creation in tryReconnect.
 	mReconnectTimer.reset();
+}
+
+void RedisClient::onHandleSubSessionKeepAliveTimer() {
+	if (auto* session = std::get_if<SubscriptionSession::Ready>(&mSubSession.getState())) {
+		if (mSubSessionState == SubSessionState::PENDING) {
+			SLOGW << logPrefix() << "Periodic PING to REDIS subscribtion session timeout, try to reconnect";
+			// disconnect session and try to reconnect
+			mSubSessionState = SubSessionState::DISCONNECTED;
+			mSubSession.forceDisconnect();
+			connect();
+			return;
+		}
+		SLOGD << logPrefix() << "Launching periodic PING to REDIS subscribtion session";
+		mSubSessionState = SubSessionState::PENDING;
+		session->ping([this](const redis::async::Reply& reply) { handlePingReply(reply); });
+	}
+}
+
+void RedisClient::handlePingReply(const redis::async::Reply& reply) {
+	const auto prefix = logPrefix() + "Subscription session keep alive, PING request received ";
+	try {
+		string pong;
+		if (std::get_if<reply::Array>(&reply)) {
+			const auto& array = std::get<reply::Array>(reply);
+			pong = std::get<reply::String>(array[0]);
+
+		} else {
+			pong = std::get<reply::Status>(reply);
+		}
+		if (pong == "pong" || pong == "PONG") {
+			SLOGI << prefix << "\'" << pong << "\'";
+			mSubSessionState = SubSessionState::ACTIVE;
+			return;
+		}
+		SLOGE << prefix << "unexpected " << StreamableVariant(reply);
+	} catch (const std::bad_variant_access&) {
+		SLOGE << prefix << "an ill formatted reply";
+	}
 }
 
 void RedisClient::forceDisconnectForTest(RedisClient& thiz) {

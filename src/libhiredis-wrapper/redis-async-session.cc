@@ -321,6 +321,9 @@ void SubscriptionSession::Ready::auth(std::variant<auth::ACL, auth::Legacy> cred
                                       Session::CommandCallback&& callback) const {
 	mWrapped.auth(credentials, std::move(callback));
 }
+void SubscriptionSession::Ready::ping(std::function<void(const Reply&)>&& callback) const {
+	mWrapped.command({"PING"}, [callback = std::move(callback)](Session&, Reply reply) { callback(reply); });
+}
 
 int Session::Ready::command(const ArgsPacker& args, void* privdata, redisCallbackFn* fn) const {
 	return redisAsyncCommandArgv(

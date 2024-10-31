@@ -4,6 +4,8 @@
 
 #include "redis-parameters.hh"
 
+#include <exception>
+
 namespace flexisip::redis::async {
 
 RedisParameters RedisParameters::fromRegistrarConf(GenericStruct const* const registarConf) {
@@ -26,6 +28,14 @@ RedisParameters RedisParameters::fromRegistrarConf(GenericStruct const* const re
 	    .mSlaveCheckTimeout = std::chrono::duration_cast<std::chrono::seconds>(
 	        registarConf->get<ConfigDuration<std::chrono::seconds>>("redis-slave-check-period")->read()),
 	    .useSlavesAsBackup = registarConf->get<ConfigBoolean>("redis-use-slaves-as-backup")->read(),
+	    .mSubSessionKeepAliveTimeout =
+	        [&registarConf] {
+		        auto* param = registarConf->get<ConfigDuration<std::chrono::seconds>>(
+		            "redis-subscription-keep-alive-check-period");
+		        auto timeout = std::chrono::duration_cast<std::chrono::seconds>(param->read());
+		        if (timeout.count() <= 0) throw std::runtime_error{param->getCompleteName() + " must be positive"};
+		        return timeout;
+	        }(),
 	};
 }
 
