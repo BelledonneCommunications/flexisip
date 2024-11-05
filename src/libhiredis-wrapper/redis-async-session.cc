@@ -274,13 +274,7 @@ void SubscriptionSession::SubscriptionEntry::subscribe(SubscriptionCallback&& ca
 		    // callback to deal with any undocumented reply)
 		    Match(reply).against([&serverHasIt](const reply::Disconnected&) { serverHasIt = false; },
 		                         [&serverHasIt](const reply::Array& message) {
-			                         try {
-				                         const auto type = std::get<reply::String>(message[0]);
-				                         if (type == "unsubscribe") {
-					                         serverHasIt = false;
-				                         }
-			                         } catch (const std::bad_variant_access&) {
-			                         }
+			                         if (message[0] == reply::String("unsubscribe")) serverHasIt = false;
 		                         },
 		                         [](const auto&) {});
 		    if (const auto& callback = subscription.callback) {
