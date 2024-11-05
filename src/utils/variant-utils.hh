@@ -32,6 +32,17 @@ std::ostream& operator<<(std::ostream& stream, StreamableVariant<Variant>&& wrap
 	return stream;
 }
 
+/**
+ * Convenience overload to easily check if a variant holds a particular value
+ */
+template <typename T, typename... Alternatives>
+bool operator==(const std::variant<Alternatives...>& variant, const T& value) {
+	const auto* unwrapped = std::get_if<T>(&variant);
+	if (!unwrapped) return false;
+
+	return *unwrapped == value;
+}
+
 // helper type for the visitor, see https://en.cppreference.com/w/cpp/utility/variant/visit examples
 template <class... Ts>
 struct overloaded : Ts... {
@@ -56,7 +67,7 @@ private:
 	Variant mVariant;
 };
 
-// explicit deduction guides (not needed as of C++20)
+// Constructors (not needed as of C++20)
 template <typename T>
 StreamableVariant(T&&) -> StreamableVariant<T>;
 template <class... Ts>

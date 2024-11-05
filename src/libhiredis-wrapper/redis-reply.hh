@@ -15,16 +15,23 @@
 namespace flexisip::redis::reply {
 
 class String : public std::string_view {
+public:
+	using std::string_view::string_view;
+
 	friend std::ostream& operator<<(std::ostream&, const String&);
 };
 // Human-readable description of an error that occurred when trying to run the command
 class Error : public std::string_view {
 public:
+	using std::string_view::string_view;
+
 	friend std::ostream& operator<<(std::ostream&, const Error&);
 };
 // The success status of a command that otherwise does not return anything (usually equal to "OK")
 class Status : public std::string_view {
 public:
+	using std::string_view::string_view;
+
 	friend std::ostream& operator<<(std::ostream&, const Status&);
 };
 // An empty command reply.

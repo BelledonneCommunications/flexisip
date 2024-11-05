@@ -39,13 +39,13 @@ Reply tryFrom(const redisReply* reply) {
 	if (!reply) return Disconnected{};
 	switch (reply->type) {
 		case REDIS_REPLY_ERROR: {
-			return Error{{reply->str, reply->len}};
+			return Error{reply->str, reply->len};
 		} break;
 		case REDIS_REPLY_STATUS: {
-			return Status{{reply->str, reply->len}};
+			return Status{reply->str, reply->len};
 		} break;
 		case REDIS_REPLY_STRING: {
-			return String{{reply->str, reply->len}};
+			return String{reply->str, reply->len};
 		} break;
 		case REDIS_REPLY_INTEGER: {
 			return reply->integer;
