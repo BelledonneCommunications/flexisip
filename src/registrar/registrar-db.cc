@@ -49,7 +49,8 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	const auto& notifyContact = [this](const auto& key, const auto& uid) {
 		if (!uid.has_value()) {
 			// Unreachable, see REDISPUBSUBFORMAT
-			SLOGE << "RegistrarDb::notifyContactListenerCallback: Subscription failed, erasing all listeners for " << key;
+			SLOGE << "RegistrarDb::notifyContactListenerCallback: Subscription failed, erasing all listeners for "
+			      << key;
 			this->mContactListenersMap.erase(key.asString());
 			return;
 		}
@@ -66,26 +67,7 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	else if (dbImplementation.find("redis") == 0) {
 		LOGI("RegistrarDB implementation is REDIS");
 		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
-		redis::async::RedisParameters params;
-		params.domain = registrar->get<ConfigString>("redis-server-domain")->read();
-		params.port = registrar->get<ConfigInt>("redis-server-port")->read();
-		params.timeout = registrar->get<ConfigDuration<chrono::milliseconds>>("redis-server-timeout")->read().count();
-		params.auth = [&registrar]() -> decltype(params.auth) {
-			using namespace redis::auth;
-
-			const auto& password = registrar->get<ConfigString>("redis-auth-password")->read();
-			if (password.empty()) {
-				return None();
-			}
-			const auto& user = registrar->get<ConfigString>("redis-auth-user")->read();
-			if (user.empty()) {
-				return Legacy{password};
-			}
-			return ACL{user, password};
-		}();
-		params.mSlaveCheckTimeout = chrono::duration_cast<chrono::seconds>(
-		    registrar->get<ConfigDuration<chrono::seconds>>("redis-slave-check-period")->read());
-		params.useSlavesAsBackup = registrar->get<ConfigBoolean>("redis-use-slaves-as-backup")->read();
+		auto params = redis::async::RedisParameters::fromRegistrarConf(registrar);
 
 		auto notifyState = [this](bool bWritable) { this->notifyStateListener(bWritable); };
 		mBackend = make_unique<RegistrarDbRedisAsync>(*mRoot, mRecordConfig, mLocalRegExpire, params, notifyContact,
