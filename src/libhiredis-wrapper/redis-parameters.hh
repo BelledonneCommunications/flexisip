@@ -18,7 +18,6 @@ struct RedisParameters {
 	std::string domain{};
 	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
 	int port = 0;
-	int timeout = 0;
 	std::chrono::seconds mSlaveCheckTimeout{0};
 	bool useSlavesAsBackup = true;
 
