@@ -19,12 +19,12 @@
 #include "cli.hh"
 
 #include <cerrno>
+#include <cstdlib>
 #include <cstring>
-
 #include <poll.h>
-#include <stdlib.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <utility>
 
 #include <bctoolbox/ownership.hh>
 
@@ -37,7 +37,6 @@
 
 #include "agent.hh"
 #include "cJSON.h"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/contact-key.hh"
@@ -45,8 +44,9 @@
 #include "sofia-sip/url.h"
 #include "utils/string-utils.hh"
 
-using namespace flexisip;
 using namespace std;
+using namespace sofiasip;
+using namespace flexisip;
 
 namespace {
 
@@ -54,17 +54,18 @@ constexpr const auto socket_send = send;
 constexpr const auto socket_recv = recv;
 
 void serializeRecord(SocketHandle& socket, Record* record) {
-	std::string serialized;
+	string serialized;
 	RecordSerializerJson().serialize(record, serialized, false);
 	socket.send(serialized);
 }
 
 } // namespace
 
-CommandLineInterface::CommandLineInterface(const std::string& name,
-                                           const std::shared_ptr<ConfigManager>& cfg,
-                                           const std::shared_ptr<sofiasip::SuRoot>& root)
-    : mName(name), handlers(std::make_shared<CliHandler::HandlerTable>()), mConfigManager(cfg), mRoot(root) {
+CommandLineInterface::CommandLineInterface(string name,
+                                           const shared_ptr<ConfigManager>& cfg,
+                                           const shared_ptr<SuRoot>& root)
+    : mName(std::move(name)), handlers(make_shared<CliHandler::HandlerTable>()), mConfigManager(cfg), mRoot(root),
+      mLogPrefix("CommandLineInterface[" + mName + "] - ") {
 	if (pipe(mControlFds) == -1) LOGF("Cannot create control pipe of CommandLineInterface thread: %s", strerror(errno));
 }
 
@@ -80,9 +81,9 @@ void CliHandler::unregister() {
 	}
 }
 
-void CliHandler::registerTo(const std::shared_ptr<HandlerTable>& table) {
+void CliHandler::registerTo(const shared_ptr<HandlerTable>& table) {
 	unregister();
-	table->push_front(*this);
+	table->emplace_front(*this);
 	registration = table;
 }
 
@@ -90,9 +91,9 @@ CliHandler::~CliHandler() {
 	unregister();
 }
 
-std::future<void> CommandLineInterface::start() {
+future<void> CommandLineInterface::start() {
 	mRunning = true;
-	pthread_create(&mThread, nullptr, &CommandLineInterface::threadfunc, this);
+	pthread_create(&mThread, nullptr, &CommandLineInterface::threadFunc, this);
 	return mReady.get_future();
 }
 
@@ -105,19 +106,19 @@ void CommandLineInterface::stop() {
 	pthread_join(mThread, nullptr);
 }
 
-void CommandLineInterface::parseAndAnswer(std::shared_ptr<SocketHandle> socket,
-                                          const std::string& command,
-                                          const std::vector<std::string>& args) {
-	if ((command == "CONFIG_GET") || (command == "GET")) handleConfigGet(std::move(socket), args);
-	else if ((command == "CONFIG_LIST") || (command == "LIST")) handleConfigList(std::move(socket), args);
-	else if ((command == "CONFIG_SET") || (command == "SET")) handleConfigSet(std::move(socket), args);
-	else dispatch(std::move(socket), command, args);
+void CommandLineInterface::parseAndAnswer(shared_ptr<SocketHandle> socket,
+                                          const string& command,
+                                          const vector<string>& args) {
+	if ((command == "CONFIG_GET") || (command == "GET")) handleConfigGet(socket, args);
+	else if ((command == "CONFIG_LIST") || (command == "LIST")) handleConfigList(socket, args);
+	else if ((command == "CONFIG_SET") || (command == "SET")) handleConfigSet(socket, args);
+	else dispatch(socket, command, args);
 }
 
-void CommandLineInterface::dispatch(std::shared_ptr<SocketHandle> socket,
-                                    const std::string& command,
-                                    const std::vector<std::string>& args) {
-	auto output = std::string();
+void CommandLineInterface::dispatch(const shared_ptr<SocketHandle>& socket,
+                                    const string& command,
+                                    const vector<string>& args) {
+	auto output = string();
 	for (CliHandler& handler : *handlers) {
 		output = handler.handleCommand(command, args);
 		if (!output.empty()) {
@@ -125,7 +126,7 @@ void CommandLineInterface::dispatch(std::shared_ptr<SocketHandle> socket,
 		}
 	}
 	if (output.empty()) {
-		output = "Error: unknown command " + command;
+		output = "Error - Unknown command: " + command;
 	}
 	socket->send(output);
 }
@@ -134,155 +135,154 @@ void CommandLineInterface::registerHandler(CliHandler& handler) {
 	handler.registerTo(handlers);
 }
 
-GenericEntry* CommandLineInterface::getGenericEntry(const std::string& arg) const {
-	std::vector<std::string> arg_split = StringUtils::split(arg, "/");
+GenericEntry* CommandLineInterface::getGenericEntry(const string& arg) const {
+	vector<string> arg_split = StringUtils::split(arg, "/");
 	GenericStruct* root = mConfigManager->getRoot();
 
 	if (arg == "all") return root;
 	return find(root, arg_split);
 }
 
-void CommandLineInterface::handleConfigGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) {
-	if (args.size() < 1) {
-		socket->send("Error: at least 1 argument is expected for the CONFIG_GET command");
+void CommandLineInterface::handleConfigGet(const shared_ptr<SocketHandle>& socket, const vector<string>& args) {
+	if (args.empty()) {
+		socket->send("Error - 'CONFIG_GET' command expects 1 argument: <path>");
 		return;
 	}
 
-	GenericEntry* entry = getGenericEntry(args.front());
+	auto* entry = getGenericEntry(args.at(0));
 	if (!entry) {
-		socket->send("Error: " + args.front() + " not found");
+		socket->send("Error - Not found: " + args.at(0));
 		return;
 	}
 
-	GenericStruct* gstruct = dynamic_cast<GenericStruct*>(entry);
-	if (gstruct) socket->send(printSection(gstruct, false));
+	if (auto* gstruct = dynamic_cast<GenericStruct*>(entry)) socket->send(printSection(gstruct, false));
 	else socket->send(printEntry(entry, false));
 }
 
-void CommandLineInterface::handleConfigList(std::shared_ptr<SocketHandle> socket,
-                                            const std::vector<std::string>& args) {
-	if (args.size() < 1) {
-		socket->send("Error: at least 1 argument is expected for the CONFIG_LIST command");
+void CommandLineInterface::handleConfigList(const shared_ptr<SocketHandle>& socket, const vector<string>& args) {
+	if (args.empty()) {
+		socket->send("Error - 'CONFIG_LIST' command expects 1 argument: <section>");
 		return;
 	}
 
-	GenericEntry* entry = getGenericEntry(args.front());
+	GenericEntry* entry = getGenericEntry(args.at(0));
 	if (!entry) {
-		socket->send("Error: " + args.front() + " not found");
+		socket->send("Error - Not found: " + args.at(0));
 		return;
 	}
 
-	GenericStruct* gstruct = dynamic_cast<GenericStruct*>(entry);
-	if (gstruct) socket->send(printSection(gstruct, true));
+	if (auto* gstruct = dynamic_cast<GenericStruct*>(entry)) socket->send(printSection(gstruct, true));
 	else socket->send(printEntry(entry, true));
 }
 
-void CommandLineInterface::handleConfigSet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) {
+void CommandLineInterface::handleConfigSet(const shared_ptr<SocketHandle>& socket, const vector<string>& args) {
 	if (args.size() < 2) {
-		socket->send("Error: at least 2 arguments are expected for the CONFIG_SET command");
+		socket->send("Error - 'CONFIG_SET' command expects 2 arguments: <path> <value>");
 		return;
 	}
 
-	std::string arg = args.front();
-	GenericEntry* entry = getGenericEntry(arg);
+	const auto& arg = args.at(0);
+	auto* entry = getGenericEntry(arg);
 	if (!entry) {
-		socket->send("Error: " + args.front() + " not found");
+		socket->send("Error - Not found: " + args.at(0));
 		return;
 	}
 
-	std::string value = args.at(1);
+	string value = args.at(1);
 	auto* config_value = dynamic_cast<ConfigValue*>(entry);
 	if (config_value && (arg == "global/debug")) {
 		config_value->set(value);
 		LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
-		socket->send("debug: " + value);
+		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/log-level")) {
 		config_value->set(value);
 		LogManager::get().setLogLevel(LogManager::get().logLevelFromName(value));
-		socket->send("log-level: " + value);
+		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/syslog-level")) {
 		config_value->set(value);
 		LogManager::get().setSyslogLevel(LogManager::get().logLevelFromName(value));
-		socket->send("syslog-level: " + value);
+		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/sofia-level")) {
 		try {
-			auto valueInt = std::stoi(value);
+			const auto& valueInt = stoi(value);
 			if (valueInt < 1 || valueInt > 9) {
-				socket->send(
-				    "Error: sofia-level not modified, errors in args. 'global/sofia-level' levels range from 1 to 9");
+				socket->send("Error - Failed to set Sofia-SIP log level: " + arg + " levels range from 1 to 9");
 				return;
 			}
 			config_value->set(value);
 			su_log_set_level(nullptr, valueInt);
-			socket->send("sofia-level: " + value);
+			socket->send(arg + ": " + value);
 		} catch (const exception& e) {
-			socket->send("Error: sofia-level not modified, errors in args. "s + e.what());
+			socket->send("Error - Failed to set Sofia-SIP log level: "s + e.what());
 		}
 	} else if (config_value && (arg == "global/contextual-log-level")) {
 		config_value->set(value);
 		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(value));
-		socket->send("contextual-log-level: " + value);
+		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/contextual-log-filter")) {
 		value = StringUtils::join(args, 1);
 		config_value->set(value);
 		LogManager::get().setContextualFilter(value);
-		socket->send("contextual-log-filter: " + value);
+		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/show-body-for")) {
 		try {
 			value = StringUtils::join(args, 1);
 			MsgSip::setShowBodyFor(value);
 			config_value->set(value);
-			socket->send("show-body-for: " + value);
+			socket->send(arg + ": " + value);
 		} catch (const exception& e) {
-			socket->send("Error: show-body-for not modified, errors in args. "s + e.what());
+			socket->send("Error - Failed to set " + arg + ": "s + e.what());
 		}
 	} else {
-		socket->send(
-		    "Error: only debug, log-level and syslog-level from global can be updated while flexisip is running");
+		socket->send("Error - Failed to set \"" + args.at(1) + "\": setting cannot be set while Flexisip is running");
 	}
 }
 
 SocketHandle::SocketHandle(int handle) : mHandle(handle) {
 }
+
 SocketHandle::SocketHandle(SocketHandle&& other) : mHandle(other.mHandle) {
 	other.mHandle = 0;
 }
+
 SocketHandle::~SocketHandle() {
-	// On Linux, 0 is stdin. We can safely reserve that value as a flag
+	// On Linux, 0 is stdin. We can safely reserve that value as a flag.
 	if (mHandle == 0) return;
 
 	shutdown(mHandle, SHUT_RDWR);
 	close(mHandle);
 }
-int SocketHandle::send(string_view message) {
-	return socket_send(mHandle, message.data(), message.length(), 0);
+
+int SocketHandle::send(string_view message) const {
+	return static_cast<int>(socket_send(mHandle, message.data(), message.length(), 0));
 }
-int SocketHandle::recv(char* buffer, size_t length, int flags) {
-	return socket_recv(mHandle, buffer, length, flags);
+
+int SocketHandle::recv(char* buffer, size_t length, int flags) const {
+	return static_cast<int>(socket_recv(mHandle, buffer, length, flags));
 }
 
 void CommandLineInterface::run() {
 	int server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (server_socket == -1) {
-		SLOGE << "Socket error " << errno << ": " << std::strerror(errno);
+		SLOGE << mLogPrefix << "Socket error " << errno << ": " << strerror(errno);
 		stop();
 	}
 
-	int pid = getpid();
-	std::string path = "/tmp/flexisip-" + mName + "-" + std::to_string(pid);
-	SLOGD << "CLI socket is at " << path;
-	struct sockaddr_un local;
+	const auto& pid = getpid();
+	const auto& path = "/tmp/flexisip-" + mName + "-" + to_string(pid);
+	SLOGD << mLogPrefix << "CLI socket is at " << path;
+	struct sockaddr_un local {};
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
-	int local_length = strlen(local.sun_path) + sizeof(local.sun_family);
+	int local_length = static_cast<int>(strlen(local.sun_path) + sizeof(local.sun_family));
 	if (::bind(server_socket, (struct sockaddr*)&local, local_length) == -1) {
-		SLOGE << "Bind error " << errno << ": " << std::strerror(errno);
+		SLOGE << mLogPrefix << "Bind error " << errno << ": " << strerror(errno);
 		stop();
 	}
 
 	if (listen(server_socket, 1) == -1) {
-		SLOGE << "Listen error " << errno << ": " << std::strerror(errno);
+		SLOGE << mLogPrefix << "Listen error " << errno << ": " << strerror(errno);
 		stop();
 	}
 
@@ -298,7 +298,7 @@ void CommandLineInterface::run() {
 
 		int ret = poll(pfd, 2, -1);
 		if (ret == -1) {
-			if (errno != EINTR) SLOGE << "CommandLineInterface thread getting poll() error: " << strerror(errno);
+			if (errno != EINTR) SLOGE << mLogPrefix << "thread getting poll() error: " << strerror(errno);
 			continue;
 		} else if (ret == 0) {
 			continue; // Timeout not possible
@@ -307,35 +307,38 @@ void CommandLineInterface::run() {
 		}
 		// Otherwise we have something to accept on our server_socket
 
-		struct sockaddr_un remote;
+		struct sockaddr_un remote {};
 		auto remote_length = (socklen_t)sizeof(remote);
-		int child_handle = accept(server_socket, (struct sockaddr*)&remote, &remote_length);
+		const auto& child_handle = accept(server_socket, (struct sockaddr*)&remote, &remote_length);
 		if (child_handle == -1) {
-			SLOGE << "Accept error " << errno << ": " << std::strerror(errno);
+			SLOGE << mLogPrefix << "Accept error " << errno << ": " << strerror(errno);
 			continue;
 		}
+
 		auto child_socket = make_shared<SocketHandle>(child_handle);
 
 		bool finished = false;
 		do {
 			char buffer[512] = {0};
-			int n = child_socket->recv(buffer, sizeof(buffer) - 1, 0);
+			const auto& n = child_socket->recv(buffer, sizeof(buffer) - 1, 0);
 			if (n < 0) {
-				SLOGE << "Recv error " << errno << ": " << std::strerror(errno);
+				SLOGE << mLogPrefix << "Recv error " << errno << ": " << strerror(errno);
 				finished = true;
 			} else if (n > 0) {
-				SLOGD << "CommandLineInterface " << mName << " received: " << buffer;
-				auto split_query = StringUtils::split(std::string(buffer), " ");
-				std::string command = split_query.front();
+				SLOGD << mLogPrefix << "Received: " << buffer;
+				auto split_query = StringUtils::split(string(buffer), " ");
+				auto command = split_query.front();
 				split_query.erase(split_query.begin());
-				mRoot->addToMainLoop([this, weakGuard = std::weak_ptr{validThisGuard},
-				                      childSocket = std::move(child_socket), commandMoved = std::move(command),
-				                      splitQuery = std::move(split_query)]() mutable {
-					if (!weakGuard.lock()) {
-						// it means that "this" is deleted
-						return;
+				mRoot->addToMainLoop([this, weakGuard = weak_ptr{validThisGuard}, childSocket = std::move(child_socket),
+				                      cmd = std::move(command), splitQuery = std::move(split_query)]() mutable {
+					if (!weakGuard.lock() /* means that "this" is deleted */) return;
+
+					try {
+						parseAndAnswer(std::move(childSocket), cmd, splitQuery);
+					} catch (const exception& exception) {
+						SLOGE << mLogPrefix << "Caught an unexpected exception while executing command (" << cmd
+						      << "): " << exception.what();
 					}
-					parseAndAnswer(std::move(childSocket), commandMoved, splitQuery);
 				});
 				finished = true;
 			}
@@ -347,8 +350,8 @@ void CommandLineInterface::run() {
 	unlink(path.c_str());
 }
 
-GenericEntry* CommandLineInterface::find(GenericStruct* root, std::vector<std::string>& path) {
-	std::string elem = path.front();
+GenericEntry* CommandLineInterface::find(GenericStruct* root, vector<string>& path) {
+	auto elem = path.front();
 	path.erase(path.begin());
 	for (const auto& entry : root->getChildren()) {
 		if (!entry || (entry->getName() != elem)) continue;
@@ -364,10 +367,10 @@ GenericEntry* CommandLineInterface::find(GenericStruct* root, std::vector<std::s
 	return nullptr;
 }
 
-std::string CommandLineInterface::printEntry(GenericEntry* entry, bool printHelpInsteadOfValue) {
-	auto gstruct = dynamic_cast<GenericStruct*>(entry);
+string CommandLineInterface::printEntry(GenericEntry* entry, bool printHelpInsteadOfValue) {
+	const auto* gstruct = dynamic_cast<GenericStruct*>(entry);
 	bool isNode = (gstruct != nullptr);
-	std::string answer;
+	string answer;
 
 	if (printHelpInsteadOfValue) {
 		if (isNode) answer += "[";
@@ -376,55 +379,57 @@ std::string CommandLineInterface::printEntry(GenericEntry* entry, bool printHelp
 		answer += ": " + entry->getHelp();
 	} else {
 		if (isNode) {
-			answer += "[" + gstruct->getName() + "]";
+			answer += "[" + gstruct->getCompleteName() + "]";
 		} else {
-			auto counter = dynamic_cast<StatCounter64*>(entry);
+			auto* counter = dynamic_cast<StatCounter64*>(entry);
 			if (counter) {
-				answer += counter->getName() + ": " + std::to_string(counter->read());
+				answer += counter->getCompleteName() + ": " + to_string(counter->read());
 			} else {
-				auto value = dynamic_cast<ConfigValue*>(entry);
-				if (value) answer += value->getName() + ": " + value->get();
+				const auto* value = dynamic_cast<ConfigValue*>(entry);
+				if (value) answer += value->getCompleteName() + ": " + value->get();
 			}
 		}
 	}
 	return answer;
 }
 
-std::string CommandLineInterface::printSection(GenericStruct* gstruct, bool printHelpInsteadOfValue) {
-	std::string answer = "";
+string CommandLineInterface::printSection(GenericStruct* gstruct, bool printHelpInsteadOfValue) {
+	string answer{};
 	for (const auto& child : gstruct->getChildren()) {
 		if (child) answer += printEntry(child.get(), printHelpInsteadOfValue) + "\r\n";
 	}
 	return answer;
 }
 
-void* CommandLineInterface::threadfunc(void* arg) {
-	CommandLineInterface* thiz = reinterpret_cast<CommandLineInterface*>(arg);
+void* CommandLineInterface::threadFunc(void* arg) {
+	auto* thiz = reinterpret_cast<CommandLineInterface*>(arg);
 	thiz->run();
 	return nullptr;
 }
 
-ProxyCommandLineInterface::ProxyCommandLineInterface(const std::shared_ptr<ConfigManager>& cfg,
-                                                     const std::shared_ptr<Agent>& agent)
+ProxyCommandLineInterface::ProxyCommandLineInterface(const shared_ptr<ConfigManager>& cfg,
+                                                     const shared_ptr<Agent>& agent)
     : CommandLineInterface("proxy", cfg, agent->getRoot()), mAgent(agent) {
 }
+
 class CommandListener : public ContactUpdateListener {
 public:
-	CommandListener(std::shared_ptr<SocketHandle> socket) : mSocket(std::move(socket)) {
+	explicit CommandListener(shared_ptr<SocketHandle> socket) : mSocket(std::move(socket)) {
 	}
 
 	void onError(const SipStatus&) override {
-		mSocket->send("Error connecting to the Registrar");
+		mSocket->send("Error - Failed to connect to the registrar database");
 	}
+
 	void onInvalid(const SipStatus&) override {
-		mSocket->send("Error: Invalid Record");
+		mSocket->send("Error - Invalid record");
 	}
-	// Mandatory since we inherit from ContactUpdateListener
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
+
+	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
 	}
 
 protected:
-	std::shared_ptr<SocketHandle> mSocket;
+	shared_ptr<SocketHandle> mSocket;
 };
 
 class SerializeRecordWhenFound : public CommandListener {
@@ -434,7 +439,7 @@ public:
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		if (!r || r->isEmpty()) {
 			// The Redis implementation returns an empty record instead of nullptr, see anchor WKADREGMIGDELREC
-			mSocket->send("Error 404: Not Found. The Registrar does not contain the requested AOR.");
+			mSocket->send("Error - 404 Not Found: the registrar database does not contain the requested AOR");
 			return;
 		}
 
@@ -442,86 +447,76 @@ public:
 	}
 };
 
-void ProxyCommandLineInterface::handleRegistrarGet(std::shared_ptr<SocketHandle> socket,
-                                                   const std::vector<std::string>& args) {
-	if (args.size() < 1) {
-		socket->send("Error: a SIP address argument is expected for the REGISTRAR_GET command");
-		return;
-	}
-
-	SipUri url;
-	try {
-		url = SipUri(args.front().c_str());
-	} catch (const sofiasip::InvalidUrlError& e) {
-		socket->send(string{"Error: invalid SIP address ["} + e.what() + "]");
-		return;
-	}
-
-	auto listener = make_shared<SerializeRecordWhenFound>(std::move(socket));
-	mAgent->getRegistrarDb().fetch(url, listener, false);
-}
-
-void ProxyCommandLineInterface::handleRegistrarUpsert(std::shared_ptr<SocketHandle> socket,
-                                                      const std::vector<std::string>& args) {
-	if (args.size() < 3) {
-		socket->send("Error: REGISTRAR_UPSERT expects at least 3 arguments: <aor> <contact_address> <expire>. " +
-		             std::to_string(args.size()) + " were provided.");
-		return;
-	}
-	if (4 < args.size()) {
-		socket->send(
-		    "Error: REGISTRAR_UPSERT expects at most 4 arguments: <aor> <contact_address> <expire> <unique-id>. " +
-		    std::to_string(args.size()) + " were provided.");
+void ProxyCommandLineInterface::handleRegistrarGet(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+	if (args.empty()) {
+		socket->send("Error - 'REGISTRAR_GET' command expects 1 argument: <aor>");
 		return;
 	}
 
 	SipUri aor;
 	try {
 		aor = SipUri(args.at(0));
-	} catch (const sofiasip::InvalidUrlError& e) {
-		socket->send("Error: aor parameter is not a valid SIP address ["s + e.what() + "]");
+	} catch (const InvalidUrlError&) {
+		socket->send("Error - "s + args.at(0));
 		return;
 	}
 
-	std::string instance_id(";+sip.instance=");
-	try {
-		instance_id += args.at(3);
-	} catch (const std::out_of_range& _) {
-		// Generate a unique (enough) ID that will *not* be considered as a placeholder
-		instance_id += "fs-cli-gen-" + ContactKey::generateUniqueId();
+	auto listener = make_shared<SerializeRecordWhenFound>(std::move(socket));
+	mAgent->getRegistrarDb().fetch(aor, listener, false);
+}
+
+void ProxyCommandLineInterface::handleRegistrarUpsert(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+	if (args.size() < 3 or 4 < args.size()) {
+		socket->send("Error - 'REGISTRAR_UPSERT' command expects 3 to 4 arguments: <aor> <uri> <expire> [<uuid>]");
+		return;
 	}
 
-	sofiasip::Home home{};
-	auto* contact = sip_contact_make(home.home(), (args.at(1) + instance_id).c_str());
+	SipUri aor;
+	try {
+		aor = SipUri(args.at(0));
+	} catch (const InvalidUrlError&) {
+		socket->send("Error - Invalid SIP URI: "s + args.at(0));
+		return;
+	}
+
+	string sipInstance(";+sip.instance=");
+	try {
+		sipInstance += args.at(3);
+	} catch (const out_of_range& _) {
+		// Generate a unique (enough) ID that will *not* be considered as a placeholder
+		sipInstance += "fs-cli-gen-" + ContactKey::generateUniqueId();
+	}
+
+	Home home{};
+	auto* contact = sip_contact_make(home.home(), (args.at(1) + sipInstance).c_str());
 	if (!contact) {
 		// Very unlikely, sip_contact_make accepts almost anything
-		socket->send("Error: contact_address parameter is not a valid SIP contact ["s + args.at(1) + "]");
+		socket->send("Error - Failed to create SIP contact header: "s + args.at(1));
 		return;
 	}
 	try {
 		SipUri(contact->m_url);
-	} catch (const sofiasip::InvalidUrlError& e) {
-		socket->send("Error: contact_address parameter does not contain a valid SIP address ["s + e.what() + "] in [" +
-		             args.at(1) + "]");
+	} catch (const InvalidUrlError&) {
+		socket->send("Error - Invalid SIP URI: "s + args.at(1));
 		return;
 	}
 
 	int expire;
 	{
-		std::stringstream ss{};
+		stringstream ss{};
 		ss << args.at(2);
 		ss >> expire;
 	}
 	if (expire <= 0) {
-		socket->send(
-		    "Error: expire parameter is not strictly positive. Use REGISTRAR_DELETE if you want to remove a binding.");
+		socket->send("Error -  Expire parameter is not strictly positive, use 'REGISTRAR_DELETE' if you want to remove "
+		             "a binding");
 		return;
 	}
 
 	BindingParameters params{};
 	params.globalExpire = expire;
 	params.callId = "fs-cli-upsert";
-	mAgent->getRegistrarDb().bind(aor, contact, params, std::make_shared<SerializeRecordWhenFound>(std::move(socket)));
+	mAgent->getRegistrarDb().bind(aor, contact, params, make_shared<SerializeRecordWhenFound>(std::move(socket)));
 }
 
 class SerializeRecordEvenIfEmpty : public CommandListener {
@@ -530,7 +525,7 @@ public:
 
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		if (r == nullptr) { // Unreachable (2024-03-05)
-			mSocket->send("Error 404: Not Found. The Registrar does not contain the requested AOR.");
+			mSocket->send("Error - 404 Not Found: the registrar database does not contain the requested AOR");
 			return;
 		}
 
@@ -538,53 +533,58 @@ public:
 	}
 };
 
-void ProxyCommandLineInterface::handleRegistrarDelete(std::shared_ptr<SocketHandle> socket,
-                                                      const std::vector<std::string>& args) {
+void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> socket, const vector<string>& args) {
 	if (args.size() < 2) {
-		socket->send("Error: an URI arguments is expected for the REGISTRAR_DELETE command");
+		socket->send("Error - 'REGISTRAR_DELETE' command expects 2 arguments: <uri> <uuid>.");
 		return;
 	}
 
-	const auto& recordKey = SipUri(args.at(0));
+	SipUri recordKey;
+	try {
+		recordKey = SipUri(args.at(0));
+	} catch (const InvalidUrlError&) {
+		socket->send("Error - Invalid SIP URI: " + args.at(0));
+		return;
+	}
 	const auto& contactKey = args.at(1);
 
-	auto home = sofiasip::Home();
 	BindingParameters parameter;
 	parameter.globalExpire = 0; // un-REGISTER <=> delete
 	parameter.callId = "fs-cli-delete";
 
 	// Force binding logic to match the target contact based on this key (even if it is an auto-generated placeholder).
 	// I.e. prevent matching on RFC 3261's URI matching rules
-	const auto& sipInstance = "+sip.instance=" + contactKey + ContactKey::kNotAPlaceholderFlag;
-	const auto* const stubContact = sip_contact_create(
-	    home.home(), reinterpret_cast<const url_string_t*>(recordKey.get()), sipInstance.c_str(), nullptr);
+	string sipInstance{"+sip.instance=" + contactKey};
+	if (string_utils::startsWith(contactKey, ContactKey::kAutoGenTag)) sipInstance += ContactKey::kNotAPlaceholderFlag;
+	SipHeaderContact contact{recordKey, sipInstance.data()};
 
-	mAgent->getRegistrarDb().bind(recordKey, stubContact, parameter,
-	                              std::make_shared<SerializeRecordEvenIfEmpty>(std::move(socket)));
+	mAgent->getRegistrarDb().bind(recordKey, reinterpret_cast<const sip_contact_t*>(contact.getNativePtr()), parameter,
+	                              make_shared<SerializeRecordEvenIfEmpty>(std::move(socket)));
 }
 
-void ProxyCommandLineInterface::handleRegistrarClear(std::shared_ptr<SocketHandle> socket,
-                                                     const std::vector<std::string>& args) {
-	if (args.size() < 1) {
-		socket->send("Error: a SIP address argument is expected for the REGISTRAR_CLEAR command");
+void ProxyCommandLineInterface::handleRegistrarClear(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+	if (args.empty()) {
+		socket->send("Error - 'REGISTRAR_CLEAR' command expects 1 argument: <aor>");
 		return;
 	}
 
 	class ClearListener : public CommandListener {
 	public:
-		ClearListener(std::shared_ptr<SocketHandle> socket, Record::Key&& uri, RegistrarDb& registrarDb)
+		ClearListener(shared_ptr<SocketHandle> socket, Record::Key&& uri, RegistrarDb& registrarDb)
 		    : CommandListener(std::move(socket)), mUri(std::move(uri)), mRegistrarDb(registrarDb) {
 		}
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			mRegistrarDb.publish(r->getKey(), "");
-			mSocket->send("Done: cleared record " + mUri.asString());
+			mSocket->send("Done - Cleared AOR: " + mUri.asString());
 		}
+
 		void onError(const SipStatus&) override {
-			mSocket->send("Error: cannot clear record " + mUri.asString());
+			mSocket->send("Error - Failed to clear AOR: " + mUri.asString());
 		}
+
 		void onInvalid(const SipStatus&) override {
-			mSocket->send("Error: cannot clear record " + mUri.asString());
+			mSocket->send("Error - Failed to clear, invalid AOR: " + mUri.asString());
 		}
 
 	private:
@@ -592,25 +592,23 @@ void ProxyCommandLineInterface::handleRegistrarClear(std::shared_ptr<SocketHandl
 		RegistrarDb& mRegistrarDb;
 	};
 
-	SipUri url;
+	SipUri aor;
 	try {
-		url = SipUri(args.front().c_str());
-	} catch (const sofiasip::InvalidUrlError& e) {
-		socket->send(string{"Error: invalid SIP address ["} + e.what() + "]");
+		aor = SipUri(args.at(0));
+	} catch (const InvalidUrlError&) {
+		socket->send("Error - Invalid SIP URI: " + args.at(0));
 		return;
 	}
 
 	auto msg = MsgSip(ownership::owned(nta_msg_create(mAgent->getSofiaAgent(), 0)));
 	auto* sip = msg.getSip();
-	sip->sip_from = sip_from_create(msg.getHome(), reinterpret_cast<const url_string_t*>(url.get()));
+	sip->sip_from = sip_from_create(msg.getHome(), reinterpret_cast<const url_string_t*>(aor.get()));
 	mAgent->getRegistrarDb().clear(
-	    msg,
-	    std::make_shared<ClearListener>(std::move(socket), Record::Key(url, mAgent->getRegistrarDb().useGlobalDomain()),
+	    msg, make_shared<ClearListener>(std::move(socket), Record::Key(aor, mAgent->getRegistrarDb().useGlobalDomain()),
 	                                    mAgent->getRegistrarDb()));
 }
 
-void ProxyCommandLineInterface::handleRegistrarDump(std::shared_ptr<SocketHandle> socket,
-                                                    [[maybe_unused]] const std::vector<std::string>& args) {
+void ProxyCommandLineInterface::handleRegistrarDump(const shared_ptr<SocketHandle>& socket, const vector<string>&) {
 	list<string> aorList;
 
 	mAgent->getRegistrarDb().getLocalRegisteredAors(aorList);
@@ -619,19 +617,19 @@ void ProxyCommandLineInterface::handleRegistrarDump(std::shared_ptr<SocketHandle
 	cJSON* contacts = cJSON_CreateArray();
 
 	cJSON_AddItemToObject(root, "aors", contacts);
-	for (auto& aor : aorList) {
+	for (const auto& aor : aorList) {
 		cJSON* pitem = cJSON_CreateString(aor.c_str());
 		cJSON_AddItemToArray(contacts, pitem);
 	}
-	char* jsonOutput = cJSON_Print(root);
+	auto* jsonOutput = cJSON_Print(root);
 	socket->send(jsonOutput);
 	free(jsonOutput);
 	cJSON_Delete(root);
 }
 
-void ProxyCommandLineInterface::parseAndAnswer(std::shared_ptr<SocketHandle> socket,
-                                               const std::string& command,
-                                               const std::vector<std::string>& args) {
+void ProxyCommandLineInterface::parseAndAnswer(shared_ptr<SocketHandle> socket,
+                                               const string& command,
+                                               const vector<string>& args) {
 	if (command == "REGISTRAR_CLEAR") {
 		handleRegistrarClear(std::move(socket), args);
 	} else if (command == "REGISTRAR_GET") {
@@ -641,7 +639,7 @@ void ProxyCommandLineInterface::parseAndAnswer(std::shared_ptr<SocketHandle> soc
 	} else if (command == "REGISTRAR_DELETE") {
 		handleRegistrarDelete(std::move(socket), args);
 	} else if (command == "REGISTRAR_DUMP") {
-		handleRegistrarDump(std::move(socket), args);
+		handleRegistrarDump(socket, args);
 	} else {
 		CommandLineInterface::parseAndAnswer(std::move(socket), command, args);
 	}

@@ -25,10 +25,14 @@
 #include <sys/un.h>
 
 #include <flexisip/configmanager.hh>
+
 namespace flexisip {
+
 class CliHandler {
 public:
 	using HandlerTable = std::list<std::reference_wrapper<CliHandler>>;
+
+	~CliHandler();
 
 	/**
 	 * Handles the command and returns the answer, or empty string if it couldn't be handled and another handler should
@@ -44,28 +48,24 @@ public:
 	void registerTo(const std::shared_ptr<HandlerTable>& table);
 	void unregister();
 
-	~CliHandler();
-
 private:
 	std::weak_ptr<HandlerTable> registration;
 };
 
 class Agent;
 
-// Wraps a socket handle to close it automatically on destruction
+// Wraps a socket handle to close it automatically on destruction.
 class SocketHandle {
 public:
 	explicit SocketHandle(int handle);
-	~SocketHandle();
-
-	int send(std::string_view message);
-	int recv(char*, size_t length, int flags);
-
 	SocketHandle(SocketHandle&& other);
-
 	SocketHandle(const SocketHandle& other) = delete;
 	SocketHandle& operator=(const SocketHandle& other) = delete;
 	SocketHandle& operator=(SocketHandle&& other) = delete;
+	~SocketHandle();
+
+	int send(std::string_view message) const;
+	int recv(char*, size_t length, int flags) const;
 
 protected:
 	int mHandle;
@@ -73,7 +73,7 @@ protected:
 
 class CommandLineInterface {
 public:
-	CommandLineInterface(const std::string& name,
+	CommandLineInterface(std::string name,
 	                     const std::shared_ptr<ConfigManager>& cfg,
 	                     const std::shared_ptr<sofiasip::SuRoot>& root);
 	virtual ~CommandLineInterface();
@@ -89,19 +89,19 @@ protected:
 	                            const std::vector<std::string>& args);
 
 private:
-	GenericEntry* getGenericEntry(const std::string& arg) const;
-	void handleConfigGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleConfigList(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleConfigSet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void
-	dispatch(std::shared_ptr<SocketHandle> socket, const std::string& command, const std::vector<std::string>& args);
-	void run();
-
 	static GenericEntry* find(GenericStruct* root, std::vector<std::string>& path);
 	static std::string printEntry(GenericEntry* entry, bool printHelpInsteadOfValue);
 	static std::string printSection(GenericStruct* gstruct, bool printHelpInsteadOfValue);
+	static void* threadFunc(void* arg);
 
-	static void* threadfunc(void* arg);
+	GenericEntry* getGenericEntry(const std::string& arg) const;
+	void handleConfigGet(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args);
+	void handleConfigList(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args);
+	void handleConfigSet(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args);
+	void dispatch(const std::shared_ptr<SocketHandle>& socket,
+	              const std::string& command,
+	              const std::vector<std::string>& args);
+	void run();
 
 	std::string mName;
 	pthread_t mThread = 0;
@@ -112,6 +112,7 @@ private:
 	std::promise<void> mReady;
 	std::shared_ptr<sofiasip::SuRoot> mRoot;
 	std::shared_ptr<int> validThisGuard = std::make_shared<int>(1);
+	std::string mLogPrefix;
 };
 
 class ProxyCommandLineInterface : public CommandLineInterface {
@@ -123,7 +124,7 @@ private:
 	void handleRegistrarDelete(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
 	void handleRegistrarUpsert(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
 	void handleRegistrarGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleRegistrarDump(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
+	void handleRegistrarDump(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args);
 	void parseAndAnswer(std::shared_ptr<SocketHandle> socket,
 	                    const std::string& command,
 	                    const std::vector<std::string>& args) override;
