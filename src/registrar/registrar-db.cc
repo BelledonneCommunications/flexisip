@@ -544,7 +544,7 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 		return;
 	}
 
-	LOGI("RegistrarDb: binding %s", SipUri(sipMsg.getSip()->sip_from->a_url).str().c_str());
+	SLOGD << "RegistrarDB - Binding: " << SipUri{sipMsg.getSip()->sip_from->a_url}.str();
 	mBackend->doBind(sipMsg, parameter, listener);
 }
 

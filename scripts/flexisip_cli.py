@@ -1,46 +1,90 @@
 #!/usr/bin/env python3
 
+#  Flexisip, a flexible SIP proxy server with media capabilities.
+#  Copyright (C) 2010-2024 Belledonne Communications SARL.
+#
+#  This program is free software: you can redistribute it and/or modify
+#  it under the terms of the GNU Affero General Public License as
+#  published by the Free Software Foundation, either version 3 of the
+#  License, or (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#  GNU Affero General Public License for more details.
 
-from __future__ import print_function # needed for using print() instead of 'print' statement with Python 2
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+
 import argparse
 import os
 import os.path
 import sys
 
-# Check interpreter version
+# Check interpreter version.
 if sys.version_info[0] != 3:
 	raise RuntimeError('Python v3 is required for this script')
 
 
 def parse_args():
-	parser = argparse.ArgumentParser(description="A command line interface for managing Flexisip")
-	parser.add_argument('-p', '--pid', type=int, default=0,
-		help="""PID of the process to communicate with. If 0 is given, the pid will be automatically found from /var/run/flexisip-<server_type>.pid or,
-		if no pid file has been found, by picking the pid of the first process which name matches flexisip-<server_type>. (default: 0)"""
+	parser = argparse.ArgumentParser(description="A command line interface to manage Flexisip servers.")
+	parser.add_argument(
+		'-p',
+		'--pid',
+		type=int,
+		default=0,
+		help="""Process ID (PID) of the process to communicate with. If 0 is given, the PID will be automatically
+		found from /var/run/flexisip-<server_type>.pid. If no PID file has been found, selects the PID of the first
+		process which name matches flexisip-<server_type>. (default: 0)"""
 	)
-	parser.add_argument('-s', '--server', choices=('proxy', 'presence', 'b2bua'), default='proxy',
-		help="""Type of the server to communicate with. (default: proxy)""")
+	parser.add_argument(
+		'-s',
+		'--server',
+		choices=('proxy', 'presence', 'b2bua'),
+		default='proxy',
+		help="""Type of the server to communicate with. (default: proxy)"""
+	)
 
 	commands = {
-		'CONFIG_GET': {'help': 'Get the value of an internal variable of Flexisip.'},
-		'CONFIG_SET': {'help': 'Set the value of an internal variable of Flexisip.'},
-		'CONFIG_LIST': {'help': 'List all the available parameters of a section.'},
-		'REGISTRAR_GET': {'help': 'List all bindings under an address of record from registrar database.'},
-		'REGISTRAR_UPSERT': {'help': 'Update or Insert a binding for an Adress of Record (AOR) in the registrar database.'},
-		'REGISTRAR_DELETE': {'help': 'Remove a specific binding of an address of record from the registrar database.'},
-		'REGISTRAR_CLEAR': {'help': 'Remove an address-of-record from the registrar database.'},
-		'REGISTRAR_DUMP': {'help': 'Dump list of registered address-of-records for this proxy instance only (not all the cluster !)'},
-		'SIP_BRIDGE': {'help': 'Send commands to the external SIP provider bridge. (If active)'},
+		'CONFIG_GET': {
+			'help': 'Get the value of an internal variable of Flexisip.'
+		},
+		'CONFIG_SET': {
+			'help': 'Set the value of an internal variable of Flexisip.'
+		},
+		'CONFIG_LIST': {
+			'help': 'List all the available parameters of a section.'
+		},
+		'REGISTRAR_GET': {
+			'help': 'List all bindings under an address of record (AOR) from the registrar database.'
+		},
+		'REGISTRAR_UPSERT': {
+			'help': 'Update or insert a binding for an address of record (AOR) in the registrar database.'
+		},
+		'REGISTRAR_DELETE': {
+			'help': 'Remove a specific binding of an address of record (AOR) from the registrar database.'
+		},
+		'REGISTRAR_CLEAR': {
+			'help': 'Remove an address of record (AOR) from the registrar database.'
+		},
+		'REGISTRAR_DUMP': {
+			'help': 'Dump the list of registered address of records (AORs) for this proxy instance only (not all the cluster!).'
+		},
+		'SIP_BRIDGE': {
+			'help': 'Send commands to the external SIP provider bridge (if active).'
+		},
 	}
 
 	kargs = {
 		'dest': 'command',
 		'metavar': 'command',
-		'help': """Action to do on the server. Type `{prog} <command> --help` for detailed
-					documentation about the given command.""".format(prog=os.path.basename(sys.argv[0]))
+		'help': f"""Action to do on the server. Type `{os.path.basename(sys.argv[0])} <command> --help` for detailed 
+		documentation about the given command."""
 	}
-	if sys.version_info[:2] >= (3,7):
+
+	if sys.version_info[:2] >= (3, 7):
 		kargs['required'] = True
+
 	cmdSubparser = parser.add_subparsers(**kargs)
 	for cmdName in commands.keys():
 		desc = commands[cmdName]['help']
@@ -48,21 +92,63 @@ def parse_args():
 
 	pathDocumentation = "Parameter name formatted as '<section_name>/<param_name>'."
 
-	commands['CONFIG_GET']['parser'].add_argument('path', help=pathDocumentation)
-	commands['CONFIG_SET']['parser'].add_argument('path', help=pathDocumentation)
-	commands['CONFIG_SET']['parser'].add_argument('value', help="The new value.")
-	commands['CONFIG_LIST']['parser'].add_argument('section_name', nargs='?', default='all',
-		help='The name of the section. The list of all available sections is returned if no section name is given.'
+	commands['CONFIG_GET']['parser'].add_argument(
+		'path',
+		help=pathDocumentation
 	)
-	commands['REGISTRAR_CLEAR']['parser'].add_argument('uri', help='AOR sip uri.')
-	commands['REGISTRAR_GET']['parser'].add_argument('uri', help='AOR sip uri.')
-	commands['REGISTRAR_UPSERT']['parser'].add_argument('uri', help='AOR sip uri.')
-	commands['REGISTRAR_UPSERT']['parser'].add_argument('contact_address', help='SIP URI of the new binding.')
-	commands['REGISTRAR_UPSERT']['parser'].add_argument('expire', help='Time to Live for the new binding (in seconds).')
-	commands['REGISTRAR_UPSERT']['parser'].add_argument('uuid', help='Unique identifier of the binding. Get it from REGISTRAR_GET for updates, leave it out to be autogenerated on insertions.', default=None, nargs='?')
-	commands['REGISTRAR_DELETE']['parser'].add_argument('uri', help='AOR sip uri.')
-	commands['REGISTRAR_DELETE']['parser'].add_argument('uuid', help='+sip.instance value identifying the binding.')
-	commands['SIP_BRIDGE']['parser'].add_argument('subcommand', help='The command to send to the bridge. Valid commands: INFO')
+	commands['CONFIG_SET']['parser'].add_argument(
+		'path',
+		help=pathDocumentation
+	)
+	commands['CONFIG_SET']['parser'].add_argument(
+		'value',
+		help="The new value."
+	)
+	commands['CONFIG_LIST']['parser'].add_argument(
+		'section',
+		nargs='?',
+		default='all',
+		help='The name of the section. Returns the list of all available sections if empty.'
+	)
+	commands['REGISTRAR_CLEAR']['parser'].add_argument(
+		'aor',
+		help='Address of record (AOR).'
+	)
+	commands['REGISTRAR_GET']['parser'].add_argument(
+		'aor',
+		help='Address of record (AOR).'
+	)
+	commands['REGISTRAR_UPSERT']['parser'].add_argument(
+		'aor',
+		help='Address of record (AOR).'
+	)
+	commands['REGISTRAR_UPSERT']['parser'].add_argument(
+		'uri',
+		help='SIP URI of the binding to update or insert.'
+	)
+	commands['REGISTRAR_UPSERT']['parser'].add_argument(
+		'expire',
+		help='Time to live for the new binding (in seconds).'
+	)
+	commands['REGISTRAR_UPSERT']['parser'].add_argument(
+		'uuid',
+		help='Unique identifier of the binding. Get it from REGISTRAR_GET for updates, leave it out to be '
+			 'autogenerated on insertions.',
+		default=None,
+		nargs='?'
+	)
+	commands['REGISTRAR_DELETE']['parser'].add_argument(
+		'aor',
+		help='Address of record (AOR).'
+	)
+	commands['REGISTRAR_DELETE']['parser'].add_argument(
+		'uuid',
+		help='Unique identifier of the binding: +sip.instance value.'
+	)
+	commands['SIP_BRIDGE']['parser'].add_argument(
+		'subcommand',
+		help='The command to send to the bridge. Valid commands: INFO'
+	)
 
 	return parser.parse_args()
 
@@ -88,28 +174,30 @@ def formatMessage(args):
 	if args.command is None:
 		print('error: no command specified', file=sys.stderr)
 		sys.exit(2)
+
 	messageArgs = [args.command]
 	if args.command == 'CONFIG_GET':
 		messageArgs.append(args.path)
 	elif args.command == 'CONFIG_SET':
 		messageArgs += [args.path, args.value]
 	elif args.command == 'CONFIG_LIST':
-		messageArgs.append(args.section_name)
+		messageArgs.append(args.section)
 	elif args.command == 'REGISTRAR_CLEAR':
-		messageArgs.append(args.uri)
+		messageArgs.append(args.aor)
 	elif args.command == 'REGISTRAR_GET':
-		messageArgs.append(args.uri)
+		messageArgs.append(args.aor)
 	elif args.command == 'REGISTRAR_UPSERT':
+		messageArgs.append(args.aor)
 		messageArgs.append(args.uri)
-		messageArgs.append(args.contact_address)
 		messageArgs.append(args.expire)
 		if (args.uuid):
 			messageArgs.append(args.uuid)
 	elif args.command == 'REGISTRAR_DELETE':
-		messageArgs.append(args.uri)
+		messageArgs.append(args.aor)
 		messageArgs.append(args.uuid)
 	elif args.command == 'SIP_BRIDGE':
 		messageArgs.append(args.subcommand)
+
 	return ' '.join(messageArgs)
 
 
