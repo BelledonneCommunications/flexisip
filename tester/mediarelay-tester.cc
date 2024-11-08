@@ -325,22 +325,24 @@ void early_media_video_sendrecv_takeover() {
 	callBuilder.setVideo(OnOff::On).setEarlyMediaSending(OnOff::On);
 
 	auto doorCall = callBuilder.call(appUri);
+	BC_HARD_ASSERT(doorCall.has_value());
 	BC_HARD_ASSERT_TRUE(appExtension.hasReceivedCallFrom(doorBell, asserter));
-	auto appExtCall = appExtension.getCurrentCall().value();
-	appExtCall.acceptEarlyMedia();
+	auto appExtCall = appExtension.getCurrentCall();
+	BC_HARD_ASSERT(appExtCall.has_value());
+	appExtCall->acceptEarlyMedia();
 
 	// Video is received by the app extension
 	asserter
 	    .iterateUpTo(0x10,
-	                 [&doorCall, &appExtCall, &appExtReceivedVideo = appExtCall.videoFrameDecoded()] {
-		                 FAIL_IF(doorCall.getState() != linphone::Call::State::OutgoingEarlyMedia);
-		                 FAIL_IF(appExtCall.getState() != linphone::Call::State::IncomingEarlyMedia);
+	                 [&doorCall, &appExtCall, &appExtReceivedVideo = appExtCall->videoFrameDecoded()] {
+		                 FAIL_IF(doorCall->getState() != linphone::Call::State::OutgoingEarlyMedia);
+		                 FAIL_IF(appExtCall->getState() != linphone::Call::State::IncomingEarlyMedia);
 		                 FAIL_IF(!appExtReceivedVideo);
 		                 return ASSERTION_PASSED();
 	                 })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(appExtCall.getVideoRtpStats().sent_rtcp_packets, 0);
-	BC_ASSERT_CPP_EQUAL(doorCall.getVideoRtpStats().recv_rtcp_packets, 0);
+	BC_ASSERT_CPP_EQUAL(appExtCall->getVideoRtpStats().sent_rtcp_packets, 0);
+	BC_ASSERT_CPP_EQUAL(doorCall->getVideoRtpStats().recv_rtcp_packets, 0);
 
 	/**
 	 * Test that a second 183 Session Progress takes the SendRecv stream from the app extension
@@ -353,14 +355,14 @@ void early_media_video_sendrecv_takeover() {
 	// The doorbell should receive the RTCP stream from the app
 	asserter
 	    .iterateUpTo(0x10,
-	                 [&appReceivedVideo = appExtCall.videoFrameDecoded(), &appCall, &doorCall] {
+	                 [&appReceivedVideo = appExtCall->videoFrameDecoded(), &appCall, &doorCall] {
 		                 FAIL_IF(appCall.getVideoRtpStats().sent_rtcp_packets == 0);
 		                 FAIL_IF(!appReceivedVideo);
-		                 FAIL_IF(doorCall.getVideoRtpStats().recv_rtcp_packets == 0);
+		                 FAIL_IF(doorCall->getVideoRtpStats().recv_rtcp_packets == 0);
 		                 return ASSERTION_PASSED();
 	                 })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(appExtCall.getVideoRtpStats().sent_rtcp_packets, 0);
+	BC_ASSERT_CPP_EQUAL(appExtCall->getVideoRtpStats().sent_rtcp_packets, 0);
 }
 
 /*
@@ -384,26 +386,29 @@ void early_media_bidirectional_video() {
 	callBuilder.setVideo(OnOff::On).setEarlyMediaSending(OnOff::On);
 
 	auto callerCall = callBuilder.call(callee);
+	BC_HARD_ASSERT(callerCall.has_value());
 	BC_HARD_ASSERT_TRUE(calleePhone.hasReceivedCallFrom(caller, asserter));
 	BC_HARD_ASSERT_TRUE(calleeLaptop.hasReceivedCallFrom(caller, asserter));
-	auto calleePhoneCall = calleePhone.getCurrentCall().value();
-	auto calleeLaptopCall = calleeLaptop.getCurrentCall().value();
-	calleePhoneCall.acceptEarlyMedia();
-	calleePhoneCall.setStaticPictureFps(15.0f);
+	auto calleePhoneCall = calleePhone.getCurrentCall();
+	BC_HARD_ASSERT(calleePhoneCall.has_value());
+	auto calleeLaptopCall = calleeLaptop.getCurrentCall();
+	BC_HARD_ASSERT(calleeLaptopCall.has_value());
+	calleePhoneCall->acceptEarlyMedia();
+	calleePhoneCall->setStaticPictureFps(15.0f);
 
 	// Check that only the laptop is unable to decode the video, as it has not yet accepted the call with early media.
 	asserter
 	    .iterateUpTo(
 	        0x20,
-	        [&callerReceivedVideo = callerCall.videoFrameDecoded(),
-	         &calleePhoneReceivedVideo = calleePhoneCall.videoFrameDecoded(),
-	         &calleeLaptopReceivedVideo = calleeLaptopCall.videoFrameDecoded(), &callerCall, &calleePhoneCall,
+	        [&callerReceivedVideo = callerCall->videoFrameDecoded(),
+	         &calleePhoneReceivedVideo = calleePhoneCall->videoFrameDecoded(),
+	         &calleeLaptopReceivedVideo = calleeLaptopCall->videoFrameDecoded(), &callerCall, &calleePhoneCall,
 	         &calleeLaptopCall] {
 		        FAIL_IF(!callerReceivedVideo);
 		        FAIL_IF(!calleePhoneReceivedVideo);
 		        FAIL_IF(calleeLaptopReceivedVideo);
-		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc != calleePhoneCall.getRtpSession()->snd.ssrc);
-		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc == calleeLaptopCall.getRtpSession()->snd.ssrc);
+		        FAIL_IF(callerCall->getRtpSession()->rcv.ssrc != calleePhoneCall->getRtpSession()->snd.ssrc);
+		        FAIL_IF(callerCall->getRtpSession()->rcv.ssrc == calleeLaptopCall->getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
 	        3s)
@@ -411,8 +416,8 @@ void early_media_bidirectional_video() {
 
 	// But as soon as another device sends a 183 (here: the laptop), it takes over receive capability from the media
 	// relay and starts sending packets with a different SSRC than that of the first device.
-	calleeLaptopCall.acceptEarlyMedia();
-	calleeLaptopCall.setStaticPictureFps(15.0f);
+	calleeLaptopCall->acceptEarlyMedia();
+	calleeLaptopCall->setStaticPictureFps(15.0f);
 
 	// Check the source of the traffic received by the caller now comes from the second device (laptop). This is done by
 	// verifying that the SSRC received by the caller now matches the SSRC from the laptop.
@@ -420,8 +425,8 @@ void early_media_bidirectional_video() {
 	    .iterateUpTo(
 	        0x20,
 	        [&callerCall, &calleePhoneCall, &calleeLaptopCall] {
-		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc == calleePhoneCall.getRtpSession()->snd.ssrc);
-		        FAIL_IF(callerCall.getRtpSession()->rcv.ssrc != calleeLaptopCall.getRtpSession()->snd.ssrc);
+		        FAIL_IF(callerCall->getRtpSession()->rcv.ssrc == calleePhoneCall->getRtpSession()->snd.ssrc);
+		        FAIL_IF(callerCall->getRtpSession()->rcv.ssrc != calleeLaptopCall->getRtpSession()->snd.ssrc);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
@@ -431,9 +436,9 @@ void early_media_bidirectional_video() {
 	asserter
 	    .iterateUpTo(
 	        0x20,
-	        [&callerReceivedVideo = callerCall.videoFrameDecoded(),
-	         &calleePhoneReceivedVideo = calleePhoneCall.videoFrameDecoded(),
-	         &calleeLaptopReceivedVideo = calleeLaptopCall.videoFrameDecoded()] {
+	        [&callerReceivedVideo = callerCall->videoFrameDecoded(),
+	         &calleePhoneReceivedVideo = calleePhoneCall->videoFrameDecoded(),
+	         &calleeLaptopReceivedVideo = calleeLaptopCall->videoFrameDecoded()] {
 		        FAIL_IF(!callerReceivedVideo);
 		        FAIL_IF(!calleePhoneReceivedVideo);
 		        FAIL_IF(!calleeLaptopReceivedVideo);

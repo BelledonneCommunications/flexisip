@@ -29,6 +29,11 @@
 
 namespace flexisip::tester {
 
+std::optional<ClientCall> ClientCall::tryFrom(std::shared_ptr<linphone::Call>&& maybeCall) {
+	if (!maybeCall) return {};
+	return ClientCall(std::move(maybeCall));
+}
+
 ClientCall::ClientCall(std::shared_ptr<linphone::Call>&& call) : mCall(std::move(call)) {
 }
 

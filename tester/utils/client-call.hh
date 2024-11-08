@@ -20,6 +20,7 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 
 #include <linphone++/call.hh>
 #include <linphone++/call_listener.hh>
@@ -36,8 +37,7 @@ namespace flexisip::tester {
  */
 class ClientCall {
 public:
-	ClientCall(std::shared_ptr<linphone::Call>&&);
-
+	static std::optional<ClientCall> tryFrom(std::shared_ptr<linphone::Call>&&);
 	/* CHEATS ~~ Use only for quick prototyping */
 	static const std::shared_ptr<linphone::Call>& getLinphoneCall(const ClientCall&);
 
@@ -80,6 +80,8 @@ public:
 	bool operator!=(const ClientCall& other) const;
 
 private:
+	explicit ClientCall(std::shared_ptr<linphone::Call>&&);
+
 	class VideoDecodedListener : public linphone::CallListener {
 	public:
 		bool mFrameDecoded = false;

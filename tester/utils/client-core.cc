@@ -527,9 +527,7 @@ std::shared_ptr<linphone::Call> CoreClient::invite(const string& aor,
 }
 
 std::optional<ClientCall> CoreClient::getCurrentCall() const {
-	auto maybeCall = mCore->getCurrentCall();
-	if (maybeCall == nullptr) return {};
-	return maybeCall;
+	return ClientCall::tryFrom(mCore->getCurrentCall());
 }
 
 std::shared_ptr<linphone::CallLog> CoreClient::getCallLog() const {

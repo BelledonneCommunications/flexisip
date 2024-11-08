@@ -1985,7 +1985,7 @@ const StringFormatter b2buaSipBridgeProviderAccountConfiguration{
 template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
 void blindCallTransferSuccessful() {
 	TmpDir directory{"b2bua::sip-bridge::"s + __func__};
-	const auto& providersConfigPath = directory.path() / "providers.json";
+	const auto providersConfigPath = directory.path() / "providers.json";
 
 	Server jabiruProxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -2011,7 +2011,7 @@ void blindCallTransferSuccessful() {
 	};
 	b2buaAndProxy.startProxy();
 
-	const auto& clientBuilders = [&]() {
+	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
 		map.emplace(internalDomain, ClientBuilder(*b2buaAndProxy.getAgent()));
 		map.emplace(externalDomain, ClientBuilder(*jabiruProxy.getAgent()));
@@ -2061,19 +2061,21 @@ void blindCallTransferSuccessful() {
 
 	// Create call from "transferee" to "transferor".
 	const auto transferorAor = SipUri{transferor.getMe()->asString()}.replaceHost(transfereeUri.getHost()).str();
-	const auto transfereeCallToTransferor = ClientCall{transferee.invite(transferorAor)};
+	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
+	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
 	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
 	// Accept call from "transferee".
-	const auto transferorCallFromTransferee = transferor.getCurrentCall().value();
-	transferorCallFromTransferee.accept();
+	const auto transferorCallFromTransferee = transferor.getCurrentCall();
+	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
+	transferorCallFromTransferee->accept();
 
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
@@ -2081,25 +2083,27 @@ void blindCallTransferSuccessful() {
 
 	// Transfer call to "transferTarget", initiated by "transferor".
 	const auto transferListener = make_shared<CallTransferListener>();
-	transferorCallFromTransferee.addListener(transferListener);
+	transferorCallFromTransferee->addListener(transferListener);
 	const auto transferTargetAor = transferTarget.getMe()->clone();
 	transferTargetAor->setDomain(transferorUri.getHost());
-	transferorCallFromTransferee.transferTo(transferTargetAor);
+	transferorCallFromTransferee->transferTo(transferTargetAor);
 
 	// Verify "transferTarget" received a call from "transferee".
 	transferTarget.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
-	const auto transfereeCallToTransferTarget = transferee.getCurrentCall().value();
-	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall().value();
+	const auto transfereeCallToTransferTarget = transferee.getCurrentCall();
+	BC_HARD_ASSERT(transfereeCallToTransferTarget.has_value());
+	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall();
+	BC_HARD_ASSERT(transferTargetCallFromTransferee.has_value());
 
 	// Verify that call between "transferee" and "transferor" is paused while waiting for "transferTarget" answer.
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::OutgoingRinging);
-		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::IncomingReceived);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::OutgoingRinging);
+		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::IncomingReceived);
 		        // Verify "transferor" received NOTIFY 100 Trying.
 		        FAIL_IF(transferListener->mLastState != linphone::Call::State::OutgoingProgress);
 		        return ASSERTION_PASSED();
@@ -2108,12 +2112,12 @@ void blindCallTransferSuccessful() {
 	    .hard_assert_passed();
 
 	// Verify content of "Referred-By" header.
-	const SipUri referredByAddress{transferTargetCallFromTransferee.getReferredByAddress()->asStringUriOnly()};
+	const SipUri referredByAddress{transferTargetCallFromTransferee->getReferredByAddress()->asStringUriOnly()};
 	const SipUri transferorAddressOnJabiru = transferorUri.replaceHost(transfereeUri.getHost());
 	BC_ASSERT(referredByAddress.compareAll(transferorAddressOnJabiru));
 
 	// Accept call from "transferee" to "transferTarget".
-	transferTargetCallFromTransferee.accept();
+	transferTargetCallFromTransferee->accept();
 
 	// Verify "transferor" received NOTIFY 200 Ok.
 	transferListener->assertNotifyReceived(asserter, linphone::Call::State::Connected).assert_passed();
@@ -2123,10 +2127,10 @@ void blindCallTransferSuccessful() {
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Released);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::Released);
-		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
@@ -2151,7 +2155,7 @@ void blindCallTransferSuccessful() {
 template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
 void blindCallTransferDeclined() {
 	TmpDir directory{"b2bua::sip-bridge::"s + __func__};
-	const auto& providersConfigPath = directory.path() / "providers.json";
+	const auto providersConfigPath = directory.path() / "providers.json";
 
 	Server jabiruProxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -2177,7 +2181,7 @@ void blindCallTransferDeclined() {
 	};
 	b2buaAndProxy.startProxy();
 
-	const auto& clientBuilders = [&]() {
+	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
 		map.emplace(internalDomain, ClientBuilder(*b2buaAndProxy.getAgent()));
 		map.emplace(externalDomain, ClientBuilder(*jabiruProxy.getAgent()));
@@ -2227,19 +2231,21 @@ void blindCallTransferDeclined() {
 
 	// Create call from "transferee" to "transferor".
 	const auto transferorAor = SipUri{transferor.getMe()->asString()}.replaceHost(transfereeUri.getHost()).str();
-	const auto transfereeCallToTransferor = ClientCall{transferee.invite(transferorAor)};
+	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
+	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
 	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
 	// Accept call from "transferee".
-	const auto transferorCallFromTransferee = transferor.getCurrentCall().value();
-	transferorCallFromTransferee.accept();
+	const auto transferorCallFromTransferee = transferor.getCurrentCall();
+	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
+	transferorCallFromTransferee->accept();
 
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
@@ -2247,25 +2253,27 @@ void blindCallTransferDeclined() {
 
 	// Transfer call to "transferTarget", initiated by "transferor".
 	const auto transferListener = make_shared<CallTransferListener>();
-	transferorCallFromTransferee.addListener(transferListener);
+	transferorCallFromTransferee->addListener(transferListener);
 	const auto transferTargetAor = transferTarget.getMe()->clone();
 	transferTargetAor->setDomain(transferorUri.getHost());
-	transferorCallFromTransferee.transferTo(transferTargetAor);
+	transferorCallFromTransferee->transferTo(transferTargetAor);
 
 	// Verify "transferTarget" received a call from "transferee".
 	transferTarget.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
-	const auto transfereeCallToTransferTarget = transferee.getCurrentCall().value();
-	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall().value();
+	const auto transfereeCallToTransferTarget = transferee.getCurrentCall();
+	BC_HARD_ASSERT(transfereeCallToTransferTarget.has_value());
+	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall();
+	BC_HARD_ASSERT(transferTargetCallFromTransferee.has_value());
 
 	// Verify that call between "transferee" and "transferor" is paused while waiting for "transferTarget" answer.
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::OutgoingRinging);
-		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::IncomingReceived);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::OutgoingRinging);
+		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::IncomingReceived);
 		        // Verify "transferor" received NOTIFY 100 Trying.
 		        FAIL_IF(transferListener->mLastState != linphone::Call::State::OutgoingProgress);
 		        return ASSERTION_PASSED();
@@ -2274,22 +2282,22 @@ void blindCallTransferDeclined() {
 	    .hard_assert_passed();
 
 	// Verify content of "Referred-By" header.
-	const SipUri referredByAddress{transferTargetCallFromTransferee.getReferredByAddress()->asStringUriOnly()};
+	const SipUri referredByAddress{transferTargetCallFromTransferee->getReferredByAddress()->asStringUriOnly()};
 	const SipUri transferorAddressOnJabiru = transferorUri.replaceHost(transfereeUri.getHost());
 	BC_ASSERT(referredByAddress.compareAll(transferorAddressOnJabiru));
 
 	// Decline call from "transferee" to "transferTarget".
-	transferTargetCallFromTransferee.decline(linphone::Reason::Declined);
+	transferTargetCallFromTransferee->decline(linphone::Reason::Declined);
 
 	// Verify calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::Released);
-		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::Released);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::Released);
 		        // Verify "transferor" received NOTIFY 500 Internal Server Error.
 		        FAIL_IF(transferListener->mLastState != linphone::Call::State::Error);
 		        return ASSERTION_PASSED();
@@ -2298,22 +2306,22 @@ void blindCallTransferDeclined() {
 	    .hard_assert_passed();
 
 	// Resume call after failed call transfer.
-	transfereeCallToTransferor.resume();
+	transfereeCallToTransferor->resume();
 
 	// Verify calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::StreamsRunning);
 		        // FIXME: it should always be in state StreamsRunning. See SDK-314.
 		        if (transferorUri.getHost() == externalDomain and transfereeUri.getHost() == internalDomain) {
-			        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::PausedByRemote);
+			        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::PausedByRemote);
 		        } else {
-			        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+			        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::StreamsRunning);
 		        }
-		        FAIL_IF(transfereeCallToTransferTarget.getState() != linphone::Call::State::Released);
-		        FAIL_IF(transferTargetCallFromTransferee.getState() != linphone::Call::State::Released);
+		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::Released);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
@@ -2338,7 +2346,7 @@ void blindCallTransferDeclined() {
 template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
 void attendedCallTransferSuccessful() {
 	TmpDir directory{"b2bua::sip-bridge::"s + __func__};
-	const auto& providersConfigPath = directory.path() / "providers.json";
+	const auto providersConfigPath = directory.path() / "providers.json";
 
 	Server jabiruProxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -2364,7 +2372,7 @@ void attendedCallTransferSuccessful() {
 	};
 	b2buaAndProxy.startProxy();
 
-	const auto& clientBuilders = [&]() {
+	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
 		map.emplace(internalDomain, ClientBuilder(*b2buaAndProxy.getAgent()));
 		map.emplace(externalDomain, ClientBuilder(*jabiruProxy.getAgent()));
@@ -2414,19 +2422,21 @@ void attendedCallTransferSuccessful() {
 
 	// Create call from "transferee" to "transferor".
 	const auto transferorAor = transferorUri.replaceHost(transfereeUri.getHost()).str();
-	const auto transfereeCallToTransferor = ClientCall{transferee.invite(transferorAor)};
+	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
+	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
 	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
 	// Accept call from "transferee".
-	const auto transferorCallFromTransferee = transferor.getCurrentCall().value();
-	transferorCallFromTransferee.accept();
+	const auto transferorCallFromTransferee = transferor.getCurrentCall();
+	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
+	transferorCallFromTransferee->accept();
 
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
@@ -2434,28 +2444,29 @@ void attendedCallTransferSuccessful() {
 
 	// Create call from "transferor" to "transferTarget".
 	const auto transferTargetAor = transferTargetUri.replaceHost(transferorUri.getHost()).str();
-	const auto transferorCallToTransferTarget = ClientCall{transferor.invite(transferTargetAor)};
+	const auto transferorCallToTransferTarget = ClientCall::tryFrom(transferor.invite(transferTargetAor));
 	transferTarget.hasReceivedCallFrom(transferor, asserter).hard_assert_passed();
 
 	// Accept call from "transferor".
-	const auto transferTargetCallFromTransferor = transferTarget.getCurrentCall().value();
-	transferTargetCallFromTransferor.accept();
+	const auto transferTargetCallFromTransferor = transferTarget.getCurrentCall();
+	BC_HARD_ASSERT(transferTargetCallFromTransferor.has_value());
+	transferTargetCallFromTransferor->accept();
 
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transferorCallToTransferTarget.getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferTargetCallFromTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transferorCallToTransferTarget->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferor->getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
 	// Transfer call between "transferee" and "transferor" to call between "transferor" and "transferTarget".
-	transferorCallFromTransferee.transferToAnother(transferorCallToTransferTarget);
+	transferorCallFromTransferee->transferToAnother(*transferorCallToTransferTarget);
 
 	// TODO: verify call is received by "transferTarget" from "transferee".
 	// TODO: accept call transfer.
@@ -2465,10 +2476,10 @@ void attendedCallTransferSuccessful() {
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCallFromTransferee.getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transfereeCallToTransferor.getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transferorCallToTransferTarget.getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferTargetCallFromTransferor.getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(transferorCallToTransferTarget->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferor->getState() != linphone::Call::State::StreamsRunning);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
