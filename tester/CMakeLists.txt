@@ -142,6 +142,7 @@ add_executable(flexisip_tester
 	utils/client-call.cc utils/client-call.hh
 	utils/client-core.cc utils/client-core.hh
 	utils/contact-inserter.cc utils/contact-inserter.hh
+	utils/custom-user-agent-behavior.hh
 	utils/eventlogs/event-logs.cc utils/eventlogs/event-logs.hh
 	utils/eventlogs/writers/event-log-writer-visitor-adapter.hh
 	utils/flow-test-helper.cc utils/flow-test-helper.hh

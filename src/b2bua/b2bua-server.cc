@@ -38,6 +38,20 @@ using namespace std;
 
 namespace flexisip {
 
+namespace {
+
+/*
+ * Indicate if the given call leg is in our "simulated" Paused state.
+ */
+bool callIsInPausedState(const std::shared_ptr<linphone::Call>& call) {
+	const auto callParams = call->getCurrentParams();
+	return call->getState() == linphone::Call::State::StreamsRunning &&
+	       (callParams->getAudioDirection() == linphone::MediaDirection::Inactive ||
+	        callParams->getAudioDirection() == linphone::MediaDirection::SendOnly);
+}
+
+} // namespace
+
 B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
     : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {
 }
@@ -64,7 +78,7 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 			onCallStateOutgoingEarlyMedia(call);
 			break;
 		case linphone::Call::State::Connected:
-            break;
+			break;
 		case linphone::Call::State::StreamsRunning:
 			onCallStateStreamsRunning(call);
 			break;
@@ -167,40 +181,49 @@ void B2buaServer::onCallStateOutgoingEarlyMedia(const std::shared_ptr<linphone::
 }
 
 void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call>& call) {
-	auto peerCall = getPeerCall(call);
+	const auto peerCall = getPeerCall(call);
 	if (!peerCall) return;
 
+	const auto peerCallState = peerCall->getState();
+
 	// If this is legB and that legA is in incoming state, answer it.
-	// This cannot be done in connected state as currentCallParams are not updated yet.
+	// This cannot be done in Connected state as currentCallParams are not updated yet.
 	if (call->getDir() == linphone::Call::Dir::Outgoing &&
-	    (peerCall->getState() == linphone::Call::State::IncomingReceived ||
-	     peerCall->getState() == linphone::Call::State::IncomingEarlyMedia)) {
-		SLOGD << FUNC_LOG_PREFIX << ": legB is now running -> answer legA";
-		auto incomingCallParams = mCore->createCallParams(peerCall);
-		// Add this custom header so this call will not be intercepted by the B2BUA.
-		incomingCallParams->addCustomHeader(kCustomHeader, "ignore");
-		// Enforce same video/audio enable to legA than on legB - manage video rejected by legB.
+	    (peerCallState == linphone::Call::State::IncomingReceived ||
+	     peerCallState == linphone::Call::State::IncomingEarlyMedia)) {
+		SLOGD << FUNC_LOG_PREFIX << ": legB call is now running ---> answer call on legA";
+		// Update enablement of audio and video on both legs so we make sure they are synchronized.
+		const auto incomingCallParams = mCore->createCallParams(peerCall);
 		incomingCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
 		incomingCallParams->enableVideo(call->getCurrentParams()->videoEnabled());
 		peerCall->acceptWithParams(incomingCallParams);
+		return;
 	}
 
-	// If peer is in state UpdatedByRemote, we deferred an update, so accept it now.
-	if (peerCall->getState() == linphone::Call::State::UpdatedByRemote) {
+	// If peer is in UpdatedByRemote state, we deferred an update, so accept it now.
+	if (peerCallState == linphone::Call::State::UpdatedByRemote) {
 		SLOGD << FUNC_LOG_PREFIX << ": peer call deferred update, accept it now";
-		// Update is deferred only on video/audio add remove.
-		// Create call params for peer call and copy video/audio enabling settings from this call.
-		auto peerCallParams = mCore->createCallParams(peerCall);
-		peerCallParams->enableVideo(call->getCurrentParams()->videoEnabled());
+		// Update is deferred only on audio/video addition or removal.
+		const auto peerCallParams = mCore->createCallParams(peerCall);
 		peerCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
+		peerCallParams->enableVideo(call->getCurrentParams()->videoEnabled());
 		peerCall->acceptUpdate(peerCallParams);
-	} else if (peerCall->getState() != linphone::Call::State::PausedByRemote) {
-		// Resuming from PausedByRemote, update peer back to "sendrecv".
-		auto peerCallAudioDirection = peerCall->getCurrentParams()->getAudioDirection();
+		return;
+	}
+
+	// Resuming from PausedByRemote state, update peer back to SendRecv media direction.
+	if (peerCallState != linphone::Call::State::PausedByRemote) {
+		// Resume only if the current call leg (self) is indeed asking for SendRecv media direction.
+		// This is to prevent a wrong behavior when one of the call legs ask to resume the call whereas both call legs
+		// are in Paused state. We may arrive here with a media direction set to SendOnly or RecvOnly and do not want to
+		// resume peer call leg.
+		if (call->getRemoteParams()->getAudioDirection() != linphone::MediaDirection::SendRecv) return;
+
+		const auto peerCallAudioDirection = peerCall->getCurrentParams()->getAudioDirection();
 		if (peerCallAudioDirection == linphone::MediaDirection::SendOnly ||
 		    peerCallAudioDirection == linphone::MediaDirection::Inactive) {
 			SLOGD << FUNC_LOG_PREFIX << ": peer call is paused, update it to resume";
-			auto peerCallParams = mCore->createCallParams(peerCall);
+			const auto peerCallParams = mCore->createCallParams(peerCall);
 			peerCallParams->setAudioDirection(linphone::MediaDirection::SendRecv);
 			peerCall->update(peerCallParams);
 		}
@@ -239,52 +262,89 @@ void B2buaServer::onCallStateEnd(const std::shared_ptr<linphone::Call>& call) {
 
 void B2buaServer::onCallStatePausedByRemote(const std::shared_ptr<linphone::Call>& call) {
 	// Paused by remote: do not pause peer call as it will kick it out of the conference.
-	// Just switch the media direction to sendOnly (only if it is not already set this way).
-	const auto& peerCall = getPeerCall(call);
+	// Instead, switch the media direction to SendOnly (only if it is not already set this way).
+	const auto peerCall = getPeerCall(call);
 	if (!peerCall) return;
+
+	// If we receive a "Call on hold for me too" update.
 	if (peerCall->getState() == linphone::Call::State::PausedByRemote) {
-		call->terminate();
-		peerCall->terminate();
+		const auto peerCallParams = mCore->createCallParams(peerCall);
+		peerCallParams->setAudioDirection(linphone::MediaDirection::Inactive);
+		peerCall->update(peerCallParams);
 		return;
 	}
 
-	const auto peerCallAudioDirection = mCore->createCallParams(peerCall)->getAudioDirection();
 	// Nothing to do if peer call is already not sending audio.
+	const auto peerCallAudioDirection = mCore->createCallParams(peerCall)->getAudioDirection();
 	if (peerCallAudioDirection != linphone::MediaDirection::Inactive &&
 	    peerCallAudioDirection != linphone::MediaDirection::SendOnly) {
+		SLOGD << FUNC_LOG_PREFIX << ": pause requested, pause the other call leg";
 		const auto peerCallParams = mCore->createCallParams(peerCall);
 		peerCallParams->setAudioDirection(linphone::MediaDirection::SendOnly);
 		peerCall->update(peerCallParams);
+		return;
 	}
 }
 
 void B2buaServer::onCallStateUpdatedByRemote(const std::shared_ptr<linphone::Call>& call) {
-	// Manage add/remove video - ignore for other changes.
-	const auto& peerCall = getPeerCall(call);
+	const auto peerCall = getPeerCall(call);
 	if (!peerCall) return;
-	auto peerCallParams = mCore->createCallParams(peerCall);
-	const auto selfCallParams = call->getCurrentParams();
-	const auto selfRemoteCallParams = call->getRemoteParams();
+
+	const auto callParams = call->getCurrentParams();
+	const auto remoteCallParams = call->getRemoteParams();
+	const auto peerCallParams = mCore->createCallParams(peerCall);
+
+	// Manage addition and removal of video.
 	bool updatePeerCall = false;
-	if (selfRemoteCallParams->videoEnabled() != selfCallParams->videoEnabled()) {
+	if (remoteCallParams->videoEnabled() != callParams->videoEnabled()) {
 		updatePeerCall = true;
-		peerCallParams->enableVideo(selfRemoteCallParams->videoEnabled());
+		peerCallParams->enableVideo(remoteCallParams->videoEnabled());
 	}
-	if (selfRemoteCallParams->audioEnabled() != selfCallParams->audioEnabled()) {
+	if (remoteCallParams->audioEnabled() != callParams->audioEnabled()) {
 		updatePeerCall = true;
-		peerCallParams->enableAudio(selfRemoteCallParams->audioEnabled());
+		peerCallParams->enableAudio(remoteCallParams->audioEnabled());
 	}
+
 	if (updatePeerCall) {
 		SLOGD << FUNC_LOG_PREFIX << ": update peer call";
-		// Add this custom header so this call will not be intercepted by the B2BUA.
-		peerCallParams->addCustomHeader(kCustomHeader, "ignore");
 		peerCall->update(peerCallParams);
 		call->deferUpdate();
-	} else { // No update on video/audio status, just accept it with requested params.
-		SLOGD << FUNC_LOG_PREFIX << ": accept update without forwarding it to peer call";
-		// Accept all minor changes.
-		call->acceptUpdate(nullptr);
+		return;
 	}
+
+	// If we ask to resume a call that was paused on both call legs.
+	// Make sure that current call leg was either in PausedByRemote (=RecvOnly) state or in Paused (=Inactive) state.
+	// Also make sure that peer call leg is either in PausedByRemote state or in Paused state.
+	const auto audioDirection = callParams->getAudioDirection();
+	if ((audioDirection == linphone::MediaDirection::RecvOnly ||
+	     audioDirection == linphone::MediaDirection::Inactive) &&
+	    (peerCall->getState() == linphone::Call::State::PausedByRemote || callIsInPausedState(peerCall))) {
+		SLOGD << FUNC_LOG_PREFIX << ": client asks to resume a call that was paused on both call legs";
+
+		const auto updatedCallParams = mCore->createCallParams(call);
+		// If the current call leg was in PausedByRemote state, ask to switch back to StreamsRunning.
+		// We arrive here if this call leg did not initiate the pause.
+		if (audioDirection == linphone::MediaDirection::RecvOnly)
+			updatedCallParams->setAudioDirection(linphone::MediaDirection::SendRecv);
+		// If the current call leg was in the Paused state and did initiate the Pause, switch this call leg back to
+		// PausedByRemote.
+		if (audioDirection == linphone::MediaDirection::Inactive)
+			updatedCallParams->setAudioDirection(linphone::MediaDirection::SendOnly);
+
+		call->acceptUpdate(updatedCallParams);
+
+		// Ask peerCall to switch to the PausedByRemote or StreamsRunning state (depending on whether this call leg
+		// initiated the pause or not). Update peer call to SendRecv and let this call leg be updated in function of
+		// the UAC answer.
+		peerCallParams->setAudioDirection(linphone::MediaDirection::SendRecv);
+		peerCall->update(peerCallParams);
+		return;
+	}
+
+	// No update on video/audio status, just accept it with requested params.
+	SLOGD << FUNC_LOG_PREFIX << ": accept update without forwarding it to peer call";
+	// Accept all minor changes.
+	call->acceptUpdate(nullptr);
 }
 
 void B2buaServer::onCallStateReleased(const std::shared_ptr<linphone::Call>& call) {

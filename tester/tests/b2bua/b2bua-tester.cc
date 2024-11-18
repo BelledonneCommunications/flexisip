@@ -45,6 +45,7 @@
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/core-assert.hh"
+#include "utils/custom-user-agent-behavior.hh"
 #include "utils/server/b2bua-and-proxy-server.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
@@ -56,6 +57,9 @@ using namespace flexisip;
 
 namespace flexisip::tester::b2buatester {
 namespace {
+
+const string PAUSER = "PAUSER";
+const string PAUSEE = "PAUSEE";
 
 /**
  * @brief Basic call not using the B2bua server.
@@ -594,7 +598,7 @@ void answerToPauseWithAudioInactive() {
 	proxy.getAgent()->findModule("B2bua")->reload();
 
 	// Instantiate clients and create call.
-	auto builder = ClientBuilder(*proxy.getAgent());
+	ClientBuilder builder{*proxy.getAgent()};
 	auto pauser = builder.setInactiveAudioOnPause(OnOff::Off).build("pauser@example.org");
 	auto pausee = builder.setInactiveAudioOnPause(OnOff::On).build("pausee@example.org");
 	CoreAssert asserter{pauser, proxy, pausee};
@@ -636,6 +640,226 @@ void answerToPauseWithAudioInactive() {
 	callFromPauser->addListener(reinviteCheck);
 	pauseeCall->terminate();
 	BC_ASSERT(reinviteCheck->passed);
+}
+
+/*
+ * Test that a bridged call that has been put on hold on both call legs correctly terminates once one of the call leg
+ * terminates the call.
+ */
+template <const string& legThatInitiatesCallEnd>
+void terminateCallPausedOnBothSides() {
+	B2buaAndProxyServer b2buaAndProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+
+	// Instantiate clients.
+	const auto builder = ClientBuilder(*b2buaAndProxy.getAgent());
+	auto pauser = builder.build("pauser@sip.example.org");
+	auto pausee = builder.build("pausee@sip.example.org");
+
+	// Create call.
+	CoreAssert asserter{b2buaAndProxy, pauser, pausee};
+	const auto pauserCallToPausee = ClientCall::tryFrom(pauser.invite(pausee));
+	pausee.hasReceivedCallFrom(pauser, asserter).hard_assert_passed();
+
+	// Accept call.
+	const auto pauseeCallFromPauser = pausee.getCurrentCall();
+	pauseeCallFromPauser->accept();
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(pauserCallToPausee->getAudioDirection() != linphone::MediaDirection::SendRecv);
+
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	// Pause call from "Pauser".
+	pauserCallToPausee->pause();
+
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauserCallToPausee->getAudioDirection() != linphone::MediaDirection::SendOnly);
+
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::RecvOnly);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	// Pause call from "Pausee".
+	pauseeCallFromPauser->pause();
+
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauserCallToPausee->getAudioDirection() != linphone::MediaDirection::Inactive);
+
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::Inactive);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	// Terminate call.
+	if (legThatInitiatesCallEnd == PAUSER) pauserCallToPausee->terminate();
+	else pauseeCallFromPauser->terminate();
+
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::Released);
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::Released);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+}
+
+/*
+ * Test that a bridged call that has been put on hold on both call legs correctly resumes once one of the call leg
+ * resumes the call.
+ */
+template <const string& legThatInitiatedResume, OnOff pauseeAnswersWithAudioInactive>
+void resumeCallPausedOnBothSides() {
+	B2buaAndProxyServer b2buaAndProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+
+	// Instantiate clients.
+	ClientBuilder builder{*b2buaAndProxy.getAgent()};
+	auto pauser = builder.build("pauser@sip.example.org");
+	auto pausee = builder.setInactiveAudioOnPause(pauseeAnswersWithAudioInactive).build("pausee@sip.example.org");
+
+	// Make our "Pausee" client behave as the well-known server of the Jabiru project.
+	if (pauseeAnswersWithAudioInactive == OnOff::On) pausee.addListener(make_shared<JabiruServerBehavior>());
+
+	// Create call.
+	CoreAssert asserter{b2buaAndProxy, pauser, pausee};
+	const auto pauserCallToPausee = ClientCall::tryFrom(pauser.invite(pausee));
+	pausee.hasReceivedCallFrom(pauser, asserter).hard_assert_passed();
+
+	// Accept call.
+	const auto pauseeCallFromPauser = pausee.getCurrentCall();
+	pauseeCallFromPauser->accept();
+
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(pauserCallToPausee->getAudioDirection() != linphone::MediaDirection::SendRecv);
+
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	// Pause call from "Pauser".
+	pauserCallToPausee->pause();
+
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauserCallToPausee->getAudioDirection() != linphone::MediaDirection::SendOnly);
+
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::PausedByRemote);
+		        if (pauseeAnswersWithAudioInactive == OnOff::On) {
+			        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::Inactive);
+		        } else {
+			        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::RecvOnly);
+		        }
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	// Pause call from "Pausee".
+	pauseeCallFromPauser->pause();
+
+	asserter
+	    .iterateUpTo(
+	        8,
+	        [&pauserCallToPausee, &pauseeCallFromPauser]() {
+		        FAIL_IF(pauserCallToPausee->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauserCallToPausee->getAudioDirection() != linphone::MediaDirection::Inactive);
+
+		        FAIL_IF(pauseeCallFromPauser->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(pauseeCallFromPauser->getAudioDirection() != linphone::MediaDirection::Inactive);
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
+	    .assert_passed();
+
+	const auto& resumerCall = (legThatInitiatedResume == PAUSER ? pauserCallToPausee : pauseeCallFromPauser);
+	const auto& resumeeCall = (legThatInitiatedResume == PAUSER ? pauseeCallFromPauser : pauserCallToPausee);
+
+	// Resume call from "Resumer".
+	resumerCall->resume();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&resumerCall, &resumeeCall]() {
+		        FAIL_IF(resumerCall->getState() != linphone::Call::State::PausedByRemote);
+		        FAIL_IF(resumerCall->getAudioDirection() != linphone::MediaDirection::RecvOnly);
+
+		        FAIL_IF(resumeeCall->getState() != linphone::Call::State::Paused);
+		        if (pauseeAnswersWithAudioInactive == OnOff::On and legThatInitiatedResume == PAUSER) {
+			        FAIL_IF(resumeeCall->getAudioDirection() != linphone::MediaDirection::Inactive);
+		        } else {
+			        FAIL_IF(resumeeCall->getAudioDirection() != linphone::MediaDirection::SendOnly);
+		        }
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// Resume call from "Resumee".
+	resumeeCall->resume();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&resumerCall, &resumeeCall]() {
+		        FAIL_IF(resumerCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(resumerCall->getAudioDirection() != linphone::MediaDirection::SendRecv);
+
+		        FAIL_IF(resumeeCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(resumeeCall->getAudioDirection() != linphone::MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
 }
 
 /** Test that unknown media attributes are filtered out of tho 200 OK response sent by the B2BUA on reinvites.
@@ -865,7 +1089,6 @@ void blindCallTransferSuccessful() {
 	// Verify "transferor" received NOTIFY 200 Ok.
 	transferListener->assertNotifyReceived(asserter, linphone::Call::State::Connected).assert_passed();
 
-	// Verify that calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -978,7 +1201,6 @@ void blindCallTransferDeclined() {
 	// Resume call after failed call transfer.
 	transfereeCallToTransferor->resume();
 
-	// Verify calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -1254,6 +1476,12 @@ TestSuite _{
         CLASSY_TEST(videoRejectedByCallee),
         CLASSY_TEST(pauseWithAudioInactive),
         CLASSY_TEST(answerToPauseWithAudioInactive),
+        CLASSY_TEST(terminateCallPausedOnBothSides<PAUSER>),
+        CLASSY_TEST(terminateCallPausedOnBothSides<PAUSEE>),
+        CLASSY_TEST((resumeCallPausedOnBothSides<PAUSER, OnOff::On>)),
+        CLASSY_TEST((resumeCallPausedOnBothSides<PAUSER, OnOff::Off>)),
+        CLASSY_TEST((resumeCallPausedOnBothSides<PAUSEE, OnOff::On>)),
+        CLASSY_TEST((resumeCallPausedOnBothSides<PAUSEE, OnOff::Off>)),
         CLASSY_TEST(unknownMediaAttrAreFilteredOutOnReinvites),
         CLASSY_TEST(forcedAudioCodec),
         CLASSY_TEST(blindCallTransferSuccessful),
