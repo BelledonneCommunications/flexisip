@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/
+    about: Flexisip official documentation
+  - name: Security
+    url: vulnerabilities@linphone.org
+    about: Please report security vulnerabilities here.
+  - name: Commercial support
+    url: https://www.linphone.org/en/contact/
+    about: Contact our commercial team

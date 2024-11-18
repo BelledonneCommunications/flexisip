@@ -1,0 +1,62 @@
+name: Bug report
+description: Create a new bug report to help us improve Flexisip.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this report!
+        
+        ### Disclaimer
+        Responses are provided by the community and, on a best effort basis, by some Belledonne Communications SARL engineers working on Flexisip and its related projects.
+        The community means any people all around the world simply willing to participate to the discussions.
+        
+        Belledonne Communications SARL disclaims any WARRANTY that the content posted on Github issues or mailing lists is technically correct.
+        Responses from Belledonne Communications SARL engineers shall be considered as individual contributions and shall not be seen as Belledonne Communications official point of view or commitment.
+        
+        ### Reminder
+        Software engineers at Belledonne Communications will mainly process the following issues:
+          - detailed bug reports
+          - documentation requests (additions and/or clarifications)
+          - any questions regarding SIP, Flexisip and its software architecture
+        
+        People using Flexisip or its related projects within the scope of their company job are invited to contact [Belledonne Communications](https://www.linphone.org/en/contact/) in order to obtain commercial support.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Please describe the steps to reproduce the behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Any other information that may help us understand the problem. Please provide OS and Flexisip versions. You can also attach logs here.
+      value: "
+      - OS: [e.g. Ubuntu 23.10]
+      - Kernel: [e.g. Linux 6.5.0-44-generic]
+      - Flexisip version: [e.g. 2.3.4]
+      "
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
+      render: shell
