@@ -85,8 +85,6 @@ private:
 
 	RedisParameters mParams;
 	RedisParameters mLastActiveParams{mParams};
-	enum class SubSessionState { DISCONNECTED, PENDING, ACTIVE };
-	SubSessionState mSubSessionState{SubSessionState::DISCONNECTED};
 	sofiasip::Timer mSubSessionKeepAliveTimer;
 	std::vector<RedisHost> mSlaves{};
 	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();
