@@ -7,6 +7,7 @@
 
 #include "redis-client.hh"
 #include "utils/string-utils.hh"
+#include "utils/variant-utils.hh"
 
 namespace flexisip::redis::async {
 
@@ -291,40 +292,33 @@ void RedisClient::onTryReconnectTimer() {
 
 void RedisClient::onHandleSubSessionKeepAliveTimer() {
 	if (auto* session = std::get_if<SubscriptionSession::Ready>(&mSubSession.getState())) {
-		if (mSubSessionState == SubSessionState::PENDING) {
-			SLOGW << logPrefix() << "Periodic PING to REDIS subscribtion session timeout, try to reconnect";
-			// disconnect session and try to reconnect
-			mSubSessionState = SubSessionState::DISCONNECTED;
-			mSubSession.forceDisconnect();
-			connect();
-			return;
-		}
 		SLOGD << logPrefix() << "Launching periodic PING to REDIS subscribtion session";
-		mSubSessionState = SubSessionState::PENDING;
 		session->ping([this](const redis::async::Reply& reply) { handlePingReply(reply); });
 	}
 }
 
 void RedisClient::handlePingReply(const redis::async::Reply& reply) {
-	const auto prefix = logPrefix() + "Subscription session keep alive, PING request received ";
-	try {
-		string pong;
-		if (std::get_if<reply::Array>(&reply)) {
-			const auto& array = std::get<reply::Array>(reply);
-			pong = std::get<reply::String>(array[0]);
+	if (reply == reply::Disconnected()) return;
 
-		} else {
-			pong = std::get<reply::Status>(reply);
-		}
-		if (pong == "pong" || pong == "PONG") {
-			SLOGI << prefix << "\'" << pong << "\'";
-			mSubSessionState = SubSessionState::ACTIVE;
-			return;
-		}
-		SLOGE << prefix << "unexpected " << StreamableVariant(reply);
-	} catch (const std::bad_variant_access&) {
-		SLOGE << prefix << "an ill formatted reply";
+	const auto prefix = logPrefix() + "Subscription session keep alive, PING request received ";
+
+	if (const auto* error = std::get_if<reply::Error>(&reply)) {
+		SLOGE << prefix << *error;
+		return;
 	}
+
+	if (reply == reply::Status("PONG")) {
+		SLOGI << prefix << "PONG (Command-style)";
+		return;
+	}
+
+	const auto* array = std::get_if<reply::Array>(&reply);
+	if (array && (*array)[0] == reply::String("pong")) {
+		SLOGI << prefix << "PONG (Subscription-style)";
+		return;
+	}
+
+	SLOGW << prefix << "unexpected " << StreamableVariant(reply);
 }
 
 void RedisClient::forceDisconnectForTest(RedisClient& thiz) {

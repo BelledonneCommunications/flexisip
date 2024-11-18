@@ -348,7 +348,7 @@ void SubscriptionSession::onConnect(int status) {
 		auto reSubbedChannelsLog = std::ostringstream();
 		reSubbedChannelsLog
 		    << "redis::async::SubscriptionSession::onConnect - Channels automatically re-subscribed: (none)";
-		reSubbedChannelsLog.seekp(-sizeof("(none)"));
+		reSubbedChannelsLog.seekp(-static_cast<int>(sizeof("(none)")));
 		for (auto& [channel, subscription] : mSubscriptions) {
 			// This `onConnect()` callback is called before responses are processed, so skip over any subscription
 			// created early, we shall receive the answer shortly

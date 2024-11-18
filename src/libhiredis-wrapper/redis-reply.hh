@@ -47,6 +47,10 @@ using Integer = decltype(redisReply::integer);
 class Disconnected {
 public:
 	friend std::ostream& operator<<(std::ostream&, const Disconnected&);
+
+	inline bool operator==(const Disconnected&) const noexcept {
+		return true;
+	}
 };
 
 class ArrayOfPairs;
