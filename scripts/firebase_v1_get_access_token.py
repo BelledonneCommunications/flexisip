@@ -43,7 +43,7 @@ try:
 
 except BaseException as exception:
 
-	print(f'{{"state": "ERROR", "data": {{"message": "{exception}"}}, "warnings": {[]}}}')
+	print('{{"state": "ERROR", "data": {{"message": "{exception}"}}, "warnings": []}}'.format(exception=exception))
 	sys.exit(0)
 
 
@@ -52,7 +52,13 @@ class ScriptState:
 	SUCCESS = "SUCCESS"
 
 
-def error(message: str, warnings: list[str]) -> None:
+def error(message, warnings):
+	"""
+	Print (in JSON format) the result of script execution in case of an error.
+
+	:param message: error message
+	:param warnings: list of warning messages
+	"""
 	payload = {
 		"state": ScriptState.ERROR,
 		"data": {
@@ -63,8 +69,14 @@ def error(message: str, warnings: list[str]) -> None:
 	print(json.dumps(payload))
 
 
-def extract_warnings(warnings: list[warnlib.WarningMessage]) -> list[str]:
-	return [f"{warning.message}" for warning in warnings]
+def extract_warnings(warnings):
+	"""
+	Extract warning messages from a list of warnlib.WarningMessage.
+
+	:param warnings: list of warnlib.WarningMessage objects
+	:return: list of warning messages
+	"""
+	return ["{message}".format(message=warning.message) for warning in warnings]
 
 
 SCOPES = ['https://www.googleapis.com/auth/firebase.messaging']
@@ -90,7 +102,9 @@ if __name__ == "__main__":
 		arguments = parser.parse_args()
 
 		if not arguments.filename.exists() or not arguments.filename.is_file():
-			error(f"path to service account json file is not valid ({arguments.filename})", extract_warnings(warnings))
+			error_message = "path to service account json file is not valid ({filename})".format(
+				filename=arguments.filename)
+			error(error_message, extract_warnings(warnings))
 			sys.exit(0)
 
 		try:
@@ -104,8 +118,9 @@ if __name__ == "__main__":
 			lifetime = int((expiry - now).total_seconds())
 
 			if lifetime <= 0:
-				error(f"computed token lifetime is negative or null ({lifetime}s) [now = {now}, expiry = {expiry}]",
-					  extract_warnings(warnings))
+				error_message = "computed token lifetime is negative or null ({lifetime}s) [now = {now}, expiry = {expiry}]".format(
+					lifetime=lifetime, now=now, expiry=expiry)
+				error(error_message, extract_warnings(warnings))
 				sys.exit(0)
 
 			data = {
@@ -122,4 +137,4 @@ if __name__ == "__main__":
 			pass
 
 		except BaseException as exception:
-			error(f"{exception}", extract_warnings(warnings))
+			error("{exception}".format(exception=exception), extract_warnings(warnings))
