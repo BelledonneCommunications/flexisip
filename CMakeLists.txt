@@ -225,7 +225,7 @@ if(ENABLE_DATEHANDLER)
 endif()
 
 if(ENABLE_REDIS AND NOT INTERNAL_LIBHIREDIS)
-	find_package(Hiredis 0.14 REQUIRED)
+	find_package(Hiredis 1.1 REQUIRED)
 endif()
 
 if(ENABLE_PDFDOC)

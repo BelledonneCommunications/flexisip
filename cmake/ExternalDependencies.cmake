@@ -35,6 +35,10 @@ add_sofiasip()
 if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
 	function(add_hiredis)
 		set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # Prevent project from overriding the options set at this level
+		set(ENABLE_SSL ON)
+		set(DISABLE_TESTS OFF)
+		set(ENABLE_SSL_TESTS OFF)
+		set(ENABLE_ASYNC_TESTS OFF)
 
 		add_subdirectory("submodules/externals/hiredis")
 		target_compile_definitions(hiredis INTERFACE "INTERNAL_LIBHIREDIS")

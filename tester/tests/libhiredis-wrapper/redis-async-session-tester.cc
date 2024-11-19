@@ -286,8 +286,27 @@ void subscriptionsSession_ping() {
 	auto* subsReady = std::get_if<decltype(subscriptionsSession)::Ready>(&SUITE_SCOPE->connect(subscriptionsSession));
 	BC_HARD_ASSERT(subsReady != nullptr);
 	bool called = false;
-	subsReady->ping([&called](const redis::async::Reply&) { called = true; });
-	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&called]() { return called == true; }));
+	auto pingCb = [&called](const redis::async::Reply& reply) {
+		if (std::holds_alternative<redis::reply::Disconnected>(reply)) return;
+		SLOGD << "ping received " << StreamableVariant(reply);
+		if (std::holds_alternative<redis::reply::Error>(reply)) return;
+		called = true;
+	};
+
+	subsReady->ping(pingCb);
+	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&called]() { return called; }));
+
+	bool subscribed = false;
+	subsReady->subscriptions()["flexisip/ping"].subscribe([&subscribed](auto, auto reply) {
+		// Prevent use after free when called in the subscription session's destructor
+		if (std::holds_alternative<redis::reply::Disconnected>(reply)) return;
+		subscribed = true;
+	});
+	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&subscribed]() { return subscribed; }));
+
+	called = false;
+	subsReady->ping(pingCb);
+	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&called]() { return called; }));
 }
 
 namespace {

@@ -46,7 +46,7 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 
 	mLastActiveParams = mParams;
 	mLastReconnectRotation = {};
-	mSubSessionKeepAliveTimer.run([this]() { onHandleSubSessionKeepAliveTimer(); });
+	mSubSessionKeepAliveTimer.run([this]() { onSubSessionKeepAliveTimer(); });
 
 	return {{*cmdSession, *subsSession}};
 }
@@ -232,7 +232,7 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 			SLOGD << logPrefix() << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count()
 			      << "s";
 			mReplicationTimer.emplace(mRoot.getCPtr(), mParams.mSlaveCheckTimeout);
-			mReplicationTimer->run([this]() { onHandleInfoTimer(); });
+			mReplicationTimer->run([this]() { onInfoTimer(); });
 		}
 	} else {
 		SLOGE << logPrefix() << "Invalid INFO reply: no role specified";
@@ -277,8 +277,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 	mCurSlave = mSlaves.cend();
 }
 
-void RedisClient::onHandleInfoTimer() {
-	if (auto* session = std::get_if<Session::Ready>(&mCmdSession.getState())) {
+void RedisClient::onInfoTimer() {
+	if (auto* session = tryGetCmdSession()) {
 		SLOGD << logPrefix() << "Launching periodic INFO query on REDIS";
 		getReplicationInfo(*session);
 	}
@@ -290,9 +290,19 @@ void RedisClient::onTryReconnectTimer() {
 	mReconnectTimer.reset();
 }
 
-void RedisClient::onHandleSubSessionKeepAliveTimer() {
-	if (auto* session = std::get_if<SubscriptionSession::Ready>(&mSubSession.getState())) {
+void RedisClient::onSubSessionKeepAliveTimer() {
+	if (auto* session = tryGetSubSession()) {
+		if (mSubSessionState == SubSessionState::PENDING) {
+			SLOGW << logPrefix() << "Periodic PING to REDIS subscribtion session timeout, try to reconnect";
+			// disconnect session and try to reconnect
+			mSubSessionState = SubSessionState::DISCONNECTED;
+			mSubSession.forceDisconnect();
+			connect();
+			return;
+		}
+
 		SLOGD << logPrefix() << "Launching periodic PING to REDIS subscribtion session";
+		mSubSessionState = SubSessionState::PENDING;
 		session->ping([this](const redis::async::Reply& reply) { handlePingReply(reply); });
 	}
 }
@@ -306,6 +316,9 @@ void RedisClient::handlePingReply(const redis::async::Reply& reply) {
 		SLOGE << prefix << *error;
 		return;
 	}
+
+	// something was received, it might not be what we expect, but the connection is up
+	mSubSessionState = SubSessionState::ACTIVE;
 
 	if (reply == reply::Status("PONG")) {
 		SLOGI << prefix << "PONG (Command-style)";

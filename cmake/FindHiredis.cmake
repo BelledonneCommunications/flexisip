@@ -75,8 +75,8 @@ find_package_handle_standard_args(Hiredis
 	VERSION_VAR HIREDIS_VERSION
 )
 if (HIREDIS_FOUND)
-	add_library(hiredis SHARED IMPORTED)
-	set_target_properties(hiredis PROPERTIES
+	add_library(hiredis::hiredis SHARED IMPORTED)
+	set_target_properties(hiredis::hiredis PROPERTIES
 		INTERFACE_INCLUDE_DIRECTORIES "${HIREDIS_INCLUDE_DIR}"
 		IMPORTED_LOCATION "${HIREDIS_LIBRARIES}"
 	)

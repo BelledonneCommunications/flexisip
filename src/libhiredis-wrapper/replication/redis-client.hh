@@ -57,7 +57,7 @@ private:
 	/**
 	 * This callback is called periodically to check if the current REDIS connection is valid
 	 */
-	void onHandleInfoTimer();
+	void onInfoTimer();
 
 	/**
 	 * Callback use to add space between RegistrarDbRedisAsync::tryReconnect calls
@@ -67,7 +67,7 @@ private:
 	/**
 	 * This callback is called periodically to check if the REDIS subscription session connection is still valid
 	 */
-	void onHandleSubSessionKeepAliveTimer();
+	void onSubSessionKeepAliveTimer();
 	/**
 	 * This callback is called when the Redis instance answered our "ping".
 	 * @param reply Redis answer
@@ -85,6 +85,8 @@ private:
 
 	RedisParameters mParams;
 	RedisParameters mLastActiveParams{mParams};
+	enum class SubSessionState { DISCONNECTED, PENDING, ACTIVE };
+	SubSessionState mSubSessionState{SubSessionState::DISCONNECTED};
 	sofiasip::Timer mSubSessionKeepAliveTimer;
 	std::vector<RedisHost> mSlaves{};
 	decltype(mSlaves)::const_iterator mCurSlave = mSlaves.cend();

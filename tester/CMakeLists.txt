@@ -271,7 +271,7 @@ target_link_libraries(flexisip_tester PRIVATE
 	mediastreamer2
 	ortp
 	jsoncpp_lib
-	hiredis
+	hiredis::hiredis
 	XercesC::XercesC
 )
 

@@ -247,7 +247,7 @@ if(ENABLE_REDIS)
 		registrardb-redis-async.cc
 	)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
-	target_link_libraries(flexisip PRIVATE hiredis)
+	target_link_libraries(flexisip PRIVATE hiredis::hiredis)
 endif()
 if(ENABLE_PRESENCE OR ENABLE_CONFERENCE)
 	if(NOT XercesC_FOUND)
