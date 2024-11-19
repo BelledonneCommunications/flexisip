@@ -51,12 +51,12 @@ void nominalInitialLoadTest() {
 
 	StaticAccountLoader loader{std::move(loaderConfig)};
 
-	auto actualAccounts = loader.initialLoad();
+	auto actualAccounts = loader.loadAll();
 
 	BC_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
 
-	// Calling again returns an empty vector. This is not necessarily wanted behaviour, but it's better to document it.
-	BC_ASSERT_CPP_EQUAL(loader.initialLoad(), decltype(expectedAccounts){});
+	// Can be called any number of times
+	BC_ASSERT_CPP_EQUAL(loader.loadAll(), expectedAccounts);
 }
 
 const TestSuite _{

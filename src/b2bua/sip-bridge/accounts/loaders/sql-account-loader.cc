@@ -47,7 +47,7 @@ SQLAccountLoader::SQLAccountLoader(const std::shared_ptr<sofiasip::SuRoot>& suRo
 	}
 }
 
-std::vector<config::v2::Account> SQLAccountLoader::initialLoad() {
+std::vector<config::v2::Account> SQLAccountLoader::loadAll() {
 	std::vector<config::v2::Account> accountsLoaded{};
 	SociHelper helper{mSociConnectionPool};
 	helper.execute([&initQuery = mInitQuery, &accountsLoaded](auto& sql) {

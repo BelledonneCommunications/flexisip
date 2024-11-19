@@ -24,6 +24,8 @@
 
 #include "b2bua/sip-bridge/string-format-fields.hh"
 
+#define FUNC_LOG_PREFIX "AccountPool::" << __func__ << "() - "
+
 namespace flexisip::b2bua::bridge {
 using namespace std;
 using namespace nlohmann;
@@ -31,6 +33,35 @@ using namespace flexisip::redis;
 using namespace flexisip::redis::async;
 
 const auto& kDefaultTemplateString = "{uri}"s;
+
+namespace {
+
+void removeAssociatedAuthInfo(linphone::Core& core, const linphone::Account& account) {
+	const auto identityAddress = account.getParams()->getIdentityAddress();
+	const auto accountAuthInfo = core.findAuthInfo("", identityAddress->getUsername(), identityAddress->getDomain());
+	if (!accountAuthInfo) return;
+
+	core.removeAuthInfo(accountAuthInfo);
+}
+
+void removeAccount(linphone::Core& core, const std::shared_ptr<linphone::Account>& account) {
+	removeAssociatedAuthInfo(core, *account);
+	core.removeAccount(account);
+}
+
+void handleOutboundProxy(const shared_ptr<linphone::AccountParams>& accountParams, const string& outboundProxy) {
+	if (outboundProxy.empty()) return;
+
+	const auto route = linphone::Factory::get()->createAddress(outboundProxy);
+	if (!route) {
+		SLOGE << FUNC_LOG_PREFIX << "Bad outbound proxy format: '" << outboundProxy << "'";
+	} else {
+		accountParams->setServerAddress(route);
+		accountParams->setRoutesAddresses({route});
+	}
+}
+
+} // namespace
 
 AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                          const std::shared_ptr<B2buaCore>& core,
@@ -46,9 +77,9 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                                     .formatter = Formatter(kDefaultTemplateString, kAccountFields),
                                 })
                        .first->second),
-      mRegistrationQueue(*mSuRoot,
-                         chrono::milliseconds{pool.registrationThrottlingRateMs},
-                         [this](const auto& account) { addNewAccount(account); }) {
+      mAccountOpsQueue(mSuRoot, chrono::milliseconds{pool.registrationThrottlingRateMs}, [this](const auto& variant) {
+	      std::visit([this](const auto& operation) { this->applyOperation(operation); }, variant);
+      }) {
 
 	handleOutboundProxy(mAccountParams, pool.outboundProxy);
 	mAccountParams->enableRegister(pool.registrationRequired);
@@ -59,7 +90,7 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 		if (mwiServerAddress) {
 			mAccountParams->setMwiServerAddress(mwiServerAddress);
 		} else {
-			SLOGE << "Invalid MWI server uri [" << pool.mwiServerUri << "]";
+			SLOGE << "AccountPool constructor - Invalid MWI server uri: '" << pool.mwiServerUri << "'";
 		}
 	}
 
@@ -69,54 +100,146 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 
 		mRedisClient->connect();
 	} else {
-		initialLoad();
+		loadAll();
 	}
 }
 
-void AccountPool::initialLoad() {
-	const auto accountsDesc = mLoader->initialLoad();
-	reserve(accountsDesc.size());
-	for (const auto& accountDesc : accountsDesc) {
-		setupNewAccount(accountDesc);
+void AccountPool::loadAll() {
+	// Abort on-going update process (if any)
+	mAccountOpsQueue.clear();
+
+	auto& defaultView = mDefaultView.view;
+	auto loadedUris = unordered_set<string>();
+	auto newAccounts = mLoader->loadAll();
+	reserve(newAccounts.size());
+	for (auto&& accountDesc : newAccounts) {
+		if (accountDesc.uri.empty()) {
+			SLOGW << FUNC_LOG_PREFIX << "Skipping account of pool " << mPoolName << ": `uri` field missing";
+			continue;
+		}
+
+		loadedUris.emplace(accountDesc.uri);
+
+		if (auto existingAccountIt = defaultView.find(accountDesc.uri);
+		    existingAccountIt != defaultView.end()) /* Update */ {
+			mAccountOpsQueue.enqueue(UpdateAccount{
+			    .existingAccount = existingAccountIt->second,
+			    .newDesc = std::move(accountDesc),
+			});
+			continue;
+		}
+
+		/* Create */
+		mAccountOpsQueue.enqueue(CreateAccount{.accountDesc = std::move(accountDesc)});
+	}
+	auto deleteOps = vector<DeleteAccount>();
+	for (const auto& [existingUri, existingAccount] : defaultView) {
+		if (loadedUris.find(existingUri) != loadedUris.end()) continue;
+
+		// Can't modify a collection we're iterating over.
+		deleteOps.emplace_back(DeleteAccount{.oldAccount = existingAccount});
+	}
+	for (auto&& deleteOp : deleteOps) {
+		/* Delete */
+		mAccountOpsQueue.enqueue(std::move(deleteOp));
 	}
 	mAccountsQueuedForRegistration = true;
 }
 
-void AccountPool::setupNewAccount(const config::v2::Account& accountDesc) {
-	if (accountDesc.uri.empty()) {
-		LOGF("An account of account pool '%s' is missing a `uri` field", mPoolName.c_str());
-	}
+void AccountPool::applyOperation(const CreateAccount& op) {
+	const auto& accountDesc = op.accountDesc;
 	const auto accountParams = mAccountParams->clone();
-	const auto address = mCore->createAddress(accountDesc.uri);
+	const auto address = linphone::Factory::get()->createAddress(accountDesc.uri);
 	accountParams->setIdentityAddress(address);
 
 	handleOutboundProxy(accountParams, accountDesc.outboundProxy);
 
 	handlePassword(accountDesc, address);
 
-	auto account = make_shared<Account>(mCore->createAccount(accountParams), mMaxCallsPerLine, accountDesc.alias);
-	mRegistrationQueue.enqueue(std::move(account));
-}
-
-void AccountPool::addNewAccount(const shared_ptr<Account>& account) {
-	const auto& linphoneAccount = account->getLinphoneAccount();
-	const auto& uri = linphoneAccount->getParams()->getIdentityAddress();
+	const auto newAccount =
+	    make_shared<Account>(mCore->createAccount(accountParams), mMaxCallsPerLine, accountDesc.alias);
+	const auto& linphoneAccount = newAccount->getLinphoneAccount();
 
 	if (mCore->addAccount(linphoneAccount) != 0) {
-		SLOGE << "Adding new Account to core failed for uri [" << uri << "]";
+		const auto uri = linphoneAccount->getParams()->getIdentityAddress();
+		SLOGW << "AccountPool::CreateAccount - Adding new Account to core failed for uri '" << uri << "'";
 		return;
 	}
 
-	if (!tryEmplace(account)) {
-		mCore->removeAccount(linphoneAccount);
+	if (!tryEmplace(newAccount)) {
+		removeAccount(*mCore, linphoneAccount);
+	}
+}
+
+void AccountPool::applyOperation(const DeleteAccount& op) {
+	const auto accountToDelete = op.oldAccount.lock();
+	if (!accountToDelete) {
+		SLOGD << "AccountPool::DeleteAccount - Account already freed, noop";
+		return;
+	}
+
+	const auto& linphoneAccount = accountToDelete->getLinphoneAccount();
+
+	removeAccount(*mCore, linphoneAccount);
+
+	for (auto& [_, view] : mViews) {
+		auto& [formatter, map] = view;
+		map.erase(formatter.format(*accountToDelete));
+	}
+}
+
+void AccountPool::applyOperation(const UpdateAccount& op) {
+	const auto accountToUpdate = op.existingAccount.lock();
+	if (!accountToUpdate) {
+		SLOGD << "AccountPool::UpdateAccount - Account freed, nothing to update";
+		return;
+	}
+
+	// Find all current bindings to the old account to update them later
+	auto previousBindings = vector<tuple<string, const Formatter&, AccountMap&>>();
+	previousBindings.reserve(mViews.size());
+	for (auto& [_key, view] : mViews) {
+		auto& [formatter, map] = view;
+		previousBindings.emplace_back(formatter.format(*accountToUpdate), formatter, map);
+	}
+
+	// Update account
+	const auto& newParams = op.newDesc;
+	accountToUpdate->setAlias(newParams.alias);
+
+	auto& linphoneAccountToUpdate = *accountToUpdate->getLinphoneAccount();
+	removeAssociatedAuthInfo(*mCore, linphoneAccountToUpdate);
+
+	const auto newLinphoneParams = mAccountParams->clone();
+	const auto newIdentityAddress = linphone::Factory::get()->createAddress(newParams.uri);
+	newLinphoneParams->setIdentityAddress(newIdentityAddress);
+
+	handleOutboundProxy(newLinphoneParams, newParams.outboundProxy);
+	linphoneAccountToUpdate.setParams(newLinphoneParams);
+
+	handlePassword(newParams, newIdentityAddress);
+
+	// Update bindings in all views if needed
+	for (auto& [previousKey, formatter, map] : previousBindings) {
+		auto newKey = formatter.format(*accountToUpdate);
+		if (newKey == previousKey) continue;
+
+		const auto erased = map.erase(previousKey);
+		assert(erased != 0);
+		std::ignore = erased;
+		const auto [slot, inserted] = map.emplace(std::move(newKey), accountToUpdate);
+		if (!inserted) {
+			SLOGW << "AccountPool::UpdateAccount - Previous key '" << previousKey << "' is now collisioning with '"
+			      << slot->first << "' and was discarded";
+		}
 	}
 }
 
 void AccountPool::handlePassword(const config::v2::Account& account,
                                  const std::shared_ptr<const linphone::Address>& address) const {
 	if (!account.secret.empty()) {
-		const auto& domain = address->getDomain();
-		const auto& authInfo =
+		const auto domain = address->getDomain();
+		const auto authInfo =
 		    linphone::Factory::get()->createAuthInfo(address->getUsername(), account.userid, "", "", "", domain);
 
 		switch (account.secretType) {
@@ -136,19 +259,6 @@ void AccountPool::handlePassword(const config::v2::Account& account,
 		authInfo->setRealm(realm);
 
 		mCore->addAuthInfo(authInfo);
-	}
-}
-
-void AccountPool::handleOutboundProxy(const shared_ptr<linphone::AccountParams>& accountParams,
-                                      const string& outboundProxy) const {
-	if (!outboundProxy.empty()) {
-		const auto route = mCore->createAddress(outboundProxy);
-		if (!route) {
-			SLOGE << "AccountPool::handleOutboundProxy : bad outbound proxy format [" << outboundProxy << "]";
-		} else {
-			accountParams->setServerAddress(route);
-			accountParams->setRoutesAddresses({route});
-		}
 	}
 }
 
@@ -192,12 +302,12 @@ const AccountPool::IndexedView& AccountPool::getOrCreateView(std::string lookupT
 	for (const auto& [_, account] : defaultView) {
 		const auto [slot, inserted] = map.emplace(formatter.format(*account), account);
 		if (!inserted) {
-			SLOGW << "AccountPool::getOrCreateView - Collision: Template '" << formatter.getTemplate()
-			      << "' produced key '" << slot->first << "' for account '"
+			SLOGW << FUNC_LOG_PREFIX << "Collision: Template '" << formatter.getTemplate() << "' produced key '"
+			      << slot->first << "' for account '"
 			      << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
 			      << "' which is the same as that of previously inserted account '"
 			      << slot->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
-			      << "'. The new binding was discarded and the existing binding left untouched.";
+			      << "'. The new binding was discarded and the existing binding left untouched";
 		}
 	}
 
@@ -216,15 +326,15 @@ void AccountPool::reserve(size_t sizeToReserve) {
 
 bool AccountPool::tryEmplace(const shared_ptr<Account>& account) {
 	auto& [formatter, view] = mDefaultView;
-	const auto& uri = formatter.format(*account);
+	const auto uri = formatter.format(*account);
 	if (uri.empty()) {
-		SLOGE << "AccountPool::tryEmplace called with empty uri, nothing happened";
+		SLOGW << FUNC_LOG_PREFIX << "called with empty uri, nothing happened";
 		return false;
 	}
 
 	auto [_, isInsertedUri] = view.try_emplace(uri, account);
 	if (!isInsertedUri) {
-		SLOGE << "AccountPool::tryEmplace uri[" << uri << "] already present, nothing happened";
+		SLOGW << FUNC_LOG_PREFIX << "URI '" << uri << "' already present, nothing happened";
 		return false;
 	}
 
@@ -241,103 +351,52 @@ void AccountPool::tryEmplaceInViews(const shared_ptr<Account>& account) {
 		auto& [formatter, map] = view;
 		const auto [slot, inserted] = map.try_emplace(formatter.format(*account), account);
 		if (!inserted) {
-			SLOGW << "AccountPool::tryEmplaceInViews - Collision: Template '" << formatter.getTemplate()
-			      << "' produced key '" << slot->first << "' for account '"
+			SLOGW << FUNC_LOG_PREFIX << "Collision: Template '" << formatter.getTemplate() << "' produced key '"
+			      << slot->first << "' for account '"
 			      << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
 			      << "' which is the same as that of previously inserted account '"
 			      << slot->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
-			      << "'. The new binding was discarded and the existing binding left untouched.";
+			      << "'. The new binding was discarded and the existing binding left untouched";
 		}
 	}
 }
 
 void AccountPool::accountUpdateNeeded(const RedisAccountPub& redisAccountPub) {
-	OnAccountUpdateCB cb = [this](const std::string& uri, const std::optional<config::v2::Account>& accountToUpdate) {
-		this->onAccountUpdate(uri, accountToUpdate);
+	OnAccountUpdateCB cb = [this](const std::string& uri, const std::optional<config::v2::Account>& newDesc) {
+		this->onAccountUpdate(uri, newDesc);
 	};
 
 	mLoader->accountUpdateNeeded(redisAccountPub, cb);
 }
 
-void AccountPool::onAccountUpdate(const string& uri, const optional<config::v2::Account>& accountToUpdate) {
+void AccountPool::onAccountUpdate(const string& uri, const optional<config::v2::Account>& newDescription) {
 	auto& defaultView = mDefaultView.view;
 	// The account was **deleted** on the external server
-	if (!accountToUpdate.has_value()) {
-		const auto accountByUriIt = defaultView.find(uri);
-		if (accountByUriIt == defaultView.end()) {
-			SLOGW << "AccountPool::onAccountUpdate : No account found to delete for uri : " << uri;
+	if (!newDescription) {
+		const auto accountToDelete = defaultView.find(uri);
+		if (accountToDelete == defaultView.end()) {
+			SLOGW << FUNC_LOG_PREFIX << "No account found to delete for uri '" << uri << "'";
 			return;
 		}
 
-		const auto& account = *accountByUriIt->second;
-		mCore->removeAccount(account.getLinphoneAccount());
-
-		for (auto& [_key, view] : mViews) {
-			// Skip main view, only update secondary views
-			if (addressof(view) == addressof(mDefaultView)) continue;
-
-			auto& [formatter, map] = view;
-			map.erase(formatter.format(account));
-		}
-
-		defaultView.erase(accountByUriIt);
+		mAccountOpsQueue.enqueue(DeleteAccount{.oldAccount = accountToDelete->second});
 		return;
 	}
 
-	if (uri != accountToUpdate->uri) {
-		SLOGE << "AccountPool::onAccountUpdate : inconsistent data between publish and DB. Publish uri [" << uri
-		      << "]. DB uri[" << accountToUpdate->uri << "]. Aborting";
+	if (uri != newDescription->uri) {
+		SLOGE << FUNC_LOG_PREFIX << "Aborting update: Inconsistent URIs between notification ('" << uri
+		      << "') and what was fetched in DB ('" << newDescription->uri << "')";
 		return;
 	}
 
-	auto accountByUriIt = defaultView.find(accountToUpdate->uri);
+	if (auto accountToUpdate = defaultView.find(uri); accountToUpdate != defaultView.end()) {
+		// The account was **updated** on the external server
+		mAccountOpsQueue.enqueue(UpdateAccount{.existingAccount = accountToUpdate->second, .newDesc = *newDescription});
+		return;
+	}
+
 	// The account was **created** on the external server
-	if (accountByUriIt == defaultView.end()) {
-		setupNewAccount(*accountToUpdate);
-		return;
-	}
-
-	// The account was **updated** on the external server
-
-	// Find all current bindings to the old account to update them later
-	const auto& updatedAccount = accountByUriIt->second;
-	auto previousBindings = vector<tuple<string, const Formatter&, AccountMap&>>();
-	previousBindings.reserve(mViews.size());
-	for (auto& [_key, view] : mViews) {
-		// Skip main view, only update secondary views
-		if (addressof(view) == addressof(mDefaultView)) continue;
-
-		auto& [formatter, map] = view;
-		previousBindings.emplace_back(formatter.format(*updatedAccount), formatter, map);
-	}
-
-	// Update account
-	updatedAccount->setAlias(accountToUpdate->alias);
-
-	const auto accountParams = mAccountParams->clone();
-	const auto address = mCore->createAddress(accountToUpdate->uri);
-	accountParams->setIdentityAddress(address);
-
-	handleOutboundProxy(accountParams, accountToUpdate->outboundProxy);
-	updatedAccount->getLinphoneAccount()->setParams(accountParams);
-
-	if (auto accountAuthInfo = mCore->findAuthInfo("", address->getUsername(), address->getDomain()); accountAuthInfo) {
-		mCore->removeAuthInfo(accountAuthInfo);
-	}
-	handlePassword(*accountToUpdate, address);
-
-	// Update bindings in all views if needed
-	for (auto& [previousKey, formatter, map] : previousBindings) {
-		auto newKey = formatter.format(*updatedAccount);
-		if (newKey == previousKey) continue;
-
-		assert(map.erase(previousKey) != 0);
-		const auto [slot, inserted] = map.emplace(std::move(newKey), updatedAccount);
-		if (!inserted) {
-			SLOGW << "AccountPool::onAccountUpdate - Previous key '" << previousKey << "' is now collisioning with '"
-			      << slot->first << "' and was discarded.";
-		}
-	}
+	mAccountOpsQueue.enqueue(CreateAccount{.accountDesc = *newDescription});
 }
 
 void AccountPool::onConnect(int status) {
@@ -355,13 +414,14 @@ void AccountPool::subscribeToAccountUpdate() {
 	auto subscription = ready->subscriptions()["flexisip/B2BUA/account"];
 	if (subscription.subscribed()) return;
 
-	LOGD("Subscribing to account update ");
+	SLOGD << FUNC_LOG_PREFIX << "Subscribing to account update ";
 	subscription.subscribe([this](auto topic, Reply reply) { this->handleAccountUpdatePublish(topic, reply); });
 }
 
 void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::async::Reply reply) {
-	if (std::holds_alternative<reply::Disconnected>(reply)) {
-		SLOGD << "AccountPool::handleAccountUpdatePublish - Subscription to '" << topic << "' disconnected.";
+	if (reply == reply::Disconnected()) {
+		SLOGD << FUNC_LOG_PREFIX << "Subscription to '" << topic << "' disconnected.";
+		mAccountsQueuedForRegistration = false;
 		return;
 	}
 	string replyAsString{};
@@ -370,7 +430,7 @@ void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::asyn
 		const auto messageType = std::get<reply::String>(array[0]);
 		if (messageType == "message") {
 			replyAsString = std::get<reply::String>(array[2]);
-			SLOGD << "AccountPool::handleAccountUpdatePublish - 'message' received, " << replyAsString;
+			SLOGD << FUNC_LOG_PREFIX << "'message' received, " << replyAsString;
 			auto redisPub = json::parse(replyAsString).get<RedisAccountPub>();
 			accountUpdateNeeded(redisPub);
 			return;
@@ -379,36 +439,36 @@ void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::asyn
 		assert(channel == topic);
 		if (messageType == "subscribe") {
 			const auto subscriptionCount = std::get<reply::Integer>(array[2]);
-			SLOGD << "AccountPool::handleAccountUpdatePublish - 'subscribe' request on '" << channel
-			      << "' channel succeeded. This session currently has " << subscriptionCount << " subscriptions";
-			initialLoad();
+			SLOGD << FUNC_LOG_PREFIX << "'subscribe' request on channel " << channel
+			      << " succeeded (this session now has " << subscriptionCount << " subscriptions)";
+			loadAll();
 			return;
 		}
 		if (messageType == "unsubscribe") {
-			SLOGW << "AccountPool::handleAccountUpdatePublish - Channel '" << channel
-			      << "' unexpectedly unsubscribed. This should never happen, if you see this in your log, please "
-			         "open a ticket.";
+			SLOGW << FUNC_LOG_PREFIX << "Channel '" << channel
+			      << "' unexpectedly unsubscribed."
+			         "This should never happen, if you see this in your log, please open a ticket";
 			return;
 		}
 
-		SLOGW << "AccountPool::handleAccountUpdatePublish - unexpected '" << messageType << "' received, "
-		      << StreamableVariant(array[2])
-		      << ". This should never happen, if you see this in your log, please open a ticket.";
+		SLOGW << FUNC_LOG_PREFIX << "Unexpected message type '" << messageType
+		      << "' received with payload: " << StreamableVariant(array[2])
+		      << "\nThis should never happen, if you see this in your log, please open a ticket";
 
 	} catch (const std::bad_variant_access&) {
-		SLOGE << "AccountPool::subscribeToAccountUpdate::callback : publish from redis not well formatted";
+		SLOGE << FUNC_LOG_PREFIX << "Received a message from Redis that does not match the doc for a Publish: "
+		      << StreamableVariant(reply);
 	} catch (const json::parse_error& e) {
-		SLOGE << "AccountPool::subscribeToAccountUpdate::callback : json parsing error : " << e.what()
-		      << "\nWith json :" << replyAsString;
+		SLOGE << FUNC_LOG_PREFIX << "JSON parsing error : " << e.what() << "\nWith JSON :" << replyAsString;
 	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << "AccountPool::subscribeToAccountUpdate::callback : sip uri parsing error : " << e.what()
-		      << "\nWith json :" << replyAsString;
+		SLOGE << FUNC_LOG_PREFIX << "SIP URI parsing error : " << e.what() << "\nWith JSON :" << replyAsString;
 	}
 }
 
 void AccountPool::onDisconnect(int status) {
 	if (status != REDIS_OK) {
-		SLOGE << "AccountPool::onDisconnect : disconnected from Redis. Status :" << status << ". Try reconnect ...";
+		SLOGE << FUNC_LOG_PREFIX << "Reconnecting to Redis after being unexpectedly disconnected (status " << status
+		      << ") ...";
 	}
 }
 
