@@ -23,7 +23,6 @@
 
 #include "b2bua/sip-bridge/accounts/redis-account-pub.hh"
 #include "b2bua/sip-bridge/configuration/v2/account.hh"
-#include "b2bua/sip-bridge/configuration/v2/v2.hh"
 
 namespace flexisip::b2bua::bridge {
 
@@ -32,10 +31,9 @@ using OnAccountUpdateCB =
 
 class Loader {
 public:
-
 	virtual ~Loader() = default;
 
-	virtual std::vector<config::v2::Account> initialLoad() = 0;
+	virtual std::vector<config::v2::Account> loadAll() = 0;
 
 	virtual void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& cb) = 0;
 };

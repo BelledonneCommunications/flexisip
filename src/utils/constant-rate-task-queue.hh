@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include <queue>
+#include <deque>
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
@@ -43,11 +43,10 @@ public:
 	 * syncrhonosly.
 	 * @param consumer The function that will consume every task.
 	 */
-	ConstantRateTaskQueue(sofiasip::SuRoot& borrowedRoot,
+	ConstantRateTaskQueue(const std::shared_ptr<sofiasip::SuRoot>& borrowedRoot,
 	                      sofiasip::Timer::NativeDuration interval,
 	                      std::function<void(Task&)> consumer)
-	    : mRoot(borrowedRoot), mConsumer(std::move(consumer)), mQueue(), mInterval(interval),
-	      mTimer(borrowedRoot, interval) {
+	    : mConsumer(std::move(consumer)), mQueue(), mInterval(interval), mTimer(borrowedRoot, interval) {
 	}
 
 	/**
@@ -68,9 +67,22 @@ public:
 			startTimer();
 			return;
 		}
-		mQueue.push(std::forward<Task>(task));
+		mQueue.emplace_back(std::move(task));
 	}
 
+	/**
+	 * Erases all tasks in the queue.
+	 *
+	 * Does not reset the timer. (So a task enqueued immediately after a clear will still be executed only after the
+	 * minimum delay since the last executed task.)
+	 */
+	void clear() {
+		mQueue.clear();
+	}
+
+	/**
+	 * Returns true if the queue is empty
+	 */
 	bool empty() const {
 		return mQueue.empty();
 	}
@@ -84,13 +96,12 @@ private:
 			}
 
 			mConsumer(mQueue.front());
-			mQueue.pop();
+			mQueue.pop_front();
 		});
 	}
 
-	sofiasip::SuRoot& mRoot;
 	std::function<void(Task&)> mConsumer;
-	std::queue<Task> mQueue;
+	std::deque<Task> mQueue;
 	sofiasip::Timer::NativeDuration mInterval;
 	sofiasip::Timer mTimer;
 };

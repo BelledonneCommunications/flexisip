@@ -77,7 +77,7 @@ void nominalInitialSqlLoadTest() {
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
-	auto actualAccounts = loader.initialLoad();
+	auto actualAccounts = loader.loadAll();
 
 	BC_ASSERT_CPP_EQUAL(expectedAccounts, actualAccounts);
 }
@@ -113,7 +113,7 @@ void initialSqlLoadTestWithEmptyFields() {
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
 
-	auto actualAccounts = loader.initialLoad();
+	auto actualAccounts = loader.loadAll();
 
 	BC_ASSERT_CPP_EQUAL(expectedAccounts, actualAccounts);
 }
@@ -133,7 +133,7 @@ void initialSqlLoadTestUriCantBeNull() {
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
-	BC_ASSERT_THROWN(loader.initialLoad(), SociHelper::DatabaseException)
+	BC_ASSERT_THROWN(loader.loadAll(), SociHelper::DatabaseException)
 }
 
 void nominalUpdateSqlTest() {

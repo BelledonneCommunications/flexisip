@@ -32,10 +32,8 @@ class StaticAccountLoader : public Loader {
 public:
 	explicit StaticAccountLoader(config::v2::StaticLoader&& loaderConf) : mLoaderConf{std::move(loaderConf)} {};
 
-	std::vector<config::v2::Account> initialLoad() override {
-		// "After the move, [mLoaderConf] is guaranteed to be empty()."
-		// https://en.cppreference.com/w/cpp/container/vector/vector
-		return std::move(mLoaderConf);
+	std::vector<config::v2::Account> loadAll() override {
+		return mLoaderConf;
 	};
 
 	void accountUpdateNeeded(const RedisAccountPub&, const OnAccountUpdateCB&) override {
@@ -45,9 +43,6 @@ public:
 	};
 
 private:
-	/**
-	 * WARNING will be empty after calling StaticAccountLoader::initialLoad();
-	 */
 	config::v2::StaticLoader mLoaderConf;
 };
 

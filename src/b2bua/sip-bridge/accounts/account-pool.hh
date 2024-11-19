@@ -75,7 +75,7 @@ public:
 	}
 
 	bool allAccountsLoaded() const {
-		return mAccountsQueuedForRegistration && mRegistrationQueue.empty();
+		return mAccountsQueuedForRegistration && mAccountOpsQueue.empty();
 	}
 
 	/* redis::async::SessionListener interface implementations*/
@@ -83,23 +83,35 @@ public:
 	void onDisconnect(int status) override;
 
 private:
-	void initialLoad();
+	struct CreateAccount {
+		config::v2::Account accountDesc;
+	};
+	struct UpdateAccount {
+		std::weak_ptr<Account> existingAccount;
+		config::v2::Account newDesc;
+	};
+	struct DeleteAccount {
+		std::weak_ptr<Account> oldAccount;
+	};
+	using AccountOperation = std::variant<CreateAccount, UpdateAccount, DeleteAccount>;
+
+	void loadAll();
 
 	void reserve(size_t sizeToReserve);
 	bool tryEmplace(const std::shared_ptr<Account>& account);
 	void tryEmplaceInViews(const std::shared_ptr<Account>& account);
 
-	void setupNewAccount(const config::v2::Account& accountDesc);
-	void addNewAccount(const std::shared_ptr<Account>&);
-	void handleOutboundProxy(const std::shared_ptr<linphone::AccountParams>& accountParams,
-	                         const std::string& outboundProxy) const;
+	void applyOperation(const CreateAccount&);
+	void applyOperation(const UpdateAccount&);
+	void applyOperation(const DeleteAccount&);
+
 	void handlePassword(const config::v2::Account& account,
 	                    const std::shared_ptr<const linphone::Address>& address) const;
 
 	void subscribeToAccountUpdate();
 	void handleAccountUpdatePublish(std::string_view topic, redis::async::Reply reply);
 	void accountUpdateNeeded(const RedisAccountPub& redisAccountPub);
-	void onAccountUpdate(const std::string& uri, const std::optional<config::v2::Account>& accountToUpdate);
+	void onAccountUpdate(const std::string& uri, const std::optional<config::v2::Account>& newDescription);
 
 	std::shared_ptr<sofiasip::SuRoot> mSuRoot;
 	std::shared_ptr<B2buaCore> mCore;
@@ -112,7 +124,9 @@ private:
 
 	MapOfViews mViews{};
 	IndexedView& mDefaultView;
-	ConstantRateTaskQueue<std::shared_ptr<Account>> mRegistrationQueue;
+	// If the external provider domain features DoS protection/rate-limiting, then all operations susceptible to send
+	// (un)REGISTERs must be rate-limited. This queue schedules such operations.
+	ConstantRateTaskQueue<AccountOperation> mAccountOpsQueue;
 
 	std::unique_ptr<redis::async::RedisClient> mRedisClient{nullptr};
 };

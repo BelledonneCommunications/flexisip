@@ -34,8 +34,9 @@ class Lazy {
 public:
 	explicit Lazy() = default;
 
-	/** Obtain a reference to the wrapped object, initializing it if it isn't already.
-	 *	(The reference is guaranteed to be valid.)
+	/**
+	 * Obtain a reference to the wrapped object, initializing it if it isn't already.
+	 * (The reference is guaranteed to be valid.)
 	 */
 	T& operator*() {
 		if (!mObject.has_value()) {
@@ -44,15 +45,17 @@ public:
 		return *mObject;
 	}
 
-	/** Access the wrapped object, initializing it if it isn't already.
-	 *	(The pointer is guaranteed to be non-null and valid.)
+	/**
+	 * Access the wrapped object, initializing it if it isn't already.
+	 * (The pointer is guaranteed to be non-null and valid.)
 	 */
 	T* operator->() {
 		return &this->operator*();
 	}
 
-	/** Destructs the wrapped object.
-	 *	(Note that it will be re-constructed upon the next access.)
+	/**
+	 * Destructs the wrapped object.
+	 * (Note that it will be constructed again upon the next access.)
 	 */
 	void reset() {
 		return mObject.reset();

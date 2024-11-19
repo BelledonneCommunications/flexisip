@@ -34,7 +34,7 @@ class SQLAccountLoader : public Loader {
 public:
 	explicit SQLAccountLoader(const std::shared_ptr<sofiasip::SuRoot>& suRoot, const config::v2::SQLLoader& loaderConf);
 
-	std::vector<config::v2::Account> initialLoad() override;
+	std::vector<config::v2::Account> loadAll() override;
 
 	void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& cb) override;
 
