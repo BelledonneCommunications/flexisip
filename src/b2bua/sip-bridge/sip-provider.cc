@@ -74,7 +74,7 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 	}
 }
 
-std::shared_ptr<const linphone::Address> SipProvider::onTransfer(const linphone::Call& call) {
+std::shared_ptr<linphone::Address> SipProvider::onTransfer(const linphone::Call& call) {
 	try {
 		if (!mTriggerStrat->shouldHandleThisCall(call)) {
 			return nullptr;

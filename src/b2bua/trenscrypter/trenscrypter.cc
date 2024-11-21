@@ -155,7 +155,10 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	}
 
 	if (outgoingEncryptionSet == false) {
-		SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " uses incoming encryption setting";
+		const auto incomingEncryptionSetting = incomingCall.getParams()->getMediaEncryption();
+		outgoingCallParams.setMediaEncryption(incomingEncryptionSetting);
+		SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " uses incoming encryption setting ("
+		      << static_cast<int>(incomingEncryptionSetting) << ")";
 	}
 
 	// When outgoing encryption mode is sdes, select a crypto suite list setting if a pattern matches.
@@ -181,6 +184,10 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	}
 
 	return callee;
+}
+
+std::shared_ptr<linphone::Address> Trenscrypter::onTransfer(const linphone::Call&) {
+	return nullptr;
 }
 
 void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) {

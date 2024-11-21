@@ -40,12 +40,8 @@ struct CodecDescription {
 };
 
 ClientBuilder::ClientBuilder(const Agent& agent)
-    : mFactory(linphone::Factory::get()), mCoreTemplate(tester::minimalCore(*mFactory)),
-      mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent), mLimeX3DH(OnOff::On), mSendVideo(OnOff::Off),
-      mReceiveVideo(OnOff::Off), mSendRtcp(OnOff::On), mIce(OnOff::Off), mRegister(OnOff::On),
-      // final check on call successfully established is based on bandwidth used,
-      // so use file as input to make sure there is some traffic
-      mPlayFilePath(bcTesterRes("sounds/hello8000.wav")) {
+    : mCoreTemplate(tester::minimalCore(*mFactory)), mAccountParams(mCoreTemplate->createAccountParams()),
+      mAgent(agent) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -101,6 +97,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		config->setString("storage", "uri", ":memory:");
 		config->setBool("rtp", "rtcp_enabled", bool(mSendRtcp));
 		config->setBool("sip", "inactive_audio_on_pause", static_cast<bool>(mSetAudioInactiveOnPause));
+		config->setBool("sip", "auto_answer_replacing_calls", static_cast<bool>(mAutoAnswerReplacingCalls));
 	}
 
 	Match(mAudioPort)
@@ -296,6 +293,11 @@ ClientBuilder& ClientBuilder::setPassword(const std::string_view& password) {
 
 ClientBuilder& ClientBuilder::setMwiServerAddress(const std::shared_ptr<linphone::Address>& address) {
 	mAccountParams->setMwiServerAddress(address);
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setAutoAnswerReplacingCalls(OnOff value) {
+	mAutoAnswerReplacingCalls = value;
 	return *this;
 }
 

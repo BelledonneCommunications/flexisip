@@ -61,6 +61,7 @@ public:
 	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) override;
 	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
+	std::shared_ptr<linphone::Address> onTransfer(const linphone::Call &call) override;
 
 private:
 	std::shared_ptr<linphone::Core> mCore;

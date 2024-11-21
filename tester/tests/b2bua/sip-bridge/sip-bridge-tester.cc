@@ -48,6 +48,8 @@
 
 #include "listeners/mwi-listener.hh"
 
+using namespace linphone;
+
 namespace flexisip::tester {
 namespace {
 
@@ -59,9 +61,10 @@ using V1AccountDesc = flexisip::b2bua::bridge::config::v1::AccountDesc;
 
 // The external SIP proxy that the B2BUA will bridge calls to. (For test purposes, it's actually the same proxy)
 // MUST match config/flexisip_b2bua.conf:[b2bua-server]:outbound-proxy
-constexpr auto& outboundProxy = "sip:127.0.0.1:5860;transport=tcp";
-constexpr auto& internalDomain = "flexisip.example.org";
-constexpr auto& externalDomain = "jabiru.example.org";
+constexpr auto outboundProxy = "sip:127.0.0.1:5860;transport=tcp";
+
+constexpr auto internalDomain = "flexisip.example.org";
+constexpr auto externalDomain = "jabiru.example.org";
 
 class ExternalClient;
 
@@ -1918,7 +1921,7 @@ const StringFormatter callTransferSipBridgeProvidersConfiguration{
 				},
 				"accountToUse": {
 					"strategy": "FindInPool",
-					"source": "{from}",
+					"source": "sip:{from.user}@{from.hostport}",
 					"by": "alias"
 				},
 				"onAccountNotFound": "nextProvider",
@@ -1935,7 +1938,7 @@ const StringFormatter callTransferSipBridgeProvidersConfiguration{
 				},
 				"accountToUse": {
 					"strategy": "FindInPool",
-					"source": "{to}",
+					"source": "sip:{to.user}@{to.hostport}",
 					"by": "uri"
 				},
 				"onAccountNotFound": "nextProvider",
@@ -1972,15 +1975,13 @@ const StringFormatter b2buaSipBridgeProviderAccountConfiguration{
 
 /*
  * Test successful blind call transfer.
+ * This test implements the following scenario: https://datatracker.ietf.org/doc/html/rfc5589#autoid-7
  *
- * Scenario:
- * 1. A call is established through the B2BUA between "transferee" and "transferor".
- * 2. "Transferor" transfers its call with "transferee" to "transferTarget".
- * 3. The call between "transferee" and "transferor" should be paused until "transferTarget" answers (pick up or
- *    decline) to the INVITE request it received from "transferee".
- * 4. Finally, when "transferTarget" answers, the call should run between "transferee" and "transferTarget". The call
- *    between "transferee" and "transferor" should be released as soon as "NOTIFY/200 OK" was received by transferor
- *    (Linphone specific behaviour).
+ * Architecture:
+ * - One Proxy server (flexisip.example.org)
+ * - One B2BUA server (application: SIP-Bridge)
+ * - One "external" Proxy server (jabiru.example.org)
+ * - Three clients {"Transferee", "Transferor", "TransferTarget"} that may be registered on flexisip or on jabiru
  */
 template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
 void blindCallTransferSuccessful() {
@@ -2013,8 +2014,8 @@ void blindCallTransferSuccessful() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, ClientBuilder(*b2buaAndProxy.getAgent()));
-		map.emplace(externalDomain, ClientBuilder(*jabiruProxy.getAgent()));
+		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
 		return map;
 	}();
 
@@ -2059,13 +2060,13 @@ void blindCallTransferSuccessful() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Create call from "transferee" to "transferor".
+	// Create call from "Transferee" to "Transferor".
 	const auto transferorAor = SipUri{transferor.getMe()->asString()}.replaceHost(transfereeUri.getHost()).str();
 	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
 	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
 	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
-	// Accept call from "transferee".
+	// Accept call from "Transferee".
 	const auto transferorCallFromTransferee = transferor.getCurrentCall();
 	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
 	transferorCallFromTransferee->accept();
@@ -2081,21 +2082,21 @@ void blindCallTransferSuccessful() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Transfer call to "transferTarget", initiated by "transferor".
+	// Transfer call to "TransferTarget", initiated by "Transferor".
 	const auto transferListener = make_shared<CallTransferListener>();
 	transferorCallFromTransferee->addListener(transferListener);
 	const auto transferTargetAor = transferTarget.getMe()->clone();
 	transferTargetAor->setDomain(transferorUri.getHost());
 	transferorCallFromTransferee->transferTo(transferTargetAor);
 
-	// Verify "transferTarget" received a call from "transferee".
+	// Verify "TransferTarget" received a call from "Transferee".
 	transferTarget.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 	const auto transfereeCallToTransferTarget = transferee.getCurrentCall();
 	BC_HARD_ASSERT(transfereeCallToTransferTarget.has_value());
 	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall();
 	BC_HARD_ASSERT(transferTargetCallFromTransferee.has_value());
 
-	// Verify that call between "transferee" and "transferor" is paused while waiting for "transferTarget" answer.
+	// Verify that call between "Transferee" and "Transferor" is paused while waiting for "TransferTarget" answer.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -2116,13 +2117,12 @@ void blindCallTransferSuccessful() {
 	const SipUri transferorAddressOnJabiru = transferorUri.replaceHost(transfereeUri.getHost());
 	BC_ASSERT(referredByAddress.compareAll(transferorAddressOnJabiru));
 
-	// Accept call from "transferee" to "transferTarget".
+	// Accept call from "Transferee" to "TransferTarget".
 	transferTargetCallFromTransferee->accept();
 
-	// Verify "transferor" received NOTIFY 200 Ok.
+	// Verify "Transferor" received NOTIFY 200 Ok.
 	transferListener->assertNotifyReceived(asserter, linphone::Call::State::Connected).assert_passed();
 
-	// Verify that calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -2141,16 +2141,14 @@ void blindCallTransferSuccessful() {
 }
 
 /*
- * Test blind call transfer when "transferTarget" declines the call.
+ * Test blind call transfer when "TransferTarget" declines the call.
+ * This test implements the following scenario: https://datatracker.ietf.org/doc/html/rfc5589#autoid-10
  *
- * Scenario:
- * 1. A call is established through the B2BUA between "transferee" and "transferor".
- * 2. "Transferor" transfers its call with "transferee" to "transferTarget".
- * 3. The call between "transferee" and "transferor" should be paused until "transferTarget" answers (pick up or
- *    decline) to the INVITE request it received from "transferee".
- * 4. When "transferTarget" declines, the call should be release between "transferee" and "transferTarget". The call
- *    between "transferee" and "transferor" should still be paused.
- * 5. Finally, "transferee" resumes the call with "transferor", it should resume normally.
+ * Architecture:
+ * - One Proxy server (flexisip.example.org)
+ * - One B2BUA server (application: SIP-Bridge)
+ * - One "external" Proxy server (jabiru.example.org)
+ * - Three clients {"Transferee", "Transferor", "TransferTarget"} that may be registered on flexisip or on jabiru
  */
 template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
 void blindCallTransferDeclined() {
@@ -2183,8 +2181,8 @@ void blindCallTransferDeclined() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, ClientBuilder(*b2buaAndProxy.getAgent()));
-		map.emplace(externalDomain, ClientBuilder(*jabiruProxy.getAgent()));
+		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
 		return map;
 	}();
 
@@ -2229,13 +2227,13 @@ void blindCallTransferDeclined() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Create call from "transferee" to "transferor".
+	// Create call from "Transferee" to "Transferor".
 	const auto transferorAor = SipUri{transferor.getMe()->asString()}.replaceHost(transfereeUri.getHost()).str();
 	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
 	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
 	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
-	// Accept call from "transferee".
+	// Accept call from "Transferee".
 	const auto transferorCallFromTransferee = transferor.getCurrentCall();
 	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
 	transferorCallFromTransferee->accept();
@@ -2251,21 +2249,21 @@ void blindCallTransferDeclined() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Transfer call to "transferTarget", initiated by "transferor".
+	// Transfer call to "TransferTarget", initiated by "Transferor".
 	const auto transferListener = make_shared<CallTransferListener>();
 	transferorCallFromTransferee->addListener(transferListener);
 	const auto transferTargetAor = transferTarget.getMe()->clone();
 	transferTargetAor->setDomain(transferorUri.getHost());
 	transferorCallFromTransferee->transferTo(transferTargetAor);
 
-	// Verify "transferTarget" received a call from "transferee".
+	// Verify "TransferTarget" received a call from "Transferee".
 	transferTarget.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 	const auto transfereeCallToTransferTarget = transferee.getCurrentCall();
 	BC_HARD_ASSERT(transfereeCallToTransferTarget.has_value());
 	const auto transferTargetCallFromTransferee = transferTarget.getCurrentCall();
 	BC_HARD_ASSERT(transferTargetCallFromTransferee.has_value());
 
-	// Verify that call between "transferee" and "transferor" is paused while waiting for "transferTarget" answer.
+	// Verify that call between "Transferee" and "Transferor" is paused while waiting for "TransferTarget" answer.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -2274,7 +2272,7 @@ void blindCallTransferDeclined() {
 		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::PausedByRemote);
 		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::OutgoingRinging);
 		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::IncomingReceived);
-		        // Verify "transferor" received NOTIFY 100 Trying.
+		        // Verify "Transferor" received NOTIFY 100 Trying.
 		        FAIL_IF(transferListener->mLastState != linphone::Call::State::OutgoingProgress);
 		        return ASSERTION_PASSED();
 	        },
@@ -2286,10 +2284,9 @@ void blindCallTransferDeclined() {
 	const SipUri transferorAddressOnJabiru = transferorUri.replaceHost(transfereeUri.getHost());
 	BC_ASSERT(referredByAddress.compareAll(transferorAddressOnJabiru));
 
-	// Decline call from "transferee" to "transferTarget".
+	// Decline call from "Transferee" to "TransferTarget".
 	transferTargetCallFromTransferee->decline(linphone::Reason::Declined);
 
-	// Verify calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -2298,7 +2295,7 @@ void blindCallTransferDeclined() {
 		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::PausedByRemote);
 		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::Released);
 		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::Released);
-		        // Verify "transferor" received NOTIFY 500 Internal Server Error.
+		        // Verify "Transferor" received NOTIFY 500 Internal Server Error.
 		        FAIL_IF(transferListener->mLastState != linphone::Call::State::Error);
 		        return ASSERTION_PASSED();
 	        },
@@ -2308,7 +2305,6 @@ void blindCallTransferDeclined() {
 	// Resume call after failed call transfer.
 	transfereeCallToTransferor->resume();
 
-	// Verify calls are in the right state.
 	asserter
 	    .iterateUpTo(
 	        0x20,
@@ -2333,15 +2329,13 @@ void blindCallTransferDeclined() {
 
 /*
  * Test successful attended call transfer.
+ * This test almost implements the following scenario: https://datatracker.ietf.org/doc/html/rfc5589#autoid-15
  *
- * As of 2024-08-23, this test mostly verifies the B2BUA-server does not crash when a REFER request is received.
- *
- * Scenario:
- * 1. A call is established through the B2BUA between "transferee" and "transferor".
- * 2. Another call is established through the B2BUA between "transferor" and "transferTarget".
- * 3. "Transferor" transfers its call with "transferee" to "transferTarget".
- * ...
- * TODO: finish test once the feature is developed.
+ * Architecture:
+ * - One Proxy server (flexisip.example.org)
+ * - One B2BUA server (application: SIP-Bridge)
+ * - One "external" Proxy server (jabiru.example.org)
+ * - Three clients {"Transferee", "Transferor", "TransferTarget"} that may be registered on flexisip or on jabiru
  */
 template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
 void attendedCallTransferSuccessful() {
@@ -2374,8 +2368,8 @@ void attendedCallTransferSuccessful() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, ClientBuilder(*b2buaAndProxy.getAgent()));
-		map.emplace(externalDomain, ClientBuilder(*jabiruProxy.getAgent()));
+		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
 		return map;
 	}();
 
@@ -2420,13 +2414,13 @@ void attendedCallTransferSuccessful() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Create call from "transferee" to "transferor".
+	// Create call from "Transferee" to "Transferor".
 	const auto transferorAor = transferorUri.replaceHost(transfereeUri.getHost()).str();
 	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
 	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
 	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
 
-	// Accept call from "transferee".
+	// Accept call from "Transferee".
 	const auto transferorCallFromTransferee = transferor.getCurrentCall();
 	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
 	transferorCallFromTransferee->accept();
@@ -2442,12 +2436,12 @@ void attendedCallTransferSuccessful() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Create call from "transferor" to "transferTarget".
+	// Create call from "Transferor" to "TransferTarget".
 	const auto transferTargetAor = transferTargetUri.replaceHost(transferorUri.getHost()).str();
 	const auto transferorCallToTransferTarget = ClientCall::tryFrom(transferor.invite(transferTargetAor));
 	transferTarget.hasReceivedCallFrom(transferor, asserter).hard_assert_passed();
 
-	// Accept call from "transferor".
+	// Accept call from "Transferor".
 	const auto transferTargetCallFromTransferor = transferTarget.getCurrentCall();
 	BC_HARD_ASSERT(transferTargetCallFromTransferor.has_value());
 	transferTargetCallFromTransferor->accept();
@@ -2465,41 +2459,311 @@ void attendedCallTransferSuccessful() {
 	        2s)
 	    .hard_assert_passed();
 
-	// Transfer call between "transferee" and "transferor" to call between "transferor" and "transferTarget".
+	// Transfer call between "Transferee" and "Transferor" to call between "Transferor" and "TransferTarget".
+	const auto transferListener = make_shared<CallTransferListener>();
+	transferorCallFromTransferee->addListener(transferListener);
 	transferorCallFromTransferee->transferToAnother(*transferorCallToTransferTarget);
 
-	// TODO: verify call is received by "transferTarget" from "transferee".
-	// TODO: accept call transfer.
-	// TODO: verify receipt of NOTIFY requests.
+	// Verify "Transferor" received NOTIFY 100 Trying.
+	transferListener->assertNotifyReceived(asserter, linphone::Call::State::OutgoingProgress).assert_passed();
+
+	// Verify "TransferTarget" received a call from "Transferee" and accept it.
+	auto transferTargetCallFromTransferee = optional<ClientCall>();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&, &targetCore = *transferTarget.getCore(), transfereeUser = transfereeUri.getUser()]() {
+		        for (auto&& call : targetCore.getCalls()) {
+			        if (call->getRemoteAddress()->getUsername() == transfereeUser) {
+				        transferTargetCallFromTransferee = ClientCall::tryFrom(std::move(call));
+				        FAIL_IF(transferTargetCallFromTransferee == nullopt);
+				        transferTargetCallFromTransferee->accept();
+				        return ASSERTION_PASSED();
+			        }
+		        }
+
+		        return ASSERTION_FAILED("Transfer target has not received any call from transferee");
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	const auto transfereeCallToTransferTarget = transferee.getCurrentCall();
+	BC_HARD_ASSERT(transfereeCallToTransferTarget.has_value());
+	BC_ASSERT_CPP_EQUAL(transfereeCallToTransferTarget->getRemoteAddress()->getUsername(), transferTargetUri.getUser());
+
+	// Verify "Transferor" received NOTIFY 200 Ok.
+	transferListener->assertNotifyReceived(asserter, linphone::Call::State::Connected).assert_passed();
 
 	asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::Paused);
-		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::PausedByRemote);
-		        FAIL_IF(transferorCallToTransferTarget->getState() != linphone::Call::State::StreamsRunning);
-		        FAIL_IF(transferTargetCallFromTransferor->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transfereeCallToTransferor->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferorCallFromTransferee->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferorCallToTransferTarget->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transferTargetCallFromTransferor->getState() != linphone::Call::State::Released);
+		        FAIL_IF(transfereeCallToTransferTarget->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(transferTargetCallFromTransferee->getState() != linphone::Call::State::StreamsRunning);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
+/*
+ * Test attended call transfer when "TransferTarget" declines the call.
+ *
+ * Architecture:
+ * - One Proxy server (flexisip.example.org)
+ * - One B2BUA server (application: SIP-Bridge)
+ * - One "external" Proxy server (jabiru.example.org)
+ * - Three clients {"Transferee", "Transferor", "TransferTarget"} that may be registered on flexisip or on jabiru
+ */
+template <const SipUri& transfereeUri, const SipUri& transferorUri, const SipUri& transferTargetUri>
+void attendedCallTransferDeclined() {
+	TmpDir directory{"b2bua::sip-bridge::"s + __func__};
+	const auto providersConfigPath = directory.path() / "providers.json";
+
+	Server jabiruProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", externalDomain},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+	jabiruProxy.start();
+
+	B2buaAndProxyServer b2buaAndProxy{
+	    {
+	        {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	        {"b2bua-server/application", "sip-bridge"},
+	        {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	        {"b2bua-server/one-connection-per-account", "true"},
+	        {"b2bua-server::sip-bridge/providers", providersConfigPath.string()},
+	        {"module::B2bua/enabled", "true"},
+	        {"module::MediaRelay/enabled", "false"},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", internalDomain},
+	    },
+	    false,
+	};
+	b2buaAndProxy.startProxy();
+
+	const auto clientBuilders = [&]() {
+		auto map = unordered_map<string, ClientBuilder>{2};
+		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent())
+		                                          .setVideoSend(OnOff::Off)
+		                                          .setAutoAnswerReplacingCalls(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent())
+		                                          .setVideoSend(OnOff::Off)
+		                                          .setAutoAnswerReplacingCalls(OnOff::Off)));
+		return map;
+	}();
+
+	vector<string> b2buaAccounts{};
+	for (const auto& uri : {transfereeUri, transferorUri, transferTargetUri}) {
+		if (uri.getHost() == internalDomain) {
+			b2buaAccounts.push_back(b2buaSipBridgeProviderAccountConfiguration.format({
+			    {"userName", uri.getUser()},
+			    {"internalDomain", internalDomain},
+			    {"externalDomain", externalDomain},
+			}));
+		}
+	}
+
+	ofstream{providersConfigPath} << callTransferSipBridgeProvidersConfiguration.format({
+	    {"flexisipPort", b2buaAndProxy.getFirstPort()},
+	    {"flexisipDomain", internalDomain},
+	    {"jabiruPort", jabiruProxy.getFirstPort()},
+	    {"jabiruDomain", externalDomain},
+	    {"b2buaAccounts", string_utils::join(b2buaAccounts, 0, ",")},
+	});
+	b2buaAndProxy.startB2bua();
+
+	// Instantiate clients.
+	CoreClient transferee = clientBuilders.at(transfereeUri.getHost()).build(transfereeUri.str());
+	CoreClient transferor = clientBuilders.at(transferorUri.getHost()).build(transferorUri.str());
+	CoreClient transferTarget = clientBuilders.at(transferTargetUri.getHost()).build(transferTargetUri.str());
+
+	// Verify B2BUA accounts are registered on Jabiru proxy.
+	CoreAssert asserter{b2buaAndProxy, jabiruProxy, transferor, transferee, transferTarget};
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&sipProviders = dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaAndProxy.getModule()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .hard_assert_passed();
 
-	// TODO: verify the call between transferee and transferTarget is established.
-	// TODO: verify the call between transferor and transferee is released.
-	// TODO: verify receipt of NOTIFY requests.
+	// Create call from "Transferee" to "Transferor".
+	const auto transferorAor = transferorUri.replaceHost(transfereeUri.getHost()).str();
+	const auto transfereeCallToTransferor = ClientCall::tryFrom(transferee.invite(transferorAor));
+	BC_HARD_ASSERT(transfereeCallToTransferor.has_value());
+	transferor.hasReceivedCallFrom(transferee, asserter).hard_assert_passed();
+
+	// Accept call from "Transferee".
+	const auto transferorCallFromTransferee = transferor.getCurrentCall();
+	BC_HARD_ASSERT(transferorCallFromTransferee.has_value());
+	transferorCallFromTransferee->accept();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Create call from "Transferor" to "TransferTarget".
+	const auto transferTargetAor = transferTargetUri.replaceHost(transferorUri.getHost()).str();
+	const auto transferorCallToTransferTarget = ClientCall::tryFrom(transferor.invite(transferTargetAor));
+	BC_HARD_ASSERT(transferorCallToTransferTarget.has_value());
+	transferTarget.hasReceivedCallFrom(transferor, asserter).hard_assert_passed();
+
+	// Accept call from "Transferor".
+	const auto transferTargetCallFromTransferor = transferTarget.getCurrentCall();
+	BC_HARD_ASSERT(transferTargetCallFromTransferor.has_value());
+	transferTargetCallFromTransferor->accept();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::PausedByRemote, MediaDirection::RecvOnly);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::Paused, MediaDirection::SendOnly);
+		        ASSERT_CALL(transferorCallToTransferTarget, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        ASSERT_CALL(transferTargetCallFromTransferor, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Transfer call between "Transferee" and "Transferor" to call between "Transferor" and "TransferTarget".
+	const auto transferListener = make_shared<CallTransferListener>();
+	transferorCallFromTransferee->addListener(transferListener);
+	transferorCallFromTransferee->transferToAnother(*transferorCallToTransferTarget);
+
+	// Verify "Transferor" received NOTIFY 100 Trying.
+	transferListener->assertNotifyReceived(asserter, Call::State::OutgoingProgress).assert_passed();
+
+	// Verify that both "Transferor" and "Transferee" are now in the Paused state.
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::Paused, MediaDirection::Inactive);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::Paused, MediaDirection::Inactive);
+		        ASSERT_CALL(transferorCallToTransferTarget, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        ASSERT_CALL(transferTargetCallFromTransferor, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Verify "TransferTarget" received a call from "Transferee" and decline it.
+	auto transferTargetCallFromTransferee = optional<ClientCall>();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&, &targetCore = *transferTarget.getCore(), transfereeUser = transfereeUri.getUser()]() {
+		        for (auto&& call : targetCore.getCalls()) {
+			        if (call->getRemoteAddress()->getUsername() == transfereeUser) {
+				        transferTargetCallFromTransferee = ClientCall::tryFrom(std::move(call));
+				        FAIL_IF(transferTargetCallFromTransferee == nullopt);
+				        transferTargetCallFromTransferee->decline(Reason::Declined);
+				        return ASSERTION_PASSED();
+			        }
+		        }
+
+		        return ASSERTION_FAILED("Transfer target has not received any call from transferee");
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	const auto transfereeCallToTransferTarget = transferee.getCurrentCall();
+	BC_HARD_ASSERT(transfereeCallToTransferTarget.has_value());
+	BC_ASSERT_CPP_EQUAL(transfereeCallToTransferTarget->getRemoteAddress()->getUsername(), transferTargetUri.getUser());
+
+	// Verify "Transferor" received NOTIFY 500 Internal Server Error.
+	transferListener->assertNotifyReceived(asserter, Call::State::Error).assert_passed();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::Paused, MediaDirection::Inactive);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::Paused, MediaDirection::Inactive);
+		        ASSERT_CALL(transferorCallToTransferTarget, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        ASSERT_CALL(transferTargetCallFromTransferor, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        ASSERT_CALL(transfereeCallToTransferTarget, Call::State::Released);
+		        ASSERT_CALL(transferTargetCallFromTransferee, Call::State::Released);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// "TransferTarget" terminates its call with "Transferor".
+	transferTargetCallFromTransferor->terminate();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::Paused, MediaDirection::Inactive);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::Paused, MediaDirection::Inactive);
+		        ASSERT_CALL(transferorCallToTransferTarget, Call::State::Released);
+		        ASSERT_CALL(transferTargetCallFromTransferor, Call::State::Released);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// "Transferor" resumes its call with "Transferee".
+	transferorCallFromTransferee->resume();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::Paused, MediaDirection::SendOnly);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::PausedByRemote, MediaDirection::RecvOnly);
+
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// "Transferee" resumes its call with "Transferor"
+	transfereeCallToTransferor->resume();
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        ASSERT_CALL(transfereeCallToTransferor, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        ASSERT_CALL(transferorCallFromTransferee, Call::State::StreamsRunning, MediaDirection::SendRecv);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
 }
 
 const auto UDP = "udp"s;
 const auto TCP = "tcp"s;
 
-// User: "transferee"
+// User: "Transferee"
 const SipUri transfereeIntern{"sip:transferee@"s + internalDomain};
 const SipUri transfereeExtern{"sip:transferee@"s + externalDomain};
-// user: "transferor"
+// user: "Transferor"
 const SipUri transferorIntern{"sip:transferor@"s + internalDomain};
 const SipUri transferorExtern{"sip:transferor@"s + externalDomain};
-// User: "transferTarget"
+// User: "TransferTarget"
 const SipUri transferTIntern{"sip:transferTarget@"s + internalDomain};
 const SipUri transferTExtern{"sip:transferTarget@"s + externalDomain};
 
@@ -2528,23 +2792,42 @@ TestSuite _{
         CLASSY_TEST(mwiB2buaSubscription),
         CLASSY_TEST(oneConnectionPerAccount<false>),
         CLASSY_TEST(oneConnectionPerAccount<true>),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorIntern, transferTIntern>)),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorIntern, transferTExtern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorExtern, transferTIntern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorExtern, transferTIntern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorExtern, transferTExtern>)),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorIntern, transferTExtern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorIntern, transferTIntern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorExtern, transferTExtern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorIntern, transferTIntern>)),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorIntern, transferTExtern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorExtern, transferTIntern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorExtern, transferTIntern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorExtern, transferTExtern>)),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorIntern, transferTExtern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorIntern, transferTIntern>)).tag("Skip"),
-        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorExtern, transferTExtern>)).tag("Skip"),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorIntern, transferTIntern>)),
+
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorIntern, transferTExtern>)),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorExtern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeIntern, transferorExtern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorIntern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorExtern, transferTIntern>)),
+        CLASSY_TEST((blindCallTransferSuccessful<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
+
+        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorIntern, transferTExtern>)),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorExtern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeIntern, transferorExtern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorIntern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorExtern, transferTIntern>)),
+        CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
+
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorIntern, transferTExtern>)),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorExtern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorExtern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorIntern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorExtern, transferTIntern>)),
+        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
+
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorIntern, transferTExtern>)),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorExtern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorExtern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorIntern, transferTIntern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorIntern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorExtern, transferTIntern>)),
+        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
     },
 };
 

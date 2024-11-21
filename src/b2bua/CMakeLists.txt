@@ -26,10 +26,11 @@ find_package(JsonCPP "1.1.0" REQUIRED)
 
 target_sources(flexisip PRIVATE
 		application.hh
-        async-stop-core.cc async-stop-core.hh
         b2bua-core.cc b2bua-core.hh
         b2bua-server.cc b2bua-server.hh
-		call-transfer-listener.cc call-transfer-listener.hh
+        utils/async-stop-core.cc utils/async-stop-core.hh
+        utils/call-transfer-listener.cc utils/call-transfer-listener.hh
+        utils/replaces-header.cc utils/replaces-header.hh
         sip-bridge/accounts/account-pool.cc sip-bridge/accounts/account-pool.hh
         sip-bridge/accounts/account.cc sip-bridge/accounts/account.hh
         sip-bridge/accounts/loaders/loader.hh

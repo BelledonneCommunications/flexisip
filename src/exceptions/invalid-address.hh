@@ -33,7 +33,7 @@ public:
 		const auto* headerName = std::runtime_error::what();
 		const auto& invalidAddress = mWhat;
 		auto msg = std::ostringstream();
-		msg << "Attempting to send an outgoing invite with an invalid URI in its '" << headerName << "' header: '"
+		msg << "Attempting to send a request with an invalid URI in its '" << headerName << "' header: '"
 		    << invalidAddress << "'";
 		mWhat = msg.str();
 

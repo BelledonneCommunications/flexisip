@@ -45,13 +45,9 @@ const auto kReferTweakerFields = FieldsOf<linphone::Call const&, Account const&>
 ReferTweaker::ReferTweaker(const config::v2::OutgoingInvite& config) : mReferToHeader(config.to, kReferTweakerFields) {
 }
 
-std::shared_ptr<const linphone::Address>
-ReferTweaker::tweakRefer(const linphone::Call& call, const flexisip::b2bua::bridge::Account& account) const {
-	const auto& referTo = mReferToHeader.format(call, account);
-	const auto& referToAddress = linphone::Factory::get()->createAddress(referTo);
-	if (!referToAddress) throw InvalidAddress{"Refer-To", referTo};
-
-	return referToAddress;
+std::shared_ptr<linphone::Address> ReferTweaker::tweakRefer(const linphone::Call& call, const Account& account) const {
+	const auto referTo = mReferToHeader.format(call, account);
+	return linphone::Factory::get()->createAddress(referTo);
 }
 
 } // namespace flexisip::b2bua::bridge

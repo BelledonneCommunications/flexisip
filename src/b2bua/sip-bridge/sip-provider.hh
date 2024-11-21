@@ -44,7 +44,7 @@ public:
 	onCallCreate(const linphone::Call& incomingCall,
 	             linphone::CallParams& outgoingCallParams,
 	             std::unordered_map<std::string, std::weak_ptr<Account>>& occupiedSlots);
-	std::shared_ptr<const linphone::Address> onTransfer(const linphone::Call& call);
+	std::shared_ptr<linphone::Address> onTransfer(const linphone::Call& call);
 	std::optional<b2bua::Application::ActionToTake> onSubscribeCreate(const linphone::Event& incomingEvent,
 	                                                                  const std::string& subscribeEvent);
 	std::optional<b2bua::Application::NotifyDestination> onNotifyToBeSent(const linphone::Event& incomingEvent);

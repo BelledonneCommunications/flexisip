@@ -18,24 +18,31 @@
 
 #pragma once
 
-#include <linphone++/account.hh>
+#include <linphone++/call_listener.hh>
 
-#include "accounts/account.hh"
-#include "b2bua/sip-bridge/configuration/v2/v2.hh"
-#include "utils/string-interpolation/template-formatter.hh"
+#include "b2bua/b2bua-server.hh"
 
-namespace flexisip::b2bua::bridge {
+namespace flexisip::b2bua {
 
-class ReferTweaker {
+/**
+ * @brief Call listener needed in case of call transfer. Allows to forward NOTIFY requests to peer call.
+ */
+class CallTransferListener : public linphone::CallListener {
 public:
-	using StringTemplate = utils::string_interpolation::TemplateFormatter<const linphone::Call&, const Account&>;
-
-	explicit ReferTweaker(const config::v2::OutgoingInvite&);
-
-	std::shared_ptr<linphone::Address> tweakRefer(const linphone::Call&, const Account&) const;
+	explicit CallTransferListener(const std::weak_ptr<linphone::Call>& peerCall) : mPeerCall(peerCall) {
+	}
+	void onTransferStateChanged(const std::shared_ptr<linphone::Call>& call, linphone::Call::State state) override;
 
 private:
-	StringTemplate mReferToHeader;
+	/**
+	 * @brief Send NOTIFY request to peer call.
+	 *
+	 * @param[in] request body, example: "SIP/2.0 100 Trying\\r\\n"
+	 */
+	void sendNotify(const std::string& body);
+
+	std::weak_ptr<linphone::Call> mPeerCall{};
+	const std::string mLogPrefix{B2buaServer::kLogPrefix + std::string{"::CallTransferListener"}};
 };
 
-} // namespace flexisip::b2bua::bridge
+} // namespace flexisip::b2bua

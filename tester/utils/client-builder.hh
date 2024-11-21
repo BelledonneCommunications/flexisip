@@ -24,15 +24,19 @@
 #include <string>
 #include <variant>
 
-#include "agent.hh"
 #include <linphone++/linphone.hh>
 
+#include "agent.hh"
+#include "tester.hh"
+
 namespace flexisip {
+
 namespace pushnotification {
 
 class RFC8599PushParams;
 
 }
+
 namespace tester {
 
 namespace port {
@@ -55,8 +59,8 @@ using PortSetting = std::variant<Auto, Port, Range>;
 class CoreClient;
 
 enum class OnOff : bool {
-	Off = 0,
-	On = 1,
+	Off = false,
+	On = true,
 };
 
 enum class AudioCodec : std::uint8_t {
@@ -108,28 +112,32 @@ public:
 	ClientBuilder& setAudioCodec(AudioCodec);
 
 	ClientBuilder& setMwiServerAddress(const std::shared_ptr<linphone::Address>& address);
+	ClientBuilder& setAutoAnswerReplacingCalls(OnOff);
 
 	CoreClient build(const std::string&) const;
 	std::shared_ptr<CoreClient> make(const std::string&) const;
 
 private:
-	const std::shared_ptr<linphone::Factory> mFactory;
-	const std::shared_ptr<linphone::Core> mCoreTemplate;
-	const std::shared_ptr<linphone::AccountParams> mAccountParams;
+	const std::shared_ptr<linphone::Factory> mFactory{linphone::Factory::get()};
+	const std::shared_ptr<linphone::Core> mCoreTemplate{};
+	const std::shared_ptr<linphone::AccountParams> mAccountParams{};
 	const Agent& mAgent;
-	OnOff mLimeX3DH : 1;
-	OnOff mSendVideo : 1;
-	OnOff mReceiveVideo : 1;
-	OnOff mSendRtcp : 1;
-	OnOff mIce : 1;
-	OnOff mRegister : 1;
-	OnOff mSetAudioInactiveOnPause = OnOff::Off;
+	OnOff mLimeX3DH{OnOff::On};
+	OnOff mSendVideo{OnOff::Off};
+	OnOff mReceiveVideo{OnOff::Off};
+	OnOff mSendRtcp{OnOff::On};
+	OnOff mIce{OnOff::Off};
+	OnOff mRegister{OnOff::On};
+	OnOff mSetAudioInactiveOnPause{OnOff::Off};
+	OnOff mAutoAnswerReplacingCalls{OnOff::On};
 	AudioCodec mAudioCodec = AudioCodec::AllSupported;
 	port::PortSetting mAudioPort = port::Auto();
 	port::PortSetting mVideoPort = port::Auto();
-	std::string mPassword{""};
-	std::string mRecordFilePath{""};
-	std::string mPlayFilePath;
+	std::string mPassword{};
+	std::string mRecordFilePath{};
+	// Final checks on call successfully established is based on bandwidth usage.
+	// Use this file as input to make sure there is always some traffic.
+	std::string mPlayFilePath{bcTesterRes("sounds/hello8000.wav")};
 };
 
 } // namespace tester

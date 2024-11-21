@@ -30,6 +30,7 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "service-server/service-server.hh"
+#include "utils/replaces-header.hh"
 
 namespace flexisip {
 
@@ -40,7 +41,7 @@ class B2buaAndProxyServer;
 namespace b2bua {
 
 // Name of the corresponding section in the configuration file
-inline constexpr auto& configSection = "b2bua-server";
+inline constexpr auto configSection = "b2bua-server";
 
 } // namespace b2bua
 
@@ -119,7 +120,16 @@ private:
 		bool isLegA;
 	};
 
+	/**
+	 * @brief Retrieve peer call that is linked to the given call.
+	 *
+	 * @param call call leg
+	 * @return peer call leg or nullptr if not found
+	 */
 	std::shared_ptr<linphone::Call> getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
+
+	std::shared_ptr<linphone::Call>
+	findReplacingCallOnAttendedTransfer(const b2bua::ReplacesHeader& replacesHeader) const;
 
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;

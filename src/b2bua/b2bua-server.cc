@@ -24,12 +24,13 @@
 
 #include "flexisip/logmanager.hh"
 
-#include "async-stop-core.hh"
-#include "call-transfer-listener.hh"
+#include "b2bua/utils/async-stop-core.hh"
+#include "b2bua/utils/call-transfer-listener.hh"
 #include "exceptions/bad-configuration.hh"
 #include "sip-bridge/sip-bridge.hh"
 #include "trenscrypter/trenscrypter.hh"
 #include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 #include "utils/variant-utils.hh"
 
 #define FUNC_LOG_PREFIX B2buaServer::kLogPrefix << "::" << __func__ << "()"
@@ -116,11 +117,14 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Call>& call) {
 	SLOGD << FUNC_LOG_PREFIX << ": incoming call received from " << call->getRemoteAddress()->asString() << " to "
 	      << call->getToAddress()->asString();
-	// Create outgoing call using parameters from the incoming call in order to avoid duplicating the callId.
-	auto outgoingCallParams = mCore->createCallParams(call);
+
+	auto outgoingCallParams = mCore->createCallParams(nullptr);
 	// Add this custom header so this call will not be intercepted by the B2BUA.
 	outgoingCallParams->addCustomHeader(kCustomHeader, "ignore");
 	outgoingCallParams->enableEarlyMediaSending(true);
+	const auto remoteParams = call->getRemoteParams();
+	outgoingCallParams->enableAudio(remoteParams->audioEnabled());
+	outgoingCallParams->enableVideo(remoteParams->videoEnabled());
 
 	const auto callee = Match(mApplication->onCallCreate(*call, *outgoingCallParams))
 	                        .against([](shared_ptr<const linphone::Address> callee) { return callee; },
@@ -141,9 +145,12 @@ void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Ca
 	auto conference = mCore->createConferenceWithParams(conferenceParams);
 
 	// Replicate "Referred-By" header if present (for call transfers).
-	const auto referredByAddress = call->getReferredByAddress();
-	if (referredByAddress) {
+	if (const auto referredByAddress = call->getReferredByAddress()) {
 		outgoingCallParams->addCustomHeader("Referred-By", referredByAddress->asString());
+	}
+	// Replicate "Replaces" header if present (for call transfers).
+	if (const auto replaces = call->getRemoteParams()->getCustomHeader("Replaces"); !replaces.empty()) {
+		outgoingCallParams->addCustomHeader("Replaces", replaces);
 	}
 
 	// Create legB and add it to the conference.
@@ -166,13 +173,13 @@ void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Ca
 
 void B2buaServer::onCallStateOutgoingRinging(const std::shared_ptr<linphone::Call>& call) {
 	// This is legB getting its ring from callee, relay it to the legA call.
-	const auto& legA = getPeerCall(call);
+	const auto legA = getPeerCall(call);
 	if (legA) legA->notifyRinging();
 }
 
 void B2buaServer::onCallStateOutgoingEarlyMedia(const std::shared_ptr<linphone::Call>& call) {
 	// LegB call sends early media: relay a 183.
-	const auto& legA = getPeerCall(call);
+	const auto legA = getPeerCall(call);
 	if (legA) {
 		const auto callParams = mCore->createCallParams(legA);
 		callParams->enableEarlyMediaSending(true);
@@ -231,32 +238,53 @@ void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call
 }
 
 void B2buaServer::onCallStateReferred(const std::shared_ptr<linphone::Call>& call) {
-	const auto& peerCall = getPeerCall(call);
-	if (!peerCall) return;
-
-	const auto& referToAddress = mApplication->onTransfer(*call);
-	if (!referToAddress) {
-		SLOGE << FUNC_LOG_PREFIX << ": unable to process call transfer request, \"Refer-To\" header is empty";
+	const auto peerCall = getPeerCall(call);
+	if (!peerCall) {
+		SLOGE << FUNC_LOG_PREFIX
+		      << ": unable to process call transfer, peer call leg does not exist, this should never happen";
 		return;
 	}
 
-	const auto& replacesHeader = referToAddress->getHeader("Replaces");
-	if (replacesHeader.empty()) {
-		// Case: blind call transfer.
-		SLOGD << FUNC_LOG_PREFIX << ": blind call transfer requested from " << call->getRemoteAddress()->asString()
-		      << ", refer to " << referToAddress->asString();
-		peerCall->addListener(make_shared<b2bua::CallTransferListener>(call));
-		peerCall->transferTo(referToAddress->clone());
-	} else {
-		// Case: attended call transfer.
-		SLOGE << FUNC_LOG_PREFIX << ": attended call transfer is not implemented yet";
+	// Get raw "Refer-To" address from REFER request.
+	const auto originalReferToAddress = call->getReferToAddress();
+	if (!originalReferToAddress) {
+		SLOGE << FUNC_LOG_PREFIX << ": unable to process call transfer, \"Refer-To\" header is empty";
+		return;
 	}
+
+	auto referToAddress = mApplication->onTransfer(*call);
+	auto replacesHeader = b2bua::ReplacesHeader::fromStr(originalReferToAddress->getHeader("Replaces"));
+
+	if (replacesHeader != nullopt) /* Case: attended call transfer */ {
+		const auto replacingCall = findReplacingCallOnAttendedTransfer(*replacesHeader);
+		if (replacingCall) {
+			const auto peerReplacingCall = getPeerCall(replacingCall);
+			if (peerReplacingCall) {
+				SLOGD << FUNC_LOG_PREFIX << ": found bridged call (" << replacingCall << ") to replace with call ("
+				      << peerReplacingCall << ")";
+
+				replacesHeader->update(peerReplacingCall);
+				if (!referToAddress) referToAddress = peerReplacingCall->getToAddress()->clone();
+			}
+		}
+
+		if (!referToAddress) referToAddress = originalReferToAddress->clone();
+		referToAddress->setHeader("Replaces", replacesHeader->str());
+	} else /* Case: blind call transfer */ {
+		if (!referToAddress) referToAddress = originalReferToAddress->clone();
+	}
+
+	SLOGD << FUNC_LOG_PREFIX << ": call transfer requested from " << call->getRemoteAddress()->asString()
+	      << ", refer to " << referToAddress->asString();
+
+	peerCall->addListener(make_shared<b2bua::CallTransferListener>(call));
+	peerCall->transferTo(referToAddress);
 }
 
 void B2buaServer::onCallStateEnd(const std::shared_ptr<linphone::Call>& call) {
 	mApplication->onCallEnd(*call);
 	// Terminate peer Call, copy error information from this call.
-	const auto& peerCall = getPeerCall(call);
+	const auto peerCall = getPeerCall(call);
 	if (peerCall) peerCall->terminateWithErrorInfo(call->getErrorInfo());
 }
 
@@ -364,12 +392,12 @@ void B2buaServer::onCallStateReleased(const std::shared_ptr<linphone::Call>& cal
 void B2buaServer::onDtmfReceived([[maybe_unused]] const shared_ptr<linphone::Core>& _core,
                                  const shared_ptr<linphone::Call>& call,
                                  int dtmf) {
-	const auto& otherLeg = getPeerCall(call);
-	if (!otherLeg) return;
+	const auto peerCall = getPeerCall(call);
+	if (!peerCall) return;
 
 	SLOGD << FUNC_LOG_PREFIX << ": forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
-	      << otherLeg->getCallLog()->getCallId();
-	otherLeg->sendDtmf(dtmf);
+	      << peerCall->getCallLog()->getCallId();
+	peerCall->sendDtmf(dtmf);
 }
 
 void B2buaServer::onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
@@ -533,7 +561,7 @@ void B2buaServer::_init() {
 		}
 	}
 	SLOGI << kLogPrefix << ": data directory set to " << dataDirPath;
-	const auto& factory = linphone::Factory::get();
+	const auto factory = linphone::Factory::get();
 	factory->setDataDir(dataDirPath + "/");
 
 	mCore = b2bua::B2buaCore::create(*factory, *config);
@@ -570,21 +598,34 @@ std::unique_ptr<AsyncCleanup> B2buaServer::_stop() {
 	return std::make_unique<b2bua::AsyncStopCore>(mCore);
 }
 
-/**
- * @brief Retrieve peer call that is linked to the given call.
- *
- * @param call call leg
- * @return peer call leg or nullptr if not found
- */
 shared_ptr<linphone::Call> B2buaServer::getPeerCall(const shared_ptr<linphone::Call>& call) const {
 	const auto peerCallEntry = mPeerCalls.find(call);
 	if (peerCallEntry == mPeerCalls.cend()) {
-		SLOGW << kLogPrefix << ": failed to find peer call of current call {ptr = " << call
+		SLOGD << kLogPrefix << ": failed to find peer call of current call {ptr = " << call
 		      << ", call-id = " << call->getCallLog()->getCallId() << "}";
 		return nullptr;
 	}
 
 	return peerCallEntry->second.lock();
+}
+
+shared_ptr<linphone::Call>
+B2buaServer::findReplacingCallOnAttendedTransfer(const b2bua::ReplacesHeader& replacesHeader) const {
+	SLOGD << FUNC_LOG_PREFIX << ": looking for calls matching " << replacesHeader;
+	for (const auto& candidate : mCore->getCalls()) {
+		if (candidate->getCallLog()->getCallId() != replacesHeader.getCallId()) continue;
+
+		const auto callIsOutgoing = candidate->getDir() == linphone::Call::Dir::Outgoing;
+		const auto candidateFromTag = callIsOutgoing ? candidate->getLocalTag() : candidate->getRemoteTag();
+		if (candidateFromTag != replacesHeader.getFromTag()) continue;
+		const auto candidateToTag = callIsOutgoing ? candidate->getRemoteTag() : candidate->getLocalTag();
+		if (candidateToTag != replacesHeader.getToTag()) continue;
+
+		return candidate;
+	}
+
+	SLOGD << FUNC_LOG_PREFIX << ": no suitable candidate found";
+	return nullptr;
 }
 
 namespace {

@@ -130,6 +130,10 @@ const bool& ClientCall::videoFrameDecoded() {
 	return mListener->mFrameDecoded;
 }
 
+linphone::MediaDirection ClientCall::getVideoDirection() const {
+	return mCall->getCurrentParams()->getVideoDirection();
+}
+
 const ::rtp_stats& ClientCall::getVideoRtpStats() const {
 	return *::linphone_call_stats_get_rtp_stats(::linphone_call_get_video_stats(mCall->cPtr()));
 }

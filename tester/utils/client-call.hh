@@ -30,6 +30,46 @@
 #include <ortp/rtp.h>
 #include <ortp/rtpsession.h>
 
+/*
+ * Assert call state only.
+ */
+#define ASSERT_CALL_1(call, expectedState)                                                                             \
+	FAIL_IF(call == nullopt);                                                                                          \
+	FAIL_IF(call->getState() != expectedState)
+
+/*
+ * Assert call state along with audio direction.
+ */
+#define ASSERT_CALL_2(call, expectedState, expectedAudioDirection)                                                     \
+	ASSERT_CALL_1(call, expectedState);                                                                                \
+	FAIL_IF(call->getAudioDirection() != expectedAudioDirection)
+
+/*
+ * Assert call state along with audio and video directions.
+ */
+#define ASSERT_CALL_3(call, expectedState, expectedAudioDirection, expectedVideoDirection)                             \
+	ASSERT_CALL_2(call, expectedState, expectedAudioDirection);                                                        \
+	FAIL_IF(call->getVideoDirection() != expectedVideoDirection)
+
+#define GET_ASSERT_CALL_MACRO(_1, _2, _3, _4, NAME, ...) NAME
+
+/*
+ * Assert call state.
+ * Optionally you can assert audio and video directions.
+ *
+ * Usage:
+ * - ASSERT_CALL(call, expectedState)
+ * - ASSERT_CALL(call, expectedState, expectedAudioDirection)
+ * - ASSERT_CALL(call, expectedState, expectedAudioDirection, expectedVideoDirection)
+ *
+ * With:
+ * - call:                    std::optional<ClientCall>
+ * - expectedState:           linphone::Call::State
+ * - expectedAudioDirection:  linphone::MediaDirection
+ * - expectedVideoDirection:  linphone::MediaDirection
+ */
+#define ASSERT_CALL(...) GET_ASSERT_CALL_MACRO(__VA_ARGS__, ASSERT_CALL_3, ASSERT_CALL_2, ASSERT_CALL_1)(__VA_ARGS__)
+
 namespace flexisip::tester {
 
 /**
@@ -67,6 +107,7 @@ public:
 	std::shared_ptr<const linphone::PayloadType> getAudioPayloadType() const;
 
 	const bool& videoFrameDecoded();
+	linphone::MediaDirection getVideoDirection() const;
 	const ::rtp_stats& getVideoRtpStats() const;
 
 	std::shared_ptr<linphone::Core> getCore() const;

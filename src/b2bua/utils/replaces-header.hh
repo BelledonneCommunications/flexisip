@@ -18,31 +18,43 @@
 
 #pragma once
 
-#include <linphone++/call_listener.hh>
+#include <memory>
+#include <optional>
+#include <string>
 
-#include "b2bua-server.hh"
+#include <linphone++/call.hh>
 
 namespace flexisip::b2bua {
 
-/**
- * @brief Call listener needed in case of call transfer. Allows to forward NOTIFY requests to peer call.
- */
-class CallTransferListener : public linphone::CallListener {
+class ReplacesHeader {
 public:
-	explicit CallTransferListener(const std::weak_ptr<linphone::Call>& peerCall) : mPeerCall(peerCall) {
+	~ReplacesHeader() = default;
+
+	static std::optional<ReplacesHeader> fromStr(std::string_view header);
+
+	void update(const std::shared_ptr<linphone::Call>& call);
+	std::string str() const;
+
+	const std::string& getCallId() const {
+		return mCallId;
 	}
-	void onTransferStateChanged(const std::shared_ptr<linphone::Call>& call, linphone::Call::State state) override;
+	const std::string& getFromTag() const {
+		return mFromTag;
+	}
+	const std::string& getToTag() const {
+		return mToTag;
+	}
+
+	friend std::ostream& operator<<(std::ostream& strm, const ReplacesHeader& header);
 
 private:
-	/**
-	 * @brief Send NOTIFY request to peer call.
-	 *
-	 * @param[in] request body, example: "SIP/2.0 100 Trying\\r\\n"
-	 */
-	void sendNotify(const std::string& body);
+	ReplacesHeader(std::string_view callId, std::string_view fromTag, std::string_view toTag);
 
-	std::weak_ptr<linphone::Call> mPeerCall{};
-	const std::string mLogPrefix{B2buaServer::kLogPrefix + std::string{"::CallTransferListener"}};
+	std::string mCallId{};
+	std::string mFromTag{};
+	std::string mToTag{};
 };
 
-}
+std::ostream& operator<<(std::ostream& strm, const ReplacesHeader& header);
+
+} // namespace flexisip::b2bua

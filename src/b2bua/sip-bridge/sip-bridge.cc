@@ -265,16 +265,14 @@ b2bua::Application::ActionToTake SipBridge::onCallCreate(const linphone::Call& i
 	return linphone::Reason::NotAcceptable;
 }
 
-std::shared_ptr<const linphone::Address> SipBridge::onTransfer(const linphone::Call& call) {
+std::shared_ptr<linphone::Address> SipBridge::onTransfer(const linphone::Call& call) {
 	for (auto& provider : providers) {
 		if (const auto referToAddress = provider.onTransfer(call)) {
 			return referToAddress;
 		}
 	}
 
-	SLOGW << FUNC_LOG_PREFIX << ": no provider could handle the call transfer to "
-	      << call.getReferToAddress()->asString() << ", sending REFER request with untranslated \"Refer-To\" header";
-	return call.getReferToAddress();
+	return nullptr;
 }
 
 void SipBridge::onCallEnd(const linphone::Call& call) {

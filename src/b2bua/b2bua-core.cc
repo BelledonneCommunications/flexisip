@@ -38,6 +38,7 @@ using namespace std;
 shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const GenericStruct& config) {
 	const auto& configLinphone = factory.createConfig("");
 	configLinphone->setBool("misc", "conference_server_enabled", true);
+	configLinphone->setBool("misc", "hide_conferences", true);
 	configLinphone->setInt("misc", "max_calls", 1000);
 	// Share media resources.
 	configLinphone->setInt("misc", "media_resources_mode", 1);
@@ -63,6 +64,8 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	configLinphone->setInt("sip", "auto_accept_refer", 0);
 	// Do not automatically terminate calls once transfer has succeeded (NOTIFY 200 OK received).
 	configLinphone->setInt("sip", "terminate_call_upon_transfer_completion", 0);
+	// Do not automatically accept replacing calls (INVITE requests with "Replaces" header).
+	configLinphone->setInt("sip", "auto_answer_replacing_calls", 0);
 
 	const auto& core = factory.createCoreWithConfig(configLinphone, nullptr);
 	core->setLabel("Flexisip B2BUA");

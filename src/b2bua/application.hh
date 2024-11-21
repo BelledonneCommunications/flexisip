@@ -61,10 +61,9 @@ public:
 	 * @brief Run some business logic before transferring the call.
 	 *
 	 * @param[in] call call that received the REFER request
+	 * @return translated referToAddress or nullptr if the translation failed
 	 */
-	virtual std::shared_ptr<const linphone::Address> onTransfer(const linphone::Call& call) {
-		return call.getReferToAddress();
-	}
+	virtual std::shared_ptr<linphone::Address> onTransfer(const linphone::Call& call) = 0;
 
 	/**
 	 * @brief Execute a specific operation once a call has ended.

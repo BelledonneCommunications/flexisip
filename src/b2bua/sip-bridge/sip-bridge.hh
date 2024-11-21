@@ -50,7 +50,7 @@ public:
 	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& config) override;
 
 	ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
-	std::shared_ptr<const linphone::Address> onTransfer(const linphone::Call& call) override;
+	std::shared_ptr<linphone::Address> onTransfer(const linphone::Call& call) override;
 	void onCallEnd(const linphone::Call& call) override;
 
 	ActionToTake onSubscribe(const linphone::Event& event, const std::string& subscribeEvent) override;
