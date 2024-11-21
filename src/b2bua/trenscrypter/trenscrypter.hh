@@ -17,7 +17,7 @@
 */
 #pragma once
 
-#include "b2bua-server.hh"
+#include "b2bua/b2bua-server.hh"
 
 namespace flexisip::b2bua::trenscrypter {
 

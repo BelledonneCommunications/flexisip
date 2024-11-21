@@ -22,13 +22,13 @@
 #include <unordered_map>
 #include <variant>
 
-#include "b2bua/b2bua-core.hh"
-#include "linphone++/linphone.hh"
+#include <linphone++/linphone.hh>
 
+#include "application.hh"
+#include "b2bua-core.hh"
+#include "cli.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
-
-#include "cli.hh"
 #include "service-server/service-server.hh"
 
 namespace flexisip {
@@ -38,83 +38,9 @@ class B2buaAndProxyServer;
 } // namespace tester
 
 namespace b2bua {
+
 // Name of the corresponding section in the configuration file
 inline constexpr auto& configSection = "b2bua-server";
-
-/**
- * @brief Execute specific operations when bridging calls.
- */
-class Application {
-public:
-	using DeclineCall = linphone::Reason;
-	using InviteAddress = std::shared_ptr<const linphone::Address>;
-	using ActionToTake = std::variant<DeclineCall, InviteAddress>;
-	using NotifyDestination = std::pair<const flexisip::SipUri, std::shared_ptr<linphone::Account>>;
-
-	virtual ~Application() = default;
-
-	/**
-	 * @brief Initialize B2BUA server application.
-	 */
-	virtual void init(const std::shared_ptr<B2buaCore>& core, const ConfigManager& cfg) = 0;
-
-	/**
-	 * @brief Run some business logic before placing the outgoing call.
-	 *
-	 * @param[in]     incomingCall       the call that triggered the server
-	 * @param[inout]  outgoingCallParams the params of the outgoing call to place (modified according to the business
-	 *                                   logic of the application)
-	 *
-	 * @return a reason to abort the bridging and decline the incoming call, none if the call should go through.
-	 **/
-	virtual ActionToTake onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) = 0;
-	/**
-	 * @brief Run some business logic before transferring the call.
-	 *
-	 * @param[in] call call that received the REFER request
-	 */
-	virtual std::shared_ptr<const linphone::Address> onTransfer(const linphone::Call& call) {
-		return call.getReferToAddress();
-	}
-	/**
-	 * @brief Execute a specific operation once a call has ended.
-	 */
-	virtual void onCallEnd(const linphone::Call&) {
-	}
-	/**
-	 * @brief Execute a specific operation upon receiving a SUBSCRIBE request.
-	 *
-	 * @warning not supported yet
-	 *
-	 * @return linphone::Reason::NotAcceptable
-	 */
-	virtual ActionToTake onSubscribe(const linphone::Event&, const std::string&) {
-		return linphone::Reason::NotAcceptable;
-	}
-	virtual std::optional<NotifyDestination> onNotifyToBeSent(const linphone::Event&) {
-		return std::nullopt;
-	}
-};
-
-/**
- * @brief Call listener needed in case of call transfer. Allows to forward NOTIFY requests to peer call.
- */
-class CallTransferListener : public linphone::CallListener {
-public:
-	explicit CallTransferListener(const std::weak_ptr<linphone::Call>& peerCall) : mPeerCall(peerCall) {
-	}
-	void onTransferStateChanged(const std::shared_ptr<linphone::Call>& call, linphone::Call::State state) override;
-
-private:
-	/**
-	 * @brief Send NOTIFY request to peer call.
-	 *
-	 * @param[in] request body, example: "SIP/2.0 100 Trying\\r\\n"
-	 */
-	void sendNotify(const std::string& body);
-
-	std::weak_ptr<linphone::Call> mPeerCall{};
-};
 
 } // namespace b2bua
 
@@ -136,19 +62,33 @@ public:
 	                        const std::shared_ptr<linphone::Call>& call,
 	                        linphone::Call::State state,
 	                        const std::string& message) override;
+
+	void onCallStateIncomingReceived(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateOutgoingRinging(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateOutgoingEarlyMedia(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateStreamsRunning(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateReferred(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateEnd(const std::shared_ptr<linphone::Call>& call);
+	void onCallStatePausedByRemote(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateUpdatedByRemote(const std::shared_ptr<linphone::Call>& call);
+	void onCallStateReleased(const std::shared_ptr<linphone::Call>& call);
+
 	void onDtmfReceived(const std::shared_ptr<linphone::Core>& core,
 	                    const std::shared_ptr<linphone::Call>& call,
 	                    int dtmf) override;
+
 	void onNotifyReceived(const std::shared_ptr<linphone::Core>&,
 	                      const std::shared_ptr<linphone::Event>&,
 	                      const std::string&,
 	                      const std::shared_ptr<const linphone::Content>&) override {
 		// Dummy override to prevent compilation errors (mismatch with onNotifyReceived from EventListener).
 	}
+
 	void onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
 	                         const std::shared_ptr<linphone::Event>& linphoneEvent,
 	                         const std::string& subscribeEvent,
 	                         const std::shared_ptr<const linphone::Content>& body) override;
+
 	void
 	onMessageWaitingIndicationChanged(const std::shared_ptr<linphone::Core>& core,
 	                                  const std::shared_ptr<linphone::Event>& event,
@@ -156,21 +96,17 @@ public:
 
 	void onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
 	                      const std::shared_ptr<const linphone::Content>& content) override;
+
 	void onSubscribeReceived(const std::shared_ptr<linphone::Event>&) override {
 		// Dummy override to prevent compilation errors (mismatch with onSubscribeReceived from CoreListener).
 	}
+
 	void onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
 	                             linphone::SubscriptionState state) override;
 
-	int getTcpPort() const {
-		return mCore->getTransportsUsed()->getTcpPort();
-	}
-	int getUdpPort() const {
-		return mCore->getTransportsUsed()->getUdpPort();
-	}
-	const b2bua::Application& getApplication() const {
-		return *mApplication;
-	}
+	int getTcpPort() const;
+	int getUdpPort() const;
+	const b2bua::Application& getApplication() const;
 
 protected:
 	void _init() override;

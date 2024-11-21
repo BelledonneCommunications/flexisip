@@ -25,9 +25,11 @@
 find_package(JsonCPP "1.1.0" REQUIRED)
 
 target_sources(flexisip PRIVATE
+		application.hh
         async-stop-core.cc async-stop-core.hh
         b2bua-core.cc b2bua-core.hh
         b2bua-server.cc b2bua-server.hh
+		call-transfer-listener.cc call-transfer-listener.hh
         sip-bridge/accounts/account-pool.cc sip-bridge/accounts/account-pool.hh
         sip-bridge/accounts/account.cc sip-bridge/accounts/account.hh
         sip-bridge/accounts/loaders/loader.hh
@@ -45,7 +47,7 @@ target_sources(flexisip PRIVATE
         sip-bridge/notify-tweaker.cc sip-bridge/notify-tweaker.hh
         sip-bridge/refer-tweaker.cc sip-bridge/refer-tweaker.hh
         sip-bridge/trigger-strategy.cc sip-bridge/trigger-strategy.hh
-        trenscrypter.cc trenscrypter.hh
+		trenscrypter/trenscrypter.cc trenscrypter/trenscrypter.hh
 )
 
 target_link_libraries(flexisip
