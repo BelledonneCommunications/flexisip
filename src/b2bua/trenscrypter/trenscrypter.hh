@@ -22,47 +22,50 @@
 namespace flexisip::b2bua::trenscrypter {
 
 class encryptionConfiguration {
+public:
+	encryptionConfiguration(linphone::MediaEncryption p_mode, const std::string& p_pattern)
+	    : mode(p_mode), pattern(p_pattern), stringPattern(p_pattern){};
+
+private:
 	friend class Trenscrypter;
 
 	linphone::MediaEncryption mode;
-	std::regex pattern; /**< regular expression applied on the callee sip address, when matched, the associated
-	                       mediaEncryption mode is used on the output call */
-	std::string
-	    stringPattern; /**< a string version of the pattern for log purpose as the std::regex does not carry it*/
-
-public:
-	encryptionConfiguration(linphone::MediaEncryption p_mode, std::string p_pattern)
-	    : mode(p_mode), pattern(p_pattern), stringPattern(p_pattern){};
+	// Regular expression applied on the callee SIP address, when it matches, the associated mediaEncryption mode is
+	// used for the outgoing call.
+	std::regex pattern;
+	// A string version of the pattern for log purpose as the std::regex does not carry it.
+	std::string stringPattern;
 };
 
 class srtpConfiguration {
+public:
+	srtpConfiguration(const std::list<linphone::SrtpSuite>& p_suites, const std::string& p_pattern)
+	    : suites(p_suites), pattern(p_pattern), stringPattern(p_pattern){};
+
+private:
 	friend class Trenscrypter;
 
 	std::list<linphone::SrtpSuite> suites;
-	std::regex pattern; /**< regular expression applied on the callee sip address, when matched, the associated SRTP
-	                       suites are used */
-	std::string
-	    stringPattern; /**< a string version of the pattern for log purposes as the std::regex does not carry it */
-
-public:
-	srtpConfiguration(std::list<linphone::SrtpSuite> p_suites, std::string p_pattern)
-	    : suites(p_suites), pattern(p_pattern), stringPattern(p_pattern){};
+	// Regular expression applied on the callee SIP address, when it matches, the associated SRTP suites are used for
+	// the outgoing call.
+	std::regex pattern;
+	// A string version of the pattern for log purposes as the std::regex does not carry it.
+	std::string stringPattern;
 };
 
 /**
- * Media encryption transcoder
+ * B2BUA server application: media encryption transcoder.
  */
 class Trenscrypter : public b2bua::Application {
-	std::shared_ptr<linphone::Core> mCore;
-	std::list<encryptionConfiguration> mOutgoingEncryption;
-	std::list<srtpConfiguration> mSrtpConf;
-
 public:
 	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) override;
 	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
 
 private:
+	std::shared_ptr<linphone::Core> mCore;
+	std::list<encryptionConfiguration> mOutgoingEncryption;
+	std::list<srtpConfiguration> mSrtpConf;
 	const std::string mLogPrefix{B2buaServer::kLogPrefix + std::string{"::trenscrypter"}};
 };
 
