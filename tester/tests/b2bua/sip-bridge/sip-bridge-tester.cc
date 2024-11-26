@@ -1445,10 +1445,9 @@ void b2buaReceivesSeveralForks() {
 
 	asserter
 	    .wait([&callerCall = *call] {
-		    FAIL_IF(callerCall.getState() != linphone::Call::State::OutgoingRinging);
-		    return ASSERTION_PASSED();
+		    return LOOP_ASSERTION(callerCall.getState() == linphone::Call::State::OutgoingRinging);
 	    })
-	    .assert_passed();
+	    .hard_assert_passed();
 
 	// One bridged call successfully established
 	auto bridgedCall = phoneCore->getCurrentCall();
@@ -1631,9 +1630,8 @@ void maxCallDuration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	asserter
-	    .iterateUpTo(
-	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	asserter.iterateUpTo(
+	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
 	    .assert_passed();
 }
 
