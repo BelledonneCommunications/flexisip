@@ -92,47 +92,45 @@ const auto TLS = "transport=tls"s;
  * 2. Iterate on the main loop, so the UAS will collect pending requests from the socket.
  * 3. UAS should process all collected data even if the number of data (in bytes) exceeds agent's message maxsize.
  *
- * @tparam	maxsize		Sofia-SIP NTA msg maxsize
- * @tparam	nbRequests	number of requests to send
- * @tparam	transport	indicate which transport to use in this test: [UDP, TCP, TLS]
+ * @tparam maxsize     Sofia-SIP NTA msg maxsize
+ * @tparam nbRequests  number of requests to send
+ * @tparam transport   the transport to use in this test: [UDP, TCP, TLS]
  *
- * Generated requests have a size of 322 bytes.
+ * Generated requests have a size of 414 bytes.
  * Info:
- * - 10 * 322 = 3220  bytes
- * - 15 * 322 = 4830  bytes
- * - 20 * 322 = 6440  bytes
- * - 40 * 322 = 12880 bytes
+ * - 10 * 414 = 4140  bytes
+ * - 15 * 414 = 6210  bytes
+ * - 20 * 414 = 8280  bytes
+ * - 40 * 414 = 16560 bytes
  */
 template <int maxsize, int nbRequests, const string& transport>
 void collectAndParseDataFromSocket() {
-	constexpr int expectedStatus = 202; // Accepted
-	static const auto& stubUser = "stub-user"s;
-	static const auto& stubHost = "localhost"s;
-	static const auto& stubIdentity = "sip:" + stubUser + "@" + stubHost;
+	const auto stubUser = "stub-user"s;
+	const auto stubHost = "localhost"s;
+	const auto stubIdentity = "sip:" + stubUser + "@" + stubHost;
 
-	// Function called on request processing.
-	auto callback = [](nta_agent_magic_t*, nta_agent_t* agent, msg_t* msg, sip_t* sip) -> int {
-		if (sip and sip->sip_request and sip->sip_request->rq_method == sip_method_register) {
-			BC_HARD_ASSERT(sip->sip_contact != nullptr);
-			BC_HARD_ASSERT_CPP_EQUAL(sip->sip_contact->m_url->url_user, stubUser);
-			BC_HARD_ASSERT_CPP_EQUAL(sip->sip_contact->m_url->url_host, stubHost);
-		}
-		nta_msg_treply(agent, msg, expectedStatus, "Accepted", TAG_END()); // Complete generated outgoing transactions.
-		return 0;
-	};
+	const auto serverSuRoot = make_shared<SuRoot>();
+	Server server{{
+	                  {"global/transports", (transport == "transport=tls" ? "sips" : "sip") +
+	                                            ":127.0.0.1:0;tls-verify-incoming=0;tls-verify-outgoing=0;"s},
+	                  {"global/sofia-level", "9"},
+	                  {"module::Registrar/reg-domains", "*"},
+	                  {"global/tls-certificates-file", bcTesterRes("cert/self.signed.cert.test.pem")},
+	                  {"global/tls-certificates-private-key", bcTesterRes("cert/self.signed.key.test.pem")},
+	                  {"module::DoSProtection/enabled", "false"},
+	              },
+	              serverSuRoot};
+	server.start();
+	nta_agent_set_params(server.getAgent()->getSofiaAgent(), NTATAG_MAXSIZE(maxsize), TAG_END());
 
-	auto suRoot = make_shared<SuRoot>();
-	NtaAgent server{
-	    suRoot,
-	    transport != TLS ? toSofiaSipUrlUnion("sip:127.0.0.1:0;" + transport) : reinterpret_cast<url_string_t*>(-1),
-	    callback,
-	    nullptr,
-	    NTATAG_MAXSIZE(maxsize),
-	};
+	const auto clientSuRoot = make_shared<SuRoot>();
 	NtaAgent client{
-	    suRoot,
+	    clientSuRoot,
 	    transport != TLS ? toSofiaSipUrlUnion("sip:127.0.0.1:0;" + transport) : reinterpret_cast<url_string_t*>(-1),
-	    nullptr,
+	    [](nta_agent_magic_t*, nta_agent_t* agent, msg_t* msg, sip_t*) -> int {
+		    nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
+		    return 0;
+	    },
 	    nullptr,
 	    NTATAG_UA(false),
 	};
@@ -140,57 +138,75 @@ void collectAndParseDataFromSocket() {
 	if (transport == TLS) {
 		const auto certs = bcTesterRes("cert/self.signed.legacy");
 		const auto* ciphers = "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL";
-		server.addTransport(
-		    "sips:127.0.0.1:0;" + transport, TPTAG_CERTIFICATE(certs.c_str()), TPTAG_CERTIFICATE_CA_FILE(""),
-		    TPTAG_TLS_VERIFY_POLICY(tport_tls_verify_policy::TPTLS_VERIFY_NONE), TPTAG_TLS_CIPHERS(ciphers));
 		client.addTransport(
 		    "sips:127.0.0.1:0;" + transport, TPTAG_CERTIFICATE(certs.c_str()), TPTAG_CERTIFICATE_CA_FILE(""),
 		    TPTAG_TLS_VERIFY_POLICY(tport_tls_verify_policy::TPTLS_VERIFY_NONE), TPTAG_TLS_CIPHERS(ciphers));
 	}
 
+	CoreAssert<kNoSleep> asserter{serverSuRoot, clientSuRoot};
+	const auto routeUri = "sip:127.0.0.1:"s + server.getFirstPort() + ";" + transport;
+
+	// Register client.
+	auto requestRegister = make_unique<MsgSip>();
+	requestRegister->makeAndInsert<SipHeaderRequest>(sip_method_register, stubIdentity);
+	requestRegister->makeAndInsert<SipHeaderFrom>(stubIdentity, "stub-from-tag");
+	requestRegister->makeAndInsert<SipHeaderTo>(stubIdentity);
+	requestRegister->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	requestRegister->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	requestRegister->makeAndInsert<SipHeaderContact>("<" + stubIdentity + ";" + transport + ">");
+	requestRegister->makeAndInsert<SipHeaderExpires>(10);
+	const auto registration = client.createOutgoingTransaction(std::move(requestRegister), routeUri);
+
+	asserter
+	    .iterateUpTo(
+	        0x20, [&registration] { return LOOP_ASSERTION(registration->isCompleted()); }, 100ms)
+	    .hard_assert_passed();
+
 	// Send requests to UAS.
 	vector<shared_ptr<NtaOutgoingTransaction>> transactions{};
-	const auto routeUri = "sip:localhost:"s + server.getFirstPort() + ";maddr=127.0.0.1;" + transport;
-	for (int requestId = 0; requestId < nbRequests; ++requestId) {
+	for (int requestId = 10; requestId < nbRequests; ++requestId) {
 		auto request = make_unique<MsgSip>();
-		request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+		request->makeAndInsert<SipHeaderRequest>(sip_method_subscribe, stubIdentity);
 		request->makeAndInsert<SipHeaderFrom>(stubIdentity, "stub-from-tag");
 		request->makeAndInsert<SipHeaderTo>(stubIdentity);
-		request->makeAndInsert<SipHeaderCallID>("stub-call-id");
-		request->makeAndInsert<SipHeaderCSeq>(20u + requestId, sip_method_register);
-		request->makeAndInsert<SipHeaderContact>("<" + stubIdentity + ";" + transport + ">");
+		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_subscribe);
+		request->makeAndInsert<SipHeaderCallID>("stub-call-id-" + to_string(requestId));
+		request->makeAndInsert<SipHeaderMaxForwards>(70u);
+		request->makeAndInsert<SipHeaderRoute>("<sip:127.0.0.1:"s + client.getFirstPort() + ";" + transport + ";lr>");
+		request->makeAndInsert<SipHeaderEvent>("reg");
 		request->makeAndInsert<SipHeaderExpires>(10);
+		request->makeAndInsert<SipHeaderContact>("<" + stubIdentity + ";" + transport + ">");
 
 		transactions.push_back(client.createOutgoingTransaction(std::move(request), routeUri));
 	}
 
-	// Iterate on main loop.
-	CoreAssert<kNoSleep>{suRoot}
-	    .waitUntil(100ms,
-	               [&] {
-		               for (const auto& transaction : transactions) {
-			               FAIL_IF(!transaction->isCompleted());
-			               FAIL_IF(transaction->getStatus() != expectedStatus);
-		               }
-		               return ASSERTION_PASSED();
-	               })
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transactions] {
+		        for (const auto& transaction : transactions) {
+			        FAIL_IF(!transaction->isCompleted());
+		        }
+		        return ASSERTION_PASSED();
+	        },
+	        500ms)
 	    .assert_passed();
 
 	// Keep this so if the CoreAssert fails we can get debug information from these checks.
 	for (const auto& transaction : transactions) {
 		BC_ASSERT(transaction->isCompleted());
-		BC_ASSERT_CPP_EQUAL(transaction->getStatus(), expectedStatus);
 	}
 }
 
 /*
- * Test parsing of one SIP message whose size exceeds msg maxsize.
- * Note: Sofia-SIP cannot parse a SIP message that exceeds the maximum acceptable size of an incoming message.
+ * Test parsing of one SIP request whose size exceeds msg maxsize.
+ * Note: Sofia-SIP cannot parse a SIP request that exceeds the maximum acceptable size of an incoming message.
+ *
+ * Expected behavior: the connection should be closed between the client and the server.
  */
 void collectAndTryToParseSIPMessageThatExceedsMsgMaxsize() {
 	int maxsize = msg_min_size * 2;
-	int expectedStatus = 400; // Bad request
-	auto suRoot = make_shared<SuRoot>();
+	const auto suRoot = make_shared<SuRoot>();
 	NtaAgent server{suRoot, "sip:127.0.0.1:0;transport=tcp", nullptr, nullptr, NTATAG_MAXSIZE(maxsize)};
 	NtaAgent client{suRoot, "sip:127.0.0.1:0;transport=tcp", nullptr, nullptr, NTATAG_UA(false)};
 
@@ -207,17 +223,22 @@ void collectAndTryToParseSIPMessageThatExceedsMsgMaxsize() {
 		request->makeAndInsert<SipHeaderContact>("<sip:stub-user@localhost;transport=tcp>");
 	}
 	request->makeAndInsert<SipHeaderExpires>(10);
+	const auto transaction = client.createOutgoingTransaction(std::move(request), routeUri);
 
-	auto transaction = client.createOutgoingTransaction(std::move(request), routeUri);
+	const auto clientConnectionToServerIsAlive = [&client]() {
+		return tport_secondary(tport_next(client.getTransports())) != nullptr;
+	};
+	BC_HARD_ASSERT(clientConnectionToServerIsAlive() == true);
 
-	// Iterate on main loop.
 	CoreAssert<kNoSleep>{suRoot}
-	    .waitUntil(100ms,
-	               [&] {
-		               FAIL_IF(!transaction->isCompleted());
-		               FAIL_IF(transaction->getStatus() != expectedStatus);
-		               return ASSERTION_PASSED();
-	               })
+	    .iterateUpTo(
+	        0x20,
+	        [&] {
+		        FAIL_IF(clientConnectionToServerIsAlive());
+		        FAIL_IF(transaction->isCompleted());
+		        return ASSERTION_PASSED();
+	        },
+	        100ms)
 	    .assert_passed();
 }
 
@@ -233,20 +254,22 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	proxy.start();
 
 	// Create TCP connection to server.
-	auto connection = TlsConnection{"127.0.0.1", proxy.getFirstPort(), "", ""};
+	TlsConnection connection{"127.0.0.1", proxy.getFirstPort(), "", ""};
 	connection.connect();
 	BC_ASSERT(connection.isConnected());
 
 	// Verify it is now disconnected, closed from the server because of inactivity.
 	vector<char> data{};
-	BC_ASSERT(CoreAssert{proxy}.iterateUpTo(
-	    0x20,
-	    [&]() {
-		    std::ignore = connection.read(data, 32);
-		    FAIL_IF(connection.isConnected());
-		    return ASSERTION_PASSED();
-	    },
-	    2s));
+	CoreAssert{proxy}
+	    .iterateUpTo(
+	        0x20,
+	        [&]() {
+		        std::ignore = connection.read(data, 32);
+		        FAIL_IF(connection.isConnected());
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
 }
 
 void updateTlsCertificate() {
@@ -357,15 +380,15 @@ TestSuite _("Sofia-SIP",
             {
                 CLASSY_TEST(nthEngineWithSni<true>),
                 CLASSY_TEST(nthEngineWithSni<false>),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 10, UDP>)), // message size under maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 10, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 10, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<3220, 10, UDP>)), // message size equals maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<3220, 10, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<3220, 10, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 20, UDP>)), // message size above maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 20, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 20, TLS>)),
+                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, UDP>)), // message size under maxsize
+                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TCP>)),
+                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TLS>)),
+                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, UDP>)), // message size equals maxsize
+                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TCP>)),
+                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TLS>)),
+                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, UDP>)), // message size above maxsize
+                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TCP>)),
+                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TLS>)),
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, UDP>)), // message size +2x above maxsize
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),

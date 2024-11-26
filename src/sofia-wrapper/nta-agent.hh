@@ -39,7 +39,7 @@ namespace sofiasip {
 
 /**
  * NtaAgent instances are in charge of listening the network and notify the upper code layer when an incoming
- * SIP message is received. It is also the entry point when the upper code layer need to send SIP messages on
+ * SIP message is received. It is also the entry point when the upper code layer needs to send SIP messages on
  * the network or reply to SIP requests.
  *
  * Use createOutgoingTransaction() to send a request to another SIP agent.
@@ -49,12 +49,14 @@ public:
 	/**
 	 * Instantiate an NtaAgent.
 	 *
-	 * @param root          The event loop that will be used to process incoming network events.
-	 * @param contactURI    The default contact URI to use when sending SIP requests. This parameter
+	 * @param root          the event loop that will be used to process incoming network events.
+	 * @param contactURI    the default contact URI to use when sending SIP requests. This parameter
 	 * is used to define which local address and port the agent will listen on.
-	 * @param callback      Function called when a new SIP message is received
-	 * @param magic         User data which are then reachable from the callback function
+	 * @param callback      function called when a new SIP message is received
+	 * @param magic         user data which are then reachable from the callback function
 	 * @param tags          NTA tagged arguments (no need to add TAG_END())
+	 *
+	 * @throw std::runtime_error on agent creation failure
 	 */
 	template <typename UriT, typename... Tags>
 	NtaAgent(const std::shared_ptr<SuRoot>& root,
@@ -84,12 +86,12 @@ public:
 
 	/**
 	 * Send a SIP request and create an outgoing transaction to handle the response.
-	 * The NtaAgent will keep a shared pointer on the transaction until it received a final response
-	 * for this transaction.
+	 * The NtaAgent will keep a shared pointer on the transaction until it received a final response for this
+	 * transaction.
 	 *
-	 * @param msg   The SIP request to send.
+	 * @param msg   the SIP request to send
 	 *
-	 * @return      A pointer to the freshly created outgoing transaction.
+	 * @return      a pointer to the freshly created outgoing transaction
 	 */
 	std::shared_ptr<NtaOutgoingTransaction> createOutgoingTransaction(std::unique_ptr<MsgSip>&& msg) {
 		return createOutgoingTransaction(std::move(msg), nullptr);
@@ -113,7 +115,7 @@ public:
 		if (nativeOutgoingTr == nullptr) {
 			throw std::runtime_error{"creating nta_outgoing_t failed"};
 		}
-		// increment the ref counter to avoid the C msg_t be destroyed when msgKeeper is destroyed.
+		// Increment the ref counter to avoid the C msg_t be destroyed when msgKeeper is destroyed.
 		msg_ref(msg->getMsg());
 		auto transaction = std::shared_ptr<NtaOutgoingTransaction>{new NtaOutgoingTransaction{nativeOutgoingTr}};
 		auto& transactionHolder = mTransactions[nativeOutgoingTr];
@@ -134,7 +136,7 @@ public:
 	 * @param uri     tport uri
 	 * @param tags    NTA tagged arguments (no need to add TAG_END())
 	 *
-	 * @return        On success, zero is returned. On error, -1 is returned, and errno is set appropriately.
+	 * @return        0 on success and -1 otherwise with errno being set appropriately
 	 */
 	template <typename UriT, typename... Tags>
 	int addTransport(const UriT& uri, Tags&&... tags) {
@@ -145,10 +147,17 @@ public:
 	 * Return the first port on which the agent is listening.
 	 * May return empty string if master transport does not exist.
 	 */
-	const char* getFirstPort() {
+	const char* getFirstPort() const {
 		const auto firstTransport = ::tport_primaries(::nta_agent_tports(mNativePtr));
 		return firstTransport ? ::tport_name(firstTransport)->tpn_port : "";
 	}
+
+    /*
+     * Return the master transport for the agent.
+     */
+    const tport_t* getTransports() const {
+        return ::nta_agent_tports(mNativePtr);
+    }
 
 private:
 	void onOutgoingTransactionResponse(nta_outgoing_t* transaction, const sip_t* response) noexcept {
