@@ -1,27 +1,27 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU Affero General Public
-    License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later
-    version.
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #include <chrono>
 #include <map>
-#include <stdexcept>
 #include <string>
 
 #include "domain-registrations.hh"
+#include "tester.hh"
 #include "utils/proxy-server-process.hh"
 #include "utils/rand.hh"
 #include "utils/test-patterns/agent-test.hh"
@@ -48,11 +48,9 @@ public:
 		                                      {"module::Registrar/reg-domains", "*.sip.example.org"},
 		                                      {"inter-domain-connections/accept-domain-registrations", "true"}};
 		if (mUseTls) {
-			auto certfile =
-			    static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.cert.test.pem";
-			auto keyfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.key.test.pem";
-			remoteProxyConfig.emplace("global/tls-certificates-file", certfile);
-			remoteProxyConfig.emplace("global/tls-certificates-private-key", keyfile);
+			remoteProxyConfig.emplace("global/tls-certificates-file", bcTesterRes("cert/self.signed.cert.test.pem"));
+			remoteProxyConfig.emplace("global/tls-certificates-private-key",
+			                          bcTesterRes("cert/self.signed.key.test.pem"));
 		}
 		SLOGD << "Spawning and starting remote proxy...";
 		mRemoteProxy.spawn(remoteProxyConfig);
@@ -63,9 +61,20 @@ private:
 	// Private methods
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		AgentTest::onAgentConfiguration(cfg);
+
+		cfg.getRoot()
+		    ->get<GenericStruct>("global")
+		    ->get<ConfigString>("tls-certificates-file")
+		    ->set(bcTesterRes("cert/self.signed.cert.test.pem"));
+		cfg.getRoot()
+		    ->get<GenericStruct>("global")
+		    ->get<ConfigString>("tls-certificates-private-key")
+		    ->set(bcTesterRes("cert/self.signed.key.test.pem"));
+
 		auto localProxyPort = Rand::generate(1025, numeric_limits<uint16_t>::max());
 		auto localProxyTransport = mUseTls ? "sips:127.0.0.1:" + to_string(localProxyPort) + ";tls-verify-outgoing=0"
 		                                   : "sip:127.0.0.1:" + to_string(localProxyPort) + ";transport=tcp";
+
 		cfg.getRoot()->get<GenericStruct>("global")->get<ConfigValue>("transports")->set(localProxyTransport);
 
 		auto interDomainCfg = cfg.getRoot()->get<GenericStruct>("inter-domain-connections");

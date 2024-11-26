@@ -21,6 +21,7 @@
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 
+#include "tester.hh"
 #include "module-toolbox.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
@@ -66,6 +67,8 @@ private:
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigStringList>("transports")->set(mTransport);
 		globalCfg->get<ConfigBoolean>("use-rfc2543-record-route")->set(mUseRfc2543RecordRoute ? "true" : "false");
+		globalCfg->get<ConfigString>("tls-certificates-file")->set(bcTesterRes("cert/self.signed.cert.test.pem"));
+		globalCfg->get<ConfigString>("tls-certificates-private-key")->set(bcTesterRes("cert/self.signed.key.test.pem"));
 
 		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("false");
 	}
