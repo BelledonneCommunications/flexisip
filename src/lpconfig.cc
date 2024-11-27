@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,8 @@
 
 #include "lpconfig.h"
 
-#include <sys/stat.h>
-
 #include <memory>
+#include <vector>
 
 #include <ortp/ortp.h>
 
@@ -32,7 +31,7 @@ namespace flexisip {
 
 namespace {
 
-constexpr int MAX_LEN{2048};
+constexpr int MAX_LEN{20480};
 
 bool_t is_first_char(const char* start, const char* pos) {
 	const char* p;
@@ -106,42 +105,42 @@ LpSection* LpConfig::findSection(const string& sec_name) {
 }
 
 void LpConfig::parseFile(FILE* file) {
-	char tmp[MAX_LEN];
+	vector<char> tmp(MAX_LEN, 0);
 	LpSection* cur = NULL;
 	int line = 0;
 
 	if (file == NULL) return;
 
-	while (fgets(tmp, MAX_LEN, file) != NULL) {
+	while (fgets(tmp.data(), MAX_LEN, file) != NULL) {
 		char *pos1, *pos2;
 		line++;
-		if (is_a_comment(tmp)) continue;
-		pos1 = strchr(tmp, '[');
-		if (pos1 != NULL && is_first_char(tmp, pos1)) {
+		if (is_a_comment(tmp.data())) continue;
+		pos1 = strchr(tmp.data(), '[');
+		if (pos1 != NULL && is_first_char(tmp.data(), pos1)) {
 			pos2 = strchr(pos1, ']');
 			if (pos2 != NULL) {
 				int nbs;
-				char secname[MAX_LEN];
+				vector<char> secname(MAX_LEN, 0);
 				secname[0] = '\0';
 				/* found section */
 				*pos2 = '\0';
-				nbs = sscanf(pos1 + 1, "%s", secname);
+				nbs = sscanf(pos1 + 1, "%s", secname.data());
 				if (nbs == 1) {
-					if (strlen(secname) > 0) {
-						cur = findOrAddSection(string(secname));
+					if (strlen(secname.data()) > 0) {
+						cur = findOrAddSection(string(secname.data()));
 					}
 				} else {
 					ortp_warning("parse error!");
 				}
 			}
 		} else {
-			pos1 = strchr(tmp, '=');
+			pos1 = strchr(tmp.data(), '=');
 			if (pos1 != NULL) {
-				char key[MAX_LEN];
+				vector<char> key(MAX_LEN, 0);
 				key[0] = '\0';
 
 				*pos1 = '\0';
-				if (sscanf(tmp, "%s", key) > 0) {
+				if (sscanf(tmp.data(), "%s", key.data()) > 0) {
 
 					pos1++;
 					pos2 = strchr(pos1, '\n');
@@ -156,7 +155,7 @@ void LpConfig::parseFile(FILE* file) {
 					if (pos2 - pos1 >= 0) {
 						/* found a pair key,value */
 						if (cur != nullptr) {
-							cur->addItem(string(key), string(pos1), line);
+							cur->addItem(string(key.data()), string(pos1), line);
 							/*printf("Found %s %s=%s\n",cur->name,key,pos1);*/
 						} else {
 							ortp_warning("found key,item but no sections");
@@ -205,4 +204,5 @@ const char* LpConfig::getString(const string& section, const string& key, const 
 	}
 	return default_string;
 }
+
 } // namespace flexisip
