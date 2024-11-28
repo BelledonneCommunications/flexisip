@@ -33,8 +33,10 @@ public:
 	explicit TmpDir(const std::string&);
 	~TmpDir();
 
-	TmpDir(const TmpDir&) = delete;
-	TmpDir(TmpDir&&) noexcept = default;
+	TmpDir(const TmpDir&) noexcept = delete;
+	TmpDir& operator=(const TmpDir&) noexcept = delete;
+	TmpDir(TmpDir&&) noexcept;
+	TmpDir& operator=(TmpDir&&) noexcept;
 
 	const auto& path() const {
 		return mPath;
