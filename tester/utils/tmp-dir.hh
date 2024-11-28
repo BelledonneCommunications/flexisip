@@ -20,6 +20,11 @@ public:
 	TmpDir(const char*);
 	~TmpDir();
 
+	TmpDir(const TmpDir&) noexcept = delete;
+	TmpDir& operator=(const TmpDir&) noexcept = delete;
+	TmpDir(TmpDir&&) noexcept;
+	TmpDir& operator=(TmpDir&&) noexcept;
+
 	const auto& path() const {
 		return mPath;
 	}

@@ -8,6 +8,7 @@
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
 #include "soci-helper.hh"
 #include "utils/core-assert.hh"
+#include "utils/lazy.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -20,12 +21,29 @@ using namespace nlohmann;
 using namespace flexisip::b2bua::bridge;
 using namespace flexisip::b2bua::bridge::config::v2;
 
-struct SuiteScope {
+struct SqlScope {
 	const TmpDir tmpDir{"tmpDirForSqlLoader"};
 	const std::string tmpDbFileName = tmpDir.path().string() + "/database_filename";
+	SqlScope() {
+		soci::session sql{sqlite3, tmpDbFileName};
+		try {
+			sql << R"sql(CREATE TABLE users (
+						usernameInDb TEXT PRIMARY KEY,
+						domain TEXT,
+						userid TEXT,
+						passwordInDb TEXT,
+						alias_username TEXT,
+						alias_domain TEXT,
+						outboundProxyInDb TEXT))sql";
+			sql << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", "", "expected-from", "sip.example.org", ""))sql";
+			sql << R"sql(INSERT INTO users VALUES ("account2", "some.provider.example.com", "userID", "p@$sword", "", "", "sip.linphone.org"))sql";
+		} catch (const soci_error& e) {
+			auto msg = "Error initializing DB : "s + e.what();
+			BC_HARD_FAIL(msg.c_str());
+		}
+	}
 };
-
-std::optional<SuiteScope> SUITE_SCOPE;
+auto sSuiteScope = Lazy<SqlScope>();
 
 void nominalInitialSqlLoadTest() {
 	auto expectedAccounts = R"([
@@ -54,7 +72,7 @@ void nominalInitialSqlLoadTest() {
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
-	.format({{"database_filename", SUITE_SCOPE->tmpDbFileName}}))
+	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
 	.get<SQLLoader>();
 	// clang-format on
 
@@ -89,7 +107,7 @@ void initialSqlLoadTestWithEmptyFields() {
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
-	.format({{"database_filename", SUITE_SCOPE->tmpDbFileName}}))
+	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
 	.get<SQLLoader>();
 	// clang-format on
 
@@ -110,7 +128,7 @@ void initialSqlLoadTestUriCantBeNull() {
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
-	.format({{"database_filename", SUITE_SCOPE->tmpDbFileName}}))
+	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
 	.get<SQLLoader>();
 	// clang-format on
 
@@ -129,7 +147,7 @@ void nominalUpdateSqlTest() {
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
-	.format({{"database_filename", SUITE_SCOPE->tmpDbFileName}}))
+	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
 	.get<SQLLoader>();
 	// clang-format on
 
@@ -180,7 +198,7 @@ void updateSqlTestDeletion() {
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
-	.format({{"database_filename", SUITE_SCOPE->tmpDbFileName}}))
+	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
 	.get<SQLLoader>();
 	// clang-format on
 
@@ -219,31 +237,11 @@ const TestSuite _{
         CLASSY_TEST(nominalUpdateSqlTest),
         CLASSY_TEST(updateSqlTestDeletion),
     },
-    Hooks()
-        .beforeSuite([] {
-	        SUITE_SCOPE.emplace();
-	        try {
-		        session sql(sqlite3, SUITE_SCOPE->tmpDbFileName);
-		        sql << R"sql(CREATE TABLE users (
-						usernameInDb TEXT PRIMARY KEY,
-						domain TEXT,
-						userid TEXT,
-						passwordInDb TEXT,
-						alias_username TEXT,
-						alias_domain TEXT,
-						outboundProxyInDb TEXT))sql";
-		        sql << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", "", "expected-from", "sip.example.org", ""))sql";
-		        sql << R"sql(INSERT INTO users VALUES ("account2", "some.provider.example.com", "userID", "p@$sword", "", "", "sip.linphone.org"))sql";
-	        } catch (const soci_error& e) {
-		        auto msg = "Error initiating DB : "s + e.what();
-		        BC_HARD_FAIL(msg.c_str());
-	        }
-	        return 0;
-        })
-        .afterSuite([] {
-	        SUITE_SCOPE.reset();
-	        return 0;
-        })};
+    Hooks().afterSuite([] {
+	    sSuiteScope.reset();
+	    return 0;
+    }),
+};
 
 } // namespace
 } // namespace flexisip::tester
