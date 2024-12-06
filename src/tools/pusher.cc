@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,6 +25,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 
+#include "exceptions/exit.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/service.hh"
 
@@ -34,25 +35,39 @@ using namespace flexisip;
 using namespace flexisip::pushnotification;
 
 static constexpr int MAX_QUEUE_SIZE = 3000;
-static constexpr auto PUSHER_DEFAULT_LOG_DIR = "/var/opt/belledonne-communications/log/flexisip";
+static constexpr auto* PUSHER_DEFAULT_LOG_DIR = "/var/opt/belledonne-communications/log/flexisip";
 
+/**
+ * Command line arguments parser and documentation.
+ */
 struct PusherArgs {
-	string prefix{};
-	string pntype{};
-	bool debug{false};
-	string appid{};
-	vector<string> pntok{};
-	string apikey{};
-	string packageSID{};
-	string customPayload;
-	PushType applePushType{PushType::Background};
-	bool legacyPush{false};
-
-	// Standard params
+	/* Standard and mandatory parameters */
 	string pnProvider{};
 	string pnParam{};
 	vector<string> pnPrids{};
 
+	/* General options */
+	bool debug{false};
+	string customPayload{};
+
+	/* Android specific options */
+	string apikey{};
+
+	/* iOS specific options */
+	string prefix{};
+	PushType applePushType{PushType::Background};
+
+	/* Pusher internal parameters */
+	string pntype{};
+	string appid{};
+	vector<string> pntok{};
+	string packageSID{};
+	bool legacyPush{false};
+
+	/*
+	 * Print push usage documentation in the standard output.
+	 * @param app path to executable
+	 */
 	void usage(const char* app) {
 		cout << "usage: " << app
 		     << " "
@@ -161,19 +176,15 @@ Environment Variables:
 
 		if (url_param(params, "pn-tok", tmp, sizeof(tmp)) == 0) {
 			return "no pn-tok";
-		} else pntok.push_back(tmp);
+		} else pntok.emplace_back(tmp);
 
-		return NULL;
+		return nullptr;
 	}
 
-	void parse(int argc, char* argv[]) {
+	void parse(int argc, const char* argv[]) {
 		prefix = "/etc/flexisip";
 		pntype = "";
 
-		auto showUsageAndExit = [=]() {
-			usage(*argv);
-			exit(-1);
-		};
 		bool found_RFC_8599_Params = false;
 		bool found_Legacy_Params = false;
 
@@ -204,13 +215,13 @@ Environment Variables:
 					applePushType = PushType::Background;
 				} else {
 					usage(*argv);
-					exit(-1);
+					throw ExitFailure{-1};
 				}
 			} else if (EQ1(i, "--pntok")) {
 				found_Legacy_Params = true;
 				while (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 					i++;
-					pntok.push_back(argv[i]);
+					pntok.emplace_back(argv[i]);
 				}
 			} else if (EQ1(i, "--key")) {
 				apikey = argv[++i];
@@ -218,7 +229,8 @@ Environment Variables:
 				const char* res = parseUrlParams(argv[++i]);
 				if (res) {
 					cerr << "? raw " << res << endl;
-					showUsageAndExit();
+					usage(*argv);
+					throw ExitFailure{-1};
 				}
 			} else if (EQ1(i, "--pn-provider")) {
 				found_RFC_8599_Params = true;
@@ -227,35 +239,39 @@ Environment Variables:
 				found_RFC_8599_Params = true;
 				while (i + 1 < argc && strncmp(argv[i + 1], "--", 2) != 0) {
 					i++;
-					pnPrids.push_back(argv[i]);
+					pnPrids.emplace_back(argv[i]);
 				}
 			} else if (EQ1(i, "--pn-param")) {
 				found_RFC_8599_Params = true;
 				pnParam = argv[++i];
 			} else if (EQ0(i, "--help") || EQ0(i, "-h")) {
 				usage(*argv);
-				exit(0);
+				throw ExitSuccess{};
 			} else if (EQ1(i, "--customPayload")) {
 				customPayload = argv[++i];
 			} else {
 				cerr << "? arg" << i << " " << argv[i] << endl;
-				showUsageAndExit();
+				usage(*argv);
+				throw ExitFailure{-1};
 			}
 		}
 
 		if (found_Legacy_Params && found_RFC_8599_Params) {
-			cerr << "Found both legacy and standard parameters, choose one way or the other !" << endl;
-			showUsageAndExit();
+			cerr << "Error: found both legacy and standard parameters, choose one way or the other!" << endl;
+			usage(*argv);
+			throw ExitFailure{-1};
 		}
 
 		legacyPush = found_Legacy_Params;
 
 		if (legacyPush && pntok.empty()) {
-			cerr << "Trying to use legacy push but couldn't find any pntok" << endl;
-			showUsageAndExit();
+			cerr << "Error: trying to use legacy push notifications but couldn't find any pntok" << endl;
+			usage(*argv);
+			throw ExitFailure{-1};
 		} else if (!legacyPush && pnPrids.empty()) {
-			cerr << "Trying to use standard push but couldn't find any pn-prid" << endl;
-			showUsageAndExit();
+			cerr << "Error: trying to use standard push notifications but couldn't find any pn-prid" << endl;
+			usage(*argv);
+			throw ExitFailure{-1};
 		}
 	}
 };
@@ -273,18 +289,18 @@ struct Stats {
 
 static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArgs& args) {
 	vector<unique_ptr<PushInfo>> pushInfos{};
-	// Parameters in common between Legacy and Standard push
-	auto fillCommonPushParams = [&args](PushInfo& pinfo) {
-		pinfo.mFromName = "Pusher";
-		pinfo.mFromUri = "sip:pusher@sip.example.org";
-		pinfo.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
-		pinfo.mTtl = 30 * 24h;
-		pinfo.mAlertMsgId = "Push test message.";
-		pinfo.mAlertSound = "msg.caf";
-		pinfo.mCustomPayload = args.customPayload;
+	// Parameters in common between legacy and standard push notifications.
+	const auto fillCommonPushParams = [&args](PushInfo& info) {
+		info.mFromName = "Flexisip Pusher";
+		info.mFromUri = "sip:flexisip-pusher@sip.example.org";
+		info.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+		info.mTtl = 30 * 24h;
+		info.mAlertMsgId = "Test push notification message (generated with flexisip_pusher)";
+		info.mAlertSound = "msg.caf";
+		info.mCustomPayload = args.customPayload;
 	};
 
-	if (args.legacyPush) { // Legacy push
+	if (args.legacyPush) { // Legacy push notifications.
 		for (const auto& pntok : args.pntok) {
 			auto pinfo = make_unique<PushInfo>();
 			auto dest = make_shared<RFC8599PushParams>();
@@ -293,7 +309,7 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 			fillCommonPushParams(*pinfo);
 			pushInfos.emplace_back(std::move(pinfo));
 		}
-	} else { // StandardPush
+	} else { // Standard push notifications.
 		for (const auto& pnPrid : args.pnPrids) {
 			auto destinations = RFC8599PushParams::parsePushParams(args.pnProvider, args.pnParam, pnPrid);
 			auto pinfo = make_unique<PushInfo>();
@@ -304,17 +320,18 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 			pushInfos.emplace_back(std::move(pinfo));
 		}
 	}
+
 	return pushInfos;
 }
 
-int main(int argc, char* argv[]) {
+int _main(int argc, const char* argv[]) {
 	PusherArgs args{};
 	args.parse(argc, argv);
 
+	// Note: sorry but ConfigManager is not accessible in this tool.
 	LogManager::Parameters logParams{};
-	// Sorry but ConfigManager is not accessible in this tool.
 	logParams.logDirectory = [] {
-		const char* logDir = std::getenv("FS_LOG_DIR");
+		const auto* logDir = std::getenv("FS_LOG_DIR");
 		return logDir ? logDir : PUSHER_DEFAULT_LOG_DIR;
 	}();
 	logParams.logFilename = "flexisip-pusher.log";
@@ -323,81 +340,94 @@ int main(int argc, char* argv[]) {
 	logParams.enableStdout = true;
 	LogManager::get().initialize(logParams);
 
-	Stats stats{};
+	const auto root = make_shared<sofiasip::SuRoot>();
+	Service service{root, MAX_QUEUE_SIZE};
+	auto pushInfos = createPushInfosFromArgs(args);
 
-	{
-		const auto root = make_shared<sofiasip::SuRoot>();
-		Service service{root, MAX_QUEUE_SIZE};
-		auto pushInfos = createPushInfosFromArgs(args);
+	// Cannot be empty, or the program would have exited while parsing parameters.
+	// All pushInfos have the same mType, so we just take the front one.
+	const auto& pushParams = pushInfos.front()->mDestinations.cbegin()->second;
+	const auto& provider = pushParams->getProvider();
+	if (provider == "apns" || provider == "apns.dev") {
+		service.setupiOSClient(args.prefix + "/apn", "");
+	} else if (provider == "fcm") {
+		const auto& apiKey = args.apikey;
+		if (apiKey.empty()) throw ExitFailure{"missing Firebase API key or service account file, use '--key'"};
 
-		// Cannot be empty, or the program would have exited while parsing parameters. All pushInfos have the same
-		// mType, so we just take the front one.
-		const auto& pushParams = pushInfos.front()->mDestinations.cbegin()->second;
-		const auto& provider = pushParams->getProvider();
-		if (provider == "apns" || provider == "apns.dev") {
-			service.setupiOSClient(args.prefix + "/apn", "");
-		} else if (provider == "fcm") {
-			const auto& apiKey = args.apikey;
-			if (apiKey.empty()) {
-				SLOGE << "Missing Firebase API key or service account file. Use '--key'";
-				return 2;
-			}
-			if (filesystem::exists(apiKey)) {
-				service.addFirebaseV1Client(pushParams->getParam(), apiKey, 1min, 5min);
-			} else {
-				service.addFirebaseClient(pushParams->getParam(), apiKey);
-			}
-		}
-
-		vector<shared_ptr<Request>> pushRequests{};
-
-		for (auto& pinfo : pushInfos) {
-			try {
-				pushRequests.emplace_back(service.makeRequest(args.applePushType, std::move(pinfo)));
-			} catch (const invalid_argument& msg) {
-				SLOGE << msg.what();
-				exit(-1);
-			}
-		}
-
-		for (const auto& push : pushRequests) {
-			try {
-				service.sendPush(push);
-			} catch (const runtime_error& e) {
-				SLOGE << e.what();
-				stats.failed++;
-			}
-		}
-
-		while (!service.isIdle()) {
-			root->step(100ms);
-		}
-
-		for (const auto& request : pushRequests) {
-			switch (request->getState()) {
-				case Request::State::NotSubmitted:
-					stats.notsubmitted++;
-					break;
-				case Request::State::InProgress:
-					stats.inprogress++;
-					break;
-				case Request::State::Failed:
-					stats.failed++;
-					break;
-				case Request::State::Successful:
-					stats.success++;
-					break;
-			}
-		}
-		SLOGI << stats.total() << " push notification(s) sent, " << stats.success << " successfully and "
-		      << stats.failed << " failed.";
-		if (stats.failed > 0) {
-			SLOGI << "There are failed requests, relaunch with --debug to consult exact error cause.";
-		}
-		if (stats.notsubmitted > 0 || stats.inprogress > 0) {
-			SLOGI << "There were unsubmitted or uncompleted requests, this is a bug.";
+		if (filesystem::exists(apiKey)) {
+			service.addFirebaseV1Client(pushParams->getParam(), apiKey, 1min, 5min);
+		} else {
+			service.addFirebaseClient(pushParams->getParam(), apiKey);
 		}
 	}
-	SLOGI << "job is done, thanks for using " << argv[0] << ". Bye!";
+
+	vector<shared_ptr<Request>> pushRequests{};
+	for (auto& pinfo : pushInfos) {
+		pushRequests.emplace_back(service.makeRequest(args.applePushType, std::move(pinfo)));
+	}
+
+	Stats stats{};
+	for (const auto& push : pushRequests) {
+		try {
+			service.sendPush(push);
+		} catch (const exception& e) {
+			SLOGE << e.what();
+			stats.failed++;
+		}
+	}
+
+	while (!service.isIdle()) {
+		root->step(100ms);
+	}
+
+	for (const auto& request : pushRequests) {
+		switch (request->getState()) {
+			case Request::State::NotSubmitted:
+				stats.notsubmitted++;
+				break;
+			case Request::State::InProgress:
+				stats.inprogress++;
+				break;
+			case Request::State::Failed:
+				stats.failed++;
+				break;
+			case Request::State::Successful:
+				stats.success++;
+				break;
+		}
+	}
+
+	SLOGI << "Summary: " << stats.total() << " push notification(s) sent [successful = " << stats.success
+	      << ", failed = " << stats.failed << "]";
+
+	if (stats.failed > 0) {
+		SLOGI << "Some push notification requests failed, execute again with --debug to debug";
+	}
+	if (stats.notsubmitted > 0 || stats.inprogress > 0) {
+		SLOGI << "There were unsubmitted or uncompleted requests, execute again with --debug to debug";
+	}
+
 	return stats.failed;
+}
+
+int main(int argc, const char* argv[]) {
+	try {
+		return _main(argc, argv);
+	} catch (const ExitSuccess& exception) {
+		if (exception.what() != nullptr && exception.what()[0] != '\0') {
+			cout << "Exit success: " << exception.what();
+		}
+		return EXIT_SUCCESS;
+	} catch (const Exit& exception) {
+		if (exception.what() != nullptr && exception.what()[0] != '\0') {
+			cerr << "Error: " << exception.what() << endl;
+		}
+		return exception.code();
+	} catch (const exception& exception) {
+		cerr << "Error, caught an unexpected exception: " << exception.what() << endl;
+		return EXIT_FAILURE;
+	} catch (...) {
+		cerr << "Error, caught an unknown exception" << endl;
+		return EXIT_FAILURE;
+	}
 }
