@@ -49,6 +49,7 @@ struct PusherArgs {
 	/* General options */
 	bool debug{false};
 	string customPayload{};
+	string callID{"fb14b5fe-a9ab-1231-9485-7d582244ba3d"};
 
 	/* Android specific options */
 	string apikey{};
@@ -100,6 +101,8 @@ General options:
 
   --customPayload <payload>          Add custom parameters in the PN request body. <payload> must be a JSON structure
 								     and will be placed in the top-level JSON attribute.
+
+  --call-id <callID>                 Call-ID to use in the push notification payload.
 
 
 Android specific options:
@@ -249,6 +252,8 @@ Environment Variables:
 				throw ExitSuccess{};
 			} else if (EQ1(i, "--customPayload")) {
 				customPayload = argv[++i];
+			} else if (EQ1(i, "--call-id")) {
+				callID = argv[++i];
 			} else {
 				cerr << "? arg" << i << " " << argv[i] << endl;
 				usage(*argv);
@@ -293,7 +298,7 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 	const auto fillCommonPushParams = [&args](PushInfo& info) {
 		info.mFromName = "Flexisip Pusher";
 		info.mFromUri = "sip:flexisip-pusher@sip.example.org";
-		info.mCallId = "fb14b5fe-a9ab-1231-9485-7d582244ba3d";
+		info.mCallId = args.callID;
 		info.mTtl = 30 * 24h;
 		info.mAlertMsgId = "Test push notification message (generated with flexisip_pusher)";
 		info.mAlertSound = "msg.caf";
