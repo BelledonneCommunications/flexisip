@@ -124,12 +124,8 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 	     "\n"
 	     "Examples:\n"
 	     " - the password and algorithm are both available in the database\n"
-	     "\tselect password, algorithm from accounts where login = :id and domain = :domain\n"
-	     "\n"
-	     " - all the passwords from the database are MD5\n"
-	     "\tselect password, 'MD5' from accounts where login = :id and domain = :domain",
-	     "select password, 'MD5' from accounts where login = :id and domain = :domain"},
-
+	     "\tselect password, algorithm from accounts where username = :id and domain = :domain\n",
+	     "select password, algorithm from passwords where account_id = (select id from accounts where username = :id and domain = :domain and activated = true)"},
 	    {Integer, "soci-max-queue-size",
 	     "Amount of queries that will be allowed to be queued before bailing password requests.\n"
 	     "This value should be chosen accordingly with 'soci-poolsize', so that you have a coherent behavior.\n"
@@ -153,8 +149,8 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 	     "The result of the request is a 1x1 table containing the name of the user associated with the phone "
 	     "number.\n"
 	     "\n"
-	     "Example: select login from accounts where phone = :phone ",
-	     ""},
+	     "Example: select username from accounts where phone = :phone",
+	     "select username from accounts where activated = true and (username = :phone or phone = :phone)"},
 
 	    {String, "soci-users-with-phones-request",
 	     "WARNING: This parameter is used by the presence server only.\n"
@@ -162,11 +158,8 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 	     "The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
 	     "look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
 	     "(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
-	     "If you use phone number linked accounts you'll need to select login, domain, phone in your request for "
-	     "flexisip to work.\n"
-	     "Example: select login, domain, phone from accounts where phone in (:phones)",
-	     ""},
-
+	     "Example: select username, domain from accounts where phone in (:phones)",
+	     "select username, domain from accounts where activated = true and (username in (:phones) or phone in (:phones));"},
 	    config_item_end};
 
 	mc->addChildrenValues(items);
