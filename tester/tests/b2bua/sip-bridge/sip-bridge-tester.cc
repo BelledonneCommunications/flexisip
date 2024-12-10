@@ -1451,6 +1451,7 @@ void b2buaReceivesSeveralForks() {
 
 	// One bridged call successfully established
 	auto bridgedCall = phoneCore->getCurrentCall();
+	BC_HARD_ASSERT(bridgedCall != nullptr);
 	bridgedCall->accept();
 	asserter
 	    .wait([&callerCall = *call, &bridgedCall = *bridgedCall] {
