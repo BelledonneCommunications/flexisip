@@ -29,45 +29,49 @@
 #include "injected-module-info.hh"
 #include "registrar/registrar-db.hh"
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 const char* getFirstPort(const Agent& agent);
 
 /**
- * A class to manage the flexisip proxy server
+ * Utility to manage the Flexisip proxy server.
  */
 class Server {
 public:
 	/**
 	 * @brief Create a SofiaSip root, an Agent and load the config file given as parameter.
-	 * @param[in] configFile The path to the config file. Search for it in the resource directory
-	 * and TESTER_DATA_DIR. An empty path will cause the Agent to use its default configuration.
-	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
-	 * other modules.
+	 *
+	 * @param[in] configFilePath the path to the config file (if not found, search for it in the resource directory
+	 * and TESTER_DATA_DIR, an empty path will cause the Agent to use its default configuration)
+	 * @param injectedModule a module to be injected into the Agent's module chain to mangle requests before they reach
+	 * other modules
 	 */
-	explicit Server(const std::string& configFile = "", InjectedHooks* injectedHooks = nullptr);
+	explicit Server(const std::string& configFilePath = "", InjectedHooks* injectedHooks = nullptr);
+
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
+	 *
 	 * Default transport is set to 127.0.0.1 and port 0.
 	 * Default reg-domain is set to *.example.org.
-	 * @param customConfig Agent configuration as a map. The key is the name of the paramter
-	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
-	 * value of the parameter as string.
-	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
-	 * other modules.
+	 *
+	 * @param customConfig agent configuration as a map (the key is the name of the parameter (e.g.
+	 * 'module::Registrar/reg-domains') and the value is the new value of the parameter)
+	 * @param injectedModule a module to be injected into the Agent's module chain to mangle requests before they reach
+	 * other modules
 	 */
 	explicit Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks = nullptr);
+
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
+	 *
 	 * Default transport is set to 127.0.0.1 and port 0.
 	 * Default reg-domain is set to *.example.org.
-	 * @param customConfig Agent configuration as a map. The key is the name of the paramter
-	 * to change (e.g. 'module::Registrar/reg-domains') and the value is the new
-	 * value of the parameter as string.
-	 * @param root An external root to share.
-	 * @param injectedModule A module to be injected into the Agent's module chain to mangle requests before they reach
-	 * other modules.
+	 *
+	 * @param customConfig agent configuration as a map (the key is the name of the parameter (e.g.
+	 * 'module::Registrar/reg-domains') and the value is the new value of the parameter)
+	 * @param root an external SofiaSip root to share
+	 * @param injectedModule a module to be injected into the Agent's module chain to mangle requests before they reach
+	 * other modules
 	 */
 	explicit Server(const std::map<std::string, std::string>& customConfig,
 	                const std::shared_ptr<sofiasip::SuRoot>& root,
@@ -75,7 +79,6 @@ public:
 
 	virtual ~Server();
 
-	// Accessors
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
 		return mAgent->getRoot();
 	}
@@ -113,7 +116,6 @@ private:
 	std::shared_ptr<AuthDb> mAuthDb;
 	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<flexisip::Agent> mAgent;
-}; // Class Server
+};
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

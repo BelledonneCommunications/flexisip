@@ -30,7 +30,7 @@ using V1ProviderDesc = b2bua::bridge::config::v1::ProviderDesc;
 
 class B2buaAndProxyServer : public Server {
 public:
-	explicit B2buaAndProxyServer(const std::string& configFile = std::string(),
+	explicit B2buaAndProxyServer(const std::string& configFilePath = {},
 	                             bool start = true,
 	                             InjectedHooks* injectedModule = nullptr);
 

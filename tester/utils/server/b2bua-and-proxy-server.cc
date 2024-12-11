@@ -24,8 +24,8 @@ using namespace std;
 
 namespace flexisip::tester {
 
-B2buaAndProxyServer::B2buaAndProxyServer(const std::string& configFile, bool start, InjectedHooks* injectedModule)
-    : Server(configFile, injectedModule) {
+B2buaAndProxyServer::B2buaAndProxyServer(const std::string& configFilePath, bool start, InjectedHooks* injectedModule)
+    : Server(configFilePath, injectedModule) {
 	mB2buaServer = make_shared<flexisip::B2buaServer>(this->getRoot(), this->getConfigManager());
 	if (start) this->start();
 }

@@ -55,31 +55,33 @@ tport_t* getFirstTransport(const Agent& agent, sa_family_t ipAddressFamily) {
 /**
  * A class to manage the flexisip proxy server
  */
-Server::Server(const std::string& configFile, InjectedHooks* injectedHooks)
+Server::Server(const std::string& configFilePath, InjectedHooks* injectedHooks)
     : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
 
-	if (!configFile.empty()) {
-		auto configFilePath = bcTesterRes(configFile);
+	if (!configFilePath.empty()) {
 		int ret = -1;
-		if (bctbx_file_exist(configFilePath.c_str()) == 0) {
-			ret = mConfigManager->load(configFilePath);
+		auto serverConfigFilePath = configFilePath;
+		if (filesystem::exists(serverConfigFilePath)) {
+			ret = mConfigManager->load(serverConfigFilePath);
 		} else {
-			ret = mConfigManager->load(bcTesterRes(configFile));
+			serverConfigFilePath = bcTesterRes(configFilePath);
+			ret = mConfigManager->load(serverConfigFilePath);
 		}
+
 		if (ret != 0) {
-			BC_FAIL("Unable to load configuration file");
+			BC_FAIL("Failed to load configuration file (" + serverConfigFilePath + ")");
 		}
 
 		// For testing purposes, override the auth file path to be relative to the config file.
-		const auto& configFolderPath = configFilePath.substr(0, configFilePath.find_last_of('/') + 1);
+		const auto configFolderPath = serverConfigFilePath.substr(0, serverConfigFilePath.find_last_of('/') + 1);
 		auto authFilePath = mConfigManager->getRoot()
 		                        ->get<flexisip::GenericStruct>("module::Authentication")
 		                        ->get<flexisip::ConfigString>("file-path");
 		authFilePath->set(configFolderPath + authFilePath->read());
 	}
 
+	const auto root = std::make_shared<sofiasip::SuRoot>();
 	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
-	auto root = std::make_shared<sofiasip::SuRoot>();
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
 	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb);
 }
