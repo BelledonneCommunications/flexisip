@@ -683,6 +683,12 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "sip:127.0.0.1:5060;transport=tcp",
 	    },
 	    {
+	        Boolean,
+	        "enable-ice",
+	        "Enable interactive connectivity establishment (ICE).",
+	        "true",
+	    },
+	    {
 	        DurationS,
 	        "no-rtp-timeout",
 	        "Duration after which the server will terminate a call if no RTP packets are received from the other call "

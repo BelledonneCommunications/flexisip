@@ -101,6 +101,10 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	videoActivationPolicy->setAutomaticallyInitiate(false);
 	core->setVideoActivationPolicy(videoActivationPolicy);
 
+	const auto natPolicy = core->createNatPolicy();
+	natPolicy->enableIce(config.get<ConfigBoolean>("enable-ice")->read());
+	core->setNatPolicy(natPolicy);
+
 	const auto& forceCodec = [&config, &core = *core, &configLinphone](const auto& flexisipConfigName,
 	                                                                   const auto& linphoneConfigName,
 	                                                                   const auto& codecList, const auto& regEx) {
