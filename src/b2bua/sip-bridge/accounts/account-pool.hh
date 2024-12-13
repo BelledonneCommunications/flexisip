@@ -105,7 +105,12 @@ private:
 	void applyOperation(const UpdateAccount&);
 	void applyOperation(const DeleteAccount&);
 
-	void handlePassword(const config::v2::Account& account,
+	// If the AuthInfo api is changed, both functions must be modified accordingly
+	void updateAuthInfo(const config::v2::Account& newDesc,
+	                    const std::shared_ptr<const linphone::Address>& newAddress,
+	                    const std::shared_ptr<const linphone::Address>& currentAddress,
+	                    linphone::Account& linphoneAccountToUpdate);
+	void handleAuthInfo(const config::v2::Account& account,
 	                    const std::shared_ptr<const linphone::Address>& address) const;
 
 	void subscribeToAccountUpdate();

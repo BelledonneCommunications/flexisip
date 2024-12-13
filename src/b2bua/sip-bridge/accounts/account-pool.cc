@@ -154,7 +154,7 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 
 	handleOutboundProxy(accountParams, accountDesc.outboundProxy);
 
-	handlePassword(accountDesc, address);
+	handleAuthInfo(accountDesc, address);
 
 	const auto newAccount =
 	    make_shared<Account>(mCore->createAccount(accountParams), mMaxCallsPerLine, accountDesc.alias);
@@ -208,7 +208,8 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 	accountToUpdate->setAlias(newParams.alias);
 
 	auto& linphoneAccountToUpdate = *accountToUpdate->getLinphoneAccount();
-	removeAssociatedAuthInfo(*mCore, linphoneAccountToUpdate);
+	// Keep current account identity before overriding it (needed to retrieve the current authentication information)
+	const auto oldIdentityAddress = linphoneAccountToUpdate.getParams()->getIdentityAddress();
 
 	const auto newLinphoneParams = mAccountParams->clone();
 	const auto newIdentityAddress = linphone::Factory::get()->createAddress(newParams.uri);
@@ -216,8 +217,7 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 
 	handleOutboundProxy(newLinphoneParams, newParams.outboundProxy);
 	linphoneAccountToUpdate.setParams(newLinphoneParams);
-
-	handlePassword(newParams, newIdentityAddress);
+	updateAuthInfo(newParams, newIdentityAddress, oldIdentityAddress, linphoneAccountToUpdate);
 
 	// Update bindings in all views if needed
 	for (auto& [previousKey, formatter, map] : previousBindings) {
@@ -235,7 +235,54 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 	}
 }
 
-void AccountPool::handlePassword(const config::v2::Account& account,
+void AccountPool::updateAuthInfo(const config::v2::Account& newParams,
+                                 const std::shared_ptr<const linphone::Address>& newAddress,
+                                 const std::shared_ptr<const linphone::Address>& currentAddress,
+                                 linphone::Account& linphoneAccountToUpdate) {
+
+	const auto currentAuthInfo = mCore->findAuthInfo("", currentAddress->getUsername(), currentAddress->getDomain());
+
+	auto hasChange = [&]() {
+		if (currentAuthInfo->getUsername() != newAddress->getUsername()) return true;
+
+		if (currentAuthInfo->getUserid() != newParams.userid) return true;
+
+		if (currentAuthInfo->getDomain() != newAddress->getDomain()) return true;
+
+		if (newParams.realm.empty() && (currentAuthInfo->getRealm() != newAddress->getDomain())) return true;
+		else if (currentAuthInfo->getRealm() != newParams.realm) return true;
+
+		const auto algo = currentAuthInfo->getAlgorithm();
+		switch (newParams.secretType) {
+			case config::v2::SecretType::MD5: {
+				if (algo != "MD5" || currentAuthInfo->getHa1() != newParams.secret) return true;
+				break;
+			}
+			case config::v2::SecretType::SHA256: {
+				if (algo != "SHA-256" || currentAuthInfo->getHa1() != newParams.secret) return true;
+				break;
+			}
+			default: {
+				if (algo != "" || currentAuthInfo->getPassword() != newParams.secret) return true;
+				break;
+			}
+		}
+
+		return false;
+	};
+
+	if (currentAuthInfo) {
+		if (!hasChange()) return;
+		mCore->removeAuthInfo(currentAuthInfo);
+	}
+	if (newParams.secret.empty()) return;
+
+	handleAuthInfo(newParams, newAddress);
+	// Ensure a new register will be sent
+	linphoneAccountToUpdate.refreshRegister();
+}
+
+void AccountPool::handleAuthInfo(const config::v2::Account& account,
                                  const std::shared_ptr<const linphone::Address>& address) const {
 	if (!account.secret.empty()) {
 		const auto domain = address->getDomain();
