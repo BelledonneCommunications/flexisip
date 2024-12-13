@@ -492,8 +492,13 @@ public:
 			return mAccounts;
 		}
 
-		void accountUpdateNeeded(const RedisAccountPub&, const OnAccountUpdateCB&) override {
-			BC_HARD_ASSERT(false /* Unimplemented */);
+		void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& callback) override {
+			const auto uri = redisAccountPub.uri.str();
+			auto accountIt = find_if(mAccounts.cbegin(), mAccounts.cend(),
+			                         [&uri](const auto& account) { return account.uri == uri; });
+			optional<config::v2::Account> account;
+			if (accountIt != mAccounts.cend()) account = *accountIt;
+			callback(redisAccountPub.uri.str(), account);
 		}
 
 		AccountCollection& mAccounts;
@@ -598,6 +603,7 @@ void accountsUpdatedOnRedisResubscribe() {
 	});
 	constexpr auto accountsDeleted = 2;
 	constexpr auto accountsAdded = accountsDeleted;
+	constexpr auto accountsUpdated = 1;
 	BC_HARD_ASSERT_CPP_EQUAL(dbAccounts.size(), accountCount);
 
 	// Pool detects the broken connection
@@ -611,11 +617,11 @@ void accountsUpdatedOnRedisResubscribe() {
 	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(!registers.empty()); }, 1s).assert_passed();
 	if constexpr (registerIntervalMs == 0) {
 		// All operations are generated in the same loop iteration, and are received in one iteration
-		BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded);
+		BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded + accountsUpdated);
 	} else {
 		// Same behaviour as with the initial load, there exists an intermediate state where some accounts have been
 		// updated, but not all
-		BC_ASSERT(registers.size() < accountsAdded);
+		BC_ASSERT(registers.size() < accountsAdded + accountsUpdated);
 	}
 
 	// Accounts are reloaded
@@ -623,7 +629,7 @@ void accountsUpdatedOnRedisResubscribe() {
 	    .iterateUpTo(
 	        10,
 	        [&]() {
-		        FAIL_IF(registers.size() != accountsAdded);
+		        FAIL_IF(registers.size() != accountsAdded + accountsUpdated);
 		        return LOOP_ASSERTION(unregisters.size() == accountsDeleted);
 	        },
 	        1s)
@@ -642,8 +648,9 @@ void accountsUpdatedOnRedisResubscribe() {
 	BC_ASSERT_CPP_EQUAL(authInfo->getUserid(), "changed-userid");
 	BC_ASSERT_CPP_EQUAL(defaultView.at("sip:changed-uri@example.org")->getAlias().str(), dbAccounts[3].alias);
 	BC_ASSERT_CPP_EQUAL(defaultView.at("sip:added@example.org")->getAlias().getUser(), "added-alias");
-	BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded);
+	BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded + accountsUpdated);
 	BC_ASSERT_CPP_EQUAL(unregisters.size(), accountsDeleted);
+
 	for (const auto& unexpectedUri : unexpectedUris) {
 		BC_ASSERT(defaultView.find(unexpectedUri) == defaultView.end());
 	}
@@ -720,6 +727,68 @@ void accountsUpdatePartiallyAbortedOnRapidReload() {
 	}
 }
 
+/**
+ * Verify that a REGISTER request is sent when a password changes
+ * Put the register threshold to 0 in order to receive all registers in the same loop iteration.
+ */
+void accountRegistrationOnAuthInfoUpdate() {
+	constexpr auto accountCount = 2;
+	auto accountPool = AccountPoolConnectedToRedis<accountCount, 0>();
+	// choose a simple uri and id for the account we want to update
+	auto& account = accountPool.dbAccounts[0];
+	account.uri = "sip:user@example.org";
+	account.userid = "userID";
+	account.secretType = config::v2::SecretType::Cleartext;
+	account.secret = "";
+	auto& registers = accountPool.proxy.registers;
+	auto& unregisters = accountPool.proxy.unregisters;
+	CoreAssert asserter{accountPool.proxy.proxy, accountPool.core};
+	ASSERT_PASSED(accountPool.allAccountsAvailable(asserter));
+	BC_ASSERT_CPP_EQUAL(registers.size(), accountCount);
+	BC_ASSERT_CPP_EQUAL(unregisters.size(), 0);
+	if (registers.size() != accountCount) {
+		auto msg = ostringstream();
+		msg << "REGISTERs received: " << registers;
+		BC_HARD_FAIL(msg.str().c_str());
+	}
+	const auto uri = SipUri(account.uri);
+	Session commandsSession{};
+	auto& ready = std::get<Session::Ready>(
+	    commandsSession.connect(accountPool.proxy.proxy.getRoot()->getCPtr(), "localhost", sRedisServer->redis.port()));
+
+	// add a password to an account, expect to receive 1 register
+	account.secret = "password";
+	registers.clear();
+	unregisters.clear();
+
+	{
+		ready.command({"PUBLISH", "flexisip/B2BUA/account",
+		               R"({"username":"user","domain":"example.org","identifier":"userID"})"},
+		              {});
+		asserter.iterateUpTo(10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s).assert_passed();
+
+		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
+		BC_HARD_ASSERT(authInfo != nullptr);
+		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.secret);
+		BC_ASSERT_CPP_EQUAL(unregisters.size(), 0);
+	}
+
+	// change one account password, expect to receive 1 register
+	account.secret = "another-password";
+	registers.clear();
+
+	{
+		ready.command({"PUBLISH", "flexisip/B2BUA/account",
+		               R"({"username":"user","domain":"example.org","identifier":"userID"})"},
+		              {});
+		asserter.iterateUpTo(10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s).assert_passed();
+		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
+		BC_HARD_ASSERT(authInfo != nullptr);
+		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.secret);
+		BC_ASSERT_CPP_EQUAL(unregisters.size(), 0);
+	}
+}
+
 const TestSuite _{
     "b2bua::sip-bridge::account::AccountPool",
     {
@@ -727,6 +796,7 @@ const TestSuite _{
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 0>)),
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 1>)),
         CLASSY_TEST((accountsUpdatePartiallyAbortedOnRapidReload<10, 15>)),
+        CLASSY_TEST(accountRegistrationOnAuthInfoUpdate),
     },
 };
 
