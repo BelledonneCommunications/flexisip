@@ -844,7 +844,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		if (default_servers->contains("b2bua")) {
 			startB2bua = true;
 		}
-		if (!startPresence && !startProxy && !startConference) {
+		if (!startPresence && !startProxy && !startConference && !startB2bua) {
 			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
 		}
 	} else {

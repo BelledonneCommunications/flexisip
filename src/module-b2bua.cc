@@ -59,7 +59,9 @@ private:
 
 ModuleInfo<B2bua> B2bua::sInfo{
     "B2bua",
-    "This module is in charge of intercepting calls and route them to the back-to-back user agent server",
+    "This module is in charge of intercepting requests and routing them to the back-to-back user agent server.\n"
+    "Requests filtering is based on the \"User-Agent\" header value, thus 'b2bua-server/user-agent' values must match "
+    "both on Proxy and B2BUA servers.",
     {"Authentication", "ExternalAuthentication", "Authorization"},
     ModuleInfoBase::ModuleOid::B2bua,
     [](GenericStruct& moduleConfig) {
