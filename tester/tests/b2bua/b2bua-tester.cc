@@ -240,6 +240,133 @@ void basicCallDeclined() {
 }
 
 /**
+ * @brief Establish a call where the caller puts the call on hold.
+ */
+template <const OnOff sendRecvAudio, const OnOff sendRecvVideo>
+void basicCallOnHoldThenResume() {
+	B2buaAndProxyServer B2buaAndProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/transport", "sip:127.0.0.1:0;transport=tcp"},
+	    {"b2bua-server/application", "trenscrypter"},
+	    {"b2bua-server/enable-ice", "false"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::B2bua/enabled", "true"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+
+	ClientBuilder builder{*B2buaAndProxy.getAgent()};
+	builder.setVideoSend(sendRecvVideo).setVideoReceive(sendRecvVideo);
+	auto caller = builder.build("sip:caller@sip.example.org");
+	auto callee = builder.build("sip:callee@sip.example.org");
+
+	CoreAssert asserter{B2buaAndProxy, caller, callee};
+
+	const auto callParams = caller.getCore()->createCallParams(nullptr);
+	callParams->enableAudio(sendRecvAudio == OnOff::On);
+	callParams->enableVideo(sendRecvVideo == OnOff::On);
+
+	const auto audioAndVideoDataReceived = [](const optional<ClientCall>& caller,
+	                                          const optional<ClientCall>& callee) -> AssertionResult {
+		if (sendRecvAudio == OnOff::On) {
+			const auto callerStats = caller->getAudioStats();
+			FAIL_IF(callerStats == nullptr);
+			FAIL_IF(callerStats->getDownloadBandwidth() < 20 || callerStats->getUploadBandwidth() < 20);
+
+			const auto calleeStats = callee->getAudioStats();
+			FAIL_IF(calleeStats == nullptr);
+			FAIL_IF(calleeStats->getDownloadBandwidth() < 20 || calleeStats->getUploadBandwidth() < 20);
+		}
+
+		if (sendRecvVideo == OnOff::On) {
+			const auto callerStats = caller->getVideoStats();
+			FAIL_IF(callerStats == nullptr);
+			FAIL_IF(callerStats->getDownloadBandwidth() < 20 || callerStats->getUploadBandwidth() < 20);
+
+			const auto calleeStats = callee->getVideoStats();
+			FAIL_IF(calleeStats == nullptr);
+			FAIL_IF(calleeStats->getDownloadBandwidth() < 20 || calleeStats->getUploadBandwidth() < 20);
+		}
+
+		return ASSERTION_PASSED();
+	};
+
+	// Caller invites callee.
+	const auto callerCall = ClientCall::tryFrom(caller.invite(callee, callParams));
+	BC_HARD_ASSERT(callerCall.has_value());
+	callee.hasReceivedCallFrom(caller, asserter).hard_assert_passed();
+
+	// Callee finally accepts call.
+	const auto calleeCall = callee.getCurrentCall();
+	BC_HARD_ASSERT(calleeCall.has_value());
+	calleeCall->accept();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&callerCall, &calleeCall, &audioAndVideoDataReceived]() {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+
+		        return audioAndVideoDataReceived(callerCall, calleeCall);
+	        },
+	        3s)
+	    .hard_assert_passed();
+
+	// "Caller" pauses the call.
+	callerCall->pause();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&callerCall, &calleeCall]() {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::Paused);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::PausedByRemote);
+
+		        // Only verify that call participants are not receiving (pauser) or sending (pausee) data.
+		        if (sendRecvAudio == OnOff::On) {
+			        const auto callerStats = callerCall->getAudioStats();
+			        FAIL_IF(callerStats == nullptr || callerStats->getDownloadBandwidth() > 20);
+
+			        const auto calleeStats = calleeCall->getAudioStats();
+			        FAIL_IF(calleeStats == nullptr || calleeStats->getUploadBandwidth() > 20);
+		        }
+
+		        // Linphone UACs cut their video on pause so only make sure that no data is being transmitted.
+		        if (sendRecvVideo == OnOff::On) {
+			        const auto callerStats = callerCall->getVideoStats();
+			        FAIL_IF(callerStats == nullptr);
+			        FAIL_IF(callerStats->getDownloadBandwidth() > 20 || callerStats->getUploadBandwidth() > 20);
+
+			        const auto calleeStats = calleeCall->getVideoStats();
+			        FAIL_IF(calleeStats == nullptr);
+			        FAIL_IF(calleeStats->getDownloadBandwidth() > 20 || calleeStats->getUploadBandwidth() > 20);
+		        }
+
+		        return ASSERTION_PASSED();
+	        },
+	        5s) // Yes, it takes some time to update.
+	    .hard_assert_passed();
+
+	// "Caller" resumes the call.
+	callerCall->resume();
+
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&callerCall, &calleeCall, &audioAndVideoDataReceived]() {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+
+		        return audioAndVideoDataReceived(callerCall, calleeCall);
+	        },
+	        3s)
+	    .hard_assert_passed();
+
+	BC_ASSERT(callee.endCurrentCall(caller));
+}
+
+/**
  * @brief Forge an INVITE request with an erroneous request address, but appropriate "To:" header. The B2BUA should only
  * use the "To:" header to build the other leg of the call.
  */
@@ -1650,6 +1777,9 @@ TestSuite _{
         CLASSY_TEST(basicCall),
         CLASSY_TEST(basicCallWithEarlyMedia),
         CLASSY_TEST(basicCallDeclined),
+        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::On, OnOff::Off>)),
+        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::On, OnOff::On>)),
+        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::Off, OnOff::On>)),
         CLASSY_TEST(usesAORButNotContact),
         CLASSY_TEST(userAgentHeader),
         CLASSY_TEST(userAgentParameterConfiguration),

@@ -134,6 +134,10 @@ linphone::MediaDirection ClientCall::getVideoDirection() const {
 	return mCall->getCurrentParams()->getVideoDirection();
 }
 
+std::shared_ptr<linphone::CallStats> ClientCall::getVideoStats() const {
+	return mCall->getVideoStats();
+}
+
 const ::rtp_stats& ClientCall::getVideoRtpStats() const {
 	return *::linphone_call_stats_get_rtp_stats(::linphone_call_get_video_stats(mCall->cPtr()));
 }

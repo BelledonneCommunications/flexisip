@@ -108,6 +108,7 @@ public:
 
 	const bool& videoFrameDecoded();
 	linphone::MediaDirection getVideoDirection() const;
+	std::shared_ptr<linphone::CallStats> getVideoStats() const;
 	const ::rtp_stats& getVideoRtpStats() const;
 
 	std::shared_ptr<linphone::Core> getCore() const;

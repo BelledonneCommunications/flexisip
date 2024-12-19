@@ -666,8 +666,8 @@ void accountsUpdatedOnRedisResubscribe() {
 	        },
 	        1s)
 	    .assert_passed();
-	// Accounts have *not* been duplicated
-	BC_HARD_ASSERT_CPP_EQUAL(core->getAccountList().size(), accountCount);
+	// Accounts have *not* been duplicated (+1 because of server's default account)
+	BC_HARD_ASSERT_CPP_EQUAL(core->getAccountList().size(), accountCount + 1);
 	for (const auto& [_, account] : pool) {
 		BC_ASSERT(account->isAvailable());
 	}
