@@ -410,6 +410,37 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& vector) 
 }
 
 /**
+ * Verify an invalid uri is discarded
+ */
+void accountCreation() {
+	vector<config::v2::Account> accounts{};
+	// empty uri
+	accounts.emplace_back();
+	// invalid uri
+	accounts.push_back({.uri = "invalid-sip-uri"});
+	// valid uri
+	accounts.push_back({.uri = "sip:valid-uri@example.org"});
+
+	ProxyServer servers{};
+	const auto proxy = servers.proxy;
+	const auto b2bua = servers.makeB2buaCoreFromConfig();
+	auto asserter = CoreAssert(proxy, b2bua);
+
+	auto poolConfig = config::v2::AccountPool{
+	    .outboundProxy = "<sip:127.0.0.1:" + std::string(proxy.getFirstPort()) + ";transport=tcp>",
+	    .registrationRequired = true,
+	    .maxCallsPerLine = 682,
+	    .loader = {},
+	    .registrationThrottlingRateMs = 0,
+	};
+	auto pool = make_optional<AccountPool>(proxy.getRoot(), b2bua, "createAccountTest", poolConfig,
+	                                       make_unique<StaticAccountLoader>(std::move(accounts)));
+	BC_HARD_ASSERT(pool->allAccountsLoaded());
+	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(servers.registers.size() == 1); }, 200ms).assert_passed();
+	BC_ASSERT_CPP_EQUAL(servers.registers.size(), 1);
+}
+
+/**
  * Tests the AccountPool throttling mechanism.
  *
  * This test counts the number of registrations received by a flexisip-proxy for different AccountPool registration rate
@@ -792,6 +823,7 @@ void accountRegistrationOnAuthInfoUpdate() {
 const TestSuite _{
     "b2bua::sip-bridge::account::AccountPool",
     {
+        CLASSY_TEST(accountCreation),
         CLASSY_TEST(accountRegistrationThrottling),
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 0>)),
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 1>)),

@@ -140,12 +140,16 @@ void AccountPool::loadAll() {
 
 void AccountPool::applyOperation(const CreateAccount& op) {
 	const auto& accountDesc = op.accountDesc;
-	const auto accountParams = mAccountParams->clone();
 	const auto address = linphone::Factory::get()->createAddress(accountDesc.uri);
+	if (!address) {
+		SLOGW << "AccountPool::CreateAccount - Creating address failed for uri '" << accountDesc.uri << "'";
+		return;
+	}
+
+	const auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(address);
 
 	handleOutboundProxy(accountParams, accountDesc.outboundProxy);
-
 	handleAuthInfo(accountDesc, address);
 
 	const auto newAccount =
@@ -155,6 +159,7 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 	if (mCore->addAccount(linphoneAccount) != 0) {
 		const auto uri = linphoneAccount->getParams()->getIdentityAddress();
 		SLOGW << "AccountPool::CreateAccount - Adding new Account to core failed for uri '" << uri << "'";
+		removeAccount(*mCore, linphoneAccount);
 		return;
 	}
 
