@@ -36,26 +36,16 @@ using namespace std;
 
 shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const GenericStruct& config) {
 	const auto configLinphone = factory.createConfig("");
-	configLinphone->setBool("misc", "conference_server_enabled", true);
 	// Do not send information on the local conference to UACs so they do not know they are actually in a conference.
 	configLinphone->setBool("misc", "hide_conferences", true);
 	// Disable the possibility for UACs to subscribe to the local conference events.
 	configLinphone->setBool("misc", "conference_event_log_enabled", false);
-	// Maximum number of calls (all call legs combined) the B2BUA server can handle.
-	// Thus, it can bridge half of this amount of calls.
-	configLinphone->setInt("misc", "max_calls", 1000);
-	// Share media resources in the local conference (that is how media is transmitted to the other call leg).
-	configLinphone->setInt("misc", "media_resources_mode", 1);
+	// Remove call logs and disable db to avoid memory accumulation
+	configLinphone->setInt("misc", "history_max_size", 0);
 	// Do not reject INVITE requests that contain an already known Call-ID.
 	configLinphone->setBool("sip", "reject_duplicated_calls", false);
-	// Forward DTMF via out-of-band RTP ...
-	configLinphone->setBool("sip", "use_rfc2833", true);
-	// ... or via SIP INFO if unsupported by media.
-	configLinphone->setBool("sip", "use_info", true);
 	// Do not automatically accept update: we might want to update peer call before.
 	configLinphone->setBool("sip", "defer_update_default", true);
-	// Instructs the B2BUA that the layout of the conference is already defined.
-	configLinphone->setInt("misc", "conference_layout", static_cast<int>(linphone::Conference::Layout::ActiveSpeaker));
 	// Prevent the default log handler from being reset while LinphoneCore construction.
 	configLinphone->setBool("logging", "disable_stdout", true);
 	// We may want to use unsupported codecs (h264) in the conference.
@@ -75,13 +65,25 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	const auto core = factory.createCoreWithConfig(configLinphone, nullptr);
 	core->setLabel("Flexisip B2BUA");
-	core->getConfig()->setString("storage", "backend", "sqlite3");
-	core->getConfig()->setString("storage", "uri", ":memory:");
+	core->enableConferenceServer(true);
+	// Disable DB storage to avoid memory accumulation
+	core->enableDatabase(false);
+	// Maximum number of calls (all call legs combined) the B2BUA server can handle.
+	// Thus, it can bridge half of this amount of calls.
+	core->setMaxCalls(1000);
+	// Share media resources in the local conference (that is how media is transmitted to the other call leg).
+	core->setMediaResourceMode(linphone::MediaResourceMode::SharedMediaResources);
 	// No sound card shall be used in calls.
 	core->setUseFiles(true);
 	core->enableEchoCancellation(false);
 	// TODO: get primary contact from config, do we really need one?
 	core->setPrimaryContact("sip:b2bua@localhost");
+	// Forward DTMF via out-of-band RTP ...
+	core->setUseRfc2833ForDtmf(true);
+	// ... or via SIP INFO if unsupported by media.
+	core->setUseInfoForDtmf(true);
+	// Instructs the B2BUA that the layout of the conference is already defined.
+	core->setDefaultConferenceLayout(linphone::Conference::Layout::ActiveSpeaker);
 	// Do not auto answer 180 on incoming calls, relay the one from the other part.
 	core->enableAutoSendRinging(false);
 	core->setZrtpSecretsFile(":memory:");
