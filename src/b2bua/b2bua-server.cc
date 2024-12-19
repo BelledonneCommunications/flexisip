@@ -364,7 +364,9 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        String,
 	        "user-agent",
 	        "Value of User-Agent header. Use the following syntax: <name>[/<version>] where <version> can bet set to "
-	        "'{version}' that is a placeholder for the Flexisip version.",
+	        "'{version}' that is a placeholder for the Flexisip version.\n"
+	        "It is also used by the module::B2bua to decide if requests should be forwarded to the B2BUA server or "
+	        "not.",
 	        "Flexisip-B2BUA/{version}",
 	    },
 	    {
