@@ -248,6 +248,7 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 				SLOGD << FUNC_LOG_PREFIX(mLogPrefix) << ": call {ptr = " << call << ", call-id = " << callId
 				      << "} is in end state but it is already terminated";
 			}
+			mCore->clearCallLogs();
 		} break;
 		case linphone::Call::State::EarlyUpdating:
 			break;
