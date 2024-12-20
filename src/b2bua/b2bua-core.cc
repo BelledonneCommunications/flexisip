@@ -52,7 +52,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	configLinphone->setBool("video", "dont_check_codecs", true);
 	// Make sure the videostream can be started when using unsupported codec.
 	configLinphone->setBool("video", "fallback_to_dummy_codec", true);
-	// Force to use on port for each account the B2BUA sever manages (SIP-Bridge).
+	// Force to use one port for each account the B2BUA sever manages (SIP-Bridge).
 	const auto oneConnectionPerAccount = config.get<ConfigBoolean>("one-connection-per-account")->read();
 	configLinphone->setBool("sip", "accounts_channel_isolation", oneConnectionPerAccount);
 	configLinphone->setRange("sip", "refresh_window", 50, 90);
@@ -76,8 +76,16 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	// No sound card shall be used in calls.
 	core->setUseFiles(true);
 	core->enableEchoCancellation(false);
-	// TODO: get primary contact from config, do we really need one?
-	core->setPrimaryContact("sip:b2bua@localhost");
+	// Create default account for the server.
+	const auto accountParams = core->createAccountParams();
+	const auto localhostAddress = factory.createAddress("sip:localhost");
+	accountParams->setIdentityAddress(factory.createAddress("sip:flexisip-b2bua@localhost"));
+	accountParams->enableRegister(false);
+	accountParams->setServerAddress(localhostAddress);
+	const auto account = core->createAccount(accountParams);
+	account->setContactAddress(localhostAddress);
+	core->addAccount(account);
+	core->setDefaultAccount(account);
 	// Forward DTMF via out-of-band RTP ...
 	core->setUseRfc2833ForDtmf(true);
 	// ... or via SIP INFO if unsupported by media.

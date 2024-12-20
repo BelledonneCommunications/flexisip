@@ -42,7 +42,7 @@ public:
 /**
  * Parse "user-agent" parameter from configuration.
  *
- * @throw FlexisipException if the the value is ill-formed
+ * @throw BadConfiguration if the the value is ill-formed
  * @return an std::pair of strings where .first is the name and .second is the version
  */
 std::pair<std::string, std::string> parseUserAgentFromConfig(const std::string& value);

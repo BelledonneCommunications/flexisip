@@ -1631,9 +1631,9 @@ void maxCallDuration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	asserter.iterateUpTo(
-	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
-	    .assert_passed();
+    asserter.iterateUpTo(
+                    10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+            .assert_passed();
 }
 
 /**

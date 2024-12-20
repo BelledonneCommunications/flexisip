@@ -139,6 +139,7 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	const auto callee = incomingCall.getToAddress();
 	const auto calleeAddressUriOnly = callee->asStringUriOnly();
 	outgoingCallParams.setFromHeader(incomingCall.getRemoteAddress()->asString());
+	outgoingCallParams.setAccount(mCore->getDefaultAccount());
 
 	// Select an outgoing encryption.
 	bool outgoingEncryptionSet = false;
@@ -196,17 +197,18 @@ void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::
 	const auto* config = configRoot->get<GenericStruct>(configSection);
 	const auto* b2buaConfig = configRoot->get<GenericStruct>(b2bua::configSection);
 
-	// Create a non-registered account to force routing outgoing calls through the proxy.
+	// Change server address of default b2bua account to force routing outgoing calls through the proxy.
 	const auto factory = linphone::Factory::get();
 	const auto route = factory->createAddress(b2buaConfig->get<ConfigString>("outbound-proxy")->read());
-	const auto accountParams = mCore->createAccountParams();
-	accountParams->setIdentityAddress(factory->createAddress(mCore->getPrimaryContact()));
-	accountParams->enableRegister(false);
-	accountParams->setServerAddress(route);
-	accountParams->setRoutesAddresses({route});
-	const auto account = mCore->createAccount(accountParams);
-	mCore->addAccount(account);
-	mCore->setDefaultAccount(account);
+	const auto& defaultAccount = mCore->getDefaultAccount();
+	if (defaultAccount) {
+		auto accountParams = defaultAccount->getParams()->clone();
+		accountParams->setServerAddress(route);
+		accountParams->setRoutesAddresses({route});
+		defaultAccount->setParams(accountParams);
+	} else {
+		throw FlexisipException{"failed to retrieve default b2bua account, cannot start B2BUA server"};
+	}
 
 	const auto* outgoingEncRegex = config->get<ConfigStringList>("outgoing-enc-regex");
 	auto outgoingEncryptionList = outgoingEncRegex->read();

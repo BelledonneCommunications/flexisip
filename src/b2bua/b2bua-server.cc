@@ -134,6 +134,9 @@ void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Ca
 	                                 });
 	if (callee == nullptr) return;
 
+	// Explicitly set the account to avoid the core to guess it.
+	if (outgoingCallParams->getAccount() == nullptr) outgoingCallParams->setAccount(mCore->getDefaultAccount());
+
 	// Create a conference and attach it.
 	auto conferenceParams = mCore->createConferenceParams(nullptr);
 	conferenceParams->setHidden(true); // Hide conference to prevent the contact address from being updated.
@@ -183,6 +186,8 @@ void B2buaServer::onCallStateOutgoingEarlyMedia(const std::shared_ptr<linphone::
 	if (legA) {
 		const auto callParams = mCore->createCallParams(legA);
 		callParams->enableEarlyMediaSending(true);
+		// Explicitly set the account to avoid the core to guess it.
+		if (callParams->getAccount() == nullptr) callParams->setAccount(mCore->getDefaultAccount());
 		legA->acceptEarlyMediaWithParams(callParams);
 	}
 }
@@ -203,6 +208,8 @@ void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call
 		const auto incomingCallParams = mCore->createCallParams(peerCall);
 		incomingCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
 		incomingCallParams->enableVideo(call->getCurrentParams()->videoEnabled());
+		// Explicitly set the account to avoid the core to guess it.
+		if (incomingCallParams->getAccount() == nullptr) incomingCallParams->setAccount(mCore->getDefaultAccount());
 		peerCall->acceptWithParams(incomingCallParams);
 		return;
 	}
