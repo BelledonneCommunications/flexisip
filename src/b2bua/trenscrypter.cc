@@ -198,6 +198,9 @@ void Trenscrypter::init(const std::shared_ptr<linphone::Core>& core, const flexi
 	mCore->addAccount(account);
 	mCore->setDefaultAccount(account);
 
+	// Fix interoperability issues between B2BUA servers and UACs based on linphone-sdk with version greater than 5.2.
+	mCore->getConfig()->setInt("rtp", "rtcp_mux", 1);
+
 	// Parse configuration for outgoing encryption mode
 	auto outgoingEncryptionList = config->get<ConfigStringList>("outgoing-enc-regex")->read();
 	// parse from the list begining, we shall have couple : encryption_mode regex
