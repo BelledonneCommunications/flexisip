@@ -28,12 +28,12 @@ Flexisip is dual licensed, and can be licensed and distributed:
 
 - under a GNU Affero GPLv3 license for free (see COPYING file for details)
 - under a proprietary license, for closed source projects. Contact Belledonne Communications for any question about
-  [costs and services](https://linphone.org/licensing-services).
+  [costs and services](https://www.linphone.org/en/flexisip-sip-server/#flexisip-license).
 
 # Documentation
 
-- [Supported features and RFCs](https://www.linphone.org/technical-corner/flexisip/features)
-- [Flexisip documentation](https://www.linphone.org/technical-corner/flexisip/documentation)
+- [Supported features and RFCs](https://www.linphone.org/en/flexisip-sip-server/#flexisip-software)
+- [Flexisip documentation](https://www.linphone.org/en/flexisip-sip-server/#flexisip-documentation)
 
 # Dependencies
 
