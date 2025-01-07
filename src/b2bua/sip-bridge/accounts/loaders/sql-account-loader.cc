@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,7 +20,7 @@
 
 #include <soci/session.h>
 
-#include "soci-helper.hh"
+#include "utils/soci-helper.hh"
 
 namespace flexisip::b2bua::bridge {
 using namespace std;
@@ -64,16 +64,22 @@ std::vector<config::v2::Account> SQLAccountLoader::loadAll() {
 
 void SQLAccountLoader::accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& cb) {
 	mThreadPool.run([this, redisAccountPub, cb] {
-		config::v2::Account account;
-		SociHelper helper{mSociConnectionPool};
-		helper.execute([&updateQuery = mUpdateQuery, &account, &redisAccountPub](auto& sql) {
-			sql << updateQuery, use(redisAccountPub.identifier, "identifier"), into(account);
-		});
+		try {
+			config::v2::Account account;
+			SociHelper helper{mSociConnectionPool};
+			helper.execute([&updateQuery = mUpdateQuery, &account, &redisAccountPub](auto& sql) {
+				sql << updateQuery, use(redisAccountPub.identifier, "identifier"), into(account);
+			});
 
-		mSuRoot->addToMainLoop([cb, account, redisAccountPub]() {
-			// Uri cannot be empty unless no account was found in DB.
-			cb(redisAccountPub.uri.str(), (account.uri.empty() ? nullopt : optional<config::v2::Account>{account}));
-		});
+			mSuRoot->addToMainLoop([cb, account, redisAccountPub]() {
+				// Uri cannot be empty unless no account was found in DB.
+				cb(redisAccountPub.uri.str(), (account.uri.empty() ? nullopt : optional<config::v2::Account>{account}));
+			});
+		} catch (const exception& exception) {
+			SLOGE << "SQLAccountLoader - An error occurred during SQL query execution: " << exception.what();
+		} catch (...) {
+			SLOGE << "SQLAccountLoader - Caught an unknown exception";
+		}
 	});
 }
 

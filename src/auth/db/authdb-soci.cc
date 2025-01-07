@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -25,7 +25,7 @@
 #include <soci/mysql/soci-mysql.h>
 
 #include "flexisip/configmanager.hh"
-#include "soci-helper.hh"
+#include "utils/soci-helper.hh"
 #include "utils/digest.hh"
 #include "utils/string-utils.hh"
 #include "utils/thread/auto-thread-pool.hh"
@@ -275,7 +275,7 @@ void SociAuthDB::getPasswordWithPool(const string& id,
 		if (listener) {
 			listener->onResult(passwd.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, passwd);
 		}
-	} catch (SociHelper::DatabaseException& e) {
+	} catch (DatabaseException& e) {
 		if (listener) listener->onResult(AUTH_ERROR, passwd);
 	}
 }
@@ -310,7 +310,7 @@ void SociAuthDB::getUserWithPhoneWithPool(const string& phone, const string& dom
 		if (listener) {
 			listener->onResult(user.empty() ? PASSWORD_NOT_FOUND : PASSWORD_FOUND, user);
 		}
-	} catch (SociHelper::DatabaseException& e) {
+	} catch (DatabaseException& e) {
 		if (listener) listener->onResult(PASSWORD_NOT_FOUND, user);
 	}
 }
@@ -368,7 +368,7 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string, AuthDbLis
 			}
 		});
 		notifyAllListeners(creds, presences);
-	} catch (SociHelper::DatabaseException& e) {
+	} catch (DatabaseException& e) {
 		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
 		presences.clear();
 		notifyAllListeners(creds, presences);
