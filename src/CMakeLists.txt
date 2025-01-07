@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -11,7 +11,7 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -314,7 +314,7 @@ if(ENABLE_SOCI)
 		eventlogs/writers/database-event-log-writer.cc eventlogs/writers/database-event-log-writer.hh
 		fork-context/fork-message-context-soci-repository.cc fork-context/fork-message-context-soci-repository.hh
 		fork-context/fork-message-context-db-proxy.cc fork-context/fork-message-context-db-proxy.hh
-		soci-helper.cc soci-helper.hh
+		utils/soci-helper.cc utils/soci-helper.hh
 	)
 	target_link_libraries(flexisip PUBLIC soci_core soci_mysql soci_sqlite3)
 	if(HAS_GCC_BUG_105562)

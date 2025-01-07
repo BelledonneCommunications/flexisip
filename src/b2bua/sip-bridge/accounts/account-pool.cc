@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -514,6 +514,8 @@ void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::asyn
 		SLOGE << FUNC_LOG_PREFIX << "JSON parsing error : " << e.what() << "\nWith JSON :" << replyAsString;
 	} catch (const sofiasip::InvalidUrlError& e) {
 		SLOGE << FUNC_LOG_PREFIX << "SIP URI parsing error : " << e.what() << "\nWith JSON :" << replyAsString;
+	} catch (const std::exception& e) {
+		SLOGE << FUNC_LOG_PREFIX << "Caught an unexpected exception: " << e.what() << "\nWith JSON :" << replyAsString;
 	}
 }
 

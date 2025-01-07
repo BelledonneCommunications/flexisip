@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,7 +20,7 @@
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
-#include "soci-helper.hh"
+#include "utils/soci-helper.hh"
 #include "utils/core-assert.hh"
 #include "utils/lazy.hh"
 #include "utils/string-formatter.hh"
@@ -149,7 +149,7 @@ void initialSqlLoadTestUriCantBeNull() {
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
-	BC_ASSERT_THROWN(loader.loadAll(), SociHelper::DatabaseException)
+	BC_ASSERT_THROWN(loader.loadAll(), DatabaseException)
 }
 
 void nominalUpdateSqlTest() {

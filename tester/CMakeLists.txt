@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -179,6 +179,7 @@ if(ENABLE_SOCI)
 		tests/auth/db/authdb-soci-tester.cc
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
 		tests/presence/list-subscription/external-list-subscription-tester.cc
+		tests/utils/soci-helper-tester.cc
 	)
 endif()
 

@@ -18,32 +18,17 @@
 
 #pragma once
 
-#include <filesystem>
-#include <string>
+#include <stdexcept>
 
-namespace flexisip::tester {
+namespace flexisip {
 
 /**
- * Creates a directory with the given prefix in the writable directory of flexisip_tester then deletes it and all its
- * contents on destruction.
- * The directory name will start with a random suffix.
+ * Report unexpected events with databases.
  */
-class TmpDir {
+class DatabaseException : public std::runtime_error {
 public:
-	explicit TmpDir(const std::string&);
-	TmpDir(const TmpDir&) noexcept = delete;
-	TmpDir& operator=(const TmpDir&) noexcept = delete;
-	TmpDir(TmpDir&&) noexcept;
-	TmpDir& operator=(TmpDir&&) noexcept;
-
-	~TmpDir();
-
-	const auto& path() const {
-		return mPath;
+	DatabaseException() : std::runtime_error("Database failure") {
 	}
-
-private:
-	std::filesystem::path mPath;
 };
 
-} // namespace flexisip::tester
+} // namespace flexisip

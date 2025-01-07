@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -15,7 +15,8 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#include "soci-helper.hh"
+
+#include "utils/soci-helper.hh"
 
 #include "fork-message-context-soci-repository.hh"
 
@@ -270,7 +271,7 @@ void ForkMessageContextSociRepository::deleteByUuid(const string& uuid) {
 				iterator = mUuidsToDelete.erase(iterator);
 			}
 		});
-	} catch (const SociHelper::DatabaseException& e) {
+	} catch (const DatabaseException& e) {
 		SLOGW << "An SQL error occurred while removing fork message from DB. It will be removed with the next one.";
 	}
 }

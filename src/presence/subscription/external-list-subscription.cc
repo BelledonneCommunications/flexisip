@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,7 +23,7 @@
 
 #include "external-list-subscription.hh"
 #include "flexisip/logmanager.hh"
-#include "soci-helper.hh"
+#include "utils/soci-helper.hh"
 
 using namespace std;
 using namespace chrono;
@@ -90,7 +90,7 @@ void ExternalListSubscription::getUsersList(const string& sqlRequest, belle_sip_
 				newListeners.emplace_back(make_shared<PresentityResourceListener>(*this, uri, name ? name : ""));
 			}
 		});
-	} catch (SociHelper::DatabaseException& e) {
+	} catch (DatabaseException& e) {
 	}
 
 	if (!newListeners.empty()) {
