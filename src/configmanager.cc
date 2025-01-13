@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -982,6 +982,10 @@ GenericManager::GenericManager()
 	     "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
 	     "Unlike the recommandation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
 	     "1460"},
+	    {Integer, "tcp-max-read-size",
+	     "Maximum number of bytes read at once when extracting data from a TCP socket.\n"
+	     "Warning: a SIP request (headers + body) cannot exceed this amount of bytes otherwise the parsing will fail",
+	     "524288"},
 	    {StringList, "rtp-bind-address",
 	     "You can specify the bind address for all RTP streams (MediaRelay and Transcoder). This parameter is only "
 	     "useful for some specific networks, keeping the default value is recommended.",
