@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -56,7 +56,7 @@ void RemotePushStrategy::sendCallNotification(const std::shared_ptr<const PushIn
 
 	if (pushRepetitionEnabled()) {
 		auto pushTimer = std::make_shared<sofiasip::Timer>(mRoot, mCallPushInterval);
-		pushTimer->run(sendPush);
+		pushTimer->setForEver(sendPush);
 
 		// This lambda aims to take the ownership on 'pushTimer'. It is to be
 		// given to mCallRingingTimeoutTimer which will destroy the lambda (and 'pushTimer' by extension)
