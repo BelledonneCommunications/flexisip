@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -89,7 +89,7 @@ static void startPushTest(Client& client,
 	client.sendPush(request);
 	sofiasip::Timer timer{root, 50ms};
 	auto beforePlus2 = system_clock::now() + 2s;
-	timer.run([&request, &beforePlus2, &timeout]() {
+	timer.setForEver([&request, &beforePlus2, &timeout]() {
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
 			su_root_break(root->getCPtr());
 		} else if (beforePlus2 < system_clock::now() && !timeout) {
@@ -649,7 +649,7 @@ static void tlsTimeoutTest() {
 	firebaseClient.sendPush(request3);
 	firebaseClient.sendPush(request4);
 	sofiasip::Timer timer{root, 50ms};
-	timer.run([request, &barrier]() {
+	timer.setForEver([request, &barrier]() {
 		// All the requests should be rejected in the same loop, we can only watch one of them.
 		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
 			su_root_break(root->getCPtr());

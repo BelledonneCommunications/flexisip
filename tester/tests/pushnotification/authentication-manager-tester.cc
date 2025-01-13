@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -143,7 +143,7 @@ void testRefreshTokenSuccess() {
 	this_thread::sleep_for(750ms);
 	sofiasip::Timer timer{root, 50ms};
 	const auto timeout = chrono::system_clock::now() + 2s;
-	timer.run([&root, &manager, &request, &token1, &token2, &timeout]() {
+	timer.setForEver([&root, &manager, &request, &token1, &token2, &timeout]() {
 		if (manager->addAuthentication(request)) {
 			const auto& list = request->getHeaders().getHeadersList();
 			token2 = find_if(list.begin(), list.end(), Helper::findTokenInHeadersListFunc)->value;
@@ -175,7 +175,7 @@ void testRefreshTokenError() {
 
 	sofiasip::Timer timer{root, 50ms};
 	auto timeout = chrono::system_clock::now() + 200ms;
-	timer.run([&root, &manager, &request, &timeout]() {
+	timer.setForEver([&root, &manager, &request, &timeout]() {
 		if (manager->addAuthentication(request)) {
 			SLOGW << "Authentication successfully added, this was not expected";
 			root->quit();
