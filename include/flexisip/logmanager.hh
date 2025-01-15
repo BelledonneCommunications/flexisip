@@ -24,7 +24,7 @@
 #include <string>
 
 #ifndef FLEXISIP_USER_ERRORS_LOG_DOMAIN
-#define FLEXISIP_USER_ERRORS_LOG_DOMAIN "flexisip-users"
+#define FLEXISIP_USER_ERRORS_LOG_DOMAIN "flexisip-user"
 #endif
 
 #define FLEXISIP_LOG_DOMAIN "flexisip"
@@ -39,29 +39,117 @@
 #include "flexisip/sip-boolean-expressions.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 
-/*
- * These are the classic C-style logging macros.
- */
-#define LOGT bctbx_debug
-#define LOGD bctbx_debug
-#define LOGI bctbx_message
-#define LOGW bctbx_warning
-#define LOGE bctbx_error
-#define LOGA bctbx_fatal
-
 #define LOGV(thelevel, thefmt, theargs) bctbx_logv(FLEXISIP_LOG_DOMAIN, thelevel, (thefmt), (theargs))
 #define LOGDV(thefmt, theargs) LOGV(BCTBX_LOG_DEBUG, thefmt, theargs)
 
-/*
- * These are the C++ logging macros, that can be used with << operator.
- */
-#define SLOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN, thelevel)
-#define SLOGT SLOG(BCTBX_LOG_DEBUG)
-#define SLOGD SLOG(BCTBX_LOG_DEBUG)
-#define SLOGI SLOG(BCTBX_LOG_MESSAGE)
-#define SLOGW SLOG(BCTBX_LOG_WARNING)
-#define SLOGE SLOG(BCTBX_LOG_ERROR)
+#define STREAM_LOG(thelevel) BCTBX_SLOG(FLEXISIP_LOG_DOMAIN, thelevel)
+
+#define SLOGD STREAM_LOG(BCTBX_LOG_DEBUG)
+#define SLOGI STREAM_LOG(BCTBX_LOG_MESSAGE)
+#define SLOGW STREAM_LOG(BCTBX_LOG_WARNING)
+#define SLOGE STREAM_LOG(BCTBX_LOG_ERROR)
 #define SLOGUE BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR)
+
+#define GET_MACRO(_0, _1, _2, NAME, ...) NAME
+
+#define FORMAT_CONTEXT(scope, function) scope << "::" << function << " - "
+#define CONTEXT_0() FORMAT_CONTEXT(mLogPrefix, __func__)
+#define CONTEXT_1(scope) FORMAT_CONTEXT(scope, __func__)
+#define CONTEXT_2(scope, function) FORMAT_CONTEXT(scope, function)
+
+/**
+ * Add a context to the log line as follows: "[Class::mLogPrefix]::method() - "
+ *
+ * Usage:
+ * - CONTEXT(): you must define an attribute in your class called 'mLogPrefix' to use this macro
+ * - CONTEXT(scope): this is to use a custom scope instead of Class::mLogPrefix
+ * - CONTEXT(scope, func): this is to use a custom scope instead of Class::mLogPrefix + a custom function name
+ *
+ * With:
+ * - scope: string
+ * - func: string
+ */
+#define CONTEXT(...) GET_MACRO(_0, ##__VA_ARGS__, CONTEXT_2, CONTEXT_1, CONTEXT_0)(__VA_ARGS__)
+
+#define _LOG_MACRO_1(level, scope, func) STREAM_LOG(level) << CONTEXT(scope, func)
+#define _LOG_MACRO_2(level, scope) STREAM_LOG(level) << CONTEXT(scope, __func__)
+#define _LOG_MACRO_3(level) STREAM_LOG(level) << CONTEXT()
+#define _LOG_MACRO(...) GET_MACRO(__VA_ARGS__, _LOG_MACRO_1, _LOG_MACRO_2, _LOG_MACRO_3)(__VA_ARGS__)
+
+/**
+ * Logging macro for 'debug' level.
+ * @note automatically inserts a context to the log using class attribute 'mLogPrefix'.
+ */
+#define LOGD _LOG_MACRO(BCTBX_LOG_DEBUG)
+#define _LOGD_CTX_1(scope) _LOG_MACRO(BCTBX_LOG_DEBUG, scope)
+#define _LOGD_CTX_2(scope, func) _LOG_MACRO(BCTBX_LOG_DEBUG, scope, func)
+/**
+ * Logging macro for 'debug' level.
+ * Usage:
+ *   - LOGD_CTX(scope): this is to use a custom scope
+ *   - LOGD_CTX(scope, func): this is to use a custom scope and function name
+ */
+#define LOGD_CTX(...) GET_MACRO(_0, ##__VA_ARGS__, _LOGD_CTX_2, _LOGD_CTX_1)(__VA_ARGS__)
+
+/**
+ * Logging macro for 'message' level.
+ * @note automatically inserts a context to the log using class attribute 'mLogPrefix'.
+ */
+#define LOGI _LOG_MACRO(BCTBX_LOG_MESSAGE)
+#define _LOGI_CTX_1(scope) _LOG_MACRO(BCTBX_LOG_MESSAGE, scope)
+#define _LOGI_CTX_2(scope, func) _LOG_MACRO(BCTBX_LOG_MESSAGE, scope, func)
+/**
+ * Logging macro for 'message' level.
+ * Usage:
+ *   - LOGI_CTX(scope): this is to use a custom scope
+ *   - LOGI_CTX(scope, func): this is to use a custom scope and function name
+ */
+#define LOGI_CTX(...) GET_MACRO(_0, ##__VA_ARGS__, _LOGI_CTX_2, _LOGI_CTX_1)(__VA_ARGS__)
+
+/**
+ * Logging macro for 'warning' level.
+ * @note automatically inserts a context to the log using class attribute 'mLogPrefix'.
+ */
+#define LOGW _LOG_MACRO(BCTBX_LOG_WARNING)
+#define _LOGW_CTX_1(scope) _LOG_MACRO(BCTBX_LOG_WARNING, scope)
+#define _LOGW_CTX_2(scope, func) _LOG_MACRO(BCTBX_LOG_WARNING, scope, func)
+/**
+ * Logging macro for 'warning' level.
+ * Usage:
+ *   - LOGW_CTX(scope): this is to use a custom scope
+ *   - LOGW_CTX(scope, func): this is to use a custom scope and function name
+ */
+#define LOGW_CTX(...) GET_MACRO(_0, ##__VA_ARGS__, _LOGW_CTX_2, _LOGW_CTX_1)(__VA_ARGS__)
+
+/**
+ * Logging macro for 'error' level.
+ * @note automatically inserts a context to the log using class attribute 'mLogPrefix'.
+ */
+#define LOGE _LOG_MACRO(BCTBX_LOG_ERROR)
+#define _LOGE_CTX_1(scope) _LOG_MACRO(BCTBX_LOG_ERROR, scope)
+#define _LOGE_CTX_2(scope, func) _LOG_MACRO(BCTBX_LOG_ERROR, scope, func)
+/**
+ * Logging macro for 'error' level.
+ * Usage:
+ *   - LOGE_CTX(scope): this is to use a custom scope
+ *   - LOGE_CTX(scope, func): this is to use a custom scope and function name
+ */
+#define LOGE_CTX(...) GET_MACRO(_0, ##__VA_ARGS__, _LOGE_CTX_2, _LOGE_CTX_1)(__VA_ARGS__)
+
+/**
+ * Logging macro for 'user-error' level.
+ * @note automatically inserts a context to the log using class attribute 'mLogPrefix'.
+ */
+#define LOGUE BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR) << CONTEXT()
+#define _LOGUE_CTX_1(scope) BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR) << CONTEXT(scope, __func__)
+#define _LOGUE_CTX_2(scope, func) BCTBX_SLOG(FLEXISIP_USER_ERRORS_LOG_DOMAIN, BCTBX_LOG_ERROR) << CONTEXT(scope, func)
+/**
+ * Logging macro for 'user-error' level.
+ * Usage:
+ *   - LOGUE_CTX(scope): this is to use a custom scope
+ *   - LOGUE_CTX(scope, func): this is to use a custom scope and function name
+ */
+#define LOGUE_CTX(...) GET_MACRO(_0, ##__VA_ARGS__, _LOGUE_CTX_2, _LOGUE_CTX_1)(__VA_ARGS__)
 
 namespace sofiasip {
 class MsgSip;
@@ -206,37 +294,4 @@ inline void LOGN(const char* format, const Args&... args) {
 	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);
 	bctbx_log(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE, format, args...);
 	bctbx_clear_thread_log_level(NULL);
-}
-
-/**
- * LOGEN and LOGF must be used to report any startup or configuration fatal error that needs to be seen by the
- * operator.
- * This is why it goes to standard output if syslog is not used (mostly for daemon mode).
- **/
-template <typename... Args>
-inline void LOGEN(const char* format, const Args&... args) {
-	if (!flexisip::LogManager::get().syslogEnabled()) {
-		fprintf(stderr, format, args...);
-		fprintf(stderr, "\n");
-	}
-	bctbx_set_thread_log_level(NULL, BCTBX_LOG_MESSAGE);
-	bctbx_log(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_ERROR, format, args...);
-	bctbx_clear_thread_log_level(NULL);
-}
-
-template <typename... Args>
-inline void LOGF(const char* format, const Args&... args) {
-	LOGEN(format, args...);
-	exit(-1);
-}
-
-/**
- * Remove and secure : warning - format string is not a string literal (potentially insecure)
- * While using a string with no arguments
- */
-inline void LOGEN(const char* simpleLog) {
-	LOGEN("%s", simpleLog);
-}
-inline void LOGF(const char* simpleLog) {
-	LOGF("%s", simpleLog);
 }
