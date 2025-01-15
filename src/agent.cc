@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -355,6 +355,12 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 	mTimer.setForEver([this] { idle(); });
 
+	const auto tcpMaxReadSize = global->get<ConfigInt>("tcp-max-read-size");
+	if (tcpMaxReadSize->read() <= 0) {
+		throw BadConfiguration{"invalid value for " + tcpMaxReadSize->getCompleteName() +
+		                       ", it must be strictly positive"};
+	}
+
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64), NTATAG_RPORT(1), NTATAG_TCP_RPORT(1),
 	                     NTATAG_TLS_RPORT(1),    // use rport in vias added to outgoing requests for all protocols
 	                     NTATAG_SERVER_RPORT(2), // always add a rport parameter even if the request doesn't have it*/
@@ -493,6 +499,10 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	 **/
 	su_md5_t ctx;
 	su_md5_init(&ctx);
+
+	for (auto* tport = nta_agent_tports(mAgent); tport; tport = tport_next(tport)) {
+		if (tport_is_tcp(tport)) tport_set_max_read_size(tport, tcpMaxReadSize->read());
+	}
 
 	LOGD("Agent 's primaries are:");
 	for (tport_t* tport = primaries; tport != nullptr; tport = tport_next(tport)) {

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -174,13 +174,16 @@ void GenericEntry::doMibFragment(
     ostream& ostr, const string& def, const string& access, const string& syntax, const string& spacing) const {
 	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
-	     << spacing << "	SYNTAX" << "	" << syntax << endl
+	     << spacing << "	SYNTAX"
+	     << "	" << syntax << endl
 	     << spacing << "	MAX-ACCESS	" << access << endl
 	     << spacing << "	STATUS	current" << endl
 	     << spacing << "	DESCRIPTION" << endl
 	     << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	     << spacing << "	" << " Default:" << def << endl
-	     << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
+	     << spacing << "	"
+	     << " Default:" << def << endl
+	     << spacing << "	"
+	     << " PN:" << getPrettyName() << "\"" << endl
 	     << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -251,8 +254,8 @@ void StatCounter64::mibFragment(ostream& ost, const string& spacing) const {
 }
 void GenericStruct::mibFragment(ostream& ost, const string& spacing) const {
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
-	ost << spacing << sanitize(getName()) << "	" << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " "
-	    << mOid->getLeaf() << " }" << endl;
+	ost << spacing << sanitize(getName()) << "	"
+	    << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " " << mOid->getLeaf() << " }" << endl;
 }
 
 void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
@@ -262,7 +265,8 @@ void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
 	    << spacing << "	STATUS	current" << endl
 	    << spacing << "	DESCRIPTION" << endl
 	    << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	    << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
+	    << spacing << "	"
+	    << " PN:" << getPrettyName() << "\"" << endl
 	    << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -719,262 +723,430 @@ ConfigManager::ConfigManager()
       mReader(&mConfigRoot) {
 	// to make sure global_conf is instantiated first
 	static ConfigItemDescriptor global_conf[] = {
-	    // process settings
-	    {StringList, "default-servers",
-	     "Servers started by default when no --server option is specified on command line. "
-	     "Possible values are 'proxy', 'presence', 'conference', 'regevent' separated by whitespaces.",
-	     "proxy"},
-	    {Boolean, "auto-respawn",
-	     "Automatically respawn flexisip in case of abnormal termination (crashes). This has an effect if "
-	     "Flexisip has been launched with '--daemon' option only",
-	     "true"},
-	    {String, "plugins-dir", "Path to the directory where plugins can be found.", DEFAULT_PLUGINS_DIR},
-	    {StringList, "plugins",
-	     "Plugins to load. Look at <prefix>/lib/flexisip/plugins to know the list of installed plugin. The name of a "
-	     "plugin can "
-	     "be derivated from the according library name by striping out the extension part and the leading 'lib' "
-	     "prefix.\n"
-	     "E.g. putting 'jweauth' in this setting will make libjweauth.so library to be load on runtime.",
-	     ""},
-	    {Boolean, "dump-corefiles",
-	     "Generate a core file on crash.\n"
-	     "On GNU/Linux, the action to do on core dump is defined by the kernel file '/proc/sys/kernel/core_pattern'. "
-	     "On recent distributions like RHEL 8, the generated cores is given by default to the core manager of SystemD "
-	     "and the core can be easily listed by using coredumpctl(1) command.\n"
-	     "On older distributions, the cores are often written in '/' directory. If your root directory has little "
-	     "available space, it is recommended to relocate your core dumps in another place by modifying the "
-	     "'core_pattern' file on system boot. This may be done by adding this line in '/etc/rc.local':\n"
-	     "    echo '/home/cores/core.\%e.\%t.\%p' > /proc/sys/kernel/core_pattern\n"
-	     "\n"
-	     "See core(5) manual for more information about core handling on GNU/Linux.",
-	     "false"},
-	    {Boolean, "enable-snmp", "Enable SNMP.", "false"},
+	    {
+	        StringList,
+	        "default-servers",
+	        "Servers started by default when '--server' is not specified in the command line. "
+	        "Possible values are: 'proxy', 'presence', 'conference', 'regevent' and 'b2bua'. Each value must be "
+	        "separated by a whitespace.",
+	        "proxy",
+	    },
+	    {
+	        Boolean,
+	        "auto-respawn",
+	        "Automatically respawn Flexisip in case of abnormal termination (crashes). "
+	        "This only has an effect if Flexisip is launched with '--daemon' option",
+	        "true",
+	    },
+	    {
+	        String,
+	        "plugins-dir",
+	        "Path to the directory that contains plugins.",
+	        DEFAULT_PLUGINS_DIR,
+	    },
+	    {
+	        StringList,
+	        "plugins",
+	        "Plugins to load.\n"
+	        "The list of installed plugins can be found at <prefix>/lib/flexisip/plugins.\n"
+	        "The name of a plugin can be built from the corresponding library name by removing the extension and the "
+	        "'lib' prefix.\n"
+	        "Example: 'jweauth' will load libjweauth.so at runtime.",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "dump-corefiles",
+	        "Generate a core dump on crash.\n"
+	        "On GNU/Linux, the action to do on core dump is defined by the kernel file "
+	        "'/proc/sys/kernel/core_pattern'.\n"
+	        "On recent distributions like RHEL 8, the generated core dumps are given by default to the core manager of "
+	        "SystemD. Core dumps can easily be listed by using the coredumpctl(1) command.\n"
+	        "On older distributions, core dumps are often written in the root ('/') directory. If your root directory "
+	        "has little available space, it is recommended to relocate your core dumps in another place by modifying "
+	        "the 'core_pattern' file on system boot. This can be done by adding the following line in "
+	        "'/etc/rc.local':\n"
+	        "    echo '/home/cores/core.\%e.\%t.\%p' > /proc/sys/kernel/core_pattern\n"
+	        "\n"
+	        "See core(5) manual for more information about core handling on GNU/Linux.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "enable-snmp",
+	        "Enable SNMP.",
+	        "false",
+	    },
 
-	    // log settings
-	    {String, "log-directory",
-	     "Directory where to create log files. Create logs are named as 'flexisip-<server_type>.log'. If "
-	     "If several server types have been specified by '--server' option or 'global/default-servers' parameter, then "
-	     "<server_type> is expanded "
-	     "by a concatenation of all the server types joined with '+' character.\n"
-	     "WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate. "
-	     "Please ensure "
-	     "that logrotate is installed and running on your system if you want to have Flexisip's logs rotated. Log "
-	     "rotation can be customized by "
-	     "editing /etc/logrotate.d/flexisip-logrotate.",
-	     DEFAULT_LOG_DIR},
-	    {String, "log-filename",
-	     "Name of the log file. Any occurrences of '{server}' will be replaced by the server type "
-	     "which has been given by '--server' option or 'default-servers' parameter. If several server types have been "
-	     "given, then '{server}' will be replaced by the concatenation of these separated by '+' character (e.g. "
-	     "'proxy+presence')",
-	     "flexisip-{server}.log"},
-	    {String, "log-level", "Log file verbosity. Possible values are debug, message, warning and error", "error"},
-	    {String, "syslog-level", "Syslog verbosity. Possible values are debug, message, warning and error", "error"},
-	    {Integer, "sofia-level",
-	     "Sofia-SIP log verbosity. These logs are only displayed if the log level is set to "
-	     "'debug' or if the program is started with the '-d' option. The verbosity levels range from 1 to 9, with the "
-	     "following meanings:\n"
-	     "1 -> Critical errors\n"
-	     "2 -> Non-critical errors\n"
-	     "3 -> Warnings and progress messages\n"
-	     "5 -> Signaling protocol actions\n"
-	     "7 -> Media protocol actions\n"
-	     "9 -> Entering/exiting functions",
-	     "5"},
-	    {Boolean, "user-errors-logs",
-	     "Log (on a different log domain) user errors like authentication, registration, routing, etc...", "false"},
-	    {String, "contextual-log-filter",
-	     "A boolean expression applied to current SIP message being processed. When matched, logs are output"
-	     " provided that there level is greater than the value defined in contextual-log-level."
-	     " The definition of the SIP boolean expression is the same as for entry filters of modules, which is "
-	     "documented here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
-	     ""},
-	    {String, "contextual-log-level",
-	     "Verbosity of contextual logs to output when the condition defined in 'contextual-log-filter' is met.",
-	     "debug"},
-	    {String, "show-body-for",
-	     "Filter expression applied to all messages, if true message body is shown, if false not. Can not be empty, "
-	     "use 'true' or 'false' constants instead. The definition of the SIP boolean expression is documented here: "
-	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
-	     "Example : content-type == 'application/sdp' && request.method == 'MESSAGE'",
-	     "content-type == 'application/sdp'"},
+	    // Logging settings.
+	    {
+	        String,
+	        "log-directory",
+	        "Path to the directory where log files will be created.\n"
+	        "WARNING: Flexisip has no embedded log rotation system but provides a configuration file for logrotate.\n"
+	        "Please make sure that logrotate is installed and running on your system in order to have Flexisip's logs "
+	        "rotated. Log rotation can be customized by editing /etc/logrotate.d/flexisip-logrotate.",
+	        DEFAULT_LOG_DIR,
+	    },
+	    {
+	        String,
+	        "log-filename",
+	        "Name of the log file\n."
+	        "The string '{server}' is a placeholder that is replaced with the corresponding server type. If several "
+	        "server types are specified, then '{server}' will be replaced by the concatenation of all server types "
+	        "separated by a '+' character.\n"
+	        "Example: 'proxy+presence'.",
+	        "flexisip-{server}.log",
+	    },
+	    {
+	        String,
+	        "log-level",
+	        "Logging verbosity.\n"
+	        "Possible values are: 'debug', 'message', 'warning' and 'error'",
+	        "error",
+	    },
+	    {
+	        String,
+	        "syslog-level",
+	        "Syslog logging verbosity.\n"
+	        "Possible values are: 'debug', 'message', 'warning' and 'error'",
+	        "error",
+	    },
+	    {
+	        Integer,
+	        "sofia-level",
+	        "Sofia-SIP logging verbosity.\n"
+	        "These logs are only displayed if 'log-level' is set to 'debug' or if the program is started with the '-d' "
+	        "(--debug) option. The verbosity levels range from 1 to 9:\n"
+	        "    1 -> Critical errors\n"
+	        "    2 -> Non-critical errors\n"
+	        "    3 -> Warnings and progress messages\n"
+	        "    5 -> Signaling protocol actions\n"
+	        "    7 -> Media protocol actions\n"
+	        "    9 -> Entering/exiting functions",
+	        "5",
+	    },
+	    {
+	        Boolean,
+	        "user-errors-logs",
+	        "Log user errors (on a different logging domain).\n"
+	        "Examples: authentication operations, registration events, requests routing, etc...",
+	        "false",
+	    },
+	    {
+	        String,
+	        "contextual-log-filter",
+	        "A boolean expression applied to the processing of all SIP requests.\n"
+	        "When the expression evaluates to 'true', use the 'contextual-log-level' logging level for all the logs "
+	        "generated during the processing of the current request. This is useful to debug a certain scenario on a "
+	        "production environment.\n"
+	        "The definition of SIP boolean expressions is the same as for entry filters of modules, which is "
+	        "documented here: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
+	        "",
+	    },
+	    {
+	        String,
+	        "contextual-log-level",
+	        "Logging verbosity of contextual logs.",
+	        "debug",
+	    },
+	    {
+	        String,
+	        "show-body-for",
+	        "A boolean expression applied to the processing of all SIP requests.\n"
+	        "When the expression evaluates to 'true', log the request body. Cannot be empty, use 'true' or 'false' "
+	        "instead.\n"
+	        "The definition of SIP boolean expressions is documented here: "
+	        "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
+	        "Example: content-type == 'application/sdp' && request.method == 'MESSAGE'",
+	        "content-type == 'application/sdp'",
+	    },
 
-	    // network settings
-	    {StringList, "transports",
-	     "List of white space separated SIP URIs where the proxy must listen.\n"
-	     "Wildcard (*) can be used to mean 'all local ip addresses'. If 'transport' parameter is unspecified, it will "
-	     "listen to both udp and tcp. A local address to bind onto can be indicated in the 'maddr' parameter, while "
-	     "the domain part of the uris are used as public domain or ip address.\n"
-	     "The 'sips' transport definitions accept two optional parameters:\n"
-	     " - 'tls-certificates-dir' taking for value a path, with the same meaning as the 'tls-certificates-dir' "
-	     "property of this section and overriding it for this given transport. This is deprecated, use  "
-	     "'tls-certificates-file' and 'tls-certificates-private-key' instead.\n"
-	     " - 'tls-certificates-file' taking for value a file path, with the same meaning as the "
-	     "'tls-certificates-file' "
-	     "property of this section and overriding it for this given transport.\n"
-	     " - 'tls-certificates-private-key' taking for value a file path, with the same meaning as the "
-	     "'tls-certificates-private-key' "
-	     "property of this section and overriding it for this given transport.\n"
-	     " - 'tls-certificates-ca-file' taking for value a file path, with the same meaning as the "
-	     "'tls-certificates-ca-file' "
-	     "property of this section and overriding it for this given transport.\n"
-	     " - 'tls-verify-incoming' taking for value '0' or '1', to indicate whether clients connecting are "
-	     "required to present a valid client certificate. Default value is 0.\n"
-	     " - 'tls-allow-missing-client-certificate' taking for value '0' or '1', to allow connections from clients "
-	     "which have no certificate even if `tls-verify-incoming` has been enabled. That's useful if you wish to have "
-	     "Flexisip to ask for a client certificate, but without failing if the client cannot provide one.\n"
-	     " - 'tls-verify-outgoing' taking for value '0' or '1', whether flexisip should check the peer certificate"
-	     " when it make an outgoing TLS connection to another server. Default value is 1.\n"
-	     " - 'require-peer-certificate' (deprecated) same as tls-verify-incoming\n"
-	     "\n"
-	     "It is HIGHLY RECOMMENDED to specify a canonical name for 'sips' transport, so that the proxy can advertise "
-	     "this information in Record-Route headers, which allows TLS cname check to be performed by clients.\n"
-	     "Specifying a sip uri with transport=tls is not allowed: the 'sips' scheme must be used instead. As requested "
-	     "by SIP RFC, IPv6 address must be enclosed within brackets.\n"
-	     "Here are some examples to understand:\n"
-	     " - listen on all local interfaces for udp and tcp, on standard port:\n"
-	     "\ttransports=sip:*\n"
-	     " - listen on all local interfaces for udp,tcp and tls, on standard ports:\n"
-	     "\ttransports=sip:* sips:*\n"
-	     " - listen only a specific IPv6 interface, on standard ports, with udp, tcp and tls\n"
-	     "\ttransports=sip:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083] sips:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083]\n"
-	     " - listen on tls localhost with 2 different ports and SSL certificates:\n"
-	     "\ttransports=sips:localhost:5061;tls-certificates-dir=path_a "
-	     "sips:localhost:5062;tls-certificates-dir=path_b\n"
-	     " - listen on tls localhost with 2 peer certificate requirements:\n"
-	     "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
-	     " - listen on 192.168.0.29:6060 with tls, but public hostname is 'sip.linphone.org' used in SIP messages. "
-	     "Bind address won't appear in messages:\n"
-	     "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
-	     "sip:*"},
-	    {StringList, "aliases",
-	     "List of white space separated host names pointing to this machine. This is to prevent "
-	     "loops while routing SIP messages.",
-	     "localhost"},
-	    {DurationS, "idle-timeout", "Time interval after which inactive connections are closed.", "3600"},
-	    {DurationS, "keepalive-interval",
-	     "Time interval for sending \"\\r\\n\\r\\n\" keepalives packets on inbound and outbound "
-	     "connections. "
-	     "A value of zero stands for no keepalive. The main purpose of sending keepalives is to keep connection alive "
-	     "across NATs, but it also"
-	     " helps in detecting silently broken connections which can reduce the number socket descriptors used by "
-	     "flexisip.",
-	     "1800"},
-	    {DurationS, "proxy-to-proxy-keepalive-interval",
-	     "Time interval for sending \"\\r\\n\\r\\n\" keepalives packets specifically for proxy "
-	     "to proxy connections. Indeed, while it is undesirable to send frequent keepalives to mobile clients because "
-	     "it drains their battery,"
-	     " sending frequent keepalives has proven to be helpful to keep connections up between proxy nodes in a very "
-	     "popular US virtualized datacenter."
-	     " A value of zero stands for no keepalive.",
-	     "0"},
-	    {DurationMS, "transaction-timeout", "SIP transaction timeout. It is T1*64 by default.", "32000"},
-	    {Integer, "udp-mtu",
-	     "The UDP MTU. Flexisip will fallback to TCP when sending a message whose size exceeds the UDP MTU."
-	     " Please read http://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
-	     "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
-	     "Unlike the recommendation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
-	     "1460"},
-	    {StringList, "rtp-bind-address",
-	     "You can specify the bind address for all RTP streams (MediaRelay and Transcoder). This parameter is only "
-	     "useful for some specific networks, keeping the default value is recommended.",
-	     "0.0.0.0 ::0"},
+	    // Network settings.
+	    {
+	        StringList,
+	        "transports",
+	        "List of whitespace separated SIP URIs where the proxy must listen.\n"
+	        "Wildcard (*) means 'all local ip addresses'. If the 'transport' parameter is not specified, the server "
+	        "will listen on both UDP and TCP transports. A local address to bind onto can be specified using the "
+	        "'maddr' SIP URI parameter. The domain part of SIP URIs are used as public domain or ip address.\n"
+	        "The 'sips' transport definition accepts some optional parameters:\n"
+	        " - 'tls-certificates-dir': path, has the same meaning as the 'tls-certificates-dir' parameter of this "
+	        "section (overriding only applies for the current SIP URI).\n"
+	        " - 'tls-certificates-file': file path, has the same meaning as the 'tls-certificates-file' parameter of "
+	        "this section (overriding only applies for the current SIP URI).\n"
+	        " - 'tls-certificates-private-key': file path, has the same meaning as the 'tls-certificates-private-key' "
+	        "parameter of this section (overriding only applies for the current SIP URI).\n"
+	        " - 'tls-certificates-ca-file': file path, has the same meaning as the 'tls-certificates-ca-file' "
+	        "parameter of this section (overriding only applies for the current SIP URI).\n"
+	        " - 'tls-verify-incoming': value in {'0', '1'}, indicates whether clients are required to present a valid "
+	        "client certificate or not (defaults to '0').\n"
+	        " - 'tls-allow-missing-client-certificate': value in {'0', '1'}, allow connections from clients that have "
+	        "no certificate even if `tls-verify-incoming` is enabled (useful if you want Flexisip to ask for a client "
+	        "certificate but do not fail if the client cannot provide one).\n"
+	        " - 'tls-verify-outgoing': value in {'0', '1'}, whether Flexisip should verify the peer certificate when "
+	        "it creates an outgoing TLS connection to another server (defaults to '1').\n"
+	        " - 'require-peer-certificate': (deprecated) same as 'tls-verify-incoming'\n"
+	        "\n"
+	        "It is HIGHLY RECOMMENDED to specify a canonical name for 'sips' transports, so that the proxy can "
+	        "advertise this information in 'Record-Route' headers, which allows TLS cname verifications to be "
+	        "performed by clients.\n"
+	        "Specifying a SIP URI with 'transport=tls' is not allowed: the 'sips' scheme must be used instead. As "
+	        "requested by SIP RFC, IPv6 addresses must be enclosed within brackets.\n"
+	        "\n"
+	        "Here are some examples to understand:\n"
+	        " - listen on all local interfaces for UDP and TCP, on standard port:\n"
+	        "\ttransports=sip:*\n"
+	        " - listen on all local interfaces for UDP, TCP and TLS, on standard ports:\n"
+	        "\ttransports=sip:* sips:*\n"
+	        " - listen only a specific IPv6 interface, on standard ports, with UDP, TCP and TLS\n"
+	        "\ttransports=sip:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083] sips:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083]\n"
+	        " - listen on TLS localhost with 2 different ports and SSL certificates:\n"
+	        "\ttransports=sips:localhost:5061;tls-certificates-dir=path_a "
+	        "sips:localhost:5062;tls-certificates-dir=path_b\n"
+	        " - listen on TLS localhost with 2 peer certificate requirements:\n"
+	        "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
+	        " - listen on 192.168.0.29:6060 with TLS, but public hostname is 'sip.linphone.org' used in SIP requests. "
+	        "Bind address won't appear in requests:\n"
+	        "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
+	        "sip:*",
+	    },
+	    {
+	        StringList,
+	        "aliases",
+	        "List of whitespace separated host names pointing to this machine.\n"
+	        "This is to prevent loops while routing SIP requests.",
+	        "localhost",
+	    },
+	    {
+	        DurationS,
+	        "idle-timeout",
+	        "Time interval after which inactive connections are closed.",
+	        "3600",
+	    },
+	    {
+	        DurationS,
+	        "keepalive-interval",
+	        "Time interval for sending \"\\r\\n\\r\\n\" keepalive packets on inbound and outbound connections.\n"
+	        "The main purpose of sending keepalive packets is to keep connections alive across NATs. It also helps to "
+	        "detect silently broken connections which can reduce the number of socket descriptors used by Flexisip. A "
+	        "value of zero deactivates this feature",
+	        "1800",
+	    },
+	    {
+	        DurationS,
+	        "proxy-to-proxy-keepalive-interval",
+	        "Time interval for sending \"\\r\\n\\r\\n\" keepalive packets for proxy-to-proxy connections.\n"
+	        "Indeed, while it is undesirable to send frequent keepalive packets to mobile clients (it drains their "
+	        "battery), sending frequent keepalive packets has proven to be helpful to keep connections up between "
+	        "proxy nodes in a very popular US virtualized datacenter. A value of zero deactivates this feature.",
+	        "0",
+	    },
+	    {
+	        DurationMS,
+	        "transaction-timeout",
+	        "SIP transaction timeout.\n"
+	        "Set to T1*64 by default.",
+	        "32000",
+	    },
+	    {
+	        Integer,
+	        "udp-mtu",
+	        "The UDP MTU.\n"
+	        "Flexisip will fallback to TCP when sending a request whose size exceeds the UDP MTU. Please read "
+	        "https://sofia-sip.sourceforge.net/refdocs/nta/nta__tag_8h.html#a6f51c1ff713ed4b285e95235c4cc999a "
+	        "for more details. If sending large packets over UDP is not a problem, then set a big value such as 65535. "
+	        "Unlike the recommendation of the RFC, the default value of UDP MTU is 1460 in Flexisip (instead of 1300).",
+	        "1460",
+	    },
+	    {
+	        Integer,
+	        "tcp-max-read-size",
+	        "Maximum number of bytes read at once when extracting data from a TCP socket. "
+	        "WARNING: a SIP request (headers + body) cannot exceed this amount of bytes otherwise the parsing will "
+	        "fail",
+	        "524288",
+	    },
+	    {
+	        StringList,
+	        "rtp-bind-address",
+	        "Bind address for all RTP streams (MediaRelay and Transcoder).\n"
+	        "This parameter is only useful for some specific networks, keeping the default value is recommended.",
+	        "0.0.0.0 ::0",
+	    },
 
-	    // TLS settings
-	    {String, "tls-certificates-dir",
-	     "Path to the directory where TLS server certificate and private key can be found,"
-	     " concatenated inside an 'agent.pem' file. Any chain certificates must be put into a file named 'cafile.pem'. "
-	     "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
-	     "/etc/flexisip/tls/"},
-	    {DurationMIN, "tls-certificates-check-interval",
-	     "Interval at which the server will check if TLS certificates have been updated. Apply update once detected.F",
-	     "1"},
-	    {String, "tls-certificates-file",
-	     "Path to the file containing the server certificate chain. The file must be in PEM format, see OpenSSL"
-	     "SSL_CTX_use_certificate_chain_file documentation. If used tls-certificates-private-key MUST be set.",
-	     ""},
-	    {String, "tls-certificates-private-key",
-	     "Path to the file containing the private key. See OpenSSL SSL_CTX_use_PrivateKey_file documentation. If used "
-	     "tls-certificates-file MUST be set.",
-	     ""},
-	    {String, "tls-certificates-ca-file",
-	     "Path to the file contain CA certificates. See OpenSSL SSL_CTX_load_verify_locations and "
-	     "SSL_CTX_set_client_CA_list documentation. Can be empty.",
-	     ""},
-	    {String, "tls-ciphers",
-	     "Ciphers string to pass to OpenSSL in order to limit the cipher suites to use while establishing TLS sessions."
-	     " Please take a look to ciphers(1) UNIX manual to get the list of keywords supported by your current version"
-	     " of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The default value"
-	     " set by Flexisip should provide a high level of security while keeping an acceptable level of "
-	     "interoperability"
-	     " with currently deployed clients on the market.",
-	     "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"},
-	    {Boolean, "require-peer-certificate", "Ask for client certificate on TLS session establishing.", "false"},
+	    // TLS settings.
+	    {
+	        String,
+	        "tls-certificates-dir",
+	        "Path to the directory where TLS server certificates and private keys can be found.\n"
+	        "Certificates must be concatenated inside an 'agent.pem' file. Any chain certificates must be put into a "
+	        "file named 'cafile.pem'. The setup of 'agent.pem', and eventually 'cafile.pem' is required for TLS "
+	        "transport to work.",
+	        "/etc/flexisip/tls/",
+	    },
+	    {
+	        DurationMIN,
+	        "tls-certificates-check-interval",
+	        "Interval at which the server will check if TLS certificates have been updated. Apply update once "
+	        "detected.",
+	        "1",
+	    },
+	    {
+	        String,
+	        "tls-certificates-file",
+	        "Path to the file containing the server certificate chain.\n"
+	        "The file must be in PEM format, see OpenSSL SSL_CTX_use_certificate_chain_file documentation. If used, "
+	        "'tls-certificates-private-key' MUST be set.",
+	        "",
+	    },
+	    {
+	        String,
+	        "tls-certificates-private-key",
+	        "Path to the file containing the private key.\n"
+	        "See OpenSSL SSL_CTX_use_PrivateKey_file documentation. If used, 'tls-certificates-file' MUST be set.",
+	        "",
+	    },
+	    {
+	        String,
+	        "tls-certificates-ca-file",
+	        "Path to the file containing CA certificates.\n"
+	        "See OpenSSL SSL_CTX_load_verify_locations and SSL_CTX_set_client_CA_list documentation. Can be empty.",
+	        "",
+	    },
+	    {
+	        String,
+	        "tls-ciphers",
+	        "Cipher strings to pass to OpenSSL in order to limit the cipher suites to use while establishing TLS "
+	        "sessions.\n"
+	        "Please take a look at ciphers(1) UNIX manual to get the list of supported keywords by your current "
+	        "version of OpenSSL. You might visit https://www.openssl.org/docs/manmaster/man1/ciphers.html too. The "
+	        "default value set by Flexisip should provide a high level of security while keeping an acceptable level "
+	        "of interoperability with currently deployed clients on the market.",
+	        "HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL",
+	    },
+	    {
+	        Boolean,
+	        "require-peer-certificate",
+	        "Ask for client certificate on TLS session establishing.",
+	        "false",
+	    },
 
-	    // other settings
-	    {String, "unique-id",
-	     "Unique ID used to identify that instance of Flexisip. It must be a randomly generated "
-	     "16-sized hexadecimal number. If empty, it will be randomly generated on each start of Flexisip.",
-	     ""},
-	    {Integer, "tport-message-queue-size",
-	     "Number of SIP message that sofia can queue in a tport (a connection). It is 64 by default, hardcoded in "
-	     "sofia-sip (sofia-sip also used to hardcode a max value, 1000). This is not sufficient for IM.",
-	     "1000"},
+	    // Other settings.
+	    {
+	        String,
+	        "unique-id",
+	        "Unique ID used to identify this Flexisip instance.\n"
+	        "It must be a randomly generated 16-sized hexadecimal number. If empty, it will be generated each time "
+	        "Flexisip starts.",
+	        "",
+	    },
+	    {
+	        Integer,
+	        "tport-message-queue-size",
+	        "Number of SIP requests that Sofia-SIP can queue in a transport (a connection). "
+	        "It is 64 by default, hardcoded in Sofia-SIP (Sofia-SIP also used to hardcode a maximum value of 1000). "
+	        "This is not sufficient for instant messaging applications.",
+	        "1000",
+	    },
 
-	    // deprecated parameters
-	    {ByteSize, "max-log-size",
-	     "Max size of a log file before switching to a new log file, expressed with units. "
-	     "For example: 10G, 100M. If -1 then there is no maximum size",
-	     "-1"},
-	    {Boolean, "use-maddr",
-	     "Allow flexisip to use maddr in sips connections to verify the CN of the TLS "
-	     "certificate.",
-	     "false"},
-	    {Boolean, "use-rfc2543-record-route",
-	     "Allow Flexisip to use the deprecated param 'transport=tls' in record-route header.", "false"},
+	    // Deprecated parameters.
+	    {
+	        ByteSize,
+	        "max-log-size",
+	        "Max size of a log file before switching to a new log file, expressed with units. "
+	        "For example: 10G, 100M. If -1 then there is no maximum size",
+	        "-1",
+	    },
+	    {
+	        Boolean,
+	        "use-maddr",
+	        "Allow flexisip to use maddr in sips connections to verify the CN of the TLS "
+	        "certificate.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "use-rfc2543-record-route",
+	        "Allow Flexisip to use the deprecated param 'transport=tls' in record-route header.",
+	        "false",
+	    },
 
-	    config_item_end};
+	    config_item_end,
+	};
 
 	static ConfigItemDescriptor cluster_conf[] = {
-	    {Boolean, "enabled",
-	     "Enable cluster mode. If 'false', the parameters of [cluster] section won't have any "
-	     "effect.",
-	     "false"},
-	    {String, "cluster-domain",
-	     "Domain name that enables external SIP agents to access to the cluster. "
-	     "Such domain is often associated to DNS SRV records for each proxy of the cluster, so that DNS resolution "
-	     "returns the address of a specific proxy randomly.\n"
-	     "Flexisip uses that domain when it needs to insert a 'Path' or 'Record-route' header addressing the "
-	     "cluster instead of itself.",
-	     ""},
-	    {StringList, "nodes",
-	     "List of IP addresses of all the proxies present in the cluster. SIP messages coming "
-	     "from these addresses won't be challenged by the authentication module and won't have any rate limit "
-	     "applied by the DoS protection module.",
-	     ""},
-	    {String, "internal-transport",
-	     "Transport to use for communication with the other proxies of the cluster. "
-	     "This is useful only when no transport declared in 'global/transport' parameter can be used to "
-	     "reach the other proxies e.g. when inter-proxy communications are to be made through a private network.\n"
-	     "Ex: sip:10.0.0.8:5059;transport=tcp",
-	     ""},
-	    config_item_end};
+	    {
+	        Boolean,
+	        "enabled",
+	        "Enable cluster mode.\n"
+	        "If 'false', the parameters of the [cluster] section will not have any effect.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "cluster-domain",
+	        "Domain name that enables external SIP agents to access to the cluster.\n"
+	        "Such domain is often associated to DNS SRV records for each proxy of the cluster, so that DNS resolution "
+	        "returns the address of a specific proxy randomly.\n"
+	        "Flexisip uses that domain when it needs to insert a 'Path' or 'Record-route' header addressing the "
+	        "cluster instead of itself.",
+	        "",
+	    },
+	    {
+	        StringList,
+	        "nodes",
+	        "List of IP addresses of all the proxies present in the cluster.\n"
+	        "SIP requests coming from these addresses won't be challenged by the authentication module and won't have "
+	        "any rate limit applied by the DosProtection module.",
+	        "",
+	    },
+	    {
+	        String,
+	        "internal-transport",
+	        "Transport to use for communication with the other proxies of the cluster.\n"
+	        "This is only useful when no transport declared in 'global/transport' parameter can be used to reach the "
+	        "other proxies (e.g. when inter-proxy communications are to be made through a private network).\n"
+	        "Example: sip:10.0.0.8:5059;transport=tcp",
+	        "",
+	    },
+	    config_item_end,
+	};
 
 	static ConfigItemDescriptor mdns_conf[] = {
-	    {Boolean, "enabled", "Set to 'true' to enable multicast DNS register", "false"},
-	    {IntegerRange, "mdns-priority",
-	     "Priority of this instance, lower value means more preferred.\n"
-	     "'n': priority of n (example 10)\n"
-	     "'n-m': random priority between n and m (example 10-50)",
-	     "0"},
-	    {Integer, "mdns-weight",
-	     "A relative weight for Flexisips with the same priority, higher value means more preferred.\n"
-	     "For example, if two Flexisips are registered on the same local domain with one at 20 and the other at 80"
-	     ", then 20% of Flexisip traffic will be redirected to the first Flexisip and 80% to the other one.\n"
-	     "The sum of all the weights of Flexisips on the same local domain must be 100.",
-	     "100"},
-	    {DurationMS, "mdns-ttl", "Time To Live of any mDNS query that will ask for this Flexisip instance", "3600"},
-	    config_item_end};
+	    {
+	        Boolean,
+	        "enabled",
+	        "Enable multicast DNS register",
+	        "false",
+	    },
+	    {
+	        IntegerRange,
+	        "mdns-priority",
+	        "Priority of this instance, lower value means more 'preferred'.\n"
+	        "'n': priority of n (example: 10)\n"
+	        "'n-m': random priority between n and m (example: 10-50)",
+	        "0",
+	    },
+	    {
+	        Integer,
+	        "mdns-weight",
+	        "A relative weight for Flexisip instances with the same priority.\n"
+	        "Higher values means more 'preferred'.\n"
+	        "For example, if two Flexisip instances are registered on the same local domain with one at '20' and the "
+	        "other at '80', then 20% of the traffic will be redirected to the first instance and 80% to the other "
+	        "one.\n"
+	        "The sum of all the weights of Flexisip instances on the same local domain must be 100.",
+	        "100",
+	    },
+	    {
+	        DurationMS,
+	        "mdns-ttl",
+	        "Time To Live of any mDNS query that will ask for this Flexisip instance",
+	        "3600",
+	    },
+	    config_item_end,
+	};
 
 	auto uNotifObjs = make_unique<GenericStruct>("notif", "Templates for notifications.", 1);
 	uNotifObjs->setExportable(false);
