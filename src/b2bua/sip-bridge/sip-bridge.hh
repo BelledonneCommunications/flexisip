@@ -72,7 +72,7 @@ private:
 	const GenericStruct* mGlobalConfigRoot = nullptr;
 	std::vector<SipProvider> providers;
 	std::unordered_map<std::string, std::weak_ptr<Account>> occupiedSlots;
-	const std::string mLogPrefix = B2buaServer::kLogPrefix + std::string{"::sip-bridge"};
+	const std::string_view mLogPrefix{"SipBridge"};
 };
 
 } // namespace flexisip::b2bua::bridge

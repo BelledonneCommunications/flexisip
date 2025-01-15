@@ -54,7 +54,6 @@ public:
 
 	// Used to flag invites emitted by the B2BUA server, so they are not re-routed back to it by the B2bua module.
 	static constexpr auto& kCustomHeader = "X-Flexisip-B2BUA";
-	static constexpr auto& kLogPrefix = "B2buaServer";
 
 	B2buaServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
 	~B2buaServer() override = default;
@@ -137,6 +136,7 @@ private:
 	std::unordered_map<std::shared_ptr<linphone::Call>, std::weak_ptr<linphone::Call>> mPeerCalls;
 	std::unordered_map<std::shared_ptr<linphone::Event>, EventInfo> mPeerEvents;
 	std::unique_ptr<b2bua::Application> mApplication = nullptr;
+	const std::string mLogPrefix{"B2buaServer"};
 };
 
 } // namespace flexisip

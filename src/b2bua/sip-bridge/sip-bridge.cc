@@ -34,8 +34,6 @@
 #include "exceptions/bad-configuration.hh"
 #include "utils/variant-utils.hh"
 
-#define FUNC_LOG_PREFIX (mLogPrefix + "::" + __func__ + "()")
-
 using namespace std;
 
 namespace flexisip::b2bua::bridge {
@@ -134,18 +132,19 @@ AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolC
 			throw BadConfiguration{"please provide an `outboundProxy` for AccountPool " + poolName};
 		}
 		if (pool.maxCallsPerLine == 0) {
-			SLOGW << FUNC_LOG_PREFIX << ": AccountPool '" << poolName
-			      << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
+			LOGD << "AccountPool '" << poolName
+			     << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";
 		}
 
 		auto loader = std::unique_ptr<Loader>(nullptr);
 		auto redisConf = std::optional<redis::async::RedisParameters>(std::nullopt);
 		Match(pool.loader)
 		    .against(
-		        [&loader, &capPoolName = poolName, logPrefix = FUNC_LOG_PREFIX](config::v2::StaticLoader& staticPool) {
+		        [this, &loader, &capPoolName = poolName](config::v2::StaticLoader& staticPool) {
 			        if (staticPool.empty()) {
-				        SLOGW << logPrefix << ":AccountPool '" << capPoolName
-				              << "' has no `accounts` and will not be used to bridge calls";
+				        LOGD_CTX(this->mLogPrefix, "getAccountPoolsFromConfig")
+				            << "AccountPool '" << capPoolName
+				            << "' has no `accounts` and will not be used to bridge calls";
 			        }
 
 			        loader = make_unique<StaticAccountLoader>(std::move(staticPool));
@@ -260,8 +259,7 @@ b2bua::Application::ActionToTake SipBridge::onCallCreate(const linphone::Call& i
 		}
 	}
 
-	SLOGD << FUNC_LOG_PREFIX << ": no provider could handle the call to "
-	      << incomingCall.getToAddress()->asStringUriOnly();
+	LOGD << "No provider could handle the call intended to " << incomingCall.getToAddress()->asStringUriOnly();
 	return linphone::Reason::NotAcceptable;
 }
 
@@ -293,8 +291,8 @@ b2bua::Application::ActionToTake SipBridge::onSubscribe(const linphone::Event& e
 		}
 	}
 
-	SLOGD << FUNC_LOG_PREFIX << ": no provider could handle the " << subscribeEvent << " SUBSCRIBE to "
-	      << event.getToAddress()->asStringUriOnly();
+	LOGD << "No provider could handle the " << subscribeEvent << " SUBSCRIBE request intended to "
+	     << event.getToAddress()->asStringUriOnly();
 	return linphone::Reason::NotAcceptable;
 }
 
@@ -305,7 +303,7 @@ std::optional<b2bua::Application::NotifyDestination> SipBridge::onNotifyToBeSent
 		}
 	}
 
-	SLOGD << FUNC_LOG_PREFIX << ": no provider could handle the NOTIFY to " << event.getToAddress()->asStringUriOnly();
+	LOGD << "No provider could handle the NOTIFY request intended to " << event.getToAddress()->asStringUriOnly();
 	return nullopt;
 }
 

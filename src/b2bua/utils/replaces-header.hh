@@ -48,6 +48,8 @@ public:
 	friend std::ostream& operator<<(std::ostream& strm, const ReplacesHeader& header);
 
 private:
+    static constexpr std::string_view kLogPrefix{"ReplacesHeader"};
+
 	ReplacesHeader(std::string_view callId, std::string_view fromTag, std::string_view toTag);
 
 	std::string mCallId{};

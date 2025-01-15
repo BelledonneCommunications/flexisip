@@ -42,7 +42,7 @@ private:
 	void sendNotify(const std::string& body);
 
 	std::weak_ptr<linphone::Call> mPeerCall{};
-	const std::string mLogPrefix{B2buaServer::kLogPrefix + std::string{"::CallTransferListener"}};
+	const std::string_view mLogPrefix{"CallTransferListener"};
 };
 
 } // namespace flexisip::b2bua

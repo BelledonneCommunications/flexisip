@@ -39,7 +39,7 @@ std::optional<ReplacesHeader> ReplacesHeader::fromStr(std::string_view header) {
 		const auto& toTag = fromToTags.at("to-tag");
 		return ReplacesHeader{callId, fromTag, toTag};
 	} catch (const out_of_range& exception) {
-		SLOGD << B2buaServer::kLogPrefix << ": failed to extract tags from \"Replaces\" header (" << header << ")";
+		LOGD_CTX(kLogPrefix) << "Failed to extract tags from header (" << header << ")";
 	}
 	return nullopt;
 }

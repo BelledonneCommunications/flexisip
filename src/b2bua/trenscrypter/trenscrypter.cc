@@ -21,8 +21,6 @@
 #include "exceptions/bad-configuration.hh"
 #include "utils/string-utils.hh"
 
-#define FUNC_LOG_PREFIX (mLogPrefix + "::" + __func__ + "()")
-
 namespace flexisip::b2bua::trenscrypter {
 namespace {
 
@@ -145,9 +143,8 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	bool outgoingEncryptionSet = false;
 	for (const auto& outEncSetting : mOutgoingEncryption) {
 		if (std::regex_match(calleeAddressUriOnly, outEncSetting.pattern)) {
-			SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " matches regex "
-			      << outEncSetting.stringPattern << ", assign encryption mode "
-			      << MediaEncryption2string(outEncSetting.mode);
+			LOGD << "Call to " << calleeAddressUriOnly << " matches regex " << outEncSetting.stringPattern
+			     << ", assign encryption mode " << MediaEncryption2string(outEncSetting.mode);
 			outgoingCallParams.setMediaEncryption(outEncSetting.mode);
 			outgoingEncryptionSet = true;
 			// Stop at the first matching regexp.
@@ -158,17 +155,17 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 	if (outgoingEncryptionSet == false) {
 		const auto incomingEncryptionSetting = incomingCall.getParams()->getMediaEncryption();
 		outgoingCallParams.setMediaEncryption(incomingEncryptionSetting);
-		SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " uses incoming encryption setting ("
-		      << static_cast<int>(incomingEncryptionSetting) << ")";
+		LOGD << "Call to " << calleeAddressUriOnly << " uses incoming encryption setting ("
+		     << static_cast<int>(incomingEncryptionSetting) << ")";
 	}
 
 	// When outgoing encryption mode is sdes, select a crypto suite list setting if a pattern matches.
 	if (outgoingCallParams.getMediaEncryption() == linphone::MediaEncryption::SRTP) {
 		for (const auto& outSrtpSetting : mSrtpConf) {
 			if (std::regex_match(calleeAddressUriOnly, outSrtpSetting.pattern)) {
-				SLOGD << FUNC_LOG_PREFIX << ": call to " << calleeAddressUriOnly << " matches SRTP suite regex "
-				      << outSrtpSetting.stringPattern << ", assign Srtp Suites to "
-				      << SrtpSuite2string(outSrtpSetting.suites);
+				LOGD << "Call to " << calleeAddressUriOnly << " matches SRTP suite regex "
+				     << outSrtpSetting.stringPattern << ", assign Srtp Suites to "
+				     << SrtpSuite2string(outSrtpSetting.suites);
 				outgoingCallParams.setSrtpSuites(outSrtpSetting.suites);
 				// Stop at the first matching regexp
 				break;
@@ -178,9 +175,9 @@ Trenscrypter::onCallCreate(const linphone::Call& incomingCall, linphone::CallPar
 
 	// Verify the selected outgoing encryption setting is available.
 	if (!mCore->isMediaEncryptionSupported(outgoingCallParams.getMediaEncryption())) {
-		SLOGD << FUNC_LOG_PREFIX << ": trying to place an outgoing call using "
-		      << MediaEncryption2string(outgoingCallParams.getMediaEncryption())
-		      << " encryption mode but it is not available";
+		LOGD << "Trying to place an outgoing call using "
+		     << MediaEncryption2string(outgoingCallParams.getMediaEncryption())
+		     << " encryption mode but it is not available";
 		return linphone::Reason::NotAcceptable;
 	}
 

@@ -33,8 +33,6 @@
 #include "utils/uri-utils.hh"
 #include "utils/variant-utils.hh"
 
-#define FUNC_LOG_PREFIX B2buaServer::kLogPrefix << "::" << __func__ << "()"
-
 using namespace std;
 
 namespace flexisip {
@@ -106,7 +104,7 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
                                      linphone::Call::State state,
                                      const string&) {
 	const auto legName = call->getDir() == linphone::Call::Dir::Outgoing ? "legB"sv : "legA"sv;
-	SLOGD << FUNC_LOG_PREFIX << ": call " << call << " (" << legName << ") state changed to " << (int)state;
+	LOGD << "Call " << call << " (" << legName << ") state changed to: " << static_cast<int>(state);
 
 	switch (state) {
 		case linphone::Call::State::IncomingReceived:
@@ -159,8 +157,8 @@ void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
 }
 
 void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Call>& call) {
-	SLOGD << FUNC_LOG_PREFIX << ": incoming call received from " << call->getRemoteAddress()->asString() << " to "
-	      << call->getToAddress()->asString();
+	LOGD << "Incoming call received from " << call->getRemoteAddress()->asString() << " intended to "
+	     << call->getToAddress()->asString();
 
 	auto outgoingCallParams = mCore->createCallParams(nullptr);
 	// Add this custom header so this call will not be intercepted by the B2BUA.
@@ -204,7 +202,7 @@ void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Ca
 	auto legB = mCore->inviteAddressWithParams(callee, outgoingCallParams);
 	if (!legB) {
 		// E.g. TLS is not supported
-		SLOGE << FUNC_LOG_PREFIX << ": could not establish bridge call, please verify your configuration";
+		LOGE "Could not establish bridge call, please verify your configuration";
 		call->decline(linphone::Reason::NotImplemented);
 		return;
 	}
@@ -245,7 +243,7 @@ void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call
 	if (call->getDir() == linphone::Call::Dir::Outgoing &&
 	    (peerCallState == linphone::Call::State::IncomingReceived ||
 	     peerCallState == linphone::Call::State::IncomingEarlyMedia)) {
-		SLOGD << FUNC_LOG_PREFIX << ": legB call is now running ---> answer call on legA";
+		LOGD << "Call on legB is now running ---> answer call on legA";
 		// Update enablement of audio and video on both legs so we make sure they are synchronized.
 		const auto incomingCallParams = mCore->createCallParams(peerCall);
 		incomingCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
@@ -258,7 +256,7 @@ void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call
 
 	// If peer is in UpdatedByRemote state, we deferred an update, so accept it now.
 	if (peerCallState == linphone::Call::State::UpdatedByRemote) {
-		SLOGD << FUNC_LOG_PREFIX << ": peer call deferred update, accept it now";
+		LOGD << "Peer call deferred update, accept it now";
 		// Update is deferred only on audio/video addition or removal.
 		const auto peerCallParams = mCore->createCallParams(peerCall);
 		peerCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
@@ -276,7 +274,7 @@ void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call
 		if (call->getRemoteParams()->getAudioDirection() != linphone::MediaDirection::SendRecv) return;
 
 		if (callIsInPausedState(peerCall)) {
-			SLOGD << FUNC_LOG_PREFIX << ": peer call is paused, update it to resume";
+			LOGD << "Peer call is paused, update it to resume";
 			const auto peerCallParams = mCore->createCallParams(peerCall);
 			setMediaDirection(peerCallParams, linphone::MediaDirection::SendRecv);
 			peerCall->update(peerCallParams);
@@ -287,15 +285,14 @@ void B2buaServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call
 void B2buaServer::onCallStateReferred(const std::shared_ptr<linphone::Call>& call) {
 	const auto peerCall = getPeerCall(call);
 	if (!peerCall) {
-		SLOGE << FUNC_LOG_PREFIX
-		      << ": unable to process call transfer, peer call leg does not exist, this should never happen";
+		LOGW << "Unable to process call transfer: peer call leg does not exist, this should never happen";
 		return;
 	}
 
 	// Get raw "Refer-To" address from REFER request.
 	const auto originalReferToAddress = call->getReferToAddress();
 	if (!originalReferToAddress) {
-		SLOGE << FUNC_LOG_PREFIX << ": unable to process call transfer, \"Refer-To\" header is empty";
+		LOGD << "Unable to process call transfer, \"Refer-To\" header is empty";
 		return;
 	}
 
@@ -307,8 +304,7 @@ void B2buaServer::onCallStateReferred(const std::shared_ptr<linphone::Call>& cal
 		if (replacingCall) {
 			const auto peerReplacingCall = getPeerCall(replacingCall);
 			if (peerReplacingCall) {
-				SLOGD << FUNC_LOG_PREFIX << ": found bridged call (" << replacingCall << ") to replace with call ("
-				      << peerReplacingCall << ")";
+				LOGD << "Found bridged call " << replacingCall << " to replace with call " << peerReplacingCall;
 
 				replacesHeader->update(peerReplacingCall);
 				if (!referToAddress) referToAddress = peerReplacingCall->getToAddress()->clone();
@@ -321,8 +317,8 @@ void B2buaServer::onCallStateReferred(const std::shared_ptr<linphone::Call>& cal
 		if (!referToAddress) referToAddress = originalReferToAddress->clone();
 	}
 
-	SLOGD << FUNC_LOG_PREFIX << ": call transfer requested from " << call->getRemoteAddress()->asString()
-	      << ", refer to " << referToAddress->asString();
+	LOGD << "Call transfer requested from " << call->getRemoteAddress()->asString() << ", refer to "
+	     << referToAddress->asString();
 
 	peerCall->addListener(make_shared<b2bua::CallTransferListener>(call));
 	peerCall->transferTo(referToAddress);
@@ -352,7 +348,7 @@ void B2buaServer::onCallStatePausedByRemote(const std::shared_ptr<linphone::Call
 	// If we receive a "Call on hold" update.
 	if (!callHasMediaDirection(peerCall, linphone::MediaDirection::Inactive) &&
 	    !callHasMediaDirection(peerCall, linphone::MediaDirection::SendOnly)) {
-		SLOGD << FUNC_LOG_PREFIX << ": pause requested, pause the other call leg";
+		LOGD << "Call on hold requested, pause the other call leg";
 		const auto peerCallParams = mCore->createCallParams(peerCall);
 		setMediaDirection(peerCallParams, linphone::MediaDirection::SendOnly);
 		peerCall->update(peerCallParams);
@@ -380,7 +376,7 @@ void B2buaServer::onCallStateUpdatedByRemote(const std::shared_ptr<linphone::Cal
 	}
 
 	if (updatePeerCall) {
-		SLOGD << FUNC_LOG_PREFIX << ": update peer call";
+		LOGD << "Update peer call";
 		peerCall->update(peerCallParams);
 		call->deferUpdate();
 		return;
@@ -393,7 +389,7 @@ void B2buaServer::onCallStateUpdatedByRemote(const std::shared_ptr<linphone::Cal
 	if ((callHasMediaDirection(call, linphone::MediaDirection::Inactive) ||
 	     callHasMediaDirection(call, linphone::MediaDirection::RecvOnly)) &&
 	    (callIsInPausedState(peerCall) || callIsInPausedByRemoteState(peerCall))) {
-		SLOGD << FUNC_LOG_PREFIX << ": client asks to resume a call that was paused on both call legs";
+		LOGD << "UAC asks to resume a call that was paused on both call legs";
 
 		const auto updatedCallParams = mCore->createCallParams(call);
 		// If the current call leg was in PausedByRemote state, ask to switch back to StreamsRunning.
@@ -416,7 +412,7 @@ void B2buaServer::onCallStateUpdatedByRemote(const std::shared_ptr<linphone::Cal
 	}
 
 	// No update on video/audio status, just accept it with requested params.
-	SLOGD << FUNC_LOG_PREFIX << ": accept update without forwarding it to peer call";
+	LOGD << "Accept update without forwarding it to peer call";
 	// Accept all minor changes.
 	call->acceptUpdate(nullptr);
 }
@@ -426,12 +422,10 @@ void B2buaServer::onCallStateReleased(const std::shared_ptr<linphone::Call>& cal
 	const auto callId = call->getCallLog()->getCallId();
 	const auto peerCallEntry = mPeerCalls.find(call);
 	if (peerCallEntry != mPeerCalls.cend()) {
-		SLOGD << FUNC_LOG_PREFIX << ": release peer call {ptr = " << peerCallEntry->second.lock()
-		      << ", call-id = " << callId << "}";
+		LOGD << "Release peer call {ptr = " << peerCallEntry->second.lock() << ", call-id = " << callId << "}";
 		mPeerCalls.erase(peerCallEntry);
 	} else {
-		SLOGD << FUNC_LOG_PREFIX << ": call {ptr = " << call << ", call-id = " << callId
-		      << "} is in end state but it is already terminated";
+		LOGD << "Call {ptr = " << call << ", call-id = " << callId << "} in end state is already terminated";
 	}
 }
 
@@ -441,8 +435,8 @@ void B2buaServer::onDtmfReceived([[maybe_unused]] const shared_ptr<linphone::Cor
 	const auto peerCall = getPeerCall(call);
 	if (!peerCall) return;
 
-	SLOGD << FUNC_LOG_PREFIX << ": forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
-	      << peerCall->getCallLog()->getCallId();
+	LOGD << "Forwarding DTMF " << dtmf << " from " << call->getCallLog()->getCallId() << " to "
+	     << peerCall->getCallLog()->getCallId();
 	peerCall->sendDtmf(dtmf);
 }
 
@@ -450,12 +444,12 @@ void B2buaServer::onSubscribeReceived(const std::shared_ptr<linphone::Core>& cor
                                       const std::shared_ptr<linphone::Event>& legAEvent,
                                       const std::string& subscribeEvent,
                                       const std::shared_ptr<const linphone::Content>& body) {
-	SLOGD << FUNC_LOG_PREFIX << ": received subscribe event " << legAEvent;
+	LOGD << "Received subscribe event " << legAEvent;
 	int expires = 0;
 	try {
 		expires = stoi(legAEvent->getCustomHeader("Expires"));
 	} catch (std::exception const& ex) {
-		SLOGE << FUNC_LOG_PREFIX << ": invalid expires in received SUBSCRIBE, deny subscription";
+		LOGD << "Invalid value in \"Expires\" header, deny subscription";
 		legAEvent->denySubscription(linphone::Reason::NotAcceptable);
 		return;
 	}
@@ -519,17 +513,17 @@ void B2buaServer::onMessageWaitingIndicationChanged(
  */
 void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event,
                                    const std::shared_ptr<const linphone::Content>& content) {
-	SLOGD << FUNC_LOG_PREFIX << ": received notify event " << event;
+	LOGD << "Received notify event " << event;
 	const auto eventEntry = mPeerEvents.find(event);
 	if (eventEntry == mPeerEvents.cend()) {
-		SLOGE << FUNC_LOG_PREFIX << ": no data associated with the event " << event << ", cannot forward the NOTIFY";
+		LOGD << "Cannot forward NOTIFY request: no data associated with the event " << event;
 		return;
 	}
 
 	// Forward NOTIFY request.
 	const auto peerEvent = eventEntry->second.peerEvent.lock();
 	if (peerEvent == nullptr) {
-		SLOGE << FUNC_LOG_PREFIX << ": peer event pointer is null for event " << event;
+		LOGD << "Cannot forward NOTIFY request: peer event pointer is empty for event " << event;
 		return;
 	}
 
@@ -538,7 +532,7 @@ void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event
 
 void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
                                           linphone::SubscriptionState state) {
-	SLOGD << FUNC_LOG_PREFIX << ": event " << event << " state change to " << static_cast<int>(state);
+	LOGD << "Event " << event << " state changed to: " << static_cast<int>(state);
 	const auto eventEntry = mPeerEvents.find(event);
 	if (eventEntry == mPeerEvents.cend()) return;
 
@@ -548,7 +542,7 @@ void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>
 			// Un-SUBSCRIBE from the subscriber.
 			const auto peerEvent = eventInfo.peerEvent.lock();
 			if (peerEvent == nullptr) {
-				SLOGE << FUNC_LOG_PREFIX << ": peer event pointer is null for event " << event;
+				LOGD << "Cannot process new subscription state: peer event pointer is empty for event " << event;
 				return;
 			}
 			peerEvent->terminate();
@@ -561,7 +555,7 @@ void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>
 			// Forward the subscription acceptation.
 			const auto peerEvent = eventInfo.peerEvent.lock();
 			if (peerEvent == nullptr) {
-				SLOGE << FUNC_LOG_PREFIX << ": peer event pointer is null for event " << event;
+				LOGD << "Cannot process new subscription state: peer event pointer is empty for event " << event;
 				return;
 			}
 			peerEvent->acceptSubscription();
@@ -569,7 +563,7 @@ void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>
 			// Forward the subscription error.
 			const auto peerEvent = eventInfo.peerEvent.lock();
 			if (peerEvent == nullptr) {
-				SLOGE << FUNC_LOG_PREFIX << ": peer event pointer is null for event " << event;
+				LOGD << "Cannot process new subscription state: peer event pointer is empty for event " << event;
 				return;
 			}
 			peerEvent->denySubscription(event->getReason());
@@ -594,19 +588,19 @@ void B2buaServer::_init() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>(b2bua::configSection);
 	auto dataDirPath = config->get<ConfigString>("data-directory")->read();
 	if (!bctbx_directory_exists(dataDirPath.c_str())) {
-		SLOGI << kLogPrefix << ": creating data directory " << dataDirPath;
+		LOGI << "Creating data directory " << dataDirPath;
 		// Verify parent directory exists as default path requires creation of 2 levels.
 		auto parentDir = dataDirPath.substr(0, dataDirPath.find_last_of('/'));
 		if (!bctbx_directory_exists(parentDir.c_str())) {
 			if (bctbx_mkdir(parentDir.c_str()) != 0) {
-				SLOGE << kLogPrefix << ": could not create data parent directory " << parentDir;
+				LOGE << "Could not create data parent directory " << parentDir;
 			}
 		}
 		if (bctbx_mkdir(dataDirPath.c_str()) != 0) {
-			SLOGE << kLogPrefix << ": could not create data directory " << dataDirPath;
+			LOGE << "Could not create data directory " << dataDirPath;
 		}
 	}
-	SLOGI << kLogPrefix << ": data directory set to " << dataDirPath;
+	LOGI << "Data directory set to " << dataDirPath;
 	const auto factory = linphone::Factory::get();
 	factory->setDataDir(dataDirPath + "/");
 
@@ -615,7 +609,7 @@ void B2buaServer::_init() {
 	mCore->addListener(shared_from_this());
 
 	auto applicationType = config->get<ConfigString>("application")->read();
-	SLOGI << kLogPrefix << ": starting with '" << applicationType << "' application";
+	LOGI << "Starting with '" << applicationType << "' application";
 	if (applicationType == "trenscrypter") {
 		mApplication = make_unique<b2bua::trenscrypter::Trenscrypter>();
 	} else if (applicationType == "sip-bridge") {
@@ -629,7 +623,7 @@ void B2buaServer::_init() {
 
 	mCore->start();
 	mCli.start();
-	SLOGI << kLogPrefix << ": started";
+	LOGI << "Started";
 }
 
 void B2buaServer::_run() {
@@ -647,8 +641,8 @@ std::unique_ptr<AsyncCleanup> B2buaServer::_stop() {
 shared_ptr<linphone::Call> B2buaServer::getPeerCall(const shared_ptr<linphone::Call>& call) const {
 	const auto peerCallEntry = mPeerCalls.find(call);
 	if (peerCallEntry == mPeerCalls.cend()) {
-		SLOGD << kLogPrefix << ": failed to find peer call of current call {ptr = " << call
-		      << ", call-id = " << call->getCallLog()->getCallId() << "}";
+		LOGD << "Failed to find peer call of call {ptr = " << call << ", call-id = " << call->getCallLog()->getCallId()
+		     << "}";
 		return nullptr;
 	}
 
@@ -657,7 +651,7 @@ shared_ptr<linphone::Call> B2buaServer::getPeerCall(const shared_ptr<linphone::C
 
 shared_ptr<linphone::Call>
 B2buaServer::findReplacingCallOnAttendedTransfer(const b2bua::ReplacesHeader& replacesHeader) const {
-	SLOGD << FUNC_LOG_PREFIX << ": looking for calls matching " << replacesHeader;
+	LOGD << "Looking for calls matching " << replacesHeader;
 	for (const auto& candidate : mCore->getCalls()) {
 		if (candidate->getCallLog()->getCallId() != replacesHeader.getCallId()) continue;
 
@@ -670,7 +664,7 @@ B2buaServer::findReplacingCallOnAttendedTransfer(const b2bua::ReplacesHeader& re
 		return candidate;
 	}
 
-	SLOGD << FUNC_LOG_PREFIX << ": no suitable candidate found";
+	LOGD << "No suitable candidate found";
 	return nullptr;
 }
 

@@ -20,15 +20,13 @@
 
 #include "flexisip/logmanager.hh"
 
-#define FUNC_LOG_PREFIX (mLogPrefix + "::" + __func__ + "()")
-
 using namespace std;
 
 namespace flexisip::b2bua {
 
 void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<linphone::Call>& call,
                                                          linphone::Call::State state) {
-	SLOGD << FUNC_LOG_PREFIX << ": call " << call << " transfer state changed to " << static_cast<int>(state);
+	LOGD << "Call " << call << " transfer state changed to: " << static_cast<int>(state);
 
 	string body{};
 	switch (state) {
@@ -40,12 +38,11 @@ void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<l
 			break;
 		case linphone::Call::State::Error:
 			body = "SIP/2.0 500 Internal Server Error\r\n";
-			SLOGD << FUNC_LOG_PREFIX << ": forward NOTIFY request with body \"" << body.substr(0, body.size() - 2)
-			      << "\" because we cannot yet distinguish all cases (603 Decline, 503 Service Unavailable, etc.)";
+			LOGD << "Forward NOTIFY request with body \"" << body.substr(0, body.size() - 2)
+			     << "\" because we cannot yet distinguish all cases (603 Decline, 503 Service Unavailable, etc.)";
 			break;
 		default:
-			SLOGW << FUNC_LOG_PREFIX << ": unable to forward NOTIFY request, case " << static_cast<int>(state)
-			      << " is not implemented";
+			LOGW << "Unable to forward NOTIFY request, case " << static_cast<int>(state) << " is not implemented";
 			return;
 	}
 	sendNotify(body);
@@ -54,13 +51,13 @@ void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<l
 void b2bua::CallTransferListener::sendNotify(const std::string& body) {
 	const auto peerCall = mPeerCall.lock();
 	if (!peerCall) {
-		SLOGW << FUNC_LOG_PREFIX << ": unable to forward NOTIFY request (" << body << "), peer call has been freed";
+		LOGW << "Unable to forward NOTIFY request with body \"(" << body << "\", peer call has been freed";
 		return;
 	}
 
 	const auto content = linphone::Factory::get()->createContent();
 	if (!content) {
-		SLOGE << FUNC_LOG_PREFIX << ": error while forwarding NOTIFY request, could not create content object";
+		LOGE << "Error while forwarding NOTIFY request, could not create content object";
 		return;
 	}
 	content->setType("message");
@@ -68,7 +65,7 @@ void b2bua::CallTransferListener::sendNotify(const std::string& body) {
 	content->setUtf8Text(body);
 	const auto event = peerCall->createNotify("refer");
 	if (!event) {
-		SLOGE << FUNC_LOG_PREFIX << ": error while forwarding NOTIFY request, could not create request";
+		LOGE << "Error while forwarding NOTIFY request, could not create request";
 		return;
 	}
 	event->notify(content);

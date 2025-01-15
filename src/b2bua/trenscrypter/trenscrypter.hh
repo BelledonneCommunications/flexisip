@@ -68,7 +68,7 @@ private:
 	std::shared_ptr<linphone::Core> mCore;
 	std::list<encryptionConfiguration> mOutgoingEncryption;
 	std::list<srtpConfiguration> mSrtpConf;
-	const std::string mLogPrefix{B2buaServer::kLogPrefix + std::string{"::trenscrypter"}};
+	const std::string_view mLogPrefix{"Trenscrypter"};
 };
 
 } // namespace flexisip::b2bua::trenscrypter
