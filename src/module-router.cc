@@ -48,7 +48,7 @@ using namespace flexisip;
 using namespace sofiasip;
 
 ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
-	LOGT("New ModuleRouter[%p]", this);
+	SLOGT << "New ModuleRouter[" << this << "]";
 	mStats.mCountForks = mModuleConfig->getStatPairPtr("count-forks");
 	mStats.mCountBasicForks = mModuleConfig->getStatPairPtr("count-basic-forks");
 	mStats.mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
@@ -57,7 +57,7 @@ ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module
 }
 
 ModuleRouter::~ModuleRouter() {
-	LOGT("Destroy ModuleRouter[%p]", this);
+	SLOGT << "Destroy ModuleRouter[" << this << "]";
 };
 
 void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {

@@ -43,11 +43,11 @@ PushNotificationContext::PushNotificationContext(const std::shared_ptr<OutgoingT
     : mKey{key}, mModule{_module}, mPInfo{pInfo}, mBranchInfo{BranchInfo::getBranchInfo(transaction)},
       mForkContext{ForkContext::getFork(transaction)}, mTimer{_module->getAgent()->getRoot()},
       mEndTimer{_module->getAgent()->getRoot(), contextLifespan} {
-	LOGT("New PushNotificationContext[%p]", this);
+	SLOGT << "New PushNotificationContext[" << this << "]";
 }
 
 PushNotificationContext::~PushNotificationContext() {
-	LOGT("Destroy PushNotificationContext[%p]", this);
+	SLOGT << "Destroy PushNotificationContext[" << this << "]";
 }
 
 void PushNotificationContext::start(std::chrono::seconds delay) {
