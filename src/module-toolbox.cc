@@ -247,7 +247,7 @@ bool ModuleToolbox::urlHostMatch(const char* host1, const char* host2) {
 		if (inet_pton(AF_INET6, ip1.c_str(), &addr1) == 1 && inet_pton(AF_INET6, ip2.c_str(), &addr2) == 1) {
 			return memcmp(&addr1, &addr2, sizeof(addr1)) == 0;
 		} else {
-			LOGW("Comparing invalid IPv6 addresses %s | %s", host1, host2);
+			SLOGW << "Comparing invalid IPv6 addresses " << host1 << " | " << host2;
 		}
 	}
 	return strncasecmp(host1, host2, MAX(len1, len2)) == 0;

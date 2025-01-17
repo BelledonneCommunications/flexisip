@@ -79,7 +79,7 @@ unique_ptr<RequestSipEvent> LoadBalancer::onRequest(unique_ptr<RequestSipEvent>&
 		route = mRoutes[index].c_str();
 		ModuleToolbox::cleanAndPrependRoute(getAgent(), ms->getMsg(), sip, sip_route_make(ms->getHome(), route));
 	} else {
-		LOGW("request has no call id");
+		SLOGW << "request has no call id";
 	}
 	return std::move(ev);
 }

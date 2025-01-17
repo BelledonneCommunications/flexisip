@@ -170,8 +170,8 @@ void ModuleDoSProtection::onIdle() {
 		}
 
 		if (now_in_millis - started_time_in_millis >= 100) { // Do not use more than 100ms to clean the hashtable
-			LOGW("Started to clean dos hashtable %fms ago, let's stop for now a continue later",
-			     now_in_millis - started_time_in_millis);
+			SLOGW << "Started to clean dos hashtable " << (now_in_millis - started_time_in_millis)
+			      << "ms ago, let's stop for now a continue later";
 			break;
 		}
 	}
@@ -240,19 +240,20 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 			}
 
 			if (dosContext.packet_count_rate >= mPacketRateLimit) {
-				LOGW("Packet count rate (%f) >= limit (%i), blocking ip/port %s/%s on protocol udp for %i minutes",
-				     dosContext.packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+				SLOGW << "Packet count rate (" << dosContext.packet_count_rate << ") >= limit (" << mPacketRateLimit
+				      << "), blocking ip/port " << ip << "/" << port << " on protocol udp for " << mBanTime
+				      << " minutes";
 				if (!isIpWhiteListed(ip)) {
 					mThreadPool->run([&, ip, port] { mBanExecutor->banIP(ip, port, "udp"); });
 					registerUnbanTimer(ip, port, "udp");
 					ev->terminateProcessing(); // the event is discarded
 				} else {
-					LOGW("IP %s should be banned but wasn't because in white list", ip);
+					SLOGW << "IP " << ip << " should be banned but wasn't because in white list";
 				}
 				dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
 			}
 		} else {
-			LOGW("getnameinfo() failed: %s", gai_strerror(err));
+			SLOGW << "getnameinfo() failed: " << gai_strerror(err);
 		}
 	} else {
 		unsigned long packet_count_rate = tport_get_packet_count_rate(tport);
@@ -265,18 +266,19 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 
 			if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) ==
 			    0) {
-				LOGW("Packet count rate (%lu) >= limit (%i), blocking ip/port %s/%s on protocol tcp for %i minutes",
-				     packet_count_rate, mPacketRateLimit, ip, port, mBanTime);
+				SLOGW << "Packet count rate (" << packet_count_rate << ") >= limit (" << mPacketRateLimit
+				      << "), blocking ip/port " << ip << "/" << port << " on protocol tcp for " << mBanTime
+				      << " minutes";
 				if (!isIpWhiteListed(ip)) {
 					mThreadPool->run([&, ip, port] { mBanExecutor->banIP(ip, port, "tcp"); });
 					registerUnbanTimer(ip, port, "tcp");
 					ev->terminateProcessing(); // the event is discarded
 				} else {
-					LOGW("IP %s should be banned but wasn't because in white list", ip);
+					SLOGW << "IP " << ip << " should be banned but wasn't because in white list";
 				}
 				tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
 			} else {
-				LOGW("getnameinfo() failed: %s", gai_strerror(err));
+				SLOGW << "getnameinfo() failed: " << gai_strerror(err);
 			}
 		}
 	}

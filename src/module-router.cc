@@ -475,7 +475,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
-		LOGW("Request is not routed because of incorrect address of contact");
+		SLOGW << "Request is not routed because of incorrect address of contact";
 		mInjector->removeContext(context, contact->contactId());
 		return nullptr;
 	}

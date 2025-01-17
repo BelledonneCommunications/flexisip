@@ -626,7 +626,7 @@ void ModuleRegistrar::idle() {
 	unsigned long durationMs =
 	    (unsigned long)std::chrono::duration_cast<std::chrono::milliseconds>((stop) - (start)).count();
 	if (durationMs >= 1000) {
-		LOGW("ModuleRegistrar::idle() (registrar expired aor cleanup) took %lu ms", durationMs);
+		SLOGW << "ModuleRegistrar::idle() (registrar expired aor cleanup) took " << durationMs << "ms";
 	}
 }
 

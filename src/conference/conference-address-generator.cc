@@ -54,7 +54,7 @@ void ConferenceAddressGenerator::changeAddress() {
 void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record>& r) {
 	if (mState == State::Fetching) {
 		if (r && !r->isEmpty()) {
-			LOGW("Conference address conflict detected, trying another random name.");
+			SLOGW << "Conference address conflict detected, trying another random name.";
 			changeAddress();
 			run();
 		} else {

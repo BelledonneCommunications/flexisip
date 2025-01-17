@@ -196,17 +196,17 @@ bool SdpModifier::hasSdp(const sip_t* sip) {
 bool SdpModifier::initFromSipMsg(sip_t* sip) {
 	sip_payload_t* payload = sip->sip_payload;
 	if (payload == NULL || payload->pl_data == NULL) {
-		LOGW("SIP message has no payload");
+		SLOGW << "SIP message has no payload";
 		return false;
 	}
 	mParser = sdp_parse(mHome, payload->pl_data, (int)payload->pl_len, 0);
 	mSession = sdp_session(mParser);
 	if (mSession == NULL) {
-		LOGW("SDP parsing error: %s", sdp_parsing_error(mParser));
+		SLOGW << "SDP parsing error: " << sdp_parsing_error(mParser);
 		return false;
 	}
 	if (mSession->sdp_media == NULL) {
-		LOGW("SDP with no mline.");
+		SLOGW << "SDP with no mline.";
 		return false;
 	}
 	mSip = sip;

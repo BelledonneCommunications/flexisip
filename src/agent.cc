@@ -562,7 +562,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		}
 	}
 	if (mPublicResolvedIpV6.empty()) {
-		LOGW("This flexisip instance has no public IPv6 address detected.");
+		SLOGW << "This flexisip instance has no public IPv6 address detected.";
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
@@ -793,7 +793,8 @@ string Agent::computeResolvedPublicIp(const string& host, int family) const {
 	} else {
 		if (!((UriUtils::isIpv4Address(dest) && family != AF_INET) ||
 		      (UriUtils::isIpv6Address(dest) && family != AF_INET6))) {
-			LOGW("getaddrinfo error: %s for host [%s] and family=[%i]", gai_strerror(err), host.c_str(), family);
+			SLOGW << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host << "] and family=[" << family
+			      << "]";
 		}
 	}
 	return "";

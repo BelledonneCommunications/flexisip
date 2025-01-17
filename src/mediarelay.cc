@@ -120,7 +120,8 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 	if (rtp_port > 0 && mPreventLoop) {
 		if (ip == mRelayTransport.mIpv4Address || ip == mRelayTransport.mIpv6Address ||
 		    ip == mRelayTransport.mIpv4BindAddress || ip == mRelayTransport.mIpv6BindAddress) {
-			LOGW("RelayChannel [%p] wants to loop to local machine with ip [%s], not allowed.", this, ip.c_str());
+			SLOGW << "RelayChannel [" << this << "] wants to loop to local machine with ip [" << ip
+			      << "], not allowed.";
 			dest_ok = false;
 		}
 	}
@@ -140,9 +141,9 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 		mIsOpen = true;
 
 		if (mDestAddrChanged) {
-			LOGW("RelayChannel [%p] is being set new destination address but was fixed previously in this session, so "
-			     "ignoring this request.",
-			     this);
+			SLOGW << "RelayChannel [" << this
+			      << "] is being set new destination address but was fixed previously in this session, so ignoring "
+			         "this request.";
 			return;
 		}
 
@@ -235,8 +236,8 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 			return 0;
 		}
 	} else if (err == -1) {
-		LOGW("Error receiving on port %i from %s:%i: %s", mRelayTransport.mRtpPort, mRemoteIp.c_str(), mRemotePort[i],
-		     strerror(errno));
+		SLOGW << "Error receiving on port " << mRelayTransport.mRtpPort << " from " << mRemoteIp << ":"
+		      << mRemotePort[i] << ": " << strerror(errno);
 		if (errno == ECONNREFUSED) {
 			mRecvErrorCount[i]++;
 		}
@@ -254,15 +255,15 @@ int RelayChannel::send(int i, uint8_t* buf, size_t buflen) {
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr*)&mSockAddr[i], mSockAddrSize[i]);
 			mPacketsSent[i]++;
 			if (err == -1) {
-				LOGW("Error sending %i bytes (localport=%i dest=%s:%i) : %s", (int)buflen, localPort, mRemoteIp.c_str(),
-				     mRemotePort[i], strerror(errno));
+				SLOGW << "Error sending " << buflen << " bytes (localport=" << localPort << " dest=" << mRemoteIp << ":"
+				      << mRemotePort[i] << ") : " << strerror(errno);
 			} else if (err != (int)buflen) {
-				LOGW("Only %i bytes sent over %i bytes (localport=%i dest=%s:%i)", err, (int)buflen, localPort,
-				     mRemoteIp.c_str(), mRemotePort[i]);
+				SLOGW << "Only " << err << " bytes sent over " << buflen << " bytes (localport=" << localPort
+				      << " dest=" << mRemoteIp << ":" << mRemotePort[i] << ")";
 			}
 		}
 	} else {
-		/*LOGW("Not sending media, destination not valid or inactive stream."); */
+		// SLOGW << "Not sending media, destination not valid or inactive stream.";
 	}
 	return err;
 }
@@ -557,7 +558,7 @@ static void set_high_prio() {
 			} else {
 				SLOGD << "MediaRelayServer priority increased to maximum.";
 			}
-		} else LOGW("MediaRelayServer: pthread_setschedparam failed: %s", strerror(result));
+		} else SLOGW << "MediaRelayServer: pthread_setschedparam failed: " << strerror(result);
 	} else {
 		SLOGD << "MediaRelayServer: priority set to [" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR")
 		      << "] and value [" << param.sched_priority << "]";

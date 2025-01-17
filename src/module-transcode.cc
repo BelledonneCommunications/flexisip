@@ -331,7 +331,7 @@ int Transcoder::handleOffer(TranscodedCall* c, MsgSip& ms) {
 		}
 		return 0;
 	} else {
-		LOGW("No support for any of the codec offered by client, doing bypass.");
+		SLOGW << "No support for any of the codec offered by client, doing bypass.";
 		if (!ioffer.empty()) {
 			for (auto it = ioffer.begin(); it != ioffer.cend(); ++it) {
 				payload_type_destroy(*it);

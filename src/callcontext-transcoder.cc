@@ -273,7 +273,7 @@ void CallSide::payloadTypeChanged(RtpSession* session, void* data, void*, void*)
 	if (pt != NULL) {
 		ctx->redraw(side);
 	} else {
-		LOGW("Receiving unknown payload type %i", num);
+		SLOGW << "Receiving unknown payload type " << num;
 	}
 }
 
@@ -421,7 +421,7 @@ void TranscodedCall::playTone(sip_t* info) {
 				}
 			}
 		}
-	} else LOGW("Tone not played because graph is not ready.");
+	} else SLOGW << "Tone not played because graph is not ready.";
 }
 
 CallSide* TranscodedCall::getOther(CallSide* cs) {

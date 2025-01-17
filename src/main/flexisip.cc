@@ -218,7 +218,7 @@ static rlim_t getSystemFdLimit() {
 
 	return maxSysFd;
 #else
-	LOGW("Guessing of system wide fd limit is not implemented.");
+	SLOGW << "Guessing of system wide fd limit is not implemented.";
 	return 2048;
 #endif
 }
@@ -290,7 +290,7 @@ static void makePidFile(const string& pidfile) {
 static void set_process_name([[maybe_unused]] const string& process_name) {
 #ifdef PR_SET_NAME
 	if (prctl(PR_SET_NAME, process_name.c_str(), NULL, NULL, NULL) == -1) {
-		LOGW("prctl() failed: %s", strerror(errno));
+		SLOGW << "prctl() failed: " << strerror(errno);
 	}
 #endif
 }

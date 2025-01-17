@@ -177,7 +177,7 @@ RelayedCall::getChannelSources(int sessionId, const std::string& partyTag, const
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
 		if (chan == NULL) {
-			LOGW("RelayedCall::getChannelSources(): no channel");
+			SLOGW << "RelayedCall::getChannelSources(): no channel";
 		} else {
 			return &chan->getRelayTransport();
 		}
@@ -235,7 +235,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 
 	auto chan = s->getChannel(partyTag, trId);
 	if (chan == NULL) {
-		LOGW("RelayedCall::setChannelDestinations(): no channel");
+		SLOGW << "RelayedCall::setChannelDestinations(): no channel";
 		return;
 	}
 
@@ -251,7 +251,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 					 Finally, we wish that only adjacent clients are counted.
 					 */
 				} else if (s->getActiveBranchesCount() >= maxEarlyRelays) {
-					LOGW("Maximum number of relayed early media streams reached for RelayedCall [%p]", this);
+					SLOGW << "Maximum number of relayed early media streams reached for RelayedCall [" << this << "]";
 					dir = RelayChannel::Inactive;
 				}
 			}

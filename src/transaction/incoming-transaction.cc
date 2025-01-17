@@ -81,7 +81,7 @@ void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const*
 			destroy();
 		}
 	} else {
-		LOGW("Invalid incoming");
+		SLOGW << "Invalid incoming";
 	}
 }
 
@@ -97,7 +97,7 @@ void IncomingTransaction::reply(
 			destroy();
 		}
 	} else {
-		LOGW("Invalid incoming");
+		SLOGW << "Invalid incoming";
 	}
 }
 

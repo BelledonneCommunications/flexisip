@@ -238,7 +238,7 @@ void FileAuthDb::sync() {
 			string key(createPasswordKey(userLine->getUser(), userLine->getUserId()));
 			cachePassword(key, userLine->getDomain(), destPasswords, mCacheExpire);
 		} else {
-			LOGW("Domain '%s' is not handled by Authentication module", userLine->getDomain().c_str());
+			SLOGW << "Domain '" << userLine->getDomain() << "' is not handled by Authentication module";
 		}
 	}
 	SLOGD << "Syncing done";

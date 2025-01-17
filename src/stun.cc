@@ -107,7 +107,7 @@ void StunServer::run() {
 	/*set a high priority to this thread so that it answers fast*/
 	err = setpriority(PRIO_PROCESS, 0, -20);
 	if (err == -1) {
-		LOGW("Fail to set high priority to stun server thread: %s", strerror(errno));
+		SLOGW << "Fail to set high priority to stun server thread: " << strerror(errno);
 	}
 
 	while (mRunning) {
@@ -167,8 +167,8 @@ void StunServer::run() {
 						destaddr.sin_addr.s_addr = htonl(dest.addr);
 						err = sendto(mSock, buf, bytes, 0, (struct sockaddr*)&destaddr, sizeof(destaddr));
 						if (err == -1) {
-							LOGW("Fail to send stun response to %s:%i", inet_ntop(AF_INET, &destaddr, tmp, sizeof(tmp)),
-							     dest.addr);
+							SLOGW << "Fail to send stun response to " << inet_ntop(AF_INET, &destaddr, tmp, sizeof(tmp))
+							      << ":" << dest.addr;
 						}
 					} else LOGE("stunEncodeMessage() failed.");
 				} else SLOGD << "Received stun request with changeIP or changePort, not supported yet";

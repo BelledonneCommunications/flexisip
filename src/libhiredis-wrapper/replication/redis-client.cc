@@ -140,16 +140,16 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 			// If there is no slaves, this is already a full rotation.
 			mLastReconnectRotation = std::chrono::system_clock::now();
 		}
-		LOGW("%sTrying to reconnect to last active connection at %s:%d", logPrefix().c_str(), mParams.domain.c_str(),
-		     mParams.port);
+		SLOGW << logPrefix() << "Trying to reconnect to last active connection at " << mParams.domain << ":"
+		      << mParams.port;
 		return connect();
 	}
 
 	// If last active connection still fail
 	// we can try one of the previously determined slaves
 	if (mCurSlave != mSlaves.cend()) {
-		LOGW("%sConnection failed or lost to %s:%d, trying a known slave %d at %s:%d", logPrefix().c_str(),
-		     mParams.domain.c_str(), mParams.port, mCurSlave->id, mCurSlave->address.c_str(), mCurSlave->port);
+		SLOGW << logPrefix() << "Connection failed or lost to " << mParams.domain << ":" << mParams.port
+		      << ", trying a known slave " << mCurSlave->id << " at " << mCurSlave->address << ":" << mCurSlave->port;
 
 		mParams.domain = mCurSlave->address;
 		mParams.port = mCurSlave->port;
@@ -224,7 +224,7 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 			int masterPort = atoi(replyMap["master_port"].c_str());
 			string masterStatus = replyMap["master_link_status"];
 
-			LOGW("%sOur redis instance is a slave of %s:%d", logPrefix().c_str(), masterAddress.c_str(), masterPort);
+			SLOGW << logPrefix() << "Our redis instance is a slave of " << masterAddress << ":" << masterPort;
 			if (masterStatus == "up") {
 				SLOGW << logPrefix() << "Master is up, will attempt to connect to the master at " << masterAddress
 				      << ":" << masterPort;

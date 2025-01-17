@@ -249,13 +249,13 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	msg_t* msg = ev.getMsgSip()->getMsg();
 
 	if (sip->sip_from == NULL || sip->sip_from->a_tag == NULL) {
-		LOGW("No tag in from !");
+		SLOGW << "No tag in from !";
 		return false;
 	}
 	c->updateActivity();
 	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ev.getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
-		LOGW("Invalid SDP");
+		SLOGW << "Invalid SDP";
 		return false;
 	}
 
@@ -358,7 +358,7 @@ unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& 
 		if (c == NULL) c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, false));
 		if (c == NULL) {
 			if (mMaxCalls > 0 && mCalls->size() >= mMaxCalls) {
-				LOGW("Maximum number of relayed calls reached (%i), call is rejected", mMaxCalls);
+				SLOGW << "Maximum number of relayed calls reached (" << mMaxCalls << "), call is rejected";
 				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()),
 				          TAG_END());
 				return {};
@@ -407,7 +407,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	SLOGD << "Processing 200 Ok or early media";
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
-		LOGW("No tag in answer");
+		SLOGW << "No tag in answer";
 		return;
 	}
 
@@ -418,7 +418,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 
 	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
-		LOGW("Invalid SDP");
+		SLOGW << "Invalid SDP";
 		return;
 	}
 

@@ -133,7 +133,7 @@ parseKeyValue(const string& toParse, const char lineDelimiter, const char delimi
 
 		size_t delim_pos = line.find(delimiter);
 		if (delim_pos == line.npos || delim_pos == line.length()) {
-			LOGW("Invalid line '%s' in key-value", line.c_str());
+			SLOGW << "Invalid line '" << line << "' in key-value";
 			continue;
 		}
 

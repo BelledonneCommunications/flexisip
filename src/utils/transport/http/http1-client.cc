@@ -65,7 +65,7 @@ void Http1Client::sendNextRequest() {
 	mNthClient.reset(nth_client_tcreate(mNthEngine.get(), callback, this, HTTP_METHOD_GET,
 	                                    URL_STRING_MAKE(pendingReq.url.data()), TAG_END()));
 	if (!mNthClient) {
-		LOGW("Failed to send GET request to %s", pendingReq.url.data());
+		SLOGW << "Failed to send GET request to " << pendingReq.url;
 		onRequestResponse("");
 	}
 }

@@ -145,7 +145,7 @@ void ClientFactory::onSubscriptionStateChanged([[maybe_unused]] const std::share
 		Client& client = linphoneEvent->getData<Client>(Client::eventKey);
 		client.onSubscriptionStateChanged(state);
 	} catch (const std::out_of_range&) {
-		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
+		SLOGW << "ClientFactory::onSubscriptionStateChanged: Client disconnected";
 	} catch (const std::exception& exc) {
 		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
 	}
@@ -159,7 +159,7 @@ void ClientFactory::onNotifyReceived([[maybe_unused]] const shared_ptr<Core>& lc
 		Client& client = lev->getData<Client>(Client::eventKey);
 		client.onNotifyReceived(body);
 	} catch (const std::out_of_range&) {
-		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
+		SLOGW << "ClientFactory::onSubscriptionStateChanged: Client disconnected";
 	} catch (const std::exception& exc) {
 		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
 	}
