@@ -100,12 +100,12 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	list<string> whiteList = cluster->get<ConfigStringList>("nodes")->read();
 	whiteList.splice(whiteList.end(), mc->get<ConfigStringList>("white-list")->read());
 
-	LOGI("IP 127.0.0.1 and ::1 automatically added to DOS protection white list");
+	SLOGI << "IP 127.0.0.1 and ::1 automatically added to DOS protection white list";
 	whiteList.push_back("127.0.0.1");
 	whiteList.push_back("::1");
 	for (auto it = whiteList.begin(); it != whiteList.end(); ++it) {
 		const char* white_ip = (*it).c_str();
-		LOGI("Host %s is in DOS protection white list", white_ip);
+		SLOGI << "Host " << white_ip << " is in DOS protection white list";
 		BinaryIp::emplace(mWhiteList, white_ip);
 	}
 

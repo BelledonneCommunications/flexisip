@@ -55,10 +55,10 @@ void LoadBalancer::onLoad(const GenericStruct* modconf) {
 	list<string> routes = modconf->get<ConfigStringList>("routes")->read();
 	list<string>::iterator it;
 
-	LOGI("Load balancer configured to balance over:");
+	SLOGI << "Load balancer configured to balance over:";
 	for (it = routes.begin(); it != routes.end(); ++it) {
 		mRoutes.push_back(*it);
-		LOGI("%s", (*it).c_str());
+		SLOGI << *it;
 	}
 	mRoutesCount = mRoutes.size();
 }

@@ -375,7 +375,7 @@ bool TranscodedCall::isJoined() const {
 }
 
 void TranscodedCall::redraw(CallSide* r) {
-	LOGI("Redrawing in context of MSTicker");
+	SLOGI << "Redrawing in context of MSTicker";
 	CallSide* s = (r == mFrontSide) ? mBackSide : mFrontSide;
 	s->disconnect(r);
 	s->connect(r, mTicker);

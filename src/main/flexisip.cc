@@ -340,7 +340,7 @@ static void forkAndDetach(ConfigManager& cfg,
 			makePidFile(pidfile);
 			return;
 		} else {
-			LOGI("[WDOG] Flexisip PID: %d", flexisip_pid);
+			SLOGI << "[WDOG] Flexisip PID: " << flexisip_pid;
 		}
 
 		/*
@@ -415,7 +415,7 @@ static void forkAndDetach(ConfigManager& cfg,
 					if (startMonitor) kill(monitor_pid, SIGTERM);
 					if (WIFEXITED(status)) {
 						if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
-							LOGI("Flexisip restart to apply new config...");
+							SLOGI << "Flexisip restart to apply new config...";
 							sleep(1);
 							goto fork_flexisip;
 						} else {

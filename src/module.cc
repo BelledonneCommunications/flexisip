@@ -67,7 +67,7 @@ bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) 
 			break;
 		case ConfigState::Committed:
 			if (dirtyConfig) {
-				LOGI("Reloading config of module %s", mInfo->getModuleName().c_str());
+				SLOGI << "Reloading config of module " << mInfo->getModuleName();
 				reload();
 				dirtyConfig = false;
 			}

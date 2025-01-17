@@ -82,7 +82,7 @@ static void redisSofiaDelWrite(void* privdata) {
 static void redisSofiaCleanup(void* privdata) {
 	redisSofiaEvents* e = (redisSofiaEvents*)privdata;
 	su_root_deregister(e->root, e->index);
-	LOGI("Redis sofia event cleaned %p", e->context);
+	SLOGI << "Redis sofia event cleaned " << e->context;
 	free(e);
 }
 

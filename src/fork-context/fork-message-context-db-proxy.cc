@@ -96,13 +96,13 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 }
 
 void ForkMessageContextDbProxy::loadFromDb() const {
-	LOGI("ForkMessageContextDbProxy[%p] retrieving message in DB for UUID [%s]", this, mForkUuidInDb.c_str());
+	SLOGI << "ForkMessageContextDbProxy[" << this << "] retrieving message in DB for UUID [" << mForkUuidInDb << "]";
 	mDbFork = make_unique<ForkMessageContextDb>(
 	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
 }
 
 bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
-	LOGI("ForkMessageContextDbProxy[%p] saving ForkMessage to DB.", this);
+	SLOGI << "ForkMessageContextDbProxy[" << this << "] saving ForkMessage to DB.";
 	try {
 		if (mForkUuidInDb.empty()) {
 			SLOGD << "ForkMessageContextDbProxy[" << this << "] not saved before, creating a new entry.";

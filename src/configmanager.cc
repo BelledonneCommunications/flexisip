@@ -84,7 +84,7 @@ bool GenericEntry::onConfigStateChanged(const ConfigValue& conf, ConfigState sta
 				dumper.setMode(FileConfigDumper::Mode::CurrentValue);
 				cfgfile << dumper;
 				cfgfile.close();
-				LOGI("New configuration wrote to %s .", configFile.c_str());
+				SLOGI << "New configuration wrote to " << configFile;
 				rootStruct->setCommittedChange(true);
 			}
 			break;
@@ -1225,7 +1225,7 @@ bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState 
 			break;
 		case ConfigState::Committed:
 			if (mDirtyConfig) {
-				LOGI("Scheduling server restart to apply new config.");
+				SLOGI << "Scheduling server restart to apply new config.";
 				mDirtyConfig = false;
 				mNeedRestart = true;
 			}

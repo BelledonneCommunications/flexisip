@@ -361,7 +361,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms,
 						enabled = mH264DecimOnlyIfLastProxy ? isLastProxy(mServer->getAgent(), sip) : true;
 					} else enabled = true;
 					if (enabled) {
-						LOGI("Enabling H264 filtering for channel %p", ms.get());
+						SLOGI << "Enabling H264 filtering for channel " << ms.get();
 						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
 					}
 				}
@@ -376,7 +376,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms,
 				sdp_rtpmap_t* rtpmap;
 				for (rtpmap = mline->m_rtpmaps; rtpmap != NULL; rtpmap = rtpmap->rm_next) {
 					if (strcasecmp(rtpmap->rm_encoding, "telephone-event") == 0) {
-						LOGI("Enabling telephone-event filtering on payload type %i", rtpmap->rm_pt);
+						SLOGI << "Enabling telephone-event filtering on payload type " << rtpmap->rm_pt;
 						ms->setFilter(make_shared<TelephoneEventFilter>((int)rtpmap->rm_pt));
 					}
 				}

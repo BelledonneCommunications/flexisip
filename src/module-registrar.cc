@@ -602,10 +602,10 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	    // SAFETY: Capturing `this` is safe because we keep a handle to the Handler.
 	    [this](auto signum) {
 		    if (signum == SIGUSR1) {
-			    LOGI("Received signal triggering static records file re-read");
+			    SLOGI << "Received signal triggering static records file re-read";
 			    readStaticRecords();
 		    } else if (signum == SIGUSR2) {
-			    LOGI("Received signal triggering fake fetch");
+			    SLOGI << "Received signal triggering fake fetch";
 			    auto listener = make_shared<FakeFetchListener>();
 			    mAgent->getRegistrarDb().fetch(SipUri("sip:contact@domain"), listener, false);
 		    }

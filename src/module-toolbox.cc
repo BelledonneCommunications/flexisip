@@ -509,7 +509,7 @@ int ModuleToolbox::getCpuCount() {
 		while (fgets(line, sizeof(line), f)) {
 			if (strstr(line, "processor") == line) count++;
 		}
-		LOGI("Found %i processors", count);
+		SLOGI << "Found " << count << " processors";
 		fclose(f);
 	} else {
 		LOGE("ModuleToolbox::getCpuCount() not implemented outside of Linux");

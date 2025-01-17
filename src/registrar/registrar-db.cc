@@ -58,14 +58,14 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 		this->notifyContactListener(key, *uid);
 	};
 	if ("internal" == dbImplementation) {
-		LOGI("RegistrarDB implementation is internal");
+		SLOGI << "RegistrarDB implementation is internal";
 		mBackend = make_unique<RegistrarDbInternal>(mRecordConfig, mLocalRegExpire, notifyContact);
 	}
 #ifdef ENABLE_REDIS
 	/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
 	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
 	else if (dbImplementation.find("redis") == 0) {
-		LOGI("RegistrarDB implementation is REDIS");
+		SLOGI << "RegistrarDB implementation is REDIS";
 		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
 		auto params = redis::async::RedisParameters::fromRegistrarConf(registrar);
 

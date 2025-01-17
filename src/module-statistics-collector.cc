@@ -72,7 +72,7 @@ void StatisticsCollector::onLoad(const GenericStruct* mc) {
 	} else {
 		mCollectorAddress = NULL;
 	}
-	LOGI("StatisticsCollector: setup with collector address '%s'", value.c_str());
+	SLOGI << "StatisticsCollector: setup with collector address '" << value << "'";
 }
 
 unique_ptr<RequestSipEvent> StatisticsCollector::onRequest(unique_ptr<RequestSipEvent>&& ev) {
@@ -88,7 +88,7 @@ unique_ptr<RequestSipEvent> StatisticsCollector::onRequest(unique_ptr<RequestSip
 			int err = managePublishContent(*ev);
 			ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		} else {
-			LOGI("StatisticsCollector: received PUBLISH with invalid type, ignoring");
+			SLOGI << "StatisticsCollector: received PUBLISH with invalid type, ignoring";
 		}
 	}
 	return std::move(ev);

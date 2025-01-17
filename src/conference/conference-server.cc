@@ -276,7 +276,7 @@ void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> nat
 						if (!ipv4_set) {
 							natPolicy->setNatV4Address(ipaddress);
 							ipv4_set = true;
-							LOGI("Nat v4 address set: %s", ipaddress);
+							SLOGI << "Nat v4 address set: " << ipaddress;
 						} else {
 							LOGE("Ignoring nat-address '%s', there can be a single one per IP family.", ipaddress);
 						}
@@ -284,7 +284,7 @@ void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> nat
 					case AF_INET6:
 						if (!ipv6_set) {
 							natPolicy->setNatV6Address(ipaddress);
-							LOGI("Nat v6 address set: %s", ipaddress);
+							SLOGI << "Nat v6 address set: " << ipaddress;
 							ipv6_set = true;
 						} else {
 							LOGE("Ignoring nat-address '%s', there can be a single one per IP family.", ipaddress);
@@ -472,7 +472,7 @@ void ConferenceServer::bindFocusUris() {
 			}
 			shared_ptr<linphone::Address> gruuAddr =
 			    linphone::Factory::get()->createAddress(url_as_string(mHome.home(), pub_gruu));
-			LOGI("Focus address [%s] is bound.", gruuAddr->asStringUriOnly().c_str());
+			SLOGI << "Focus address [" << gruuAddr->asStringUriOnly() << "] is bound";
 			mAccount->setContactAddress(gruuAddr);
 		}
 		void onError(const SipStatus&) override {

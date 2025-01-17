@@ -1068,7 +1068,7 @@ void Agent::sendRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 unique_ptr<ResponseSipEvent> Agent::sendResponseEvent(unique_ptr<ResponseSipEvent>&& ev) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
-		LOGI("Skipping incoming message on expired agent");
+		SLOGI << "Skipping incoming message on expired agent";
 		return {};
 	}
 	SipLogContext ctx(ev->getMsgSip());
@@ -1171,7 +1171,7 @@ tport_t* Agent::getIncomingTport(const msg_t* orig) {
 int Agent::onIncomingMessage(msg_t* msg, const sip_t* sip) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
-		LOGI("Skipping incoming message on expired agent");
+		SLOGI << "Skipping incoming message on expired agent";
 		return -1;
 	}
 	// Assuming sip is derived from msg
