@@ -180,7 +180,8 @@ void Agent::onDeclare(const GenericStruct& root) {
 
 	const auto rtpBindAddress = global->get<ConfigStringList>("rtp-bind-address")->read();
 	if (rtpBindAddress.size() != 2) {
-		LOGA("Config entry [rtp-bind-address] must have 2 and only 2 ip addresses, IPV4 first, IPV6 second");
+		throw BadConfiguration{
+		    "config entry [rtp-bind-address] must have 2 and only 2 ip addresses, IPV4 first, IPV6 second"};
 	}
 	mRtpBindIp = rtpBindAddress.front();
 	mRtpBindIp6 = rtpBindAddress.back();
@@ -321,7 +322,7 @@ static filesystem::file_time_type getLastCertUpdate(TlsConfigInfo& tlsInfo) {
 void Agent::start(const string& transport_override, const string& passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
-		LOGA("Could not get current file path");
+		throw FlexisipException{"could not get current file path"};
 	}
 	string currDir = cCurrDir;
 
@@ -599,7 +600,8 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 	tlsConfigInfoFromConf.certifPrivateKey = global->get<ConfigString>("tls-certificates-private-key")->read();
 	tlsConfigInfoFromConf.certifCaFile = global->get<ConfigString>("tls-certificates-ca-file")->read();
 	if (tlsConfigInfoFromConf.certifFile.empty() ^ tlsConfigInfoFromConf.certifPrivateKey.empty()) {
-		LOGA("If you specified tls-certificates-file you MUST specify tls-certificates-private-key too and vice versa");
+		throw BadConfiguration{
+		    "if you specified tls-certificates-file you MUST specify tls-certificates-private-key too and vice versa"};
 	}
 	if (!tlsConfigInfoFromConf.certifFile.empty()) {
 		tlsConfigInfoFromConf.mode = TlsMode::NEW;
@@ -1012,7 +1014,9 @@ Agent::doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, con
 		if (ev->isTerminated() || ev->isSuspended()) break;
 	}
 	if (!ev->isTerminated() && !ev->isSuspended()) {
-		LOGA("Event not handled %p", ev.get());
+		stringstream error{"Event no handled "};
+		error << ev;
+		throw FlexisipException{error.str()};
 	}
 	return std::move(ev);
 }
@@ -1163,7 +1167,7 @@ tport_t* Agent::getIncomingTport(const msg_t* orig) {
 		 */
 		const sip_t* sip = (const sip_t*)msg_object(orig);
 		if (sip && sip->sip_request != nullptr) {
-			LOGA("tport not found");
+			throw FlexisipException{"tport not found"};
 		}
 	}
 	return tport;

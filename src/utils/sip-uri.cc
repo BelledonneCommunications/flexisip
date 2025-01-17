@@ -25,6 +25,7 @@
 
 #include "flexisip/configmanager.hh"
 
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/utils/sip-uri.hh"
 
 using namespace std;
@@ -130,10 +131,11 @@ TlsConfigInfo Url::getTlsConfigInfo() const {
 	tlsConfigInfo.certifCaFile = getParam("tls-certificates-ca-file");
 
 	if (!tlsConfigInfo.certifDir.empty() && !tlsConfigInfo.certifFile.empty()) {
-		LOGA("Transport can't use tls-certificates-dir AND tls-certificates-file/tls-certificates-private-key");
+		throw flexisip::BadConfiguration{
+		    "transport can't use tls-certificates-dir AND tls-certificates-file/tls-certificates-private-key"};
 	} else if (tlsConfigInfo.certifFile.empty() != tlsConfigInfo.certifPrivateKey.empty()) {
-		LOGA("If you specified tls-certificates-file in transport you MUST specify "
-		     "tls-certificates-private-key too and vice versa");
+		throw flexisip::BadConfiguration{"if you specified tls-certificates-file in transport you MUST specify "
+		                                 "tls-certificates-private-key too and vice versa"};
 	} else if (!tlsConfigInfo.certifDir.empty()) {
 		tlsConfigInfo.mode = TlsMode::OLD;
 

@@ -147,8 +147,7 @@ void Monitor::createAccounts(std::shared_ptr<AuthDb> authDb, GenericStruct& root
 	string domain = findDomain(rootConfig);
 	string localIP = findLocalAddress(nodes);
 	if (localIP == "") {
-		LOGA("Monitor::createAccounts(): Could not find local IP address");
-		exit(-1);
+		throw FlexisipException{"Monitor::createAccounts(), could not find local IP address"};
 	}
 
 	string password = generatePassword(localIP, salt);

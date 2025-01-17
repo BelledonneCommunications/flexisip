@@ -114,7 +114,7 @@ void SipEvent::terminateProcessing() {
 	} else if (mState == State::TERMINATED) {
 		SLOGE << "SipEvent::terminateProcessing(): event is already terminated. Please fix your code.";
 	} else {
-		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
+		throw FlexisipException{"can't terminateProcessing, wrong state " + stateStr(mState)};
 	}
 }
 
@@ -123,7 +123,7 @@ void SipEvent::suspendProcessing() {
 	if (mState == State::STARTED) {
 		mState = State::SUSPENDED;
 	} else {
-		LOGA("Can't suspendProcessing: wrong state %s", stateStr(mState).c_str());
+		throw FlexisipException{"can't suspendProcessing,  wrong state " + stateStr(mState)};
 	}
 }
 
@@ -132,7 +132,7 @@ void SipEvent::restartProcessing() {
 	if (mState == State::SUSPENDED) {
 		mState = State::STARTED;
 	} else {
-		LOGA("Can't restartProcessing: wrong state %s", stateStr(mState).c_str());
+		throw FlexisipException{"can't restartProcessing, wrong state " + stateStr(mState)};
 	}
 }
 
@@ -245,7 +245,7 @@ void RequestSipEvent::reply(int status, char const* phrase, tag_type_t tag, tag_
 }
 
 void RequestSipEvent::setIncomingAgent([[maybe_unused]] const shared_ptr<IncomingAgent>& agent) {
-	LOGA("Can't change incoming agent in request sip event");
+	throw FlexisipException{"can't change incoming agent in request sip event"};
 }
 
 std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction() {
@@ -396,7 +396,7 @@ void ResponseSipEvent::send(
 }
 
 void ResponseSipEvent::setOutgoingAgent([[maybe_unused]] const shared_ptr<OutgoingAgent>& agent) {
-	LOGA("Can't change outgoing agent in response sip event");
+	throw FlexisipException{"can't change outgoing agent in response sip event"};
 }
 
 ResponseSipEvent::~ResponseSipEvent() {

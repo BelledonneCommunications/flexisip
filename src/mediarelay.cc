@@ -55,8 +55,7 @@ int PollFd::addFd(int fd, unsigned int events) {
 
 unsigned int PollFd::getREvents(int index) const {
 	if (index >= mCurSize) {
-		LOGA("Bad access to pollfd table.");
-		return 0;
+		throw FlexisipException{"bad access to pollfd table"};
 	}
 	return mPfd[index].revents;
 }

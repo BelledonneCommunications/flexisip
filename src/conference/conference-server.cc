@@ -464,13 +464,11 @@ void ConferenceServer::bindFocusUris() {
 			}
 			shared_ptr<ExtendedContact> ec = r->extractContactByUniqueId(UriUtils::grToUniqueId(mUuid));
 			if (!ec) {
-				LOGA("Focus uri was not recorded in registrar database.");
-				return;
+				throw FlexisipException{"focus uri was not recorded in registrar database"};
 			}
 			url_t* pub_gruu = r->getPubGruu(ec, mHome.home());
 			if (!pub_gruu) {
-				LOGA("Focus binding does not have public gruu.");
-				return;
+				throw FlexisipException{"focus binding does not have public gruu"};
 			}
 			shared_ptr<linphone::Address> gruuAddr =
 			    linphone::Factory::get()->createAddress(url_as_string(mHome.home(), pub_gruu));
@@ -536,7 +534,7 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 
 	SipUri uri(bindingUrl);
 
-	if (uri.getUser().empty()) LOGA("Trying to bind with no username !");
+	if (uri.getUser().empty()) throw FlexisipException{"trying to bind with no username"};
 
 	mRegistrarDb->bind(uri, sipContact, parameter, listener);
 }

@@ -79,7 +79,7 @@ void SnmpAgent::initFlexisipSnmp(ConfigManager& cm) {
 	/* initialize the agent library */
 	int err = init_agent("flexisip");
 	if (err != 0) {
-		LOGA("error init snmp agent %d", errno);
+		throw FlexisipException{"error init snmp agent "s + strerror(errno)};
 	}
 
 	// Register all OIDs

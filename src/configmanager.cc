@@ -35,6 +35,7 @@
 
 #include "agent.hh"
 #include "configdumper.hh"
+#include "exceptions/bad-configuration.hh"
 #include "lpconfig.h"
 
 using namespace std;
@@ -172,7 +173,7 @@ void GenericEntry::mibFragment(ostream& ost, const string& spacing) const {
 
 void GenericEntry::doMibFragment(
     ostream& ostr, const string& def, const string& access, const string& syntax, const string& spacing) const {
-	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
+	if (!getParent()) throw BadConfiguration{"no parent found for " + getName()};
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
 	     << spacing << "	SYNTAX"
 	     << "	" << syntax << endl
@@ -193,13 +194,14 @@ GenericEntry::GenericEntry(const string& name, GenericValueType type, const stri
 	size_t idx;
 	for (idx = 0; idx < name.size(); idx++) {
 		if (name[idx] == '_')
-			LOGA("Underscores not allowed in config items, please use minus sign (while checking generic entry name "
-			     "'%s').",
-			     name.c_str());
+			throw BadConfiguration{"underscore characters not allowed in config items, please use minus sign (while "
+			                       "checking generic entry name '" +
+			                       name + "')"};
 		if (type != Struct && isupper(name[idx])) {
-			LOGA("Uppercase characters not allowed in config items, please use lowercase characters only (while "
-			     "checking generic entry name '%s').",
-			     name.c_str());
+			throw BadConfiguration{
+			    "Uppercase characters not allowed in config items, please use lowercase characters only (while "
+			    "checking generic entry name '" +
+			    name + "')"};
 		}
 	}
 
@@ -259,7 +261,7 @@ void GenericStruct::mibFragment(ostream& ost, const string& spacing) const {
 }
 
 void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
-	if (!getParent()) LOGA("no parent found for %s", getName().c_str());
+	if (!getParent()) throw BadConfiguration{"no parent found for " + getName()};
 	ost << spacing << sanitize(getName()) << " NOTIFICATION-TYPE" << endl
 	    << spacing << "	OBJECTS	{	flNotifString	} " << endl
 	    << spacing << "	STATUS	current" << endl
@@ -397,13 +399,13 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 		unique_ptr<GenericEntry> val = nullptr;
 		if (hashed) cOid = Oid::oidFromHashedString(items->name);
 		if (!items->name) {
-			LOGA("No name provided in configuration item");
+			throw BadConfiguration{"no name provided in configuration item"};
 		}
 		if (!items->help) {
-			LOGA("No help provided for configuration item '%s'", items->name);
+			throw FlexisipException{"no help provided for configuration item '"s + items->name + "'"};
 		}
 		if (!items->default_value) {
-			LOGA("No default value provided for configuration item '%s'", items->name);
+			throw FlexisipException{"no default value provided for configuration item '"s + items->name + "'"};
 		}
 		switch (items->type) {
 			case Boolean:
@@ -440,8 +442,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 				val = make_unique<ConfigBooleanExpression>(items->name, items->help, items->default_value, cOid);
 				break;
 			default:
-				LOGA("Bad ConfigValue type %u for %s!", items->type, items->name);
-				break;
+				throw FlexisipException{"bad ConfigValue type " + to_string(items->type) + " for " + items->name};
 		}
 		addChild(std::move(val));
 		if (!hashed) ++cOid;
@@ -512,25 +513,15 @@ ConfigBoolean::ConfigBoolean(const string& name, const string& help, const strin
 bool ConfigBoolean::parse(const string& value) {
 	if (value == "true" || value == "1") return true;
 	else if (value == "false" || value == "0") return false;
-	throw FlexisipException("Bad boolean value '" + value + "'");
+	throw BadConfiguration{"bad boolean value '" + value + "'"};
 	return false;
 }
 
 bool ConfigBoolean::read() const {
-	try {
-		return parse(get());
-	} catch (FlexisipException& e) {
-		LOGA("%s", e.what());
-	}
-	return false;
+	return parse(get());
 }
 bool ConfigBoolean::readNext() const {
-	try {
-		return parse(getNextValue());
-	} catch (FlexisipException& e) {
-		LOGA("%s", e.what());
-	}
-	return false;
+	return parse(getNextValue());
 }
 
 void ConfigBoolean::write(bool value) {
@@ -586,7 +577,7 @@ int ConfigIntRange::readMax() {
 
 void ConfigIntRange::write(int min, int max) {
 	if (min > max) {
-		LOGA("ConfigIntRange: min is superior to max");
+		throw BadConfiguration{"min (" + to_string(min) + ") > max (" + to_string(max) + ") (ConfigIntRange)"};
 	} else {
 		std::ostringstream oss;
 		oss << min << "-" << max;

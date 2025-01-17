@@ -100,13 +100,11 @@ void Transcoder::onLoad(const GenericStruct*) {
 }
 void Transcoder::onIdle() {
 }
-unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	LOGA("Transcoder support is not compiled");
-	return std::move(ev);
+unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&&) {
+	throw FlexisipException{"Transcoder support is not compiled"};
 }
-unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	LOGA("Transcoder support is not compiled");
-	return std::move(ev);
+unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>&&) {
+	throw FlexisipException{"Transcoder support is not compiled"};
 }
 #endif
 

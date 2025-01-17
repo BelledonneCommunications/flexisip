@@ -33,6 +33,7 @@
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/extended-contact.hh"
@@ -176,7 +177,7 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	/* The forward module needs the help of the router module to determine whether
 	 * a gruu request uri is under control of this domain or not. */
 	mRouterModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByFunction("Router"));
-	if (!mRouterModule.lock()) LOGA("Could not find 'Router' module.");
+	if (!mRouterModule.lock()) throw BadConfiguration{"could not find 'Router' module"};
 
 	const GenericStruct* clusterSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();

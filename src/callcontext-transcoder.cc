@@ -428,7 +428,7 @@ CallSide* TranscodedCall::getOther(CallSide* cs) {
 	if (cs == mBackSide) return mFrontSide;
 	else if (cs == mFrontSide) return mBackSide;
 	else {
-		LOGA("Big problem.");
+		throw FlexisipException{"big problem"};
 		return NULL;
 	}
 }

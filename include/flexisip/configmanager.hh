@@ -662,18 +662,18 @@ template <typename _retType, typename StrT>
 _retType* GenericStruct::get(StrT&& name) const {
 	GenericEntry* e = find(name);
 	if (e == nullptr) {
-		std::ostringstream err{};
-		err << "No ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
-		LOGA("%s", err.str().c_str());
+		std::stringstream message{};
+		message << "no ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
+		throw FlexisipException{message.str()};
 	}
 	auto ret = dynamic_cast<_retType*>(e);
 	if (ret == nullptr) {
 		int status;
 		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), nullptr, nullptr, &status);
-		std::ostringstream err{};
-		err << "Config entry [" << name << "] in struct [" << e->getParent()->getName()
-		    << "] does not have the expected type '" << type_name << "'.";
-		LOGA("%s", err.str().c_str());
+		std::stringstream message{};
+		message << "config entry [" << name << "] in struct [" << e->getParent()->getName()
+		        << "] does not have the expected type '" << type_name << "'";
+		throw FlexisipException{message.str()};
 	}
 	return ret;
 }
@@ -697,8 +697,8 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 		}
 		next_node = dynamic_cast<GenericStruct*>(e);
 		if (!next_node) {
-			LOGA("Config entry [%s] in struct [%s] does not have the expected type", e->getName().c_str(),
-			     e->getParent()->getName().c_str());
+			throw FlexisipException{"config entry [" + e->getName() + "] in struct [" + e->getParent()->getName() +
+			                        "] does not have the expected type"};
 			return nullptr;
 		}
 		prev_node = next_node;
