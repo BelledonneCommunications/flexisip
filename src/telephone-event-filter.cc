@@ -31,7 +31,7 @@ bool TelephoneEventFilter::onIncomingTransfer(uint8_t* data,
 	rtp_header_t* h = (rtp_header_t*)data;
 	if (size < sizeof(rtp_header_t)) return true;
 	if (h->paytype == mTelephoneEventPt) {
-		LOGD("Detected telephone event in stream, dropping.");
+        SLOGD << "Detected telephone event in stream, dropping.";
 		return false;
 	}
 	return true;

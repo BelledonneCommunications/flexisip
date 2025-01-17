@@ -42,10 +42,10 @@ public:
 		const sip_method_t rq_method = sip->sip_request->rq_method;
 
 		if (mMasqueradeRegisters && rq_method == sip_method_register) {
-			LOGD("Masquerading contact");
+			SLOGD << "Masquerading contact";
 			mContactMasquerader->masquerade(*ev->getMsgSip(), mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
-			LOGD("Masquerading contact");
+			SLOGD << "Masquerading contact";
 			mContactMasquerader->masquerade(*ev->getMsgSip());
 		}
 
@@ -57,10 +57,10 @@ public:
 			// now need to check if request uri has special param inserted
 			// by contact-route-inserter module
 			if (url_param(dest->url_params, mCtRtParamName.c_str(), ctrt, sizeof(ctrt))) {
-				LOGD("Found a contact route parameter");
+				SLOGD << "Found a contact route parameter";
 				mContactMasquerader->restore(ms->getHome(), dest, ctrt, "doroute");
 			} else {
-				LOGD("No countact route parameter found");
+				SLOGD << "No countact route parameter found";
 			}
 		}
 		return std::move(ev);

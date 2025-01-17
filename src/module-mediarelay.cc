@@ -282,7 +282,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	}
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
-		LOGD("Invite is already relayed");
+		SLOGD << "Invite is already relayed";
 		return false;
 	}
 
@@ -390,7 +390,7 @@ unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& 
 		/* need to match cancel from incoming transaction, because in this case the entire call context can be dropped
 		 * immediately*/
 		if (it && (c = it->getProperty<RelayedCall>(getModuleName())) != NULL) {
-			LOGD("Relayed call terminated by incoming cancel.");
+			SLOGD << "Relayed call terminated by incoming cancel.";
 			mCalls->remove(c);
 		}
 	}
@@ -404,7 +404,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	msg_t* msg = msgSip->getMsg();
 	bool isEarlyMedia = false;
 
-	LOGD("Processing 200 Ok or early media");
+	SLOGD << "Processing 200 Ok or early media";
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
 		LOGW("No tag in answer");
@@ -423,7 +423,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	}
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
-		LOGD("200 OK is already relayed");
+		SLOGD << "200 OK is already relayed";
 		return;
 	}
 
@@ -488,12 +488,12 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 
 	if (it && (c = it->getProperty<RelayedCall>(getModuleName())) != NULL) {
 		// This is a response sent to the incoming transaction.
-		LOGD("call context %p", c.get());
+		SLOGD << "call context " << c.get();
 		if (sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
 			// Check for failure code, in which case the call context can be destroyed immediately.
 			if (sip->sip_status->st_status >= 300) {
 				if (!c->isDialogEstablished()) {
-					LOGD("RelayedCall is terminated by final error response");
+					SLOGD << "RelayedCall is terminated by final error response";
 					mCalls->remove(c);
 				}
 			} else if (sip->sip_status->st_status < 200) {
@@ -521,7 +521,7 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 		} else if (mByeOrphanDialogs && mCalls->find(getAgent(), sip, true) != NULL) {
 			/* There a dialog with this call-id, but this 200Ok does not belong to it.
 			 * This is the case if two callers accept a forked call at the same time*/
-			LOGD("Receiving out of transaction and dialog 200Ok for invite, rejecting it.");
+			SLOGD << "Receiving out of transaction and dialog 200Ok for invite, rejecting it.";
 			nta_msg_ackbye(getAgent()->getSofiaAgent(), msg_dup(msg));
 			ev->terminateProcessing();
 		}
@@ -532,5 +532,5 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 void MediaRelay::onIdle() {
 	mCalls->dump();
 	mCalls->removeAndDeleteInactives(mInactivityPeriod);
-	if (mCalls->size() > 0) LOGD("There are %i calls active in the MediaRelay call list.", mCalls->size());
+	if (mCalls->size() > 0) SLOGD << "There are " << mCalls->size() << " calls active in the MediaRelay call list.";
 }

@@ -235,8 +235,8 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 				dosContext.packet_count_rate = dosContext.recv_msg_count_since_last_check / time_elapsed * 1000;
 				dosContext.recv_msg_count_since_last_check = 0;
 				dosContext.last_check_recv_msg_check_time = now_in_millis;
-				LOGD("Packet count rate (%f) for ip/port %s/%s on protocol udp", dosContext.packet_count_rate, ip,
-				     port);
+				SLOGD << "Packet count rate (" << dosContext.packet_count_rate << ") for ip/port " << ip << "/" << port
+				      << " on protocol udp";
 			}
 
 			if (dosContext.packet_count_rate >= mPacketRateLimit) {
@@ -256,7 +256,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 		}
 	} else {
 		unsigned long packet_count_rate = tport_get_packet_count_rate(tport);
-		LOGD("Packet count rate (%lu) for current tport on protocol tcp", packet_count_rate);
+		SLOGD << "Packet count rate (" << packet_count_rate << ") for current tport on protocol tcp";
 		if (packet_count_rate >= (unsigned long)mPacketRateLimit) {
 			sockaddr* addr = tport_get_address(tport)->ai_addr;
 			socklen_t len = tport_get_address(tport)->ai_addrlen;

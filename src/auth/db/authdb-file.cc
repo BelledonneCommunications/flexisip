@@ -175,7 +175,7 @@ shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupPars
    File parsing using belr with custom grammar for authdb file
 */
 void FileAuthDb::sync() {
-	LOGD("Syncing password file");
+	SLOGD << "Syncing password file";
 	GenericStruct* ma = mConfigRoot.get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 
@@ -192,7 +192,7 @@ void FileAuthDb::sync() {
 		return;
 	}
 
-	LOGD("Opening file %s", mFileString.c_str());
+	SLOGD << "Opening file " << mFileString;
 	string fileContent = loadFromFile(mFileString);
 
 	size_t parsedSize = 0;
@@ -214,7 +214,7 @@ void FileAuthDb::sync() {
 		return;
 	}
 
-	LOGD("AuthDb file succesfully parsed: \n%s", fileContent.c_str());
+	SLOGD << "AuthDb file succesfully parsed:\n" << fileContent;
 
 	auto authLines = pwdFile->getAuthLines();
 	for (auto it = authLines.begin(); it != authLines.end(); ++it) {
@@ -241,7 +241,7 @@ void FileAuthDb::sync() {
 			LOGW("Domain '%s' is not handled by Authentication module", userLine->getDomain().c_str());
 		}
 	}
-	LOGD("Syncing done");
+	SLOGD << "Syncing done";
 }
 
 } // namespace flexisip

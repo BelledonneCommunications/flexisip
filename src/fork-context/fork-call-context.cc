@@ -151,7 +151,7 @@ const int* ForkCallContext::getUrgentCodes() {
 }
 
 void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
-	LOGD("ForkCallContext[%p]::onResponse()", this);
+	SLOGD << "ForkCallContext[" << this << "]::onResponse()";
 
 	ForkContextBase::onResponse(br, event);
 
@@ -220,7 +220,7 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
                                     const std::string& uid,
                                     const std::shared_ptr<ExtendedContact>& newContact) {
 
-	LOGD("ForkCallContext[%p]::onNewRegister()", this);
+	SLOGD << "ForkCallContext[" << this << "]::onNewRegister()";
 	const auto& sharedListener = mListener.lock();
 	if (!sharedListener) {
 		return;

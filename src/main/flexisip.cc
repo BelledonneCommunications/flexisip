@@ -133,11 +133,11 @@ static void setOpenSSLThreadSafe() {
 static void flexisip_stop(int signum) {
 	if (flexisip_pid > 0) {
 		// We can't log from the parent process
-		// LOGD("Watchdog received quit signal...passing to child.");
+		// SLOGD << "Watchdog received quit signal...passing to child.";
 		/*we are the watchdog, pass the signal to our child*/
 		kill(flexisip_pid, signum);
 	} else if (run != 0) {
-		// LOGD("Received quit signal...");
+		// SLOGD << "Received quit signal...";
 
 		run = 0;
 		if (root) root->quit();
@@ -439,7 +439,7 @@ static void forkAndDetach(ConfigManager& cfg,
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
 		 */
-		LOGD("[LAUNCHER] Watchdog PID: %d", pid);
+		SLOGD << "[LAUNCHER] Watchdog PID: " << pid;
 		uint8_t buf[4];
 		// we don't need the write side of the pipe:
 		close(pipe_launcher_wdog[1]);

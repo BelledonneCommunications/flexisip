@@ -53,10 +53,10 @@ void ParticipantRegistrationSubscriptionHandler::subscribe(const shared_ptr<Chat
 		shared_ptr<RegistrationSubscription> subscription;
 
 		if (std::find(domains.begin(), domains.end(), address->getDomain()) != domains.end()) {
-			LOGD("Subscribed address is local [%s]", address->asString().c_str());
+            SLOGD << "Subscribed address is local [" << address->asString() <<"]";
 			subscription = make_shared<OwnRegistrationSubscription>(mServer, chatRoom, address, mRegistrarDb);
 		} else {
-			LOGD("Subscribed address is external [%s], subscribe to it", address->asString().c_str());
+            SLOGD << "Subscribed address is external [" << address->asString() << "], subscribe to it";
 			subscription = make_shared<ExternalRegistrationSubscription>(mServer, chatRoom, address);
 		}
 		mSubscriptions.insert(make_pair(key, subscription));

@@ -636,7 +636,7 @@ public:
 			}
 			if (foundGroup) {
 				// a group was formed
-				LOGD("A group with targetUris %s was formed", targetUris.str().c_str());
+				SLOGD << "A group with targetUris " << targetUris.str() << " was formed";
 				dest.mTargetUris = targetUris.str();
 				it = mAllContacts.begin();
 			}
@@ -655,10 +655,10 @@ public:
 private:
 	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>>::iterator findDestination(const url_t* url) {
 		Home home;
-		// LOGD("findDestination(): looking for %s", url_as_string(home.home(), url));
+		// SLOGD << "findDestination(): looking for " << url_as_string(home.home(), url);
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it) {
 			url_t* it_route = url_make(home.home(), (*it).second->mPath.back().c_str());
-			// LOGD("findDestination(): seeing %s", url_as_string(home.home(), it_route));
+			// SLOGD << "findDestination(): seeing " << url_as_string(home.home(), it_route);
 			if (url_cmp(it_route, url) == 0) {
 				return it;
 			}
@@ -677,7 +677,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 	bool isInvite = false;
 
 	if (!aor) {
-		LOGD("This user isn't registered (no aor).");
+		SLOGD << "This user isn't registered (no aor).";
 		SLOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " isn't registered (no aor)";
 		sendReply(*ev, SIP_404_NOT_FOUND);
 		return;
@@ -695,18 +695,18 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 		sip_contact_t* ct = ec->toSofiaContact(ms->getHome());
 		// If it's not a message, verify if it's really expired
 		if (sip->sip_request->rq_method != sip_method_message && (ec->getSipExpireTime() <= now)) {
-			LOGD("Sip_contact of %s is expired", url_as_string(ms->getHome(), ec->mSipContact->m_url));
+			SLOGD << "Sip_contact of " << url_as_string(ms->getHome(), ec->mSipContact->m_url) << " is expired";
 			continue;
 		}
 		if (sip->sip_request->rq_url->url_type == url_sips && ct->m_url->url_type != url_sips) {
 			/* https://tools.ietf.org/html/rfc5630 */
 			nonSipsFound = true;
-			LOGD("Not dispatching request to non-sips target.");
+			SLOGD << "Not dispatching request to non-sips target.";
 			continue;
 		}
 		if (ec->mUsedAsRoute && ModuleToolbox::viaContainsUrl(sip->sip_via, ct->m_url)) {
-			LOGD("Skip destination to %s, because the message is coming from here already.",
-			     url_as_string(ms->getHome(), ct->m_url));
+			SLOGD << "Skip destination to " << url_as_string(ms->getHome(), ct->m_url)
+			      << ", because the message is coming from here already.";
 			continue;
 		}
 		usable_contacts.push_back(make_pair(ct, ec));
@@ -717,7 +717,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 			SLOGUE << "Not dispatching request because SIPS not allowed for " << url_as_string(ms->getHome(), sipUri);
 			sendReply(*ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
 		} else {
-			LOGD("This user isn't registered (no valid contact).");
+			SLOGD << "This user isn't registered (no valid contact).";
 			SLOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " isn't registered (no valid contact)";
 			sendReply(*ev, SIP_404_NOT_FOUND);
 		}
@@ -987,7 +987,7 @@ public:
 	}
 
 	void onInvalid(const SipStatus& response) override {
-		LOGD("OnFetchForRoutingListener::onInvalid: %s", response.getReason());
+		SLOGD << "OnFetchForRoutingListener::onInvalid: " << response.getReason();
 		mModule->sendReply(*mEv, response.getCode(), response.getReason());
 	}
 
@@ -1047,7 +1047,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		return std::move(ev);
 	}
 	if ((next_hop = ModuleToolbox::getNextHop(getAgent(), sip, &isRoute)) != NULL && isRoute) {
-		LOGD("Route header found [%s] but not us, skipping.", url_as_string(ms->getHome(), next_hop));
+		SLOGD << "Route header found [" << url_as_string(ms->getHome(), next_hop) << "] but not us, skipping.";
 		return std::move(ev);
 	}
 
@@ -1057,7 +1057,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		    !getAgent()->getDRM()->haveToRelayRegToDomain(sip->sip_request->rq_url->url_host)) {
 			return std::move(ev);
 		}
-		LOGD("Router: routing REGISTER to domain controller");
+		SLOGD << "Router: routing REGISTER to domain controller";
 	}
 
 	if (mResolveRoutes) {
@@ -1076,7 +1076,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 					mAgent->getRegistrarDb().fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 					return {};
 				} catch (const InvalidUrlError& e) {
-					LOGD("%s", e.what());
+					SLOGD << e.what();
 					ev->reply(400, "Bad request", TAG_END());
 					return {};
 				}
@@ -1101,7 +1101,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 			SipUri requestUri(sip->sip_request->rq_url);
 
 			if (isManagedDomain(requestUri.get())) {
-				LOGD("Fetch for url %s.", requestUri.str().c_str());
+				SLOGD << "Fetch for url " << requestUri.str();
 
 				// Go stateful to stop retransmissions
 				ev->createIncomingTransaction();
@@ -1122,8 +1122,8 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 				}
 			}
 		} catch (const InvalidUrlError& e) {
-			LOGD("The request URI [%s] isn't valid: %s. Skipping fetching from registrar DB.", e.getUrl().c_str(),
-			     e.getReason().c_str());
+			SLOGD << "The request URI [" << e.getUrl() << "] isn't valid: " << e.getReason()
+			      << ". Skipping fetching from registrar DB.";
 		}
 	}
 	return std::move(ev);

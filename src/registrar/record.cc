@@ -290,7 +290,7 @@ void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& exten
 			    find_if(extendedContacts.begin(), extendedContacts.end(),
 			            [&exc](const auto& exc2) -> bool { return exc != exc2 && exc->mKey == exc2->mKey; });
 			if (duplicate != extendedContacts.end()) {
-				LOGD("Eliminating duplicate contact with unique id [%s]", exc->mKey.str().c_str());
+				SLOGD << "Eliminating duplicate contact with unique id [" << exc->mKey.str() << "]";
 				it = extendedContacts.erase(it);
 				continue;
 			}
@@ -401,17 +401,17 @@ void Record::update(const ExtendedContactCommon& ecc,
 bool Record::isSame(const Record& other) const {
 	SLOGD << "Comparing " << this << "\nwith " << other;
 	if (!getAor().compareAll(other.getAor())) {
-		LOGD("Record::isSame(): aors differ.");
+		SLOGD << "Record::isSame(): aors differ.";
 		return false;
 	}
 	if (getExtendedContacts().size() != other.getExtendedContacts().size()) {
-		LOGD("Record::isSame(): number of extended contacts differ.");
+		SLOGD << "Record::isSame(): number of extended contacts differ.";
 		return false;
 	}
 	for (const auto& exc : getExtendedContacts()) {
 		const auto& otherExc = extractContactByUniqueId(exc->mKey);
 		if (otherExc == nullptr) {
-			LOGD("Record::isSame(): no contact with uniqueId [%s] in other record.", exc->mKey.str().c_str());
+			SLOGD << "Record::isSame(): no contact with uniqueId [" << exc->mKey.str() << "] in other record.";
 			return false;
 		}
 		if (!exc->isSame(*otherExc)) {

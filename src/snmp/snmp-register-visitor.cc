@@ -20,8 +20,8 @@
 
 namespace flexisip {
 
-void SnmpRegisterVisitor::visitGenericStruct([[maybe_unused]] GenericStruct& entry){
-    // LOGD("SNMP node %s %s", entry.getOid().getValueAsString().c_str(), entry.getName().c_str());
+void SnmpRegisterVisitor::visitGenericStruct([[maybe_unused]] GenericStruct& entry) {
+	// SLOGD << "SNMP node " << entry.getOid().getValueAsString() << " " << entry.getName();
 };
 
 } // namespace flexisip

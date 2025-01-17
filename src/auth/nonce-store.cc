@@ -40,7 +40,7 @@ void NonceStore::insert(const msg_auth_t* response) {
 	const char* nonce = msg_header_find_param(response->au_common, "nonce");
 	string snonce(nonce);
 	snonce = snonce.substr(1, snonce.length() - 2);
-	LOGD("New nonce %s", snonce.c_str());
+	SLOGD << "New nonce " << snonce;
 	insert(snonce);
 }
 
@@ -61,7 +61,7 @@ void NonceStore::updateNc(const string& nonce, int newnc) {
 	unique_lock<mutex> lck(mMutex);
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
-		LOGD("Updating nonce %s with nc=%d", nonce.c_str(), newnc);
+		SLOGD << "Updating nonce " << nonce << " with nc=" << newnc;
 		(*it).second.nc = newnc;
 	} else {
 		LOGE("Couldn't update nonce %s: not found", nonce.c_str());
@@ -70,7 +70,7 @@ void NonceStore::updateNc(const string& nonce, int newnc) {
 
 void NonceStore::erase(const string& nonce) {
 	unique_lock<mutex> lck(mMutex);
-	LOGD("Erasing nonce %s", nonce.c_str());
+	SLOGD << "Erasing nonce " << nonce;
 	mNc.erase(nonce);
 }
 
@@ -81,7 +81,7 @@ void NonceStore::cleanExpired() {
 	size_t size = 0;
 	for (auto it = mNc.begin(); it != mNc.end();) {
 		if (now > it->second.expires) {
-			LOGD("Cleaning expired nonce %s", it->first.c_str());
+			SLOGD << "Cleaning expired nonce " << it->first;
 			auto eraseIt = it;
 			++it;
 			mNc.erase(eraseIt);
@@ -89,7 +89,7 @@ void NonceStore::cleanExpired() {
 		} else ++it;
 		size++;
 	}
-	if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, size);
+	if (count) SLOGD << "Cleaned " << count << " expired nonces, " << size << " remaining";
 }
 
 // ====================================================================================================================

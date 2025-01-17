@@ -43,7 +43,7 @@ int IptablesExecutor::runIptables(const std::string& arguments, bool ipv6, bool 
 	if (ret != 0 && dumpErrors) {
 		LOGE("DoSProtection: '%s' failed with output '%s'.", command.str().c_str(), output);
 	}
-	if (ret == 0 || !dumpErrors) LOGD("DoSProtection: '%s' executed.", command.str().c_str());
+	if (ret == 0 || !dumpErrors) SLOGD << "DoSProtection: '" << command.str() << "' executed.";
 	(void)readCount; // This variable is useless here, I know.
 	return ret;
 }

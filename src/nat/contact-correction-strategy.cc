@@ -54,10 +54,10 @@ void ContactCorrectionStrategy::Helper::fixContactInResponse(su_home_t* home, ms
 			if (ctt && ctt->m_url->url_host) {
 				if (!ModuleToolbox::urlHostMatch(ctt->m_url, ip) ||
 				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, port)) {
-					LOGD("Response is coming from %s:%s, fixing contact", ip, port);
+					SLOGD << "Response is coming from " << ip << ":" << port << ", fixing contact";
 					ModuleToolbox::urlSetHost(home, ctt->m_url, ip);
 					ctt->m_url->url_port = su_strdup(home, port);
-				} else LOGD("Contact in response is correct.");
+				} else SLOGD << "Contact in response is correct.";
 				url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
 				NatTraversalStrategy::Helper::fixTransport(home, ctt->m_url, via_transport);
 			}
@@ -103,8 +103,9 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 
 				if (!ModuleToolbox::urlHostMatch(host, received) ||
 				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, rport)) {
-					LOGD("Fixing contact header with %s:%s to %s:%s", ctt->m_url->url_host,
-					     ctt->m_url->url_port ? ctt->m_url->url_port : "", received, rport ? rport : "");
+					SLOGD << "Fixing contact header with " << ctt->m_url->url_host << ":"
+					      << (ctt->m_url->url_port ? ctt->m_url->url_port : "") << " to " << received << ":"
+					      << (rport ? rport : "");
 					ModuleToolbox::urlSetHost(home, ctt->m_url, received);
 					ctt->m_url->url_port = rport;
 				}

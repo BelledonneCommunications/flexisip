@@ -37,7 +37,7 @@ SnmpAgent::SnmpAgent(ConfigManager& cm, map<string, string>& oset) : mInitialize
 
 SnmpAgent::~SnmpAgent() {
 	mTask.mKeepRunning = false;
-	LOGD("Waiting for the SNMP agent task to terminate");
+	SLOGD << "Waiting for the SNMP agent task to terminate";
 	mThread.join();
 }
 
@@ -47,7 +47,7 @@ void SnmpAgent::setInitialized(bool status) {
 		const GenericEntry* source;
 		string msg;
 		if (!mPendingTraps.empty()) {
-			LOGD("Sending %zd pending notifications", mPendingTraps.size());
+			SLOGD << "Sending " << mPendingTraps.size() << " pending notifications";
 		}
 		while (!mPendingTraps.empty()) {
 			tie(source, msg) = mPendingTraps.front();
@@ -101,7 +101,6 @@ void SnmpAgent::registerSnmpOid(GenericEntry& entry) {
 	int entryMode = visitor.getEntryMode();
 	if (entryMode) {
 		string entryName = entry.getName();
-		//	LOGD("SNMP registering %s %s (as %s)",mOid->getValueAsString().c_str(), mName.c_str(),
 
 		auto [oidData, oidSize] = [&entry]() -> pair<const oid*, size_t> {
 			const vector<uint64_t>& oidValue64 = entry.getOid().getValue();
@@ -160,11 +159,11 @@ int SnmpAgent::sHandleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
 }
 
 void SnmpAgent::sendTrap(const GenericEntry* source, const string& msg) {
-	LOGD("Sending trap %s: %s", source ? source->getName().c_str() : "", msg.c_str());
+	SLOGD << "Sending trap " << (source ? source->getName().c_str() : "") << ": " << msg;
 
 	if (!mInitialized) {
 		mPendingTraps.emplace(source, msg);
-		LOGD("Pending trap: SNMP not initialized");
+		SLOGD << "Pending trap: SNMP not initialized";
 		return;
 	}
 
@@ -209,7 +208,7 @@ SnmpAgent::SnmpAgentTask::SnmpAgentTask(SnmpAgent& snmpAgent, ConfigManager& cm,
 
 void SnmpAgent::SnmpAgentTask::operator()() {
 	if (!mKeepRunning) {
-		LOGD("SNMP has been disabled");
+		SLOGD << "SNMP has been disabled";
 		return;
 	}
 	init_snmp("flexisip");

@@ -744,7 +744,7 @@ filesystem::path ConferenceServer::getStateDir(const std::string& subdir) const 
 void ConferenceServer::ensureDirectoryCreated(const filesystem::path& directory) {
 	struct stat st;
 	if (stat(directory.c_str(), &st) != 0 && errno == ENOENT) {
-		LOGD("Creating flexisip's state directory: %s", directory.c_str());
+		SLOGD << "Creating flexisip's state directory: " << directory;
 		string command("mkdir -p");
 		command += " \"" + directory.string() + "\"";
 		int status = system(command.c_str());
@@ -766,12 +766,12 @@ const string& ConferenceServer::readUuid() {
 	filesystem::path path = getUuidFilePath();
 	fi.open(path);
 	if (!fi.is_open()) {
-		LOGD("Cannot open uuid file %s: %s", path.c_str(), strerror(errno));
+		SLOGD << "Cannot open uuid file " << path << ": " << strerror(errno);
 		return mUuid;
 	}
 	fi >> mUuid;
 	fi.close();
-	LOGD("Using uuid '%s'", mUuid.c_str());
+	SLOGD << "Using uuid '" << mUuid << "'";
 	return mUuid;
 }
 

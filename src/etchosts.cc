@@ -42,7 +42,7 @@ EtcHostsResolver::EtcHostsResolver() {
 		if (sscanf(subLine, "%s%n", ip, &consumed) == 1 && ip[0] != '#') {
 			subLine += consumed;
 			while (sscanf(subLine, "%s%n", name, &consumed) == 1) {
-				LOGD("Read %s %s", ip, name);
+				SLOGD << "Read " << ip << " " << name;
 				mMap[name] = ip;
 				subLine += consumed;
 			}
@@ -84,10 +84,10 @@ bool EtcHostsResolver::resolve(const string& name, string* result) const {
 
 void EtcHostsResolver::setHost(const std::string& name, const std::string& result) {
 	if (result.empty()) {
-		LOGD("Erasing host association for %s", name.c_str());
+		SLOGD << "Erasing host association for " << name;
 		mOverrideMap.erase(name);
 	} else {
-		LOGD("Overriding hostname %s with address %s", name.c_str(), result.c_str());
+		SLOGD << "Overriding hostname " << name << " with address " << result;
 		mOverrideMap.insert(make_pair(name, result));
 	}
 }

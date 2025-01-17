@@ -37,8 +37,8 @@ RegistrationSubscription::RegistrationSubscription(const ConferenceServer& serve
                                                    const shared_ptr<ChatRoom>& cr,
                                                    const shared_ptr<const Address>& participant)
     : mServer(server), mChatRoom(cr), mParticipant(participant->clone()) {
-	LOGD("RegistrationSubscription [%p] for chatroom [%p] and participant [%s] initialized.", this, cr.get(),
-	     participant->asStringUriOnly().c_str());
+	SLOGD << "RegistrationSubscription [" << this << "] for chatroom [" << cr.get() << "] and participant ["
+	      << participant->asStringUriOnly() << "] initialized.";
 }
 
 shared_ptr<ChatRoom> RegistrationSubscription::getChatRoom() const {
@@ -46,19 +46,18 @@ shared_ptr<ChatRoom> RegistrationSubscription::getChatRoom() const {
 }
 
 RegistrationSubscription::~RegistrationSubscription() {
-	LOGD("RegistrationSubscription [%p] destroyed.", this);
+	SLOGD << "RegistrationSubscription [" << this << "] destroyed.";
 }
 
 void RegistrationSubscription::notify(const list<shared_ptr<ParticipantDeviceIdentity>>& participantDevices) {
-	LOGD("RegistrationSubscription: notifying chatroom [%p] of participant device list of [%i] elements for "
-	     "participant [%s].",
-	     mChatRoom.get(), (int)participantDevices.size(), mParticipant->asStringUriOnly().c_str());
+	SLOGD << "RegistrationSubscription: notifying chatroom [" << mChatRoom << "] of participant device list of ["
+	      << participantDevices.size() << "] elements for participant [" << mParticipant->asStringUriOnly() << "].";
 	mChatRoom->setParticipantDevices(mParticipant, participantDevices);
 }
 
 void RegistrationSubscription::notifyRegistration(const shared_ptr<const Address>& participantDevice) {
-	LOGD("RegistrationSubscription: notifying chatroom [%p] that participant-device [%s] has just registered.",
-	     mChatRoom.get(), participantDevice->asStringUriOnly().c_str());
+	SLOGD << "RegistrationSubscription: notifying chatroom [" << mChatRoom << "] that participant-device ["
+	      << participantDevice->asStringUriOnly() << "] has just registered.";
 	mChatRoom->notifyParticipantDeviceRegistration(participantDevice);
 }
 
@@ -137,8 +136,8 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record>& r) {
 				identity->setCapabilityDescriptor(StringUtils::unquote(ec->getOrgLinphoneSpecs()));
 				compatibleParticipantDevices.push_back(identity);
 			} else {
-				LOGD("OwnRegistrationSubscription::processRecord(): %s does not have the required capabilities.",
-				     addr->asStringUriOnly().c_str());
+				SLOGD << "OwnRegistrationSubscription::processRecord(): " << addr->asStringUriOnly()
+				      << " does not have the required capabilities.";
 			}
 		}
 	}

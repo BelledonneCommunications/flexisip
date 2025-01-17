@@ -69,11 +69,11 @@ bool ForkContext::processResponse(ResponseSipEvent& ev) {
 			ev.setIncomingAgent(nullptr);
 
 			if (!bInfo->mLastResponseEvent || !bInfo->mLastResponseEvent->isSuspended()) {
-				// LOGD("A response has been submitted");
+				// SLOGD << "A response has been submitted";
 				// mLastResponseEvent has been resubmitted, so stop original event.
 				ev.terminateProcessing();
 			} else {
-				// LOGD("The response has been retained");
+				// SLOGD << "The response has been retained";
 			}
 
 			if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) {
@@ -82,7 +82,7 @@ bool ForkContext::processResponse(ResponseSipEvent& ev) {
 
 			return true;
 		} else {
-			// LOGD("ForkContext: un-processed response");
+			// SLOGD << "ForkContext: un-processed response";
 		}
 	}
 

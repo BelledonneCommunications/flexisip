@@ -269,8 +269,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 				if (host.id != -1) {
 					// only tell if a new host was found
 					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
-						LOGD("%sReplication: Adding host %d %s:%d state:%s", logPrefix().c_str(), host.id,
-						     host.address.c_str(), host.port, host.state.c_str());
+						SLOGD << logPrefix() << "Replication: Adding host " << host.id << " " << host.address << ":"
+						      << host.port << " state:" << host.state;
 					}
 					newSlaves.push_back(host);
 				}
@@ -281,8 +281,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 
 	for (const auto& oldSlave : mSlaves) {
 		if (find(newSlaves.begin(), newSlaves.end(), oldSlave) == newSlaves.end()) {
-			LOGD("%sReplication: Removing host %d %s:%d previous state:%s", logPrefix().c_str(), oldSlave.id,
-			     oldSlave.address.c_str(), oldSlave.port, oldSlave.state.c_str());
+			SLOGD << logPrefix() << "Replication: Removing host " << oldSlave.id << " " << oldSlave.address << ":"
+			      << oldSlave.port << " previous state: " << oldSlave.state;
 		}
 	}
 

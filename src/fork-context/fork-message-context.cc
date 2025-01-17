@@ -105,7 +105,7 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
                       msgPriority,
                       isRestored),
       mKind(*getEvent().getMsgSip()->getSip(), msgPriority) {
-	LOGD("New ForkMessageContext %p", this);
+	SLOGD << "New ForkMessageContext " << this;
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
@@ -119,7 +119,7 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
 }
 
 ForkMessageContext::~ForkMessageContext() {
-	LOGD("Destroy ForkMessageContext %p", this);
+	SLOGD << "Destroy ForkMessageContext " << this;
 }
 
 bool ForkMessageContext::shouldFinish() {
@@ -167,7 +167,7 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 	ForkContextBase::onResponse(br, event);
 
 	const auto code = event.getMsgSip()->getSip()->sip_status->st_status;
-	LOGD("ForkMessageContext[%p]::onResponse()", this);
+	SLOGD << "ForkMessageContext[" << this << "]::onResponse()";
 
 	if (code > 100 && code < 300) {
 		if (code >= 200) {
@@ -211,7 +211,7 @@ void ForkMessageContext::acceptMessage() {
 }
 
 void ForkMessageContext::onAcceptanceTimer() {
-	LOGD("ForkMessageContext[%p]::onAcceptanceTimer()", this);
+	SLOGD << "ForkMessageContext[" << this << "]::onAcceptanceTimer()";
 	acceptMessage();
 	mAcceptanceTimer.reset(nullptr);
 }
@@ -239,7 +239,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 void ForkMessageContext::onNewRegister(const SipUri& dest,
                                        const std::string& uid,
                                        const std::shared_ptr<ExtendedContact>& newContact) {
-	LOGD("ForkMessageContext[%p] onNewRegister", this);
+	SLOGD << "ForkMessageContext[" << this << "] onNewRegister";
 	const auto& sharedListener = mListener.lock();
 	if (!sharedListener) {
 		LOGE("ForkMessageContext[%p] onNewRegister: listener missing, this should not happened", this);
@@ -257,19 +257,19 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 		if (br == nullptr) {
 			// this is a new client instance. The message needs
 			// to be delivered.
-			LOGD("ForkMessageContext::onNewRegister(): this is a new client instance.");
+			SLOGD << "ForkMessageContext::onNewRegister(): this is a new client instance.";
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		} else if (br->needsDelivery(FinalStatusMode::ForkLate)) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
-			LOGD("ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.");
+			SLOGD << "ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.";
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		}
 	}
 	// in all other case we can accept a new transaction only if the message hasn't been delivered already.
-	LOGD("Message has been delivered %i times.", mDeliveredCount);
+	SLOGD << "Message has been delivered " << mDeliveredCount << " times.";
 
 	if (mDeliveredCount == 0) {
 		sharedListener->onDispatchNeeded(shared_from_this(), newContact);

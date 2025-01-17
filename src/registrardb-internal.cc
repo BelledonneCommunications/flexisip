@@ -57,9 +57,9 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	if (it == mRecords.end()) {
 		r = make_shared<Record>(std::move(fromUri), mRecordConfig);
 		it = mRecords.insert(make_pair(key, r)).first;
-		LOGD("Creating AoR %s association", key.c_str());
+        SLOGD << "Creating AoR association" << key;
 	} else {
-		LOGD("AOR %s found", key.c_str());
+        SLOGD << "AOR " << key << " found";
 		r = it->second;
 	}
 
@@ -159,7 +159,7 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 		return;
 	}
 
-	LOGD("AOR %s found", key.c_str());
+    SLOGD << "AOR " << key << " found";
 	shared_ptr<Record> r = (*it).second;
 
 	mRecords.erase(it);
@@ -180,7 +180,7 @@ bool RegistrarDbInternal::errorOnTooMuchContactInBind(const sip_contact_t* sip_c
 	int nb_contact = RegistrarDb::countSipContacts(sip_contact);
 	int max_contact = mRecordConfig.getMaxContacts();
 	if (nb_contact > max_contact) {
-		LOGD("Too many contacts in register %s %i > %i", key.c_str(), nb_contact, max_contact);
+        SLOGD << "Too many contacts in register " << key << " " << nb_contact << " > " << max_contact;
 		return true;
 	}
 

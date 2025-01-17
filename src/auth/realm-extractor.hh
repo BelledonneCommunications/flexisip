@@ -72,7 +72,7 @@ public:
 
 	std::string extract(const std::string& fromUri) noexcept override {
 		std::smatch m{};
-		LOGD("searching for realm in '%s' with '%s' as extracting regex", fromUri.c_str(), mRegexStr.c_str());
+        SLOGD << "searching for realm in '" << fromUri << "' with '" << mRegexStr << "' as extracting regex";
 		if (!std::regex_search(fromUri, m, mRegex)) {
 			return "";
 		}

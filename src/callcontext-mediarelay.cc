@@ -32,7 +32,7 @@ using namespace flexisip;
 
 RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer>& server, sip_t* sip)
     : CallContextBase(sip), mServer(server), mBandwidthThres(0), mDropTelephoneEvents(false), mIsEstablished(false) {
-	LOGD("New RelayedCall %p", this);
+	SLOGD << "New RelayedCall " << this;
 }
 
 /* Enable filtering of H264 Iframes for low bandwidth. */
@@ -313,7 +313,7 @@ void RelayedCall::terminate() {
 }
 
 RelayedCall::~RelayedCall() {
-	LOGD("Destroy RelayedCall %p", this);
+	SLOGD << "Destroy RelayedCall " << this;
 	terminate();
 }
 
@@ -336,7 +336,7 @@ static bool isLastProxy(Agent* ag, sip_t* sip) {
 		return false;
 	}
 	if (ag->isUs(rr->r_url)) {
-		LOGD("We are last proxy of the call flow.");
+		SLOGD << "We are last proxy of the call flow.";
 		return true;
 	}
 	return false;

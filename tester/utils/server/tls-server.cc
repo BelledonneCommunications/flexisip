@@ -48,11 +48,11 @@ TlsServer::TlsServer(int port)
 }
 
 void TlsServer::accept() {
-	LOGD("TlsServer[%p] entering accept", this);
+	SLOGD << "TlsServer[" << this << "] entering accept";
 	mAcceptor.accept(mSocket->lowest_layer());
-	LOGD("TlsServer[%p] new connection accepted, starting handshake", this);
+	SLOGD << "TlsServer[" << this << "] new connection accepted, starting handshake";
 	mSocket->handshake(boost::asio::ssl::stream_base::server);
-	LOGD("TlsServer[%p] handshake ok", this);
+	SLOGD << "TlsServer[" << this << "] handshake ok";
 }
 
 void TlsServer::accept(std::string sniValueExpected) {
@@ -76,21 +76,21 @@ void TlsServer::accept(std::string sniValueExpected) {
 }
 
 std::string TlsServer::read() {
-	LOGD("TlsServer[%p] entering read", this);
+	SLOGD << "TlsServer[" << this << "] entering read";
 	boost::asio::streambuf b;
 	read_until(*mSocket, b, "\n");
 	std::istream is(&b);
 	ostringstream line;
 	line << is.rdbuf();
-	LOGD("TlsServer[%p] read : %s", this, line.str().c_str());
+	SLOGD << "TlsServer[" << this << "] read : " << line.str();
 	return line.str();
 }
 
 void TlsServer::send(const std::string& message) {
-	LOGD("TlsServer[%p] entering send", this);
+	SLOGD << "TlsServer[" << this << "] entering send";
 	const string msg = message + "\n";
 	boost::asio::write(*mSocket, buffer(message));
-	LOGD("TlsServer[%p] send : %s", this, message.c_str());
+	SLOGD << "TlsServer[" << this << "] send : " << message;
 }
 
 bool TlsServer::runServerForTest(const std::string& expectedRequest,

@@ -64,7 +64,7 @@ void PushNotificationContext::cancel() {
 void PushNotificationContext::onTimeout() noexcept {
 	SLOGD << "PNR " << mPInfo.get() << ": timeout";
 	if (auto sharedFork = mForkContext.lock(); sharedFork->isFinished()) {
-		LOGD("Call is already established or canceled, so push notification is not sent but cleared.");
+		SLOGD << "Call is already established or canceled, so push notification is not sent but cleared.";
 		return;
 	}
 
@@ -555,7 +555,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	if (br) {
 		pinfo->mUid = br->mUid;
 		if (br->mClearedCount > 0) {
-			LOGD("A push notification was sent to this iOS>=13 ready device already, so we won't resend.");
+			SLOGD << "A push notification was sent to this iOS>=13 ready device already, so we won't resend.";
 			return;
 		}
 	}
@@ -566,9 +566,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	auto pnKey = pinfo->mCallId + ":" + dest->getProvider() + ":" + dest->getParam() + ":" + dest->getPrid();
 	auto it = mPendingNotifications.find(pnKey);
 	if (it != mPendingNotifications.end()) {
-		LOGD("Another push notification is pending for this call %s and this device provider %s and token %s, not "
-		     "creating a new one",
-		     pinfo->mCallId.c_str(), dest->getProvider().c_str(), dest->getPrid().c_str());
+		SLOGD << "Another push notification is pending for this call " << pinfo->mCallId << " and this device provider "
+		      << dest->getProvider() << " and token " << dest->getPrid() << ", not creating a new one";
 		context = it->second;
 	}
 

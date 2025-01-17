@@ -228,8 +228,8 @@ SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
 	conn_pool.reset(new connection_pool(poolSize));
 	thread_pool = make_unique<AutoThreadPool>(poolSize, max_queue_size);
 
-	LOGD("[SOCI] Authentication provider for backend %s created. Pooled for %zu connections", backend.c_str(),
-	     poolSize);
+	SLOGD << "[SOCI] Authentication provider for backend " << backend << " created. Pooled for " << poolSize
+	      << " connections";
 	connectDatabase();
 }
 

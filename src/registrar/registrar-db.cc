@@ -109,11 +109,11 @@ bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegiste
 		    return mapEntry.second.lock() == strongPtr;
 	    }) != alreadyRegisteredListener.second;
 	if (listenerAlreadyPresent) {
-		LOGD("Already subscribe topic = %s with listener %p", topic.c_str(), strongPtr.get());
+		SLOGD << "Already subscribe topic = " << topic << " with listener " << strongPtr;
 		return false;
 	}
 
-	LOGD("Subscribe topic = %s with listener %p", topic.c_str(), strongPtr.get());
+	SLOGD << "Subscribe topic = " << topic << " with listener " << strongPtr;
 	mContactListenersMap.emplace(topic, std::move(listener));
 	mBackend->subscribe(key);
 	return true;
@@ -121,7 +121,7 @@ bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegiste
 
 void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRegisteredListener>& listener) {
 	const auto& topic = key.asString();
-	LOGD("Unsubscribe topic = %s with listener %p", topic.c_str(), listener.get());
+	SLOGD << "Unsubscribe topic = " << topic << " with listener " << listener;
 	bool found = false;
 	auto range = mContactListenersMap.equal_range(topic);
 	for (auto it = range.first; it != range.second;) {
@@ -241,12 +241,12 @@ void LocalRegExpire::getRegisteredAors(std::list<std::string>& aors) const {
 }
 
 void LocalRegExpire::subscribe(LocalRegExpireListener* listener) {
-	LOGD("Subscribe LocalRegExpire");
+	SLOGD << "Subscribe LocalRegExpire";
 	mLocalRegListenerList.push_back(listener);
 }
 
 void LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) {
-	LOGD("Unsubscribe LocalRegExpire");
+	SLOGD << "Unsubscribe LocalRegExpire";
 	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
 	if (result != mLocalRegListenerList.end()) {
 		mLocalRegListenerList.erase(result);
@@ -254,7 +254,7 @@ void LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) {
 }
 
 void LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
-	LOGD("Notify LocalRegExpire count = %d", count);
+	SLOGD << "Notify LocalRegExpire count = " << count;
 	for (auto& listener : mLocalRegListenerList) {
 		listener->onLocalRegExpireUpdated(count);
 	}
@@ -388,7 +388,7 @@ private:
 		ostringstream path;
 		path << *ec->toSofiaUrlClean(newEc->mHome.home());
 		newEc->mPath.push_back(path.str());
-		// LOGD("transformContactUsedAsRoute(): path to %s added for %s", ec->mSipUri.c_str(), uri);
+		// SLOGD << "transformContactUsedAsRoute(): path to " << ec->mSipUri << " added for " << uri;
 		newEc->mUsedAsRoute = false;
 		return newEc;
 	}

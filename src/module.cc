@@ -54,8 +54,8 @@ bool Module::isEnabled() const {
 
 bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	bool dirtyConfig = false;
-	LOGD("Configuration of module %s changed for key %s to %s", mInfo->getModuleName().c_str(), conf.getName().c_str(),
-	     conf.get().c_str());
+	SLOGD << "Configuration of module " << mInfo->getModuleName() << " changed for key " << conf.getName() << " to "
+	      << conf.get();
 	switch (state) {
 		case ConfigState::Check:
 			return isValidNextConfig(conf);
@@ -141,10 +141,10 @@ unique_ptr<ResponseSipEvent> Module::processResponse(unique_ptr<ResponseSipEvent
 
 	try {
 		if (mFilter->canEnter(ms)) {
-			LOGD("Invoking onResponse() on module %s", getModuleName().c_str());
+			SLOGD << "Invoking onResponse() on module " << getModuleName();
 			return onResponse(std::move(ev));
 		} else {
-			LOGD("Skipping onResponse() on module %s", getModuleName().c_str());
+			SLOGD << "Skipping onResponse() on module " << getModuleName();
 		}
 	} catch (FlexisipException& fe) {
 		SLOGD << "Skipping onResponse() on module" << getModuleName() << " because " << fe;
@@ -332,6 +332,6 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 
 	// Replace the modules which are targeted by replacingModules.
 	replaceModules(sortedList, replacingModules);
-	LOGD("Module chain computed succesfully.");
+	SLOGD << "Module chain computed succesfully.";
 	return sortedList;
 }

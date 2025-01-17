@@ -31,7 +31,7 @@ namespace sofiasip {
 /*Invoking the copy constructor of MsgSip implies the deep copy of the underlying msg_t */
 MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
 	serialize();
-	LOGD("New MsgSip %p copied from MsgSip %p", this, &msgSip);
+        SLOGD << "New MsgSip " << this << " copied from MsgSip " << &msgSip;
 }
 
 MsgSip::MsgSip(int flags, std::string_view msg) : mMsg(msg_make(sip_default_mclass(), flags, msg.data(), msg.size())) {

@@ -154,7 +154,7 @@ void StunServer::run() {
 				bool_t ret = stunServerProcessMsg((char*)buf, err, &from, &myaddr, &altaddr, &resp, &dest, &passwd,
 				                                  &changeIP, &changePort);
 				if (!ret) {
-					LOGD("Fail to parse stun request.");
+					SLOGD << "Fail to parse stun request.";
 					continue;
 				}
 				if (changeIP == FALSE && changePort == FALSE) {
@@ -171,7 +171,7 @@ void StunServer::run() {
 							     dest.addr);
 						}
 					} else LOGE("stunEncodeMessage() failed.");
-				} else LOGD("Received stun request with changeIP or changePort, not supported yet");
+				} else SLOGD << "Received stun request with changeIP or changePort, not supported yet";
 			}
 		}
 	}

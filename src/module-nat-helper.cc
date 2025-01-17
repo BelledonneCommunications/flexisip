@@ -102,14 +102,14 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 		if (mRRPolicy == Safe) {
 			if (ModuleToolbox::urlViaMatch(sip->sip_record_route->r_url, sip->sip_via, false)) {
 				const char* transport = sip_via_transport(sip->sip_via);
-				LOGD("Record-route and via are matching.");
+				SLOGD << "Record-route and via are matching.";
 				if (sip->sip_via->v_received) {
-					LOGD("This record-route needs to be fixed for host");
+					SLOGD << "This record-route needs to be fixed for host";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-received=%s", sip->sip_via->v_received));
 				}
 				if (sip->sip_via->v_rport) {
-					LOGD("This record-route needs to be fixed for port");
+					SLOGD << "This record-route needs to be fixed for port";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-rport=%s", sip->sip_via->v_rport));
 				}
@@ -122,12 +122,12 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 				const char* received = sip->sip_via->v_received ? sip->sip_via->v_received : sip->sip_via->v_host;
 				const char* rport = sip->sip_via->v_rport ? sip->sip_via->v_rport : sip->sip_via->v_port;
 				if (!ModuleToolbox::urlHostMatch(received, host)) {
-					LOGD("This record-route needs to be fixed for host");
+					SLOGD << "This record-route needs to be fixed for host";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-received=%s", received));
 				}
 				if (!ModuleToolbox::sipPortEquals(rport, sip->sip_record_route->r_url->url_port, transport)) {
-					LOGD("This record-route needs to be fixed for port");
+					SLOGD << "This record-route needs to be fixed for port";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-rport=%s", rport));
 				}

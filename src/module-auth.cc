@@ -285,10 +285,10 @@ unique_ptr<ResponseSipEvent> Authentication::onResponse(unique_ptr<ResponseSipEv
 			fam->challenge(*as, &mProxyChallenger);
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t*)sip, (msg_header_t*)as->response());
 		} else {
-			LOGD("Authentication module for %s not found", as->realm());
+			SLOGD << "Authentication module for " << as->realm() << " not found";
 		}
 	} else {
-		LOGD("not handled newauthon401");
+		SLOGD << "not handled newauthon401";
 	}
 	return std::move(ev);
 }
@@ -304,7 +304,7 @@ void Authentication::onIdle() {
 bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	if (conf.getName() == "trusted-hosts" && state == ConfigState::Committed) {
 		loadTrustedHosts((const ConfigStringList&)conf);
-		LOGD("Trusted hosts updated");
+		SLOGD << "Trusted hosts updated";
 		return true;
 	} else {
 		return Module::doOnConfigStateChanged(conf, state);

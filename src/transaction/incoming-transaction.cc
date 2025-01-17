@@ -28,11 +28,11 @@ using namespace flexisip;
 using namespace std;
 
 IncomingTransaction::IncomingTransaction(std::weak_ptr<Agent> agent) : Transaction(std::move(agent)) {
-	LOGD("New IncomingTransaction %p", this);
+	SLOGD << "New IncomingTransaction " << this;
 }
 
 IncomingTransaction::~IncomingTransaction() {
-	LOGD("Delete IncomingTransaction %p", this);
+	SLOGD << "Delete IncomingTransaction " << this;
 }
 
 void IncomingTransaction::_customDeinit(nta_incoming_t* incoming, nta_incoming_magic_t* magic) noexcept {
@@ -75,7 +75,7 @@ void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const*
 	if (mIncoming) {
 		msg_t* msg =
 		    msg_ref_create(ms->getMsg()); // need to increment refcount of the message because mreply will decrement it.
-		LOGD("Response is sent through an incoming transaction.");
+		SLOGD << "Response is sent through an incoming transaction.";
 		nta_incoming_mreply(mIncoming, msg);
 		if (ms->getSip()->sip_status != nullptr && ms->getSip()->sip_status->st_status >= 200) {
 			destroy();
@@ -103,7 +103,7 @@ void IncomingTransaction::reply(
 
 int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t*, const sip_t* sip) noexcept {
 	IncomingTransaction* it = reinterpret_cast<IncomingTransaction*>(magic);
-	LOGD("IncomingTransaction callback %p", it);
+	SLOGD << "IncomingTransaction callback " << it;
 	if (sip != nullptr) {
 		auto ev = make_unique<RequestSipEvent>(
 		    it->shared_from_this(),

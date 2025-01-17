@@ -32,27 +32,27 @@ TcpServer::TcpServer(int port)
 }
 
 void TcpServer::accept() {
-	LOGD("TcpServer[%p] entering accept", this);
+	SLOGD << "TcpServer[" << this << "] entering accept";
 	mAcceptor.accept(mSocket);
-	LOGD("TcpServer[%p] accept ok", this);
+	SLOGD << "TcpServer[" << this << "] accept ok";
 }
 
 std::string TcpServer::read() {
-	LOGD("TcpServer[%p] entering read", this);
+	SLOGD << "TcpServer[" << this << "] entering read";
 	boost::asio::streambuf b;
 	read_until(mSocket, b, "\n");
 	std::istream is(&b);
 	ostringstream line;
 	line << is.rdbuf();
-	LOGD("TcpServer[%p] read : %s", this, line.str().c_str());
+	SLOGD << "TcpServer[" << this << "] read : " << line.str();
 	return line.str();
 }
 
 void TcpServer::send(const std::string& message) {
-	LOGD("TcpServer[%p] entering send", this);
+	SLOGD << "TcpServer[" << this << "] entering send";
 	const string msg = message + "\n";
 	boost::asio::write(mSocket, boost::asio::buffer(message));
-	LOGD("TcpServer[%p] send : %s", this, message.c_str());
+	SLOGD << "TcpServer[" << this << "] send : " << message;
 }
 
 bool TcpServer::runServerForTest(const std::string& expectedRequest,

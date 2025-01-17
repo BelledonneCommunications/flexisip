@@ -39,8 +39,8 @@ void ConditionalRouteMap::loadConfig(const std::string& path) {
 	ifstream ifs;
 	ostringstream contentstream;
 	size_t currentPos;
-
-	LOGD("Parsing conditional routing configuration file '%s'", path.c_str());
+	
+	SLOGD << "Parsing conditional routing configuration file '" << path << "'";
 	ifs.open(path);
 	if (!ifs.good()) throw runtime_error(string("Could not open ") + path);
 
@@ -101,7 +101,7 @@ void ConditionalRouteMap::loadConfig(const std::string& path) {
 		}
 		currentPos = it;
 		string rule(rulestream.str());
-		LOGD("Got route='%s' condition='%s'", route.c_str(), rule.c_str());
+		SLOGD << "Got route='" << route << "' condition='" << rule << "'";
 		if (rule.empty()) {
 			throw invalid_argument(string("No condition provided for route '" + route + string("'")));
 		}
@@ -115,7 +115,7 @@ void ConditionalRouteMap::loadConfig(const std::string& path) {
 		}
 		mRoutes.push_back(make_pair(sipRoute, expr));
 	}
-	LOGD("Done parsing %s.", path.c_str());
+    SLOGD << "Done parsing " << path;
 }
 
 const sip_route_t* ConditionalRouteMap::resolveRoute(const std::shared_ptr<MsgSip>& msgsip) const {

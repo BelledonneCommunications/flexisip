@@ -85,9 +85,9 @@ void FlexisipAuthModule::onChallenge(AuthStatus& as, auth_challenger_t const* ac
 					                                   [&algo](const passwd_algo_t& pw) { return algo == pw.algo; });
 				});
 				if (usedAlgo.empty()) {
-					LOGD("AuthStatus[%p]: no algorithm from database are in the list of authorized algorithm. A "
-					     "challenge will be generated for all authorized algorithms",
-					     &authStatus);
+					SLOGD << "AuthStatus[" << &authStatus
+					      << "]: no algorithm from database are in the list of authorized algorithm. A challenge will "
+					         "be generated for all authorized algorithms";
 				} else {
 					authStatus.usedAlgo() = std::move(usedAlgo);
 				}
@@ -97,7 +97,8 @@ void FlexisipAuthModule::onChallenge(AuthStatus& as, auth_challenger_t const* ac
 			}
 			case PASSWORD_NOT_FOUND:
 				// Make a challenge for each algorithm allowed by Flexisip settings.
-				LOGD("AuthStatus[%p]: no password found. Making challenge for each authorized algorithm", &authStatus);
+				SLOGD << "AuthStatus[" << &authStatus
+				      << "]: no password found. Making challenge for each authorized algorithm";
 				makeChallenge(authStatus, *ach); // Calling FlexisipAuthModuleBase::onChallenge() directly here is
 				                                 // forbidden with GCC 4.9 and earlier.
 				break;
@@ -113,8 +114,8 @@ void FlexisipAuthModule::onChallenge(AuthStatus& as, auth_challenger_t const* ac
 
 	auto* listener = new GenericAuthListener(getRoot(), cleanUsedAlgo);
 	string unescpapedUrlUser = UriUtils::unescape(as.userUri()->url_user ? as.userUri()->url_user : "");
-	LOGD("AuthStatus[%p]: searching for digest passwords of '%s@%s'", &as, unescpapedUrlUser.c_str(),
-	     as.userUri()->url_host);
+	SLOGD << "AuthStatus[" << &as << "]: searching for digest passwords of '" << unescpapedUrlUser << "@"
+	      << as.userUri()->url_host << "'";
 	mAuthDb.getPassword(unescpapedUrlUser, as.userUri()->url_host, unescpapedUrlUser, listener);
 	as.status(100);
 }
@@ -156,8 +157,8 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus& as, msg_auth_t* au,
 	if (!ar->ar_username || !ar->ar_realm || !as.userUri()->url_host) {
 		SLOGE << "Registration failure, authentication info are missing: usernames " << ar->ar_username << "/"
 		      << as.userUri()->url_user << ", hosts " << ar->ar_realm << "/" << as.userUri()->url_host;
-		LOGD("from and authentication usernames [%s/%s] or from and authentication hosts [%s/%s] empty",
-		     ar->ar_username, as.userUri()->url_user, ar->ar_realm, as.userUri()->url_host);
+		SLOGD << "from and authentication usernames [" << ar->ar_username << "/" << as.userUri()->url_user
+		      << "] or from and authentication hosts [" << ar->ar_realm << "/" << as.userUri()->url_host << "] empty";
 		onAccessForbidden(as, *ach, "Authentication info missing");
 		notify(as);
 		return;
@@ -215,11 +216,11 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus& as,
 		case PASSWORD_FOUND: {
 			auto algosStr =
 			    StringUtils::toString(passwords, [](const passwd_algo_t& pw) -> const std::string& { return pw.algo; });
-			LOGD("AuthStatus[%p]: password found for '%s@%s', algorithms=%s", &as, ar.ar_username, as.realm(),
-			     algosStr.c_str());
+			SLOGD << "AuthStatus[" << &as << "]: password found for '" << ar.ar_username << "@" << as.realm()
+			      << "', algorithms=" << algosStr;
 			auto algo = ar.ar_algorithm ? ar.ar_algorithm : "MD5";
 			if (find(as.usedAlgo().cbegin(), as.usedAlgo().cend(), algo) == as.usedAlgo().cend()) {
-				LOGD("AuthStatus[%p]: '%s' not allowed", &as, algo);
+				SLOGD << "AuthStatus[" << &as << "]: '" << algo << "' not allowed";
 				onAccessForbidden(as, ach);
 				notify(as);
 				return;
@@ -231,11 +232,11 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus& as,
 			break;
 		}
 		case PASSWORD_NOT_FOUND:
-			LOGD("password not found for '%s' user, realm=%s", ar.ar_username, as.realm());
+			SLOGD << "password not found for '" << ar.ar_username << "' user, realm=" << as.realm();
 			onAccessForbidden(as, ach);
 			break;
 		case AUTH_ERROR:
-			LOGD("password fetching has failed for '%s' user, realm=%s", ar.ar_username, as.realm());
+			SLOGD << "password fetching has failed for '" << ar.ar_username << "' user, realm=" << as.realm();
 			onError(as);
 			break;
 		case PENDING:
@@ -255,9 +256,10 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus& as,
                                        const std::string& password) {
 	if (checkPasswordForAlgorithm(as, ar, password)) {
 		if (!password.empty()) {
-			LOGD("AuthStatus[%p]: passwords did not match", &as);
+			SLOGD << "AuthStatus[" << &as << "]: passwords did not match";
 		} else {
-			LOGD("AuthStatus[%p]: no password in database for '%s'", &as, ar.ar_algorithm ? ar.ar_algorithm : "MD5");
+			SLOGD << "AuthStatus[" << &as << "]: no password in database for '"
+			      << (ar.ar_algorithm ? ar.ar_algorithm : "MD5") << "'";
 		}
 		onAccessForbidden(as, ach);
 		return;
@@ -271,7 +273,7 @@ void FlexisipAuthModule::checkPassword(FlexisipAuthStatus& as,
 
 	if (getPtr()->am_challenge) auth_challenge_digest(getPtr(), as.getPtr(), &ach);
 
-	LOGD("AuthStatus[%p]: successful authentication", &as);
+	SLOGD << "AuthStatus[" << &as << "]: successful authentication";
 
 	as.status(0); /* Successful authentication! */
 	as.phrase("");

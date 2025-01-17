@@ -291,7 +291,7 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 
 	// Check max forwards
 	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(*ev->getMsgSip())) {
-		LOGD("Too Many Hops");
+		SLOGD << "Too Many Hops";
 		if (auto transaction = ev->getOutgoingTransaction()) {
 			if (auto forkContext = ForkContext::getFork(transaction)) {
 				forkContext->processInternalError(SIP_483_TOO_MANY_HOPS);
@@ -308,14 +308,14 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	// Prepend conditional route if any
 	const sip_route_t* route = mRoutesMap.resolveRoute(ms);
 	if (route) {
-		LOGD("Prepending route '%s'", url_as_string(ms->getHome(), route->r_url));
+		SLOGD << "Prepending route '" << url_as_string(ms->getHome(), route->r_url) << "'";
 		ModuleToolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
 	}
 
 	// Remove top route headers if they match us.
 	sip_route_t* lastRoute = nullptr;
 	while (sip->sip_route != nullptr && isUs(getAgent(), sip->sip_route)) {
-		LOGD("Removing top route '%s'", url_as_string(ms->getHome(), sip->sip_route->r_url));
+		SLOGD << "Removing top route '" << url_as_string(ms->getHome(), sip->sip_route->r_url) << "'";
 		lastRoute = sip_route_remove(msg, sip);
 	}
 
@@ -385,7 +385,7 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 			// However, if Forward module has to send a REGISTER with path headers but add-path is set to false,
 			// they must be removed.
 			while (sip->sip_path != nullptr && isUs(getAgent(), sip->sip_path)) {
-				LOGD("Removing path '%s'", url_as_string(ms->getHome(), sip->sip_path->r_url));
+				SLOGD << "Removing path '" << url_as_string(ms->getHome(), sip->sip_path->r_url) << "'";
 				msg_header_remove(msg, (msg_pub_t*)sip, (msg_header_t*)sip->sip_path);
 			}
 		}
@@ -459,7 +459,7 @@ url_t* ForwardModule::getDestinationFromRoute(su_home_t* home, sip_t* sip) {
 bool ForwardModule::isLooping(const MsgSip& ms, const char* branch) {
 	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next) {
 		if (via->v_branch != nullptr && strcmp(via->v_branch, branch) == 0) {
-			LOGD("Loop detected: %s", via->v_branch);
+			SLOGD << "Loop detected: " << via->v_branch;
 			return true;
 		}
 	}
@@ -513,7 +513,7 @@ tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, ur
 
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
-		LOGD("Found %s in /etc/hosts", dest->url_host);
+		SLOGD << "Found " << dest->url_host << " in /etc/hosts";
 		// Duplicate "dest" because we don't want to modify the message with our name resolution result.
 		dest = url_hdup(ms->getHome(), dest);
 		dest->url_host = ip.c_str();

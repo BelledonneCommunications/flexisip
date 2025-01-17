@@ -127,7 +127,7 @@ private:
 		}
 
 		void checkPassword(const char* ipassword) {
-			LOGD("Found password");
+			SLOGD << "Found password";
 			gw->setPassword(ipassword);
 			gw->sendRegister();
 		}
@@ -169,16 +169,16 @@ private:
 		}
 
 		void onInvalid(const SipStatus&) override {
-			LOGD("GATEWAY: invalid");
+			SLOGD << "GATEWAY: invalid";
 		}
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			if (r == NULL) {
-				LOGD("Record doesn't exist. Fork");
+				SLOGD << "Record doesn't exist. Fork";
 				url_t* url = gw->getFrom()->a_url;
 				mAuthDb.getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
-				LOGD("Record already exists. Not forked");
+				SLOGD << "Record already exists. Not forked";
 			}
 		}
 
@@ -258,7 +258,7 @@ GatewayRegister::~GatewayRegister() {
 }
 
 void GatewayRegister::sendRegister() {
-	LOGD("Send REGISTER");
+	SLOGD << "Send REGISTER";
 	state = State::REGISTRING;
 
 	// Add a parameter with the domain so that when the gateway sends an INVITE
@@ -284,7 +284,7 @@ void GatewayRegister::authenticate(const msg_param_t* au_params) {
 	digest << ":" << user << ":" << password;
 
 	string digeststr(digest.str());
-	// LOGD("GR authentication with %s", digeststr.c_str()); // expose password
+	// SLOGD << "GR authentication with " << digeststr; // expose password
 	nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()), TAG_END());
 }
 
@@ -299,28 +299,28 @@ void GatewayRegister::onMessage(const sip_t* sip) {
 			switch (sip->sip_status->st_status) {
 				case 200:
 					++*mCountRegisteringMsg200;
-					LOGD("REGISTER done");
+					SLOGD << "REGISTER done";
 					state = State::REGISTRED;
 					end(); // TODO: stop the dialog?
 					break;
 				case 408:
 					++*mCountRegisteringMsg408;
-					LOGD("REGISTER timeout");
+					SLOGD << "REGISTER timeout";
 					end();
 					break;
 				case 401:
 					++*mCountRegisteringMsg401;
-					LOGD("REGISTER challenged 401");
+					SLOGD << "REGISTER challenged 401";
 					authenticate(sip->sip_www_authenticate->au_params);
 					break;
 				case 407:
 					++*mCountRegisteringMsg407;
-					LOGD("REGISTER challenged 407");
+					SLOGD << "REGISTER challenged 407";
 					authenticate(sip->sip_proxy_authenticate->au_params);
 					break;
 				default:
 					++*mCountRegisteringMsgUnknown;
-					LOGD("REGISTER not handled response: %i", sip->sip_status->st_status);
+					SLOGD << "REGISTER not handled response: " << sip->sip_status->st_status;
 					end();
 					break;
 			}
@@ -328,7 +328,7 @@ void GatewayRegister::onMessage(const sip_t* sip) {
 
 		case State::REGISTRED:
 			++*mCountRegisteredUnknown;
-			LOGD("new message %i", sip->sip_status->st_status);
+			SLOGD << "new message " << sip->sip_status->st_status;
 			break;
 	}
 }
@@ -343,16 +343,16 @@ void GatewayRegister::onError(const char* message, ...) {
 }
 
 void GatewayRegister::start() {
-	LOGD("GatewayRegister start");
+	SLOGD << "GatewayRegister start";
 	SipUri fromUri(from->a_url);
-	LOGD("Fetching binding");
+	SLOGD << "Fetching binding";
 	++*mCountStart;
 	mRegistrarDb.fetch(fromUri, make_shared<OnFetchListener>(this, mAuthDb));
 }
 
 void GatewayRegister::end() {
 	++*mCountEnd;
-	LOGD("GatewayRegister end");
+	SLOGD << "GatewayRegister end";
 }
 
 class GatewayAdapter : public Module {
@@ -477,7 +477,7 @@ unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent
 		url_t* dest = sip->sip_request->rq_url;
 		if (url_param(dest->url_params, mRoutingParam.c_str(), routing_param, sizeof(routing_param))) {
 			++*mCountDomainRewrite;
-			LOGD("Rewriting request uri and to with domain %s", routing_param);
+			SLOGD << "Rewriting request uri and to with domain " << routing_param;
 			dest->url_host = su_strdup(ms->getHome(), routing_param);
 			sip->sip_to->a_url[0].url_host = su_strdup(ms->getHome(), routing_param);
 		}

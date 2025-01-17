@@ -78,7 +78,7 @@ bool H264IFrameFilter::onOutgoingTransfer(uint8_t* data,
 	}
 	if (isIFrame) {
 		if (mLastIframeTimestamp != ts || mIframeCount == 0) {
-			LOGD("Seeing a new I-frame");
+			SLOGD << "Seeing a new I-frame";
 			mLastIframeTimestamp = ts;
 			mIframeCount++;
 		}

@@ -31,11 +31,11 @@ using namespace std;
 
 OutgoingTransaction::OutgoingTransaction(std::weak_ptr<Agent> agent)
     : Transaction{std::move(agent)}, mBranchId{getRandomBranch()} {
-	LOGD("New OutgoingTransaction %p", this);
+	SLOGD << "New OutgoingTransaction " << this;
 }
 
 OutgoingTransaction::~OutgoingTransaction() {
-	LOGD("Delete OutgoingTransaction %p", this);
+	SLOGD << "Delete OutgoingTransaction " << this;
 	auto outgoing = mOutgoing.take();
 	auto sharedAgent = mAgent.lock();
 	if (outgoing && sharedAgent &&
@@ -106,7 +106,7 @@ void OutgoingTransaction::send(
     const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 
-	LOGD("Message is sent through an outgoing transaction.");
+	SLOGD << "Message is sent through an outgoing transaction.";
 
 	if (!mOutgoing) {
 		msg_t* msg = msg_ref_create(ms->getMsg());
@@ -138,7 +138,7 @@ void OutgoingTransaction::send(
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*, const sip_t* sip) noexcept {
 	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
-	LOGD("OutgoingTransaction[%p] : _callback", otr);
+	SLOGD << "OutgoingTransaction[" << otr << "] : _callback";
 	if (sip != nullptr) {
 		auto msgSip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
 		const auto& agent = otr->mAgent.lock();

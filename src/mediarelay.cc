@@ -112,8 +112,9 @@ const char* RelayChannel::dirToString(Dir dir) {
 void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, Dir dir) {
 	const string& localIp =
 	    mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6Address : mRelayTransport.mIpv4Address;
-	LOGD("RelayChannel [%p] is now configured local=[%s|%i:%i]  remote=[%s|%i:%i] dir=[%s]", this, localIp.c_str(),
-	     mRelayTransport.mRtpPort, mRelayTransport.mRtcpPort, ip.c_str(), rtp_port, rtcp_port, dirToString(dir));
+	SLOGD << "RelayChannel [" << this << "] is now configured local=[" << localIp << "|" << mRelayTransport.mRtpPort
+	      << ":" << mRelayTransport.mRtcpPort << "]  remote=[" << ip << "|" << rtp_port << ":" << rtcp_port << "] dir=["
+	      << dirToString(dir) << "]";
 	bool dest_ok = true;
 
 	if (rtp_port > 0 && mPreventLoop) {
@@ -207,9 +208,10 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 				                     ? (string("[") + mRelayTransport.mIpv6Address + string("]"))
 				                     : mRelayTransport.mIpv4Address;
 				bctbx_sockaddr_to_printable_ip_address((struct sockaddr*)&ss, addrsize, ipPort, sizeof(ipPort));
-				LOGD("RelayChannel [%p] destination address updated for [%s]: local=[%s:%i]  remote=[%s]", this,
-				     i == 0 ? "RTP" : "RTCP", localIp.c_str(),
-				     i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort, ipPort);
+				SLOGD << "RelayChannel [" << this << "] destination address updated for [" << (i == 0 ? "RTP" : "RTCP")
+				      << "]: local=[" << localIp << ":"
+				      << (i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort) << "]  remote=[" << ipPort
+				      << "]";
 				mSockAddrSize[i] = addrsize;
 				memcpy(&mSockAddr[i], &ss, addrsize);
 				mDestAddrChanged = true;
@@ -225,7 +227,7 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 		}
 
 		if (!mIsOpen || mDir == SendOnly || mDir == Inactive) {
-			/*LOGD("ignored packet");*/
+			/*SLOGD << "ignored packet";*/
 			return 0;
 		}
 		if (mFilter &&
@@ -299,7 +301,7 @@ RelaySession::createBranch(const std::string& trId, const RelayTransport& rt, bo
 	ret->setMultipleTargets(hasMultipleTargets);
 	mBacks.insert(make_pair(trId, ret));
 	mMutex.unlock();
-	LOGD("RelaySession [%p]: branch corresponding to transaction [%s] added.", this, trId.c_str());
+	SLOGD << "RelayChannel [" << this << "]: branch corresponding to transaction [" << trId << "] added.";
 	return ret;
 }
 
@@ -313,7 +315,7 @@ void RelaySession::removeBranch(const std::string& trId) {
 	}
 	mMutex.unlock();
 	if (removed) {
-		LOGD("RelaySession [%p]: branch corresponding to transaction [%s] removed.", this, trId.c_str());
+		SLOGD << "RelayChannel [" << this << "]: branch corresponding to transaction [" << trId << "] removed.";
 	}
 }
 
@@ -324,7 +326,7 @@ int RelaySession::getActiveBranchesCount() {
 		if ((*it).second->getRemoteRtpPort() > 0) count++;
 	}
 	mMutex.unlock();
-	LOGD("getActiveBranchesCount(): %i", count);
+	SLOGD << "getActiveBranchesCount(): " << count;
 	return count;
 }
 
@@ -332,7 +334,7 @@ void RelaySession::setEstablished(const std::string& tr_id) {
 	if (mBack) return;
 	shared_ptr<RelayChannel> winner = getChannel("", tr_id);
 	if (winner) {
-		LOGD("RelaySession [%p] is established.", this);
+		SLOGD << "RelaySession [" << this << "] is established.";
 		mMutex.lock();
 		mBack = winner;
 		mBacks.clear();
@@ -371,7 +373,7 @@ void RelaySession::checkPollFd(const PollFd* pfd, time_t curtime) {
 }
 
 RelaySession::~RelaySession() {
-	LOGD("RelaySession %p destroyed", this);
+	SLOGD << "RelaySession " << this << " destroyed";
 }
 
 struct Statistics {
@@ -379,18 +381,18 @@ struct Statistics {
 	uint64_t recv = 0;
 	uint64_t sent = 0;
 	static void log(const Statistics st[2], const std::string& identifier) {
-		LOGD("%s statistics: \n"
-		     "RTP port  : %i\t Received packets: %lu\tSent packets: %lu\n"
-		     "RTCP port : %i\t Received packets: %lu\tSent packets: %lu\n",
-		     identifier.c_str(), st[0].port, (unsigned long)st[0].recv, (unsigned long)st[0].sent, st[1].port,
-		     (unsigned long)st[1].recv, (unsigned long)st[1].sent);
+		SLOGD << identifier << " statistics:\n"
+		      << "RTP port: " << st[0].port << "\tReceived packets: " << st[0].recv << "\tSent packets: " << st[0].sent
+		      << "\n"
+		      << "RTCP port: " << st[1].port << "\tReceived packets: " << st[1].recv << "\tSent packets: " << st[1].sent
+		      << "\n";
 	}
 };
 
 void RelaySession::unuse() {
 	Statistics front[2], back[2];
 
-	LOGD("RelaySession [%p] terminated.", this);
+	SLOGD << "RelaySession [" << this << "] terminated.";
 
 	/* Do not log while holding a mutex, so copy out statistics first, and then display them. */
 
@@ -521,7 +523,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string& fron
 	mMutex.unlock();
 	if (!mRunning) start();
 
-	LOGD("There are now %zu relay sessions running on MediaRelayServer [%p]", mSessionsCount, this);
+	SLOGD << "There are now " << mSessionsCount << " relay sessions running on MediaRelayServer [" << this << "]";
 	/*write to the control pipe to wakeup the server thread */
 	update();
 	return s;
@@ -551,14 +553,14 @@ static void set_high_prio() {
 			    is to use setpriority().
 			*/
 			if (setpriority(PRIO_PROCESS, 0, -20) == -1) {
-				LOGD("MediaRelayServer setpriority() failed: %s, nevermind.", strerror(errno));
+				SLOGD << "MediaRelayServer setpriority() failed: " << strerror(errno) << ", nevermind.";
 			} else {
-				LOGD("MediaRelayServer priority increased to maximum.");
+				SLOGD << "MediaRelayServer priority increased to maximum.";
 			}
 		} else LOGW("MediaRelayServer: pthread_setschedparam failed: %s", strerror(result));
 	} else {
-		LOGD("MediaRelayServer: priority set to [%s] and value [%i]", policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR",
-		     param.sched_priority);
+		SLOGD << "MediaRelayServer: priority set to [" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR")
+		      << "] and value [" << param.sched_priority << "]";
 	}
 }
 
@@ -594,7 +596,7 @@ void MediaRelayServer::run() {
 				if (!(*it)->isUsed()) {
 					it = mSessions.erase(it);
 					mSessionsCount--;
-					LOGD("There are now %i relay sessions running.", (int)mSessionsCount);
+					SLOGD << "There are now " << mSessionsCount << " relay sessions running.";
 				} else {
 					(*it)->checkPollFd(&pfd, curtime);
 					++it;

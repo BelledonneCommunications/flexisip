@@ -200,7 +200,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<Reque
 		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
 			ppi = sip_p_preferred_identity(sip);
 			if (ppi) fromDomain = ppi->ppid_url->url_host;
-			else LOGD("There is no p-preferred-identity");
+			else SLOGD << "There is no p-preferred-identity";
 		}
 
 		FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
@@ -221,7 +221,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<Reque
 
 FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
 	auto* as = new FlexisipAuthStatus(msgSip);
-	LOGD("New FlexisipAuthStatus [%p]", as);
+	SLOGD << "New FlexisipAuthStatus [" << as << "]";
 	ModuleAuthenticationBase::configureAuthStatus(*as);
 	return as;
 }
@@ -237,8 +237,8 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 	string realm{};
 	if (mRealmExtractor) {
 		auto userUriStr = url_as_string(ms->getHome(), userUri);
-		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)", &as, ppi ? "P-Prefered-Identity" : "From",
-		     userUriStr);
+		SLOGD << "AuthStatus[" << &as << "]: searching for realm in " << (ppi ? "P-Prefered-Identity" : "From")
+		      << " URI (" << userUriStr << ")";
 
 		realm = mRealmExtractor->extract(userUriStr);
 		if (realm.empty()) throw runtime_error{"couldn't find the realm out"};
@@ -246,7 +246,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 		realm = userUri->url_host;
 	}
 
-	LOGD("AuthStatus[%p]: '%s' will be used as realm", &as, realm.c_str());
+	SLOGD << "AuthStatus[" << &as << "]: '" << realm << "' will be used as realm";
 
 	as.method(sip->sip_request->rq_method_name);
 	as.source(msg_addrinfo(ms->getMsg()));
@@ -298,7 +298,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthentication(uniq
 	// with retransmissions.
 	request->createIncomingTransaction();
 
-	LOGD("start digest authentication");
+	SLOGD << "start digest authentication";
 
 	FlexisipAuthStatus* as = createAuthStatus(request->getMsgSip());
 
@@ -451,7 +451,7 @@ bool ModuleAuthenticationBase::isTrustedPeer(const MsgSip& ms) {
 	BinaryIp receivedHost(printableReceivedHost);
 
 	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()) {
-		LOGD("Allowing message from trusted host %s", printableReceivedHost);
+		SLOGD << "Allowing message from trusted host " << printableReceivedHost;
 		return true;
 	}
 	return false;

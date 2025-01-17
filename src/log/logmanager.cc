@@ -192,7 +192,7 @@ int LogManager::setContextualFilter(const std::string& expression) {
 	mMutex.lock();
 	mCurrentFilter = expr;
 	mMutex.unlock();
-	LOGD("Contextual log filter set: %s\n", expression.c_str());
+	SLOGD << "Contextual log filter set: " << expression << '\n';
 	return 0;
 }
 

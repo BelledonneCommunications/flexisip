@@ -232,7 +232,7 @@ void Agent::initializePreferredRoute() {
 		try {
 			SipUri url{internalTransport};
 			mPreferredRouteV4 = url_hdup(&mHome, url.get());
-			LOGD("Agent's preferred IP for internal routing find: v4: %s", internalTransport.c_str());
+			SLOGD << "Agent's preferred IP for internal routing find: v4: " << internalTransport;
 		} catch (const sofiasip::InvalidUrlError& e) {
 			throw runtime_error{"invalid URI in '" + internalTransportParam->getCompleteName() + "': " + e.getReason()};
 		}
@@ -283,10 +283,10 @@ void Agent::startMdns() {
 			} else {
 				/* Randomize the priority */
 				prio = belle_sip_random() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
-				LOGD("Multicast DNS services will be started with priority: %d", prio);
+				SLOGD << "Multicast DNS services will be started with priority: " << prio;
 			}
 
-			LOGD("Registering multicast DNS services.");
+			SLOGD << "Registering multicast DNS services.";
 			for (tport_t* tport = tport_primaries(nta_agent_tports(mAgent)); tport != NULL; tport = tport_next(tport)) {
 				char registerName[512];
 				const tp_name_t* name = tport_name(tport);
@@ -377,7 +377,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		int err;
 		su_home_t home;
 		su_home_init(&home);
-		LOGD("Enabling transport %s", uri.c_str());
+		SLOGD << "Enabling transport " << uri;
 		if (uri.find("sips") == 0) {
 			unsigned int tls_policy = 0;
 
@@ -504,14 +504,14 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		if (tport_is_tcp(tport)) tport_set_max_read_size(tport, tcpMaxReadSize->read());
 	}
 
-	LOGD("Agent 's primaries are:");
+	SLOGD << "Agent 's primaries are:";
 	for (tport_t* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
 		auto name = tport_name(tport);
 		char url[512];
 		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
 		         name->tpn_host);
 		su_md5_strupdate(&ctx, url);
-		LOGD("\t%s", url);
+		SLOGD << "\t" << url;
 		auto isIpv6 = strchr(name->tpn_host, ':') != nullptr;
 
 		// The public and bind values are different
@@ -583,9 +583,9 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		                    mPublicIpV6 + "). Cannot continue."};
 	}
 
-	LOGD("Agent public hostname/ip: v4:%s v6:%s", mPublicIpV4.c_str(), mPublicIpV6.c_str());
-	LOGD("Agent public resolved hostname/ip: v4:%s v6:%s", mPublicResolvedIpV4.c_str(), mPublicResolvedIpV6.c_str());
-	LOGD("Agent's _default_ RTP bind ip address: v4:%s v6:%s", mRtpBindIp.c_str(), mRtpBindIp6.c_str());
+	SLOGD << "Agent public hostname/ip: v4:" << mPublicIpV4 << " v6:" << mPublicIpV6;
+	SLOGD << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
+	SLOGD << "Agent's _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
 
 	startLogWriter();
 
@@ -678,7 +678,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		struct ifaddrs* ifa = net_addrs;
 		while (ifa != nullptr) {
 			if (ifa->ifa_netmask != nullptr && ifa->ifa_addr != nullptr) {
-				LOGD("New network: %s", Network::print(ifa).c_str());
+				SLOGD << "New network: " << Network::print(ifa);
 				mNetworks.emplace_front(ifa);
 			}
 			ifa = ifa->ifa_next;
@@ -703,9 +703,9 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->setConfigListener(this);
 	mAliases = mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->read();
-	LOGD("List of host aliases:");
+	SLOGD << "List of host aliases:";
 	for (const auto& alias : mAliases) {
-		LOGD("%s", alias.c_str());
+		SLOGD << alias;
 	}
 
 	mUseRfc2543RecordRoute = mConfigManager->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
@@ -753,11 +753,11 @@ string Agent::getPreferredRoute() const {
 }
 
 bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
-	LOGD("Configuration of agent changed for key %s to %s", conf.getName().c_str(), conf.get().c_str());
+	SLOGD << "Configuration of agent changed for key " << conf.getName() << " to " << conf.get();
 
 	if (conf.getName() == "aliases" && state == ConfigState::Committed) {
 		mAliases = ((ConfigStringList*)(&conf))->read();
-		LOGD("Global aliases updated");
+		SLOGD << "Global aliases updated";
 	}
 	return true;
 }
@@ -1296,7 +1296,7 @@ void Agent::applyProxyToProxyTransportSettings(tport_t* tp) {
 		unsigned int currentKeepAliveInterval = 0;
 		tport_get_params(tp, TPTAG_KEEPALIVE_REF(currentKeepAliveInterval), TAG_END());
 		if (currentKeepAliveInterval != mProxyToProxyKeepAliveInterval) {
-			LOGD("Applying proxy to proxy keepalive interval for tport [%p]", tp);
+			SLOGD << "Applying proxy to proxy keepalive interval for tport [" << tp << "]";
 			tport_set_params(tp, TPTAG_KEEPALIVE(mProxyToProxyKeepAliveInterval), TAG_END());
 		}
 	}
@@ -1305,7 +1305,7 @@ void Agent::applyProxyToProxyTransportSettings(tport_t* tp) {
 const std::string Agent::sEventSeparator(110, '=');
 
 void Agent::printEventTailSeparator() {
-	LOGD("\n\n%s\n", sEventSeparator.c_str());
+	SLOGD << "\n\n" << sEventSeparator << '\n';
 }
 
 bool Agent::shouldUseRfc2543RecordRoute() const {

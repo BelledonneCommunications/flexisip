@@ -168,7 +168,7 @@ void RegistrarDbRedisAsync::subscribeToKeyExpiration() {
 	auto subscription = ready->subscriptions()["__keyevent@0__:expired"];
 	if (subscription.subscribed()) return;
 
-	LOGD("Subscribing to key expiration");
+	SLOGD << "Subscribing to key expiration";
 	subscription.subscribe([this](auto, Reply reply) {
 		try {
 			const auto& array = std::get<reply::Array>(reply);
@@ -258,7 +258,7 @@ void RegistrarDbRedisAsync::serializeAndSendToRedis(RedisRegisterContext& contex
 		SLOGD << hSetArgs;
 	}
 
-	LOGD("Binding %s [%i] contact sets, [%i] contacts removed.", key.c_str(), setCount, delCount);
+	SLOGD << "Binding " << key << " [" << setCount << "] contact sets, [" << delCount << "] contacts removed.";
 
 	/* Set global expiration for the Record */
 	redis::ArgsPacker expireAtCmd{"EXPIREAT", key, to_string(context.mRecord->latestExpire())};

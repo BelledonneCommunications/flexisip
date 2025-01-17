@@ -39,14 +39,14 @@ msg_auth_t* ModuleToolbox::findAuthorizationForRealm(su_home_t* home, msg_auth_t
 		memset(&r, 0, sizeof(r));
 		r.ar_size = sizeof(r);
 		auth_digest_response_get(home, &r, au->au_params);
-		LOGD("Examining auth digest response %s %s", r.ar_username, r.ar_realm);
+		SLOGD << "Examining auth digest response " << r.ar_username << " " << r.ar_realm;
 		if (strcasecmp(r.ar_realm, realm) == 0) {
-			LOGD("Expected realm found : %s", r.ar_realm);
+			SLOGD << "Expected realm found : " << r.ar_realm;
 			return au;
 		}
 		au = au->au_next;
 	}
-	LOGD("authorization with expected realm '%s' not found", realm);
+	SLOGD << "authorization with expected realm '" << realm << "' not found" << realm;
 	return nullptr;
 }
 
@@ -86,7 +86,7 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 			const url_t* reg_uri = drm->getPublicUri(tport);
 			if (reg_uri) {
 				url = url_hdup(home, reg_uri);
-				LOGD("ModuleToolbox::addRecordRoute(): public uri found from domain registration manager.");
+				SLOGD << "ModuleToolbox::addRecordRoute(): public uri found from domain registration manager.";
 			}
 		}
 		if (!url) {
@@ -128,11 +128,11 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 	}
 
 	if (!prependNewRoutable(msg, sip, sip->sip_record_route, rr)) {
-		LOGD("Skipping addition of record route identical to top one");
+		SLOGD << "Skipping addition of record route identical to top one";
 		return;
 	}
 
-	LOGD("Record route added.");
+	SLOGD << "Record route added.";
 	ev.mRecordRouteAdded = true;
 }
 
@@ -195,7 +195,7 @@ bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t* home, [[maybe_unused]] msg
 	par = msg_params_find_slot((msg_param_t*)auth->au_params, "qop");
 	if (par != NULL) {
 		if (strstr(*par, "auth-int")) {
-			LOGD("Authentication header has qop with 'auth-int', replacing by 'auth'");
+			SLOGD << "Authentication header has qop with 'auth-int', replacing by 'auth'";
 			// if the qop contains "auth-int", replace it by "auth" so that it allows to modify the SDP
 			*par = su_strdup(home, "qop=\"auth\"");
 		}

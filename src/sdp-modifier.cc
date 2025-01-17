@@ -89,8 +89,8 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 					/*ICE restart*/
 					mIceState = IceOffered;
 					needsCandidates = true;
-					LOGD("Ice restart detected ufrag %s->%s pwd %s->%s", mIceUfrag.c_str(), ufrag.c_str(),
-					     mIcePasswd.c_str(), passwd.c_str());
+					SLOGD << "Ice restart detected ufrag " << mIceUfrag << "->" << ufrag << " pwd " << mIcePasswd
+					      << "->" << passwd;
 				} else if (!hasCandidates(media)) {
 					/*case of a stream that is put inactive*/
 					mIceState = IceNone;
@@ -99,7 +99,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 		}
 		mIceUfrag = ufrag;
 		mIcePasswd = passwd;
-		LOGD("updateIceFromOffer() this=%p setting ufrag, pwd to %s %s", this, ufrag.c_str(), passwd.c_str());
+		SLOGD << "updateIceFromOffer() this=" << this << " setting ufrag, pwd to " << ufrag << " " << passwd;
 	} else {
 		switch (mIceState) {
 			case IceNone:
@@ -117,8 +117,8 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 				break;
 		}
 	}
-	LOGD("updateIceFromOffer() this=%p %s state %s -> %s", this, isOfferer ? "offerer" : "offered", toString(oldState),
-	     toString(mIceState));
+	SLOGD << "updateIceFromOffer() this=" << this << " " << (isOfferer ? "offerer" : "offered") << " state "
+	      << toString(oldState) << " ->" << toString(mIceState);
 	return needsCandidates;
 }
 
@@ -162,17 +162,17 @@ bool SdpMasqueradeContext::updateIceFromAnswer(sdp_session_t* session, sdp_media
 					/*ICE restart*/
 					mIceState = IceCompleted; /* no op*/
 					needsCandidates = true;
-					LOGD("Ice restart detected ufrag %s->%s pwd %s->%s", mIceUfrag.c_str(), ufrag.c_str(),
-					     mIcePasswd.c_str(), passwd.c_str());
+					SLOGD << "Ice restart detected ufrag " << mIceUfrag << "->" << ufrag << " pwd " << mIcePasswd
+					      << "->" << passwd;
 				}
 				break;
 		}
 		mIceUfrag = ufrag;
 		mIcePasswd = passwd;
-		LOGD("updateIceFromAnswer() this=%p setting ufrag, pwd to %s %s", this, ufrag.c_str(), passwd.c_str());
+		SLOGD << "updateIceFromAnswer() this=" << this << " setting ufrag, pwd to " << ufrag << " " << passwd;
 	}
-	LOGD("updateIceFromAnswer() this=%p %s state %s -> %s", this, isOfferer ? "offerer" : "offered", toString(oldState),
-	     toString(mIceState));
+	SLOGD << "updateIceFromAnswer() this=" << this << " " << (isOfferer ? "offerer" : "offered") << " state "
+	      << toString(oldState) << " -> " << toString(mIceState);
 	return needsCandidates;
 }
 
@@ -342,7 +342,7 @@ void SdpModifier::replacePayloads(const std::list<PayloadType*>& payloads,
 		pt = *elem;
 		ref.rm_encoding = pt->mime_type;
 		ref.rm_rate = (unsigned long)pt->clock_rate;
-		LOGD("Adding new payload to sdp: %s/%i", pt->mime_type, pt->clock_rate);
+		SLOGD << "Adding new payload to sdp: " << pt->mime_type << "/" << pt->clock_rate;
 		int number = payload_type_get_number(pt);
 		if (number == -1) {
 			/*see if it was numbered in the original offer*/
@@ -484,7 +484,7 @@ void SdpModifier::addIceCandidate(std::function<const RelayTransport*(int)> getR
 				media->m_port = (unsigned long)rt->mRtpPort;
 				changeRtcpAttr(media, relayAddr, rt->mRtcpPort, isIP6);
 			}
-			LOGD("rt= %s %s", rt->mIpv6Address.c_str(), rt->mIpv4Address.c_str());
+			SLOGD << "rt= " << rt->mIpv6Address << " " << rt->mIpv4Address;
 
 			for (uint16_t componentID = 1; componentID <= 2; componentID++) {
 				int port = componentID == 1 ? rt->mRtpPort : rt->mRtcpPort;

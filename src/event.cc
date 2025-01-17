@@ -75,13 +75,13 @@ SipEvent::SipEvent(const SipEvent& sipEvent)
     : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mAgent(sipEvent.mAgent),
       mState(sipEvent.mState), mIncomingTport(sipEvent.mIncomingTport), mIncomingAgent(sipEvent.mIncomingAgent),
       mOutgoingAgent(sipEvent.mOutgoingAgent) {
-	LOGD("New SipEvent %p with state %s", this, stateStr(mState).c_str());
+	SLOGD << "New SipEvent " << this << " with state " << stateStr(mState);
 	// make a copy of the msgsip when the SipEvent is copy-constructed
 	mMsgSip = make_shared<MsgSip>(*sipEvent.mMsgSip);
 }
 
 SipEvent::~SipEvent() {
-	LOGD("Destroy SipEvent %p", this);
+	SLOGD << "Destroy SipEvent " << this;
 }
 
 void SipEvent::flushLog() {
@@ -105,7 +105,7 @@ void SipEvent::setEventLog(const std::shared_ptr<EventLog>& log) {
 }
 
 void SipEvent::terminateProcessing() {
-	LOGD("Terminate SipEvent %p", this);
+	SLOGD << "Terminate SipEvent " << this;
 	if (mState == State::STARTED || mState == State::SUSPENDED) {
 		mState = State::TERMINATED;
 		flushLog();
@@ -119,7 +119,7 @@ void SipEvent::terminateProcessing() {
 }
 
 void SipEvent::suspendProcessing() {
-	LOGD("Suspend SipEvent %p", this);
+	SLOGD << "Suspend SipEvent " << this;
 	if (mState == State::STARTED) {
 		mState = State::SUSPENDED;
 	} else {
@@ -128,7 +128,7 @@ void SipEvent::suspendProcessing() {
 }
 
 void SipEvent::restartProcessing() {
-	LOGD("Restart SipEvent %p", this);
+	SLOGD << "Restart SipEvent " << this;
 	if (mState == State::SUSPENDED) {
 		mState = State::STARTED;
 	} else {
@@ -187,7 +187,7 @@ void RequestSipEvent::checkContentLength(const url_t* url) {
 			/*if there is no Content-length and we are switching to a non-udp transport, we have to add a
 			 * Content-Length, as requested by
 			 * RFC3261 for reliable transports*/
-			LOGD("Automatically adding content-length because going to a stream-based transport");
+			SLOGD << "Automatically adding content-length because going to a stream-based transport";
 			sip->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
 		}
 	}
@@ -226,7 +226,7 @@ void RequestSipEvent::send(
 		sharedOutgoingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		LOGD("The Request SIP message is not send");
+		SLOGD << "The Request SIP message is not send";
 	}
 	terminateProcessing();
 }
@@ -328,7 +328,7 @@ bool RequestSipEvent::matchIncomingSubject(regex_t* regex) {
 
 	for (int k = 0; k < count; ++k) {
 		const char* subj = su_strlst_item(strlst, k);
-		LOGD("matchIncomingSubject %s", subj);
+		SLOGD << "matchIncomingSubject " << subj;
 		int res = regexec(regex, subj, 0, NULL, 0);
 		if (res == 0) {
 			return true;
@@ -370,7 +370,7 @@ void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const s
 		/*if there is no Content-length and we are switching to a non-udp transport, we have to add a Content-Length, as
 		 * requested by
 		 * RFC3261 for reliable transports*/
-		LOGD("Automatically adding content-length because going to a stream-based transport");
+		SLOGD << "Automatically adding content-length because going to a stream-based transport";
 		msg->getSip()->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
 	}
 }
@@ -390,7 +390,7 @@ void ResponseSipEvent::send(
 		sharedIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		LOGD("The response is discarded.");
+		SLOGD << "The response is discarded.";
 	}
 	terminateProcessing();
 }

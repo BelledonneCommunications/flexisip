@@ -41,7 +41,7 @@ CallContextBase::CallContextBase(sip_t* sip) {
 		mBranch = via->v_branch;
 	}
 	updateActivity();
-	LOGD("CallContext %p created", this);
+	SLOGD << "CallContext " << this << " created";
 }
 
 void CallContextBase::updateActivity() {
@@ -50,7 +50,7 @@ void CallContextBase::updateActivity() {
 
 void CallContextBase::establishDialogWith200Ok([[maybe_unused]] Agent* ag, sip_t* sip) {
 	if (sip->sip_status->st_status >= 200 && sip->sip_status->st_status < 300 && mCalleeTag.empty()) {
-		LOGD("Dialog is established");
+		SLOGD << "Dialog is established";
 		if (sip->sip_to->a_tag) mCalleeTag = sip->sip_to->a_tag;
 	}
 }
@@ -72,7 +72,7 @@ bool CallContextBase::match(Agent* ag, sip_t* sip, bool match_call_id_only, bool
 				sip_via_t* respvia = ag->getNextVia(sip);
 				if (respvia && respvia->v_branch) {
 					if (strcmp(respvia->v_branch, mBranch.c_str()) == 0) {
-						LOGD("Found CallContext matching response");
+						SLOGD << "Found CallContext matching response";
 						establishDialogWith200Ok(ag, sip);
 						return true;
 					}
@@ -86,7 +86,7 @@ bool CallContextBase::match(Agent* ag, sip_t* sip, bool match_call_id_only, bool
 			     strcmp(mCalleeTag.c_str(), sip->sip_to->a_tag) == 0) ||
 			    (strcmp(mCallerTag.c_str(), sip->sip_to->a_tag) == 0 &&
 			     strcmp(mCalleeTag.c_str(), sip->sip_from->a_tag) == 0)) {
-				LOGD("Found exact dialog");
+				SLOGD << "Found exact dialog";
 				return true;
 			}
 		}
@@ -116,12 +116,12 @@ msg_t* CallContextBase::getLastForwardedInvite() const {
 }
 
 void CallContextBase::dump() {
-	LOGD("Call id %u", mCallHash);
+	SLOGD << "Call id " << mCallHash;
 }
 
 CallContextBase::~CallContextBase() {
 	su_home_deinit(&mHome);
-	LOGD("CallContext %p with id %u destroyed.", this, mCallHash);
+	SLOGD << "CallContext " << this << " with id " << mCallHash << " destroyed.";
 	if (mInvite != NULL) {
 		msg_destroy(mInvite);
 	}
@@ -157,18 +157,18 @@ void CallStore::findAndRemoveExcept(Agent* ag, sip_t* sip, const shared_ptr<Call
 	for (auto it = mCalls.begin(); it != mCalls.end();) {
 		if (*it != ctx && (*it)->match(ag, sip, stateful)) {
 			if (mCountCallsFinished) ++(*mCountCallsFinished);
-			LOGD("CallStore::findAndRemoveExcept() removing CallContext %p", ctx.get());
+			SLOGD << "CallStore::findAndRemoveExcept() removing CallContext " << ctx.get();
 			it = mCalls.erase(it);
 			++removed;
 		} else ++it;
 	}
-	LOGD("Removed %d maching call contexts from store", removed);
+	SLOGD << "Removed " << removed << " maching call contexts from store";
 }
 
 void CallStore::remove(const shared_ptr<CallContextBase>& ctx) {
 	auto it = std::find(mCalls.begin(), mCalls.end(), ctx);
 	if (it != mCalls.end()) {
-		LOGD("CallStore::remove() removing CallContext %p", ctx.get());
+		SLOGD << "CallStore::remove() removing CallContext " << ctx.get();
 		if (mCountCallsFinished) ++(*mCountCallsFinished);
 		(*it)->terminate();
 		mCalls.erase(it);
@@ -179,7 +179,7 @@ void CallStore::removeAndDeleteInactives(time_t inactivityPeriod) {
 	time_t cur = getCurrentTime();
 	for (auto it = mCalls.begin(); it != mCalls.end();) {
 		if ((*it)->getLastActivity() + inactivityPeriod < cur) {
-			LOGD("CallStore::removeAndDeleteInactives() removing CallContext %p", (*it).get());
+			SLOGD << "CallStore::removeAndDeleteInactives() removing CallContext " << (*it).get();
 			if (mCountCallsFinished) ++(*mCountCallsFinished);
 			(*it)->terminate();
 			it = mCalls.erase(it);

@@ -80,30 +80,30 @@ void UacRegister::authenticate(const msg_param_t* au_params) {
 	digest << ":" << user << ":" << password;
 
 	string digeststr(digest.str());
-	// LOGD("GR authentication with %s", digeststr.c_str()); // expose password
+	// SLOGD << "GR authentication with " << digeststr; // expose password
 	nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()), TAG_END());
 }
 
 void UacRegister::onMessage(const sip_t* sip) {
 	switch (sip->sip_status->st_status) {
 		case 200:
-			LOGD("REGISTER done");
+			SLOGD << "REGISTER done";
 			state = REGISTERED;
 			break;
 		case 408:
-			LOGD("REGISTER timeout");
+			SLOGD << "REGISTER timeout";
 			state = ERROR;
 			break;
 		case 401:
-			LOGD("REGISTER challenged 401");
+			SLOGD << "REGISTER challenged 401";
 			authenticate(sip->sip_www_authenticate->au_params);
 			break;
 		case 407:
-			LOGD("REGISTER challenged 407");
+			SLOGD << "REGISTER challenged 407";
 			authenticate(sip->sip_proxy_authenticate->au_params);
 			break;
 		default:
-			LOGD("REGISTER not handled response: %i", sip->sip_status->st_status);
+			SLOGD << "REGISTER not handled response: " << sip->sip_status->st_status;
 			state = ERROR;
 			break;
 	}
