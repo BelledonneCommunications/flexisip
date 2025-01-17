@@ -688,9 +688,9 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 		GenericEntry* e = find(next_node_name.c_str());
 		if (!e) {
 			if (!strict) return nullptr;
-			LOGE("No ConfigEntry with name [%s] in struct [%s]", name.c_str(), prev_node->getName().c_str());
+			SLOGE << "No ConfigEntry with name [" << name << "] in struct [" << prev_node->getName() << "]";
 			for (auto& entry : prev_node->mEntries) {
-				LOGE("-> %s", entry->getName().c_str());
+				SLOGE << "-> " << entry->getName();
 			}
 			LOGF("end");
 			return nullptr;

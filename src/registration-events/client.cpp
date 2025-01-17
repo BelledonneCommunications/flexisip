@@ -45,7 +45,7 @@ Client::Client(const shared_ptr<ClientFactory>& factory, const shared_ptr<const 
 
 void Client::subscribe() {
 	if (mSubscribeEvent) {
-		LOGE("Already subscribed.");
+		SLOGE << "Already subscribed.";
 		return;
 	}
 	mSubscribeEvent = mFactory->getCore()->createSubscribe(mTo, "reg", 600);
@@ -56,7 +56,7 @@ void Client::subscribe() {
 
 void Client::unsubscribe() {
 	if (!mSubscribeEvent) {
-		LOGE("No subscribe.");
+		SLOGE << "No subscribe.";
 		return;
 	}
 	mSubscribeEvent->unsetData(eventKey);

@@ -112,7 +112,7 @@ void SipEvent::terminateProcessing() {
 		mIncomingAgent.reset();
 		mOutgoingAgent.reset();
 	} else if (mState == State::TERMINATED) {
-		LOGE("SipEvent::terminateProcessing(): event is already terminated. Please fix your code.");
+		SLOGE << "SipEvent::terminateProcessing(): event is already terminated. Please fix your code.";
 	} else {
 		LOGA("Can't terminateProcessing: wrong state %s", stateStr(mState).c_str());
 	}
@@ -333,7 +333,7 @@ bool RequestSipEvent::matchIncomingSubject(regex_t* regex) {
 		if (res == 0) {
 			return true;
 		} else if (res != REG_NOMATCH) {
-			LOGE("RequestSipEvent::matchIncomingSubject() regexec() returned unexpected %i", res);
+			SLOGE << "RequestSipEvent::matchIncomingSubject() regexec() returned unexpected " << res;
 		}
 	}
 	return false;

@@ -153,8 +153,8 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 			hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 			err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
 			if (err != 0) {
-				LOGE("RelayChannel::RelayChannel() failed for %s:%i : %s", ip.c_str(), mRemotePort[i],
-				     gai_strerror(err));
+				SLOGE << "RelayChannel::RelayChannel() failed for " << ip << ":" << mRemotePort[i] << " : "
+				      << gai_strerror(err);
 			} else {
 				memcpy(&mSockAddr[i], res->ai_addr, res->ai_addrlen);
 				mSockAddrSize[i] = res->ai_addrlen;
@@ -340,7 +340,7 @@ void RelaySession::setEstablished(const std::string& tr_id) {
 		mBack = winner;
 		mBacks.clear();
 		mMutex.unlock();
-	} else LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
+	} else SLOGE << "RelaySession [" << this << "] is with from an unknown branch [" << tr_id << "].";
 }
 
 void RelaySession::fillPollFd(PollFd* pfd) {
@@ -494,7 +494,7 @@ RtpSession* MediaRelayServer::createRtpSession(const std::string& bindIp) {
 		}
 	}
 
-	LOGE("Could not find a random port on interface %s !", bindIp.c_str());
+	SLOGE << "Could not find a random port on interface " << bindIp << " !";
 	return session;
 }
 
@@ -506,7 +506,7 @@ void MediaRelayServer::start() {
 MediaRelayServer::~MediaRelayServer() {
 	if (mRunning) {
 		mRunning = false;
-		if (write(mCtlPipe[1], "e", 1) == -1) LOGE("MediaRelayServer: Fail to write to control pipe.");
+		if (write(mCtlPipe[1], "e", 1) == -1) SLOGE << "MediaRelayServer: Fail to write to control pipe.";
 		pthread_join(mThread, NULL);
 	}
 	mSessions.clear();
@@ -532,7 +532,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string& fron
 
 void MediaRelayServer::update() {
 	/*write to the control pipe to wakeup the server thread */
-	if (write(mCtlPipe[1], "e", 1) == -1) LOGE("MediaRelayServer: fail to write to control pipe.");
+	if (write(mCtlPipe[1], "e", 1) == -1) SLOGE << "MediaRelayServer: fail to write to control pipe.";
 }
 
 static void set_high_prio() {
@@ -588,7 +588,7 @@ void MediaRelayServer::run() {
 			if (pfd.getREvents(ctl_index) & POLLIN) {
 				char tmp;
 				if (read(mCtlPipe[0], &tmp, 1) == -1) {
-					LOGE("Fail to read from control pipe.");
+					SLOGE << "Fail to read from control pipe.";
 				}
 			}
 			time_t curtime = getCurrentTime();

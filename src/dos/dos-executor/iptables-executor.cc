@@ -34,14 +34,14 @@ int IptablesExecutor::runIptables(const std::string& arguments, bool ipv6, bool 
 	command << " 2>&1";
 	FILE* f = popen(command.str().c_str(), "r");
 	if (f == nullptr) {
-		LOGE("DoSProtection: popen() failed: %s", strerror(errno));
+		SLOGE << "DoSProtection: popen() failed: " << strerror(errno);
 		return -1;
 	}
 	size_t readCount = fread(output, 1, sizeof(output) - 1, f);
 	int ret = pclose(f);
 	if (WIFEXITED(ret)) ret = WEXITSTATUS(ret);
 	if (ret != 0 && dumpErrors) {
-		LOGE("DoSProtection: '%s' failed with output '%s'.", command.str().c_str(), output);
+		SLOGE << "DoSProtection: '" << command.str() << "' failed with output '" << output << "'.";
 	}
 	if (ret == 0 || !dumpErrors) SLOGD << "DoSProtection: '" << command.str() << "' executed.";
 	(void)readCount; // This variable is useless here, I know.

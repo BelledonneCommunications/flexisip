@@ -45,7 +45,7 @@ bool RecordSerializerJson::parse(const char* str, [[maybe_unused]] int len, Reco
 
 	cJSON* root = cJSON_Parse(str);
 	if (!root) {
-		LOGE("Error parsing JSON contact: [%s]", cJSON_GetErrorPtr());
+		SLOGE << "Error parsing JSON contact: [" << cJSON_GetErrorPtr() << "]";
 		return false;
 	}
 	cJSON* contact = cJSON_GetObjectItem(root, "contacts");

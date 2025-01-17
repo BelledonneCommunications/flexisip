@@ -323,7 +323,7 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 			}
 		}
 		if (!sortProgressing && !pendingModules.empty()) {
-			LOGE("Some modules have position references to other modules that could not be found:");
+			SLOGE << "Some modules have position references to other modules that could not be found:";
 			dumpModuleDependencies(pendingModules);
 			LOGF("Somes modules could not be positionned in the module's processing chain. It is usually caused by an "
 			     "invalid module declaration Flexisip's source code, or in a loaded plugin.");

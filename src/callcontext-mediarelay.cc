@@ -85,7 +85,7 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& sdpModifier,
 			continue;
 		}
 		if (i >= sMaxSessions) {
-			LOGE("Max sessions per relayed call is reached.");
+			SLOGE << "Max sessions per relayed call is reached.";
 			return;
 		}
 		shared_ptr<RelaySession> s = mSessions[i];
@@ -332,7 +332,7 @@ static bool isTls(url_t* url) {
 static bool isLastProxy(Agent* ag, sip_t* sip) {
 	sip_record_route_t* rr = sip->sip_record_route;
 	if (!rr) {
-		LOGE("No record-route in response handled by media-relay, should never happen");
+		SLOGE << "No record-route in response handled by media-relay, should never happen";
 		return false;
 	}
 	if (ag->isUs(rr->r_url)) {

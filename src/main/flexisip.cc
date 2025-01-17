@@ -162,7 +162,7 @@ static map<msg_t*, string> msg_map;
 
 static void flexisip_msg_create(msg_t* msg) {
 	msg_map[msg] = "";
-	LOGE("New <-> msg %p", msg);
+	SLOGE << "New <-> msg " << msg;
 }
 
 static void flexisip_msg_destroy(msg_t* msg) {
@@ -173,9 +173,9 @@ static void flexisip_msg_destroy(msg_t* msg) {
 }
 
 static void dump_remaining_msgs() {
-	LOGE("### Remaining messages: %lu", (unsigned long)msg_map.size());
+	SLOGE << "### Remaining messages: " << msg_map.size();
 	for (auto it = msg_map.begin(); it != msg_map.end(); ++it) {
-		LOGE("### \t- %p\n", it->first);
+		SLOGE << "### \t- " << it->first << "\n";
 	}
 }
 
@@ -226,7 +226,7 @@ static rlim_t getSystemFdLimit() {
 static void increaseFDLimit() noexcept {
 	struct rlimit lm {};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
-		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
+		SLOGE << "getrlimit(RLIMIT_NOFILE) failed: " << strerror(errno);
 		return;
 	}
 
@@ -282,7 +282,7 @@ static void makePidFile(const string& pidfile) {
 			fprintf(f, "%i", getpid());
 			fclose(f);
 		} else {
-			LOGE("Could not write pid file [%s]", pidfile.c_str());
+			SLOGE << "Could not write pid file [" << pidfile << "]";
 		}
 	}
 }
@@ -422,12 +422,12 @@ static void forkAndDetach(ConfigManager& cfg,
 							throw ExitSuccess{"Flexisip exited normally"};
 						}
 					} else if (auto_respawn) {
-						LOGE("Flexisip apparently crashed, respawning now...");
+						SLOGE << "Flexisip apparently crashed, respawning now...";
 						sleep(1);
 						goto fork_flexisip;
 					}
 				} else if (retpid == monitor_pid) {
-					LOGE("The Flexisip monitor has crashed or has been illegally terminated. Restarting now");
+					SLOGE << "The Flexisip monitor has crashed or has been illegally terminated. Restarting now";
 					sleep(1);
 					goto fork_monitor;
 				}
@@ -867,7 +867,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		lm.rlim_cur = RLIM_INFINITY;
 		lm.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &lm) == -1) {
-			LOGE("Cannot enable core dump, setrlimit() failed: %s", strerror(errno));
+			SLOGE << "Cannot enable core dump, setrlimit() failed: " << strerror(errno);
 		}
 	}
 
@@ -985,7 +985,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 			try {
 				Monitor::createAccounts(authDb, *cfg->getRoot());
 			} catch (const FlexisipException& e) {
-				LOGE("Could not create test accounts for the monitor. %s", e.str().c_str());
+				SLOGE << "Could not create test accounts for the monitor. " << e.str();
 			}
 		}
 

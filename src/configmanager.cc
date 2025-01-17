@@ -64,7 +64,7 @@ bool GenericEntry::onConfigStateChanged(const ConfigValue& conf, ConfigState sta
 	// Get first available listener
 	if (mConfigListener == nullptr) {
 		if (getParent() == nullptr) {
-			LOGE("%s doesn't implement a config change listener.", conf.getName().c_str());
+			SLOGE << conf.getName() << " doesn't implement a config change listener.";
 			return false;
 		}
 		return getParent()->onConfigStateChanged(conf, state);

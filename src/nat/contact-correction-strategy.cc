@@ -48,7 +48,7 @@ void ContactCorrectionStrategy::Helper::fixContactInResponse(su_home_t* home, ms
 		int err = getnameinfo(ai->ai_addr, ai->ai_addrlen, ip, sizeof(ip), port, sizeof(port),
 		                      NI_NUMERICHOST | NI_NUMERICSERV);
 		if (err != 0) {
-			LOGE("getnameinfo() error: %s", gai_strerror(err));
+			SLOGE << "getnameinfo() error: " << gai_strerror(err);
 		} else {
 			sip_contact_t* ctt = sip->sip_contact;
 			if (ctt && ctt->m_url->url_host) {

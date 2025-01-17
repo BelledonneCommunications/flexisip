@@ -237,7 +237,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	ifs.open(configFile);
 	if (!ifs.is_open()) {
-		LOGE("Cannot open domain registration configuration file '%s'", configFile.c_str());
+		SLOGE << "Cannot open domain registration configuration file '" << configFile << "'";
 		return -1;
 	}
 
@@ -262,7 +262,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 		istr >> password;
 		if (domain.empty()) continue; /*empty line */
 		if (uri.empty()) {
-			LOGE("Empty URI in domain registration definition.");
+			SLOGE << "Empty URI in domain registration definition.";
 			goto error;
 		}
 		if (uri[0] == '<') uri = uri.substr(1, uri.size() - 2);
@@ -436,7 +436,7 @@ int DomainRegistration::sLegCallback([[maybe_unused]] nta_leg_magic_t* ctx,
                                      [[maybe_unused]] nta_leg_t* leg,
                                      [[maybe_unused]] nta_incoming_t* incoming,
                                      [[maybe_unused]] const sip_t* request) {
-	LOGE("legCallback called");
+	SLOGE << "legCallback called";
 	return 500;
 }
 
@@ -506,7 +506,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 		mLastResponseWas401 = false;
 	} else if (resp->sip_status->st_status == 401) {
 		if (mLastResponseWas401) {
-			LOGE("Authentication failing constantly, will retry later.");
+			SLOGE << "Authentication failing constantly, will retry later.";
 			nextSchedule = 30s;
 		} else {
 			nextSchedule = 0s;
@@ -617,7 +617,7 @@ int DomainRegistration::generateUuid(const string& uniqueId) {
 	             uuid_struct.time_hi_and_version, uuid_struct.clock_seq_hi_and_reserved, uuid_struct.clock_seq_low);
 
 	if ((written < 0) || ((size_t)written > (len + 13))) {
-		LOGE("generateUuid(): buffer is too short !");
+		SLOGE << "generateUuid(): buffer is too short !";
 		free(uuid);
 		return -1;
 	}
@@ -641,7 +641,7 @@ void DomainRegistration::sendRequest() {
 
 	auto msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
 	if (nta_msg_request_complete(msg, mLeg, sip_method_register, nullptr, (url_string_t*)mProxy) != 0) {
-		LOGE("nta_msg_request_complete() failed");
+		SLOGE << "nta_msg_request_complete() failed";
 	}
 	auto sip = sip_object(msg);
 	msg_header_insert(msg, msg_object(msg), (msg_header_t*)sip_expires_create(msg_home(msg), mExpires.count()));
@@ -681,7 +681,7 @@ void DomainRegistration::sendRequest() {
 	mOutgoing = nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t*)this,
 	                                 nullptr, msg, NTATAG_TPORT(tport), TAG_END());
 	if (!mOutgoing) {
-		LOGE("Could not create outgoing transaction");
+		SLOGE << "Could not create outgoing transaction";
 		return;
 	}
 }

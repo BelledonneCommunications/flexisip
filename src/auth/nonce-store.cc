@@ -49,7 +49,7 @@ void NonceStore::insert(const string& nonce) {
 	time_t expiration = getCurrentTime() + mNonceExpires;
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
-		LOGE("Replacing nonce count for %s", nonce.c_str());
+		SLOGE << "Replacing nonce count for " << nonce;
 		it->second.nc = 0;
 		it->second.expires = expiration;
 	} else {
@@ -64,7 +64,7 @@ void NonceStore::updateNc(const string& nonce, int newnc) {
 		SLOGD << "Updating nonce " << nonce << " with nc=" << newnc;
 		(*it).second.nc = newnc;
 	} else {
-		LOGE("Couldn't update nonce %s: not found", nonce.c_str());
+		SLOGE << "Couldn't update nonce " << nonce << ": not found";
 	}
 }
 

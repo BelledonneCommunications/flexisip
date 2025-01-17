@@ -252,7 +252,7 @@ void Agent::loadModules() {
 
 #if ENABLE_MDNS
 static void mDnsRegisterCallback(void* data, int error) {
-	if (error != 0) LOGE("Error while registering a mDNS service");
+	if (error != 0) SLOGE << "Error while registering a mDNS service";
 }
 #endif
 
@@ -275,7 +275,7 @@ void Agent::startMdns() {
 		char hostname[HOST_NAME_MAX];
 		int err = gethostname(hostname, sizeof(hostname));
 		if (err != 0) {
-			LOGE("Cannot retrieve machine hostname.");
+			SLOGE << "Cannot retrieve machine hostname.";
 		} else {
 			int prio;
 			if (mdnsPrioMin == mdnsPrioMax) {
@@ -685,7 +685,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		}
 		freeifaddrs(net_addrs);
 	} else {
-		LOGE("Can't find interface addresses: %s", strerror(err));
+		SLOGE << "Can't find interface addresses: " << strerror(err);
 	}
 
 	/**
@@ -788,7 +788,7 @@ string Agent::computeResolvedPublicIp(const string& host, int family) const {
 		if (err == 0) {
 			return ip;
 		} else {
-			LOGE("getnameinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
+			SLOGE << "getnameinfo error: " << gai_strerror(err) << " for host [" << host << "]";
 		}
 	} else {
 		if (!((UriUtils::isIpv4Address(dest) && family != AF_INET) ||
@@ -820,7 +820,7 @@ pair<string, string> Agent::getPreferredIp(const string& destination) const {
 		}
 		freeaddrinfo(result);
 	} else {
-		LOGE("getPreferredIp() getaddrinfo() error while resolving '%s': %s", dest.c_str(), gai_strerror(err));
+		SLOGE << "getPreferredIp() getaddrinfo() error while resolving '" << dest << "': " << gai_strerror(err);
 	}
 	isIpv6 = strchr(dest.c_str(), ':') != NULL;
 	if (getResolvedPublicIp(true).empty()) {
@@ -869,7 +869,7 @@ Agent::Network::Network(const struct ifaddrs* ifaddr) {
 	if (err == 0) {
 		mIP = string(ipAddress);
 	} else {
-		LOGE("getnameinfo error: %s", strerror(errno));
+		SLOGE << "getnameinfo error: " << strerror(errno);
 	}
 }
 

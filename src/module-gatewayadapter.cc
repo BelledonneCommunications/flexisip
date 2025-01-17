@@ -136,7 +136,7 @@ private:
 			if (result == AuthDbResult::PASSWORD_FOUND) {
 				checkPassword(passwd.c_str());
 			} else {
-				LOGE("GatewayRegister onResult(): Can't find user password, give up.");
+				SLOGE << "GatewayRegister onResult(): Can't find user password, give up.";
 			}
 			delete this;
 		}
@@ -145,7 +145,7 @@ private:
 			if (result == AuthDbResult::PASSWORD_FOUND) {
 				checkPassword(passwd.front().pass.c_str());
 			} else {
-				LOGE("GatewayRegister onResult(): Can't find user password, give up.");
+				SLOGE << "GatewayRegister onResult(): Can't find user password, give up.";
 			}
 			delete this;
 		}
@@ -337,7 +337,7 @@ void GatewayRegister::onError(const char* message, ...) {
 	++*mCountError;
 	va_list args;
 	va_start(args, message);
-	LOGE("%s", message);
+	SLOGE << message;
 	va_end(args);
 	end();
 }
@@ -413,7 +413,7 @@ bool GatewayAdapter::isValidNextConfig(const ConfigValue& cv) {
 	if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 	if (cv.getName() == "gateway") {
 		if (cv.getNextValue().empty()) {
-			LOGE("Empty value GatewayAdapter::%s=%s", cv.getName().c_str(), cv.getNextValue().c_str());
+			SLOGE << "Empty value GatewayAdapter::" << cv.getName() << "=" << cv.getNextValue();
 			return false;
 		}
 	}

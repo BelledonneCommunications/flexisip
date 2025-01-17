@@ -29,7 +29,7 @@ EtcHostsResolver::EtcHostsResolver() {
 	char line[256] = {0};
 	FILE* f = fopen("/etc/hosts", "r");
 	if (f == NULL) {
-		LOGE("Could not open /etc/hosts");
+		SLOGE << "Could not open /etc/hosts";
 		return;
 	}
 

@@ -31,7 +31,7 @@ namespace {
 bool createDirectoryIfNotExist(const char* path) {
 	if (access(path, R_OK | W_OK) == -1) {
 		if (::mkdir(path, S_IRUSR | S_IWUSR | S_IXUSR) == -1) {
-			LOGE("Cannot create directory %s: %s", path, strerror(errno));
+			SLOGE << "Cannot create directory " << path << ": " << strerror(errno);
 			return false;
 		}
 	}
@@ -105,7 +105,7 @@ std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type) {
 
 FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string& rootpath) : mRootPath(rootpath) {
 	if (rootpath[0] != '/') {
-		LOGE("Path for event log writer must be absolute.");
+		SLOGE << "Path for event log writer must be absolute.";
 		return;
 	}
 	if (!createDirectoryIfNotExist(rootpath.c_str())) return;
@@ -153,7 +153,7 @@ int FilesystemEventLogWriter::openPath(const url_t* uri, const char* kind, time_
 
 	int fd = open(path.str().c_str(), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
-		LOGE("Cannot open %s: %s", path.str().c_str(), strerror(errno));
+		SLOGE << "Cannot open " << path.str() << ": " << strerror(errno);
 		return -1;
 	}
 	return fd;
@@ -171,7 +171,7 @@ void FilesystemEventLogWriter::write(const RegistrationLog& rlog) {
 	msg << endl;
 
 	if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-		LOGE("Fail to write registration log: %s", strerror(errno));
+		SLOGE << "Fail to write registration log: " << strerror(errno);
 	}
 	close(fd);
 	if (rlog.getStatusCode() >= 300) {
@@ -192,13 +192,13 @@ void FilesystemEventLogWriter::write(const CallLog& calllog) {
 	msg << endl;
 
 	if (fd1 == -1 || ::write(fd1, msg.str().c_str(), msg.str().size()) == -1) {
-		LOGE("Fail to write registration log: %s", strerror(errno));
+		SLOGE << "Fail to write registration log: " << strerror(errno);
 	}
 	// Avoid to write logs for users that possibly do not exist.
 	// However the error will be reported in the errors directory.
 	if (calllog.getStatusCode() != 404) {
 		if (fd2 == -1 || ::write(fd2, msg.str().c_str(), msg.str().size()) == -1) {
-			LOGE("Fail to write registration log: %s", strerror(errno));
+			SLOGE << "Fail to write registration log: " << strerror(errno);
 		}
 	}
 	if (fd1 != -1) close(fd1);
@@ -222,7 +222,7 @@ void FilesystemEventLogWriter::write(const MessageLog& mlog) {
 		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-				LOGE("Fail to write message log: %s", strerror(errno));
+				SLOGE << "Fail to write message log: " << strerror(errno);
 			}
 			close(fd);
 		}
@@ -231,7 +231,7 @@ void FilesystemEventLogWriter::write(const MessageLog& mlog) {
 		int fd = openPath(mlog.getFrom()->a_url, label, mlog.getDate());
 		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-				LOGE("Fail to write message log: %s", strerror(errno));
+				SLOGE << "Fail to write message log: " << strerror(errno);
 			}
 			close(fd);
 		}
@@ -241,7 +241,7 @@ void FilesystemEventLogWriter::write(const MessageLog& mlog) {
 			fd = openPath(mlog.getTo()->a_url, label, mlog.getDate());
 			if (fd != -1) {
 				if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-					LOGE("Fail to write message log: %s", strerror(errno));
+					SLOGE << "Fail to write message log: " << strerror(errno);
 				}
 				close(fd);
 			}
@@ -264,7 +264,7 @@ void FilesystemEventLogWriter::write(const CallQualityStatisticsLog& mlog) {
 	msg << mlog.getReport() << endl;
 
 	if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-		LOGE("Fail to write registration log: %s", strerror(errno));
+		SLOGE << "Fail to write registration log: " << strerror(errno);
 	}
 
 	close(fd);
@@ -286,7 +286,7 @@ void FilesystemEventLogWriter::write(const AuthLog& alog) {
 		int fd = openPath(alog.getFrom()->a_url, label, alog.getDate());
 		if (fd != -1) {
 			if (::write(fd, msg.str().c_str(), msg.str().size()) == -1) {
-				LOGE("Fail to write auth log: %s", strerror(errno));
+				SLOGE << "Fail to write auth log: " << strerror(errno);
 			}
 			close(fd);
 		}
@@ -298,7 +298,7 @@ void FilesystemEventLogWriter::writeErrorLog(const EventLog& log, const char* ki
 	int fd = openPath(NULL, kind, log.getDate(), log.getStatusCode());
 	if (fd == -1) return;
 	if (::write(fd, logstr.c_str(), logstr.size()) == -1) {
-		LOGE("Fail to write error log: %s", strerror(errno));
+		SLOGE << "Fail to write error log: " << strerror(errno);
 	}
 	close(fd);
 }

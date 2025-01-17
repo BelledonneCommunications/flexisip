@@ -242,7 +242,7 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 	SLOGD << "ForkMessageContext[" << this << "] onNewRegister";
 	const auto& sharedListener = mListener.lock();
 	if (!sharedListener) {
-		LOGE("ForkMessageContext[%p] onNewRegister: listener missing, this should not happened", this);
+		SLOGE << "ForkMessageContext[" << this << "] onNewRegister: listener missing, this should not happened";
 		return;
 	}
 

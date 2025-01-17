@@ -53,7 +53,7 @@ void IncomingTransaction::handle(const shared_ptr<MsgSip>& ms) {
 		                               reinterpret_cast<nta_incoming_magic_t*>(this));
 		mSofiaRef = shared_from_this();
 	} else {
-		LOGE("Error during incoming transaction creation");
+		SLOGE << "Error during incoming transaction creation";
 	}
 }
 
@@ -61,13 +61,14 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* p
 	if (mIncoming) {
 		auto msg = ownership::owned(nta_incoming_create_response(mIncoming, status, phrase));
 		if (!msg) {
-			LOGE("IncomingTransaction::createResponse(): this=%p cannot create response.", this);
+			SLOGE << "IncomingTransaction::createResponse(): this=" << this << " cannot create response.";
 			return shared_ptr<MsgSip>();
 		}
 
 		return make_shared<MsgSip>(std::move(msg));
 	}
-	LOGE("IncomingTransaction::createResponse(): this=%p transaction is finished, cannot create response.", this);
+	SLOGE << "IncomingTransaction::createResponse(): this=" << this
+	      << " transaction is finished, cannot create response.";
 	return shared_ptr<MsgSip>();
 }
 

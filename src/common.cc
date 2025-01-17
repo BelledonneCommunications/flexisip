@@ -29,7 +29,7 @@ time_t getCurrentTime() {
 #ifdef MONOTONIC_CLOCK_REGISTRATIONS
 	struct timespec t;
 	if (clock_gettime(CLOCK_MONOTONIC, &t)) {
-		LOGE("cannot read monotonic clock");
+		SLOGE << "cannot read monotonic clock";
 		return time(NULL);
 	}
 
@@ -53,11 +53,11 @@ namespace flexisip {
 Mutex::Mutex(bool reentrant) : mReentrant(reentrant), mCount(0) {
 	int err;
 	if ((err = pthread_mutex_init(&mMutex, NULL)) != 0) {
-		LOGE("pthread_mutex_init(): %s", strerror(errno));
+		SLOGE << "pthread_mutex_init(): " << strerror(errno);
 	}
 	if (mReentrant) {
 		if ((err = pthread_mutex_init(&mInternalMutex, NULL)) != 0) {
-			LOGE("pthread_mutex_init(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_init(): " << strerror(errno);
 		}
 	}
 }
@@ -65,11 +65,11 @@ Mutex::Mutex(bool reentrant) : mReentrant(reentrant), mCount(0) {
 Mutex::~Mutex() {
 	int err;
 	if ((err = pthread_mutex_destroy(&mMutex)) != 0) {
-		LOGE("pthread_mutex_destroy(): %s", strerror(errno));
+		SLOGE << "pthread_mutex_destroy(): " << strerror(errno);
 	}
 	if (mReentrant) {
 		if ((err = pthread_mutex_destroy(&mInternalMutex)) != 0) {
-			LOGE("pthread_mutex_destroy(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_destroy(): " << strerror(errno);
 		}
 	}
 }
@@ -78,30 +78,30 @@ void Mutex::lock() {
 	int err;
 	if (mReentrant) {
 		if ((err = pthread_mutex_lock(&mInternalMutex)) != 0) {
-			LOGE("pthread_mutex_lock(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_lock(): " << strerror(errno);
 		}
 		if (mThread != pthread_self()) {
 
 			if ((err = pthread_mutex_unlock(&mInternalMutex)) != 0) {
-				LOGE("pthread_mutex_unlock(): %s", strerror(errno));
+				SLOGE << "pthread_mutex_unlock(): " << strerror(errno);
 			}
 
 			if ((err = pthread_mutex_lock(&mMutex)) != 0) {
-				LOGE("pthread_mutex_lock(): %s", strerror(errno));
+				SLOGE << "pthread_mutex_lock(): " << strerror(errno);
 			}
 
 			if ((err = pthread_mutex_lock(&mInternalMutex)) != 0) {
-				LOGE("pthread_mutex_lock(): %s", strerror(errno));
+				SLOGE << "pthread_mutex_lock(): " << strerror(errno);
 			}
 			mThread = pthread_self();
 		}
 		mCount++;
 		if ((err = pthread_mutex_unlock(&mInternalMutex)) != 0) {
-			LOGE("pthread_mutex_unlock(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_unlock(): " << strerror(errno);
 		}
 	} else {
 		if ((err = pthread_mutex_lock(&mMutex)) != 0) {
-			LOGE("pthread_mutex_lock(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_lock(): " << strerror(errno);
 		}
 	}
 }
@@ -110,22 +110,22 @@ void Mutex::unlock() {
 	int err;
 	if (mReentrant) {
 		if ((err = pthread_mutex_lock(&mInternalMutex)) != 0) {
-			LOGE("pthread_mutex_lock(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_lock(): " << strerror(errno);
 		}
 		if (mThread == pthread_self()) {
 			if (--mCount == 0) {
 				mThread = 0;
 				if ((err = pthread_mutex_unlock(&mMutex)) != 0) {
-					LOGE("pthread_mutex_unlock(): %s", strerror(errno));
+					SLOGE << "pthread_mutex_unlock(): " << strerror(errno);
 				}
 			}
 		}
 		if ((err = pthread_mutex_unlock(&mInternalMutex)) != 0) {
-			LOGE("pthread_mutex_unlock(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_unlock(): " << strerror(errno);
 		}
 	} else {
 		if ((err = pthread_mutex_unlock(&mMutex)) != 0) {
-			LOGE("pthread_mutex_unlock(): %s", strerror(errno));
+			SLOGE << "pthread_mutex_unlock(): " << strerror(errno);
 		}
 	}
 }
@@ -137,7 +137,7 @@ struct addrinfo* BinaryIp::resolve(const std::string& hostname, [[maybe_unused]]
 	if (hostname[0] == '[') hostnameCopy = hostname.substr(1, hostname.size() - 2);
 	else hostnameCopy = hostname;
 	if ((res = bctbx_name_to_addrinfo(AF_INET6, SOCK_DGRAM, hostnameCopy.c_str(), 0)) == NULL) {
-		LOGE("getaddrinfo failed with %s", hostnameCopy.c_str());
+		SLOGE << "getaddrinfo failed with " << hostnameCopy;
 	}
 	return res;
 }

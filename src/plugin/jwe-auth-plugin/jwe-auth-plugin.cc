@@ -387,7 +387,7 @@ unique_ptr<RequestSipEvent> JweAuth::onRequest(unique_ptr<RequestSipEvent>&& ev)
 		// Allow requests coming from trusted peers.
 		if (authModule->isTrustedPeer(*ev->getMsgSip())) return std::move(ev);
 	} else {
-		LOGE("Authentication module not found, trusted peers are unknown.");
+		SLOGE << "Authentication module not found, trusted peers are unknown.";
 	}
 
 	const char* error = nullptr;

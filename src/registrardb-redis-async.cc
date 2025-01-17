@@ -416,7 +416,7 @@ vector<unique_ptr<ExtendedContact>> RegistrarDbRedisAsync::parseContacts(const r
 		if (maybeContact->mSipContact) {
 			contacts.push_back(std::move(maybeContact));
 		} else {
-			LOGE("This contact could not be parsed.");
+			SLOGE << "This contact could not be parsed.";
 		}
 	}
 

@@ -362,7 +362,7 @@ void Transcoder::processAck(TranscodedCall* ctx, MsgSip& ms) {
 	SLOGD << "Processing ACK";
 	auto ioffer = ctx->getInitialOffer();
 	if (!ioffer.empty()) {
-		LOGE("Processing ACK with SDP but no offer was made or processed.");
+		SLOGE << "Processing ACK with SDP but no offer was made or processed.";
 	} else {
 		handleAnswer(ctx, ms);
 	}
@@ -436,7 +436,7 @@ int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {
 
 	auto answer = m->readPayloads();
 	if (answer.empty()) {
-		LOGE("No payloads in 200Ok");
+		SLOGE << "No payloads in 200Ok";
 		return -1;
 	}
 	normalizePayloads(answer);

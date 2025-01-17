@@ -78,7 +78,7 @@ BctbxLogLevel LogManager::logLevelFromName(const std::string& name) const {
 	} else if (name == "error") {
 		log_level = BCTBX_LOG_ERROR;
 	} else {
-		LOGE("Invalid log level name '%s'", name.c_str());
+		SLOGE << "Invalid log level name '" << name << "'";
 		log_level = BCTBX_LOG_ERROR;
 	}
 	return log_level;
@@ -86,7 +86,7 @@ BctbxLogLevel LogManager::logLevelFromName(const std::string& name) const {
 
 void LogManager::initialize(const Parameters& params) {
 	if (mInitialized) {
-		LOGE("LogManager already initialized.");
+		SLOGE << "LogManager already initialized.";
 		return;
 	}
 	mInitialized = true;
@@ -138,8 +138,8 @@ void LogManager::initialize(const Parameters& params) {
 			if (!params.enableStdout) {
 				LOGF("Could not create/open log file '%s'.", pathStream.str().c_str());
 			} else {
-				LOGE("Could not create/open log file '%s' (not fatal when logging is enabled on stdout)",
-				     pathStream.str().c_str());
+				SLOGE << "Could not create/open log file '" << pathStream.str()
+				      << "' (not fatal when logging is enabled on stdout)";
 			}
 		}
 	}
@@ -185,7 +185,7 @@ int LogManager::setContextualFilter(const std::string& expression) {
 		try {
 			expr = SipBooleanExpressionBuilder::get().parse(expression);
 		} catch (...) {
-			LOGE("Invalid contextual expression filter '%s'", expression.c_str());
+			SLOGE << "Invalid contextual expression filter '" << expression << "'";
 			return -1;
 		}
 	}

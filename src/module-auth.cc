@@ -241,7 +241,7 @@ bool Authentication::handleTlsClientAuthentication(RequestSipEvent& ev) {
 				}
 			}
 
-			LOGE("Client is presenting a TLS certificate not matching its identity.");
+			SLOGE << "Client is presenting a TLS certificate not matching its identity.";
 			SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
 			       << ", TLS certificate doesn't match its identity";
 			goto bad_certificate;

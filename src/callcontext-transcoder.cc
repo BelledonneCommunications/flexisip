@@ -206,7 +206,7 @@ void CallSide::connect(CallSide* recvSide, MSTicker* ticker) {
 
 		mDecoder = ms_factory_create_decoder(factory, recvpt->mime_type);
 		if (mDecoder == NULL) {
-			LOGE("Could not instanciate decoder for %s", recvpt->mime_type);
+			SLOGE << "Could not instanciate decoder for " << recvpt->mime_type;
 		} else {
 			if (!mUsePlc) ms_filter_call_method(mDecoder, MS_FILTER_ADD_FMTP, (void*)"plc=0");
 			if (recvpt->clock_rate > 0)
@@ -223,7 +223,7 @@ void CallSide::connect(CallSide* recvSide, MSTicker* ticker) {
 		}
 		mEncoder = ms_factory_create_encoder(factory, sendpt->mime_type);
 		if (mEncoder == NULL) {
-			LOGE("Could not instanciate encoder for %s", sendpt->mime_type);
+			SLOGE << "Could not instanciate encoder for " << sendpt->mime_type;
 		} else {
 			if (mPtime > 0) {
 				char tmp[20];

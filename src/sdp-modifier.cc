@@ -74,7 +74,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 						/*This should not happen. We are discovering an already established ice session.*/
 						mIceState = IceCompleted;
 						needsCandidates = false;
-						LOGE("Unexpected remote-candidates in SDP offer.");
+						SLOGE << "Unexpected remote-candidates in SDP offer.";
 					} else if (hasCandidates(media)) {
 						mIceState = IceOffered;
 						needsCandidates = true;
@@ -238,7 +238,7 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 
 static PayloadType* payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t* rtpmap) {
 	if (rtpmap->rm_rate == 0 || rtpmap->rm_encoding == NULL) {
-		LOGE("Bad media description for payload type : %i", rtpmap->rm_pt);
+		SLOGE << "Bad media description for payload type : " << static_cast<unsigned>(rtpmap->rm_pt);
 		return NULL;
 	}
 	PayloadType* pt = payload_type_new();
@@ -735,12 +735,12 @@ int SdpModifier::update(msg_t* msg, sip_t* sip) {
 		sip_payload_t* payload = sip_payload_make(mHome, sdp);
 		err = sip_header_remove(msg, sip, (sip_header_t*)sip_payload(sip));
 		if (err != 0) {
-			LOGE("Could not remove payload from SIP message");
+			SLOGE << "Could not remove payload from SIP message";
 			goto end;
 		}
 		err = sip_header_insert(msg, sip, (sip_header_t*)payload);
 		if (err != 0) {
-			LOGE("Could not add payload to SIP message");
+			SLOGE << "Could not add payload to SIP message";
 			goto end;
 		}
 		if (sip->sip_content_length != NULL) {
@@ -748,7 +748,7 @@ int SdpModifier::update(msg_t* msg, sip_t* sip) {
 			sip_header_insert(msg, sip, (sip_header_t*)sip_content_length_format(mHome, "%i", (int)msgsize));
 		}
 	} else {
-		LOGE("Could not print SDP message !");
+		SLOGE << "Could not print SDP message !";
 		err = -1;
 	}
 end:

@@ -53,7 +53,7 @@ void Http1Client::sendNextRequest() {
 		if (status != 200) {
 			const auto phrase = rep && rep->http_status ? rep->http_status->st_phrase : "";
 			const auto url = sofiasip::Url(nth_client_url(client));
-			LOGE("Server replies %d %s to %s GET request.", status, phrase, url.str().c_str());
+			SLOGE << "Server replies " << status << " " << phrase << " to " << url.str() << " GET request.";
 			thiz->onRequestResponse("");
 			return 1;
 		}

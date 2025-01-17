@@ -65,7 +65,7 @@ void OutgoingTransaction::_cancel(Tags... tags) {
 		// NTATAG_CANCEL_2543(1) --> the stack generates a 487 response to the request internally
 		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_2543(1), TAG_END());
 	} else {
-		LOGE("OutgoingTransaction::cancel(): transaction already destroyed.");
+		SLOGE << "OutgoingTransaction::cancel(): transaction already destroyed.";
 	}
 }
 
@@ -79,7 +79,7 @@ void OutgoingTransaction::cancelWithReason(sip_reason_t* reason) {
 
 const url_t* OutgoingTransaction::getRequestUri() const {
 	if (mOutgoing == nullptr) {
-		LOGE("OutgoingTransaction::getRequestUri(): transaction not started !");
+		SLOGE << "OutgoingTransaction::getRequestUri(): transaction not started !";
 		return nullptr;
 	}
 	return nta_outgoing_request_uri(mOutgoing);
@@ -87,7 +87,7 @@ const url_t* OutgoingTransaction::getRequestUri() const {
 
 int OutgoingTransaction::getResponseCode() const {
 	if (mOutgoing == nullptr) {
-		LOGE("OutgoingTransaction::getResponseCode(): transaction not started !");
+		SLOGE << "OutgoingTransaction::getResponseCode(): transaction not started !";
 		return 0;
 	}
 	return nta_outgoing_status(mOutgoing);
@@ -95,7 +95,7 @@ int OutgoingTransaction::getResponseCode() const {
 
 shared_ptr<MsgSip> OutgoingTransaction::getRequestMsg() {
 	if (mOutgoing == nullptr) {
-		LOGE("OutgoingTransaction::getRequestMsg(): transaction not started !");
+		SLOGE << "OutgoingTransaction::getRequestMsg(): transaction not started !";
 		return nullptr;
 	}
 
@@ -119,7 +119,7 @@ void OutgoingTransaction::send(
 		ta_end(ta);
 		if (mOutgoing == nullptr) {
 			/*when nta_outgoing_mcreate() fails, we must destroy the message because it won't take the reference*/
-			LOGE("Error during outgoing transaction creation");
+			SLOGE << "Error during outgoing transaction creation";
 			msg_destroy(msg);
 		} else {
 			mSofiaRef = shared_from_this();
@@ -130,8 +130,8 @@ void OutgoingTransaction::send(
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			cancelWithReason(sip->sip_reason);
 		} else {
-			LOGE("Attempting to send request %s through an already created outgoing transaction.",
-			     sip->sip_request->rq_method_name);
+			SLOGE << "Attempting to send request " << sip->sip_request->rq_method_name
+			      << " through an already created outgoing transaction.";
 		}
 	}
 }

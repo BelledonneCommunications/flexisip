@@ -375,12 +375,12 @@ void Record::update(const ExtendedContactCommon& ecc,
 	url_t* sipUri = url_make(home.home(), sipuri);
 
 	if (!sipUri) {
-		LOGE("Record::update(): could not build sip uri.");
+		SLOGE << "Record::update(): could not build sip uri.";
 		return;
 	}
 	sip_contact_t* contact = sip_contact_create(home.home(), (url_string_t*)sipUri, nullptr);
 	if (!contact) {
-		LOGE("Record::update(): could not build contact.");
+		SLOGE << "Record::update(): could not build contact.";
 		return;
 	}
 

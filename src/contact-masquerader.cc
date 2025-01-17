@@ -55,7 +55,7 @@ void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* c, const cha
 	// Add parameter
 	SLOGD << "Rewriting contact with param [" << param << "]";
 	if (url_param_add(home, ct_url, param.c_str())) {
-		LOGE("Cannot insert url param [%s]", param.c_str());
+		SLOGE << "Cannot insert url param [" << param << "]";
 	}
 
 	/*masquerade the contact, so that later requests (INVITEs) come to us */
@@ -114,7 +114,7 @@ void ContactMasquerader::restore(su_home_t* home, url_t* dest, char ctrt_param[6
 	const url_t* paramurl = url_format(home, "sip:%s", tend + 1);
 
 	if (!paramurl) {
-		LOGE("ContactMasquerader::restore() aborted.");
+		SLOGE << "ContactMasquerader::restore() aborted.";
 		return;
 	}
 	dest->url_host = paramurl->url_host; // move ownership

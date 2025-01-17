@@ -218,7 +218,7 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 	SLOGD << "ForkMessageContextDbProxy[" << this << "] onNewRegister";
 	const auto& sharedRouter = mSavedRouter.lock();
 	if (!sharedRouter) {
-		LOGE("ForkMessageContext[%p] onNewRegister: router missing, this should not happened", this);
+		SLOGE << "ForkMessageContext[" << this << "] onNewRegister: router missing, this should not happened";
 		return;
 	}
 

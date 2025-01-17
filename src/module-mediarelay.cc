@@ -290,7 +290,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	c->initChannels(m, from_tag, transaction->getBranchId(), from_host, dest_host);
 
 	if (!c->checkMediaValid()) {
-		LOGE("The relay media are invalid, no RTP/RTCP port remaining?");
+		SLOGE << "The relay media are invalid, no RTP/RTCP port remaining?";
 		if (auto forkContext = ForkContext::getFork(transaction)) {
 			forkContext->processInternalError(500, "RTP port pool exhausted");
 			ev.terminateProcessing();
@@ -325,7 +325,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 
 	if (!mSdpMangledParam.empty()) m->addAttribute(mSdpMangledParam.c_str(), "yes");
 	if (m->update(msg, sip) == -1) {
-		LOGE("Cannot update SDP in message.");
+		SLOGE << "Cannot update SDP in message.";
 		ev.reply(500, "Media relay SDP processing internal error", SIPTAG_SERVER_STR(getAgent()->getServerString()),
 		         TAG_END());
 		return false;

@@ -75,7 +75,7 @@ int StunServer::start(std::string_view bindAddress) {
 
 	mSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (mSock == -1) {
-		LOGE("Could not create socket: %s", strerror(errno));
+		SLOGE << "Could not create socket: " << strerror(errno);
 		return -1;
 	}
 
@@ -85,7 +85,7 @@ int StunServer::start(std::string_view bindAddress) {
 
 	err = ::bind(mSock, (struct sockaddr*)&laddr, sizeof(laddr));
 	if (err == -1) {
-		LOGE("Could not bind STUN server to %s port %i", bind_address.c_str(), mPort);
+		SLOGE << "Could not bind STUN server to " << bind_address << " port " << mPort;
 		return -1;
 	}
 
@@ -145,7 +145,7 @@ void StunServer::run() {
 				from.addr = ntohl(fromaddr->sin_addr.s_addr);
 
 				if (getsockname(mSock, (struct sockaddr*)&srcaddr, &srcaddrlen) == -1) {
-					LOGE("getsockname() error: %s", strerror(errno));
+					SLOGE << "getsockname() error: " << strerror(errno);
 					continue;
 				}
 				myaddr.port = ntohs(srcaddr.sin_port);
@@ -170,7 +170,7 @@ void StunServer::run() {
 							SLOGW << "Fail to send stun response to " << inet_ntop(AF_INET, &destaddr, tmp, sizeof(tmp))
 							      << ":" << dest.addr;
 						}
-					} else LOGE("stunEncodeMessage() failed.");
+					} else SLOGE << "stunEncodeMessage() failed.";
 				} else SLOGD << "Received stun request with changeIP or changePort, not supported yet";
 			}
 		}

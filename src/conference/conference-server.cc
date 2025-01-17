@@ -278,7 +278,8 @@ void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> nat
 							ipv4_set = true;
 							SLOGI << "Nat v4 address set: " << ipaddress;
 						} else {
-							LOGE("Ignoring nat-address '%s', there can be a single one per IP family.", ipaddress);
+							SLOGE << "Ignoring nat-address '" << ipaddress
+							      << "', there can be a single one per IP family.";
 						}
 						break;
 					case AF_INET6:
@@ -287,11 +288,12 @@ void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> nat
 							SLOGI << "Nat v6 address set: " << ipaddress;
 							ipv6_set = true;
 						} else {
-							LOGE("Ignoring nat-address '%s', there can be a single one per IP family.", ipaddress);
+							SLOGE << "Ignoring nat-address '" << ipaddress
+							      << "', there can be a single one per IP family.";
 						}
 						break;
 					default:
-						LOGE("Unknown address family while supporting NAT addresses.");
+						SLOGE << "Unknown address family while supporting NAT addresses.";
 						break;
 				}
 			}
@@ -785,7 +787,7 @@ void ConferenceServer::writeUuid(const string& uuid) {
 	filesystem::path path = getUuidFilePath();
 	fo.open(path);
 	if (!fo.is_open()) {
-		LOGE("Cannot open uuid file %s: %s", path.c_str(), strerror(errno));
+		SLOGE << "Cannot open uuid file " << path << ": " << strerror(errno);
 		return;
 	}
 	fo << uuid;

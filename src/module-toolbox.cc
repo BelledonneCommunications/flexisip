@@ -95,7 +95,7 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 
 			url = ag->urlFromTportName(home, name);
 			if (!url) {
-				LOGE("ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL");
+				SLOGE << "ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL";
 				return;
 			}
 		}
@@ -123,7 +123,7 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 
 	sip_record_route_t* rr = sip_record_route_create(home, url, NULL);
 	if (!rr) {
-		LOGE("ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL");
+		SLOGE << "ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL";
 		return;
 	}
 
@@ -141,7 +141,7 @@ void ModuleToolbox::addRecordRouteIncoming(Agent* ag, RequestSipEvent& ev, const
 
 	const auto tport = ev.getIncomingTport();
 	if (!tport) {
-		LOGE("Cannot find incoming tport, cannot add a Record-Route.");
+		SLOGE << "Cannot find incoming tport, cannot add a Record-Route.";
 		return;
 	} else {
 		// We have a tport, check if we are in a case of proxy to proxy communication.
@@ -345,7 +345,7 @@ static const char* url_get_transport(const url_t* url) {
 			ret = get_transport_name_sips(transport);
 			break;
 		default:
-			LOGE("url_get_transport(): invalid url kind %i", (int)url->url_type);
+			SLOGE << "url_get_transport(): invalid url kind " << static_cast<int>(url->url_type);
 			break;
 	}
 	return ret;
@@ -425,7 +425,7 @@ void ModuleToolbox::addPathHeader(Agent* ag, MsgSip& ms, tport_t* tport, const c
 
 		url = ag->urlFromTportName(home, name);
 		if (!url) {
-			LOGE("ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL");
+			SLOGE << "ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL";
 			return;
 		}
 	} else {
@@ -512,7 +512,7 @@ int ModuleToolbox::getCpuCount() {
 		SLOGI << "Found " << count << " processors";
 		fclose(f);
 	} else {
-		LOGE("ModuleToolbox::getCpuCount() not implemented outside of Linux");
+		SLOGE << "ModuleToolbox::getCpuCount() not implemented outside of Linux";
 		count = 1;
 	}
 	return count;

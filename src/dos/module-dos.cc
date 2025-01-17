@@ -115,7 +115,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 		tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 	}
 	if (getuid() != 0) {
-		LOGE("Flexisip not started with root privileges! iptables commands for DoS protection won't work.");
+		SLOGE << "Flexisip not started with root privileges! iptables commands for DoS protection won't work.";
 		return;
 	}
 
@@ -133,7 +133,7 @@ bool ModuleDoSProtection::isValidNextConfig(const ConfigValue& value) {
 #if __APPLE__
 		module_config->get<ConfigBoolean>("enabled")->set("false");
 		mExecutorConfigChecked = true; // unused-private-field if not set
-		LOGE("DosProtection only works on linux hosts, Disabling this module.");
+		SLOGE << "DosProtection only works on linux hosts, Disabling this module.";
 		return true;
 #else
 		if (!mExecutorConfigChecked) {
@@ -196,7 +196,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 	tport_t* tport = inTport.get();
 
 	if (tport == NULL) {
-		LOGE("Tport is null, can't check the packet count rate");
+		SLOGE << "Tport is null, can't check the packet count rate";
 		return std::move(ev);
 	}
 

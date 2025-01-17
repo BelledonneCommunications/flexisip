@@ -126,17 +126,17 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 			tport_set_params(tport.get(), TPTAG_PONG2PING(1), TAG_END());
 		}
 	} else {
-		LOGE("OnRequestBindListener::onRecordFound(): Record is null");
+		SLOGE << "OnRequestBindListener::onRecordFound: reply Record is null";
 		mModule->reply(*mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 }
 void OnRequestBindListener::onError(const SipStatus& response) {
-	LOGE("OnRequestBindListener::onError: reply %s", response.getReason());
+	SLOGE << "OnRequestBindListener::onError: reply " << response.getReason();
 	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
 void OnRequestBindListener::onInvalid(const SipStatus& response) {
-	LOGE("OnRequestBindListener::onInvalid: reply %s", response.getReason());
+	SLOGE << "OnRequestBindListener::onInvalid: reply " << response.getReason();
 	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
@@ -152,7 +152,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 
 	if (r == nullptr) {
-		LOGE("OnResponseBindListener::onRecordFound(): Record is null");
+		SLOGE << "OnResponseBindListener::onRecordFound(): Record is null";
 		mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		mEv->terminateProcessing();
 		return;
@@ -176,13 +176,13 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	mModule->getAgent()->injectResponseEvent(std::move(mEv));
 }
 void OnResponseBindListener::onError(const SipStatus& response) {
-	LOGE("OnResponseBindListener::onError: reply %s", response.getReason());
+	SLOGE << "OnResponseBindListener::onError: reply " << response.getReason();
 	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
 
 void OnResponseBindListener::onInvalid(const SipStatus& response) {
-	LOGE("OnResponseBindListener::onInvalid: reply %s", response.getReason());
+	SLOGE << "OnResponseBindListener::onInvalid: reply " << response.getReason();
 	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
@@ -202,7 +202,7 @@ void OnStaticBindListener::onError(const SipStatus&) {
 	SLOGE << "Can't add static route for " << mFrom;
 }
 void OnStaticBindListener::onInvalid(const SipStatus&) {
-	LOGE("OnStaticBindListener onInvalid");
+	SLOGE << "OnStaticBindListener onInvalid";
 }
 void OnStaticBindListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
 }
@@ -858,7 +858,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Domain registration case, does nothing for the moment
 	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
-		LOGE("Not accepting domain registration");
+		SLOGE << "Not accepting domain registration";
 		SLOGUE << "Not accepting domain registration:  " << sipurl;
 		reply(*ev, 403, "Domain registration forbidden", nullptr);
 		return {};
@@ -1013,7 +1013,7 @@ void ModuleRegistrar::readStaticRecords() {
 
 	ifstream file(mStaticRecordsFile);
 	if (!file.is_open()) {
-		LOGE("Can't open file %s", mStaticRecordsFile.c_str());
+		SLOGE << "Can't open file " << mStaticRecordsFile;
 		return;
 	}
 

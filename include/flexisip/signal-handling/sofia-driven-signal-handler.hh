@@ -52,17 +52,17 @@ public:
 	          [this](su_root_magic_t*, su_wait_t* waiter) noexcept {
 		          // Logging is safe in here since we're out of the signal handler
 		          if (waiter->revents & SU_WAIT_ERR) {
-			          LOGE("Error on signal pipe");
+			          SLOGE << "Error on signal pipe";
 			          return 0;
 		          }
 		          if (waiter->revents & SU_WAIT_HUP) {
-			          LOGE("Signal pipe closed");
+			          SLOGE << "Signal pipe closed";
 			          return 0;
 		          }
 
 		          SignalData signal;
 		          if (mSignalPipe.read(signal) != sizeof(signal)) {
-			          LOGE("Error reading from signal pipe");
+			          SLOGE << "Error reading from signal pipe";
 			          return 0;
 		          }
 

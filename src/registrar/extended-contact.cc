@@ -107,7 +107,7 @@ sip_route_t* ExtendedContact::toSofiaRoute(su_home_t* home) const {
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
 		sip_route_t* newr = sip_route_format(home, "<%s>", (*it).c_str());
 		if (!newr) {
-			LOGE("Cannot parse %s into route header", (*it).c_str());
+			SLOGE << "Cannot parse " << *it << " into route header";
 			break;
 		}
 		if (!url_has_param(newr->r_url, "lr")) {
@@ -161,7 +161,7 @@ void ExtendedContact::extractInfoFromHeader(const char* urlHeaders) {
 					if (path) {
 						mPath.push_back(url_as_string(home.home(), path->r_url));
 					} else {
-						LOGE("ExtendedContact::extractInfoFromHeader(): bad path [%s]", valueStr.c_str());
+						SLOGE << "ExtendedContact::extractInfoFromHeader(): bad path [" << valueStr << "]";
 					}
 				} else if (keyStr == "accept") {
 					mAcceptHeader.push_back(valueStr);
@@ -322,7 +322,7 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	}
 
 	if (url == nullptr) {
-		LOGE("ExtendedContact::extractInfoFromUrl() url is null.");
+		SLOGE << "ExtendedContact::extractInfoFromUrl() url is null.";
 		return;
 	}
 

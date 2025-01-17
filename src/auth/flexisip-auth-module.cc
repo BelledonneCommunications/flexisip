@@ -146,7 +146,7 @@ void FlexisipAuthModule::checkAuthHeader(FlexisipAuthStatus& as, msg_auth_t* au,
 	     (phrase = PA "has invalid qop"))) {
 
 		// assert(phrase);
-		LOGE("AuthStatus[%p]: %s", &as, phrase);
+		SLOGE << "AuthStatus[" << &as << "]: " << phrase;
 		as.status(400);
 		as.phrase(phrase);
 		as.response(nullptr);
@@ -240,7 +240,7 @@ void FlexisipAuthModule::processResponse(FlexisipAuthStatus& as,
 			onError(as);
 			break;
 		case PENDING:
-			LOGE("Unhandled asynchronous response %u", result);
+			SLOGE << "Unhandled asynchronous response " << result;
 			onError(as);
 			break;
 	}

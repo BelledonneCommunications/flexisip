@@ -130,14 +130,14 @@ void SnmpAgent::registerSnmpOid(GenericEntry& entry) {
 			}
 			default: {
 				res = MIB_REGISTRATION_FAILED;
-				LOGE("Unknown handle mode %d", entryMode);
+				SLOGE << "Unknown handle mode " << entryMode;
 			}
 		}
 		if (res != MIB_REGISTERED_OK) {
 			if (res == MIB_DUPLICATE_REGISTRATION) {
-				LOGE("Duplicate registration of SNMP %s", entryName.c_str());
+				SLOGE << "Duplicate registration of SNMP " << entryName;
 			} else {
-				LOGE("Couldn't register SNMP %s", entryName.c_str());
+				SLOGE << "Couldn't register SNMP " << entryName;
 			}
 		}
 	}
@@ -148,7 +148,7 @@ int SnmpAgent::sHandleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
                                   netsnmp_agent_request_info* reqinfo,
                                   netsnmp_request_info* requests) {
 	if (!reginfo->my_reg_void) {
-		LOGE("no reg");
+		SLOGE << "no reg";
 		return SNMP_ERR_GENERR;
 	} else {
 		auto cv = static_cast<GenericEntry*>(reginfo->my_reg_void);

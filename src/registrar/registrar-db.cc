@@ -131,7 +131,7 @@ void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRe
 		} else it++;
 	}
 	if (!found) {
-		LOGE("RegistrarDb::unsubscribe() for topic %s and listener = %p is invalid.", topic.c_str(), listener.get());
+		SLOGE << "RegistrarDb::unsubscribe() for topic " << topic << " and listener = " << listener << " is invalid.";
 	}
 	if (0 < mContactListenersMap.count(topic)) return;
 	mBackend->unsubscribe(key);
@@ -221,7 +221,7 @@ void LocalRegExpire::removeExpiredBefore(time_t before) {
 	unique_lock<mutex> lock(mMutex);
 
 	for (auto it = mRegMap.begin(); it != mRegMap.end();) {
-		// LOGE("> %s [%lu]", (*it).first.c_str(), (*it).second-before);
+		// SLOGE << "> " << it->first << " [" << (it->second - before) << "]";
 		if ((*it).second <= before) {
 			auto prevIt = it;
 			++it;

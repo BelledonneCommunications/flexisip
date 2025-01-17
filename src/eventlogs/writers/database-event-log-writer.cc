@@ -324,7 +324,7 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string& backendString,
 
 		mIsReady = true;
 	} catch (exception const& e) {
-		LOGE("DataBaseEventLogWriter: could not create logger: %s", e.what());
+		SLOGE << "DataBaseEventLogWriter: could not create logger: " << e.what();
 	}
 }
 
@@ -424,11 +424,11 @@ void DataBaseEventLogWriter::write(const std::shared_ptr<const EventLogWriteDisp
 
 		// Save event in database.
 		if (!mThreadPool->run(bind(&DataBaseEventLogWriter::writeEventFromQueue, this))) {
-			LOGE("DataBaseEventLogWriter: unable to enqueue event!");
+			SLOGE << "DataBaseEventLogWriter: unable to enqueue event!";
 		}
 	} else {
 		mMutex.unlock();
-		LOGE("DataBaseEventLogWriter: too many events in queue! (%i)", (int)mMaxQueueSize);
+		SLOGE << "DataBaseEventLogWriter: too many events in queue! (" << mMaxQueueSize << ")";
 	}
 }
 
