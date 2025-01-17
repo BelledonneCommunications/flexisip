@@ -24,6 +24,7 @@
 #include "agent.hh"
 
 using namespace std;
+using namespace std::string_literals;
 
 namespace flexisip {
 
@@ -36,52 +37,97 @@ constexpr auth_challenger_t kProxyChallenger{407, sip_407_Proxy_auth_required, s
 
 const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     "Authorization",
-    "The authorization module checks the right of access of SIP requests.\n",
+    "The authorization module checks the right of access of SIP requests.\n"
+    "It is not in charge of authentication, but works in conjonction with the authentication modules.\n"
+    "This module is convenient for proxies serving multiple SIP domains, it ensures that cross-domain requests are "
+    "rejected. Two users can only send requests to each other if they belong to the same domain.\n",
     {"Authentication", "AuthTrustedHosts", "AuthOpenIDConnect", "ExternalAuthentication"},
     ModuleInfoBase::ModuleOid::Authorization,
-    [](GenericStruct& moduleConfig) { moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false"); });
+    [](GenericStruct& moduleConfig) {
+	    ConfigItemDescriptor items[] = {
+	        {
+	            StringList,
+	            "auth-domains",
+	            "List of whitespace separated domains served by the proxy. "
+	            "Requests from any other domain are rejected.\n",
+	            "localhost",
+	        },
+	        config_item_end,
+	    };
+	    moduleConfig.addChildrenValues(items);
+	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+    });
 
-// duplicate fromModuleAuthenticationBase ModuleAuthenticationBase
-bool validateRequest(const MsgSip& msgSip) {
+bool isAuthorized(const MsgSip& msgSip) {
 	const sip_t* sip = msgSip.getSip();
 
-	// Do it first to make sure no transaction is created which
-	// would send an inappropriate 100 trying response.
-	if (sip->sip_request->rq_method == sip_method_ack || sip->sip_request->rq_method == sip_method_cancel ||
+	if (sip->sip_request->rq_method == sip_method_cancel ||
 	    sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
 	) {
-		/*ack and cancel shall never be challenged according to the RFC.*/
+		/*ack and cancel shall never be challenged according to the RFC 3261-22.1.*/
+		return true;
+	}
+	return false;
+}
+
+bool isRequestDomainValid(const string& usrDomain, const string& dstDomain, const list<string>& authorizedDomains) {
+	if (find(authorizedDomains.cbegin(), authorizedDomains.cend(), usrDomain) == authorizedDomains.cend()) {
+		LOGI_CTX(sAuthorizationInfo.getLogPrefix()) << "Unauthorized domain: '" << usrDomain << "'";
 		return false;
 	}
-
+	if (usrDomain != dstDomain) {
+		LOGI_CTX(sAuthorizationInfo.getLogPrefix()) << "Unauthorized inter domain request: destination domain '"
+		                                            << dstDomain << "' doesn't match user domain '" << usrDomain << "'";
+		return false;
+	}
 	return true;
 }
 } // namespace
 
-ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo)
-    : Module(ag, moduleInfo) {
+ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+}
+
+void ModuleAuthorization::onLoad(const GenericStruct* mc) {
+	mAuthorizedDomains = mc->get<ConfigStringList>("auth-domains")->read();
 }
 
 unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	if (!validateRequest(*ev->getMsgSip())) return std::move(ev);
-
 	const auto& authResult = ev->getAuthResult();
+
+	// Accept all requests from a trusted host
 	if (authResult.trustedHost) {
 		LOGD << "Access granted: trusted host";
 		return std::move(ev);
 	}
 
-	LOGD << "Checking asserted identities";
-
-	sip_t* sip = ev->getMsgSip()->getSip();
+	const auto msgSip = *ev->getMsgSip();
+	const sip_t* sip = msgSip.getSip();
 	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
+	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
 
-	for (const auto& authResult : authResult.challenges) {
-		if (authResult.getResult() == RequestSipEvent::AuthResult::Result::Invalid) continue;
-		if (authResult.getType() == RequestSipEvent::AuthResult::Type::Bearer) {
-			if (!authResult.getIdentity().rfc3261Compare(userUri.get())) {
-				LOGD << "Asserted identity '" << authResult.getIdentity().str() << "' does not match user identity '"
+	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mAuthorizedDomains)) {
+		if (sip->sip_request->rq_method == sip_method_ack) {
+			ev->terminateProcessing(); // ACK of 403 response should not be processed further
+			return {};
+		}
+
+		ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return {};
+	}
+
+	if (isAuthorized(msgSip)) return std::move(ev);
+
+	// Stateful transaction state, for example an ACK will be linked to the corresponding INVITE by nta
+	ev->createIncomingTransaction();
+
+	LOGD << "Checking asserted identities";
+
+	for (const auto& challenge : authResult.challenges) {
+		if (challenge.getResult() == RequestSipEvent::AuthResult::Result::Invalid) continue;
+		if (challenge.getType() == RequestSipEvent::AuthResult::Type::Bearer) {
+			if (!challenge.getIdentity().rfc3261Compare(userUri.get())) {
+				LOGI << "Asserted identity '" << challenge.getIdentity().str() << "' does not match user identity '"
 				     << userUri.str() << "'";
 				continue;
 			}
@@ -95,17 +141,20 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	    sip->sip_request->rq_method == sip_method_register ? kRegistrarChallenger : kProxyChallenger;
 
 	for (const auto& authModule : mAuthModules) {
+		as.status(challenger.ach_status);
+		as.phrase(challenger.ach_phrase);
 		authModule.second->challenge(as, &challenger);
 		break; // stop on first available challenge, see how to get both
 	}
 
 	if (as.status() >= 400) {
-		// log?
 		ev->reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
 		          SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
 		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-
-	} else ev->reply(500, sip_500_Internal_server_error, TAG_END());
+		return {};
+	}
+	// when no challenge available
+	ev->reply(403, "Forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	return {};
 }
 

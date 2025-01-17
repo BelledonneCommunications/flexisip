@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -36,9 +36,12 @@ const auto sipUri = "sip:"s + contact;
 
 // Trusted-hosts list is empty, all requests are rejected
 void rejectUnauthRequest() {
-	Server proxy({{"module::Registrar/reg-domains", "*"},
-	              {"module::AuthTrustedHosts/enabled", "true"},
-	              {"module::Authorization/enabled", "true"}});
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::AuthTrustedHosts/enabled", "true"},
+	    {"module::Authorization/enabled", "true"},
+	    {"module::Authorization/auth-domains", "example.org"},
+	});
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
@@ -53,10 +56,13 @@ void rejectUnauthRequest() {
 
 // Add localhost to trusted-host
 void acceptTrustedHost() {
-	Server proxy({{"module::Registrar/reg-domains", "*"},
-	              {"module::AuthTrustedHosts/enabled", "true"},
-	              {"module::AuthTrustedHosts/trusted-hosts", "localhost"},
-	              {"module::Authorization/enabled", "true"}});
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::AuthTrustedHosts/enabled", "true"},
+	    {"module::AuthTrustedHosts/trusted-hosts", "localhost"},
+	    {"module::Authorization/enabled", "true"},
+	    {"module::Authorization/auth-domains", "example.org"},
+	});
 
 	const auto& root = proxy.getRoot();
 	proxy.start();

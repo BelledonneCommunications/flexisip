@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <list>
 #include <memory>
 #include <unordered_map>
 
@@ -36,10 +37,12 @@ public:
 private:
 	ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo);
 
+	void onLoad(const GenericStruct* mc) override;
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
 	std::unordered_map<std::string, std::shared_ptr<AuthScheme>> mAuthModules;
+	std::list<std::string> mAuthorizedDomains;
 };
 
 } // namespace flexisip

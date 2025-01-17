@@ -195,6 +195,7 @@ public:
 	    : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mDeclareConfig(declareConfig),
 	      mClass(moduleClass), mReplace(replace) {
 		ModuleInfoManager::get()->registerModuleInfo(this);
+		mLogPrefix = std::string("module::") + mName;
 	}
 	virtual ~ModuleInfoBase() {
 		if (mRegistered) {
@@ -204,6 +205,9 @@ public:
 
 	const std::string& getModuleName() const {
 		return mName;
+	}
+	const std::string& getLogPrefix() const {
+		return mLogPrefix;
 	}
 	const std::string& getModuleHelp() const {
 		return mHelp;
@@ -233,6 +237,7 @@ public:
 
 private:
 	std::string mName;
+	std::string mLogPrefix;
 	std::string mHelp;
 	std::vector<std::string> mAfter;
 	ModuleOid mOidIndex;

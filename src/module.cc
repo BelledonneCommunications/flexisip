@@ -41,11 +41,10 @@ using namespace flexisip;
 // -----------------------------------------------------------------------------
 
 Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
-    : mAgent(ag), mInfo(moduleInfo),
+    : mLogPrefix(moduleInfo->getLogPrefix()), mAgent(ag), mInfo(moduleInfo),
       mModuleConfig(ag->getConfigManager().getRoot()->get<GenericStruct>("module::" + getModuleConfigName())),
       mFilter(new ConfigEntryFilter(*mModuleConfig)) {
 	mModuleConfig->setConfigListener(this);
-	mLogPrefix = "module::" + getModuleName();
 }
 
 Module::~Module() = default;

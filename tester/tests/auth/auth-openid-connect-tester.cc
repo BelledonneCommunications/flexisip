@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -80,15 +80,18 @@ string generateToken(string_view issuer, string_view sipUri, string_view kid, st
 
 // Check that an authenticated request is rejected
 void rejectUnauthReq() {
-	Server proxy({{"module::Registrar/reg-domains", "*"},
-	              {"module::AuthOpenIDConnect/enabled", "true"},
-	              {"module::AuthOpenIDConnect/authorization-server", "HtTPS://toto.example.org"},
-	              {"module::AuthOpenIDConnect/realm", "example.org"},
-	              {"module::AuthOpenIDConnect/audience", "test"},
-	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
-	              {"module::AuthOpenIDConnect/public-key-type", "file"},
-	              {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
-	              {"module::Authorization/enabled", "true"}});
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::AuthOpenIDConnect/enabled", "true"},
+	    {"module::AuthOpenIDConnect/authorization-server", "HtTPS://toto.example.org"},
+	    {"module::AuthOpenIDConnect/realm", "example.org"},
+	    {"module::AuthOpenIDConnect/audience", "test"},
+	    {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	    {"module::AuthOpenIDConnect/public-key-type", "file"},
+	    {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
+	    {"module::Authorization/enabled", "true"},
+	    {"module::Authorization/auth-domains", domainA},
+	});
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
@@ -101,11 +104,12 @@ void rejectUnauthReq() {
 		checkResponse(transaction, response_401_unauthorized);
 	}
 	{
+		const auto clientA = "sip:myfriend@"s + domainA;
 		// clang-format off
 		string request(
-		    "MESSAGE "s + clientB + " SIP/2.0\r\n" +
+		    "MESSAGE "s + clientA+ " SIP/2.0\r\n" +
 			"Max-Forwards: 5\r\n"
-			"To: <" + clientB + ">\r\n"
+			"To: <" + clientA + ">\r\n"
 			"From: <" + sipUri + ">;tag=465687829\r\n"
 			"Call-ID: 1053183492\r\n"
 			"CSeq: 1 MESSAGE\r\n"
@@ -124,15 +128,18 @@ void rejectDigestAuthReq() {
 	const auto issuer = "https://example.org";
 	const auto realm = "testRealm";
 
-	Server proxy({{"module::Registrar/reg-domains", "*"},
-	              {"module::AuthOpenIDConnect/enabled", "true"},
-	              {"module::AuthOpenIDConnect/authorization-server", issuer},
-	              {"module::AuthOpenIDConnect/realm", realm},
-	              {"module::AuthOpenIDConnect/audience", audienceA},
-	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
-	              {"module::AuthOpenIDConnect/public-key-type", "file"},
-	              {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
-	              {"module::Authorization/enabled", "true"}});
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::AuthOpenIDConnect/enabled", "true"},
+	    {"module::AuthOpenIDConnect/authorization-server", issuer},
+	    {"module::AuthOpenIDConnect/realm", realm},
+	    {"module::AuthOpenIDConnect/audience", audienceA},
+	    {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	    {"module::AuthOpenIDConnect/public-key-type", "file"},
+	    {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
+	    {"module::Authorization/enabled", "true"},
+	    {"module::Authorization/auth-domains", domainA},
+	});
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
@@ -162,15 +169,18 @@ void bearerAuth() {
 	const auto issuer = "https://example.org";
 	const auto realm = "testRealm";
 
-	Server proxy({{"module::Registrar/reg-domains", "*"},
-	              {"module::AuthOpenIDConnect/enabled", "true"},
-	              {"module::AuthOpenIDConnect/authorization-server", issuer},
-	              {"module::AuthOpenIDConnect/realm", realm},
-	              {"module::AuthOpenIDConnect/audience", audienceA},
-	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
-	              {"module::AuthOpenIDConnect/public-key-type", "file"},
-	              {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
-	              {"module::Authorization/enabled", "true"}});
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::AuthOpenIDConnect/enabled", "true"},
+	    {"module::AuthOpenIDConnect/authorization-server", issuer},
+	    {"module::AuthOpenIDConnect/realm", realm},
+	    {"module::AuthOpenIDConnect/audience", audienceA},
+	    {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	    {"module::AuthOpenIDConnect/public-key-type", "file"},
+	    {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
+	    {"module::Authorization/enabled", "true"},
+	    {"module::Authorization/auth-domains", domainA},
+	});
 
 	const auto& root = proxy.getRoot();
 	proxy.start();
@@ -198,7 +208,7 @@ void bearerAuth() {
 
 	// REGISTER with a valid token but a different from sip uri
 	{
-		const auto anotherSipUri = "sip:"s + userName + "@" + realm;
+		const auto anotherSipUri = "sip:another@"s + domainA;
 		const auto request = registerRequest(anotherSipUri, "2", authorization);
 		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
 		checkResponse(transaction, response_401_unauthorized);
@@ -243,17 +253,23 @@ void bearerMsgOfAToB() {
 	// register clientB contact address
 	const auto& regFileB = sSuiteScope->dir.path() / "regFileB";
 	ofstream(regFileB) << "<" << clientB << "> <sip:127.0.0.1:5460>";
-	Server proxyB({{"module::Registrar/reg-domains", domainB},
-	               {"module::Registrar/static-records-file", regFileB},
-	               {"module::AuthOpenIDConnect/enabled", "true"},
-	               {"module::AuthOpenIDConnect/authorization-server", issuerB},
-	               {"module::AuthOpenIDConnect/realm", realm},
-	               {"module::AuthOpenIDConnect/audience", audienceB},
-	               {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
-	               {"module::AuthOpenIDConnect/public-key-type", "file"},
-	               {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
-	               {"module::Authorization/enabled", "true"}},
-	              root, &hooks);
+	Server proxyB(
+	    {
+	        {"module::Registrar/reg-domains", domainB},
+	        {"module::Registrar/static-records-file", regFileB},
+	        {"module::AuthOpenIDConnect/enabled", "true"},
+	        {"module::AuthOpenIDConnect/authorization-server", issuerB},
+	        {"module::AuthOpenIDConnect/realm", realm},
+	        {"module::AuthOpenIDConnect/audience", audienceB},
+	        {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	        {"module::AuthOpenIDConnect/public-key-type", "file"},
+	        {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
+	        {"module::Authorization/enabled", "true"},
+	        {"module::Authorization/auth-domains", string(domainA) + " " + domainB},
+	        // bypass forbidden inter domain request
+	        {"module::Authorization/filter", "!from.uri.domain contains '"s + domainA + "'"},
+	    },
+	    root, &hooks);
 	proxyB.start();
 	SLOGD << "Start ProxyB with port: " << proxyB.getFirstPort();
 
@@ -261,17 +277,23 @@ void bearerMsgOfAToB() {
 	const auto& regFileA = sSuiteScope->dir.path() / "regFileA";
 	ofstream(regFileA) << "<" << clientB << "> <sip:127.0.0.1::" << proxyB.getFirstPort() << ">";
 
-	Server proxyA({{"module::Registrar/reg-domains", domainA},
-	               {"module::Registrar/static-records-file", regFileA},
-	               {"module::AuthOpenIDConnect/enabled", "true"},
-	               {"module::AuthOpenIDConnect/authorization-server", issuerA},
-	               {"module::AuthOpenIDConnect/realm", realm},
-	               {"module::AuthOpenIDConnect/audience", audienceA},
-	               {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
-	               {"module::AuthOpenIDConnect/public-key-type", "file"},
-	               {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
-	               {"module::Authorization/enabled", "true"}},
-	              root);
+	Server proxyA(
+	    {
+	        {"module::Registrar/reg-domains", domainA},
+	        {"module::Registrar/static-records-file", regFileA},
+	        {"module::AuthOpenIDConnect/enabled", "true"},
+	        {"module::AuthOpenIDConnect/authorization-server", issuerA},
+	        {"module::AuthOpenIDConnect/realm", realm},
+	        {"module::AuthOpenIDConnect/audience", audienceA},
+	        {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	        {"module::AuthOpenIDConnect/public-key-type", "file"},
+	        {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
+	        {"module::Authorization/enabled", "true"},
+	        {"module::Authorization/auth-domains", domainA},
+	        // bypass forbidden inter domain request
+	        {"module::Authorization/filter", "!from.uri.domain contains '"s + domainA + "'"},
+	    },
+	    root);
 
 	proxyA.start();
 	SLOGD << "Start ProxyA with port: " << proxyA.getFirstPort();

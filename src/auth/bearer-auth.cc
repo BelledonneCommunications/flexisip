@@ -275,8 +275,6 @@ string Bearer::schemeType() const {
 }
 
 void Bearer::challenge(AuthStatus& as, const auth_challenger_t* ach) {
-	as.status(ach->ach_status);
-	as.phrase(ach->ach_phrase);
 	auto* s_as = as.getPtr();
 
 	// select one according to request?
