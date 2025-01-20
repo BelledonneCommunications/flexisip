@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,16 +35,17 @@ using namespace pushnotification;
 PushNotificationContext::PushNotificationContext(const std::shared_ptr<OutgoingTransaction>& transaction,
                                                  PushNotification* _module,
                                                  const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-                                                 const std::string& key)
+                                                 const std::string& key,
+                                                 const std::chrono::seconds contextLifespan)
     : mKey{key}, mModule{_module}, mPInfo{pInfo}, mTimer{_module->getAgent()->getRoot()},
-      mEndTimer{_module->getAgent()->getRoot()} {
+      mEndTimer{_module->getAgent()->getRoot(), contextLifespan} {
 	mTransaction = transaction;
 }
 
 void PushNotificationContext::start(std::chrono::seconds delay) {
 	SLOGD << "PNR " << mPInfo.get() << ": set timer to " << delay.count() << "s";
-	mTimer.set(bind(&PushNotificationContext::onTimeout, this), delay);
-	mEndTimer.set(bind(&PushNotification::removePushNotification, mModule, this), 30s);
+	mTimer.set([this]() { onTimeout(); }, delay);
+	mEndTimer.set([this]() { mModule->removePushNotification(this); });
 }
 
 void PushNotificationContext::cancel() {
@@ -71,7 +72,7 @@ void PushNotificationContext::onTimeout() noexcept {
 	if (mRetryCounter > 0) {
 		SLOGD << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
 		mRetryCounter--;
-		mTimer.set(bind(&PushNotificationContext::onTimeout, this), mRetryInterval);
+		mTimer.set([this]() { onTimeout(); }, mRetryInterval);
 	}
 }
 
@@ -489,9 +490,9 @@ void PushNotification::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 	const auto& ms = ev->getMsgSip();
 	if (needsPush(ms)) {
 		shared_ptr<OutgoingTransaction> transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-		if (transaction != NULL) {
+		if (transaction != nullptr) {
 			auto* sip = ms->getSip();
-			if (sip->sip_request->rq_url->url_params != NULL) {
+			if (sip->sip_request->rq_url->url_params != nullptr) {
 				try {
 					makePushNotification(ms, transaction);
 				} catch (const PushInfo::NoPushParametersError& e) {

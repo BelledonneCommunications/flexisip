@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -91,7 +91,8 @@ protected:
 	PushNotificationContext(const std::shared_ptr<OutgoingTransaction>& transaction,
 	                        PushNotification* _module,
 	                        const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-	                        const std::string& pnKey);
+	                        const std::string& pnKey,
+	                        const std::chrono::seconds contextTimeout);
 	PushNotificationContext(const PushNotificationContext&) = delete;
 
 	// Protected methods
@@ -108,8 +109,8 @@ protected:
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
 	std::shared_ptr<pushnotification::Strategy>
 	    mStrategy{};           /**< A delegate object that affect how the client will be notified. */
-	sofiasip::Timer mTimer;    /**< timer after which push is sent */
-	sofiasip::Timer mEndTimer; /**< timer to automatically remove the PN 30 seconds after starting */
+	sofiasip::Timer mTimer;    /**< timer after which push is sent. */
+	sofiasip::Timer mEndTimer; /**< timer to automatically remove the PN. */
 	int mRetryCounter{0};
 	std::chrono::seconds mRetryInterval{0};
 	bool mToTagEnabled{false};
