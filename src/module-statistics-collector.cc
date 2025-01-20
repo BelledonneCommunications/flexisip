@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -170,13 +170,17 @@ ModuleInfo<StatisticsCollector> StatisticsCollector::sInfo(
     ModuleInfoBase::ModuleOid::StatisticsCollector,
 
     [](GenericStruct& moduleConfig) {
-	    ConfigItemDescriptor items[] = {{String, "collector-address",
-	                                     "SIP URI of the statistics collector. "
-	                                     "Note that application/vq-rtcpxr messages for this address will be deleted by "
-	                                     "this module and thus not be delivered.",
-	                                     ""},
-
-	                                    config_item_end};
+	    ConfigItemDescriptor items[] = {
+	        {
+	            String,
+	            "collector-address",
+	            "SIP URI of the statistics collector. "
+	            "Note that application/vq-rtcpxr messages for this address will be deleted by "
+	            "this module and thus not be delivered.",
+	            "",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
 
 	    /* modify the default value for "enabled" */

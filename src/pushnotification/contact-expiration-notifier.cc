@@ -23,6 +23,8 @@
 
 #include "utils/transport/http/http-message.hh"
 
+constexpr auto kLogPrefix = "[ContactExpirationNotifier] ";
+
 using namespace std;
 
 namespace flexisip {
@@ -30,8 +32,6 @@ namespace flexisip {
 namespace pn = pushnotification;
 
 namespace {
-
-constexpr auto kLogPrefix = "[ContactExpirationNotifier] ";
 
 // Abstraction to print the relevant device information of a contact
 class DeviceInfo {

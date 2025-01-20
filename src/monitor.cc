@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,14 +9,15 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "monitor.hh"
+
 #include <flexisip/configmanager.hh>
 #include <ortp/rtpsession.h>
 #include <sofia-sip/su_md5.h>
@@ -33,12 +34,38 @@ namespace {
 // Statically define default configuration items
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {Boolean, "enabled", "Enable or disable the Flexisip monitor daemon", "false"},
-	    {DurationS, "test-interval", "Time between two consecutive tests", "30"},
-	    {String, "logfile", "Path to the log file", "/etc/flexisip/flexisip_monitor.log"},
-	    {Integer, "switch-port", "Port to open/close folowing the test succeed or not", "12345"},
-	    {String, "password-salt", "Salt used to generate the passwords of each test account", ""},
-	    config_item_end};
+	    {
+	        Boolean,
+	        "enabled",
+	        "Enable or disable the Flexisip monitor daemon",
+	        "false",
+	    },
+	    {
+	        DurationS,
+	        "test-interval",
+	        "Time between two consecutive tests",
+	        "30",
+	    },
+	    {
+	        String,
+	        "logfile",
+	        "Path to the log file",
+	        "/etc/flexisip/flexisip_monitor.log",
+	    },
+	    {
+	        Integer,
+	        "switch-port",
+	        "Port to open/close folowing the test succeed or not",
+	        "12345",
+	    },
+	    {
+	        String,
+	        "password-salt",
+	        "Salt used to generate the passwords of each test account",
+	        "",
+	    },
+	    config_item_end,
+	};
 
 	auto uS = make_unique<GenericStruct>("monitor", "Flexisip monitor parameters", 0);
 	auto* s = root.addChild(std::move(uS));

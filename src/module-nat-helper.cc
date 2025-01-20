@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -150,24 +150,48 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
 
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
-	        {String, "nat-traversal-strategy",
-	         "Strategy to manage client-initiated connections when SIP messages are routed through NATs. You can "
-	         "choose between \"contact-correction\" and \"flow-token\".",
-	         "contact-correction"},
-	        {BooleanExpr, "force-flow-token",
-	         "Boolean expression in order to force the use of flow-token under specific conditions. This expression is "
-	         "only evaluated if the \"flow-token\" strategy is used.\n",
-	         "user-agent contains 'Linphone'"},
-	        {String, "flow-token-path", "Path to the file containing the hash key used to hash flow tokens.",
-	         kFlowTokenHashKeyFilePath},
-	        {String, "contact-correction-param",
-	         "Internal URI parameter added to response contact by first proxy and cleaned by last one. It indicates if "
-	         "the contact was already verified and corrected.",
-	         "verified"},
-	        {Boolean, "fix-record-routes",
-	         "Fix record-routes, to workaround proxies behind firewalls but not aware of it.", "false"},
-	        {String, "fix-record-routes-policy",
-	         "Policy to recognize NATed record-route and fix them. There are two modes: 'safe' and 'always'", "safe"},
-	        config_item_end};
+	        {
+	            String,
+	            "nat-traversal-strategy",
+	            "Strategy to manage client-initiated connections when SIP messages are routed through NATs. You can "
+	            "choose between \"contact-correction\" and \"flow-token\".",
+	            "contact-correction",
+	        },
+	        {
+	            BooleanExpr,
+	            "force-flow-token",
+	            "Boolean expression in order to force the use of flow-token under specific conditions. This expression "
+	            "is "
+	            "only evaluated if the \"flow-token\" strategy is used.\n",
+	            "user-agent contains 'Linphone'",
+	        },
+	        {
+	            String,
+	            "flow-token-path",
+	            "Path to the file containing the hash key used to hash flow tokens.",
+	            kFlowTokenHashKeyFilePath,
+	        },
+	        {
+	            String,
+	            "contact-correction-param",
+	            "Internal URI parameter added to response contact by first proxy and cleaned by last one. It indicates "
+	            "if "
+	            "the contact was already verified and corrected.",
+	            "verified",
+	        },
+	        {
+	            Boolean,
+	            "fix-record-routes",
+	            "Fix record-routes, to workaround proxies behind firewalls but not aware of it.",
+	            "false",
+	        },
+	        {
+	            String,
+	            "fix-record-routes-policy",
+	            "Policy to recognize NATed record-route and fix them. There are two modes: 'safe' and 'always'",
+	            "safe",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
     });

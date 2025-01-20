@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -292,26 +292,49 @@ private:
 };
 
 namespace {
-ModuleInfo<JweAuth> JweAuthInfo(
-    "JweAuth",
-    "This module offers the possibility to use JSON Web Encryption tokens.",
-    {"Authentication"},
-    ModuleInfoBase::ModuleOid::Plugin,
+ModuleInfo<JweAuth> JweAuthInfo("JweAuth",
+                                "This module offers the possibility to use JSON Web Encryption tokens.",
+                                {"Authentication"},
+                                ModuleInfoBase::ModuleOid::Plugin,
 
-    [](GenericStruct& moduleConfig) {
-	    ConfigItemDescriptor configs[] = {
-	        {String, "jwks-dir",
-	         "Path to the directory where JSON Web Key (JWK) can be found."
-	         " Any JWK must be put into a file with the `.jwk` suffix.",
-	         "/etc/flexisip/jwk/"},
-	        {String, "jwe-custom-header", "The name of the JWE token custom header.", "X-token-jwe"},
-	        {String, "oid-custom-header", "The name of the oid custom header.", "X-token-oid"},
-	        {String, "aud-custom-header", "The name of the aud custom header.", "X-token-aud"},
-	        {String, "req-act-custom-header", "The name of the request action custom header.", "X-token-req_act"},
-	        config_item_end};
-	    moduleConfig.addChildrenValues(configs);
-    });
-} // namespace
+                                [](GenericStruct& moduleConfig) {
+	                                ConfigItemDescriptor configs[] = {
+	                                    {
+	                                        String,
+	                                        "jwks-dir",
+	                                        "Path to the directory where JSON Web Key (JWK) can be found."
+	                                        " Any JWK must be put into a file with the `.jwk` suffix.",
+	                                        "/etc/flexisip/jwk/",
+	                                    },
+	                                    {
+	                                        String,
+	                                        "jwe-custom-header",
+	                                        "The name of the JWE token custom header.",
+	                                        "X-token-jwe",
+	                                    },
+	                                    {
+	                                        String,
+	                                        "oid-custom-header",
+	                                        "The name of the oid custom header.",
+	                                        "X-token-oid",
+	                                    },
+	                                    {
+	                                        String,
+	                                        "aud-custom-header",
+	                                        "The name of the aud custom header.",
+	                                        "X-token-aud",
+	                                    },
+	                                    {
+	                                        String,
+	                                        "req-act-custom-header",
+	                                        "The name of the request action custom header.",
+	                                        "X-token-req_act",
+	                                    },
+	                                    config_item_end,
+	                                };
+	                                moduleConfig.addChildrenValues(configs);
+                                });
+}
 
 FLEXISIP_DECLARE_PLUGIN(JweAuthInfo, JweAuthPluginName, JweAuthPluginVersion);
 

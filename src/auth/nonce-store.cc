@@ -1,20 +1,20 @@
 /*
- * Flexisip, a flexible SIP proxy server with media capabilities.
- * Copyright (C) 2018  Belledonne Communications SARL, All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <sofia-sip/msg_header.h>
 
@@ -29,23 +29,22 @@ using namespace flexisip;
 //  NonceStore class
 // ====================================================================================================================
 
-int NonceStore::getNc(const string &nonce) {
+int NonceStore::getNc(const string& nonce) {
 	unique_lock<mutex> lck(mMutex);
 	auto it = mNc.find(nonce);
-	if (it != mNc.end())
-		return (*it).second.nc;
+	if (it != mNc.end()) return (*it).second.nc;
 	return -1;
 }
 
-void NonceStore::insert(const msg_auth_t *response) {
-	const char *nonce = msg_header_find_param(response->au_common, "nonce");
+void NonceStore::insert(const msg_auth_t* response) {
+	const char* nonce = msg_header_find_param(response->au_common, "nonce");
 	string snonce(nonce);
 	snonce = snonce.substr(1, snonce.length() - 2);
 	LOGD("New nonce %s", snonce.c_str());
 	insert(snonce);
 }
 
-void NonceStore::insert(const string &nonce) {
+void NonceStore::insert(const string& nonce) {
 	unique_lock<mutex> lck(mMutex);
 	time_t expiration = getCurrentTime() + mNonceExpires;
 	auto it = mNc.find(nonce);
@@ -58,7 +57,7 @@ void NonceStore::insert(const string &nonce) {
 	}
 }
 
-void NonceStore::updateNc(const string &nonce, int newnc) {
+void NonceStore::updateNc(const string& nonce, int newnc) {
 	unique_lock<mutex> lck(mMutex);
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
@@ -69,7 +68,7 @@ void NonceStore::updateNc(const string &nonce, int newnc) {
 	}
 }
 
-void NonceStore::erase(const string &nonce) {
+void NonceStore::erase(const string& nonce) {
 	unique_lock<mutex> lck(mMutex);
 	LOGD("Erasing nonce %s", nonce.c_str());
 	mNc.erase(nonce);
@@ -87,12 +86,10 @@ void NonceStore::cleanExpired() {
 			++it;
 			mNc.erase(eraseIt);
 			++count;
-		} else
-			++it;
+		} else ++it;
 		size++;
 	}
-	if (count)
-		LOGD("Cleaned %d expired nonces, %zd remaining", count, size);
+	if (count) LOGD("Cleaned %d expired nonces, %zd remaining", count, size);
 }
 
 // ====================================================================================================================

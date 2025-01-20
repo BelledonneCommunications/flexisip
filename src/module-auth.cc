@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -50,57 +50,101 @@ Authentication::~Authentication() {
 void Authentication::declareConfig(GenericStruct& moduleConfig) {
 	ModuleAuthenticationBase::declareConfig(moduleConfig);
 	ConfigItemDescriptor items[] = {
-	    {Boolean, "reject-wrong-client-certificates",
-	     "If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
-	     "which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched "
-	     "subjects). "
-	     "Otherwise, the module will fallback to a digest authentication.\n"
-	     "This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; "
-	     "indeed "
-	     "no certificate is requested to the client otherwise. ",
-	     "false"},
-	    {String, "tls-client-certificate-required-subject",
-	     "An optional regular expression used to accept or deny a request basing on subject fields of the "
-	     "client certificate. The request is allowed if one of the subjects matches the regular expression.\n"
-	     "The list of subjects to check is built by extracting the following fields, in order:\n"
-	     "\tsubjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN",
-	     ""},
-	    {Boolean, "trust-domain-certificates",
-	     "Accept requests which the client certificate enables to trust the domaine of its Request-URI.", "false"},
-	    {Boolean, "new-auth-on-407",
-	     "When receiving a proxy authenticate challenge, generate a new challenge for "
-	     "this proxy.",
-	     "false"},
-	    {String, "db-implementation", "Database backend implementation for digest authentication [soci,file].", "file"},
-	    {DurationS, "cache-expire", "Duration of the validity of the credentials added to the cache.", "1800"},
+	    {
+	        Boolean,
+	        "reject-wrong-client-certificates",
+	        "If set to true, the module will simply reject with \"403 forbidden\" any request coming from clients "
+	        "which have presented a bad TLS certificate (regardless of reason: improper signature, unmatched "
+	        "subjects). "
+	        "Otherwise, the module will fallback to a digest authentication.\n"
+	        "This policy applies only for transports configured which have 'required-peer-certificate=1' parameter; "
+	        "indeed "
+	        "no certificate is requested to the client otherwise. ",
+	        "false",
+	    },
+	    {
+	        String,
+	        "tls-client-certificate-required-subject",
+	        "An optional regular expression used to accept or deny a request basing on subject fields of the "
+	        "client certificate. The request is allowed if one of the subjects matches the regular expression.\n"
+	        "The list of subjects to check is built by extracting the following fields, in order:\n"
+	        "\tsubjectAltNames.DNS, subjectAltNames.URI, subjectAltNames.IP and CN",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "trust-domain-certificates",
+	        "Accept requests which the client certificate enables to trust the domaine of its Request-URI.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "new-auth-on-407",
+	        "When receiving a proxy authenticate challenge, generate a new challenge for "
+	        "this proxy.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "db-implementation",
+	        "Database backend implementation for digest authentication [soci,file].",
+	        "file",
+	    },
+	    {
+	        DurationS,
+	        "cache-expire",
+	        "Duration of the validity of the credentials added to the cache.",
+	        "1800",
+	    },
 
 	    // deprecated parameters
-	    {StringList, "trusted-client-certificates",
-	     "List of whitespace separated username or username@domain CN "
-	     "which will trusted. If no domain is given it is computed.",
-	     ""},
-	    {Boolean, "hashed-passwords",
-	     "True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).", "false"},
-	    {Boolean, "enable-test-accounts-creation",
-	     "Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
-	     "password database in memory. This MUST not be used for production as it is a real security hole.",
-	     "false"},
-	    config_item_end};
+	    {
+	        StringList,
+	        "trusted-client-certificates",
+	        "List of whitespace separated username or username@domain CN "
+	        "which will trusted. If no domain is given it is computed.",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "hashed-passwords",
+	        "True if retrieved passwords from the database are hashed. HA1=MD5(A1) = MD5(username:realm:pass).",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "enable-test-accounts-creation",
+	        "Enable a feature useful for automatic tests, allowing a client to create a temporary account in the "
+	        "password database in memory. This MUST not be used for production as it is a real security hole.",
+	        "false",
+	    },
+	    config_item_end,
+	};
 
 	moduleConfig.addChildrenValues(items);
 
 	moduleConfig.get<ConfigStringList>("trusted-client-certificates")
-	    ->setDeprecated({"2018-04-16", "1.0.13", "Use 'tls-client-certificate-required-subject' instead."});
+	    ->setDeprecated({
+	        "2018-04-16",
+	        "1.0.13",
+	        "Use 'tls-client-certificate-required-subject' instead.",
+	    });
 	moduleConfig.get<ConfigBoolean>("hashed-passwords")
-	    ->setDeprecated({"2020-01-28", "2.0.0",
-	                     "This setting has been out of use since the algorithm used to hash the password is "
-	                     "stored in the user database and the CLRTXT algorithm can be used to indicate that "
-	                     "the password isn't hashed.\n"
-	                     "Warning: setting 'true' hasn't any effect anymore."});
+	    ->setDeprecated({
+	        "2020-01-28",
+	        "2.0.0",
+	        "This setting has been out of use since the algorithm used to hash the password is "
+	        "stored in the user database and the CLRTXT algorithm can be used to indicate that "
+	        "the password isn't hashed.\n"
+	        "Warning: setting 'true' hasn't any effect anymore.",
+	    });
 	moduleConfig.get<ConfigBoolean>("enable-test-accounts-creation")
-	    ->setDeprecated({"2020-01-28", "2.0.0",
-	                     "This feature was useful for liblinphone's integrity tests and isn't used today anymore. "
-	                     "Please remove this setting from your configuration file."});
+	    ->setDeprecated({
+	        "2020-01-28",
+	        "2.0.0",
+	        "This feature was useful for liblinphone's integrity tests and isn't used today anymore. "
+	        "Please remove this setting from your configuration file.",
+	    });
 
 	// Call declareConfig for backends
 	AuthDbBackend::declareConfig(&moduleConfig);

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -61,49 +61,73 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
-	        {String, "routes-config-path",
-	         "A path to a configuration file describing routes to be prepended before "
-	         "forwarding a request, when specific conditions for the SIP request being forwarded are met. The "
-	         "condition "
-	         "is described using flexisip's filter syntax, as described on \n"
-	         "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
-	         "The configuration file comprises lines using the following syntax:\n"
-	         "<sip route>   <condition expressed as a filter expression> \n"
-	         "Comments are allowed with '#'.\n"
-	         "Conditions can spread over multiples lines provided that the continuation line starts with either "
-	         "spaces or tabs.\n"
-	         "The special condition '*' matches every request.\n"
-	         "The conditions are matched in the order they appear in the configuration file. The first fulfilled "
-	         "condition determines the route that is prepended."
-	         "If the request does not match any condition, no route is prepended.\n"
-	         "The file may be empty, or no path may be specified, in which case no route is preprended either. "
-	         "Here is a an example of a valid routes configuration file:\n"
-	         "<sip:example.org;transport=tls>     request.uri.domain == 'example.org'\n"
-	         "<sip:10.0.0.2:5070;transport=tcp>   request.uri.params contains 'user=phone'\n"
-	         "\n"
-	         "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
-	         "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.",
-	         ""},
-	        {String, "route",
-	         "A route header value where to send all requests not already resolved by the Router module "
-	         "(ie for which contact information has been found from the registrar database). This is "
-	         "the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server."
-	         "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
-	         "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.\n"
-	         "For example:\n"
-	         "route=<sip:192.168.0.10;transport=tcp>",
-	         ""},
-	        {Boolean, "rewrite-req-uri", "Rewrite request-uri's host and port according to prepended route.", "false"},
-	        {Boolean, "add-path", "Add a path header of this proxy", "true"},
-	        {String, "default-transport",
-	         "For SIP URIs, in asbsence of transport parameter, assume the given transport "
-	         "is to be used. Possible values are udp, tcp or tls.",
-	         "udp"},
-	        {StringList, "params-to-remove", "List of URL and contact params to remove",
-	         "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider "
-	         "pn-prid "
-	         "pn-param"},
-	        config_item_end};
+	        {
+	            String,
+	            "routes-config-path",
+	            "A path to a configuration file describing routes to be prepended before "
+	            "forwarding a request, when specific conditions for the SIP request being forwarded are met. The "
+	            "condition "
+	            "is described using flexisip's filter syntax, as described on \n"
+	            "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
+	            "The configuration file comprises lines using the following syntax:\n"
+	            "<sip route>   <condition expressed as a filter expression> \n"
+	            "Comments are allowed with '#'.\n"
+	            "Conditions can spread over multiples lines provided that the continuation line starts with either "
+	            "spaces or tabs.\n"
+	            "The special condition '*' matches every request.\n"
+	            "The conditions are matched in the order they appear in the configuration file. The first fulfilled "
+	            "condition determines the route that is prepended."
+	            "If the request does not match any condition, no route is prepended.\n"
+	            "The file may be empty, or no path may be specified, in which case no route is preprended either. "
+	            "Here is a an example of a valid routes configuration file:\n"
+	            "<sip:example.org;transport=tls>     request.uri.domain == 'example.org'\n"
+	            "<sip:10.0.0.2:5070;transport=tcp>   request.uri.params contains 'user=phone'\n"
+	            "\n"
+	            "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
+	            "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.",
+	            "",
+	        },
+	        {
+	            String,
+	            "route",
+	            "A route header value where to send all requests not already resolved by the Router module "
+	            "(ie for which contact information has been found from the registrar database). This is "
+	            "the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server."
+	            "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
+	            "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.\n"
+	            "For example:\n"
+	            "route=<sip:192.168.0.10;transport=tcp>",
+	            "",
+	        },
+	        {
+	            Boolean,
+	            "rewrite-req-uri",
+	            "Rewrite request-uri's host and port according to prepended route.",
+	            "false",
+	        },
+	        {
+	            Boolean,
+	            "add-path",
+	            "Add a path header of this proxy",
+	            "true",
+	        },
+	        {
+	            String,
+	            "default-transport",
+	            "For SIP URIs, in asbsence of transport parameter, assume the given transport "
+	            "is to be used. Possible values are udp, tcp or tls.",
+	            "udp",
+	        },
+	        {
+	            StringList,
+	            "params-to-remove",
+	            "List of URL and contact params to remove",
+	            "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider "
+	            "pn-prid "
+	            "pn-param",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
 
 	    // deprecated since 2022-04-19 (2.2.0)
@@ -253,7 +277,7 @@ public:
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {};
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override{};
 
 private:
 	ForwardModule* mModule;

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,7 +41,7 @@ UacRegister::UacRegister(const sip_from_t* ifrom, const sip_to_t* ito, int iexpi
 	challengeReceived = false;
 }
 
-void UacRegister::send(const sip_contact_t *contact) {
+void UacRegister::send(const sip_contact_t* contact) {
 	char expirechars[32];
 	state = INITIAL;
 	SLOGD << "Sending UacRegister " << this << " with refresh " << expire << "s";
@@ -50,18 +50,17 @@ void UacRegister::send(const sip_contact_t *contact) {
 	string expirestr = expirechars;
 	string refreshtag = string("expires=") + expirestr;
 	nua_register(nh, SIPTAG_CONTACT(contact), NUTAG_M_FEATURES(refreshtag.c_str()),
-				 SIPTAG_EXPIRES_STR(expirestr.c_str()), TAG_END());
+	             SIPTAG_EXPIRES_STR(expirestr.c_str()), TAG_END());
 	challengeReceived = false;
 }
 
 UacRegister::~UacRegister() {
-	if (nh)
-		nua_handle_destroy(nh);
+	if (nh) nua_handle_destroy(nh);
 	su_home_deinit(&home);
 	SLOGD << "Destroyed UacRegister " << this;
 }
 
-void UacRegister::authenticate(const msg_param_t *au_params) {
+void UacRegister::authenticate(const msg_param_t* au_params) {
 	if (challengeReceived) {
 		SLOGD << "A second challenge was received.";
 		state = ERROR;
@@ -71,12 +70,10 @@ void UacRegister::authenticate(const msg_param_t *au_params) {
 	ostringstream digest;
 	digest << "Digest:";
 
-	const char *realm = msg_params_find(au_params, "realm=");
-	if (realm[0] != '"')
-		digest << "\"";
+	const char* realm = msg_params_find(au_params, "realm=");
+	if (realm[0] != '"') digest << "\"";
 	digest << realm;
-	if (realm[strlen(realm) - 1] != '"')
-		digest << "\"";
+	if (realm[strlen(realm) - 1] != '"') digest << "\"";
 
 	string user(from->a_url->url_user);
 
@@ -87,7 +84,7 @@ void UacRegister::authenticate(const msg_param_t *au_params) {
 	nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()), TAG_END());
 }
 
-void UacRegister::onMessage(const sip_t *sip) {
+void UacRegister::onMessage(const sip_t* sip) {
 	switch (sip->sip_status->st_status) {
 		case 200:
 			LOGD("REGISTER done");

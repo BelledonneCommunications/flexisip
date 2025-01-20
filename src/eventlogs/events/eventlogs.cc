@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,52 +31,103 @@ namespace {
 // Statically define default configuration items
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {Boolean, "enabled", "Enable event logs.", "false"},
-	    {String, "logger", "Define logger for storing logs. It supports \"filesystem\", \"database\" and \"flexiapi\".",
-	     "filesystem"},
+	    {
+	        Boolean,
+	        "enabled",
+	        "Enable event logs.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "logger",
+	        "Define logger for storing logs. It supports \"filesystem\", \"database\" and \"flexiapi\".",
+	        "filesystem",
+	    },
 	    ////////////////// Filesystem //////////////////
-	    {String, "filesystem-directory",
-	     "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
-	     "/var/log/flexisip"},
+	    {
+	        String,
+	        "filesystem-directory",
+	        "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
+	        "/var/log/flexisip",
+	    },
 	    ////////////////// Database //////////////////
-	    {String, "database-backend",
-	     "Type of backend that Soci will use for the connection.\n"
-	     "Depending on your Soci package and the modules you installed, the supported databases are:"
-	     "`mysql`, `sqlite3` and `postgresql`",
-	     "mysql"},
-	    {String, "database-connection-string",
-	     "Configuration parameters of the backend.\n"
-	     "The basic format is \"key=value key2=value2\". For a mysql backend, this "
-	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-	     "Please refer to the Soci documentation of your backend, for instance: "
-	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
-	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
-	    {Integer, "database-max-queue-size",
-	     "Amount of queries that will be allowed to be queued before bailing password requests.\n"
-	     "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a coherent "
-	     "behavior.\n"
-	     "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a flood "
-	     "or big delays in the database backend.",
-	     "100"},
-	    {Integer, "database-nb-threads-max",
-	     "Maximum number of threads for writing in database.\n"
-	     "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
-	     "10"},
+	    {
+	        String,
+	        "database-backend",
+	        "Type of backend that Soci will use for the connection.\n"
+	        "Depending on your Soci package and the modules you installed, the supported databases are:"
+	        "`mysql`, `sqlite3` and `postgresql`",
+	        "mysql",
+	    },
+	    {
+	        String,
+	        "database-connection-string",
+	        "Configuration parameters of the backend.\n"
+	        "The basic format is \"key=value key2=value2\". For a mysql backend, this "
+	        "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+	        "Please refer to the Soci documentation of your backend, for instance: "
+	        "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	        "db='mydb' user='myuser' password='mypass' host='myhost.com'",
+	    },
+	    {
+	        Integer,
+	        "database-max-queue-size",
+	        "Amount of queries that will be allowed to be queued before bailing password requests.\n"
+	        "This value should be chosen accordingly with 'database-nb-threads-max', so that you have a coherent "
+	        "behavior.\n"
+	        "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a "
+	        "flood "
+	        "or big delays in the database backend.",
+	        "100",
+	    },
+	    {
+	        Integer,
+	        "database-nb-threads-max",
+	        "Maximum number of threads for writing in database.\n"
+	        "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
+	        "10",
+	    },
 	    ////////////////// Flexiapi //////////////////
-	    {String, "flexiapi-host",
-	     "Domain name or IP address of the FlexiAPI host. This setting will be used in combination with flexiapi-port "
-	     "and -prefix to contact the API located at <flexiapi-host>:<flexiapi-port><flexiapi-prefix>",
-	     "localhost"},
-	    {Integer, "flexiapi-port", "Port on the FlexiAPI host. See `flexiapi-host` for details.", "443"},
-	    {String, "flexiapi-prefix", "Path prefix for FlexiAPI requests. See `flexiapi-host` for details.",
-	     "/api/stats/"},
-	    {String, "flexiapi-api-key", "API authentication key for the FlexiAPI", ""},
+	    {
+	        String,
+	        "flexiapi-host",
+	        "Domain name or IP address of the FlexiAPI host. This setting will be used in combination with "
+	        "flexiapi-port "
+	        "and -prefix to contact the API located at <flexiapi-host>:<flexiapi-port><flexiapi-prefix>",
+	        "localhost",
+	    },
+	    {
+	        Integer,
+	        "flexiapi-port",
+	        "Port on the FlexiAPI host. See `flexiapi-host` for details.",
+	        "443",
+	    },
+	    {
+	        String,
+	        "flexiapi-prefix",
+	        "Path prefix for FlexiAPI requests. See `flexiapi-host` for details.",
+	        "/api/stats/",
+	    },
+	    {
+	        String,
+	        "flexiapi-api-key",
+	        "API authentication key for the FlexiAPI",
+	        "",
+	    },
 
 	    // Deprecated parameters
-	    {String, "dir",
-	     "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
-	     "/var/log/flexisip"},
-	    {String, "flexiapi-token", "Authentication token for the FlexiAPI", ""},
+	    {
+	        String,
+	        "dir",
+	        "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
+	        "/var/log/flexisip",
+	    },
+	    {
+	        String,
+	        "flexiapi-token",
+	        "Authentication token for the FlexiAPI",
+	        "",
+	    },
 	    config_item_end,
 	};
 
@@ -89,10 +140,18 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 
 	auto* ev = root.addChild(std::move(uEv));
 	ev->addChildrenValues(items);
-	ev->get<ConfigString>("dir")->setDeprecated({"2020-02-19", "2.0.0", "Replaced by 'filesystem-directory'"});
+	ev->get<ConfigString>("dir")->setDeprecated({
+	    "2020-02-19",
+	    "2.0.0",
+	    "Replaced by 'filesystem-directory'",
+	});
 
 	auto* flexiapiToken = ev->get<ConfigString>("flexiapi-token");
-	flexiapiToken->setDeprecated({"2024-03-22", "2.3.3", "Replaced by 'flexiapi-api-key'"});
+	flexiapiToken->setDeprecated({
+	    "2024-03-22",
+	    "2.3.3",
+	    "Replaced by 'flexiapi-api-key'",
+	});
 	ev->get<ConfigString>("flexiapi-api-key")->setFallback(*flexiapiToken);
 });
 

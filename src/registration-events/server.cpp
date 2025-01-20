@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -221,9 +221,15 @@ std::unique_ptr<AsyncCleanup> Server::_stop() {
 namespace {
 // Statically define default configuration items
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
-	ConfigItemDescriptor items[] = {{String, "transport", "SIP uri on which the RegEvent server is listening on.",
-	                                 "sip:127.0.0.1:6065;transport=tcp"},
-	                                config_item_end};
+	ConfigItemDescriptor items[] = {
+	    {
+	        String,
+	        "transport",
+	        "SIP uri on which the RegEvent server is listening on.",
+	        "sip:127.0.0.1:6065;transport=tcp",
+	    },
+	    config_item_end,
+	};
 
 	auto uS = make_unique<GenericStruct>(
 	    "regevent-server",

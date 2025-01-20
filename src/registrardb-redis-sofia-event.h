@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,20 +9,19 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
-#include "compat/hiredis/hiredis.h"
 #include "compat/hiredis/async.h"
+#include "compat/hiredis/hiredis.h"
 
 #include <flexisip/common.hh>
-
 
 #ifndef SU_WAIT_H
 #define SU_WAKEUP_ARG_T redisSofiaEvents
@@ -36,69 +35,66 @@ struct redisSofiaEvents;
 typedef struct redisSofiaEvents redisSofiaEvents;
 
 typedef struct redisSofiaEvents {
-	redisAsyncContext *context;
-	su_root_t *root;
+	redisAsyncContext* context;
+	su_root_t* root;
 	su_wait_t wait;
 	int index;
 	int eventmask;
 } redisSofiaEvents;
 
-static int redisSofiaEvent([[maybe_unused]] su_root_magic_t *magic, su_wait_t *wait, su_wakeup_arg_t *e) {
-	if (wait->revents & SU_WAIT_IN)
-		redisAsyncHandleRead(((redisSofiaEvents*)e)->context);
-	if (wait->revents & SU_WAIT_OUT)
-		redisAsyncHandleWrite(((redisSofiaEvents*)e)->context);
+static int redisSofiaEvent([[maybe_unused]] su_root_magic_t* magic, su_wait_t* wait, su_wakeup_arg_t* e) {
+	if (wait->revents & SU_WAIT_IN) redisAsyncHandleRead(((redisSofiaEvents*)e)->context);
+	if (wait->revents & SU_WAIT_OUT) redisAsyncHandleWrite(((redisSofiaEvents*)e)->context);
 	return 0;
 }
 
-static void addWaitMask(void *privdata, int mask) {
-	redisSofiaEvents *e = (redisSofiaEvents*)privdata;
-	redisContext *c = &(e->context->c);
+static void addWaitMask(void* privdata, int mask) {
+	redisSofiaEvents* e = (redisSofiaEvents*)privdata;
+	redisContext* c = &(e->context->c);
 	e->eventmask |= mask;
 	su_root_eventmask(e->root, e->index, c->fd, e->eventmask);
 }
 
-static void delWaitMask(void *privdata, int mask) {
-	redisSofiaEvents *e = (redisSofiaEvents*)privdata;
-	redisContext *c = &(e->context->c);
+static void delWaitMask(void* privdata, int mask) {
+	redisSofiaEvents* e = (redisSofiaEvents*)privdata;
+	redisContext* c = &(e->context->c);
 	e->eventmask &= ~mask;
 	su_root_eventmask(e->root, e->index, c->fd, e->eventmask);
 }
 
-static void redisSofiaAddRead(void *privdata) {
+static void redisSofiaAddRead(void* privdata) {
 	addWaitMask(privdata, SU_WAIT_IN);
 }
 
-static void redisSofiaDelRead(void *privdata) {
+static void redisSofiaDelRead(void* privdata) {
 	delWaitMask(privdata, SU_WAIT_IN);
 }
 
-static void redisSofiaAddWrite(void *privdata) {
+static void redisSofiaAddWrite(void* privdata) {
 	addWaitMask(privdata, SU_WAIT_OUT);
 }
 
-static void redisSofiaDelWrite(void *privdata) {
+static void redisSofiaDelWrite(void* privdata) {
 	delWaitMask(privdata, SU_WAIT_OUT);
 }
 
 // Note: async.h requires this method to be idempotent; it is not the case.
-static void redisSofiaCleanup(void *privdata) {
-	redisSofiaEvents *e = (redisSofiaEvents*)privdata;
+static void redisSofiaCleanup(void* privdata) {
+	redisSofiaEvents* e = (redisSofiaEvents*)privdata;
 	su_root_deregister(e->root, e->index);
 	LOGI("Redis sofia event cleaned %p", e->context);
 	free(e);
 }
 
-static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
-	redisContext *c = &(ac->c);
-	redisSofiaEvents *e;
+static int redisSofiaAttach(redisAsyncContext* ac, su_root_t* root) {
+	redisContext* c = &(ac->c);
+	redisSofiaEvents* e;
 
 	/* Nothing should be attached when something is already attached */
-	if (ac->ev.data != NULL)
-		return REDIS_ERR;
+	if (ac->ev.data != NULL) return REDIS_ERR;
 
 	/* Create container for context and r/w events */
-	e = (redisSofiaEvents *)malloc(sizeof(*e));
+	e = (redisSofiaEvents*)malloc(sizeof(*e));
 	e->context = ac;
 	e->root = root;
 	e->eventmask = 0;
@@ -120,4 +116,4 @@ static int redisSofiaAttach(redisAsyncContext *ac, su_root_t *root) {
 	return REDIS_OK;
 }
 
-}
+} // namespace flexisip

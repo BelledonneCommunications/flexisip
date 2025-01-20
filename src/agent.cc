@@ -663,7 +663,8 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	// Instantiate the modules.
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
-		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
+		SLOGI << "Creating module instance of "
+		      << "[" << moduleInfo->getModuleName() << "].";
 		mModules.push_back(moduleInfo->create(this));
 	}
 
@@ -916,13 +917,15 @@ string Agent::Network::print(const struct ifaddrs* ifaddr) {
 
 	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tAddress: " << "(Error)";
+		ss << "\tAddress: "
+		   << "(Error)";
 	} else {
 		ss << "\tAddress: " << result;
 	}
 	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tMask: " << "(Error)";
+		ss << "\tMask: "
+		   << "(Error)";
 	} else {
 		ss << "\tMask: " << result;
 	}

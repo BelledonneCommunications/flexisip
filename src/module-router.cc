@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -62,98 +62,218 @@ ModuleRouter::~ModuleRouter() {
 
 void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor configs[] = {
-	    {Boolean, "use-global-domain", "Store and retrieve contacts without using the domain.", "false"},
-	    {Boolean, "fork-late", "Fork invites to late registers.", "false"},
-	    {Boolean, "fork-no-global-decline", "All the forked have to decline in order to decline the caller invite.",
-	     "false"},
-	    {Boolean, "treat-decline-as-urgent",
-	     "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.", "false"},
-	    {Boolean, "treat-all-as-urgent", "During a fork procedure, treat all failure response as urgent.", "false"},
-	    {DurationS, "call-fork-timeout", "Maximum time for a call fork to try to reach a callee.", "90"},
-	    {DurationS, "call-fork-urgent-timeout",
-	     "Maximum time before delivering urgent responses during a call fork. "
-	     "The typical fork process requires to wait the best response from all branches before transmitting it to "
-	     "the client. "
-	     "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
-	     "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
-	     "codes.",
-	     "5"},
-	    {DurationS, "call-fork-current-branches-timeout",
-	     "Maximum time before trying the next set of lower priority contacts.", "10"},
-	    {DurationS, "call-push-response-timeout", "Optional timer to detect lack of push response.", "0"},
-	    {Boolean, "message-fork-late", "Fork MESSAGE requests to client registering lately.", "true"},
-	    {DurationS, "message-delivery-timeout",
-	     "Maximum duration for delivering a MESSAGE request. This property applies only if "
-	     "message-fork-late is 'true'; otherwise, the duration can't exceed the normal transaction duration.",
-	     "604800"},
-	    {DurationS, "message-accept-timeout",
-	     "Maximum duration for accepting a MESSAGE request if no response is received from any "
-	     "recipients. This property is meaningful when message-fork-late is set to true.",
-	     "5"},
-	    {Boolean, "message-database-enabled",
-	     "If 'true', the message that are waiting for delivery will be stored in database instead of memory.", "false"},
-	    {String, "message-database-backend",
-	     "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
-	     "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
-	     "mysql"},
-	    {String, "message-database-connection-string",
-	     "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
-	     "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
-	     "the Soci documentation of your backend, for instance: "
-	     "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
-	     "db='mydb' user='myuser' password='mypass' host='myhost.com'"},
-	    {Integer, "message-database-pool-size",
-	     "Size of the pool of connections that Soci will use for accessing the message database.", "100"},
-	    {String, "fallback-route",
-	     "Default route to apply when the recipient is unreachable or when when all attempted destination have "
-	     "failed."
-	     "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brackets)",
-	     ""},
-	    {Boolean, "allow-target-factorization",
-	     "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
-	     "a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
-	     "targets of the INVITE.",
-	     "false"},
-	    {Boolean, "permit-self-generated-provisional-response",
-	     "Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
-	     "A typical example for this is the '110 Push sent' emitted by the proxy when at least one push "
-	     "notification "
-	     "has been sent to a target UA while routing an INVITE. Some old versions of Linphone (below linphone-sdk "
-	     "4.2) "
-	     "suffer from an issue when receiving such kind of provisional responses that don't come from a remote "
-	     "client. "
-	     "This setting is mainly intended to temporarily workaround this situation.",
-	     "true"},
-	    {Boolean, "resolve-routes",
-	     "Whether or not to resolve next hop in route header against registrar database."
-	     " This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
-	     " A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.",
-	     "false"},
-	    {Boolean, "parent-domain-fallback",
-	     "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is "
-	     "unreachable. "
-	     "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a "
-	     "non-standard behavior.",
-	     "false"},
-	    {BooleanExpr, "fallback-route-filter", "Only use the fallback route if the expression is true.", "true"},
-	    {DurationS, "max-request-retention-time",
-	     "Max time the proxy will retain a request in order to maintain order.", "30"},
-	    {StringList, "static-targets",
-	     "List of sip addresses that are always added to the list of contacts fetched from the registrar database "
-	     "when routing INVITE and MESSAGE requests.",
-	     ""},
+	    {
+	        Boolean,
+	        "use-global-domain",
+	        "Store and retrieve contacts without using the domain.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "fork-late",
+	        "Fork invites to late registers.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "fork-no-global-decline",
+	        "All the forked have to decline in order to decline the caller invite.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "treat-decline-as-urgent",
+	        "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "treat-all-as-urgent",
+	        "During a fork procedure, treat all failure response as urgent.",
+	        "false",
+	    },
+	    {
+	        DurationS,
+	        "call-fork-timeout",
+	        "Maximum time for a call fork to try to reach a callee.",
+	        "90",
+	    },
+	    {
+	        DurationS,
+	        "call-fork-urgent-timeout",
+	        "Maximum time before delivering urgent responses during a call fork. "
+	        "The typical fork process requires to wait the best response from all branches before transmitting it to "
+	        "the client. "
+	        "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
+	        "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
+	        "codes.",
+	        "5",
+	    },
+	    {
+	        DurationS,
+	        "call-fork-current-branches-timeout",
+	        "Maximum time before trying the next set of lower priority contacts.",
+	        "10",
+	    },
+	    {
+	        DurationS,
+	        "call-push-response-timeout",
+	        "Optional timer to detect lack of push response.",
+	        "0",
+	    },
+	    {
+	        Boolean,
+	        "message-fork-late",
+	        "Fork MESSAGE requests to client registering lately.",
+	        "true",
+	    },
+	    {
+	        DurationS,
+	        "message-delivery-timeout",
+	        "Maximum duration for delivering a MESSAGE request. This property applies only if "
+	        "message-fork-late is 'true'; otherwise, the duration can't exceed the normal transaction duration.",
+	        "604800",
+	    },
+	    {
+	        DurationS,
+	        "message-accept-timeout",
+	        "Maximum duration for accepting a MESSAGE request if no response is received from any "
+	        "recipients. This property is meaningful when message-fork-late is set to true.",
+	        "5",
+	    },
+	    {
+	        Boolean,
+	        "message-database-enabled",
+	        "If 'true', the message that are waiting for delivery will be stored in database instead of memory.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "message-database-backend",
+	        "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
+	        "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
+	        "mysql",
+	    },
+	    {
+	        String,
+	        "message-database-connection-string",
+	        "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
+	        "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
+	        "the Soci documentation of your backend, for instance: "
+	        "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	        "db='mydb' user='myuser' password='mypass' host='myhost.com'",
+	    },
+	    {
+	        Integer,
+	        "message-database-pool-size",
+	        "Size of the pool of connections that Soci will use for accessing the message database.",
+	        "100",
+	    },
+	    {
+	        String,
+	        "fallback-route",
+	        "Default route to apply when the recipient is unreachable or when when all attempted destination have "
+	        "failed."
+	        "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brackets)",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "allow-target-factorization",
+	        "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
+	        "a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
+	        "targets of the INVITE.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "permit-self-generated-provisional-response",
+	        "Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
+	        "A typical example for this is the '110 Push sent' emitted by the proxy when at least one push "
+	        "notification "
+	        "has been sent to a target UA while routing an INVITE. Some old versions of Linphone (below linphone-sdk "
+	        "4.2) "
+	        "suffer from an issue when receiving such kind of provisional responses that don't come from a remote "
+	        "client. "
+	        "This setting is mainly intended to temporarily workaround this situation.",
+	        "true",
+	    },
+	    {
+	        Boolean,
+	        "resolve-routes",
+	        "Whether or not to resolve next hop in route header against registrar database."
+	        " This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
+	        " A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "parent-domain-fallback",
+	        "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is "
+	        "unreachable. "
+	        "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a "
+	        "non-standard behavior.",
+	        "false",
+	    },
+	    {
+	        BooleanExpr,
+	        "fallback-route-filter",
+	        "Only use the fallback route if the expression is true.",
+	        "true",
+	    },
+	    {
+	        DurationS,
+	        "max-request-retention-time",
+	        "Max time the proxy will retain a request in order to maintain order.",
+	        "30",
+	    },
+	    {
+	        StringList,
+	        "static-targets",
+	        "List of sip addresses that are always added to the list of contacts fetched from the registrar database "
+	        "when routing INVITE and MESSAGE requests.",
+	        "",
+	    },
 
 	    // deprecated parameters
-	    {Boolean, "stateful",
-	     "Force forking and thus the creation of an outgoing transaction even when only one contact found", "true"},
-	    {Boolean, "fork", "Fork messages to all registered devices", "true"},
-	    {String, "generated-contact-route",
-	     "Generate a contact from the TO header and route it to the above destination. [sip:host:port]", ""},
-	    {String, "generated-contact-expected-realm",
-	     "Require presence of authorization header for specified realm. [Realm]", ""},
-	    {Boolean, "generate-contact-even-on-filled-aor", "Generate a contact route even on filled AOR.", "false"},
-	    {String, "preroute", "Rewrite username with given value.", ""},
-	    config_item_end};
+	    {
+	        Boolean,
+	        "stateful",
+	        "Force forking and thus the creation of an outgoing transaction even when only one contact found",
+	        "true",
+	    },
+	    {
+	        Boolean,
+	        "fork",
+	        "Fork messages to all registered devices",
+	        "true",
+	    },
+	    {
+	        String,
+	        "generated-contact-route",
+	        "Generate a contact from the TO header and route it to the above destination. [sip:host:port]",
+	        "",
+	    },
+	    {
+	        String,
+	        "generated-contact-expected-realm",
+	        "Require presence of authorization header for specified realm. [Realm]",
+	        "",
+	    },
+	    {
+	        Boolean,
+	        "generate-contact-even-on-filled-aor",
+	        "Generate a contact route even on filled AOR.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "preroute",
+	        "Rewrite username with given value.",
+	        "",
+	    },
+	    config_item_end,
+	};
 	moduleConfig.addChildrenValues(configs);
 
 	// deprecated since 2020-01-28 (2.0.0)
@@ -162,9 +282,16 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 		const char* depVersion = "2.0.0";
 
 		moduleConfig.get<ConfigBoolean>("stateful")
-		    ->setDeprecated({depDate, depVersion, "Stateless mode isn't supported anymore."});
-		moduleConfig.get<ConfigBoolean>("fork")->setDeprecated(
-		    {depDate, depVersion, "This feature is always enabled since stateless mode is removed."});
+		    ->setDeprecated({
+		        depDate,
+		        depVersion,
+		        "Stateless mode isn't supported anymore.",
+		    });
+		moduleConfig.get<ConfigBoolean>("fork")->setDeprecated({
+		    depDate,
+		    depVersion,
+		    "This feature is always enabled since stateless mode is removed.",
+		});
 
 		GenericEntry::DeprecationInfo removedFeatureDepInfo(depDate, depVersion, "This feature has been removed.");
 		moduleConfig.get<ConfigString>("generated-contact-route")->setDeprecated(removedFeatureDepInfo);
@@ -174,7 +301,11 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	}
 
 	moduleConfig.get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")
-	    ->setDeprecated({"2022-02-03", "2.2.0", "This feature will be removed in a future version."});
+	    ->setDeprecated({
+	        "2022-02-03",
+	        "2.2.0",
+	        "This feature will be removed in a future version.",
+	    });
 
 	moduleConfig.createStatPair("count-forks", "Number of forks");
 	moduleConfig.createStatPair("count-basic-forks", "Number of basic forks");

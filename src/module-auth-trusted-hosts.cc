@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -33,11 +33,16 @@ const auto sTrustedHostsInfo = ModuleInfo<ModuleAuthTrustedHosts>(
     ModuleInfoBase::ModuleOid::TrustedHostsAuthentication,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
-	        {StringList, "trusted-hosts",
-	         "List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
-	         "addresses won't be challenged.",
-	         ""},
-	        config_item_end};
+	        {
+	            StringList,
+	            "trusted-hosts",
+	            "List of whitespace-separated IP addresses which will be judged as "
+	            "trustful. Messages coming from these "
+	            "addresses won't be challenged.",
+	            "",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
     });

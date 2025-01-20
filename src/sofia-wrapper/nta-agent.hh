@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -13,7 +13,7 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -152,12 +152,12 @@ public:
 		return firstTransport ? ::tport_name(firstTransport)->tpn_port : "";
 	}
 
-    /*
-     * Return the master transport for the agent.
-     */
-    const tport_t* getTransports() const {
-        return ::nta_agent_tports(mNativePtr);
-    }
+	/*
+	 * Return the master transport for the agent.
+	 */
+	const tport_t* getTransports() const {
+		return ::nta_agent_tports(mNativePtr);
+	}
 
 private:
 	void onOutgoingTransactionResponse(nta_outgoing_t* transaction, const sip_t* response) noexcept {

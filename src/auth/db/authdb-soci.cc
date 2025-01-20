@@ -25,8 +25,8 @@
 #include <soci/mysql/soci-mysql.h>
 
 #include "flexisip/configmanager.hh"
-#include "utils/soci-helper.hh"
 #include "utils/digest.hh"
+#include "utils/soci-helper.hh"
 #include "utils/string-utils.hh"
 #include "utils/thread/auto-thread-pool.hh"
 
@@ -93,85 +93,110 @@ buildSociParamInjecter(std::string_view request) {
 void SociAuthDB::declareConfig(GenericStruct* mc) {
 	// ODBC-specific configuration keys
 	ConfigItemDescriptor items[] = {
-	    {String, "soci-backend",
-	     "Choose the type of backend that Soci will use for the connection.\n"
-	     "Depending on your Soci package and the modules you installed, this could be 'mysql', "
-	     "'oracle', 'postgresql' or something else.",
-	     "mysql"},
-
-	    {String, "soci-connection-string",
-	     "The configuration parameters of the Soci backend.\n"
-	     "The basic format is \"key=value key2=value2\". For a mysql backend, this "
-	     "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
-	     "Please refer to the Soci documentation of your backend, for intance: "
-	     "http://soci.sourceforge.net/doc/release/4.0/backends/mysql/",
-	     "db=mydb user=myuser password='mypass' host=myhost.com"},
-
-	    {String, "soci-password-request",
-	     "Soci SQL request used to obtain the password of a given user.\n"
-	     "Each keywords starting with ':' character will be replaced by strings extracted from "
-	     "the SIP request to authenticate.\n"
-	     "\n"
-	     "Only these keywords are supported:"
-	     " - ':id'     : the user found in the from header (mandatory)\n"
-	     " - ':domain' : the authorization realm\n"
-	     " - ':authid' : the authorization username\n"
-	     "\n"
-	     "The request MUST returns a two-columns table, which columns are defined as follow:\n"
-	     " - 1st column: hashed password of the user or plain password if the associated algorithm is CLRTXT.\n"
-	     " - 2nd column: the algorithm used to hash the associated password. Supported values: 'CLRTXT', 'MD5', "
-	     "'SHA-256'\n"
-	     "\n"
-	     "Examples:\n"
-	     " - the password and algorithm are both available in the database\n"
-	     "\tselect password, algorithm from accounts where username = :id and domain = :domain\n",
-	     "select password, algorithm from passwords where account_id = (select id from accounts where username = :id and domain = :domain and activated = true)"},
-	    {Integer, "soci-max-queue-size",
-	     "Amount of queries that will be allowed to be queued before bailing password requests.\n"
-	     "This value should be chosen accordingly with 'soci-poolsize', so that you have a coherent behavior.\n"
-	     "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a "
-	     "flood or big delays in the database backend.",
-	     "1000"},
-
-	    {Integer, "soci-poolsize",
-	     "Size of the pool of connections that Soci will use. A thread is opened for each DB query, and this pool "
-	     "will allow each thread to get a connection.\n"
-	     "The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
-	     "allow more connections to occur simultaneously.\n"
-	     "On the other hand, you should not keep too many open connections to your DB at the same time.",
-	     "100"},
+	    {
+	        String,
+	        "soci-backend",
+	        "Choose the type of backend that Soci will use for the connection.\n"
+	        "Depending on your Soci package and the modules you installed, this could be 'mysql', "
+	        "'oracle', 'postgresql' or something else.",
+	        "mysql",
+	    },
+	    {
+	        String,
+	        "soci-connection-string",
+	        "The configuration parameters of the Soci backend.\n"
+	        "The basic format is \"key=value key2=value2\". For a mysql backend, this "
+	        "is a valid config: \"db=mydb user=user password='pass' host=myhost.com\".\n"
+	        "Please refer to the Soci documentation of your backend, for intance: "
+	        "http://soci.sourceforge.net/doc/release/4.0/backends/mysql/",
+	        "db=mydb user=myuser password='mypass' host=myhost.com",
+	    },
+	    {
+	        String,
+	        "soci-password-request",
+	        "Soci SQL request used to obtain the password of a given user.\n"
+	        "Each keywords starting with ':' character will be replaced by strings extracted from "
+	        "the SIP request to authenticate.\n"
+	        "\n"
+	        "Only these keywords are supported:"
+	        " - ':id'     : the user found in the from header (mandatory)\n"
+	        " - ':domain' : the authorization realm\n"
+	        " - ':authid' : the authorization username\n"
+	        "\n"
+	        "The request MUST returns a two-columns table, which columns are defined as follow:\n"
+	        " - 1st column: hashed password of the user or plain password if the associated algorithm is CLRTXT.\n"
+	        " - 2nd column: the algorithm used to hash the associated password. Supported values: 'CLRTXT', 'MD5', "
+	        "'SHA-256'\n"
+	        "\n"
+	        "Examples:\n"
+	        " - the password and algorithm are both available in the database\n"
+	        "\tselect password, algorithm from accounts where username = :id and domain = :domain\n",
+	        "select password, algorithm from passwords where account_id = (select id from accounts where username = "
+	        ":id "
+	        "and domain = :domain and activated = true)",
+	    },
+	    {
+	        Integer,
+	        "soci-max-queue-size",
+	        "Amount of queries that will be allowed to be queued before bailing password requests.\n"
+	        "This value should be chosen accordingly with 'soci-poolsize', so that you have a coherent behavior.\n"
+	        "This limit is here mainly as a safeguard against out-of-control growth of the queue in the event of a "
+	        "flood or big delays in the database backend.",
+	        "1000",
+	    },
+	    {
+	        Integer,
+	        "soci-poolsize",
+	        "Size of the pool of connections that Soci will use. A thread is opened for each DB query, and this pool "
+	        "will allow each thread to get a connection.\n"
+	        "The threads are blocked until a connection is released back to the pool, so increasing the pool size will "
+	        "allow more connections to occur simultaneously.\n"
+	        "On the other hand, you should not keep too many open connections to your DB at the same time.",
+	        "100",
+	    },
 
 	    // Deprecated
-	    {String, "soci-user-with-phone-request",
-	     "WARNING: This parameter is used by the presence server only.\n"
-	     "Soci SQL request used to obtain the username associated with a phone alias.\n"
-	     "The string MUST contains the ':phone' keyword which will be replaced by the phone number to look for.\n"
-	     "The result of the request is a 1x1 table containing the name of the user associated with the phone "
-	     "number.\n"
-	     "\n"
-	     "Example: select username from accounts where phone = :phone",
-	     "select username from accounts where activated = true and (username = :phone or phone = :phone)"},
-
-	    {String, "soci-users-with-phones-request",
-	     "WARNING: This parameter is used by the presence server only.\n"
-	     "Same as 'soci-user-with-phone-request' but allows to fetch several users by a unique SQL request.\n"
-	     "The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
-	     "look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
-	     "(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
-	     "Example: select username, domain from accounts where phone in (:phones)",
-	     "select username, domain from accounts where activated = true and (username in (:phones) or phone in (:phones));"},
-	    config_item_end};
+	    {
+	        String,
+	        "soci-user-with-phone-request",
+	        "WARNING: This parameter is used by the presence server only.\n"
+	        "Soci SQL request used to obtain the username associated with a phone alias.\n"
+	        "The string MUST contains the ':phone' keyword which will be replaced by the phone number to look for.\n"
+	        "The result of the request is a 1x1 table containing the name of the user associated with the phone "
+	        "number.\n"
+	        "\n"
+	        "Example: select username from accounts where phone = :phone",
+	        "select username from accounts where activated = true and (username = :phone or phone = :phone)",
+	    },
+	    {
+	        String,
+	        "soci-users-with-phones-request",
+	        "WARNING: This parameter is used by the presence server only.\n"
+	        "Same as 'soci-user-with-phone-request' but allows to fetch several users by a unique SQL request.\n"
+	        "The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
+	        "look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
+	        "(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
+	        "Example: select username, domain from accounts where phone in (:phones)",
+	        "select username, domain from accounts where activated = true and (username in (:phones) or phone in "
+	        "(:phones));",
+	    },
+	    config_item_end,
+	};
 
 	mc->addChildrenValues(items);
 
 	auto userWithPhoneReqConf = mc->get<ConfigString>("soci-user-with-phone-request");
-	userWithPhoneReqConf->setDeprecated(
-	    {"2020-06-18", "2.1.0",
-	     "This configuration is moved to [presence-server] section. Please move your configuration."});
+	userWithPhoneReqConf->setDeprecated({
+	    "2020-06-18",
+	    "2.1.0",
+	    "This configuration is moved to [presence-server] section. Please move your configuration.",
+	});
 	auto usersWithPhonesReqConf = mc->get<ConfigString>("soci-users-with-phones-request");
-	usersWithPhonesReqConf->setDeprecated(
-	    {"2020-06-18", "2.1.0",
-	     "This configuration is moved to [presence-server] section. Please move your configuration."});
+	usersWithPhonesReqConf->setDeprecated({
+	    "2020-06-18",
+	    "2.1.0",
+	    "This configuration is moved to [presence-server] section. Please move your configuration.",
+	});
 
 #if ENABLE_PRESENCE
 	auto* ps = dynamic_cast<GenericStruct*>(mc->getParent())->get<GenericStruct>("presence-server");

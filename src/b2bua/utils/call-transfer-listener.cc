@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,7 +24,7 @@
 
 using namespace std;
 
-namespace flexisip::b2bua{
+namespace flexisip::b2bua {
 
 void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<linphone::Call>& call,
                                                          linphone::Call::State state) {
@@ -40,8 +40,7 @@ void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<l
 			break;
 		case linphone::Call::State::Error:
 			body = "SIP/2.0 500 Internal Server Error\r\n";
-			SLOGD << FUNC_LOG_PREFIX << ": forward NOTIFY request with body \""
-			      << body.substr(0, body.size() - 2)
+			SLOGD << FUNC_LOG_PREFIX << ": forward NOTIFY request with body \"" << body.substr(0, body.size() - 2)
 			      << "\" because we cannot yet distinguish all cases (603 Decline, 503 Service Unavailable, etc.)";
 			break;
 		default:
@@ -55,8 +54,7 @@ void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<l
 void b2bua::CallTransferListener::sendNotify(const std::string& body) {
 	const auto peerCall = mPeerCall.lock();
 	if (!peerCall) {
-		SLOGW << FUNC_LOG_PREFIX << ": unable to forward NOTIFY request (" << body
-		      << "), peer call has been freed";
+		SLOGW << FUNC_LOG_PREFIX << ": unable to forward NOTIFY request (" << body << "), peer call has been freed";
 		return;
 	}
 
@@ -76,4 +74,4 @@ void b2bua::CallTransferListener::sendNotify(const std::string& body) {
 	event->notify(content);
 }
 
-}
+} // namespace flexisip::b2bua

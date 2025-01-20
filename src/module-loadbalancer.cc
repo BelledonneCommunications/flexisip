@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -98,11 +98,16 @@ ModuleInfo<LoadBalancer> LoadBalancer::sInfo(
     [](GenericStruct& moduleConfig) {
 	    /*we need to be disabled by default*/
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
-	    ConfigItemDescriptor items[] = {{StringList, "routes",
-	                                     "Whitespace separated list of sip routes to balance the "
-	                                     "requests. Example: <sip:192.168.0.22> <sip:192.168.0.23>",
-	                                     ""},
-	                                    config_item_end};
+	    ConfigItemDescriptor items[] = {
+	        {
+	            StringList,
+	            "routes",
+	            "Whitespace separated list of sip routes to balance the "
+	            "requests. Example: <sip:192.168.0.22> <sip:192.168.0.23>",
+	            "",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
     },
     ModuleClass::Experimental);

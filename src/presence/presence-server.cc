@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -52,59 +52,144 @@ namespace {
 // Statically define default configuration items
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
-	    {Boolean, "enabled", "Enable presence server", "true"},
-	    {StringList, "transports",
-	     "List of white space separated SIP URIs where the presence server must listen. Must not be tls.",
-	     "sip:127.0.0.1:5065;transport=tcp"},
-	    {DurationS, "expires", "Default expires of PUBLISH request.", "600"},
-	    {Integer, "notify-limit", "Max number of presentity sent in a single NOTIFY by default.", "200"},
-	    {Boolean, "long-term-enabled", "Enable long-term presence notifies", "false"},
-	    {String, "rls-database-connection", "Soci connection string for the resource list database.", ""},
-	    {String, "rls-database-request",
-	     "SQL request to obtain the list of the users corresponding to an resource list subscription.\n"
-	     "Named parameters are:\n"
-	     " * ':from' : the URI of the sender of the SUBSCRIBE. (mandatory)\n"
-	     " * ':to' : the URI of the users list which the sender want to subscribe to. (mandatory)\n",
-	     ""},
-	    {Integer, "rls-database-max-thread", "Max number of threads.", "50"},
-	    {Integer, "rls-database-max-thread-queue-size", "Max legnth of threads queue.", "50"},
-	    {String, "soci-user-with-phone-request",
-	     "Soci SQL request used to obtain the username associated with a phone alias.\n"
-	     "The string MUST contains the ':phone' keyword which will be replaced by the phone number to look for.\n"
-	     "The result of the request is a 1x1 table containing the name of the user associated with the phone "
-	     "number.\n"
-	     "\n"
-	     "Example: select login from accounts where phone = :phone ",
-	     ""},
-	    {String, "soci-users-with-phones-request",
-	     "Same as 'soci-user-with-phone-request' but allows to fetch several users by a unique SQL request.\n"
-	     "The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
-	     "look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
-	     "(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
-	     "If you use phone number linked accounts you'll need to select login, domain, phone in your request for "
-	     "flexisip to work.\n"
-	     "Example: select login, domain, phone from accounts where phone in (:phones)",
-	     ""},
-	    {Integer, "max-presence-elements", "Maximum number of presence element by identity saved in memory.", "10"},
+	    {
+	        Boolean,
+	        "enabled",
+	        "Enable presence server",
+	        "true",
+	    },
+	    {
+	        StringList,
+	        "transports",
+	        "List of white space separated SIP URIs where the presence server must listen. Must not be tls.",
+	        "sip:127.0.0.1:5065;transport=tcp",
+	    },
+	    {
+	        DurationS,
+	        "expires",
+	        "Default expires of PUBLISH request.",
+	        "600",
+	    },
+	    {
+	        Integer,
+	        "notify-limit",
+	        "Max number of presentity sent in a single NOTIFY by default.",
+	        "200",
+	    },
+	    {
+	        Boolean,
+	        "long-term-enabled",
+	        "Enable long-term presence notifies",
+	        "false",
+	    },
+	    {
+	        String,
+	        "rls-database-connection",
+	        "Soci connection string for the resource list database.",
+	        "",
+	    },
+	    {
+	        String,
+	        "rls-database-request",
+	        "SQL request to obtain the list of the users corresponding to an resource list subscription.\n"
+	        "Named parameters are:\n"
+	        " * ':from' : the URI of the sender of the SUBSCRIBE. (mandatory)\n"
+	        " * ':to' : the URI of the users list which the sender want to subscribe to. (mandatory)\n",
+	        "",
+	    },
+	    {
+	        Integer,
+	        "rls-database-max-thread",
+	        "Max number of threads.",
+	        "50",
+	    },
+	    {
+	        Integer,
+	        "rls-database-max-thread-queue-size",
+	        "Max legnth of threads queue.",
+	        "50",
+	    },
+	    {
+	        String,
+	        "soci-user-with-phone-request",
+	        "Soci SQL request used to obtain the username associated with a phone alias.\n"
+	        "The string MUST contains the ':phone' keyword which will be replaced by the phone number to look for.\n"
+	        "The result of the request is a 1x1 table containing the name of the user associated with the phone "
+	        "number.\n"
+	        "\n"
+	        "Example: select login from accounts where phone = :phone ",
+	        "",
+	    },
+	    {
+	        String,
+	        "soci-users-with-phones-request",
+	        "Same as 'soci-user-with-phone-request' but allows to fetch several users by a unique SQL request.\n"
+	        "The string MUST contains the ':phones' keyword which will be replaced by the list of phone numbers to "
+	        "look for. Each element of the list is seperated by a comma character and is protected by simple quotes "
+	        "(e.g. '0336xxxxxxxx','0337yyyyyyyy','034zzzzzzzzz').\n"
+	        "If you use phone number linked accounts you'll need to select login, domain, phone in your request for "
+	        "flexisip to work.\n"
+	        "Example: select login, domain, phone from accounts where phone in (:phones)",
+	        "",
+	    },
+	    {
+	        Integer,
+	        "max-presence-elements",
+	        "Maximum number of presence element by identity saved in memory.",
+	        "10",
+	    },
 
 	    // Hidden parameters
-	    {String, "bypass-condition", "If user agent contains it, can bypass extended notifiy verification.", "false"},
-	    {Boolean, "leak-detector", "Enable belle-sip leak detector", "false"},
+	    {
+	        String,
+	        "bypass-condition",
+	        "If user agent contains it, can bypass extended notifiy verification.",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "leak-detector",
+	        "Enable belle-sip leak detector",
+	        "false",
+	    },
 
 	    // Deprecated parameters
-	    {String, "soci-connection-string", "Connection string to SOCI.", ""},
-	    {String, "external-list-subscription-request",
-	     "Soci SQL request to execute to obtain the list of the users corresponding to an external subscription.\n"
-	     "Named parameters are:\n"
-	     " * ':from' : the URI of the sender of the SUBSCRIBE.\n"
-	     " * ':to' : the URI of the users list which the sender want to subscribe to.\n"
-	     "The use of the :from & :to parameters are mandatory.",
-	     ""},
-	    {Integer, "max-thread", "Max number of threads.", "50"},
-	    {Integer, "max-thread-queue-size", "Max legnth of threads queue.", "50"},
-	    {Integer, "last-activity-retention-time",
-	     "Duration in milliseconds during which the last activity is kept in memory. Default is 1 day.", "86400000"},
-	    config_item_end};
+	    {
+	        String,
+	        "soci-connection-string",
+	        "Connection string to SOCI.",
+	        "",
+	    },
+	    {
+	        String,
+	        "external-list-subscription-request",
+	        "Soci SQL request to execute to obtain the list of the users corresponding to an external subscription.\n"
+	        "Named parameters are:\n"
+	        " * ':from' : the URI of the sender of the SUBSCRIBE.\n"
+	        " * ':to' : the URI of the users list which the sender want to subscribe to.\n"
+	        "The use of the :from & :to parameters are mandatory.",
+	        "",
+	    },
+	    {
+	        Integer,
+	        "max-thread",
+	        "Max number of threads.",
+	        "50",
+	    },
+	    {
+	        Integer,
+	        "max-thread-queue-size",
+	        "Max legnth of threads queue.",
+	        "50",
+	    },
+	    {
+	        Integer,
+	        "last-activity-retention-time",
+	        "Duration in milliseconds during which the last activity is kept in memory. Default is 1 day.",
+	        "86400000",
+	    },
+	    config_item_end,
+	};
 
 	auto s = root.addChild(make_unique<GenericStruct>("presence-server", "Flexisip presence server parameters.", 0));
 	s->addChildrenValues(items);
@@ -113,19 +198,35 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	s->get<ConfigBoolean>("leak-detector")->setExportable(false);
 
 	auto sociConnectionString = s->get<ConfigString>("soci-connection-string");
-	sociConnectionString->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-connection'"});
+	sociConnectionString->setDeprecated({
+	    "2020-06-02",
+	    "2.0.0",
+	    "Renamed into 'rls-database-connection'",
+	});
 	s->get<ConfigString>("rls-database-connection")->setFallback(*sociConnectionString);
 
 	auto externalListSubscriptionRequest = s->get<ConfigString>("external-list-subscription-request");
-	externalListSubscriptionRequest->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-request'"});
+	externalListSubscriptionRequest->setDeprecated({
+	    "2020-06-02",
+	    "2.0.0",
+	    "Renamed into 'rls-database-request'",
+	});
 	s->get<ConfigString>("rls-database-request")->setFallback(*externalListSubscriptionRequest);
 
 	auto maxThread = s->get<ConfigInt>("max-thread");
-	maxThread->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread'"});
+	maxThread->setDeprecated({
+	    "2020-06-02",
+	    "2.0.0",
+	    "Renamed into 'rls-database-max-thread'",
+	});
 	s->get<ConfigInt>("rls-database-max-thread")->setFallback(*maxThread);
 
 	auto maxThreadQueueSize = s->get<ConfigInt>("max-thread-queue-size");
-	maxThreadQueueSize->setDeprecated({"2020-06-02", "2.0.0", "Renamed into 'rls-database-max-thread-queue-size'"});
+	maxThreadQueueSize->setDeprecated({
+	    "2020-06-02",
+	    "2.0.0",
+	    "Renamed into 'rls-database-max-thread-queue-size'",
+	});
 	s->get<ConfigInt>("rls-database-max-thread-queue-size")->setFallback(*maxThreadQueueSize);
 
 	s->createStatPair("count-presence-presentity", "Number of PresentityPresenceInformation");

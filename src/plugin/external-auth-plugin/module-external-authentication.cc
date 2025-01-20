@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,12 +9,14 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
+#include "module-external-authentication.hh"
 
 #include <algorithm>
 #include <stdexcept>
@@ -28,8 +30,6 @@
 
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
-
-#include "module-external-authentication.hh"
 
 using namespace std;
 
@@ -130,24 +130,30 @@ ModuleInfo<ModuleExternalAuthentication> ExternalAuthInfo(
     [](GenericStruct& moduleConfig) {
 	    ModuleAuthenticationBase::declareConfig(moduleConfig);
 	    ConfigItemDescriptor items[] = {
-	        {String, "remote-auth-uri",
-	         "URI to use to connect on the external HTTP server on each request. Each token preceded enclosed "
-	         "by '{' and '}' bracket will be replaced before sending the HTTP request. The available tokens are:\n"
-	         "\t* {method}: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
-	         "\t* {sip-instance}: the value of +sip.instance parameter.\n"
-	         "\t* {from}: the value of the request's 'From:' header\n"
-	         "\t* {domain}: the domain name extracted from the From header's URI\n"
-	         "\t* all the parameters available in the Authorization header. Ex: {realm}, {nonce}, {username}, ...\n"
-	         "\t* {uuid}: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
-	         "the 'gr' parameter of the contact URI or, if not present, from the '+sip.instance' parameter. "
-	         "If neither 'gr' nor '+sip.instance' parameters are present, then $uuid is be replaced by an empty string."
-	         "\t* {header:<name>}: the value of <name> header of the request to authenticate. Replaced by 'null' if "
-	         "the "
-	         "header is missing. Note: name matching isn't case-sensitive."
-	         "\n"
-	         "Ex: https://{realm}.example.com/auth?from={from}&cnonce={cnonce}&username={username}&cseq={header:cseq}",
-	         ""},
-	        config_item_end};
+	        {
+	            String,
+	            "remote-auth-uri",
+	            "URI to use to connect on the external HTTP server on each request. Each token preceded enclosed "
+	            "by '{' and '}' bracket will be replaced before sending the HTTP request. The available tokens are:\n"
+	            "\t* {method}: the method of the SIP request that is being challenged. Ex: REGISTER, INVITE, ...\n"
+	            "\t* {sip-instance}: the value of +sip.instance parameter.\n"
+	            "\t* {from}: the value of the request's 'From:' header\n"
+	            "\t* {domain}: the domain name extracted from the From header's URI\n"
+	            "\t* all the parameters available in the Authorization header. Ex: {realm}, {nonce}, {username}, ...\n"
+	            "\t* {uuid}: the UUID of the user agent whose request is being challenged. The UUID is gotten from "
+	            "the 'gr' parameter of the contact URI or, if not present, from the '+sip.instance' parameter. "
+	            "If neither 'gr' nor '+sip.instance' parameters are present, then $uuid is be replaced by an empty "
+	            "string."
+	            "\t* {header:<name>}: the value of <name> header of the request to authenticate. Replaced by 'null' if "
+	            "the "
+	            "header is missing. Note: name matching isn't case-sensitive."
+	            "\n"
+	            "Ex: "
+	            "https://{realm}.example.com/auth?from={from}&cnonce={cnonce}&username={username}&cseq={header:cseq}",
+	            "",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
 
 	    // Change the default value of 'trusted-hosts'

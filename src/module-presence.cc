@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -128,11 +128,19 @@ ModuleInfo<ModulePresence> ModulePresence::sInfo(
 	            "A SIP URI where to send all presence related requests.",
 	            "sip:127.0.0.1:5065;transport=tcp",
 	        },
-	        {BooleanExpr, "only-list-subscription", "If true, only manage list subscription.", "false"},
-	        {Boolean, "check-domain-in-presence-results",
-	         "When getting the list of users with phones, if this setting is enabled, it will limit the results to "
-	         "the ones that have the same domain.",
-	         "false"},
+	        {
+	            BooleanExpr,
+	            "only-list-subscription",
+	            "If true, only manage list subscription.",
+	            "false",
+	        },
+	        {
+	            Boolean,
+	            "check-domain-in-presence-results",
+	            "When getting the list of users with phones, if this setting is enabled, it will limit the results to "
+	            "the ones that have the same domain.",
+	            "false",
+	        },
 	        config_item_end};
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 	    moduleConfig.get<ConfigBooleanExpression>("filter")->setDefault(

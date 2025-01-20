@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -74,16 +74,22 @@ public:
 	}
 };
 
-ModuleInfo<ModuleRedirect> ModuleRedirect::sInfo(
-    "Redirect",
-    "This module redirect sip requests with a 302 move temporarily.",
-    {"DateHandler", "Authentication", "ExternalAuthentication", "Authorization"},
-    ModuleInfoBase::ModuleOid::Redirect,
+ModuleInfo<ModuleRedirect>
+    ModuleRedirect::sInfo("Redirect",
+                          "This module redirect sip requests with a 302 move temporarily.",
+                          {"DateHandler", "Authentication", "ExternalAuthentication", "Authorization"},
+                          ModuleInfoBase::ModuleOid::Redirect,
 
-    [](GenericStruct& moduleConfig) {
-	    ConfigItemDescriptor configs[] = {
-	        {String, "contact", "A contact where to redirect requests. ex: <sip:127.0.0.1:5065>;expires=100", ""},
-	        config_item_end};
-	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
-	    moduleConfig.addChildrenValues(configs);
-    });
+                          [](GenericStruct& moduleConfig) {
+	                          ConfigItemDescriptor configs[] = {
+	                              {
+	                                  String,
+	                                  "contact",
+	                                  "A contact where to redirect requests. ex: <sip:127.0.0.1:5065>;expires=100",
+	                                  "",
+	                              },
+	                              config_item_end,
+	                          };
+	                          moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+	                          moduleConfig.addChildrenValues(configs);
+                          });

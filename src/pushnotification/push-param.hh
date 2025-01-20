@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -59,7 +59,9 @@ private:
 class PushParamList {
 public:
 	PushParamList() = default;
-	PushParamList(const std::string& provider, const std::string& customPrId, const std::string& customParam,
+	PushParamList(const std::string& provider,
+	              const std::string& customPrId,
+	              const std::string& customParam,
 	              bool isLegacyContactParams = false);
 	~PushParamList() = default;
 
@@ -74,10 +76,11 @@ public:
 	bool operator==(const PushParamList& ppl) const;
 
 private:
-	void constructFromContactParameters(const std::string& provider, const std::string& customPrid,
+	void constructFromContactParameters(const std::string& provider,
+	                                    const std::string& customPrid,
 	                                    const std::string& customParam);
-	void constructFromLegacyContactParameters(const std::string& pnType, const std::string& pnTok,
-	                                          const std::string& appId);
+	void
+	constructFromLegacyContactParameters(const std::string& pnType, const std::string& pnTok, const std::string& appId);
 
 	std::string mProvider{};
 	std::vector<PushParam> mPushParams{};

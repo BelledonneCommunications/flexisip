@@ -85,7 +85,8 @@ public:
 	                                             PushNotification* _module,
 	                                             const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
 	                                             const std::string& pnKey) {
-		auto obj = std::shared_ptr<PNContextNotify>{new PNContextNotify{transaction, _module, pInfo, pnKey, std::chrono::seconds{30}}};
+		auto obj = std::shared_ptr<PNContextNotify>{
+		    new PNContextNotify{transaction, _module, pInfo, pnKey, std::chrono::seconds{30}}};
 		obj->init();
 		return obj;
 	}

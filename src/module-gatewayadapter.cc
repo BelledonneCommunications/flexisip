@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -525,20 +525,45 @@ ModuleInfo<GatewayAdapter> GatewayAdapter::sInfo(
     [](GenericStruct& moduleConfig) {
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 	    ConfigItemDescriptor items[] = {
-	        {Integer, "forced-expire",
-	         "Force expire of gw register to a value. -1 to use expire provided in received register.", "-1"},
-	        {String, "gateway", "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')",
-	         ""},
-	        {String, "gateway-domain", "Modify the from and to domains of incoming register", ""},
-	        {Boolean, "fork-to-gateway", "The gateway will be added to the incoming register contacts.", "true"},
-	        {Boolean, "register-on-gateway",
-	         "Send a REGISTER to the gateway using "
-	         "this server as a contact in order to be notified on incoming calls by the gateway.",
-	         "true"},
-	        {String, "routing-param",
-	         "Parameter name hosting the incoming domain that will be sent in the register to the gateway.",
-	         "routing-domain"},
-	        config_item_end};
+	        {
+	            Integer,
+	            "forced-expire",
+	            "Force expire of gw register to a value. -1 to use expire provided in received register.",
+	            "-1",
+	        },
+	        {
+	            String,
+	            "gateway",
+	            "A gateway uri where to send all requests, as a SIP url (eg 'sip:gateway.example.net')",
+	            "",
+	        },
+	        {
+	            String,
+	            "gateway-domain",
+	            "Modify the from and to domains of incoming register",
+	            "",
+	        },
+	        {
+	            Boolean,
+	            "fork-to-gateway",
+	            "The gateway will be added to the incoming register contacts.",
+	            "true",
+	        },
+	        {
+	            Boolean,
+	            "register-on-gateway",
+	            "Send a REGISTER to the gateway using "
+	            "this server as a contact in order to be notified on incoming calls by the gateway.",
+	            "true",
+	        },
+	        {
+	            String,
+	            "routing-param",
+	            "Parameter name hosting the incoming domain that will be sent in the register to the gateway.",
+	            "routing-domain",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
 
 	    GatewayRegister::addStatCounters(moduleConfig);

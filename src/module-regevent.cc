@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -94,10 +94,15 @@ ModuleInfo<RegEvent> RegEvent::sInfo(
     ModuleInfoBase::ModuleOid::RegEvent,
 
     [](GenericStruct& moduleConfig) {
-	    ConfigItemDescriptor configs[] = {{String, "regevent-server",
-	                                       "A sip uri where to send all the reg-event related requests.",
-	                                       "sip:127.0.0.1:6065;transport=tcp"},
-	                                      config_item_end};
+	    ConfigItemDescriptor configs[] = {
+	        {
+	            String,
+	            "regevent-server",
+	            "A SIP URI where to send all the reg-event related requests.",
+	            "sip:127.0.0.1:6065;transport=tcp",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 	    moduleConfig.addChildrenValues(configs);
     });

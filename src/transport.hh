@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,8 +25,12 @@ namespace flexisip {
 class Transport {
 public:
 	Transport() = default;
-	Transport(const std::string& hostname, const std::string& port, const std::string& protocol,
-	          const std::string& resolvedIpv4, const std::string& resolvedIpv6, const std::string& addrBiding)
+	Transport(const std::string& hostname,
+	          const std::string& port,
+	          const std::string& protocol,
+	          const std::string& resolvedIpv4,
+	          const std::string& resolvedIpv6,
+	          const std::string& addrBiding)
 	    : mHostname{hostname}, mPort{port}, mProtocol{protocol}, mResolvedIpv4{resolvedIpv4},
 	      mResolvedIpv6{resolvedIpv6}, mAddrBiding{addrBiding} {};
 	~Transport() = default;
@@ -56,6 +60,7 @@ public:
 	const std::string& getResolvedIpv6() const {
 		return mResolvedIpv6;
 	}
+
 private:
 	std::string mHostname{};
 	std::string mPort{};

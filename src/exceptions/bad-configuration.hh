@@ -32,4 +32,5 @@ public:
 	explicit BadConfiguration(Args&&... args) : ExitFailure{-1, std::forward<Args>(args)...} {
 	}
 };
+
 } // namespace flexisip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -35,55 +35,89 @@ namespace flexisip {
 
 void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor items[] = {
-	    {StringList, "trusted-hosts",
-	     "List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
-	     "addresses won't be challenged.",
-	     ""},
-	    {StringList, "auth-domains",
-	     "List of whitespace separated domains to challenge. Others are automatically denied. The wildcard domain '*' "
-	     "is accepted, "
-	     "which means that requests are challenged whatever the originating domain is. This is convenient for a proxy "
-	     "serving multiple SIP domains. ",
-	     "localhost"},
-	    {StringList, "available-algorithms",
-	     "List of digest algorithms to use for password hashing. Think this setting as filter applied after fetching "
-	     "the credentials of a user from the user database. For example, if a user has its password hashed by MD5 and "
-	     "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
-	     "UAC.\n"
-	     "Furthermore, should a user have several hashed passwords and these are present in the list, then a challenge "
-	     "header will be put in the 401 response for each fetched password in the order given by the list.\n"
-	     "Supported algorithms are MD5 and SHA-256.",
-	     "MD5"},
-	    {Boolean, "disable-qop-auth",
-	     "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
-	     "false"},
-	    {BooleanExpr, "no-403",
-	     "Don't reply 403 when authentication fails. Instead, generate a new 401 (or 407) response containing "
-	     "a new challenge.",
-	     "false"},
-	    {DurationS, "nonce-expires", "Expiration time before generating a new nonce.", "3600"},
-	    {String, "realm",
-	     "The realm to use for digest authentication. It will used whatever the domain of the From-URI.\n"
-	     "If the value starts with 'regex:', then this parameter will have the same effect than 'realm-regex', "
-	     "using all the remaining string as regular expression.\n"
-	     "WARNING: this parameter is exclusive with 'realm-regex'\n"
-	     "\n"
-	     "Examples:\n"
-	     "\trealm=sip.example.org\n"
-	     "\trealm=regex:sip:.*@sip\\.(.*)\\.com\n",
-	     ""},
-	    {String, "realm-regex",
-	     "Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in order "
-	     "to extract the realm. The realm is found out by getting the first slice of the URI that matches the regular "
-	     "expression. If it has one or more capturing parentheses, the content of the first one is used as realm.\n"
-	     "If no regex is specified, then the realm will be the domain part of the URI.\n"
-	     "\n"
-	     "For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
-	     "use 'example' as realm.\n"
-	     "\n"
-	     "WARNING: this parameter is exclusive with 'realm'",
-	     ""},
-	    config_item_end};
+	    {
+	        StringList,
+	        "trusted-hosts",
+	        "List of whitespace-separated IP addresses which will be judged as trustful. Messages coming from these "
+	        "addresses won't be challenged.",
+	        "",
+	    },
+	    {
+	        StringList,
+	        "auth-domains",
+	        "List of whitespace separated domains to challenge. Others are automatically denied. The wildcard domain "
+	        "'*' "
+	        "is accepted, "
+	        "which means that requests are challenged whatever the originating domain is. This is convenient for a "
+	        "proxy "
+	        "serving multiple SIP domains. ",
+	        "localhost",
+	    },
+	    {
+	        StringList,
+	        "available-algorithms",
+	        "List of digest algorithms to use for password hashing. Think this setting as filter applied after "
+	        "fetching "
+	        "the credentials of a user from the user database. For example, if a user has its password hashed by MD5 "
+	        "and "
+	        "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
+	        "UAC.\n"
+	        "Furthermore, should a user have several hashed passwords and these are present in the list, then a "
+	        "challenge "
+	        "header will be put in the 401 response for each fetched password in the order given by the list.\n"
+	        "Supported algorithms are MD5 and SHA-256.",
+	        "MD5",
+	    },
+	    {
+	        Boolean,
+	        "disable-qop-auth",
+	        "Disable the QOP authentication method. Default is to use it, use this flag to disable it if needed.",
+	        "false",
+	    },
+	    {
+	        BooleanExpr,
+	        "no-403",
+	        "Don't reply 403 when authentication fails. Instead, generate a new 401 (or 407) response containing "
+	        "a new challenge.",
+	        "false",
+	    },
+	    {
+	        DurationS,
+	        "nonce-expires",
+	        "Expiration time before generating a new nonce.",
+	        "3600",
+	    },
+	    {
+	        String,
+	        "realm",
+	        "The realm to use for digest authentication. It will used whatever the domain of the From-URI.\n"
+	        "If the value starts with 'regex:', then this parameter will have the same effect than 'realm-regex', "
+	        "using all the remaining string as regular expression.\n"
+	        "WARNING: this parameter is exclusive with 'realm-regex'\n"
+	        "\n"
+	        "Examples:\n"
+	        "\trealm=sip.example.org\n"
+	        "\trealm=regex:sip:.*@sip\\.(.*)\\.com\n",
+	        "",
+	    },
+	    {
+	        String,
+	        "realm-regex",
+	        "Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in "
+	        "order "
+	        "to extract the realm. The realm is found out by getting the first slice of the URI that matches the "
+	        "regular "
+	        "expression. If it has one or more capturing parentheses, the content of the first one is used as realm.\n"
+	        "If no regex is specified, then the realm will be the domain part of the URI.\n"
+	        "\n"
+	        "For instance, given auth-domains=sip.example.com, you might use 'sip:.*@sip\\.(.*)\\.com' in order to "
+	        "use 'example' as realm.\n"
+	        "\n"
+	        "WARNING: this parameter is exclusive with 'realm'",
+	        "",
+	    },
+	    config_item_end,
+	};
 	moduleConfig.addChildrenValues(items);
 	moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 };

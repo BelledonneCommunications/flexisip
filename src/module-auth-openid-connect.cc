@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -40,40 +40,71 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
     ModuleInfoBase::ModuleOid::OpenIDConnectAuthentication,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
-	        {String, "authorization-server",
-	         "The HTTPS URL of the OpenID Provider.\n"
-	         "This parameter MUST be set.",
-	         ""},
-	        {String, "public-key-type",
-	         "The method of obtaining the public key. Possible values are:\n"
-	         "'well-known': the jwks_uri will be downloaded from the .well-known of the authorization server\n"
-	         "'file': the PEM key will be loaded from a server file.\n"
-	         "If the value is 'file', 'public-key-location' MUST be set.",
-	         "well-known"},
-	        {String, "public-key-location", "File path to the public-key in PEM format.", ""},
-	        {String, "realm",
-	         "The realm to use for the OpenID Connect authentication.\n"
-	         "This parameter MUST be set.",
-	         ""},
-	        {String, "audience",
-	         "The name of the service to expect in the audience claim.\n"
-	         "This parameter MUST be set.",
-	         ""},
-	        {String, "sip-id-claim",
-	         "The name of the claim to inspect in the token to extract the user's SIP identity.\n"
-	         "This parameter MUST be set.",
-	         ""},
-	        {StringList, "scope",
-	         "An optional list of whitespace separated scopes to be inserted as scope parameter for challenge "
-	         "requests.",
-	         ""},
-	        {DurationMIN, "jwks-refresh-delay",
-	         "The maximum duration in minutes between two refreshes of the jwks cache.", "15"},
-	        {DurationMIN, "well-known-refresh-delay",
-	         "The maximum duration in minutes betweeen two refreshes of the .well-known content, default is once a "
-	         "day.",
-	         "1440"},
-	        config_item_end};
+	        {
+	            String,
+	            "authorization-server",
+	            "The HTTPS URL of the OpenID Provider.\n"
+	            "This parameter MUST be set.",
+	            "",
+	        },
+	        {
+	            String,
+	            "public-key-type",
+	            "The method of obtaining the public key. Possible values are:\n"
+	            "'well-known': the jwks_uri will be downloaded from the .well-known of the authorization server\n"
+	            "'file': the PEM key will be loaded from a server file.\n"
+	            "If the value is 'file', 'public-key-location' MUST be set.",
+	            "well-known",
+	        },
+	        {
+	            String,
+	            "public-key-location",
+	            "File path to the public-key in PEM format.",
+	            "",
+	        },
+	        {
+	            String,
+	            "realm",
+	            "The realm to use for the OpenID Connect authentication.\n"
+	            "This parameter MUST be set.",
+	            "",
+	        },
+	        {
+	            String,
+	            "audience",
+	            "The name of the service to expect in the audience claim.\n"
+	            "This parameter MUST be set.",
+	            "",
+	        },
+	        {
+	            String,
+	            "sip-id-claim",
+	            "The name of the claim to inspect in the token to extract the user's SIP identity.\n"
+	            "This parameter MUST be set.",
+	            "",
+	        },
+	        {
+	            StringList,
+	            "scope",
+	            "An optional list of whitespace separated scopes to be inserted as scope parameter for challenge "
+	            "requests.",
+	            "",
+	        },
+	        {
+	            DurationMIN,
+	            "jwks-refresh-delay",
+	            "The maximum duration in minutes between two refreshes of the jwks cache.",
+	            "15",
+	        },
+	        {
+	            DurationMIN,
+	            "well-known-refresh-delay",
+	            "The maximum duration in minutes betweeen two refreshes of the .well-known content, default is once a "
+	            "day.",
+	            "1440",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
     });

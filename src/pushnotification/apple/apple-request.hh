@@ -27,7 +27,7 @@ namespace flexisip::pushnotification {
  * This class represent one Apple push notification request. This class inherits from Request, so it can be treated
  * like another type of PNR by the Flexisip push notification module, and from HttpMessage so it can be sent by the
  * Http2Client.
-*/
+ */
 class AppleRequest : public Request, public HttpMessage {
 public:
 	AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>& info);

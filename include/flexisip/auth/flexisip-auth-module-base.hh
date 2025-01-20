@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,15 +47,17 @@ public:
 	 * @param[in] nonceExpire Validity period for a nonce in seconds.
 	 * @param[in] qopAuth Setting true allows clients to use the same nonce for successive authentication.
 	 */
-	FlexisipAuthModuleBase(su_root_t *root, const std::string &domain, int nonceExpire, bool qopAuth);
+	FlexisipAuthModuleBase(su_root_t* root, const std::string& domain, int nonceExpire, bool qopAuth);
 	~FlexisipAuthModuleBase() override = default;
 
-	NonceStore &nonceStore() {return mNonceStore;}
+	NonceStore& nonceStore() {
+		return mNonceStore;
+	}
 
 protected:
-	void onCheck(AuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) override;
-	void onChallenge(AuthStatus &as, auth_challenger_t const *ach) override;
-	void onCancel(AuthStatus &as) override;
+	void onCheck(AuthStatus& as, msg_auth_t* credentials, auth_challenger_t const* ach) override;
+	void onChallenge(AuthStatus& as, auth_challenger_t const* ach) override;
+	void onCancel(AuthStatus& as) override;
 
 	/**
 	 * This method is called each time the module want to authenticate an Authorization header.
@@ -65,13 +67,13 @@ protected:
 	 * @param[in,out] as The context on the authentication. It is also used to return the result.
 	 * @param[in] credentials The authorization header to validate.
 	 */
-	virtual void checkAuthHeader(FlexisipAuthStatus &as, msg_auth_t *credentials, auth_challenger_t const *ach) = 0;
+	virtual void checkAuthHeader(FlexisipAuthStatus& as, msg_auth_t* credentials, auth_challenger_t const* ach) = 0;
 
-	void notify(FlexisipAuthStatus &as);
-	void onError(FlexisipAuthStatus &as);
+	void notify(FlexisipAuthStatus& as);
+	void onError(FlexisipAuthStatus& as);
 
 	NonceStore mNonceStore;
 	bool mQOPAuth = false;
 };
 
-}
+} // namespace flexisip

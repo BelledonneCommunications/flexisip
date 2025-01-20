@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -100,11 +100,26 @@ ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo(
 
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
-	        {Boolean, "masquerade-contacts-on-registers", "Masquerade register contacts with proxy address.", "true"},
-	        {Boolean, "masquerade-contacts-for-invites", "Masquerade invite-related messages with proxy address.",
-	         "false"},
-	        {Boolean, "insert-domain", "Masquerade register with from domain.", "false"},
-	        config_item_end};
+	        {
+	            Boolean,
+	            "masquerade-contacts-on-registers",
+	            "Masquerade register contacts with proxy address.",
+	            "true",
+	        },
+	        {
+	            Boolean,
+	            "masquerade-contacts-for-invites",
+	            "Masquerade invite-related messages with proxy address.",
+	            "false",
+	        },
+	        {
+	            Boolean,
+	            "insert-domain",
+	            "Masquerade register with from domain.",
+	            "false",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.addChildrenValues(items);
     },
     ModuleClass::Experimental);

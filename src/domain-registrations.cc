@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -75,66 +75,102 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	auto* domainRegistrationArea = rootConfig.addChild(std::move(uDomainRegistrationArea));
 
 	ConfigItemDescriptor configs[] = {
-	    {Boolean, "accept-domain-registrations", "Whether Flexisip shall accept registrations for entire domains",
-	     "false"},
-	    {Boolean, "assume-unique-domains",
-	     "Whether Flexisip shall assume that there is a unique server per registered domain, which allows"
-	     " to clean old registrations and simplifies the routing logic.",
-	     "false"},
-	    {String, "domain-registrations",
-	     "Path to a text file describing the domain registrations to make. This file must contains lines like:\n"
-	     " <local domain name> <SIP URI of proxy/registrar where to send the domain REGISTER> [password]>\n"
-	     " where:\n"
-	     " <local domain name> is a domain name managed locally by this proxy\n"
-	     " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
-	     "parameter"
-	     " 'tls-certificates-dir' is understood in order to specify a TLS client certificate to present to the remote "
-	     "proxy.\n"
-	     " [password] is the password to use if the remote proxy/registrar requests a digest authentication. It is "
-	     "optional.\n"
-	     " If the file is absent or empty, no registrations are done."
-	     "An example of such line is:\n"
-	     "belledonne.linphone.org <sips:sip.linphone.org;tls-certificates-dir=/etc/flexisip/client-cert> gghhiioozz",
-	     "/etc/flexisip/domain-registrations.conf"},
-	    {Boolean, "verify-server-certs",
-	     "When submitting a domain registration to a server over TLS, verify the certificate presented by the server. "
-	     "Disabling this option is only for test, because it is a security flaw",
-	     "true"},
-	    {DurationS, "keepalive-interval",
-	     "Interval for sending \\r\\n\\r\\n keepalives through the outgoing domain registration connection."
-	     "A value of zero disables keepalives.",
-	     "30"},
-	    {DurationS, "ping-pong-timeout-delay",
-	     "Delay after which TCP/TLS connections will be considered as broken if no CRLF pong has been "
-	     "received from the registrar. A delay of 0 means that no pong is expected after ping. "
-	     "The registrar must advertise the 'outbound' option tag in a Supported header for this detection to be "
-	     "active.\n"
-	     "Warning: This parameter must be strictly lower than “keepalive-interval”.",
-	     "0"},
-	    {DurationS, "reconnection-delay",
-	     "Delay before creating a new connection after connection is known as broken. Set '0' in order the "
-	     "connection be recreated immediately.",
-	     "5"},
-	    {Boolean, "reg-when-needed",
-	     "Whether Flexisip shall only send a domain registration when a device is registered", "false"},
-	    {Boolean, "relay-reg-to-domains",
-	     "Route received REGISTER request to the server in charge of the domain, according to accepted domain "
-	     "registrations. "
-	     "This option is intended to be used with 'reg-on-response' mode of Registrar module, and "
-	     "'accept-domain-registrations' enabled too."
-	     "The 'reg-on-response' mode typically allows Flexisip to forward an incoming REGISTER to an upstream server, "
-	     "and record the "
-	     "client's contact address upon receiving the 200 Ok response from the upstream server. "
-	     "When 'relay-reg-to-domains' is enabled, the routing to the upstream server is performed according to the "
-	     "domain registrations "
-	     "received previously by flexisip, instead of usual DNS-based procedures.",
-	     "false"},
-	    {String, "relay-reg-to-domains-regex",
-	     "regex to match domain names (host part of URL) for which the register requests should be routed to the "
-	     "upstream server."
-	     "This option is intended to be used with 'relay-reg-to-domains' mode enabled.",
-	     ""},
-	    config_item_end};
+	    {
+	        Boolean,
+	        "accept-domain-registrations",
+	        "Whether Flexisip shall accept registrations for entire domains",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "assume-unique-domains",
+	        "Whether Flexisip shall assume that there is a unique server per registered domain, which allows"
+	        " to clean old registrations and simplifies the routing logic.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "domain-registrations",
+	        "Path to a text file describing the domain registrations to make. This file must contains lines like:\n"
+	        " <local domain name> <SIP URI of proxy/registrar where to send the domain REGISTER> [password]>\n"
+	        " where:\n"
+	        " <local domain name> is a domain name managed locally by this proxy\n"
+	        " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
+	        "parameter"
+	        " 'tls-certificates-dir' is understood in order to specify a TLS client certificate to present to the "
+	        "remote "
+	        "proxy.\n"
+	        " [password] is the password to use if the remote proxy/registrar requests a digest authentication. It is "
+	        "optional.\n"
+	        " If the file is absent or empty, no registrations are done."
+	        "An example of such line is:\n"
+	        "belledonne.linphone.org <sips:sip.linphone.org;tls-certificates-dir=/etc/flexisip/client-cert> gghhiioozz",
+	        "/etc/flexisip/domain-registrations.conf",
+	    },
+	    {
+	        Boolean,
+	        "verify-server-certs",
+	        "When submitting a domain registration to a server over TLS, verify the certificate presented by the "
+	        "server. "
+	        "Disabling this option is only for test, because it is a security flaw",
+	        "true",
+	    },
+	    {
+	        DurationS,
+	        "keepalive-interval",
+	        "Interval for sending \\r\\n\\r\\n keepalives through the outgoing domain registration connection."
+	        "A value of zero disables keepalives.",
+	        "30",
+	    },
+	    {
+	        DurationS,
+	        "ping-pong-timeout-delay",
+	        "Delay after which TCP/TLS connections will be considered as broken if no CRLF pong has been "
+	        "received from the registrar. A delay of 0 means that no pong is expected after ping. "
+	        "The registrar must advertise the 'outbound' option tag in a Supported header for this detection to be "
+	        "active.\n"
+	        "Warning: This parameter must be strictly lower than “keepalive-interval”.",
+	        "0",
+	    },
+	    {
+	        DurationS,
+	        "reconnection-delay",
+	        "Delay before creating a new connection after connection is known as broken. Set '0' in order the "
+	        "connection be recreated immediately.",
+	        "5",
+	    },
+	    {
+	        Boolean,
+	        "reg-when-needed",
+	        "Whether Flexisip shall only send a domain registration when a device is registered",
+	        "false",
+	    },
+	    {
+	        Boolean,
+	        "relay-reg-to-domains",
+	        "Route received REGISTER request to the server in charge of the domain, according to accepted domain "
+	        "registrations. "
+	        "This option is intended to be used with 'reg-on-response' mode of Registrar module, and "
+	        "'accept-domain-registrations' enabled too."
+	        "The 'reg-on-response' mode typically allows Flexisip to forward an incoming REGISTER to an upstream "
+	        "server, "
+	        "and record the "
+	        "client's contact address upon receiving the 200 Ok response from the upstream server. "
+	        "When 'relay-reg-to-domains' is enabled, the routing to the upstream server is performed according to the "
+	        "domain registrations "
+	        "received previously by flexisip, instead of usual DNS-based procedures.",
+	        "false",
+	    },
+	    {
+	        String,
+	        "relay-reg-to-domains-regex",
+	        "regex to match domain names (host part of URL) for which the register requests should be routed to the "
+	        "upstream server."
+	        "This option is intended to be used with 'relay-reg-to-domains' mode enabled.",
+	        "",
+	    },
+	    config_item_end,
+	};
 
 	domainRegistrationArea->addChildrenValues(configs);
 }

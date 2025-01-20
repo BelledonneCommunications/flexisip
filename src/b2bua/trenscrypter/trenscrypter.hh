@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -15,6 +15,7 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
 #pragma once
 
 #include "b2bua/b2bua-server.hh"
@@ -61,7 +62,7 @@ public:
 	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& cfg) override;
 	std::variant<linphone::Reason, std::shared_ptr<const linphone::Address>>
 	onCallCreate(const linphone::Call& incomingCall, linphone::CallParams& outgoingCallParams) override;
-	std::shared_ptr<linphone::Address> onTransfer(const linphone::Call &call) override;
+	std::shared_ptr<linphone::Address> onTransfer(const linphone::Call& call) override;
 
 private:
 	std::shared_ptr<linphone::Core> mCore;

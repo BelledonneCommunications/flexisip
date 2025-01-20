@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "entryfilter.hh"
+
 #include <stdexcept>
 
 #include "flexisip/module.hh"
@@ -28,18 +30,37 @@ using namespace flexisip;
 
 void ConfigEntryFilter::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor config[] = {
-	    {Boolean, "enabled", "Indicate whether the module is activated.", "true"},
-	    {BooleanExpr, "filter",
-	     "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
-	     "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
-	     "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
-	     "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
-	     ""},
+	    {
+	        Boolean,
+	        "enabled",
+	        "Indicate whether the module is activated.",
+	        "true",
+	    },
+	    {
+	        BooleanExpr,
+	        "filter",
+	        "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
+	        "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
+	        "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
+	        "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
+	        "",
+	    },
 
 	    // Deprecated parameters
-	    {String, "from-domains", "Deprecated: List of domain names in sip from allowed to enter the module.", "*"},
-	    {String, "to-domains", "Deprecated: List of domain names in sip to allowed to enter the module.", "*"},
-	    config_item_end};
+	    {
+	        String,
+	        "from-domains",
+	        "Deprecated: List of domain names in sip from allowed to enter the module.",
+	        "*",
+	    },
+	    {
+	        String,
+	        "to-domains",
+	        "Deprecated: List of domain names in sip to allowed to enter the module.",
+	        "*",
+	    },
+	    config_item_end,
+	};
 
 	moduleConfig.addChildrenValues(config, false);
 	moduleConfig.deprecateChild("from-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -76,11 +76,16 @@ ModuleInfo<DateHandler> DateHandler::sInfo(
     ModuleInfoBase::ModuleOid::DateHandler,
 
     [](GenericStruct& moduleConfig) {
-	    ConfigItemDescriptor items[] = {{String, "assign-date-command",
-	                                     "Path to script to assign Date to system. The date is passed as first "
-	                                     "argument of the command, as number of seconds since January 1st, 1900.",
-	                                     ""},
-	                                    config_item_end};
+	    ConfigItemDescriptor items[] = {
+	        {
+	            String,
+	            "assign-date-command",
+	            "Path to script to assign Date to system. The date is passed as first "
+	            "argument of the command, as number of seconds since January 1st, 1900.",
+	            "",
+	        },
+	        config_item_end,
+	    };
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 	    moduleConfig.get<ConfigBooleanExpression>("filter")->setDefault(
 	        "i_request && request.method-name == 'REGISTER'");
