@@ -138,7 +138,6 @@ void IptablesExecutor::unbanIP(const string& ip, const string& port, const strin
 }
 
 void IptablesExecutor::checkConfig() {
-	if (runIptables("-V > /dev/null", true) != 0) {
-		LOGEN("ip6tables command is not installed. DoS protection is inactive for IPv6.");
-	}
+	if (runIptables("-V > /dev/null", true) != 0)
+		SLOGW << "ip6tables command is not installed, DoS protection is inactive for IPv6";
 }

@@ -102,9 +102,9 @@ string TlsConnection::loadCertificate() {
 	if (error != 1) {
 		return "SSL_CTX_use_certificate_file for " + mCertPath.string() + " failed with error " + to_string(error);
 	} else if (isCertExpired(mCertPath)) {
-		LOGEN("Certificate %s is expired! You won't be able to use it for push notifications. Please update your "
-		      "certificate or remove it entirely.",
-		      mCertPath.c_str());
+		SLOGE << "Certificate '" << mCertPath
+		      << "' is expired, you will not be able to use it for push notifications: please update your certificate "
+		         "or remove it entirely";
 	}
 
 	error = SSL_CTX_use_PrivateKey_file(ctx, mCertPath.c_str(), SSL_FILETYPE_PEM);

@@ -1307,7 +1307,7 @@ void FileConfigReader::checkUnread() {
 				}
 			}
 		}
-		LOGEN("%s", ss.str().c_str());
+		SLOGE << ss.str();
 	};
 	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
 	if (mHaveUnreads)
