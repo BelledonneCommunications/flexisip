@@ -25,6 +25,7 @@
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "exceptions/bad-configuration.hh"
 #include "extended-contact.hh"
 #include "record.hh"
 #include "registrar/binding-parameters.hh"
@@ -76,11 +77,11 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	}
 #endif
 	else {
-		LOGF("Unsupported implementation '%s'. %s",
+		throw BadConfiguration{"unsupported implementation '" +
 #ifdef ENABLE_REDIS
-		     "Supported implementations are 'internal' or 'redis'.", dbImplementation.c_str());
+		                       dbImplementation + "', supported implementations are 'internal' or 'redis'"};
 #else
-		     "Supported implementation is 'internal'.", dbImplementation.c_str());
+		                       dbImplementation + "', supported implementation is 'internal'"};
 #endif
 	}
 }

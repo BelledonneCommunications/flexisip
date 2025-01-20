@@ -22,6 +22,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 
 using namespace std;
@@ -52,12 +53,13 @@ private:
 	}
 
 	void onLoad(const GenericStruct* mc) override {
-		string destRouteStr = mc->get<ConfigString>("regevent-server")->read();
+		const auto* destRouteParam = mc->get<ConfigString>("regevent-server");
+		const auto destRouteStr = destRouteParam->read();
 		try {
 			mDestRoute.reset(new SipUri(destRouteStr));
 		} catch (const sofiasip::InvalidUrlError& e) {
-			LOGF("Invalid SIP URI (%s) in 'regevent-server' parameter of 'RegEvent' module: %s", destRouteStr.c_str(),
-			     e.what());
+			throw BadConfiguration{"invalid SIP URI ('" + destRouteStr + "') in parameter '" +
+			                       destRouteParam->getCompleteName() + "' (" + e.what() + ")"};
 		}
 
 		SLOGI << getModuleName() << ": presence server is [" << mDestRoute->str() << "]";

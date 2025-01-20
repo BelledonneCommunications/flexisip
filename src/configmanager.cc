@@ -1310,7 +1310,9 @@ void FileConfigReader::checkUnread() {
 		LOGEN("%s", ss.str().c_str());
 	};
 	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
-	if (mHaveUnreads) LOGF("Some items or section are invalid in the configuration file. Please check it.");
+	if (mHaveUnreads)
+		throw BadConfiguration{
+		    "some items or sections are invalid in the configuration, please verify your configuration file"};
 }
 
 int FileConfigReader::read2(GenericEntry* entry, int level) {
@@ -1322,8 +1324,8 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 			read2(child.get(), level + 1);
 		}
 	} else if ((cv = dynamic_cast<ConfigValue*>(entry))) {
-		if (level < 2) LOGF("ConfigValues at root is disallowed.");
-		if (level > 2) LOGF("The current file format doesn't support recursive subsections.");
+		if (level < 2) throw BadConfiguration{"ConfigValues at root level are not allowed"};
+		if (level > 2) throw BadConfiguration{"the current file format does not support recursive subsections"};
 
 		const char* val = mCfg->getString(cv->getParent()->getName(), cv->getName(), nullptr);
 		if (val) {
@@ -1337,7 +1339,7 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 			try {
 				cv->set(val);
 			} catch (std::exception& e) {
-				LOGF("While reading '%s', %s.", mFilename.c_str(), e.what());
+				throw BadConfiguration{"caught an exception while reading '" + mFilename + "' (" + e.what() + ")"};
 			}
 		} else {
 			cv->restoreDefault();

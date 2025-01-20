@@ -29,6 +29,7 @@
 #include "flexisip/configmanager.hh"
 
 #include "bellesip-signaling-exception.hh"
+#include "exceptions/bad-configuration.hh"
 #include "observers/presence-longterm.hh"
 #include "presence/presentity/presentity-manager.hh"
 #include "presence/presentity/presentity-presence-information.hh"
@@ -356,23 +357,24 @@ void PresenceServer::_init() {
 	    dbImplementation == "file" || !getUsersWithPhonesRequest.empty() || !getUserWithPhoneRequest.empty();
 
 	if (longTermEnabledConfig->isDefault() && userDbIsProperlySet) {
-		LOGF("The default value of '%s' parameter has changed since Flexisip 2.0.0. "
-		     "Please set this parameter explicitly or unset '%s' and '%s' to remove this error.",
-		     longTermEnabledConfig->getName().c_str(), getUserWithPhoneRequestParam->getCompleteName().c_str(),
-		     getUsersWithPhonesRequestParam->getCompleteName().c_str());
+		throw BadConfiguration{"the default value of '" + longTermEnabledConfig->getCompleteName() +
+		                       "' parameter has changed since Flexisip 2.0.0, please explicitly set the value for this "
+		                       "parameter or unset '" +
+		                       getUserWithPhoneRequestParam->getCompleteName() + "' and '" +
+		                       getUsersWithPhonesRequestParam->getCompleteName() + "' to remove this error"};
 	}
 	if (longTermEnabled && !userDbIsProperlySet) {
-		LOGF("Unable to start presence server: neither '%s' or '%s' is set whereas 'Long-term Presence' is required.",
-		     getUserWithPhoneRequestParam->getCompleteName().c_str(),
-		     getUsersWithPhonesRequestParam->getCompleteName().c_str());
+		throw BadConfiguration{
+		    "unable to start presence server, neither '" + getUserWithPhoneRequestParam->getCompleteName() + "' or '" +
+		    getUsersWithPhonesRequestParam->getCompleteName() + "' are set whereas long-term presence is enabled"};
 	}
 
 	auto transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
 
 	for (const auto& transport : transports) {
-		if (transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos) {
-			LOGF("Unable to start presence server : TLS transport is not supported by the presence server.");
-		}
+		if (transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos)
+			throw BadConfiguration{"unable to start presence server, TLS transports are not supported"};
+
 		auto* uri = belle_sip_uri_parse(transport.c_str());
 		if (uri) {
 			auto* lp = belle_sip_stack_create_listening_point(

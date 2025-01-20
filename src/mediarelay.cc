@@ -467,9 +467,7 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel>& chan
 MediaRelayServer::MediaRelayServer(MediaRelay* module) : mModule(module) {
 	mRunning = false;
 	mSessionsCount = 0;
-	if (pipe(mCtlPipe) == -1) {
-		LOGF("Could not create MediaRelayServer control pipe.");
-	}
+	if (pipe(mCtlPipe) == -1) throw FlexisipException{"could not create MediaRelayServer control pipe"};
 }
 
 Agent* MediaRelayServer::getAgent() {

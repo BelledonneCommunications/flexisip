@@ -64,16 +64,10 @@ void ConferenceAddressGenerator::onRecordFound(const std::shared_ptr<Record>& r)
 			                                config.get<ConfigString>("transport")->read(), shared_from_this());
 		}
 	} else {
-		if (r->getExtendedContacts().empty()) {
-			LOGF("Conference address bind failed.");
-			return;
-		}
+		if (r->getExtendedContacts().empty()) throw FlexisipException{"conference address bind failed"};
 		const shared_ptr<ExtendedContact> ec = *r->getExtendedContacts().latest();
 		url_t* pub_gruu = r->getPubGruu(ec, mHome.home());
-		if (!pub_gruu) {
-			LOGF("Conference does not have gruu address.");
-			return;
-		}
+		if (!pub_gruu) throw FlexisipException{"conference does not have gruu address"};
 
 		shared_ptr<linphone::Address> gruuAddr =
 		    linphone::Factory::get()->createAddress(url_as_string(mHome.home(), pub_gruu));

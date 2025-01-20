@@ -159,14 +159,15 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	try {
 		if (!routesConfigPath.empty()) mRoutesMap.loadConfig(routesConfigPath);
 	} catch (exception& e) {
-		LOGF("Error when loading routes configuration: %s", e.what());
+		throw BadConfiguration{"error while loading routes configuration ("s + e.what() + ")"};
 	}
-	string route = mc->get<ConfigString>("route")->read();
+	const auto* routeParam = mc->get<ConfigString>("route");
+	const auto route = routeParam->read();
 	mRewriteReqUri = mc->get<ConfigBoolean>("rewrite-req-uri")->read();
-	if (route.size() > 0) {
+	if (!route.empty()) {
 		mOutRoute = sip_route_make(&mHome, route.c_str());
 		if (mOutRoute == nullptr || mOutRoute->r_url->url_host == nullptr) {
-			LOGF("Bad route parameter '%s' in configuration of Forward module", route.c_str());
+			throw BadConfiguration{"invalid '" + routeParam->getCompleteName() + "' parameter value '" + route + "'"};
 		}
 	}
 	mAddPath = mc->get<ConfigBoolean>("add-path")->read();

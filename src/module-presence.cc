@@ -22,6 +22,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 
 using namespace std;
@@ -54,12 +55,12 @@ private:
 	void onLoad(const GenericStruct* mc) override {
 		auto presenceServerSetting = mc->get<ConfigString>("presence-server");
 		auto destRouteStr = presenceServerSetting->read();
-		if (destRouteStr.empty()) LOGF("[%s] parameter must be set", presenceServerSetting->getCompleteName().c_str());
+		if (destRouteStr.empty()) throw BadConfiguration{presenceServerSetting->getName() + " parameter must be set"};
 		try {
 			mDestRoute = SipUri(destRouteStr);
 		} catch (const sofiasip::InvalidUrlError& e) {
-			LOGF("Invalid SIP URI (%s) in 'presence-server' parameter of 'Presence' module: %s", destRouteStr.c_str(),
-			     e.what());
+			throw BadConfiguration{"invalid SIP URI ('" + destRouteStr + "') set in '" +
+			                       presenceServerSetting->getCompleteName() + "'"};
 		}
 
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();

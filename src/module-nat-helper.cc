@@ -20,6 +20,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 
@@ -80,13 +81,14 @@ unique_ptr<ResponseSipEvent> NatHelper::onResponse(unique_ptr<ResponseSipEvent>&
 
 void NatHelper::onLoad(const GenericStruct* sec) {
 	mFixRecordRoutes = sec->get<ConfigBoolean>("fix-record-routes")->read();
-	const auto& rr_policy = sec->get<ConfigString>("fix-record-routes-policy")->read();
-	if (rr_policy == "safe") {
+	const auto* rrPolicyParam = sec->get<ConfigString>("fix-record-routes-policy");
+	const auto rrPolicy = rrPolicyParam->read();
+	if (rrPolicy == "safe") {
 		mRRPolicy = Safe;
-	} else if (rr_policy == "always") {
+	} else if (rrPolicy == "always") {
 		mRRPolicy = Always;
 	} else {
-		LOGF("NatHelper: unsupported value '%s' for fix-record-routes-policy parameter", rr_policy.c_str());
+		throw BadConfiguration{"invalid '" + rrPolicyParam->getCompleteName() + "' parameter value '" + rrPolicy + "'"};
 	}
 
 	mContactCorrectionParameter = sec->get<ConfigString>("contact-correction-param")->read();

@@ -33,6 +33,7 @@
 #include "flexisip/module.hh"
 
 #include "agent.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "registrar/registrar-db.hh"
 
@@ -198,7 +199,6 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	ifstream ifs;
 	string configFile;
 	int lineIndex = 0;
-	string relayRegsToDomainsRegex;
 
 	auto* domainRegistrationCfg = mAgent->getConfigManager().getRoot()->get<GenericStruct>("inter-domain-connections");
 	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
@@ -212,21 +212,24 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	mKeepaliveInterval = chrono::duration_cast<chrono::seconds>(keepAliveIntervalCfg->read());
 	mPingPongTimeoutDelay = chrono::duration_cast<chrono::seconds>(pingPongTimeoutDelayCfg->read());
 	if (mPingPongTimeoutDelay >= mKeepaliveInterval) {
-		LOGF("'%s' value [%us] must be strictly lower than '%s' [%us]",
-		     pingPongTimeoutDelayCfg->getCompleteName().c_str(), static_cast<unsigned>(mPingPongTimeoutDelay.count()),
-		     keepAliveIntervalCfg->getCompleteName().c_str(), static_cast<unsigned>(mKeepaliveInterval.count()));
+		throw BadConfiguration{"invalid value for '" + pingPongTimeoutDelayCfg->getCompleteName() + "' (" +
+		                       to_string(mPingPongTimeoutDelay.count()) + "), it must be strictly lower than '" +
+		                       keepAliveIntervalCfg->getCompleteName() + "' (" + to_string(mKeepaliveInterval.count()) +
+		                       ")"};
 	}
 	mReconnectionDelay = chrono::duration_cast<chrono::seconds>(reconnectionDelayCfg->read());
 
 	mRegisterWhenNeeded = domainRegistrationCfg->get<ConfigBoolean>("reg-when-needed")->read();
 
 	mRelayRegsToDomains = domainRegistrationCfg->get<ConfigBoolean>("relay-reg-to-domains")->read();
-	relayRegsToDomainsRegex = domainRegistrationCfg->get<ConfigString>("relay-reg-to-domains-regex")->read();
+	const auto* relayRegsToDomainsRegexParam = domainRegistrationCfg->get<ConfigString>("relay-reg-to-domains-regex");
+	const auto relayRegsToDomainsRegex = relayRegsToDomainsRegexParam->read();
 	if (!relayRegsToDomainsRegex.empty()) {
 		try {
 			mRelayRegsToDomainsRegex = std::regex(relayRegsToDomainsRegex);
 		} catch (const std::regex_error& e) {
-			LOGF("invalid regex in 'relay-reg-to-domains-regex': %s", e.what());
+			throw BadConfiguration{"invalid regex in '" + relayRegsToDomainsRegexParam->getCompleteName() + "' (" +
+			                       e.what() + ")"};
 		}
 		SLOGD << "Found relay-reg-to-domain regex: " << relayRegsToDomainsRegex;
 	}
@@ -290,8 +293,8 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	return 0;
 error:
-	LOGF("Syntax error parsing domain registration configuration file '%s'", configFile.c_str());
-	return -1;
+	throw BadConfiguration{"syntax error detected while parsing domain registration configuration file '" + configFile +
+	                       "'"};
 }
 
 bool DomainRegistrationManager::isUs(const url_t* url) const {
@@ -400,7 +403,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 				tpn.tpn_ident = localDomain.c_str();
 				mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
 				if (!mPrimaryTport) {
-					LOGF("Could not find the tport we just added in the agent.");
+					throw FlexisipException{"could not find the transport that was just added into the agent"};
 				}
 			}
 		}
@@ -412,9 +415,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 	mLeg = nta_leg_tcreate(agent, sLegCallback, (nta_leg_magic_t*)this, NTATAG_METHOD("REGISTER"),
 	                       SIPTAG_FROM(sip_from_create(mHome.home(), (url_string_t*)mFrom)),
 	                       SIPTAG_TO(sip_to_create(mHome.home(), (url_string_t*)mFrom)), URLTAG_URL(mProxy), TAG_END());
-	if (!mLeg) {
-		LOGF("Could not create leg");
-	}
+	if (!mLeg) throw FlexisipException{"could not create leg"};
 
 	ostringstream domainRegistrationStatName;
 	domainRegistrationStatName << "registration-status-" << lineIndex;

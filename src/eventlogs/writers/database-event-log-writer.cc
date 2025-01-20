@@ -25,6 +25,8 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "utils/thread/auto-thread-pool.hh"
 
+#include "exceptions/bad-configuration.hh"
+
 using namespace std;
 
 namespace flexisip {
@@ -295,10 +297,10 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string& backendString,
 			soci::session session(*mConnectionPool);
 			if (!backend->databaseIsEmpty(session) &&
 			    (schemaVersion = backend->getSchemaVersion(session)) < sRequiredSchemaVersion) {
-				LOGF("Event log database as an invalid schema version. Please backup and clear your current "
-				     "database and start Flexisip again to generate an up-to-date schema. [currentVersion: %u, "
-				     "requiredVersion: %u]",
-				     schemaVersion, sRequiredSchemaVersion);
+				throw BadConfiguration{"event log database has an invalid schema version [current=" +
+				                       to_string(schemaVersion) + ", required=" + to_string(sRequiredSchemaVersion) +
+				                       "] (please backup and clear your current database then start Flexisip again to "
+				                       "generate an up-to-date database schema)"};
 			}
 			DB_TRANSACTION(&session) {
 				backend->initTables(session);

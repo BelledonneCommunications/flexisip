@@ -22,11 +22,12 @@
 
 #include "flexisip/module-registrar.hh"
 
+#include "exceptions/bad-configuration.hh"
 #include "registrar/extended-contact.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/successful-bind-listener.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
-#include "utils/successful-bind-listener.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -95,11 +96,11 @@ void maxContactsPerRegistrationParameter() {
 	}
 	{
 		Server proxy{{{configName.first + "/" + configName.second, "0"}}};
-		BC_ASSERT_THROWN(proxy.start(), FlexisipException);
+		BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
 	}
 	{
 		Server proxy{{{configName.first + "/" + configName.second, "-1"}}};
-		BC_ASSERT_THROWN(proxy.start(), FlexisipException);
+		BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
 	}
 }
 

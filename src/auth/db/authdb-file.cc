@@ -147,10 +147,7 @@ void FileAuthDb::getPasswordFromBackend(const std::string& id,
 
 shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupParser() {
 	shared_ptr<Grammar> grammar = GrammarLoader::get().load("authdb-file-grammar");
-	if (!grammar) {
-		LOGF("Could not load grammar for authdb-file from authdb-file-grammar");
-		return nullptr;
-	}
+	if (!grammar) throw FlexisipException{"could not load grammar for authdb-file from authdb-file-grammar"};
 
 	Parser<shared_ptr<FileAuthDbParserElem>>* parser = new Parser<shared_ptr<FileAuthDbParserElem>>(grammar);
 
@@ -182,13 +179,13 @@ void FileAuthDb::sync() {
 	mLastSync = getCurrentTime();
 
 	if (mFileString.empty()) {
-		LOGF("'file' authentication backend was requested but no path specified in 'file-path'.");
+		throw FlexisipException{"'file' authentication backend was requested but no path specified in 'file-path'."};
 		return;
 	}
 
 	auto parser = setupParser();
 	if (!parser) {
-		LOGF("Failed to create authdb file parser.");
+		throw FlexisipException{"Failed to create authdb file parser."};
 		return;
 	}
 
@@ -200,17 +197,17 @@ void FileAuthDb::sync() {
 
 	shared_ptr<FileAuthDbParserRoot> pwdFile = dynamic_pointer_cast<FileAuthDbParserRoot>(ret);
 	if (pwdFile == nullptr) {
-		LOGF("Failed to parse authdb file.");
+		throw FlexisipException{"Failed to parse authdb file."};
 		return;
 	}
 	if (parsedSize < fileContent.size()) {
-		LOGF("Parsing of Authdb file ended prematurely at char %d.", (int)parsedSize);
+		throw FlexisipException{"Parsing of Authdb file ended prematurely at char " + to_string(parsedSize)};
 		return;
 	}
 
 	// Only version == 1 is supported
 	if (pwdFile->getVersion() != "1") {
-		LOGF("Version '%s' is not supported for file %s", pwdFile->getVersion().c_str(), mFileString.c_str());
+		throw FlexisipException{"Version '" + pwdFile->getVersion() + "' is not supported for file " + mFileString};
 		return;
 	}
 

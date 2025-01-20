@@ -18,6 +18,7 @@
 
 #include "flexisip/logmanager.hh"
 
+#include "flexisip/flexisip-exception.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 using namespace std;
@@ -29,18 +30,18 @@ void SuRoot::addToMainLoop(function<void()>&& functionToAdd) {
 	su_msg_r msg = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(msg, su_root_task(mCPtr), su_root_task(mCPtr), mainLoopFunctionCallback,
 	                        sizeof(function<void()>*))) {
-		LOGF("Couldn't create auth async message");
+		throw flexisip::FlexisipException{"could not create auth async message"};
 	}
 
 	if (-1 == su_msg_deinitializer(msg, mainLoopFunctionCallbackDeinitializer)) {
-		LOGF("Couldn't set deinitializer function for message.");
+        throw flexisip::FlexisipException{"could not set de-initializer function for message"};
 	}
 
 	auto clientCb = reinterpret_cast<function<void()>**>(su_msg_data(msg));
 	*clientCb = new function<void()>(std::move(functionToAdd));
 
 	if (-1 == su_msg_send(msg)) {
-		LOGF("Couldn't send auth async message to main thread.");
+        throw flexisip::FlexisipException{"could not send auth async message to main thread"};
 	}
 }
 

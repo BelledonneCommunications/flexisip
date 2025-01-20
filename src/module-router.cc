@@ -27,6 +27,7 @@
 
 #include "domain-registrations.hh"
 #include "eventlogs/events/calls/call-ended-event-log.hh"
+#include "exceptions/bad-configuration.hh"
 #include "fork-context/fork-basic-context.hh"
 #include "fork-context/fork-call-context.hh"
 #include "fork-context/fork-message-context.hh"
@@ -373,7 +374,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	if (!mFallbackRoute.empty()) {
 		mFallbackRouteParsed = ModuleToolbox::sipUrlMake(mHome.home(), mFallbackRoute.c_str());
-		if (!mFallbackRouteParsed) LOGF("Bad value [%s] for fallback-route in module::Router.", mFallbackRoute.c_str());
+		if (!mFallbackRouteParsed)
+			throw BadConfiguration{"invalid value '" + mFallbackRoute + "' for module::Router/fallback-route"};
 	}
 
 	for (const auto& uri : mc->get<ConfigStringList>("static-targets")->read()) {

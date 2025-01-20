@@ -119,9 +119,9 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 			SLOGD << "ForkMessageContextSociRepository - ADD COLUMN msg_priority already done";
 		}
 	} catch (const runtime_error& e) {
-		LOGF("ForkMessageContextSociRepository - A problem occurred during database creation. Fix it or disable "
-		     "message-database-enabled before restart. \nException : %s",
-		     e.what());
+		throw FlexisipException{
+		    "a problem occurred during database creation, fix it or disable 'message-database-enabled' before restarting Flexisip ("s +
+		    e.what() + ")"};
 	}
 }
 

@@ -19,6 +19,7 @@
 #include "module-auth-trusted-hosts.hh"
 
 #include "agent.hh"
+#include "exceptions/bad-configuration.hh"
 
 using namespace std;
 
@@ -62,7 +63,7 @@ void ModuleAuthTrustedHosts::onLoad(const GenericStruct* mc) {
 	        ->get<GenericStruct>("module::Authorization")
 	        ->get<ConfigBoolean>("enabled")
 	        ->read() == false)
-		LOGF("The AuthTrustedHosts module requires the Authorization module to be enabled.");
+		throw BadConfiguration{"the AuthTrustedHosts module requires the Authorization module to be enabled"};
 
 	loadTrustedHosts(*mc->get<ConfigStringList>("trusted-hosts"));
 }

@@ -110,7 +110,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	}
 
 	tport_t* primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
-	if (primaries == NULL) LOGF("No sip transport defined.");
+	if (primaries == NULL) throw FlexisipException{"no SIP transport defined"};
 	for (tport_t* tport = primaries; tport != NULL; tport = tport_next(tport)) {
 		tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 	}

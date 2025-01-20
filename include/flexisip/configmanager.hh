@@ -692,8 +692,7 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 			for (auto& entry : prev_node->mEntries) {
 				SLOGE << "-> " << entry->getName();
 			}
-			LOGF("end");
-			return nullptr;
+			throw FlexisipException{"end"};
 		}
 		next_node = dynamic_cast<GenericStruct*>(e);
 		if (!next_node) {

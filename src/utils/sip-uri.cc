@@ -112,7 +112,7 @@ bool Url::getBoolParam(const string& paramName, bool defaultValue) const {
 			bool ret = flexisip::ConfigBoolean::parse(tmp);
 			return ret;
 		} catch (flexisip::FlexisipException& e) {
-			LOGF("Bad value for uri parameter '%s': %s", paramName.c_str(), e.what());
+			throw flexisip::FlexisipException{"invalid value for URI parameter '" + paramName + "' (" + e.what() + ")"};
 		}
 	}
 	return defaultValue;

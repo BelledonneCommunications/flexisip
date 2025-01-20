@@ -85,7 +85,7 @@ void Module::checkConfig() {
 	for (auto it = children.begin(); it != children.end(); ++it) {
 		auto cv = dynamic_cast<ConfigValue*>(it->get());
 		if (cv && !isValidNextConfig(*cv)) {
-			LOGF("Invalid config %s:%s=%s", getModuleName().c_str(), cv->getName().c_str(), cv->get().c_str());
+			throw FlexisipException{"invalid configuration " + getModuleName() + ":" + cv->getName() + "=" + cv->get()};
 		}
 	}
 }
@@ -325,8 +325,9 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 		if (!sortProgressing && !pendingModules.empty()) {
 			SLOGE << "Some modules have position references to other modules that could not be found:";
 			dumpModuleDependencies(pendingModules);
-			LOGF("Somes modules could not be positionned in the module's processing chain. It is usually caused by an "
-			     "invalid module declaration Flexisip's source code, or in a loaded plugin.");
+			throw FlexisipException{
+			    "some modules could not be positioned in the module's processing chain (hint: it is usually caused by "
+			    "an invalid module declaration in Flexisip's source code, or in a loaded plugin"};
 		}
 	}
 

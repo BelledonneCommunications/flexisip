@@ -118,9 +118,9 @@ void LogManager::initialize(const Parameters& params) {
 			int status = system(command.c_str());
 			if (status == -1 || WEXITSTATUS(status) != 0) {
 				if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log directory.");
-				LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create "
-				     "it manually.",
-				     params.logDirectory.c_str());
+				throw FlexisipException{
+				    "directory '" + params.logDirectory +
+				    "' does not exist and could not be created (insufficient permissions?), please create it manually"};
 			}
 		}
 		pathStream << params.logDirectory << "/" << params.logFilename;
@@ -136,7 +136,7 @@ void LogManager::initialize(const Parameters& params) {
 		} else {
 			if (params.enableSyslog) ::syslog(LOG_ERR, "Could not create log file handler.");
 			if (!params.enableStdout) {
-				LOGF("Could not create/open log file '%s'.", pathStream.str().c_str());
+				throw FlexisipException{"could not create or open log file '" + pathStream.str() + "'"};
 			} else {
 				SLOGE << "Could not create/open log file '" << pathStream.str()
 				      << "' (not fatal when logging is enabled on stdout)";

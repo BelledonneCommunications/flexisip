@@ -32,6 +32,7 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/binding-parameters.hh"
@@ -559,14 +560,17 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	                            mc->get<ConfigDuration<chrono::seconds>>("static-records-timeout")->read())
 	                            .count();
 
-	mExpireRandomizer = mc->get<ConfigInt>("register-expire-randomizer-max")->read();
+	const auto* expireRandomizerParam = mc->get<ConfigInt>("register-expire-randomizer-max");
+	mExpireRandomizer = expireRandomizerParam->read();
 	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) {
-		LOGF("'register-expire-randomizer-max' value (%i) must be in [0,100]", mExpireRandomizer);
+		throw BadConfiguration{expireRandomizerParam->getCompleteName() + " value (" + to_string(mExpireRandomizer) +
+		                       ") must be in [0,100]"};
 	}
+
 	const auto* maxContactsPerRegistration = mc->get<ConfigInt>("max-contacts-per-registration");
 	mMaxContactsPerRegistration = maxContactsPerRegistration->read();
 	if (mMaxContactsPerRegistration <= 0)
-		throw FlexisipException{maxContactsPerRegistration->getCompleteName() + " must be strictly positive"};
+		throw BadConfiguration{maxContactsPerRegistration->getCompleteName() + " must be strictly positive"};
 
 	if (!mStaticRecordsFile.empty()) {
 		readStaticRecords(); // read static records from configuration file

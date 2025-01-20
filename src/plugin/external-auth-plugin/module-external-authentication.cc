@@ -28,6 +28,7 @@
 #include <flexisip/logmanager.hh>
 #include <flexisip/plugin.hh>
 
+#include "exceptions/bad-configuration.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -47,7 +48,8 @@ ModuleExternalAuthentication::createAuthModule(const std::string& domain, int no
 		am->getFormatter().setTemplate(mRemoteUri);
 		return am;
 	} catch (const invalid_argument& e) {
-		LOGF("error while parsing 'module::ExternalAuthentication/remote-auth-uri': %s", e.what());
+		throw BadConfiguration{"error while parsing 'module::ExternalAuthentication/remote-auth-uri' ("s + e.what() +
+		                       ")"};
 	}
 
 	return nullptr;

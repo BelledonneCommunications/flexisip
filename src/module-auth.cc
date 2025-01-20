@@ -24,6 +24,7 @@
 #include "agent.hh"
 #include "auth/db/authdb.hh"
 #include "auth/flexisip-auth-module.hh"
+#include "exceptions/bad-configuration.hh"
 #include "transaction/outgoing-transaction.hh"
 
 using namespace std;
@@ -168,8 +169,8 @@ void Authentication::onLoad(const GenericStruct* mc) {
 		if (res != 0) {
 			string err_msg(128, '\0');
 			regerror(res, &mRequiredSubject, &err_msg[0], err_msg.size());
-			LOGF("Could not compile regex for 'tls-client-certificate-required-subject' '%s': %s",
-			     requiredSubject.c_str(), err_msg.c_str());
+			throw BadConfiguration{"could not compile regex for 'tls-client-certificate-required-subject' '" +
+			                       requiredSubject + "' (" + err_msg + ")"};
 		} else mRequiredSubjectCheckSet = true;
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();

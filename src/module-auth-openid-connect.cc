@@ -23,6 +23,7 @@
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "module-authorization.hh"
 
@@ -112,7 +113,9 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 Bearer::PubKeyType getPubKeyType(string_view pubKeyType) {
 	if (pubKeyType == "file") return Bearer::PubKeyType::file;
 	if (pubKeyType != "well-known")
-		LOGF("Invalid public-key-type: %s in ModuleAuthOpenIDConnect configuration.", pubKeyType);
+		throw BadConfiguration{"invalid public-key-type '"s + pubKeyType.data() +
+		                       "' in ModuleAuthOpenIDConnect configuration"};
+
 	return Bearer::PubKeyType::wellKnown;
 }
 
@@ -128,12 +131,12 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	        ->get<GenericStruct>("module::Authorization")
 	        ->get<ConfigBoolean>("enabled")
 	        ->read() == false)
-		LOGF("The AuthOpenIDConnect module requires the Authorization module to be enabled.");
+		throw BadConfiguration{"the AuthOpenIDConnect module requires the Authorization module to be enabled"};
 
 	auto readMandatoryString = [&mc](string_view paramName) {
 		const auto* configValue = mc->get<ConfigString>(paramName);
 		auto value = configValue->read();
-		if (value.empty()) LOGF("%s must be set.", configValue->getCompleteName().c_str());
+		if (value.empty()) throw BadConfiguration{"parameter '" + configValue->getCompleteName() + "' must be set"};
 		return value;
 	};
 
@@ -145,7 +148,8 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	{
 		const auto issuer = readMandatoryString("authorization-server");
 		auto issUrl = sofiasip::Url(issuer);
-		if (issUrl.getType() != url_https) LOGF("Invalid authorization-server https url: %s", issuer.c_str());
+		if (issUrl.getType() != url_https)
+			throw BadConfiguration{"invalid authorization-server https url '" + issuer + "'"};
 		params.issuer = issUrl;
 	}
 	params.realm = readMandatoryString("realm");

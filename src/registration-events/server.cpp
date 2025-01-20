@@ -26,6 +26,7 @@
 #include "flexisip/registrar/registar-listeners.hh"
 #include <flexisip/utils/sip-uri.hh>
 
+#include "exceptions/bad-configuration.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 
@@ -196,11 +197,10 @@ void Server::_init() {
 	if (mTransport.length() > 0) {
 		sofiasip::Home mHome;
 		url_t* urlTransport = url_make(mHome.home(), mTransport.c_str());
-		if (urlTransport == nullptr || mTransport.at(0) == '<') {
-			LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\n"
-			     "If you have \"<>\" in your transport, remove them.",
-			     mTransport.c_str());
-		}
+		if (urlTransport == nullptr || mTransport.at(0) == '<')
+			throw BadConfiguration{"your configured conference transport ('" + mTransport +
+			                       "') is not a valid URI (hint: if you have '<>' in your transport, remove them"};
+
 		regEventTransport->setTcpPort(stoi(urlTransport->url_port));
 	}
 

@@ -22,6 +22,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 #include "fork-context/branch-info.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/push-notification-exceptions.hh"
@@ -455,15 +456,17 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	auto firebaseEnabled = mc->get<ConfigBoolean>("firebase")->read();
 
 	// Load the push retransmissions parameters.
-	auto retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
-	auto retransmissionInterval = chrono::duration_cast<chrono::seconds>(
-	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("retransmission-interval")->read());
-	if (retransmissionCount < 0) {
-		LOGF("module::PushNotification/retransmission-count must be positive");
-	}
-	if (retransmissionInterval <= 0s) {
-		LOGF("module::PushNotification/retransmission-interval must be strictly positive");
-	}
+	const auto* retransmissionCountParam = mModuleConfig->get<ConfigInt>("retransmission-count");
+	const auto retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
+	if (retransmissionCount < 0)
+		throw BadConfiguration{retransmissionCountParam->getCompleteName() + " must be positive"};
+
+	const auto* retransmissionIntervalParam =
+	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("retransmission-interval");
+	const auto retransmissionInterval = chrono::duration_cast<chrono::seconds>(retransmissionIntervalParam->read());
+	if (retransmissionInterval <= 0s)
+		throw BadConfiguration{retransmissionIntervalParam->getCompleteName() + " must be strictly positive"};
+
 	mRetransmissionCount = retransmissionCount;
 	mRetransmissionInterval = retransmissionInterval;
 
@@ -471,9 +474,9 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	const auto* callRemotePushIntervalCfg =
 	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("call-remote-push-interval");
 	auto callRemotePushInterval = callRemotePushIntervalCfg->read();
-	if (callRemotePushInterval < 0s || callRemotePushInterval > 30s) {
-		LOGF("%s must be in [0;30]", callRemotePushIntervalCfg->getCompleteName().c_str());
-	}
+	if (callRemotePushInterval < 0s || callRemotePushInterval > 30s)
+		throw BadConfiguration{callRemotePushIntervalCfg->getCompleteName() + " must be in [0, 30]"};
+
 	mCallRemotePushInterval = chrono::duration_cast<chrono::seconds>(callRemotePushInterval);
 
 	mPNS = make_unique<pushnotification::Service>(getAgent()->getRoot(), maxQueueSize);
@@ -484,8 +487,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	if (!addToTagFilterStr.empty()) {
 		mAddToTagFilter = SipBooleanExpressionBuilder::get().parse(addToTagFilterStr);
 		if (mAddToTagFilter == nullptr) {
-			LOGF("invalid boolean expression [%s] in %s parameter", addToTagFilterStr.c_str(),
-			     addToTagFilterCfg->getCompleteName().c_str());
+			throw BadConfiguration{"invalid boolean expression '" + addToTagFilterStr + "' set in parameter '" +
+			                       addToTagFilterCfg->getCompleteName() + "'"};
 		}
 	}
 
@@ -500,10 +503,11 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 				mPNS->setupGenericClient(externalPushUri, externalPushMethod, externalPushProtocol);
 			}
 		} catch (const sofiasip::InvalidUrlError& e) {
-			LOGF("Invalid value for '%s' parameter: %s", externalUriCfg->getCompleteName().c_str(), e.what());
+			throw BadConfiguration{"invalid value for parameter '" + externalUriCfg->getCompleteName() + "' (" +
+			                       e.what() + +")"};
 		} catch (const InvalidMethodError& e) {
-			LOGF("Invalid value [%s] for '%s' parameter. Expected values: 'GET', 'POST'", e.what(),
-			     externalPushMethodCfg->getCompleteName().c_str());
+			throw BadConfiguration{"invalid value for parameter '" + externalPushMethodCfg->getCompleteName() +
+			                       "', expected values are 'GET' or 'POST' (" + e.what() + ")"};
 		}
 	}
 

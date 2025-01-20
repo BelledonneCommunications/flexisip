@@ -26,6 +26,7 @@
 #include "auth/realm-extractor.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "utils/string-utils.hh"
 
@@ -151,7 +152,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 		ostringstream os;
 		os << "invalid algorithm (" << *it << ") set in '" << mc->getName() << "/available-algorithms'. ";
 		os << "Available algorithms are " << StringUtils::toString(sValidAlgos);
-		LOGF("%s", os.str().c_str());
+		throw BadConfiguration{os.str()};
 	}
 	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
@@ -170,8 +171,8 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 	auto realm = realmCfg->read();
 	auto realmRegex = realmRegexCfg->read();
 	if (!realm.empty() && !realmRegex.empty()) {
-		LOGF("setting both '%s' and '%s' is forbidden", realmCfg->getCompleteName().c_str(),
-		     realmRegexCfg->getCompleteName().c_str());
+		throw BadConfiguration{"setting both '" + realmCfg->getCompleteName() + "' and '" +
+		                       realmRegexCfg->getCompleteName() + "' is forbidden"};
 	}
 	if (realmRegex.empty() && StringUtils::startsWith(realm, regexPrefix)) {
 		realmRegex = realm.substr(regexPrefix.size());
@@ -180,7 +181,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 		try {
 			mRealmExtractor = new RegexRealmExtractor{std::move(realmRegex)};
 		} catch (const regex_error& e) {
-			LOGF("invalid regex in 'realm-regex': %s", e.what());
+            throw BadConfiguration{"invalid regex in '" + realmRegexCfg->getCompleteName() + "' (" + e.what()};
 		}
 	} else if (!realm.empty()) {
 		mRealmExtractor = new StaticRealmExtractor{std::move(realm)};

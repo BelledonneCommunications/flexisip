@@ -43,7 +43,7 @@ void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, cons
 	su_msg_r mamc = SU_MSG_R_INIT;
 	if (-1 == su_msg_create(mamc, su_root_task(mRoot), su_root_task(mRoot), main_thread_async_response_cb,
 	                        sizeof(GenericAuthListener*))) {
-		LOGF("Couldn't create auth async message");
+		throw FlexisipException{"could not create auth async message"};
 	}
 
 	auto** listenerStorage = reinterpret_cast<GenericAuthListener**>(su_msg_data(mamc));
@@ -52,7 +52,7 @@ void FlexisipAuthModule::GenericAuthListener::onResult(AuthDbResult result, cons
 	(*listenerStorage)->mPasswords = passwd;
 
 	if (-1 == su_msg_send(mamc)) {
-		LOGF("Couldn't send auth async message to main thread.");
+        throw FlexisipException{"could not send auth async message to main thread"};
 	}
 }
 

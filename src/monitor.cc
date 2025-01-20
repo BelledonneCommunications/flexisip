@@ -22,6 +22,8 @@
 #include <ortp/rtpsession.h>
 #include <sofia-sip/su_md5.h>
 
+#include "exceptions/bad-configuration.hh"
+
 using namespace std;
 using namespace flexisip;
 
@@ -84,22 +86,11 @@ void Monitor::exec(ConfigManager& cfg, int socket) {
 	list<string> nodes = cluster->get<ConfigStringList>("nodes")->read();
 
 	string domain;
-	try {
-		domain = findDomain(*cfg.getRoot());
-	} catch (const FlexisipException& e) {
-		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
-		exit(EXIT_FAILURE);
-	}
+	domain = findDomain(*cfg.getRoot());
 
-	if (salt.empty()) {
-		LOGF("Monitor: no salt set");
-		exit(EXIT_FAILURE);
-	}
+	if (salt.empty()) throw BadConfiguration{"missing 'monitor/password-salt' configuration"};
 
-	if (nodes.empty()) {
-		LOGF("Monitor: no nodes declared in the cluster section");
-		exit(EXIT_FAILURE);
-	}
+	if (nodes.empty()) throw BadConfiguration{"missing 'cluster/nodes' configuration"};
 
 	char** args = new char*[9 + nodes.size() + 1];
 	args[0] = strdup(SCRIPT_PATH.c_str());

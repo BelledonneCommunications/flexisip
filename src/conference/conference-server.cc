@@ -27,6 +27,7 @@
 #include <flexisip/flexisip-version.h>
 
 #include "conference-address-generator.hh"
+#include "exceptions/bad-configuration.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
@@ -65,9 +66,8 @@ void ConferenceServer::_init() {
 		auto port = !portStr.empty() ? stoi(portStr) : 5060;
 		cTransport->setTcpPort(port);
 	} catch (const sofiasip::InvalidUrlError& e) { // thrown by SipUri constructor and when mTransport is empty
-		LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\nIf you have \"<>\" in "
-		     "your transport, remove them.",
-		     e.getUrl().c_str());
+		throw BadConfiguration{"conference transport ('" + e.getUrl() +
+		                       "') is not a SPI URI (hint: if you have '<>' in your transport, remove them)"};
 	}
 	mCheckCapabilities = config->get<ConfigBoolean>("check-capabilities")->read();
 	mStateDir = config->get<ConfigString>("state-directory")->read();
@@ -78,7 +78,7 @@ void ConferenceServer::_init() {
 	if (find(mediaTypes.begin(), mediaTypes.end(), "video") != mediaTypes.end()) mMediaConfig.videoEnabled = true;
 	if (find(mediaTypes.begin(), mediaTypes.end(), "text") != mediaTypes.end()) mMediaConfig.textEnabled = true;
 	if (mMediaConfig.audioEnabled == false && mMediaConfig.videoEnabled == false && mMediaConfig.textEnabled == false) {
-		LOGF("ConferenceServer: no media types enabled. Check configuration file.");
+		throw BadConfiguration{"no media types enabled in conference server, please verify your configuration"};
 	}
 
 	// Core
@@ -93,8 +93,8 @@ void ConferenceServer::_init() {
 	if (mMediaConfig.textEnabled) {
 		string dbUri = config->get<ConfigString>("database-connection-string")->read();
 		if (dbUri.empty())
-			LOGF("ConferenceServer: database-connection-string is not set. It is mandatory for handling text "
-			     "conferences.");
+			throw BadConfiguration{"the parameter 'conference-server/database-connection-string' is not set but is "
+			                       "mandatory when text media type is enabled"};
 		configLinphone->setInt("misc", "hide_empty_chat_rooms", 0);
 		configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
 		configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
@@ -116,9 +116,11 @@ void ConferenceServer::_init() {
 	configLinphone->setBool("net", "enable_nat_helper",
 	                        false); // to make sure contact address is not fixed by belle-sip
 
-	auto mediaEngine = config->get<ConfigString>("media-engine-type")->read();
+	const auto* mediaEngineParameter = config->get<ConfigString>("media-engine-type");
+	const auto mediaEngine = mediaEngineParameter->read();
 	if (mediaEngine != "mixer" && mediaEngine != "sfu") {
-		LOGF("ConferenceServer: media-engine-type is not correctly set. Check configuration file.");
+		throw BadConfiguration{mediaEngineParameter->getCompleteName() + " is not correctly set ('" + mediaEngine +
+		                       "'), please verify your configuration"};
 	}
 
 	if (mediaEngine == "mixer") {
@@ -190,10 +192,11 @@ void ConferenceServer::_init() {
 
 	loadFactoryUris();
 
-	auto outboundProxy = config->get<ConfigString>("outbound-proxy")->read();
+	const auto* outboundProxyParam = config->get<ConfigString>("outbound-proxy");
+	auto outboundProxy = outboundProxyParam->read();
 	auto outboundProxyAddress = Factory::get()->createAddress(outboundProxy);
 	if (!outboundProxyAddress) {
-		LOGF("Invalid outbound-proxy value '%s'", outboundProxy.c_str());
+		throw BadConfiguration{"invalid value ('" + outboundProxy + "') for " + outboundProxyParam->getCompleteName()};
 	}
 	bool defaultAccountSet = false;
 	for (const auto& conferenceServerUris : mConfServerUris) {
@@ -233,14 +236,15 @@ void ConferenceServer::_init() {
 	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore);
 
 	Status err = mCore->start();
-	if (err == -2) LOGF("Linphone Core couldn't start because the connection to the database has failed");
-	if (err < 0) LOGF("Linphone Core starting failed");
+	if (err == -2)
+		throw FlexisipException{"the Linphone core could not start because the connection to the database failed"};
+	if (err < 0) throw FlexisipException{"the Linphone core failed to start, please check logs"};
 
 	if (uuid.empty()) {
 		// In case no uuid was set in persistent state directory, take the one randomly choosen by Liblinphone.
 		writeUuid(configLinphone->getString("misc", "uuid", ""));
 	} else if (configLinphone->getString("misc", "uuid", "") != uuid) {
-		LOGF("Unconsistent uuid");
+		throw BadConfiguration{"inconsistent uuid"};
 	}
 
 	mRegistrarDb->addStateListener(shared_from_this());
@@ -264,8 +268,8 @@ void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> nat
 
 		err = bctbx_getaddrinfo(addr.c_str(), "5060", &hints, &res);
 		if (err != 0) {
-			LOGF("Error while processing nat-addresses value '%s': %s", addr.c_str(), gai_strerror(err));
-			continue;
+			throw FlexisipException{"error while processing nat-address value '" + addr + "' ('" + gai_strerror(err) +
+			                        "')"};
 		}
 		for (ai_it = res; ai_it != nullptr; ai_it = ai_it->ai_next) {
 			char ipaddress[NI_MAXHOST] = {0};
@@ -348,8 +352,9 @@ void ConferenceServer::loadFactoryUris() {
 			SLOGI << "Matched conference factory URI " << factoryUri << " with a conference focus URI " << (*focus_it);
 			mConfServerUris.push_back({factoryUri, *focus_it++});
 		} else {
-			LOGF("Number of factory uri [%lu] must match number of focus uri [%lu]", conferenceFactoryUris.size(),
-			     conferenceFocusUris.size());
+			throw BadConfiguration{"number of factory SIP URIs (" + to_string(conferenceFactoryUris.size()) +
+			                       ") must match the number of focus SIP URIs (" +
+			                       to_string(conferenceFocusUris.size()) + ")"};
 		}
 	}
 }
@@ -447,7 +452,7 @@ void ConferenceServer::bindFactoryUris() {
 			mRegistrarDb->bind(factory, sipContact, parameter, listener);
 
 		} catch (const sofiasip::InvalidUrlError& e) {
-			LOGF("'conference-server' value isn't a SIP URI [%s]", e.getUrl().c_str());
+			throw BadConfiguration{"invalid conference-server SIP URI '" + e.getUrl() + "'"};
 		}
 	}
 }
@@ -458,18 +463,14 @@ void ConferenceServer::bindFocusUris() {
 		FocusListener(const shared_ptr<Account>& account, const string& uuid) : mAccount(account), mUuid(uuid) {
 		}
 		void onRecordFound(const shared_ptr<Record>& r) override {
-			if (r->getExtendedContacts().empty()) {
-				LOGF("Focus address bind failed.");
-				return;
-			}
+			if (r->getExtendedContacts().empty()) throw FlexisipException{"focus address bind failed"};
+
 			shared_ptr<ExtendedContact> ec = r->extractContactByUniqueId(UriUtils::grToUniqueId(mUuid));
-			if (!ec) {
-				throw FlexisipException{"focus uri was not recorded in registrar database"};
-			}
+			if (!ec) throw FlexisipException{"focus uri was not recorded in registrar database"};
+
 			url_t* pub_gruu = r->getPubGruu(ec, mHome.home());
-			if (!pub_gruu) {
-				throw FlexisipException{"focus binding does not have public gruu"};
-			}
+			if (!pub_gruu) throw FlexisipException{"focus binding does not have public gruu"};
+
 			shared_ptr<linphone::Address> gruuAddr =
 			    linphone::Factory::get()->createAddress(url_as_string(mHome.home(), pub_gruu));
 			SLOGI << "Focus address [" << gruuAddr->asStringUriOnly() << "] is bound";
@@ -749,9 +750,9 @@ void ConferenceServer::ensureDirectoryCreated(const filesystem::path& directory)
 		command += " \"" + directory.string() + "\"";
 		int status = system(command.c_str());
 		if (status == -1 || WEXITSTATUS(status) != 0) {
-			LOGF("Directory %s doesn't exist and could not be created (insufficient permissions ?). Please create it "
-			     "manually.",
-			     directory.c_str());
+			throw FlexisipException{
+			    "directory '" + directory.string() +
+			    "' does not exist and could not be created (insufficient permissions?), please create it manually"};
 		}
 	}
 }

@@ -22,20 +22,22 @@
 #include <string>
 #include <string_view>
 
-#include "flexisip/logmanager.hh"
+#include "flexisip/flexisip-exception.hh"
 
 namespace flexisip {
+
 static std::string loadFromFile(std::string_view path) {
 	std::ifstream ifs(path.data());
 	if (!ifs.is_open()) {
-		LOGF("Failed to open file: %s", path.data());
+		throw FlexisipException{std::string{"failed to open file '"} + path.data() + "'"};
 	}
 	std::stringstream sstr;
 	sstr << ifs.rdbuf();
 
 	if (sstr.bad() || sstr.fail()) {
-		LOGF("Failed to read from file '%s'", path.data());
+		throw FlexisipException{std::string{"failed to read from file '"} + path.data() + "'"};
 	}
 	return sstr.str();
 }
+
 } // namespace flexisip

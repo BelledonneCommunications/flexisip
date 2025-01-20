@@ -27,6 +27,7 @@
 #include <sstream>
 
 #include "flexisip/expressionparser.hh"
+#include "flexisip/flexisip-exception.hh"
 #include "flexisip/logmanager.hh"
 
 using namespace std;
@@ -310,19 +311,22 @@ bool BooleanExpressionBuilder<_valuesT>::isKeyword(const string& expr, size_t* n
 	return true;
 }
 
-template <typename _valuesT>
-void BooleanExpressionBuilder<_valuesT>::checkRulesOverlap() {
-	for (const string& builtin : sBuiltinOperators) {
-		if (mRules.variables.find(builtin) != mRules.variables.end()) {
-			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.", builtin.c_str());
+template< typename _valuesT>
+void BooleanExpressionBuilder<_valuesT>::checkRulesOverlap(){
+	for(const string & builtin :  sBuiltinOperators){
+		if (mRules.variables.find(builtin) != mRules.variables.end()){
+			throw FlexisipException{"variable name '" + builtin +
+			                        "' conflicts with builtin operator name (BooleanExpressionBuilder)"};
 		}
-		if (mRules.operators.find(builtin) != mRules.operators.end()) {
-			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with builtin operator name.", builtin.c_str());
+		if (mRules.operators.find(builtin) != mRules.operators.end()){
+			throw FlexisipException{"variable name '" + builtin +
+			                        "' conflicts with builtin operator name (BooleanExpressionBuilder)"};
 		}
 	}
-	for (auto p : mRules.operators) {
-		if (mRules.variables.find(p.first) != mRules.variables.end()) {
-			LOGF("BooleanExpressionBuilder: variable name '%s' conflicts with operator name.", p.first.c_str());
+	for (auto p : mRules.operators){
+		if (mRules.variables.find(p.first) != mRules.variables.end()){
+			throw FlexisipException{"variable name '" + p.first +
+			                        "' conflicts with builtin operator name (BooleanExpressionBuilder)"};
 		}
 	}
 }

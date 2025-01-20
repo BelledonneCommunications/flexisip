@@ -23,7 +23,7 @@
 #include "flexisip/module.hh"
 #include "flexisip/sip-boolean-expressions.hh"
 
-#include "entryfilter.hh"
+#include "exceptions/bad-configuration.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -93,7 +93,7 @@ void ConfigEntryFilter::loadConfig(const GenericStruct* mc) {
 	try {
 		mBooleanExprFilter = SipBooleanExpressionBuilder::get().parse(filter);
 	} catch (exception& e) {
-		LOGF("Could not parse entry filter for module '%s': %s", mc->getName().c_str(), e.what());
+		throw BadConfiguration{"could not parse entry filter for module '" + mc->getName() + "' (" + e.what() + ")"};
 	}
 	mEntryName = mc->getName();
 }

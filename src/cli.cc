@@ -66,7 +66,8 @@ CommandLineInterface::CommandLineInterface(string name,
                                            const shared_ptr<SuRoot>& root)
     : mName(std::move(name)), handlers(make_shared<CliHandler::HandlerTable>()), mConfigManager(cfg), mRoot(root),
       mLogPrefix("CommandLineInterface[" + mName + "] - ") {
-	if (pipe(mControlFds) == -1) LOGF("Cannot create control pipe of CommandLineInterface thread: %s", strerror(errno));
+	if (pipe(mControlFds) == -1)
+		throw FlexisipException{"cannot create control pipe of CommandLineInterface thread ("s + strerror(errno) + ")"};
 }
 
 CommandLineInterface::~CommandLineInterface() {
@@ -102,7 +103,9 @@ void CommandLineInterface::stop() {
 
 	mRunning = false;
 	if (write(mControlFds[1], "please stop", 1) == -1)
-		LOGF("Cannot write to control pipe of CommandLineInterface thread: %s", strerror(errno));
+		throw FlexisipException{"cannot write to control pipe of CommandLineInterface thread ("s + strerror(errno) +
+		                        ")"};
+
 	pthread_join(mThread, nullptr);
 }
 

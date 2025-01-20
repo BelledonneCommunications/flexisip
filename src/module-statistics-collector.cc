@@ -27,6 +27,7 @@
 #include "agent.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "exceptions/bad-configuration.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -65,7 +66,7 @@ void StatisticsCollector::onLoad(const GenericStruct* mc) {
 		mCollectorAddress = url_make(&mHome, value.c_str());
 		if (mCollectorAddress == NULL ||
 		    (mCollectorAddress->url_type != url_sip && mCollectorAddress->url_type != url_sips)) {
-			LOGF("StatisticsCollector: Invalid collector address '%s'", value.c_str());
+			throw BadConfiguration{"invalid collector address '" + value + "'"};
 		}
 		mCollectorAddress->url_type =
 		    url_sip; /*we don't want to distinguish between sip and sips for the collector url*/

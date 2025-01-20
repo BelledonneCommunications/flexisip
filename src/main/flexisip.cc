@@ -804,22 +804,22 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	} else if (functionName.getValue() == "presence") {
 		startPresence = true;
 #ifndef ENABLE_PRESENCE
-		LOGF("Flexisip was compiled without presence server extension.");
+		throw FlexisipException{"Flexisip was compiled without presence server extension"};
 #endif
 	} else if (functionName.getValue() == "conference") {
 		startConference = true;
 #ifndef ENABLE_CONFERENCE
-		LOGF("Flexisip was compiled without conference server extension.");
+		throw FlexisipException{"Flexisip was compiled without conference server extension"};
 #endif
 	} else if (functionName.getValue() == "regevent") {
 		startRegEvent = true;
 #ifndef ENABLE_CONFERENCE
-		LOGF("Flexisip was compiled without regevent server extension.");
+		throw FlexisipException{"Flexisip was compiled without regevent server extension"};
 #endif
 	} else if (functionName.getValue() == "b2bua") {
 		startB2bua = true;
 #ifndef ENABLE_B2BUA
-		LOGF("Flexisip was compiled without back-to-back user agent server extension.");
+		throw FlexisipException{"Flexisip was compiled without B2BUA server extension"};
 #endif
 	} else if (functionName.getValue() == "all") {
 		startPresence = true;
@@ -828,27 +828,27 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		startRegEvent = true;
 		startB2bua = true;
 	} else if (functionName.getValue().empty()) {
-		auto default_servers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
-		if (default_servers->contains("proxy")) {
+		const auto* defaultServers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
+		if (defaultServers->contains("proxy")) {
 			startProxy = true;
 		}
-		if (default_servers->contains("presence")) {
+		if (defaultServers->contains("presence")) {
 			startPresence = true;
 		}
-		if (default_servers->contains("conference")) {
+		if (defaultServers->contains("conference")) {
 			startConference = true;
 		}
-		if (default_servers->contains("regevent")) {
+		if (defaultServers->contains("regevent")) {
 			startRegEvent = true;
 		}
-		if (default_servers->contains("b2bua")) {
+		if (defaultServers->contains("b2bua")) {
 			startB2bua = true;
 		}
 		if (!startPresence && !startProxy && !startConference && !startB2bua) {
-			LOGF("Bad default-servers definition '%s'.", default_servers->get().c_str());
+			throw BadConfiguration{"invalid value for '" + defaultServers->getCompleteName() + "'"};
 		}
 	} else {
-		LOGF("There is no server function '%s'.", functionName.getValue().c_str());
+		throw BadConfiguration{"there is no server function '" + functionName.getValue() + "'"};
 	}
 	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
 	// Initialize
@@ -918,10 +918,11 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	 */
 	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections &&
 	    !dumpMibs && !dumpAll) {
-		if (cfg->getGlobal()->get<ConfigByteSize>("max-log-size")->read() !=
-		    static_cast<ConfigByteSize::ValueType>(-1)) {
-			LOGF("Setting 'global/max-log-size' parameter has been forbidden since log size control was delegated "
-			     "to logrotate. Please edit /etc/logrotate.d/flexisip-logrotate for log rotation customization.");
+		const auto* maxLogSize = cfg->getGlobal()->get<ConfigByteSize>("max-log-size");
+		if (maxLogSize->read() != static_cast<ConfigByteSize::ValueType>(-1)) {
+			throw BadConfiguration{"setting '" + maxLogSize->getCompleteName() +
+			                       "' is forbidden since log size control was delegated to logrotate (please "
+			                       "edit '/etc/logrotate.d/flexisip-logrotate' for log rotation customization)"};
 		}
 
 		const auto& logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();

@@ -24,6 +24,8 @@
 
 #include <memory>
 
+#include "exceptions/bad-configuration.hh"
+
 #include "eventlogs/writers/filesystem-event-log-writer.hh"
 #if ENABLE_SOCI
 #include "eventlogs/writers/database-event-log-writer.hh"
@@ -49,12 +51,12 @@ void Agent::startLogWriter() {
 			                               cr->get<ConfigInt>("database-max-queue-size")->read(),
 			                               cr->get<ConfigInt>("database-nb-threads-max")->read());
 			if (!dbw->isReady()) {
-				LOGF("DataBaseEventLogWriter: unable to use database.");
+				throw FlexisipException{"unable to use database (DataBaseEventLogWriter)"};
 			} else {
 				mLogWriter.reset(dbw);
 			}
 #else
-			LOGF("DataBaseEventLogWriter: unable to use database (`ENABLE_SOCI` is not defined).");
+			throw FlexisipException{"unable to use database, 'ENABLE_SOCI' is not defined (DataBaseEventLogWriter)"};
 #endif
 		} else if (cr->get<ConfigString>("logger")->read() == "flexiapi") {
 #if ENABLE_FLEXIAPI
@@ -64,8 +66,8 @@ void Agent::startLogWriter() {
 			const auto& apiKey = cr->get<ConfigString>("flexiapi-api-key")->read();
 			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, apiKey);
 #else
-			LOGF("This version of Flexisip was built without ENABLE_FLEXIAPI. Value 'flexiapi' for 'event-logs/logger' "
-			     "is unsupported.");
+			throw BadConfiguration{"this version of Flexisip was built without 'ENABLE_FLEXIAPI', value 'flexiapi' "
+			                       "for 'event-logs/logger' is not supported"};
 #endif
 		} else {
 			const auto& logdir = cr->get<ConfigString>("filesystem-directory")->read();

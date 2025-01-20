@@ -21,6 +21,7 @@
 #include <charconv>
 #include <functional>
 
+#include "exceptions/bad-configuration.hh"
 #include "module-toolbox.hh"
 #include "transaction/outgoing-transaction.hh"
 
@@ -182,17 +183,17 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 	for (const auto& configName : config) {
 		auto splitConfigName = string_utils::splitOnce(configName, "/");
 		if (!splitConfigName.has_value()) {
-			LOGF("Error parsing audio codec list, no '/' found in config name");
+			throw BadConfiguration{"error parsing audio codec list, no '/' found in config name"};
 		}
 		const auto& [name, rateString] = *splitConfigName;
-		if (name.empty()) LOGF("Error parsing audio codec list, missing name information");
-		if (rateString.empty()) LOGF("Error parsing audio codec list, missing rate information");
+		if (name.empty()) throw BadConfiguration{"error parsing audio codec list, missing name information"};
+		if (rateString.empty()) throw BadConfiguration{"error parsing audio codec list, missing rate information"};
 		int rate{};
 		auto [ptr, ec] = std::from_chars(rateString.data(), rateString.data() + rateString.size(), rate);
 		if (ec == std::errc::invalid_argument)
-			LOGF("Error parsing audio codec list, rate information is not an integer");
+			throw BadConfiguration{"error parsing audio codec list, rate information is not an integer"};
 		if (ec == std::errc::result_out_of_range)
-			LOGF("Error parsing audio codec list, rate information is larger than int integer");
+			throw BadConfiguration{"error parsing audio codec list, rate information is larger than int integer"};
 		for (auto* pt : l) {
 			if (string_utils::iequals(pt->mime_type, name) && rate == pt->clock_rate) {
 				if (ms_factory_codec_supported(mFactory, pt->mime_type) ||
