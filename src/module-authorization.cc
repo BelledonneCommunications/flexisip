@@ -85,7 +85,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 				      << userUri.str() << "'";
 				continue;
 			}
-			SLOGD << "Accept authorization.";
+			SLOGI << "Accept authorization.";
 			return std::move(ev); // on first valid
 		}
 	}

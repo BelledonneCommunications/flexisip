@@ -380,7 +380,7 @@ void RegistrarDbRedisAsync::handleClear(Reply reply, const RedisRegisterContext&
 	const auto recordName = context.mRecord->getKey().toRedisKey() + " [" + std::to_string(context.token) + "]";
 	if (const auto* keysDeleted = std::get_if<reply::Integer>(&reply)) {
 		if (*keysDeleted == 1) {
-			SLOGD << "Record " << recordName << " successfully cleared";
+			SLOGI << "Record " << recordName << " successfully cleared";
 			if (context.listener) context.listener->onRecordFound(context.mRecord);
 			return;
 		}

@@ -43,7 +43,7 @@ int IptablesExecutor::runIptables(const std::string& arguments, bool ipv6, bool 
 	if (ret != 0 && dumpErrors) {
 		SLOGE << "DoSProtection: '" << command.str() << "' failed with output '" << output << "'.";
 	}
-	if (ret == 0 || !dumpErrors) SLOGD << "DoSProtection: '" << command.str() << "' executed.";
+	if (ret == 0 || !dumpErrors) SLOGI << "DoSProtection: '" << command.str() << "' executed.";
 	(void)readCount; // This variable is useless here, I know.
 	return ret;
 }
@@ -120,7 +120,7 @@ void IptablesExecutor::banIP(const string& ip, const string& port, const string&
 	         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(), port.c_str());
 	bool is_ipv6 = strchr(ip.c_str(), ':') != nullptr;
 	if (runIptables(iptables_cmd, is_ipv6, false) == 0) {
-		SLOGW << "IP " << ip << " port " << port << " on protocol " << protocol
+		SLOGI << "IP " << ip << " port " << port << " on protocol " << protocol
 		      << " is already in the iptables banned list, skipping...";
 	} else {
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -A %s -p %s -s %s -m multiport --sports %s -j REJECT",

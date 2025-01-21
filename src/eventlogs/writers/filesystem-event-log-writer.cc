@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 
 #include "eventlogs/events/eventlogs.hh"
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
 
 using namespace std;
@@ -104,10 +105,7 @@ std::ostream& operator<<(std::ostream& ostr, MessageLog::ReportType type) {
 } // namespace
 
 FilesystemEventLogWriter::FilesystemEventLogWriter(const std::string& rootpath) : mRootPath(rootpath) {
-	if (rootpath[0] != '/') {
-		SLOGE << "Path for event log writer must be absolute.";
-		return;
-	}
+	if (rootpath[0] != '/') throw BadConfiguration{"path for event log writer must be absolute"};
 	if (!createDirectoryIfNotExist(rootpath.c_str())) return;
 
 	mIsReady = true;

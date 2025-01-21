@@ -74,7 +74,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 						/*This should not happen. We are discovering an already established ice session.*/
 						mIceState = IceCompleted;
 						needsCandidates = false;
-						SLOGE << "Unexpected remote-candidates in SDP offer.";
+						SLOGD << "Unexpected remote-candidates in SDP offer.";
 					} else if (hasCandidates(media)) {
 						mIceState = IceOffered;
 						needsCandidates = true;
@@ -196,17 +196,17 @@ bool SdpModifier::hasSdp(const sip_t* sip) {
 bool SdpModifier::initFromSipMsg(sip_t* sip) {
 	sip_payload_t* payload = sip->sip_payload;
 	if (payload == NULL || payload->pl_data == NULL) {
-		SLOGW << "SIP message has no payload";
+		SLOGD << "SIP message has no payload";
 		return false;
 	}
 	mParser = sdp_parse(mHome, payload->pl_data, (int)payload->pl_len, 0);
 	mSession = sdp_session(mParser);
 	if (mSession == NULL) {
-		SLOGW << "SDP parsing error: " << sdp_parsing_error(mParser);
+		SLOGD << "SDP parsing error: " << sdp_parsing_error(mParser);
 		return false;
 	}
 	if (mSession->sdp_media == NULL) {
-		SLOGW << "SDP with no mline.";
+		SLOGD << "SDP with no mline.";
 		return false;
 	}
 	mSip = sip;
@@ -238,7 +238,7 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 
 static PayloadType* payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t* rtpmap) {
 	if (rtpmap->rm_rate == 0 || rtpmap->rm_encoding == NULL) {
-		SLOGE << "Bad media description for payload type : " << static_cast<unsigned>(rtpmap->rm_pt);
+		SLOGW << "Bad media description for payload type : " << static_cast<unsigned>(rtpmap->rm_pt);
 		return NULL;
 	}
 	PayloadType* pt = payload_type_new();

@@ -426,7 +426,7 @@ unique_ptr<RequestSipEvent> JweAuth::onRequest(unique_ptr<RequestSipEvent>&& ev)
 	}
 
 	if (error) {
-		SLOGW << "Rejecting request because: `" << error << "`.";
+		SLOGI << "Rejecting request because: `" << error << "`.";
 		ev->reply(403, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return {};
 	} else {

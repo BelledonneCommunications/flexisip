@@ -273,7 +273,7 @@ void CommandLineInterface::run() {
 
 	const auto& pid = getpid();
 	const auto& path = "/tmp/flexisip-" + mName + "-" + to_string(pid);
-	SLOGD << mLogPrefix << "CLI socket is at " << path;
+	SLOGI << mLogPrefix << "CLI socket is at " << path;
 	struct sockaddr_un local {};
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, path.c_str());
@@ -328,7 +328,7 @@ void CommandLineInterface::run() {
 				SLOGE << mLogPrefix << "Recv error " << errno << ": " << strerror(errno);
 				finished = true;
 			} else if (n > 0) {
-				SLOGD << mLogPrefix << "Received: " << buffer;
+				SLOGI << mLogPrefix << "Received: " << buffer;
 				auto split_query = StringUtils::split(string(buffer), " ");
 				auto command = split_query.front();
 				split_query.erase(split_query.begin());

@@ -46,7 +46,7 @@ msg_auth_t* ModuleToolbox::findAuthorizationForRealm(su_home_t* home, msg_auth_t
 		}
 		au = au->au_next;
 	}
-	SLOGD << "authorization with expected realm '" << realm << "' not found" << realm;
+	SLOGI << "authorization with expected realm '" << realm << "' not found" << realm;
 	return nullptr;
 }
 
@@ -247,7 +247,7 @@ bool ModuleToolbox::urlHostMatch(const char* host1, const char* host2) {
 		if (inet_pton(AF_INET6, ip1.c_str(), &addr1) == 1 && inet_pton(AF_INET6, ip2.c_str(), &addr2) == 1) {
 			return memcmp(&addr1, &addr2, sizeof(addr1)) == 0;
 		} else {
-			SLOGW << "Comparing invalid IPv6 addresses " << host1 << " | " << host2;
+			SLOGD << "Comparing invalid IPv6 addresses " << host1 << " | " << host2;
 		}
 	}
 	return strncasecmp(host1, host2, MAX(len1, len2)) == 0;
@@ -454,7 +454,7 @@ void ModuleToolbox::addPathHeader(Agent* ag, MsgSip& ms, tport_t* tport, const c
 	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
 		SLOGD << "Identical path already existing: " << url_as_string(home, url);
 	} else {
-		SLOGD << "Path added to: " << url_as_string(home, url);
+		SLOGI << "Path added to: " << url_as_string(home, url);
 		if (tport && proxyToProxy) {
 			ag->applyProxyToProxyTransportSettings(tport);
 		}

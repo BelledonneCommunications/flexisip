@@ -240,11 +240,11 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	ifs.open(configFile);
 	if (!ifs.is_open()) {
-		SLOGE << "Cannot open domain registration configuration file '" << configFile << "'";
+		SLOGW << "Cannot open domain registration configuration file '" << configFile << "'";
 		return -1;
 	}
 
-	SLOGD << "Loading domain registration configuration from " << configFile;
+	SLOGI << "Loading domain registration configuration from " << configFile;
 	do {
 		sofiasip::Home home;
 		string line;
@@ -469,10 +469,10 @@ void DomainRegistration::onConnectionBroken(tport_t* tport, [[maybe_unused]] msg
 	const auto& nextSchedule = mManager.mReconnectionDelay;
 	mTimer.reset(); // Cancel the old timer
 	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0ms);
-	SLOGD << "Scheduling next domain register refresh for " << mFrom->url_host << " in "
+	SLOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in "
 	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mTimer->set([this]() { this->sendRequest(); }, nextSchedule);
-	SLOGD << "DomainRegistration::onConnectionBroken(), restarting registration in "
+	SLOGI << "DomainRegistration::onConnectionBroken(), restarting registration in "
 	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mRegistrationStatus->set(503);
 }
@@ -490,8 +490,13 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0ms);
 	if (resp) {
 		msg_t* msg = nta_outgoing_getresponse(orq);
-		SLOGD << "DomainRegistration::responseCallback(): receiving response:" << endl
-		      << msg_as_string(home.home(), msg, msg_object(msg), 0, nullptr);
+		const auto* sipStatus = resp->sip_status;
+		const auto* sipTo = resp->sip_to; // a response is associated to the 'To' header
+		SLOGI << "DomainRegistration::responseCallback(): receiving response "
+		      << (sipStatus ? to_string(sipStatus->st_status) : "<unknown SIP status code>") << " "
+		      << (sipStatus ? sipStatus->st_phrase : "<unknown SIP status phrase>") << " from "
+		      << (sipTo ? url_as_string(mHome.home(), sipTo->a_url) : "<unknown expeditor>");
+
 		msg_unref(msg);
 	}
 	auto expire = getExpires(orq, resp);
@@ -507,7 +512,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 		mLastResponseWas401 = false;
 	} else if (resp->sip_status->st_status == 401) {
 		if (mLastResponseWas401) {
-			SLOGE << "Authentication failing constantly, will retry later.";
+			SLOGW << "Authentication failing constantly, will retry later.";
 			nextSchedule = 30s;
 		} else {
 			nextSchedule = 0s;
@@ -529,7 +534,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 			      mManager.mRegistrationList.end())) {
 				mManager.mNbRegistration++;
 				mManager.mRegistrationList.emplace_back(domain);
-				SLOGD << "Incrementing number of domain registration to : " << mManager.mNbRegistration;
+				SLOGI << "Incrementing number of domain registration to : " << mManager.mNbRegistration;
 			}
 		} else {
 			if (find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) !=
@@ -537,13 +542,13 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 				mManager.mNbRegistration--;
 				mManager.mRegistrationList.erase(
 				    find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain));
-				SLOGD << "Decrementing number of domain registration to : " << mManager.mNbRegistration;
+				SLOGI << "Decrementing number of domain registration to : " << mManager.mNbRegistration;
 			}
 		}
 		mPongsExpected = !!sip_has_supported(resp->sip_supported, "outbound");
 		setCurrentTport(nta_outgoing_transport(orq));
 		nextSchedule = ((expire * 90) / 100) + 1s;
-		SLOGD << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
+		SLOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
 		      << " seconds";
 
 		/*store contact sent in response, as it gives information about our public IP/port*/
@@ -673,8 +678,7 @@ void DomainRegistration::sendRequest() {
 	sip_complete_message(msg);
 	msg_serialize(msg, msg_object(msg));
 
-	SLOGD << "Domain registration about to be sent:\n"
-	      << msg_as_string(sofiasip::Home{}.home(), msg, msg_object(msg), 0, nullptr);
+	SLOGI << "Domain registration (REGISTER) about to be sent to " << url_as_string(mHome.home(), mProxy);
 
 	if (mOutgoing) {
 		nta_outgoing_destroy(mOutgoing);
@@ -705,7 +709,7 @@ void DomainRegistration::setCurrentTport(tport_t* tport) {
 	auto pingPongTimeoutDelay = mPongsExpected ? duration_cast<milliseconds>(mManager.mPingPongTimeoutDelay) : 0ms;
 	cleanCurrentTport();
 	mCurrentTport = tport;
-	if (pingPongTimeoutDelay.count() > 0) SLOGD << "Enabling PING/PONG for broken connection detection.";
+	if (pingPongTimeoutDelay.count() > 0) SLOGI << "Enabling PING/PONG for broken connection detection.";
 	tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval.count()),
 	                 TPTAG_PINGPONG(pingPongTimeoutDelay.count()), TAG_END());
 	mPendId = tport_pend(tport, nullptr, &DomainRegistration::sOnConnectionBroken, (tp_client_t*)this);

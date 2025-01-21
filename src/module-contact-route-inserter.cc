@@ -42,10 +42,10 @@ public:
 		const sip_method_t rq_method = sip->sip_request->rq_method;
 
 		if (mMasqueradeRegisters && rq_method == sip_method_register) {
-			SLOGD << "Masquerading contact";
+			SLOGI << "Masquerading contact";
 			mContactMasquerader->masquerade(*ev->getMsgSip(), mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
-			SLOGD << "Masquerading contact";
+			SLOGI << "Masquerading contact";
 			mContactMasquerader->masquerade(*ev->getMsgSip());
 		}
 

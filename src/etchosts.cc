@@ -84,10 +84,10 @@ bool EtcHostsResolver::resolve(const string& name, string* result) const {
 
 void EtcHostsResolver::setHost(const std::string& name, const std::string& result) {
 	if (result.empty()) {
-		SLOGD << "Erasing host association for " << name;
+		SLOGI << "Erasing host association for " << name;
 		mOverrideMap.erase(name);
 	} else {
-		SLOGD << "Overriding hostname " << name << " with address " << result;
+		SLOGI << "Overriding hostname " << name << " with address " << result;
 		mOverrideMap.insert(make_pair(name, result));
 	}
 }

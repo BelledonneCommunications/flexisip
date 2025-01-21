@@ -115,10 +115,9 @@ public:
 			               started = std::chrono::system_clock::now()](auto& session, Reply reply) mutable {
 				const auto wallClockTime = std::chrono::system_clock::now() - started;
 				if (!std::holds_alternative<reply::Disconnected>(reply)) {
-					(wallClockTime < 1s ? SLOGD : SLOGW)
-					    << session.mLogPrefix << "Redis command completed in "
-					    << std::chrono::duration_cast<std::chrono::milliseconds>(wallClockTime).count()
-					    << "ms (wall-clock time):\n\t" << cmdString;
+					SLOGD << session.mLogPrefix << "Redis command completed in "
+					      << std::chrono::duration_cast<std::chrono::milliseconds>(wallClockTime).count()
+					      << "ms (wall-clock time):\n\t" << cmdString;
 				}
 
 				callback(session, std::move(reply));

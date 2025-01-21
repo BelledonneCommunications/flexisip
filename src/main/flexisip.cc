@@ -162,7 +162,7 @@ static map<msg_t*, string> msg_map;
 
 static void flexisip_msg_create(msg_t* msg) {
 	msg_map[msg] = "";
-	SLOGE << "New <-> msg " << msg;
+	SLOGD << "New <-> msg " << msg;
 }
 
 static void flexisip_msg_destroy(msg_t* msg) {
@@ -173,9 +173,9 @@ static void flexisip_msg_destroy(msg_t* msg) {
 }
 
 static void dump_remaining_msgs() {
-	SLOGE << "### Remaining messages: " << msg_map.size();
+	SLOGD << "### Remaining messages: " << msg_map.size();
 	for (auto it = msg_map.begin(); it != msg_map.end(); ++it) {
-		SLOGE << "### \t- " << it->first << "\n";
+		SLOGD << "### \t- " << it->first << "\n";
 	}
 }
 
@@ -246,9 +246,9 @@ static void increaseFDLimit() noexcept {
 			const auto oldLimit = lm.rlim_cur;
 			lm.rlim_cur = lm.rlim_max = systemLimit;
 			if (setrlimit(RLIMIT_NOFILE, &lm) == -1) {
-				SLOGE << "setrlimit(RLIMIT_NOFILE) failed: " << strerror(errno)
+				SLOGW << "setrlimit(RLIMIT_NOFILE) failed: " << strerror(errno)
 				      << ". Limit of number of file descriptors is low (" << oldLimit << ")";
-				SLOGE << "Flexisip will not be able to process a big number of calls.";
+				SLOGW << "Flexisip will not be able to process a big number of calls.";
 			}
 			if (getrlimit(RLIMIT_NOFILE, &lm) == 0) {
 				SLOGI << "Maximum number of file descriptor set to " << lm.rlim_cur;
@@ -422,12 +422,12 @@ static void forkAndDetach(ConfigManager& cfg,
 							throw ExitSuccess{"Flexisip exited normally"};
 						}
 					} else if (auto_respawn) {
-						SLOGE << "Flexisip apparently crashed, respawning now...";
+						SLOGI << "Flexisip apparently crashed, respawning now...";
 						sleep(1);
 						goto fork_flexisip;
 					}
 				} else if (retpid == monitor_pid) {
-					SLOGE << "The Flexisip monitor has crashed or has been illegally terminated. Restarting now";
+					SLOGI << "The Flexisip monitor has crashed or has been illegally terminated. Restarting now";
 					sleep(1);
 					goto fork_monitor;
 				}
@@ -439,7 +439,7 @@ static void forkAndDetach(ConfigManager& cfg,
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
 		 */
-		SLOGD << "[LAUNCHER] Watchdog PID: " << pid;
+		SLOGI << "[LAUNCHER] Watchdog PID: " << pid;
 		uint8_t buf[4];
 		// we don't need the write side of the pipe:
 		close(pipe_launcher_wdog[1]);
@@ -867,7 +867,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		lm.rlim_cur = RLIM_INFINITY;
 		lm.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &lm) == -1) {
-			SLOGE << "Cannot enable core dump, setrlimit() failed: " << strerror(errno);
+			SLOGW << "Cannot enable core dump, setrlimit() failed: " << strerror(errno);
 		}
 	}
 

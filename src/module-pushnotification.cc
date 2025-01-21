@@ -52,20 +52,20 @@ PushNotificationContext::~PushNotificationContext() {
 }
 
 void PushNotificationContext::start(std::chrono::seconds delay) {
-	SLOGD << "PNR " << mPInfo.get() << ": set timer to " << delay.count() << "s";
+	SLOGI << "PNR " << mPInfo.get() << ": set timer to " << delay.count() << "s";
 	mTimer.set([this]() { onTimeout(); }, delay);
 	mEndTimer.set([this]() { mModule->removePushNotification(this); });
 }
 
 void PushNotificationContext::cancel() {
-	SLOGD << "PNR " << mPInfo.get() << ": canceling push request";
+	SLOGI << "PNR " << mPInfo.get() << ": canceling push request";
 	mTimer.reset();
 }
 
 void PushNotificationContext::onTimeout() noexcept {
-	SLOGD << "PNR " << mPInfo.get() << ": timeout";
+	SLOGI << "PNR " << mPInfo.get() << ": timeout";
 	if (auto sharedFork = mForkContext.lock(); sharedFork->isFinished()) {
-		SLOGD << "Call is already established or canceled, so push notification is not sent but cleared.";
+		SLOGI << "Call is already established or canceled, so push notification is not sent but cleared.";
 		return;
 	}
 
@@ -76,7 +76,7 @@ void PushNotificationContext::onTimeout() noexcept {
 	}
 
 	if (mRetryCounter > 0) {
-		SLOGD << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
+		SLOGI << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
 		mRetryCounter--;
 		mTimer.set([this]() { onTimeout(); }, mRetryInterval);
 	}
@@ -520,7 +520,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mCallTtl = chrono::duration_cast<chrono::seconds>(
 	    mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
-	SLOGD << "PushNotification module loaded. Push ttl for calls is " << mCallTtl.count() << " seconds, and for IM "
+	SLOGI << "PushNotification module loaded. Push ttl for calls is " << mCallTtl.count() << " seconds, and for IM "
 	      << mMessageTtl.count() << " seconds.";
 }
 
@@ -590,7 +590,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		timeout = max(0s, timeout);
 
 		// Actually create the PushNotificationContext
-		SLOGD << "Creating a push notif context PNR " << pinfo << " to send in " << timeout.count() << "s";
+		SLOGI << "Creating a push notif context PNR " << pinfo << " to send in " << timeout.count() << "s";
 		if (isCall) {
 			context = PNContextCall::make(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
 			if (br) {

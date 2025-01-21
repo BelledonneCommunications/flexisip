@@ -321,7 +321,7 @@ public:
 			auto& contacts = mRecord->getExtendedContacts();
 			for (auto ec : extlist) {
 				// Also add alias for late forking (context in the forks map for this alias key)
-				SLOGD << "Step: " << mStep << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << mUrl << " -> "
+				SLOGI << "Step: " << mStep << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << mUrl << " -> "
 				      << ExtendedContact::urlToString(ec->mSipContact->m_url) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(mUrl.str(), ec);
@@ -349,20 +349,20 @@ public:
 		}
 
 		if (waitPullUpOrFail()) {
-			SLOGD << "Step: " << mStep << "\tNo contact found for " << mUrl;
+			SLOGI << "Step: " << mStep << "\tNo contact found for " << mUrl;
 			mOriginalListener->onRecordFound(nullptr);
 		}
 	}
 
 	void onError(const SipStatus& response) override {
-		SLOGW << "Step: " << mStep << "\tError during recursive fetch of " << mUrl;
+		SLOGE << "Step: " << mStep << "\tError during recursive fetch of " << mUrl;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onError(response);
 		}
 	}
 
 	void onInvalid(const SipStatus& response) override {
-		SLOGW << "Step: " << mStep << "\tInvalid during recursive fetch of " << mUrl;
+		SLOGE << "Step: " << mStep << "\tInvalid during recursive fetch of " << mUrl;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onInvalid(response);
 		}

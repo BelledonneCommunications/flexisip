@@ -65,7 +65,7 @@ void OutgoingTransaction::_cancel(Tags... tags) {
 		// NTATAG_CANCEL_2543(1) --> the stack generates a 487 response to the request internally
 		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_2543(1), TAG_END());
 	} else {
-		SLOGE << "OutgoingTransaction::cancel(): transaction already destroyed.";
+		SLOGD << "OutgoingTransaction::cancel(): transaction already destroyed.";
 	}
 }
 

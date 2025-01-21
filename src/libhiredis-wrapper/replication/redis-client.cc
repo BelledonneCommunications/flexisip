@@ -140,7 +140,7 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 			// If there is no slaves, this is already a full rotation.
 			mLastReconnectRotation = std::chrono::system_clock::now();
 		}
-		SLOGW << logPrefix() << "Trying to reconnect to last active connection at " << mParams.domain << ":"
+		SLOGI << logPrefix() << "Trying to reconnect to last active connection at " << mParams.domain << ":"
 		      << mParams.port;
 		return connect();
 	}
@@ -173,7 +173,7 @@ void RedisClient::getReplicationInfo(const redis::async::Session::Ready& readySe
 	readySession.timedCommand({"INFO", "replication"}, [this](const Session&, Reply reply) {
 		Match(reply).against([this](const reply::String& stringReply) { handleReplicationInfoReply(stringReply); },
 		                     [this](const auto& unexpected) {
-			                     SLOGE << logPrefix() << "Unexpected reply to INFO command: " << unexpected;
+			                     SLOGW << logPrefix() << "Unexpected reply to INFO command: " << unexpected;
 		                     });
 	});
 }
@@ -224,9 +224,9 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 			int masterPort = atoi(replyMap["master_port"].c_str());
 			string masterStatus = replyMap["master_link_status"];
 
-			SLOGW << logPrefix() << "Our redis instance is a slave of " << masterAddress << ":" << masterPort;
+			SLOGI << logPrefix() << "Our redis instance is a slave of " << masterAddress << ":" << masterPort;
 			if (masterStatus == "up") {
-				SLOGW << logPrefix() << "Master is up, will attempt to connect to the master at " << masterAddress
+				SLOGI << logPrefix() << "Master is up, will attempt to connect to the master at " << masterAddress
 				      << ":" << masterPort;
 
 				mParams.domain = masterAddress;
@@ -236,7 +236,7 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 				forceDisconnect();
 				connect();
 			} else {
-				SLOGW << logPrefix() << "Master is " << masterStatus
+				SLOGI << logPrefix() << "Master is " << masterStatus
 				      << " but not up, wait for next periodic check to decide to connect.";
 			}
 		} else {

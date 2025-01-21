@@ -36,7 +36,7 @@ void RFC8599PushParams::setFromPushParams(const std::string& pnProvider,
                                           const std::string& pnParam,
                                           const std::string& pnPrid) {
 	if (pnProvider == "android" || pnProvider == "firebase") {
-		SLOGW << "'" << pnProvider << "' provider is invalid according rfc8599 and is often mistaken with 'fcm'";
+		SLOGD << "'" << pnProvider << "' provider is invalid according rfc8599 and is often mistaken with 'fcm'";
 	}
 	mProvider = pnProvider;
 	mParam = pnParam;

@@ -62,7 +62,7 @@ shared_ptr<Client> Service::createAppleClient(const path& caFile, const path& ce
 		SLOGD << "Created iOS push notification client [" << certName << "]";
 		return mClients[certName];
 	} catch (const TlsConnection::CreationError& err) {
-		SLOGW << "Couldn't create iOS push notification client from [" << certName << "]: " << err.what();
+		SLOGE << "Couldn't create iOS push notification client from [" << certName << "]: " << err.what();
 		return nullptr;
 	}
 }
@@ -148,7 +148,7 @@ void Service::setupiOSClient(const std::string& certDir, const std::string& caFi
 	}
 	mAppleCertDirs[certDir] = caFile;
 
-	SLOGD << "Searching for push notification certificates in directory [" << certDir << "]";
+	SLOGI << "Searching for push notification certificates in directory [" << certDir << "]";
 
 	// Only consider files which end with .pem
 	const auto& allowedExtension = ".pem";
@@ -193,7 +193,7 @@ void Service::setupFirebaseClients(const GenericStruct* pushConfig) {
 
 void Service::addFirebaseClient(const std::string& appId, const std::string& apiKey) {
 	mClients[appId] = make_unique<FirebaseClient>(*mRoot, apiKey, this);
-	SLOGD << "Adding firebase push notification client [" << appId << "]";
+	SLOGI << "Adding firebase push notification client [" << appId << "]";
 }
 
 void Service::addFirebaseV1Client(const std::string& appId,
@@ -207,7 +207,7 @@ void Service::addFirebaseV1Client(const std::string& appId,
 	                                      mRoot, FIREBASE_GET_ACCESS_TOKEN_SCRIPT_PATH, serviceAccountFilePath,
 	                                      defaultRefreshInterval, tokenExpirationAnticipationTime),
 	                                  this);
-	SLOGD << "Adding firebase push notification client [" << appId << "]";
+	SLOGI << "Adding firebase push notification client [" << appId << "]";
 }
 
 void Service::setFallbackClient(const std::shared_ptr<Client>& fallbackClient) {

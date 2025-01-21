@@ -69,7 +69,7 @@ void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* c, const cha
 		char* lParam = su_sprintf(home, "transport=%s", tport_value);
 		url_param_add(home, ct_url, lParam);
 	}
-	SLOGD << "Contact has been rewritten to " << url_as_string(home, ct_url);
+	SLOGI << "Contact has been rewritten to " << url_as_string(home, ct_url);
 }
 
 void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) {
@@ -128,5 +128,5 @@ void ContactMasquerader::restore(su_home_t* home, url_t* dest, char ctrt_param[6
 		url_param_add(home, dest, new_param);
 	}
 
-	SLOGD << "Request url changed to " << url_as_string(home, dest);
+	SLOGI << "Request url changed to " << url_as_string(home, dest);
 }

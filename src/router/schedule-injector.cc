@@ -37,7 +37,7 @@ void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
 
 	if (contactMapEntry == injectMap.end()) {
 		// This should not happen, but we prefer to send in wrong order than not at all.
-		SLOGE << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
+		SLOGW << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
 		      << ev->getMsgSip()->getCallID() << "]. No map found. Injected out of order to " << contactId;
 		mModule->injectRequestEvent(std::move(ev));
 		return;
@@ -51,7 +51,7 @@ void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
 		it->waitForInject = std::move(ev);
 	} else {
 		// This should not happen, but we prefer to send in wrong order than not at all.
-		SLOGE << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
+		SLOGW << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "], CallID ["
 		      << ev->getMsgSip()->getCallID() << "], was not found in and is injected out of order to " << contactId;
 		mModule->injectRequestEvent(std::move(ev));
 	}

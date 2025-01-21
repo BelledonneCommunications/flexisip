@@ -32,13 +32,13 @@ public:
 	}
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
-		SLOGD << "Garbage: processing terminated";
+		SLOGI << "Garbage: processing terminated";
 		ev->terminateProcessing();
 		return {};
 	}
 
 	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
-		SLOGD << "Garbage: processing terminated";
+		SLOGI << "Garbage: processing terminated";
 		ev->terminateProcessing();
 		return {};
 	}

@@ -163,7 +163,8 @@ void Agent::onDeclare(const GenericStruct& root) {
 		mCountReplyResUnknown = global->getStat(key + "unknown");
 	}
 
-	string uniqueId = global->get<ConfigString>("unique-id")->read();
+	const auto* uniqueIdParam = global->get<ConfigString>("unique-id");
+	auto uniqueId = uniqueIdParam->read();
 	if (!uniqueId.empty()) {
 		if (uniqueId.length() == 16) {
 			transform(uniqueId.begin(), uniqueId.end(), uniqueId.begin(), ::tolower);
@@ -171,10 +172,10 @@ void Agent::onDeclare(const GenericStruct& root) {
 			    uniqueId.end()) {
 				mUniqueId = uniqueId;
 			} else {
-				SLOGE << "'uniqueId' parameter must hold an hexadecimal number";
+				throw BadConfiguration{uniqueIdParam->getCompleteName() + " parameter must hold an hexadecimal number"};
 			}
 		} else {
-			SLOGE << "'uniqueId' parameter must have 16 characters. Skipping it";
+			throw BadConfiguration{uniqueIdParam->getCompleteName() + " parameter must have 16 characters"};
 		}
 	}
 
@@ -233,7 +234,7 @@ void Agent::initializePreferredRoute() {
 		try {
 			SipUri url{internalTransport};
 			mPreferredRouteV4 = url_hdup(&mHome, url.get());
-			SLOGD << "Agent's preferred IP for internal routing find: v4: " << internalTransport;
+			SLOGI << "Agent's preferred IP for internal routing find: v4: " << internalTransport;
 		} catch (const sofiasip::InvalidUrlError& e) {
 			throw runtime_error{"invalid URI in '" + internalTransportParam->getCompleteName() + "': " + e.getReason()};
 		}
@@ -378,7 +379,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		int err;
 		su_home_t home;
 		su_home_init(&home);
-		SLOGD << "Enabling transport " << uri;
+		SLOGI << "Enabling transport " << uri;
 		if (uri.find("sips") == 0) {
 			unsigned int tls_policy = 0;
 
@@ -505,14 +506,14 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		if (tport_is_tcp(tport)) tport_set_max_read_size(tport, tcpMaxReadSize->read());
 	}
 
-	SLOGD << "Agent 's primaries are:";
+	SLOGI << "Agent 's primaries are:";
 	for (tport_t* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
 		auto name = tport_name(tport);
 		char url[512];
 		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
 		         name->tpn_host);
 		su_md5_strupdate(&ctx, url);
-		SLOGD << "\t" << url;
+		SLOGI << "\t" << url;
 		auto isIpv6 = strchr(name->tpn_host, ':') != nullptr;
 
 		// The public and bind values are different
@@ -584,9 +585,9 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		                    mPublicIpV6 + "). Cannot continue."};
 	}
 
-	SLOGD << "Agent public hostname/ip: v4:" << mPublicIpV4 << " v6:" << mPublicIpV6;
-	SLOGD << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
-	SLOGD << "Agent's _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
+	SLOGI << "Agent public hostname/ip: v4:" << mPublicIpV4 << " v6:" << mPublicIpV6;
+	SLOGI << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
+	SLOGI << "Agent's _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
 
 	startLogWriter();
 
@@ -605,13 +606,13 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 	}
 	if (!tlsConfigInfoFromConf.certifFile.empty()) {
 		tlsConfigInfoFromConf.mode = TlsMode::NEW;
-		SLOGD << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
+		SLOGI << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
 		      << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file [" << tlsConfigInfoFromConf.certifCaFile
 		      << "].";
 
 	} else {
 		tlsConfigInfoFromConf.mode = TlsMode::OLD;
-		SLOGD << "Main tls certs dir : " << tlsConfigInfoFromConf.certifDir
+		SLOGI << "Main tls certs dir : " << tlsConfigInfoFromConf.certifDir
 		      << " . Be careful you are using a deprecated config tls-certificates-dir.";
 	}
 
@@ -680,7 +681,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		struct ifaddrs* ifa = net_addrs;
 		while (ifa != nullptr) {
 			if (ifa->ifa_netmask != nullptr && ifa->ifa_addr != nullptr) {
-				SLOGD << "New network: " << Network::print(ifa);
+				SLOGI << "New network: " << Network::print(ifa);
 				mNetworks.emplace_front(ifa);
 			}
 			ifa = ifa->ifa_next;
@@ -705,9 +706,9 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->setConfigListener(this);
 	mAliases = mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->read();
-	SLOGD << "List of host aliases:";
+	SLOGI << "List of host aliases:";
 	for (const auto& alias : mAliases) {
-		SLOGD << alias;
+		SLOGI << alias;
 	}
 
 	mUseRfc2543RecordRoute = mConfigManager->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
@@ -755,7 +756,7 @@ string Agent::getPreferredRoute() const {
 }
 
 bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
-	SLOGD << "Configuration of agent changed for key " << conf.getName() << " to " << conf.get();
+	SLOGI << "Configuration of agent changed for key " << conf.getName() << " to " << conf.get();
 
 	if (conf.getName() == "aliases" && state == ConfigState::Committed) {
 		mAliases = ((ConfigStringList*)(&conf))->read();
@@ -1015,21 +1016,23 @@ Agent::doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, con
 	}
 	if (!ev->isTerminated() && !ev->isSuspended()) {
 		stringstream error{"Event no handled "};
-		error << ev;
+		error << ev.get();
 		throw FlexisipException{error.str()};
 	}
 	return std::move(ev);
 }
 
 void Agent::sendRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
-	SipLogContext ctx(ev->getMsgSip());
-	sip_t* sip = ev->getMsgSip()->getSip();
+	const auto msgSip = ev->getMsgSip();
+	SipLogContext ctx(msgSip);
+	sip_t* sip = msgSip->getSip();
 	const sip_request_t* req = sip->sip_request;
 	const url_t* from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
 
-	SLOGD << "Receiving new Request SIP message " << req->rq_method_name << " from "
-	      << (from_url ? url_as_string(ev->getHome(), from_url) : "<invalid from>") << " :\n"
-	      << *ev->getMsgSip();
+	SLOGI << "Received new SIP message (request) " << (req ? req->rq_method_name : "<unknown SIP method name>")
+	      << " from " << (from_url ? url_as_string(ev->getHome(), from_url) : "<unknown expeditor>");
+    SLOGD << "Message:\n" << msgSip->msgAsString();
+
 	switch (req->rq_method) {
 		case sip_method_register:
 			++*mCountIncomingRegister;
@@ -1076,12 +1079,18 @@ unique_ptr<ResponseSipEvent> Agent::sendResponseEvent(unique_ptr<ResponseSipEven
 		SLOGI << "Skipping incoming message on expired agent";
 		return {};
 	}
-	SipLogContext ctx(ev->getMsgSip());
+	const auto msgSip = ev->getMsgSip();
+	SipLogContext ctx(msgSip);
 
-	SLOGD << "Receiving new Response SIP message: " << ev->getMsgSip()->getSip()->sip_status->st_status << "\n"
-	      << *ev->getMsgSip();
+	const auto* sipStatus = msgSip->getSip()->sip_status;
+	const auto* sipTo = msgSip->getSip()->sip_to; // a response is associated to the 'To' header
+	SLOGI << "Received new SIP message (response) "
+	      << (sipStatus ? to_string(sipStatus->st_status) : "<unknown SIP status code>") << " "
+	      << (sipStatus ? sipStatus->st_phrase : "<unknown SIP status phrase>") << " from "
+	      << (sipTo ? url_as_string(&mHome, sipTo->a_url) : "<unknown expeditor>");
+    SLOGD << "Message:\n" << msgSip->msgAsString();
 
-	sip_t* sip = ev->getMsgSip()->getSip();
+	sip_t* sip = msgSip->getSip();
 	switch (sip->sip_status->st_status) {
 		case 100:
 			++*mCountIncoming100;
@@ -1133,8 +1142,8 @@ unique_ptr<ResponseSipEvent> Agent::sendResponseEvent(unique_ptr<ResponseSipEven
 void Agent::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	SLOGD << "Inject request SIP event [" << ev.get() << "] after " << currModule->getModuleName() << ":\n"
-	      << *ev->getMsgSip();
+	SLOGI << "Inject request SIP event [" << ev.get() << "] after " << currModule->getModuleName();
+    SLOGD << "Message:\n" << ev->getMsgSip()->msgAsString();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	doSendEvent(std::move(ev), ++it, mModules.cend());
@@ -1144,8 +1153,8 @@ void Agent::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 unique_ptr<ResponseSipEvent> Agent::injectResponseEvent(unique_ptr<ResponseSipEvent>&& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	SLOGD << "Injecting response SIP event [" << ev.get() << "] after " << currModule->getModuleName() << ":\n"
-	      << *ev->getMsgSip();
+	SLOGI << "Inject response SIP event [" << ev.get() << "] after " << currModule->getModuleName();
+    SLOGD << "Message:\n" << ev->getMsgSip()->msgAsString();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	ev = doSendEvent(std::move(ev), ++it, mModules.cend());
@@ -1333,7 +1342,7 @@ void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
 		return;
 	}
 	if (lastModificationTime > tlsTpInfo.lastModificationTime) {
-		SLOGD << "Updating TLS certificate for transport: " << tlsTpInfo.url.str();
+		SLOGI << "Updating TLS certificate for transport: " << tlsTpInfo.url.str();
 		if (nta_agent_update_tport_certificates(
 		        mAgent, reinterpret_cast<const url_string_t*>(tlsTpInfo.url.get()),
 		        TPTAG_CERTIFICATE_FILE(tlsTpInfo.tlsConfigInfo.certifFile.c_str()),

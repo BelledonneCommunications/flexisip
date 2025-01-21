@@ -155,7 +155,7 @@ Record::Config::Config(const ConfigManager& cfg) {
 }
 
 ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
-	SLOGD << "Updating record with contact " << *ec;
+	SLOGI << "Updating record with contact " << *ec;
 	ChangeSet changeSet{};
 
 	if (mConfig.assumeUniqueDomains() && mIsDomain) {
@@ -181,10 +181,10 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 			/* fallthrough */
 			case ContactMatch::ForceErase:
 				if (remove) {
-					SLOGD << "Removing " << *existing;
+					SLOGI << "Removing " << *existing;
 					changeSet.mDelete.push_back(existing);
 				} else {
-					SLOGD << "Updating " << *existing;
+					SLOGI << "Updating " << *existing;
 
 					// Carry over existing key
 					// (otherwise the contact would get duplicated instead of updated)

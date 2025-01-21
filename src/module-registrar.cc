@@ -197,7 +197,7 @@ OnStaticBindListener::OnStaticBindListener(const url_t* from, const sip_contact_
 	mContact = url_as_string(mHome.home(), ct->m_url);
 }
 void OnStaticBindListener::onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) {
-	SLOGD << "Static route added for " << mFrom << ": " << mContact;
+	SLOGI << "Static route added for " << mFrom << ": " << mContact;
 }
 void OnStaticBindListener::onError(const SipStatus&) {
 	SLOGE << "Can't add static route for " << mFrom;
@@ -534,7 +534,7 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	mUpdateOnResponse = mc->get<ConfigBoolean>("reg-on-response")->read();
 	mDomains = mc->get<ConfigStringList>("reg-domains")->read();
 	for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
-		SLOGD << "Found registrar domain: " << *it;
+		SLOGI << "Found registrar domain: " << *it;
 	}
 	mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
 	mServiceRoute = mc->get<ConfigString>("service-route")->read();
@@ -795,7 +795,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	try {
 		sipurl = SipUri(sip->sip_from->a_url);
 	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
+		SLOGUE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
 		ev->reply(400, "Bad request", TAG_END());
 		return {};
 	}
@@ -805,7 +805,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {
-		SLOGD << "No sip contact, it is a fetch only request for " << sipurl.str();
+		SLOGI << "No sip contact, it is a fetch only request for " << sipurl.str();
 		auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
 		mAgent->getRegistrarDb().fetch(sipurl, listener);
 		return {};
@@ -862,7 +862,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Domain registration case, does nothing for the moment
 	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
-		SLOGE << "Not accepting domain registration";
+		SLOGD << "Not accepting domain registration";
 		SLOGUE << "Not accepting domain registration:  " << sipurl;
 		reply(*ev, 403, "Domain registration forbidden", nullptr);
 		return {};
@@ -1069,7 +1069,7 @@ void ModuleRegistrar::readStaticRecords() {
 					}
 
 					void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-						SLOGD << "Cleared record " << mUri;
+						SLOGI << "Cleared record " << mUri;
 					}
 					void onError(const SipStatus&) override {
 						SLOGE << "Error: cannot clear record " << mUri;
@@ -1110,7 +1110,7 @@ void ModuleRegistrar::readStaticRecords() {
 			}
 
 		} catch (const runtime_error& e) {
-			SLOGW << "error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
+			SLOGE << "error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
 			      << "\t`" << line << "`: " << e.what();
 		}
 	}

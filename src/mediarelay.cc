@@ -119,7 +119,7 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 	if (rtp_port > 0 && mPreventLoop) {
 		if (ip == mRelayTransport.mIpv4Address || ip == mRelayTransport.mIpv6Address ||
 		    ip == mRelayTransport.mIpv4BindAddress || ip == mRelayTransport.mIpv6BindAddress) {
-			SLOGW << "RelayChannel [" << this << "] wants to loop to local machine with ip [" << ip
+			SLOGD << "RelayChannel [" << this << "] wants to loop to local machine with ip [" << ip
 			      << "], not allowed.";
 			dest_ok = false;
 		}
@@ -140,7 +140,7 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 		mIsOpen = true;
 
 		if (mDestAddrChanged) {
-			SLOGW << "RelayChannel [" << this
+			SLOGD << "RelayChannel [" << this
 			      << "] is being set new destination address but was fixed previously in this session, so ignoring "
 			         "this request.";
 			return;
@@ -521,7 +521,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string& fron
 	mMutex.unlock();
 	if (!mRunning) start();
 
-	SLOGD << "There are now " << mSessionsCount << " relay sessions running on MediaRelayServer [" << this << "]";
+	SLOGI << "There are now " << mSessionsCount << " relay sessions running on MediaRelayServer [" << this << "]";
 	/*write to the control pipe to wakeup the server thread */
 	update();
 	return s;
@@ -553,11 +553,11 @@ static void set_high_prio() {
 			if (setpriority(PRIO_PROCESS, 0, -20) == -1) {
 				SLOGD << "MediaRelayServer setpriority() failed: " << strerror(errno) << ", nevermind.";
 			} else {
-				SLOGD << "MediaRelayServer priority increased to maximum.";
+				SLOGI << "MediaRelayServer priority increased to maximum.";
 			}
 		} else SLOGW << "MediaRelayServer: pthread_setschedparam failed: " << strerror(result);
 	} else {
-		SLOGD << "MediaRelayServer: priority set to [" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR")
+		SLOGI << "MediaRelayServer: priority set to [" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR")
 		      << "] and value [" << param.sched_priority << "]";
 	}
 }
@@ -594,7 +594,7 @@ void MediaRelayServer::run() {
 				if (!(*it)->isUsed()) {
 					it = mSessions.erase(it);
 					mSessionsCount--;
-					SLOGD << "There are now " << mSessionsCount << " relay sessions running.";
+					SLOGI << "There are now " << mSessionsCount << " relay sessions running.";
 				} else {
 					(*it)->checkPollFd(&pfd, curtime);
 					++it;

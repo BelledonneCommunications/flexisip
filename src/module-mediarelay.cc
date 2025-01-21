@@ -255,7 +255,7 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	c->updateActivity();
 	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ev.getMsgSip()->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
-		SLOGW << "Invalid SDP";
+		SLOGD << "Invalid SDP";
 		return false;
 	}
 
@@ -407,7 +407,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	SLOGD << "Processing 200 Ok or early media";
 
 	if (sip->sip_to == NULL || sip->sip_to->a_tag == NULL) {
-		SLOGW << "No tag in answer";
+		SLOGD << "No tag in answer";
 		return;
 	}
 
@@ -418,7 +418,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 
 	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
-		SLOGW << "Invalid SDP";
+		SLOGD << "Invalid SDP";
 		return;
 	}
 
@@ -532,5 +532,5 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 void MediaRelay::onIdle() {
 	mCalls->dump();
 	mCalls->removeAndDeleteInactives(mInactivityPeriod);
-	if (mCalls->size() > 0) SLOGD << "There are " << mCalls->size() << " calls active in the MediaRelay call list.";
+	if (mCalls->size() > 0) SLOGI << "There are " << mCalls->size() << " calls active in the MediaRelay call list.";
 }

@@ -64,7 +64,7 @@ void NonceStore::updateNc(const string& nonce, int newnc) {
 		SLOGD << "Updating nonce " << nonce << " with nc=" << newnc;
 		(*it).second.nc = newnc;
 	} else {
-		SLOGE << "Couldn't update nonce " << nonce << ": not found";
+		SLOGI << "Couldn't update nonce " << nonce << ": not found";
 	}
 }
 

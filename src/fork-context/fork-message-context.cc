@@ -224,7 +224,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 			removeBranch(tmp);
 		}
 	} else {
-		SLOGE << errorLogPrefix() << "No unique id found for contact";
+		SLOGD << errorLogPrefix() << "No unique id found for contact";
 	}
 	if (mKind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		// Pass event ID to the conference server to get it back when it dispatches the message to the intended

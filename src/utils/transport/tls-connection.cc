@@ -144,7 +144,7 @@ void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r m
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
 
-	SLOGD << mLogPrefix << "Connecting...";
+	SLOGI << mLogPrefix << "Connecting...";
 
 	if (!mCertPath.empty()) {
 		const auto errMsg = loadCertificate();
@@ -209,12 +209,12 @@ void TlsConnection::connect() noexcept {
 	}
 
 	mBio = std::move(newBio);
-	SLOGD << mLogPrefix << "Connected";
+	SLOGI << mLogPrefix << "Connected";
 }
 
 void TlsConnection::disconnect() noexcept {
 	mBio.reset();
-	SLOGD << mLogPrefix << "Disconnected";
+	SLOGI << mLogPrefix << "Disconnected";
 }
 
 void TlsConnection::resetConnection() noexcept {

@@ -88,7 +88,7 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 
 	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
-		SLOGD << "ForkMessageContextDbProxy[" << this << "] was present in DB, cleaning UUID[" << mForkUuidInDb << "]";
+    		SLOGD << "ForkMessageContextDbProxy[" << this << "] was present in DB, cleaning UUID[" << mForkUuidInDb << "]";
 		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([uuid = mForkUuidInDb]() {
 			ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid);
 		});
@@ -96,13 +96,13 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 }
 
 void ForkMessageContextDbProxy::loadFromDb() const {
-	SLOGI << "ForkMessageContextDbProxy[" << this << "] retrieving message in DB for UUID [" << mForkUuidInDb << "]";
+	SLOGD << "ForkMessageContextDbProxy[" << this << "] retrieving message in DB for UUID [" << mForkUuidInDb << "]";
 	mDbFork = make_unique<ForkMessageContextDb>(
 	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
 }
 
 bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
-	SLOGI << "ForkMessageContextDbProxy[" << this << "] saving ForkMessage to DB.";
+	SLOGD << "ForkMessageContextDbProxy[" << this << "] saving ForkMessage to DB.";
 	try {
 		if (mForkUuidInDb.empty()) {
 			SLOGD << "ForkMessageContextDbProxy[" << this << "] not saved before, creating a new entry.";

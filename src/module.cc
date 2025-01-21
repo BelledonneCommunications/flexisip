@@ -54,7 +54,7 @@ bool Module::isEnabled() const {
 
 bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	bool dirtyConfig = false;
-	SLOGD << "Configuration of module " << mInfo->getModuleName() << " changed for key " << conf.getName() << " to "
+	SLOGI << "Configuration of module " << mInfo->getModuleName() << " changed for key " << conf.getName() << " to "
 	      << conf.get();
 	switch (state) {
 		case ConfigState::Check:
@@ -107,17 +107,17 @@ void Module::reload() {
 unique_ptr<RequestSipEvent> Module::processRequest(unique_ptr<RequestSipEvent>&& ev) {
 	auto errorReply = [&](int code, string_view reason, string_view error_msg) {
 		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << error_msg;
-		SLOGD << "Replying with message " << code << " and reason " << reason.data();
+		SLOGI << "Replying with message " << code << " and reason " << reason.data();
 		ev->reply(code, reason.data(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	};
 
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	try {
-		if (mFilter->canEnter(ms)) {
-			SLOGD << "Invoking onRequest() on module " << getModuleName();
-			return onRequest(std::move(ev));
-		} else {
-			SLOGD << "Skipping onRequest() on module " << getModuleName();
+		if (mFilter->isEnabled()) {
+			if (mFilter->canEnter(ms)) {
+				SLOGD << "Running onRequest() on module " << getModuleName();
+				return onRequest(std::move(ev));
+			} else SLOGI << "Skipped onRequest() on module " << getModuleName() << ": filter evaluated to 'false'";
 		}
 	} catch (SignalingException& se) {
 		ostringstream msg;
@@ -140,14 +140,14 @@ unique_ptr<ResponseSipEvent> Module::processResponse(unique_ptr<ResponseSipEvent
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 
 	try {
-		if (mFilter->canEnter(ms)) {
-			SLOGD << "Invoking onResponse() on module " << getModuleName();
-			return onResponse(std::move(ev));
-		} else {
-			SLOGD << "Skipping onResponse() on module " << getModuleName();
+		if (mFilter->isEnabled()) {
+			if (mFilter->canEnter(ms)) {
+				SLOGD << "Running onResponse() on module " << getModuleName();
+				return onResponse(std::move(ev));
+			} else SLOGI << "Skipped onResponse() on module " << getModuleName() << ": filter evaluated to 'false'";
 		}
 	} catch (FlexisipException& fe) {
-		SLOGD << "Skipping onResponse() on module" << getModuleName() << " because " << fe;
+		SLOGD << "Skipped onResponse() on module " << getModuleName() << ": " << fe;
 	}
 	return std::move(ev);
 }
@@ -280,7 +280,8 @@ void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
 			continue;
 		}
 
-		SLOGW << "Module " << "[" << moduleName << "] will replace module [" << replace << "].";
+		SLOGD << "Module "
+		      << "[" << moduleName << "] will replace module [" << replace << "].";
 		*replacedModule = module;
 	}
 }
@@ -333,6 +334,6 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 
 	// Replace the modules which are targeted by replacingModules.
 	replaceModules(sortedList, replacingModules);
-	SLOGD << "Module chain computed succesfully.";
+	SLOGI << "Module chain computed succesfully.";
 	return sortedList;
 }

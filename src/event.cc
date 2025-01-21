@@ -218,28 +218,31 @@ void RequestSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 
 	if (auto sharedOutgoingAgent = getOutgoingAgent()) {
-		SLOGD << "Sending Request SIP message to " << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "NULL")
-		      << "\n"
-		      << *msg;
+		const auto* sipRequest = msg->getSip()->sip_request;
+		SLOGI << "Sending request SIP message "
+		      << (sipRequest ? sipRequest->rq_method_name : "<unknown SIP method name>") << " to "
+		      << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "<unknown destination>");
+		SLOGD << "Message:\n" << msg->msgAsString();
+
 		ta_list ta;
 		ta_start(ta, tag, value);
 		sharedOutgoingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		SLOGD << "The Request SIP message is not send";
+		SLOGI << "The Request SIP message is not send";
 	}
 	terminateProcessing();
 }
 
 void RequestSipEvent::reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (auto sharedIncomingAgent = getIncomingAgent()) {
-		SLOGD << "Replying Request SIP message: " << status << " " << phrase;
+		SLOGI << "Replying request SIP message: " << status << " " << phrase;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		sharedIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		SLOGD << "The Request SIP message is not replied";
+		SLOGI << "The Request SIP message is not replied";
 	}
 	if (status >= 200) terminateProcessing();
 }
@@ -384,13 +387,20 @@ void ResponseSipEvent::send(
 			via_popped = true;
 		}
 		if (msg->getSip()->sip_via) checkContentLength(msg, msg->getSip()->sip_via);
-		SLOGD << "Sending response:" << (via_popped ? " (via popped) " : "") << endl << *msg;
+		const auto* sipStatus = msg->getSip()->sip_status;
+		const auto* sipTo = msg->getSip()->sip_to;
+		SLOGI << "Sending response" << (via_popped ? " (via popped)" : "") << " "
+		      << (sipStatus ? to_string(sipStatus->st_status) : "<unknown SIP status code>") << " '"
+		      << (sipStatus ? sipStatus->st_phrase : "<unknown SIP status phrase>") << "' intended to "
+		      << (sipTo ? url_as_string(sofiasip::Home{}.home(), sipTo->a_url) : "<unknown destination>");
+		SLOGD << "Message:\n" << msg->msgAsString();
+
 		ta_list ta;
 		ta_start(ta, tag, value);
 		sharedIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		SLOGD << "The response is discarded.";
+		SLOGI << "The response is discarded.";
 	}
 	terminateProcessing();
 }

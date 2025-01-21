@@ -79,7 +79,7 @@ void ExternalAuthModule::popAndSendRequest() {
 		// and swtich to waiting state.
 		ctx.release();
 		mWaitingForResponse = true;
-		SLOGD << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
+		SLOGI << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
 
 	} catch (const runtime_error& e) {
 		SLOGE << e.what();
@@ -103,7 +103,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx& ctx, nth_client_t* reque
 
 		auto status = http->http_status->st_status;
 		auto httpBody = toString(http->http_payload);
-		SLOGD << "HTTP response received [" << status << "]: " << endl << (!httpBody.empty() ? httpBody : "<empty>");
+		SLOGI << "HTTP response received [" << status << "]: " << endl << (!httpBody.empty() ? httpBody : "<empty>");
 		if (status != 200) {
 			os << "unhandled HTTP status code [" << status << "]";
 			throw runtime_error(os.str());

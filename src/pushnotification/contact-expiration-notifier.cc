@@ -85,7 +85,7 @@ void ContactExpirationNotifier::onTimerElapsed() {
 				    pnService->sendPush(request);
 
 				    SLOGI << kLogPrefix << "background push notification successfully sent to " << devInfo;
-			    } catch (const pn::UnavailablePushNotificationClient& e) {
+			    } catch (const pn::PushNotificationException& e) {
 				    SLOGD << kLogPrefix << "failed to send push notification to " << devInfo << ": " << e.what();
 			    } catch (const exception& e) {
 				    SLOGE << kLogPrefix << "failed to send push notification to " << devInfo << ": " << e.what();
@@ -98,8 +98,8 @@ unique_ptr<ContactExpirationNotifier> ContactExpirationNotifier::make_unique(con
                                                                              const shared_ptr<sofiasip::SuRoot>& root,
                                                                              weak_ptr<pn::Service>&& pnService,
                                                                              const RegistrarDb& registrar) {
-	auto interval =
-	    chrono::duration_cast<chrono::minutes>(cfg.get<ConfigDuration<chrono::minutes>>("register-wakeup-interval")->read());
+	auto interval = chrono::duration_cast<chrono::minutes>(
+	    cfg.get<ConfigDuration<chrono::minutes>>("register-wakeup-interval")->read());
 	if (interval <= 0min) {
 		return nullptr;
 	}

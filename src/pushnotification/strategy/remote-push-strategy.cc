@@ -44,7 +44,7 @@ void MessagePushStrategy::sendCallNotification(const std::shared_ptr<const PushI
 	mCallPushInfo->mCollapseId = mCallPushInfo->mCallId;
 
 	auto sendPush = [this]() {
-		SLOGD << this << ": sending ringing push notification";
+		SLOGI << this << ": sending ringing push notification";
 		auto req = mService->makeRequest(PushType::Message, mCallPushInfo);
 		mService->sendPush(req);
 	};

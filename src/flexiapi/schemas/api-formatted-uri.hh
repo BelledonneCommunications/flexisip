@@ -46,7 +46,7 @@ public:
 		j = date.apiFormattedUri;
 	};
 	friend void from_json(const nlohmann::json& j, ApiFormattedUri& date) {
-		SLOGE << "ApiFormattedUri::apiFormattedUri used, this function is not safe (no checks)";
+		SLOGD << "ApiFormattedUri::apiFormattedUri used, this function is not safe (no checks)";
 		date.apiFormattedUri = j.get<std::string>();
 	}
 

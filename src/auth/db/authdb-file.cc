@@ -198,17 +198,14 @@ void FileAuthDb::sync() {
 	shared_ptr<FileAuthDbParserRoot> pwdFile = dynamic_pointer_cast<FileAuthDbParserRoot>(ret);
 	if (pwdFile == nullptr) {
 		throw FlexisipException{"Failed to parse authdb file."};
-		return;
 	}
 	if (parsedSize < fileContent.size()) {
 		throw FlexisipException{"Parsing of Authdb file ended prematurely at char " + to_string(parsedSize)};
-		return;
 	}
 
 	// Only version == 1 is supported
 	if (pwdFile->getVersion() != "1") {
 		throw FlexisipException{"Version '" + pwdFile->getVersion() + "' is not supported for file " + mFileString};
-		return;
 	}
 
 	SLOGD << "AuthDb file succesfully parsed:\n" << fileContent;

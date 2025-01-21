@@ -242,7 +242,7 @@ bool Authentication::handleTlsClientAuthentication(RequestSipEvent& ev) {
 				}
 			}
 
-			SLOGE << "Client is presenting a TLS certificate not matching its identity.";
+			SLOGD << "Client is presenting a TLS certificate not matching its identity.";
 			SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
 			       << ", TLS certificate doesn't match its identity";
 			goto bad_certificate;
@@ -305,7 +305,7 @@ void Authentication::onIdle() {
 bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	if (conf.getName() == "trusted-hosts" && state == ConfigState::Committed) {
 		loadTrustedHosts((const ConfigStringList&)conf);
-		SLOGD << "Trusted hosts updated";
+		SLOGI << "Trusted hosts updated";
 		return true;
 	} else {
 		return Module::doOnConfigStateChanged(conf, state);

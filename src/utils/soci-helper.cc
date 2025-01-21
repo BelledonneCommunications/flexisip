@@ -94,7 +94,7 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 			reconnectSession(*session);
 
 			if (retry) {
-				SLOGD << FUNC_LOG_PREFIX << "Trying SQL query execution again";
+				SLOGI << FUNC_LOG_PREFIX << "Trying SQL query execution again";
 				continue;
 			}
 			throw DatabaseException();
@@ -104,10 +104,10 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 
 void SociHelper::reconnectSession(soci::session& session) {
 	try {
-		SLOGD << FUNC_LOG_PREFIX << "Closing and reconnecting session...";
+		SLOGI << FUNC_LOG_PREFIX << "Closing and reconnecting session...";
 		session.close();
 		session.reconnect();
-		SLOGD << FUNC_LOG_PREFIX << "Session [" << session.get_backend_name() << "] successfully reconnected";
+		SLOGI << FUNC_LOG_PREFIX << "Session [" << session.get_backend_name() << "] successfully reconnected";
 	} catch (const soci::mysql_soci_error& exception) {
 		SLOGE << FUNC_LOG_PREFIX << "MySQL error [" << exception.err_num_ << "]: " << exception.what();
 		throw DatabaseException();

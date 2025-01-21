@@ -127,7 +127,7 @@ private:
 		}
 
 		void checkPassword(const char* ipassword) {
-			SLOGD << "Found password";
+			SLOGI << "Found password";
 			gw->setPassword(ipassword);
 			gw->sendRegister();
 		}
@@ -169,16 +169,16 @@ private:
 		}
 
 		void onInvalid(const SipStatus&) override {
-			SLOGD << "GATEWAY: invalid";
+			SLOGI << "GATEWAY: invalid";
 		}
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			if (r == NULL) {
-				SLOGD << "Record doesn't exist. Fork";
+				SLOGI << "Record doesn't exist. Fork";
 				url_t* url = gw->getFrom()->a_url;
 				mAuthDb.getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
-				SLOGD << "Record already exists. Not forked";
+				SLOGI << "Record already exists. Not forked";
 			}
 		}
 
@@ -477,7 +477,7 @@ unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent
 		url_t* dest = sip->sip_request->rq_url;
 		if (url_param(dest->url_params, mRoutingParam.c_str(), routing_param, sizeof(routing_param))) {
 			++*mCountDomainRewrite;
-			SLOGD << "Rewriting request uri and to with domain " << routing_param;
+			SLOGI << "Rewriting request uri and to with domain " << routing_param;
 			dest->url_host = su_strdup(ms->getHome(), routing_param);
 			sip->sip_to->a_url[0].url_host = su_strdup(ms->getHome(), routing_param);
 		}

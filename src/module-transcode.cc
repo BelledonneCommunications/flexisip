@@ -330,7 +330,7 @@ int Transcoder::handleOffer(TranscodedCall* c, MsgSip& ms) {
 		}
 		return 0;
 	} else {
-		SLOGW << "No support for any of the codec offered by client, doing bypass.";
+		SLOGD << "No support for any of the codec offered by client, doing bypass.";
 		if (!ioffer.empty()) {
 			for (auto it = ioffer.begin(); it != ioffer.cend(); ++it) {
 				payload_type_destroy(*it);
@@ -361,7 +361,7 @@ void Transcoder::processAck(TranscodedCall* ctx, MsgSip& ms) {
 	SLOGD << "Processing ACK";
 	auto ioffer = ctx->getInitialOffer();
 	if (!ioffer.empty()) {
-		SLOGE << "Processing ACK with SDP but no offer was made or processed.";
+		SLOGD << "Processing ACK with SDP but no offer was made or processed.";
 	} else {
 		handleAnswer(ctx, ms);
 	}

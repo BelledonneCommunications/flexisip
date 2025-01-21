@@ -326,7 +326,7 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string& backendString,
 
 		mIsReady = true;
 	} catch (exception const& e) {
-		SLOGE << "DataBaseEventLogWriter: could not create logger: " << e.what();
+		throw BadConfiguration{"could not create logger ("s + e.what() + ")"};
 	}
 }
 

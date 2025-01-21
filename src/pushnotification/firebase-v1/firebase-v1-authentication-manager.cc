@@ -70,7 +70,7 @@ FirebaseV1AuthenticationManager::FirebaseV1AuthenticationManager(
 	chrono::milliseconds interval;
 	if (mToken = mTokenProvider->getToken(); mToken) {
 		interval = mToken->lifetime - mTokenExpirationAnticipationTime;
-		SLOGD << mLogPrefix << ": successfully get access token [lifetime=" << mToken->lifetime.count() << "ms]";
+		SLOGI << mLogPrefix << ": successfully get access token [lifetime=" << mToken->lifetime.count() << "ms]";
 	} else {
 		interval = mDefaultRefreshInterval;
 		SLOGW << mLogPrefix << ": failed to get access token, automatic retry in " << interval.count() << "ms";
@@ -92,7 +92,7 @@ bool FirebaseV1AuthenticationManager::addAuthentication(const std::shared_ptr<Ht
 }
 
 void FirebaseV1AuthenticationManager::onTokenRefreshStart() {
-	SLOGD << mLogPrefix << ": trying to refresh access token...";
+	SLOGI << mLogPrefix << ": trying to refresh access token...";
 
 	// WARNING: this code can still block execution of the main loop if successive rapid calls are made to this method.
 	// Indeed, it will wait for the end of the current thread before starting the new one (see operator=).
@@ -105,7 +105,7 @@ void FirebaseV1AuthenticationManager::onTokenRefreshStart() {
 		// Get new access token.
 		const auto tokenProvider = weakTokenProvider.lock();
 		if (tokenProvider == nullptr) {
-			SLOGD << logPrefix << ": pointer on access token provider is empty, cancel refresh";
+			SLOGW << logPrefix << ": pointer on access token provider is empty, cancel refresh";
 			return;
 		}
 
@@ -114,14 +114,14 @@ void FirebaseV1AuthenticationManager::onTokenRefreshStart() {
 		// Add update token event to the main loop.
 		const auto root = weakRoot.lock();
 		if (root == nullptr) {
-			SLOGD << logPrefix << ": pointer on main loop is empty, cancel refresh";
+			SLOGW << logPrefix << ": pointer on main loop is empty, cancel refresh";
 			return;
 		}
 
 		root->addToMainLoop([weakThis, newToken = token, logPrefix]() {
 			const auto manager = weakThis.lock();
 			if (manager == nullptr) {
-				SLOGD << logPrefix << ": pointer on authentication manager is empty, cancel refresh";
+				SLOGW << logPrefix << ": pointer on authentication manager is empty, cancel refresh";
 				return;
 			}
 			manager->onTokenRefreshEnd(newToken);
@@ -140,7 +140,7 @@ void FirebaseV1AuthenticationManager::onTokenRefreshEnd(
 
 		mToken = newToken;
 		interval = mToken->lifetime - mTokenExpirationAnticipationTime;
-		SLOGD << mLogPrefix
+		SLOGI << mLogPrefix
 		      << ": successfully refreshed and updated access token [lifetime=" << mToken->lifetime.count() << "ms]";
 	} else {
 		interval = mDefaultRefreshInterval;

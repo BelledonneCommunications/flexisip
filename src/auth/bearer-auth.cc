@@ -153,7 +153,7 @@ void verifySignature(string_view token,
 		// result is valid if decoding did not throw
 		result.accept();
 	} catch (const std::exception& e) {
-		SLOGW << kOpenIDConnect << ": Bearer authentication is rejected: " << e.what();
+		SLOGI << kOpenIDConnect << ": Bearer authentication is rejected: " << e.what();
 	}
 }
 
@@ -250,11 +250,11 @@ unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
 			string cert = k.hasArray(x5c) ? k[x5c][0] : "";
 			const auto pemCert = "-----BEGIN CERTIFICATE-----\n"s + cert + "\n-----END CERTIFICATE-----";
 			auto [publicKey, notAfter] = extractKey(pemCert);
-			if (publicKey.empty()) SLOGW << kOpenIDConnect << ": rejected certificate, kid \"" << keyId << "\"";
-			else if (!isKeyValid(notAfter)) SLOGD << kOpenIDConnect << ": expired certificate, kid \"" << keyId << "\"";
+			if (publicKey.empty()) SLOGI << kOpenIDConnect << ": rejected certificate, kid \"" << keyId << "\"";
+			else if (!isKeyValid(notAfter)) SLOGI << kOpenIDConnect << ": expired certificate, kid \"" << keyId << "\"";
 			else {
 				pubKeys[keyId] = {.key = publicKey, .algo = k[alg], .notAfter = notAfter};
-				SLOGD << kOpenIDConnect << ": valid certificate, kid \"" << keyId << "\"";
+				SLOGI << kOpenIDConnect << ": valid certificate, kid \"" << keyId << "\"";
 			}
 		}
 	}
@@ -356,7 +356,7 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 		onResult(std::move(result));
 
 	} catch (const std::exception& e) {
-		SLOGW << kOpenIDConnect << ": Bearer authentication is rejected, " << e.what();
+		SLOGI << kOpenIDConnect << ": Bearer authentication is rejected, " << e.what();
 	}
 	return resState;
 }
@@ -370,7 +370,7 @@ void Bearer::processPendingTokens() {
 				++pendingToken;
 				continue;
 			}
-			SLOGW << kOpenIDConnect << ": Bearer authentication is rejected, unknown kid";
+			SLOGI << kOpenIDConnect << ": Bearer authentication is rejected, unknown kid";
 		} else {
 			verifySignature(pendingToken->token, pubKey, pendingToken->result);
 		}

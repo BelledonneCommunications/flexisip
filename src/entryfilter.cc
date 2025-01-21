@@ -99,8 +99,6 @@ void ConfigEntryFilter::loadConfig(const GenericStruct* mc) {
 }
 
 bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip>& ms) {
-	if (!mEnabled) return false;
-
 	bool e = mBooleanExprFilter->eval(*ms->getSip());
 	if (e) ++(*mCountEvalTrue);
 	else ++(*mCountEvalFalse);

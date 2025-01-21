@@ -37,7 +37,7 @@ SnmpAgent::SnmpAgent(ConfigManager& cm, map<string, string>& oset) : mInitialize
 
 SnmpAgent::~SnmpAgent() {
 	mTask.mKeepRunning = false;
-	SLOGD << "Waiting for the SNMP agent task to terminate";
+	SLOGI << "Waiting for the SNMP agent task to terminate";
 	mThread.join();
 }
 
@@ -47,7 +47,7 @@ void SnmpAgent::setInitialized(bool status) {
 		const GenericEntry* source;
 		string msg;
 		if (!mPendingTraps.empty()) {
-			SLOGD << "Sending " << mPendingTraps.size() << " pending notifications";
+			SLOGI << "Sending " << mPendingTraps.size() << " pending notifications";
 		}
 		while (!mPendingTraps.empty()) {
 			tie(source, msg) = mPendingTraps.front();
@@ -159,7 +159,7 @@ int SnmpAgent::sHandleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
 }
 
 void SnmpAgent::sendTrap(const GenericEntry* source, const string& msg) {
-	SLOGD << "Sending trap " << (source ? source->getName().c_str() : "") << ": " << msg;
+	SLOGI << "Sending trap " << (source ? source->getName().c_str() : "") << ": " << msg;
 
 	if (!mInitialized) {
 		mPendingTraps.emplace(source, msg);

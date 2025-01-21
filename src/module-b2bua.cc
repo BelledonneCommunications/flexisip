@@ -126,9 +126,9 @@ unique_ptr<RequestSipEvent> B2bua::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 		if (!requestIsFromB2BUA) {
 			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
 			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
-			SLOGD << "Clean and prepend done to route " << mDestRoute->str();
+			SLOGI << "Clean and prepend done to route " << mDestRoute->str();
 		} else { // Do not intercept the call
-			SLOGD << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
+			SLOGI << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
 		}
 	}
 	return std::move(ev);

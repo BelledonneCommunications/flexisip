@@ -129,7 +129,7 @@ void Session::onConnect(const redisAsyncContext*, int status) {
 	             .against(
 	                 [&prefix = this->mLogPrefix, status](Ready&& ready) -> State {
 		                 if (status == REDIS_OK) {
-			                 SLOGD << prefix << "Connected";
+			                 SLOGI << prefix << "Connected";
 			                 return std::move(ready);
 		                 }
 
@@ -164,7 +164,7 @@ void Session::onDisconnect(const redisAsyncContext* ctx, int status) {
 	if (status != REDIS_OK) {
 		SLOGW << mLogPrefix << "Forcefully disconnecting. Reason: " << ctx->errstr;
 	}
-	SLOGD << mLogPrefix << "Disconnected. Was in state: " << StreamableVariant(mState);
+	SLOGI << mLogPrefix << "Disconnected. Was in state: " << StreamableVariant(mState);
 	mState = Disconnected();
 	if (auto listener = mListener.lock()) {
 		listener->onDisconnect(status);

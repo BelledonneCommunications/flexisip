@@ -410,7 +410,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 void ModuleRouter::restoreForksFromDatabase() {
 	SLOGI << "Fork message to DB is enabled, retrieving previous messages in DB ...";
 	auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
-	SLOGD << " ... " << allDbMessages.size() << " messages found in DB ...";
+	SLOGI << " ... " << allDbMessages.size() << " messages found in DB ...";
 	for (auto& dbMessage : allDbMessages) {
 		mStats.mCountForks->incrStart();
 		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
@@ -526,7 +526,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 	}
 	ModuleToolbox::cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
-	SLOGD << "Fork to " << contact_url_string;
+	SLOGI << "Fork to " << contact_url_string;
 
 	return context->addBranch(std::move(new_ev), contact);
 }
@@ -835,7 +835,7 @@ public:
 				} catch (const InvalidUrlError& e) {
 					vector<char> buffer(1024);
 					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t*)target_uris, 0);
-					SLOGE << "Invalid URI in X-Target-Uris header [" << e.getUrl() << "], ignoring it. Context:" << endl
+					SLOGW << "Invalid URI in X-Target-Uris header [" << e.getUrl() << "], ignoring it. Context:" << endl
 					      << ev.getMsgSip()->contextAsString() << endl
 					      << buffer.data() << endl;
 				}

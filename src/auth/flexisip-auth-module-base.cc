@@ -123,7 +123,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus& as, auth_challenger_t const
 		lastChallenge = challenge;
 	}
 	if (as.response() == nullptr) {
-		SLOGE << "AuthStatus[" << &as << "]: no available algorithm while challenge making";
+		SLOGI << "AuthStatus[" << &as << "]: no available algorithm while challenge making";
 		as.status(500);
 		as.phrase("Internal error");
 	} else {

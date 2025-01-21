@@ -115,7 +115,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 		tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 	}
 	if (getuid() != 0) {
-		SLOGE << "Flexisip not started with root privileges! iptables commands for DoS protection won't work.";
+		SLOGW << "Flexisip not started with root privileges! iptables commands for DoS protection won't work.";
 		return;
 	}
 
@@ -133,7 +133,7 @@ bool ModuleDoSProtection::isValidNextConfig(const ConfigValue& value) {
 #if __APPLE__
 		module_config->get<ConfigBoolean>("enabled")->set("false");
 		mExecutorConfigChecked = true; // unused-private-field if not set
-		SLOGE << "DosProtection only works on linux hosts, Disabling this module.";
+		SLOGW << "DosProtection only works on linux hosts, Disabling this module.";
 		return true;
 #else
 		if (!mExecutorConfigChecked) {
@@ -196,7 +196,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 	tport_t* tport = inTport.get();
 
 	if (tport == NULL) {
-		SLOGE << "Tport is null, can't check the packet count rate";
+		SLOGD << "Tport is null, can't check the packet count rate";
 		return std::move(ev);
 	}
 
@@ -248,7 +248,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 					registerUnbanTimer(ip, port, "udp");
 					ev->terminateProcessing(); // the event is discarded
 				} else {
-					SLOGW << "IP " << ip << " should be banned but wasn't because in white list";
+					SLOGI << "IP " << ip << " should be banned but wasn't because in white list";
 				}
 				dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
 			}
@@ -274,7 +274,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 					registerUnbanTimer(ip, port, "tcp");
 					ev->terminateProcessing(); // the event is discarded
 				} else {
-					SLOGW << "IP " << ip << " should be banned but wasn't because in white list";
+					SLOGI << "IP " << ip << " should be banned but wasn't because in white list";
 				}
 				tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
 			} else {

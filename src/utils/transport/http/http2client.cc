@@ -114,11 +114,11 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 		}
 	}
 	if (mState == State::Disconnected) {
-		SLOGD << logPrefix << ": not connected. Trying to connect...";
+		SLOGI << logPrefix << ": not connected. Trying to connect...";
 		this->tlsConnect();
 	}
 	if (mState != State::Connected) {
-		SLOGD << logPrefix << ": request[" << request << "] is waiting to be sent";
+		SLOGI << logPrefix << ": request[" << request << "] is waiting to be sent";
 		mPendingHttpContexts.emplace_back(std::move(context));
 		return;
 	}
@@ -148,7 +148,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 		return;
 	}
 
-	SLOGD << logPrefix << ": request[" << request << "] submitted";
+	SLOGI << logPrefix << ": request[" << request << "] submitted";
 }
 
 void Http2Client::tlsConnect() {
@@ -328,7 +328,7 @@ void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session,
 	if (contextIterator != mActiveHttpContexts.end()) {
 		contextIterator->second->getResponse()->getHeaders().add(name, value, flags);
 	} else {
-		SLOGE << logPrefix << ": receiving header for an unknown stream. Just ignoring";
+		SLOGW << logPrefix << ": receiving header for an unknown stream. Just ignoring";
 	}
 }
 
@@ -350,7 +350,7 @@ void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session,
 	if (contextIterator != mActiveHttpContexts.end()) {
 		contextIterator->second->getResponse()->appendBody(stringData);
 	} else {
-		SLOGE << logPrefix << "Data received for a unknown context";
+		SLOGW << logPrefix << "Data received for a unknown context";
 	}
 }
 
@@ -440,7 +440,7 @@ void Http2Client::resumeSending(const std::string& logPrefix) {
 }
 
 void Http2Client::disconnect() {
-	SLOGD << mLogPrefix << ": disconnecting";
+	SLOGI << mLogPrefix << ": disconnecting";
 	if (mState == State::Disconnected) {
 		return;
 	}
