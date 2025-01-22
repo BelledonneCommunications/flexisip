@@ -79,7 +79,7 @@ void AutoThreadPool::_run() {
 			// Wait until queue is not empty or termination signal is sent, respecting max thread count.
 			mCondition.wait(lock, [this]() {
 				if (mCurrentThreadNumber == mMaxThreadNumber) {
-					SLOGT << "AutoThreadPool::_run : notified but max thread number is reached.";
+					SLOGD << "AutoThreadPool::_run : notified but max thread number is reached.";
 				}
 				return (!mTasks.empty() && mCurrentThreadNumber < mMaxThreadNumber) ||
 				       (mCurrentThreadNumber < mMaxThreadNumber && mState == Shutdown);

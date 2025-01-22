@@ -41,7 +41,7 @@ PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::Tupl
     : mCountPresenceElement(countPresenceElement) {
 	SLOGD << "Presence information element [" << this << "] created.";
 	for (auto tupleIt = tuples->begin(); tupleIt != tuples->end();) {
-		SLOGT << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";
+		SLOGD << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";
 		unique_ptr<Xsd::Pidf::Tuple> r;
 		tupleIt = tuples->detach(tupleIt, r);
 		mTuples.push_back(unique_ptr<Xsd::Pidf::Tuple>(r.release()));

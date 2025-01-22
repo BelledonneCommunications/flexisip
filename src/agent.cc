@@ -654,7 +654,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<AuthDb>& authDb,
              const std::shared_ptr<RegistrarDb>& registrarDb)
     : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mTimer(mRoot, 5s) {
-	SLOGT << "New Agent[" << this << "]";
+	SLOGD << "New Agent[" << this << "]";
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = cm->getRoot();
 
@@ -722,7 +722,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 }
 
 Agent::~Agent() {
-	SLOGT << "Destroy Agent[" << this << "]";
+	SLOGD << "Destroy Agent[" << this << "]";
 #if ENABLE_MDNS
 	for (belle_sip_mdns_register_t* reg : mMdnsRegisterList) {
 		belle_sip_mdns_unregister(reg);

@@ -29,7 +29,7 @@ using namespace sofiasip;
 void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
                                           const shared_ptr<ForkContext>& fork,
                                           const std::string& contactId) {
-	SLOGT << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "]";
+	SLOGD << "ScheduleInjector::injectRequestEvent. ForkContext[" << fork->getPtrForEquality() << "]";
 
 	auto currentWorkingPriority = fork->getMsgPriority();
 	auto& injectMap = getMapFromPriority(currentWorkingPriority);
@@ -60,7 +60,7 @@ void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
 }
 
 void ScheduleInjector::startInject(const std::string& contactId) {
-	SLOGT << "ScheduleInjector::startInject : for " << contactId;
+	SLOGD << "ScheduleInjector::startInject : for " << contactId;
 	for (auto priority : MsgSip::getOrderedPrioritiesList()) {
 		auto& injectMap = getMapFromPriority(priority);
 
@@ -80,7 +80,7 @@ void ScheduleInjector::startInject(const std::string& contactId) {
 				      << "], is expired and is not waiting for inject, removing.";
 				it = contactInjectContexts.erase(it);
 			} else {
-				SLOGT << "ScheduleInjector::startInject : blocked by fork [" << it->mFork->getPtrForEquality() << "]";
+				SLOGD << "ScheduleInjector::startInject : blocked by fork [" << it->mFork->getPtrForEquality() << "]";
 				break;
 			}
 		}
@@ -91,7 +91,7 @@ void ScheduleInjector::startInject(const std::string& contactId) {
 }
 
 void ScheduleInjector::addContext(const shared_ptr<ForkContext>& fork, const string& contactId) {
-	SLOGT << "ScheduleInjector::addContext. ForkContext[" << fork->getPtrForEquality() << "]";
+	SLOGD << "ScheduleInjector::addContext. ForkContext[" << fork->getPtrForEquality() << "]";
 	startInject(contactId);
 	getMapFromPriority(fork->getMsgPriority())[contactId].emplace_back(fork);
 }
@@ -99,13 +99,13 @@ void ScheduleInjector::addContext(const shared_ptr<ForkContext>& fork, const str
 void ScheduleInjector::addContext(const vector<shared_ptr<ForkContext>>& forks, const string& contactId) {
 	startInject(contactId);
 	for (const auto& fork : forks) {
-		SLOGT << "ScheduleInjector::addContext. ForkContext[" << fork->getPtrForEquality() << "]";
+		SLOGD << "ScheduleInjector::addContext. ForkContext[" << fork->getPtrForEquality() << "]";
 		getMapFromPriority(fork->getMsgPriority())[contactId].emplace_back(fork);
 	}
 }
 
 void ScheduleInjector::removeContext(const shared_ptr<ForkContext>& fork, const string& contactId) {
-	SLOGT << "ScheduleInjector::removeContext. ForkContext[" << fork->getPtrForEquality() << "]";
+	SLOGD << "ScheduleInjector::removeContext. ForkContext[" << fork->getPtrForEquality() << "]";
 	const auto currentPriority = fork->getMsgPriority();
 	auto& injectMap = getMapFromPriority(currentPriority);
 
