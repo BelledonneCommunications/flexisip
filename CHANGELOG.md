@@ -4,23 +4,25 @@ All notable changes to this project will be documented in this file.
 
 Group changes to describe their impact on the project, as follows:
 
-| **Group name** | **Description**                                       |
-|----------------|-------------------------------------------------------|
-| Added          | New features                                          |
-| Changed        | Changes in existing functionality                     |
-| Deprecated     | Once-stable features removed in upcoming releases     |
-| Removed        | Deprecated features removed in this release           |
-| Fixed          | Any bug fixes                                         |
-| Security       | To invite users to upgrade in case of vulnerabilities |
+| **Group name** | **Description**                                                             |
+|----------------|-----------------------------------------------------------------------------|
+| Added          | New features                                                                |
+| Changed        | Changes in existing functionality                                           |
+| Deprecated     | Once-stable features removed in upcoming releases                           |
+| Removed        | Deprecated features removed in this release                                 |
+| Fixed          | Any bug fixes                                                               |
+| Security       | To invite users to upgrade in case of vulnerabilities                       |
+| Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.4.0]
 ### [Added]
-- **Conference server:** new parameter `conference-server/call-timeout` to kill all incoming calls that last longer than
-  the defined value.
-- **Configuration:** you can now indicate a unit (ms, s, min, h, d, m, y) along with the value for a duration
-  parameter in the configuration file.
-  See [File Syntax](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/#HFilesyntax) for more
-  information.
+- **B2BUA server/SIP Bridge:**
+  - Now supports bridging **incoming** (external) calls.
+  I.e. calls from clients registered on third-party domains/proxies to clients registered on the local domain/proxies.
+  This requires a corresponding external account for each user.
+  Please refer to [the SIP Bridge documentation] for details.
+  - [`one-connection-per-account`](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/2.4.0/b2bua-server#HB2buaserver):
+  Let the B2BUA use a separate connection (port) for each (external) account it manages. This can be used to work around DoS protection and rate-limiting systems on external proxies.
 - **Proxy/Router:** new parameter `module::Router/static-targets` that lists sip addresses which will always be added to
   the list of contacts fetched from the registrar database when routing INVITE and MESSAGE requests.
 - **Proxy/NatHelper:** new strategy to route requests through NATs called
@@ -29,32 +31,76 @@ Group changes to describe their impact on the project, as follows:
       through NATs (`contact-correction` or `flow-token`).
     - new parameter `module::NatHelper/force-flow-token` to force the use of flow-token under specific conditions (
       boolean expression).
-- **B2BUA server:** improvement of the 'sip-bridge' mode. It now enables the bridging of calls from a Flexisip-managed
-  domain to a third-party domain but also from that third-party domain to the Flexisip domain, on a per-user level. See
-  [SIP Bridge](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Back-to-back%20User%20Agent%20(b2bua)/SIP%20Bridge)
-  for more information.
+- **Configuration:** you can now indicate a unit (ms, s, min, h, d, m, y) along with the value for a duration
+  parameter in the configuration file.
+  See [File Syntax](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/#HFilesyntax) for more
+  information.
+- **Registrar:** Keep-alive Redis requests for subscription connections.
+  Flexisip can now be more robust to middle-ware aggressively dropping idle connections.
 - **Conference and B2BUA servers:** new
   parameters `b2bua-server/audio-port`, `b2bua-server/video-port`, `conference-server/audio-port`
   and `conference-server/video-port` to specify which port (or range of ports) to use for RTP and RTCP traffic.
+- **Conference server:**
+  - new parameter `conference-server/call-timeout` to kill all incoming calls that last longer than
+  the defined value.
+  - compatibility with clients using Linphone SDK 5.4.
+- **Build:**
+  - Support for Ubuntu 24.04.
+  - Support for Clang 18.
+  - Support for GCC 14.
+- **Pusher:**
+  - Clearer message when Apple Push Notification Service (APNS) certificates are not read accessible.
+  - `--call-id` option to customise the content of the push notification payload
+
+### [Fixed]
+- **B2BUA, Conference, Linphone Daemon, Presence, Proxy, RegEvent:** All associated SystemD services now properly wait for the network to be online before starting.
+  (Fixes interface binding issues on boot.)
+- **Proxy:**
+  - **NatHelper:** `module::NatHelper/contact-correction-param` is now properly removed from the `Contact` URI by the last hop in the proxy chain.
+  - **RegistrarDb:** Failing to subscribe to a Redis Pub/Sub channel is now properly handled and logged, to help troubleshoot ACL issues in Redis' config.
+  (Pub/Sub channels are used internally to trigger push notifications when devices register.)
+  - **ForkCallContext:** Ringing devices now receive the appropriate "Accepted Elsewhere" status via push notifications when another device accepts the call in a multi-proxy configuration.
+- **Conference server:** Group chats no longer see their title overwritten to "ICE processing concluded" when the conference server's connection to Redis is slow or non-existant.
+- **RPM:** no longer breaks the Flexisip Account Manager (FAM) if it had been installed first. The SELinux `var_log_t` label is now properly applied to Flexisip's log files only.
+- **B2BUA server:** bridged calls put on hold (paused) using `a=inactive` can now be properly resumed.
+- **Sofia SIP:** Incoming messages exceeding the maximum acceptable size are now answered with a 400, and can no longer cause a congestion blocking a socket.
+- **CLI:** `REGISTRAR_DELETE` now properly deletes contacts identified by a `+sip.instance=` URI parameter.
 
 ### [Changed]
+- **B2BUA:**
+  - The schema of the `b2bua-server::sip-bridge/providers` JSON configuration file has been overhauled to accommodate for the new incoming call bridging feature, and now offers many more configuration options.
+  Please refer to [the SIP Bridge documentation] for details.
+  - Custom header `flexisip-b2bua` is renamed to `X-Flexisip-B2BUA`.
+    (This header is no longer used by the proxy which instead relies on the `User-Agent` header. However the B2BUA server still adds it to its messages for backwards compatibility.)
+  - `b2bua-server/user-agent` can now include an optional `{version}` placeholder that will be replaced with the currently running Flexisip version.
 - **Build:** refactor of the build system to meet new CMake standards.
-- **Configuration:** now throw an exception with an explicit explanatory string when a key is found several times in the
-  configuration file.
+- **Configuration:**
+  - Flexisip will now refuse to launch if duplicated keys are found in the configuration file.
+  (An explanatory message will be logged.)
+  - Configuration values (anything to the right of an `=` sign in the config file) can now be 10x larger (up to 20KiB = 20480 ASCII characters), allowing for e.g. long and complex filter expressions.
 - **Proxy/PushNotification:** Invite/Cancel feature is now only used for Apple voip push notifications.
-- **Internal:** refactored software architecture (removed singletons) so you can now run several flexisip instances on
-  the same machine.
 - **Proxy/NatHelper:** parameter `module::NatHelper/contact-verified-param` is
   renamed `module::NatHelper/contact-correction-param`.
-- **B2BUA:** custom header `flexisip-bu2bua` is renamed `X-Flexisip-B2BUA`.
-- **Internal:** Flexisip tester can now be used without the need for installation.
+- **Proxy/MediaRelay:** In early media mode, the ringing device that answered last is now the one sending audio/video.
+(Each new early media response takes over send capability.)
+- **Internal:**
+  - Refactored software architecture (removed singletons) so you can now run several flexisip instances on
+  the same machine.
+  - Flexisip tester can now be used without the need for installation.
+- **EventLogs:** Event IDs are now generated with the SHA 256 algorithm to ensure reproducibility. (In lieu of C++'s `std::hash<string>`.)
+- **Logs:** Log messages from the Sofia SIP library are now only displayed if Flexisip is configured in `debug` logging level.
+ A new config option `global/sofia-level`, has been added to tweak which messages are shown in that case.
+ (This new option can be adjusted on a running instance via [the `CONFIG_SET` CLI command](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/3.%20Operate/Examining%20run-time%20statistics/#HAccessstatisticsandconfiguration))
+- **RPM:** The package now depends on `policycoreutils`, `policycoreutils-python-utils`, and `selinux-policy-targeted` to ensure its ability to set SELinux labels.
+- **CLI:** Improved messages around `REGISTRAR_*` commands.
+- **Pusher:** Added "Flexisip" to default push notification infos to make the origin of the PN clearer.
 
 ### [Deprecated]
 - **Windows push notifications:** these push notifications are not handled anymore.
-    - parameter `module::PushNotification/windowsphone` no longer has an effect.
-    - parameter `module::PushNotification/windowsphone-package-sid` no longer has an effect.
-    - parameter `module::PushNotification/windowsphone-application-secret` no longer has an effect.
-- **Proxy/registrar:** parameter `module::Registrar/redis-server-timeout` no longer has an effect. This parameter is not
+    - parameter `module::PushNotification/windowsphone` no longer has any effect.
+    - parameter `module::PushNotification/windowsphone-package-sid` no longer has any effect.
+    - parameter `module::PushNotification/windowsphone-application-secret` no longer has any effect.
+- **Proxy/registrar:** parameter `module::Registrar/redis-server-timeout` no longer has any effect. This parameter is not
   really deprecated. It is not used for the moment but may be used in the future.
 - **Plugin:** The JweAuth plugin will be removed in Flexisip 2.5.
 
@@ -62,6 +108,21 @@ Group changes to describe their impact on the project, as follows:
 - **Ubuntu 18.04:** support discontinued as distribution has reached end-of-life (2023-05-31).
 - **CentOS 7:** support discontinued as distribution has reached end-of-life (2024-06-30).
 - **Debian 10:** support discontinued as distribution has reached end-of-life (2024-06-30).
+- **Proxy/Registrar:** `module::Registrar/redis-record-serializer` (deprecated in 2.0.0)
+- **Build:** `ENABLE_PROTOBUF` CMake option.
+  This option only enabled a Protobuf backend for the serialization of records in Redis. It could no longer be used since the deprecation of the `redis-record-serializer` config option (see above).
+
+### [Known Issues]
+- **Presence server:** Intermittent crash when updating the list of subscribers
+- **Sofia-SIP:**
+  - Exponential memory usage when parsing data from a TCP socket.
+    (A 5MB socket buffer can lead to 26GB of parsing buffers.)
+  - Memory usage spike when the system clock jumps forward in time.
+    (As can happen when NTP connection is (re-)established, leading to OOM in the worst case where e.g. the system clock inits at epoch (1970-01-01) because of a dead battery.)
+- **RPM:** Rocky 8 may refuse to install the package because it detects a conflict with the SystemD package.
+- **Proxy:** No "Missing call" notification will be sent if a call is cancelled after being unanswered for more than 30 seconds.
+
+[the SIP Bridge documentation]: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Back-to-back%20User%20Agent%20(b2bua)/SIP%20Bridge
 
 ## [2.3.4] - 2024-07-24
 ### [Added]
