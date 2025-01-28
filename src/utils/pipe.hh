@@ -64,6 +64,8 @@ protected:
 	RawPipeDesc mDesc;
 
 private:
+	static constexpr std::string_view mLogPrefix{"Descriptor"};
+
 	Descriptor(RawPipeDesc); // Private constructor for use in the Ready class
 };
 

@@ -49,7 +49,7 @@ using namespace flexisip;
 using namespace sofiasip;
 
 ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
-	SLOGD << "New ModuleRouter[" << this << "]";
+	LOGD << "New instance [" << this << "]";
 	mStats.mCountForks = mModuleConfig->getStatPairPtr("count-forks");
 	mStats.mCountBasicForks = mModuleConfig->getStatPairPtr("count-basic-forks");
 	mStats.mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
@@ -58,7 +58,7 @@ ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module
 }
 
 ModuleRouter::~ModuleRouter() {
-	SLOGD << "Destroy ModuleRouter[" << this << "]";
+	LOGD << "Destroy instance [" << this << "]";
 };
 
 void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
@@ -318,7 +318,7 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 MsgSipPriority ModuleRouter::sMaxPriorityHandled = MsgSipPriority::Normal;
 
 void OnContactRegisteredListener::onContactRegistered(const shared_ptr<Record>& r, const string& uid) {
-	SLOGD << "Listener invoked for topic = " << r->getKey() << ", uid = " << uid;
+	LOGD << "Listener invoked for topic = " << r->getKey() << ", uid = " << uid;
 	if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
 }
 void ModuleRouter::onLoad(const GenericStruct* mc) {
@@ -408,9 +408,9 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 #if ENABLE_SOCI
 void ModuleRouter::restoreForksFromDatabase() {
-	SLOGI << "Fork message to DB is enabled, retrieving previous messages in DB ...";
+	LOGI << "Fork message to database is enabled, retrieving previous messages in database...";
 	auto allDbMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
-	SLOGI << " ... " << allDbMessages.size() << " messages found in DB ...";
+	LOGI << " ... " << allDbMessages.size() << " messages found in database ...";
 	for (auto& dbMessage : allDbMessages) {
 		mStats.mCountForks->incrStart();
 		auto restoredForkMessage = ForkMessageContextDbProxy::make(shared_from_this(), dbMessage);
@@ -420,7 +420,7 @@ void ModuleRouter::restoreForksFromDatabase() {
 			    Record::Key(key), std::weak_ptr<OnContactRegisteredListener>(mOnContactRegisteredListener));
 		}
 	}
-	SLOGI << " ... " << mForks.size() << " fork message restored from DB.";
+	LOGI << " ... " << mForks.size() << " fork messages restored from database";
 }
 #endif
 
@@ -477,7 +477,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 
 	/*sanity check on the contact address: might be '*' or whatever useless information*/
 	if (dest->url_host == NULL || dest->url_host[0] == '\0') {
-		SLOGW << "Request is not routed because of incorrect address of contact";
+		LOGW << "Request is not routed because of incorrect address of contact";
 		mInjector->removeContext(context, contact->contactId());
 		return nullptr;
 	}
@@ -526,7 +526,7 @@ std::shared_ptr<BranchInfo> ModuleRouter::dispatch(const shared_ptr<ForkContext>
 	}
 	ModuleToolbox::cleanAndPrependRoute(getAgent(), new_msg, new_sip, routes);
 
-	SLOGI << "Fork to " << contact_url_string;
+	LOGI << "Fork to " << contact_url_string;
 
 	return context->addBranch(std::move(new_ev), contact);
 }
@@ -539,7 +539,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 	bool forksFound = false;
 
 	if (record == NULL) {
-		SLOGE << "record was null...";
+		LOGE << "Record is null";
 		return;
 	}
 
@@ -547,7 +547,7 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 
 	// Find all contexts
 	auto range = getLateForks(record->getKey().asString());
-	SLOGD << "Searching for fork context with key " << record->getKey();
+	LOGD << "Searching for fork context with key " << record->getKey();
 
 	if (range.size() > 0) {
 		forksFound = true;
@@ -586,8 +586,8 @@ void ModuleRouter::onContactRegistered(const std::shared_ptr<OnContactRegistered
 		 * list becomes empty, we know that we can clear the structure from mForks.
 		 * --SM
 		 */
-		SLOGD << "Router module no longer interested in contact registered notification for topic = "
-		      << record->getKey();
+		LOGD << "Router module no longer interested in contact registered notification for topic = "
+		     << record->getKey();
 		mAgent->getRegistrarDb().unsubscribe(record->getKey(), listener);
 	}
 }
@@ -638,7 +638,7 @@ public:
 			}
 			if (foundGroup) {
 				// a group was formed
-				SLOGD << "A group with targetUris " << targetUris.str() << " was formed";
+				LOGD << "A group with targetUris " << targetUris.str() << " was formed";
 				dest.mTargetUris = targetUris.str();
 				it = mAllContacts.begin();
 			}
@@ -655,18 +655,21 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"ForkGroupSorter"};
+
 	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>>::iterator findDestination(const url_t* url) {
 		Home home;
-		// SLOGD << "findDestination(): looking for " << url_as_string(home.home(), url);
+		// LOGD << "Looking for " << url_as_string(home.home(), url);
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it) {
 			url_t* it_route = url_make(home.home(), (*it).second->mPath.back().c_str());
-			// SLOGD << "findDestination(): seeing " << url_as_string(home.home(), it_route);
+			// LOGD << "Seeing " << url_as_string(home.home(), it_route);
 			if (url_cmp(it_route, url) == 0) {
 				return it;
 			}
 		}
 		return mAllContacts.end();
 	}
+
 	list<ForkDestination> mDestinations;
 	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>> mAllContacts;
 };
@@ -679,8 +682,8 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 	bool isInvite = false;
 
 	if (!aor) {
-		SLOGD << "This user isn't registered (no aor).";
-		SLOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " isn't registered (no aor)";
+		LOGD << "This user is not registered (no AOR)";
+		LOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " is not registered (no AOR)";
 		sendReply(*ev, SIP_404_NOT_FOUND);
 		return;
 	}
@@ -697,18 +700,18 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 		sip_contact_t* ct = ec->toSofiaContact(ms->getHome());
 		// If it's not a message, verify if it's really expired
 		if (sip->sip_request->rq_method != sip_method_message && (ec->getSipExpireTime() <= now)) {
-			SLOGD << "Sip_contact of " << url_as_string(ms->getHome(), ec->mSipContact->m_url) << " is expired";
+			LOGD << "SIP Contact of " << url_as_string(ms->getHome(), ec->mSipContact->m_url) << " is expired";
 			continue;
 		}
 		if (sip->sip_request->rq_url->url_type == url_sips && ct->m_url->url_type != url_sips) {
 			/* https://tools.ietf.org/html/rfc5630 */
 			nonSipsFound = true;
-			SLOGD << "Not dispatching request to non-sips target.";
+			LOGD << "Not dispatching request to non-sips target";
 			continue;
 		}
 		if (ec->mUsedAsRoute && ModuleToolbox::viaContainsUrl(sip->sip_via, ct->m_url)) {
-			SLOGD << "Skip destination to " << url_as_string(ms->getHome(), ct->m_url)
-			      << ", because the message is coming from here already.";
+			LOGD << "Skip destination to " << url_as_string(ms->getHome(), ct->m_url)
+			     << " because the message is coming from here already";
 			continue;
 		}
 		usable_contacts.push_back(make_pair(ct, ec));
@@ -716,11 +719,11 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 	if (usable_contacts.size() == 0) {
 		if (nonSipsFound) {
 			/*rfc5630 5.3*/
-			SLOGUE << "Not dispatching request because SIPS not allowed for " << url_as_string(ms->getHome(), sipUri);
+			LOGUE << "Not dispatching request because SIPS not allowed for " << url_as_string(ms->getHome(), sipUri);
 			sendReply(*ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
 		} else {
-			SLOGD << "This user isn't registered (no valid contact).";
-			SLOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " isn't registered (no valid contact)";
+			LOGD << "This user is not registered (no valid contact)";
+			LOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " is not registered (no valid contact)";
 			sendReply(*ev, SIP_404_NOT_FOUND);
 		}
 		return;
@@ -766,7 +769,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 	auto key = routingKey<Record::Key>(sipUri);
 	context->addKey(key.asString());
 	mForks.emplace(key.asString(), context);
-	SLOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
+	LOGD << "Add fork " << context.get() << " to store with key '" << key << "'";
 	if (context->getConfig()->mForkLate) {
 		mAgent->getRegistrarDb().subscribe(key,
 		                                   std::weak_ptr<OnContactRegisteredListener>(mOnContactRegisteredListener));
@@ -801,8 +804,8 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 				auto aliasKey = routingKey<Record::Key>(temp_ctt->m_url);
 				context->addKey(aliasKey.asString());
 				mForks.emplace(aliasKey.asString(), context);
-				SLOGD << "Add fork " << context.get() << " to store with key '" << aliasKey
-				      << "' because it is an alias";
+				LOGD << "Add fork " << context.get() << " to store with key '" << aliasKey
+				     << "' because it is an alias";
 				if (context->getConfig()->mForkLate) {
 					mAgent->getRegistrarDb().subscribe(
 					    std::move(aliasKey), std::weak_ptr<OnContactRegisteredListener>(mOnContactRegisteredListener));
@@ -835,9 +838,9 @@ public:
 				} catch (const InvalidUrlError& e) {
 					vector<char> buffer(1024);
 					sip_unknown_e(buffer.data(), buffer.size(), (msg_header_t*)target_uris, 0);
-					SLOGW << "Invalid URI in X-Target-Uris header [" << e.getUrl() << "], ignoring it. Context:" << endl
-					      << ev.getMsgSip()->contextAsString() << endl
-					      << buffer.data() << endl;
+					LOGW << "Invalid URI in X-Target-Uris header [" << e.getUrl() << "], ignoring it, context:" << endl
+					     << ev.getMsgSip()->contextAsString() << endl
+					     << buffer.data() << endl;
 				}
 			}
 		}
@@ -901,6 +904,8 @@ public:
 private:
 	friend class ModuleRouter;
 
+	static constexpr std::string_view mLogPrefix{"TargetUriListFetcher"};
+
 	int mPending = 0;
 	bool mError = false;
 	vector<SipUri> mUriList;
@@ -943,7 +948,7 @@ public:
 			const auto contact =
 			    r->getExtendedContacts().emplace(make_shared<ExtendedContact>(mSipUri, "", msgExpiresName));
 
-			SLOGD << "Record [" << r << "] Original request URI added because domain is not managed: " << **contact;
+			LOGD << "Record [" << r << "] original request URI added because domain is not managed: " << **contact;
 		}
 
 		if (!fallbackRoute.empty() && mModule->getFallbackRouteFilter()->eval(*mEv->getMsgSip()->getSip())) {
@@ -953,10 +958,10 @@ public:
 				    make_shared<ExtendedContact>(mSipUri, fallbackRoute, msgExpiresName, 0.0);
 				fallback->mIsFallback = true;
 				r->getExtendedContacts().emplace(fallback);
-				SLOGD << "Record [" << r << "] Fallback route '" << fallbackRoute << "' added: " << *fallback;
+				LOGD << "Record [" << r << "] fallback route '" << fallbackRoute << "' added: " << *fallback;
 			} else {
-				SLOGD << "Not adding fallback route '" << fallbackRoute
-				      << "' to avoid loop because request is coming from there already.";
+				LOGD << "Not adding fallback route '" << fallbackRoute
+				     << "' to avoid loop because request is coming from there already";
 			}
 		}
 
@@ -965,7 +970,7 @@ public:
 			size_t pos = host.find('.');
 			size_t end = host.length();
 			if (pos == string::npos) {
-				SLOGE << "Host URL doesn't have any subdomain: " << host;
+				LOGE << "Host URL does not have any subdomain: " << host;
 				mModule->routeRequest(std::move(mEv), r, mSipUri.get());
 				return;
 			} else {
@@ -974,7 +979,7 @@ public:
 
 			auto urlStr = "sip:" + mSipUri.getUser() + "@" + host;
 			SipUri url(urlStr);
-			SLOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << urlStr << "'";
+			LOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << urlStr << "'";
 
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(mModule, std::move(mEv), mSipUri);
 			mModule->getAgent()->getRegistrarDb().fetch(url, onRoutingListener, mModule->isDomainRegistrationAllowed(),
@@ -989,7 +994,7 @@ public:
 	}
 
 	void onInvalid(const SipStatus& response) override {
-		SLOGD << "OnFetchForRoutingListener::onInvalid: " << response.getReason();
+		LOGD << response.getReason();
 		mModule->sendReply(*mEv, response.getCode(), response.getReason());
 	}
 
@@ -1002,6 +1007,8 @@ public:
 
 private:
 	friend class ModuleRouter;
+
+	static constexpr std::string_view mLogPrefix{"OnFetchForRoutingListener"};
 
 	SipUri mSipUri;
 	vector<SipUri> mStaticTargets;
@@ -1049,7 +1056,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		return std::move(ev);
 	}
 	if ((next_hop = ModuleToolbox::getNextHop(getAgent(), sip, &isRoute)) != NULL && isRoute) {
-		SLOGD << "Route header found [" << url_as_string(ms->getHome(), next_hop) << "] but not us, skipping.";
+		LOGD << "Route header found [" << url_as_string(ms->getHome(), next_hop) << "] but not us, skipping";
 		return std::move(ev);
 	}
 
@@ -1059,7 +1066,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		    !getAgent()->getDRM()->haveToRelayRegToDomain(sip->sip_request->rq_url->url_host)) {
 			return std::move(ev);
 		}
-		SLOGD << "Router: routing REGISTER to domain controller";
+		LOGD << "Router: routing REGISTER to domain controller";
 	}
 
 	if (mResolveRoutes) {
@@ -1067,18 +1074,17 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		while (iterator != NULL) {
 			sip_route_t* route = iterator;
 			if (getAgent()->isUs(route->r_url)) {
-				SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url)
-				      << " and is us, continuing";
+				LOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url) << " and is us, continuing";
 			} else {
 				try {
-					SLOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url)
-					      << " but not us, forwarding";
+					LOGD << "Route header found " << url_as_string(ms->getHome(), route->r_url)
+					     << " but not us, forwarding";
 					SipUri sipurl(sip->sip_request->rq_url);
 					auto onRoutingListener = make_shared<OnFetchForRoutingListener>(this, std::move(ev), sipurl);
 					mAgent->getRegistrarDb().fetch(sipurl, onRoutingListener, mAllowDomainRegistrations, true);
 					return {};
 				} catch (const InvalidUrlError& e) {
-					SLOGD << e.what();
+					LOGD << e.what();
 					ev->reply(400, "Bad request", TAG_END());
 					return {};
 				}
@@ -1086,8 +1092,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 			iterator = iterator->r_next;
 		}
 	} else if (sip->sip_route != NULL && !getAgent()->isUs(sip->sip_route->r_url)) {
-		SLOGD << "Route header found " << url_as_string(ms->getHome(), sip->sip_route->r_url)
-		      << " but not us, skipping";
+		LOGD << "Route header found " << url_as_string(ms->getHome(), sip->sip_route->r_url) << " but not us, skipping";
 		return std::move(ev);
 	}
 
@@ -1103,7 +1108,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 			SipUri requestUri(sip->sip_request->rq_url);
 
 			if (isManagedDomain(requestUri.get())) {
-				SLOGD << "Fetch for url " << requestUri.str();
+				LOGD << "Fetch for url " << requestUri.str();
 
 				// Go stateful to stop retransmissions
 				ev->createIncomingTransaction();
@@ -1124,8 +1129,8 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 				}
 			}
 		} catch (const InvalidUrlError& e) {
-			SLOGD << "The request URI [" << e.getUrl() << "] isn't valid: " << e.getReason()
-			      << ". Skipping fetching from registrar DB.";
+			LOGD << "The request URI [" << e.getUrl()
+			     << "] is not valid (skipping fetching from registrar database): " << e.getReason();
 		}
 	}
 	return std::move(ev);
@@ -1139,12 +1144,12 @@ unique_ptr<ResponseSipEvent> ModuleRouter::onResponse(unique_ptr<ResponseSipEven
 void ModuleRouter::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 	const auto& keys = ctx->getKeys();
 	for (const auto& key : keys) {
-		SLOGD << "Looking at fork contexts with key " << key;
+		LOGD << "Looking at fork contexts with key " << key;
 
 		auto range = mForks.equal_range(key);
 		for (auto it = range.first; it != range.second;) {
 			if (it->second == ctx) {
-				SLOGD << "Remove fork " << it->first << " from store";
+				LOGD << "Remove fork " << it->first << " from store";
 				mStats.mCountForks->incrFinish();
 				auto cur_it = it;
 				++it;

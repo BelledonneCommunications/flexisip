@@ -43,40 +43,41 @@ PushNotificationContext::PushNotificationContext(const std::shared_ptr<OutgoingT
                                                  const std::chrono::seconds contextLifespan)
     : mKey{key}, mModule{_module}, mPInfo{pInfo}, mBranchInfo{BranchInfo::getBranchInfo(transaction)},
       mForkContext{ForkContext::getFork(transaction)}, mTimer{_module->getAgent()->getRoot()},
-      mEndTimer{_module->getAgent()->getRoot(), contextLifespan} {
-	SLOGD << "New PushNotificationContext[" << this << "]";
+      mEndTimer{_module->getAgent()->getRoot(), contextLifespan},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PushNotificationContext")) {
+	LOGD << "New instance";
 }
 
 PushNotificationContext::~PushNotificationContext() {
-	SLOGD << "Destroy PushNotificationContext[" << this << "]";
+	LOGD << "Destroy instance";
 }
 
 void PushNotificationContext::start(std::chrono::seconds delay) {
-	SLOGI << "PNR " << mPInfo.get() << ": set timer to " << delay.count() << "s";
+	LOGI << "PNR " << mPInfo.get() << ": set timer to " << delay.count() << "s";
 	mTimer.set([this]() { onTimeout(); }, delay);
 	mEndTimer.set([this]() { mModule->removePushNotification(this); });
 }
 
 void PushNotificationContext::cancel() {
-	SLOGI << "PNR " << mPInfo.get() << ": canceling push request";
+	LOGI << "PNR " << mPInfo.get() << ": canceling push request";
 	mTimer.reset();
 }
 
 void PushNotificationContext::onTimeout() noexcept {
-	SLOGI << "PNR " << mPInfo.get() << ": timeout";
+	LOGI << "PNR " << mPInfo.get() << ": timeout";
 	if (auto sharedFork = mForkContext.lock(); sharedFork->isFinished()) {
-		SLOGI << "Call is already established or canceled, so push notification is not sent but cleared.";
+		LOGI << "Call is already established or canceled, so push notification is not sent but cleared";
 		return;
 	}
 
 	try {
 		sendPush();
 	} catch (const exception& e) {
-		SLOGE << "Cannot send push: " << e.what();
+		LOGE << "Cannot send push: " << e.what();
 	}
 
 	if (mRetryCounter > 0) {
-		SLOGI << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
+		LOGI << "PNR " << mPInfo.get() << ": setting retry timer to " << mRetryInterval.count() << "s";
 		mRetryCounter--;
 		mTimer.set([this]() { onTimeout(); }, mRetryInterval);
 	}
@@ -520,8 +521,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mCallTtl = chrono::duration_cast<chrono::seconds>(
 	    mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
-	SLOGI << "PushNotification module loaded. Push ttl for calls is " << mCallTtl.count() << " seconds, and for IM "
-	      << mMessageTtl.count() << " seconds.";
+	LOGI << "Module loaded, push ttl for calls is " << mCallTtl.count() << "s, and " << mMessageTtl.count()
+	     << "s for IM";
 }
 
 pushnotification::Method PushNotification::stringToGenericPushMethod(const std::string& methodStr) {
@@ -559,7 +560,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	if (br) {
 		pinfo->mUid = br->mUid;
 		if (br->mClearedCount > 0) {
-			SLOGD << "A push notification was sent to this iOS>=13 ready device already, so we won't resend.";
+			LOGD << "A push notification was sent to this iOS>=13 ready device already, so we will not resend";
 			return;
 		}
 	}
@@ -570,8 +571,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	auto pnKey = pinfo->mCallId + ":" + dest->getProvider() + ":" + dest->getParam() + ":" + dest->getPrid();
 	auto it = mPendingNotifications.find(pnKey);
 	if (it != mPendingNotifications.end()) {
-		SLOGD << "Another push notification is pending for this call " << pinfo->mCallId << " and this device provider "
-		      << dest->getProvider() << " and token " << dest->getPrid() << ", not creating a new one";
+		LOGD << "Another push notification is pending for this call " << pinfo->mCallId << " and this device provider "
+		     << dest->getProvider() << " and token " << dest->getPrid() << ", not creating a new one";
 		context = it->second;
 	}
 
@@ -584,13 +585,13 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 			try {
 				timeout = chrono::seconds{stoi(pnTimeoutStr)};
 			} catch (const logic_error&) {
-				SLOGE << "invalid 'pn-timeout' value: " << pnTimeoutStr;
+				LOGE << "Invalid 'pn-timeout' value: " << pnTimeoutStr;
 			}
 		}
 		timeout = max(0s, timeout);
 
 		// Actually create the PushNotificationContext
-		SLOGI << "Creating a push notif context PNR " << pinfo << " to send in " << timeout.count() << "s";
+		LOGI << "Creating a push notification context PNR " << pinfo << " to send in " << timeout.count() << "s";
 		if (isCall) {
 			context = PNContextCall::make(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
 			if (br) {
@@ -620,7 +621,7 @@ void PushNotification::removePushNotification(PushNotificationContext* pn) {
 	    mPendingNotifications.cbegin(), mPendingNotifications.cend(),
 	    [pn](const pair<string, shared_ptr<PushNotificationContext>>& elem) { return elem.second.get() == pn; });
 	if (it != mPendingNotifications.cend()) {
-		SLOGD << "PNR " << pn->getPushInfo() << ": removing context from pending push notifications list";
+		LOGD << "PNR " << pn->getPushInfo() << ": removing context from pending push notifications list";
 		mPendingNotifications.erase(it);
 	}
 }
@@ -633,7 +634,7 @@ std::chrono::seconds PushNotification::getCallRemotePushInterval(const char* pus
 		try {
 			return chrono::seconds(stoi(pnCallRemotePushInterval));
 		} catch (const std::exception& e) {
-			SLOGD << "cannot interpret value of '" << paramName << "': " << e.what();
+			LOGD << "Cannot interpret value of '" << paramName << "': " << e.what();
 		}
 	}
 	return mCallRemotePushInterval;
@@ -692,9 +693,9 @@ unique_ptr<RequestSipEvent> PushNotification::onRequest(unique_ptr<RequestSipEve
 				try {
 					makePushNotification(ms, transaction);
 				} catch (const MissingPushParameters& exception) {
-					SLOGD << "failed to create push notification (skip): " << exception.what();
+					LOGD << "Failed to create push notification (skip): " << exception.what();
 				} catch (const exception& exception) {
-					SLOGE << "failed to create push notification: " << exception.what();
+					LOGE << "Failed to create push notification: " << exception.what();
 				}
 			}
 		}
@@ -710,8 +711,7 @@ unique_ptr<ResponseSipEvent> PushNotification::onResponse(std::unique_ptr<Respon
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		auto pnr = transaction ? transaction->getProperty<PushNotificationContext>(getModuleName()) : nullptr;
 		if (pnr) {
-			SLOGD << "Transaction[" << transaction << "] has been answered. Canceling the associated PNR[" << pnr
-			      << "]";
+			LOGD << "Transaction[" << transaction << "] has been answered, canceling the associated PNR[" << pnr << "]";
 			pnr->cancel();
 			removePushNotification(pnr.get());
 		}

@@ -133,7 +133,7 @@ parseKeyValue(const string& toParse, const char lineDelimiter, const char delimi
 
 		size_t delim_pos = line.find(delimiter);
 		if (delim_pos == line.npos || delim_pos == line.length()) {
-			SLOGW << "Invalid line '" << line << "' in key-value";
+			LOGW_CTX("string_utils") << "Invalid line '" << line << "' in key-value";
 			continue;
 		}
 
@@ -165,8 +165,8 @@ optional<linphone::MediaEncryption> string2MediaEncryption(const string& str) {
 		return enc::None;
 	}
 
-	SLOGE << "Invalid encryption mode: " << str
-	      << " valids modes are : zrtp, sdes, dtls-srtp, none. Ignore this setting";
+	LOGE_CTX("string_utils") << "Invalid encryption mode: " << str
+	                         << " valid modes are: zrtp, sdes, dtls-srtp, none, ignore this setting";
 	return {};
 }
 #endif // HAVE_LIBLINPHONECXX

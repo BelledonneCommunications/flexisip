@@ -43,13 +43,10 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          decltype(mAuthManager)&& authManager,
                          SessionSettings&& sessionSettings)
     : mConn(std::move(connection)), mAuthManager(std::move(authManager)), mRoot(root), mIdleTimer(root, mIdleTimeout),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Http2Client")),
       mSessionSettings(std::move(sessionSettings)) {
 
-	ostringstream os{};
-	os << "Http2Client[" << this << "]";
-	mLogPrefix = os.str();
-
-	SLOGD << mLogPrefix << ": constructing Http2Client with TlsConnection[" << mConn.get() << "]";
+	LOGD << "Constructing client with TlsConnection[" << mConn.get() << "]";
 }
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
@@ -108,28 +105,28 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 
 	if (mAuthManager) {
 		if (!mAuthManager->addAuthentication(request)) {
-			SLOGE << logPrefix << ": failed to add authentication in request header";
+			LOGE << "Failed to add authentication in request header";
 			onErrorCb(request);
 			return;
 		}
 	}
 	if (mState == State::Disconnected) {
-		SLOGI << logPrefix << ": not connected. Trying to connect...";
+		LOGI << "Not connected, trying to connect...";
 		this->tlsConnect();
 	}
 	if (mState != State::Connected) {
-		SLOGI << logPrefix << ": request[" << request << "] is waiting to be sent";
+		LOGI << "Request[" << request << "] is waiting to be sent";
 		mPendingHttpContexts.emplace_back(std::move(context));
 		return;
 	}
 
-	SLOGD << logPrefix << ": sending request[" << request << "]:\n" << request->toString();
+	LOGD << "Sending request[" << request << "]:\n" << request->toString();
 
 	auto streamId =
 	    nghttp2_submit_request(mHttpSession.get(), &request->mPriority, request->getHeaders().makeCHeaderList().data(),
 	                           request->getHeaders().getHeadersList().size(), request->getCDataProvider(), nullptr);
 	if (streamId < 0) {
-		SLOGE << logPrefix << ": push request submit failed. reason=[" << nghttp2_strerror(streamId) << "]";
+		LOGE << "Push request submit failed, reason=[" << nghttp2_strerror(streamId) << "]";
 		onErrorCb(request);
 		return;
 	}
@@ -142,13 +139,13 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 	mActiveHttpContexts.emplace(streamId, std::move(context));
 	auto status = sendAll();
 	if (status < 0) {
-		SLOGE << logPrefix << ": push request sending failed. reason=[" << nghttp2_strerror(status) << "]";
+		LOGE << "Push request sending failed, reason=[" << nghttp2_strerror(status) << "]";
 		mActiveHttpContexts.erase(streamId);
 		onErrorCb(request);
 		return;
 	}
 
-	SLOGI << logPrefix << ": request[" << request << "] submitted";
+	LOGI << "Request[" << request << "] submitted";
 }
 
 void Http2Client::tlsConnect() {
@@ -234,7 +231,7 @@ void Http2Client::http2Setup() {
 
 	int status;
 	if ((status = mSessionSettings.submitTo(session)) != 0) {
-		SLOGE << mLogPrefix << ": submitting settings failed [status=" << to_string(status) << "]";
+		LOGE << "Submitting settings failed [status=" << to_string(status) << "]";
 		disconnect();
 		return;
 	}
@@ -253,7 +250,7 @@ ssize_t Http2Client::doSend([[maybe_unused]] nghttp2_session& session, const uin
 	length = min(length, size_t(numeric_limits<int>::max()));
 	auto nwritten = mConn->write(data, int(length));
 	if (nwritten < 0) {
-		SLOGE << mLogPrefix << ": error while writting into socket[" << nwritten << "]";
+		LOGE << "Error while writing into socket[" << nwritten << "]";
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
 	if (nwritten == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
@@ -264,7 +261,7 @@ ssize_t Http2Client::doRecv([[maybe_unused]] nghttp2_session& session, uint8_t* 
 	length = min(length, size_t(numeric_limits<int>::max()));
 	auto nread = mConn->read(data, length);
 	if (nread < 0) {
-		SLOGE << mLogPrefix << ": error while reading socket. " << strerror(errno);
+		LOGE << "Error while reading socket: " << strerror(errno);
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
 	if (nread == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
@@ -275,31 +272,30 @@ ssize_t Http2Client::doRecv([[maybe_unused]] nghttp2_session& session, uint8_t* 
  * Synchronously called by nghttp2_session_send
  */
 void Http2Client::onFrameSent([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	SLOGD << mLogPrefix << "[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
-	      << " frame sent (" << frame.hd.length << "B)";
+	LOGD << "StreamId[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
+	     << " frame sent (" << frame.hd.length << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 }
 
 void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const nghttp2_frame& frame) noexcept {
-	auto logPrefix = mLogPrefix + "[" + to_string(frame.hd.stream_id) + "]: ";
-	SLOGD << logPrefix << Http2Tools::frameTypeToString(frame.hd.type) << " frame received (" << frame.hd.length
-	      << "B)";
+	LOGD << "StreamId[" << frame.hd.stream_id << "]: " << Http2Tools::frameTypeToString(frame.hd.type)
+	     << " frame received (" << frame.hd.length << "B)";
 	resetTimeoutTimer(frame.hd.stream_id);
 	resetIdleTimer();
 
 	switch (frame.hd.type) {
 		case NGHTTP2_WINDOW_UPDATE: { // Remote says we're clear for another window.
-			resumeSending(logPrefix);
+			resumeSending();
 		} break;
 		case NGHTTP2_SETTINGS:
 			if ((frame.hd.flags & NGHTTP2_FLAG_ACK) == 0) {
-				SLOGD << logPrefix << "server settings received";
+				LOGD << "Server settings received";
 			}
 			break;
 		case NGHTTP2_GOAWAY: {
 			ostringstream msg{};
-			msg << logPrefix << "GOAWAY frame received, errorCode=[" << frame.goaway.error_code << "], lastStreamId=["
+			msg << "GOAWAY frame received, errorCode=[" << frame.goaway.error_code << "], lastStreamId=["
 			    << frame.goaway.last_stream_id << "]:";
 			if (frame.goaway.opaque_data_len > 0) {
 				msg << endl;
@@ -307,8 +303,8 @@ void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const n
 			} else {
 				msg << " <empty>";
 			}
-			SLOGD << msg.str();
-			SLOGD << "Scheduling connection closing";
+			LOGD << msg.str();
+			LOGD << "Scheduling connection closing";
 			mLastSID = frame.goaway.last_stream_id;
 			break;
 		}
@@ -322,13 +318,13 @@ void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session,
                                uint8_t flags) noexcept {
 	const auto& streamId = frame.hd.stream_id;
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
-	// SLOGD << logPrefix << ": receiving HTTP2 header [" << name << " = " << value << "]";
+	// LOGD << "Receiving HTTP2 header [" << name << " = " << value << "]";
 
 	auto contextIterator = mActiveHttpContexts.find(streamId);
 	if (contextIterator != mActiveHttpContexts.end()) {
 		contextIterator->second->getResponse()->getHeaders().add(name, value, flags);
 	} else {
-		SLOGW << logPrefix << ": receiving header for an unknown stream. Just ignoring";
+		LOGW << "Receiving header for an unknown stream: ignore";
 	}
 }
 
@@ -339,18 +335,16 @@ void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session,
                                  size_t datalen) noexcept {
 	string stringData(reinterpret_cast<const char*>(data), datalen);
 
-	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
-
 	//	ostringstream msg{};
-	//	msg << logPrefix << ": " << datalen << "B of data received on stream[" << streamId << "]:\n";
+	//	msg << "Received " << datalen << "B of data on stream[" << streamId << "]:\n";
 	//	msg << stringData;
-	//	SLOGD << msg.str();
+	//	LOGD << msg.str();
 
 	auto contextIterator = mActiveHttpContexts.find(streamId);
 	if (contextIterator != mActiveHttpContexts.end()) {
 		contextIterator->second->getResponse()->appendBody(stringData);
 	} else {
-		SLOGW << logPrefix << "Data received for a unknown context";
+		LOGW << "Data received for a unknown context";
 	}
 }
 
@@ -358,26 +352,26 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg
 	auto thiz = static_cast<Http2Client*>(arg);
 
 	if (w->revents & SU_WAIT_HUP) {
-		SLOGD << thiz->mLogPrefix << ": peer has hung up";
+		LOGD_CTX(thiz->mLogPrefix) << "Peer has hung up";
 		thiz->disconnect();
 		return 0;
 	}
 	if (w->revents & SU_WAIT_ERR) {
-		SLOGE << thiz->mLogPrefix << ": socket error";
+		LOGE_CTX(thiz->mLogPrefix) << "Socket error";
 		thiz->disconnect();
 		return 0;
 	}
 
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
 	if (status < 0) {
-		SLOGE << thiz->mLogPrefix << ": error while receiving HTTP2 data[" << nghttp2_strerror(status)
-		      << "]. Disconnecting";
+		LOGE_CTX(thiz->mLogPrefix) << "Error while receiving HTTP2 data[" << nghttp2_strerror(status)
+		                           << "], disconnecting";
 		thiz->disconnect();
 		return 0;
 	}
 	if (thiz->mLastSID >= 0) {
-		SLOGD << thiz->mLogPrefix << ": closing connection after receiving GOAWAY frame. Last processed stream is ["
-		      << thiz->mLastSID << "]";
+		LOGD_CTX(thiz->mLogPrefix) << "Closing connection after receiving GOAWAY frame, last processed stream is ["
+		                           << thiz->mLastSID << "]";
 		thiz->disconnect();
 	}
 	return 0;
@@ -386,24 +380,22 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg
 void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
                                  int32_t stream_id,
                                  uint32_t error_code) noexcept {
-	auto logPrefix = mLogPrefix + "[" + to_string(stream_id) + "]";
-
 	shared_ptr<HttpMessageContext> context = nullptr;
 	auto contextMapIterator = mActiveHttpContexts.find(stream_id);
 	if (contextMapIterator != mActiveHttpContexts.cend()) {
 		context = contextMapIterator->second;
 	}
 	if (NGHTTP2_NO_ERROR == error_code) {
-		SLOGD << logPrefix << ": stream closed without error";
+		LOGD << "Stream closed without error";
 		if (context != nullptr) {
 			try {
 				context->getResponse()->getStatusCode(); // throw an exception if the status code is invalid.
-				SLOGD << logPrefix << ": response received for HttpRequest[" << context->getRequest() << "]:\n"
-				      << context->getResponse()->toString();
+				LOGD << "Response received for HttpRequest[" << context->getRequest() << "]:\n"
+				     << context->getResponse()->toString();
 				context->getOnResponseCb()(context->getRequest(), context->getResponse());
 				mActiveHttpContexts.erase(contextMapIterator);
 			} catch (const runtime_error& e) {
-				SLOGD << "Error during status code evaluation : " << e.what();
+				LOGD << "Error during status code evaluation: " << e.what();
 				context->getOnErrorCb()(context->getRequest());
 			}
 		}
@@ -413,17 +405,16 @@ void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
 			// When nghttp2 reaches a maximum number of concurrent streams, it starts queueing up messages.
 			// A stream has just closed, we should start sending those queued up messages
 			mRoot.addToMainLoop([weakThis = this->weak_from_this(), previousSize = queueSize,
-			                     logPrefix = std::move(logPrefix)]() {
+			                     logPrefix = mLogPrefix]() {
 				auto sharedThis = weakThis.lock();
 				if (!sharedThis || sharedThis->getOutboundQueueSize() < previousSize)
 					return; // Something triggered a resend in the meantime. Nothing to do. (If the queue is still not
 					        // empty, it's probably stuck again, and we should wait anyway for another stream to close)
-				sharedThis->resumeSending(logPrefix);
+				sharedThis->resumeSending();
 			});
 		}
 	} else {
-		SLOGD << logPrefix << ": stream closed with error code [" << error_code
-		      << "] : " << nghttp2_http2_strerror(error_code);
+		LOGD << "Stream closed with error code [" << error_code << "]: " << nghttp2_http2_strerror(error_code);
 		if (context != nullptr) {
 			context->getOnErrorCb()(context->getRequest());
 			mActiveHttpContexts.erase(contextMapIterator);
@@ -431,16 +422,15 @@ void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
 	}
 }
 
-void Http2Client::resumeSending(const std::string& logPrefix) {
+void Http2Client::resumeSending() {
 	const auto status = sendAll();
 	if (status < 0) {
-		SLOGE << logPrefix << "failure while trying to catch up queued frames. reason=[" << nghttp2_strerror(status)
-		      << "]";
+		LOGE << "Failure while trying to catch up queued frames, reason=[" << nghttp2_strerror(status) << "]";
 	}
 }
 
 void Http2Client::disconnect() {
-	SLOGI << mLogPrefix << ": disconnecting";
+	LOGI << "Disconnecting";
 	if (mState == State::Disconnected) {
 		return;
 	}
@@ -455,13 +445,13 @@ void Http2Client::disconnect() {
 }
 
 void Http2Client::onConnectionIdle() noexcept {
-	SLOGD << mLogPrefix << ": connection is idle";
+	LOGD << "Connection is idle";
 	disconnect();
 }
 
 void Http2Client::setState(State state) noexcept {
 	if (mState == state) return;
-	SLOGD << mLogPrefix << ": switching state from [" << mState << "] to [" << state << "]";
+	LOGD << "Switching state from [" << mState << "] to [" << state << "]";
 	mState = state;
 }
 
@@ -476,7 +466,7 @@ void Http2Client::onRequestTimeout(int32_t streamId) {
 	auto contextMapIterator = mActiveHttpContexts.find(streamId);
 	if (contextMapIterator != mActiveHttpContexts.cend()) {
 		auto context = contextMapIterator->second;
-		SLOGD << mLogPrefix << ": closing stream[" << streamId << "] after request timeout.";
+		LOGD << "Closing stream[" << streamId << "] after request timeout";
 		context->getOnErrorCb()(context->getRequest());
 		// Cancel any unsent frames
 		nghttp2_submit_rst_stream(mHttpSession.get(), nghttp2_flag::NGHTTP2_FLAG_NONE, streamId,
@@ -581,7 +571,7 @@ ostream& operator<<(ostream& os, const nghttp2_frame& frame) noexcept {
 			if (frame.settings.niv > 0) {
 				for (unsigned i = 0; i < frame.settings.niv; ++i) {
 					const auto& iv = frame.settings.iv[i];
-					os << iv.settings_id << " : " << iv.value << endl;
+					os << iv.settings_id << ": " << iv.value << endl;
 				}
 			} else {
 				os << "<empty>" << endl;

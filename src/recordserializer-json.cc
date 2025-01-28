@@ -30,7 +30,7 @@ using namespace flexisip;
 
 #define CHECK(msg, test)                                                                                               \
 	if (test) {                                                                                                        \
-		SLOGE << "Invalid serialized contact " << i << "\n" << str << msg;                                             \
+		LOGE << "Invalid serialized contact " << i << "\n" << str << msg;                                              \
 		cJSON_Delete(root);                                                                                            \
 		return false;                                                                                                  \
 	}
@@ -45,7 +45,7 @@ bool RecordSerializerJson::parse(const char* str, [[maybe_unused]] int len, Reco
 
 	cJSON* root = cJSON_Parse(str);
 	if (!root) {
-		SLOGE << "Error parsing JSON contact: [" << cJSON_GetErrorPtr() << "]";
+		LOGE << "Error parsing JSON contact: [" << cJSON_GetErrorPtr() << "]";
 		return false;
 	}
 	cJSON* contact = cJSON_GetObjectItem(root, "contacts");
@@ -136,7 +136,7 @@ bool RecordSerializerJson::serialize(Record* r, string& serialized, bool log) {
 	char* contacts_str = cJSON_Print(root);
 	if (!contacts_str) return false;
 	serialized.assign(contacts_str);
-	if (log) SLOGI << "Serialized contact: " << serialized;
+	if (log) LOGI << "Serialized contact: " << serialized;
 
 	cJSON_Delete(root);
 	free(contacts_str);

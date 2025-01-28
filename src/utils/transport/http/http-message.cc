@@ -28,10 +28,10 @@ namespace flexisip {
 
 string HttpMessage::toString() const noexcept {
 	ostringstream os{};
-	os << "HttpMessage : " << endl;
-	os << "    HttpMessage header : " << endl;
+	os << "HttpMessage: " << endl;
+	os << "    HttpMessage header: " << endl;
 	os << this->mHeaders.toString() << endl;
-	os << "    HttpMessage body : " << endl;
+	os << "    HttpMessage body: " << endl;
 	const auto sizeToPrint = std::min(mBody.size(), 2048UL);
 	os << std::string_view{mBody.data(), sizeToPrint};
 	const auto diff = mBody.size() - sizeToPrint;

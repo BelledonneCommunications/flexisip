@@ -202,7 +202,7 @@ void AuthLog::setOrigin(const sip_via_t* via) {
 
 	mOrigin = url_format(mHome.home(), "sip:%s", ip.c_str());
 	if (!mOrigin) {
-		SLOGI << "AuthLog: invalid via with host " << ip;
+		LOGI << "Invalid 'Via' with host " << ip;
 		mOrigin = url_format(mHome.home(), "sip:invalid.host");
 	}
 	if (port) {

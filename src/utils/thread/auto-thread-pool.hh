@@ -23,6 +23,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -59,6 +60,7 @@ private:
 	std::atomic_uint mCurrentThreadNumber{0};
 
 	static std::unique_ptr<AutoThreadPool> sDbThreadPool;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

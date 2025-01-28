@@ -64,6 +64,8 @@ public:
 	void publish(const Record::Key& topic, const std::string& uid) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegistrarDbInternal"};
+
 	bool errorOnTooMuchContactInBind(const sip_contact_t* sip_contact, const std::string& key);
 
 	const Record::Config& mRecordConfig;

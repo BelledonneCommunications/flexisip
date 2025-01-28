@@ -98,37 +98,37 @@ void PushInfo::parseAppleSpecifics(const sofiasip::MsgSip& msg) {
 	const auto* params = sip->sip_request->rq_url->url_params;
 	auto msg_str = UriUtils::getParamValue(params, "pn-msg-str");
 	if (msg_str.empty()) {
-		SLOGD << "no optional pn-msg-str, using default: IM_MSG";
+		LOGD << "No optional pn-msg-str, using default: IM_MSG";
 		msg_str = "IM_MSG";
 	}
 
 	auto call_str = UriUtils::getParamValue(params, "pn-call-str");
 	if (call_str.empty()) {
-		SLOGD << "no optional pn-call-str, using default: IC_MSG";
+		LOGD << "No optional pn-call-str, using default: IC_MSG";
 		call_str = "IC_MSG";
 	}
 
 	auto group_chat_str = UriUtils::getParamValue(params, "pn-groupchat-str");
 	if (group_chat_str.empty()) {
-		SLOGD << "no optional pn-groupchat-str, using default: GC_MSG";
+		LOGD << "No optional pn-groupchat-str, using default: GC_MSG";
 		group_chat_str = "GC_MSG";
 	}
 
 	auto call_snd = UriUtils::getParamValue(params, "pn-call-snd");
 	if (call_snd.empty()) {
-		SLOGD << "no optional pn-call-snd, using empty";
+		LOGD << "No optional pn-call-snd, using empty";
 		call_snd = "empty";
 	}
 
 	auto msg_snd = UriUtils::getParamValue(params, "pn-msg-snd");
 	if (msg_snd.empty()) {
-		SLOGD << "no optional pn-msg-snd, using empty";
+		LOGD << "No optional pn-msg-snd, using empty";
 		msg_snd = "empty";
 	}
 
 	auto mwi_str = UriUtils::getParamValue(params, "pn-mwi-str");
 	if (mwi_str.empty()) {
-		SLOGD << "no optional pn-mwi-str, using MWI_NOTIFY_STR";
+		LOGD << "No optional pn-mwi-str, using MWI_NOTIFY_STR";
 		mwi_str = "MWI_NOTIFY_STR";
 	}
 

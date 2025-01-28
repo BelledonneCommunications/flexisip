@@ -289,6 +289,10 @@ private:
 		std::filesystem::file_time_type lastModificationTime;
 	};
 
+	static constexpr const char* sInternalTransportIdent = "internal-transport";
+	static const std::string sEventSeparator;
+	static constexpr std::string_view mLogPrefix{"Agent"};
+
 	// Private methods
 	void updateTransport(TlsTransportInfo& info);
 	int onIncomingMessage(msg_t* msg, const sip_t* sip);
@@ -352,9 +356,6 @@ private:
 #endif
 	bool mUseRfc2543RecordRoute = false;
 	std::weak_ptr<ISupervisorNotifier> mNotifier;
-
-	static constexpr const char* sInternalTransportIdent = "internal-transport";
-	static const std::string sEventSeparator;
 };
 
 } // namespace flexisip

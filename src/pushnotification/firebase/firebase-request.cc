@@ -34,7 +34,8 @@ namespace pushnotification {
 // redundant declaration (required for C++14 compatibility)
 const std::chrono::seconds FirebaseRequest::FIREBASE_MAX_TTL{4 * 7 * 24 * 3600}; // 4 weeks
 
-FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) : Request{pType, pInfo} {
+FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo)
+    : Request{pType, pInfo}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "FirebaseRequest")) {
 	const string& from = mPInfo->mFromName.empty() ? mPInfo->mFromUri : mPInfo->mFromName;
 	auto ttl = min(mPInfo->mTtl, FIREBASE_MAX_TTL);
 
@@ -78,7 +79,7 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 
 	mBody.assign(formattedBody.begin(), formattedBody.end());
 
-	SLOGD << "Firebase request[" << this << "] creation, payload:\n" << formattedBody;
+	LOGD << "Creation, payload:\n" << formattedBody;
 
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
@@ -88,7 +89,7 @@ FirebaseRequest::FirebaseRequest(PushType pType, const std::shared_ptr<const Pus
 	headers.add("content-type", "application/json");
 	this->setHeaders(headers);
 
-	SLOGD << "Firebase request[" << this << "] creation, headers:\n" << headers.toString();
+	LOGD << "Creation, headers:\n" << headers.toString();
 }
 
 } // namespace pushnotification

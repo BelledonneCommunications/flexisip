@@ -44,6 +44,8 @@ private:
 	 * This method is called by each thread.
 	 */
 	void _run();
+
+    std::string mLogPrefix;
 };
 
 } // namespace flexisip

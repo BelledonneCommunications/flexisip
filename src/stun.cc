@@ -75,7 +75,7 @@ int StunServer::start(std::string_view bindAddress) {
 
 	mSock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (mSock == -1) {
-		SLOGE << "Could not create socket: " << strerror(errno);
+		LOGE << "Could not create socket: " << strerror(errno);
 		return -1;
 	}
 
@@ -85,7 +85,7 @@ int StunServer::start(std::string_view bindAddress) {
 
 	err = ::bind(mSock, (struct sockaddr*)&laddr, sizeof(laddr));
 	if (err == -1) {
-		SLOGE << "Could not bind STUN server to " << bind_address << " port " << mPort;
+		LOGE << "Could not bind STUN server to " << bind_address << " port " << mPort;
 		return -1;
 	}
 
@@ -107,7 +107,7 @@ void StunServer::run() {
 	/*set a high priority to this thread so that it answers fast*/
 	err = setpriority(PRIO_PROCESS, 0, -20);
 	if (err == -1) {
-		SLOGW << "Fail to set high priority to stun server thread: " << strerror(errno);
+		LOGW << "Fail to set high priority to thread: " << strerror(errno);
 	}
 
 	while (mRunning) {
@@ -145,7 +145,7 @@ void StunServer::run() {
 				from.addr = ntohl(fromaddr->sin_addr.s_addr);
 
 				if (getsockname(mSock, (struct sockaddr*)&srcaddr, &srcaddrlen) == -1) {
-					SLOGE << "getsockname() error: " << strerror(errno);
+					LOGE << "getsockname() error: " << strerror(errno);
 					continue;
 				}
 				myaddr.port = ntohs(srcaddr.sin_port);
@@ -154,7 +154,7 @@ void StunServer::run() {
 				bool_t ret = stunServerProcessMsg((char*)buf, err, &from, &myaddr, &altaddr, &resp, &dest, &passwd,
 				                                  &changeIP, &changePort);
 				if (!ret) {
-					SLOGD << "Fail to parse stun request.";
+					LOGD << "Fail to parse stun request";
 					continue;
 				}
 				if (changeIP == FALSE && changePort == FALSE) {
@@ -167,11 +167,11 @@ void StunServer::run() {
 						destaddr.sin_addr.s_addr = htonl(dest.addr);
 						err = sendto(mSock, buf, bytes, 0, (struct sockaddr*)&destaddr, sizeof(destaddr));
 						if (err == -1) {
-							SLOGW << "Fail to send stun response to " << inet_ntop(AF_INET, &destaddr, tmp, sizeof(tmp))
-							      << ":" << dest.addr;
+							LOGW << "Fail to send response to " << inet_ntop(AF_INET, &destaddr, tmp, sizeof(tmp))
+							     << ":" << dest.addr;
 						}
-					} else SLOGE << "stunEncodeMessage() failed.";
-				} else SLOGD << "Received stun request with changeIP or changePort, not supported yet";
+					} else LOGE << "stunEncodeMessage() failed";
+				} else LOGD << "Received request with changeIP or changePort, not supported yet";
 			}
 		}
 	}

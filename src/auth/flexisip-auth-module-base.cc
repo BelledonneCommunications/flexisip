@@ -73,21 +73,21 @@ void FlexisipAuthModuleBase::onCheck(AuthStatus& as, msg_auth_t* au, auth_challe
 	} else au = NULL;
 
 	if (as.allow()) {
-		SLOGD << "AuthStatus[" << &as << "]: allow unauthenticated " << as.method();
+		LOGD << as.getStrId() << " - Allow unauthenticated '" << as.method() << "'";
 		as.status(0), as.phrase(nullptr);
 		as.match(reinterpret_cast<msg_header_t*>(au));
 		return;
 	}
 
 	if (au) {
-		SLOGD << "AuthStatus[" << &as << "]: searching for auth digest response for this proxy";
+		LOGD << as.getStrId() << " - Searching for auth digest response for this proxy";
 		msg_auth_t* matched_au = ModuleToolbox::findAuthorizationForRealm(as.home(), au, as.realm());
 		if (matched_au) au = matched_au;
 		as.match(reinterpret_cast<msg_header_t*>(au));
 		checkAuthHeader(authStatus, au, ach);
 	} else {
 		/* There was no realm or credentials, send challenge */
-		SLOGD << "AuthStatus[" << &as << "]: no credential found for realm '" << as.realm() << "'";
+		LOGD << as.getStrId() << " - No credential found for realm '" << as.realm() << "'";
 		challenge(as, ach);
 		notify(authStatus);
 		return;
@@ -105,7 +105,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus& as, auth_challenger_t const
 	msg_header_t* lastChallenge = nullptr;
 	for (const std::string& algo : flexisipAs.usedAlgo()) {
 		msg_header_t* challenge;
-		SLOGD << "AuthStatus[" << &as << "]: making challenge header for '" << algo << "' algorithm";
+		LOGD << as.getStrId() << " - Making challenge header for '" << algo << "' algorithm";
 		const char* algoValue = msg_header_find_param(response->sh_common, "algorithm");
 		if (algo == &algoValue[1]) {
 			challenge = response;
@@ -123,7 +123,7 @@ void FlexisipAuthModuleBase::onChallenge(AuthStatus& as, auth_challenger_t const
 		lastChallenge = challenge;
 	}
 	if (as.response() == nullptr) {
-		SLOGI << "AuthStatus[" << &as << "]: no available algorithm while challenge making";
+		LOGI << as.getStrId() << " - No available algorithm while making challenge";
 		as.status(500);
 		as.phrase("Internal error");
 	} else {

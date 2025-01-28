@@ -61,14 +61,14 @@ void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
 	try {
 		url = SipUri(lev->getTo()->asStringUriOnly());
 	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << "Regevent server: new subscription: invalid URI in 'To' header: " << e.getUrl();
+		LOGE << "New subscription, invalid URI in 'To' header: " << e.getUrl();
 		lev->denySubscription(Reason::AddressIncomplete);
 		return;
 	}
 
 	const auto result = mEvents.emplace(Record::Key(url, mRegistrarDb->useGlobalDomain()).toString(), lev);
 	if (!result.second) {
-		SLOGE << "Regevent server: There is already a subscription for: " << result.first->first;
+		LOGE << "There is already a subscription for: " << result.first->first;
 		lev->denySubscription(Reason::Busy);
 		return;
 	}
@@ -92,7 +92,7 @@ void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<lin
 			try {
 				url = SipUri(lev->getTo()->asStringUriOnly());
 			} catch (const sofiasip::InvalidUrlError& e) {
-				SLOGE << "Regevent server: subscription terminated: invalid URI in 'To' header: " << e.getUrl();
+				LOGE << "Regevent server: subscription terminated: invalid URI in 'To' header: " << e.getUrl();
 				return;
 			}
 
@@ -113,16 +113,14 @@ void Server::Subscriptions::onContactRegistered(const shared_ptr<Record>& r, con
 
 void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std::string& uidOfFreshlyRegistered) {
 	if (!r) {
-		SLOGW << "RegistrationEvent::Server - Ignoring registration notification with null record.";
+		LOGW << "Ignoring registration notification with null record";
 		return;
 	}
 
 	const auto& aor = r->getKey().asString();
 	const auto maybeEvent = mEvents.find(aor);
 	if (maybeEvent == mEvents.end()) {
-		SLOGW << "RegistrationEvent::Server - Ignoring registration of a contact no one is subscribed to. "
-		         "(aor: "
-		      << aor << ")";
+		LOGW << "Ignoring registration of a contact no one is subscribed to (aor: " << aor << ")";
 		return;
 	}
 	auto& event = *maybeEvent->second;
@@ -134,8 +132,7 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 	for (const auto& ec : r->getExtendedContacts()) {
 		auto addr = r->getPubGruu(ec, home.home());
 		if (!addr) {
-			SLOGE << "RegistrationEvent::Server - Contact has no GRUU, skipping. (contact: " << ec->urlAsString()
-			      << ", aor: " << aor << ")";
+			LOGE << "Contact has no GRUU, skipping (contact: " << ec->urlAsString() << ", aor: " << aor << ")";
 			continue;
 		}
 		bool justRegistered = (ec->mKey == uidOfFreshlyRegistered);

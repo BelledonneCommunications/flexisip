@@ -200,7 +200,7 @@ list<PayloadType*> Transcoder::orderList(const list<string>& config, const list<
 				    strcmp("telephone-event", pt->mime_type) == 0) {
 					ret.push_back(pt);
 				} else {
-					SLOGE << "Codec " << name << "/" << rate << " is configured but is not supported (missing plugin?)";
+					LOGE << "Codec " << name << "/" << rate << " is configured but is not supported (missing plugin?)";
 				}
 			}
 		}
@@ -227,7 +227,7 @@ bool Transcoder::canDoRateControl(sip_t* sip) {
 		list<string>::const_iterator it;
 		for (it = mRcUserAgents.begin(); it != mRcUserAgents.end(); ++it) {
 			if (strstr(sip->sip_user_agent->g_string, (*it).c_str())) {
-				SLOGD << "Audio rate control supported for " << sip->sip_user_agent->g_string;
+				LOGD << "Audio rate control supported for " << sip->sip_user_agent->g_string;
 				return true;
 			}
 		}
@@ -304,7 +304,7 @@ int Transcoder::handleOffer(TranscodedCall* c, MsgSip& ms) {
 		string fladdr = c->getFrontSide()->getLocalAddress();
 		c->getFrontSide()->setRemoteAddr(fraddr.c_str(), frport);
 #if ORTP_DEBUG_MODE
-		SLOGD << "Front side " << fraddr << ":" << frport << " <-> " << fladdr << ":" << flport;
+		LOGD << "Front side " << fraddr << ":" << frport << " <-> " << fladdr << ":" << flport;
 #endif
 
 		int ptime = m->readPtime();
@@ -316,9 +316,9 @@ int Transcoder::handleOffer(TranscodedCall* c, MsgSip& ms) {
 		int blport = c->getBackSide()->getAudioPort();
 		const short ipVersion = m->getAudioIpVersion();
 		const char* publicIp = getAgent()->getResolvedPublicIp(ipVersion == 6).c_str();
-		SLOGD << "Using public ip" << (ipVersion == 6 ? "v6" : "v4") << " " << publicIp;
+		LOGD << "Using public ip" << (ipVersion == 6 ? "v6" : "v4") << " " << publicIp;
 		m->changeAudioIpPort(publicIp, blport);
-		SLOGD << "Back side local port: " << publicIp << ":" << blport << " <-> ?";
+		LOGD << "Back side local port: " << publicIp << ":" << blport << " <-> ?";
 
 		if (mRemoveBandwidthsLimits) removeBandwidths(m->mSession);
 
@@ -330,7 +330,7 @@ int Transcoder::handleOffer(TranscodedCall* c, MsgSip& ms) {
 		}
 		return 0;
 	} else {
-		SLOGD << "No support for any of the codec offered by client, doing bypass.";
+		LOGD << "No support for any of the codec offered by client, doing bypass";
 		if (!ioffer.empty()) {
 			for (auto it = ioffer.begin(); it != ioffer.cend(); ++it) {
 				payload_type_destroy(*it);
@@ -358,10 +358,10 @@ int Transcoder::processInvite(TranscodedCall* c, RequestSipEvent& ev) {
 }
 
 void Transcoder::processAck(TranscodedCall* ctx, MsgSip& ms) {
-	SLOGD << "Processing ACK";
+	LOGD << "Processing ACK";
 	auto ioffer = ctx->getInitialOffer();
 	if (!ioffer.empty()) {
-		SLOGD << "Processing ACK with SDP but no offer was made or processed.";
+		LOGD << "Processing ACK with SDP but no offer was made or processed";
 	} else {
 		handleAnswer(ctx, ms);
 	}
@@ -379,13 +379,13 @@ unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& 
 			mCalls.store(c);
 			ot->setProperty<TranscodedCall>(getModuleName(), c);
 		} else {
-			SLOGD << "Transcoder: couldn't process invite, stopping processing";
+			LOGD << "Transcoder: could not process invite, stopping processing";
 			return {};
 		}
 	} else if (sip->sip_request->rq_method == sip_method_ack) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
 		if (c == NULL) {
-			SLOGD << "Transcoder: couldn't find call context for ack";
+			LOGD << "Transcoder: could not find call context for ack";
 			return {};
 		} else {
 			processAck(c.get(), *ms);
@@ -393,7 +393,7 @@ unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& 
 	} else if (sip->sip_request->rq_method == sip_method_info) {
 		auto c = dynamic_pointer_cast<TranscodedCall>(mCalls.find(getAgent(), sip, true));
 		if (c == NULL) {
-			SLOGD << "Transcoder: couldn't find call context for info";
+			LOGD << "Transcoder: could not find call context for info";
 			return {};
 		} else if (processSipInfo(c.get(), *ev)) {
 			/*stop the processing */
@@ -411,7 +411,7 @@ unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&& 
 }
 
 int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {
-	SLOGD << "Transcoder::handleAnswer";
+	LOGD << "Handler answer";
 	string addr;
 	int port;
 	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(ms.getHome(), ms.getSip());
@@ -422,7 +422,7 @@ int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {
 
 	m->getAudioIpPort(&addr, &port);
 	ptime = m->readPtime();
-	SLOGD << "Backside remote address: " << addr << ":" << port;
+	LOGD << "Backside remote address: " << addr << ":" << port;
 	ctx->getBackSide()->setRemoteAddr(addr.c_str(), port);
 	if (ptime > 0) {
 		ctx->getBackSide()->setPtime(ptime);
@@ -430,12 +430,12 @@ int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {
 	}
 	const short ipVersion = m->getAudioIpVersion();
 	const char* publicIp = getAgent()->getResolvedPublicIp(ipVersion == 6).c_str();
-	SLOGD << "Using public ip" << (ipVersion == 6 ? "v6" : "v4") << " " << publicIp;
+	LOGD << "Using public ip" << (ipVersion == 6 ? "v6" : "v4") << " " << publicIp;
 	m->changeAudioIpPort(publicIp, ctx->getFrontSide()->getAudioPort());
 
 	auto answer = m->readPayloads();
 	if (answer.empty()) {
-		SLOGE << "No payloads in 200Ok";
+		LOGE << "No payloads in 200Ok";
 		return -1;
 	}
 	normalizePayloads(answer);
@@ -463,7 +463,7 @@ int Transcoder::handleAnswer(TranscodedCall* ctx, MsgSip& ms) {
 }
 
 void Transcoder::process200OkforInvite(TranscodedCall* ctx, MsgSip& ms) {
-	SLOGD << "Processing 200 Ok";
+	LOGD << "Processing 200 Ok";
 	if (SdpModifier::hasSdp((sip_t*)msg_object(ctx->getLastForwardedInvite()))) {
 		handleAnswer(ctx, ms);
 	} else {
@@ -485,8 +485,8 @@ unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>
 
 	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 		if (mAgent->countUsInVia(sip->sip_via) > 1) {
-			SLOGD << "We are more than 1 time in via headers, wait until next time we receive this message for any "
-			         "processing";
+			LOGD << "We are more than 1 time in via headers, wait until next time we receive this message for any "
+			        "processing";
 			return std::move(ev);
 		}
 
@@ -494,13 +494,13 @@ unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>
 
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (transaction == NULL) {
-			SLOGD << "No transaction found";
+			LOGD << "No transaction found";
 			return std::move(ev);
 		}
 
 		shared_ptr<TranscodedCall> c = transaction->getProperty<TranscodedCall>(getModuleName());
 		if (c == NULL) {
-			SLOGD << "No transcoded call context found";
+			LOGD << "No transcoded call context found";
 			return std::move(ev);
 		}
 

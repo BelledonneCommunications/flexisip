@@ -38,7 +38,7 @@ namespace flexisip::pushnotification {
 
 FirebaseV1AccessTokenProvider::FirebaseV1AccessTokenProvider(const std::filesystem::path& scriptPath,
                                                              const std::filesystem::path& serviceAccountFilePath)
-    : AccessTokenProvider(), mLogPrefix("FirebaseV1AccessTokenProvider") {
+    : AccessTokenProvider(), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "FirebaseV1AccessTokenProvider")) {
 
 	if (!filesystem::exists(scriptPath)) {
 		throw std::runtime_error("path to script is invalid: \"" + scriptPath.string() + "\"");
@@ -91,8 +91,7 @@ std::optional<AccessTokenProvider::AccessToken> FirebaseV1AccessTokenProvider::g
 
 	try {
 		if (output.at("state") == "ERROR") {
-			SLOGE << mLogPrefix
-			      << ": an error has occurred during script execution, error = " << output.at("data").at("message");
+			LOGE << "An error has occurred during script execution, error = " << output.at("data").at("message");
 			return nullopt;
 		}
 
@@ -103,13 +102,13 @@ std::optional<AccessTokenProvider::AccessToken> FirebaseV1AccessTokenProvider::g
 
 		// If there were warnings during the execution of the python script, print them here.
 		for (const auto& warning : output.at("warnings")) {
-			SLOGW << mLogPrefix << ": from python script, " << warning;
+			LOGW << "Warning from python script: " << warning;
 		}
 	} catch (const exception& e) {
-		SLOGE << mLogPrefix << ": caught an unexpected exception while reading script output, message = " << e.what();
+		LOGE << "Caught an unexpected exception while reading script output, message = " << e.what();
 		return nullopt;
 	} catch (...) {
-		SLOGE << mLogPrefix << ": caught an unknown exception while reading script output";
+		LOGE << "Caught an unknown exception while reading script output";
 		return nullopt;
 	}
 

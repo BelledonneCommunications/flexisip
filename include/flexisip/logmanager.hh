@@ -183,6 +183,13 @@ public:
 	LogManager(const LogManager&) = delete;
 	~LogManager();
 
+	template <typename T>
+	static std::string makeLogPrefixForInstance(const T* ptr, std::string_view className) {
+		std::stringstream logPrefix{};
+		logPrefix << className << "[" << ptr << "]";
+		return logPrefix.str();
+	}
+
 	// Public methods
 	BctbxLogLevel logLevelFromName(const std::string& name) const;
 	// Initialize logging system
@@ -223,6 +230,8 @@ public:
 private:
 	// Private ctor
 	LogManager() = default;
+
+    static constexpr std::string_view mLogPrefix{"LogManager"};
 
 	// Private methods
 	void setCurrentContext(const SipLogContext& ctx);

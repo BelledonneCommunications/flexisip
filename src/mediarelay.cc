@@ -71,6 +71,7 @@ RelayChannel::RelayChannel(RelaySession* relaySession, const RelayTransport& rt,
 	mRecvErrorCount[0] = mRecvErrorCount[1] = 0;
 	mRemotePort[0] = mRemotePort[1] = -1;
 	mIsOpen = false;
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "RelayChannel");
 }
 
 void RelayChannel::initializeRtpSession(RelaySession* relaySession) {
@@ -111,16 +112,14 @@ const char* RelayChannel::dirToString(Dir dir) {
 void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, Dir dir) {
 	const string& localIp =
 	    mRelayTransport.mPreferredFamily == AF_INET6 ? mRelayTransport.mIpv6Address : mRelayTransport.mIpv4Address;
-	SLOGD << "RelayChannel [" << this << "] is now configured local=[" << localIp << "|" << mRelayTransport.mRtpPort
-	      << ":" << mRelayTransport.mRtcpPort << "]  remote=[" << ip << "|" << rtp_port << ":" << rtcp_port << "] dir=["
-	      << dirToString(dir) << "]";
+	LOGD << "Now configured local=[" << localIp << "|" << mRelayTransport.mRtpPort << ":" << mRelayTransport.mRtcpPort
+	     << "]  remote=[" << ip << "|" << rtp_port << ":" << rtcp_port << "] dir=[" << dirToString(dir) << "]";
 	bool dest_ok = true;
 
 	if (rtp_port > 0 && mPreventLoop) {
 		if (ip == mRelayTransport.mIpv4Address || ip == mRelayTransport.mIpv6Address ||
 		    ip == mRelayTransport.mIpv4BindAddress || ip == mRelayTransport.mIpv6BindAddress) {
-			SLOGD << "RelayChannel [" << this << "] wants to loop to local machine with ip [" << ip
-			      << "], not allowed.";
+			LOGD << "Wants to loop to local machine with ip [" << ip << "], not allowed";
 			dest_ok = false;
 		}
 	}
@@ -140,9 +139,8 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 		mIsOpen = true;
 
 		if (mDestAddrChanged) {
-			SLOGD << "RelayChannel [" << this
-			      << "] is being set new destination address but was fixed previously in this session, so ignoring "
-			         "this request.";
+			LOGD << "New destination address is being set but was fixed previously in this session, so ignoring this "
+			        "request";
 			return;
 		}
 
@@ -152,8 +150,7 @@ void RelayChannel::setRemoteAddr(const string& ip, int rtp_port, int rtcp_port, 
 			hints.ai_flags = AI_NUMERICHOST | AI_NUMERICSERV;
 			err = getaddrinfo(ip.c_str(), portstr, &hints, &res);
 			if (err != 0) {
-				SLOGE << "RelayChannel::RelayChannel() failed for " << ip << ":" << mRemotePort[i] << " : "
-				      << gai_strerror(err);
+				LOGE << "Failed for " << ip << ":" << mRemotePort[i] << " : " << gai_strerror(err);
 			} else {
 				memcpy(&mSockAddr[i], res->ai_addr, res->ai_addrlen);
 				mSockAddrSize[i] = res->ai_addrlen;
@@ -208,10 +205,9 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 				                     ? (string("[") + mRelayTransport.mIpv6Address + string("]"))
 				                     : mRelayTransport.mIpv4Address;
 				bctbx_sockaddr_to_printable_ip_address((struct sockaddr*)&ss, addrsize, ipPort, sizeof(ipPort));
-				SLOGD << "RelayChannel [" << this << "] destination address updated for [" << (i == 0 ? "RTP" : "RTCP")
-				      << "]: local=[" << localIp << ":"
-				      << (i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort) << "]  remote=[" << ipPort
-				      << "]";
+				LOGD << "Destination address updated for [" << (i == 0 ? "RTP" : "RTCP") << "]: local=[" << localIp
+				     << ":" << (i == 0 ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort) << "]  remote=["
+				     << ipPort << "]";
 				mSockAddrSize[i] = addrsize;
 				memcpy(&mSockAddr[i], &ss, addrsize);
 				mDestAddrChanged = true;
@@ -227,7 +223,7 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 		}
 
 		if (!mIsOpen || mDir == SendOnly || mDir == Inactive) {
-			/*SLOGD << "ignored packet";*/
+			/*LOGD << "ignored packet";*/
 			return 0;
 		}
 		if (mFilter &&
@@ -235,8 +231,8 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 			return 0;
 		}
 	} else if (err == -1) {
-		SLOGW << "Error receiving on port " << mRelayTransport.mRtpPort << " from " << mRemoteIp << ":"
-		      << mRemotePort[i] << ": " << strerror(errno);
+		LOGW << "Error receiving on port " << mRelayTransport.mRtpPort << " from " << mRemoteIp << ":" << mRemotePort[i]
+		     << ": " << strerror(errno);
 		if (errno == ECONNREFUSED) {
 			mRecvErrorCount[i]++;
 		}
@@ -254,15 +250,15 @@ int RelayChannel::send(int i, uint8_t* buf, size_t buflen) {
 			err = sendto(mSockets[i], buf, buflen, 0, (struct sockaddr*)&mSockAddr[i], mSockAddrSize[i]);
 			mPacketsSent[i]++;
 			if (err == -1) {
-				SLOGW << "Error sending " << buflen << " bytes (localport=" << localPort << " dest=" << mRemoteIp << ":"
-				      << mRemotePort[i] << ") : " << strerror(errno);
+				LOGW << "Error sending " << buflen << " bytes (localport=" << localPort << " dest=" << mRemoteIp << ":"
+				     << mRemotePort[i] << "): " << strerror(errno);
 			} else if (err != (int)buflen) {
-				SLOGW << "Only " << err << " bytes sent over " << buflen << " bytes (localport=" << localPort
-				      << " dest=" << mRemoteIp << ":" << mRemotePort[i] << ")";
+				LOGW << "Only " << err << " bytes sent over " << buflen << " bytes (localport=" << localPort
+				     << " dest=" << mRemoteIp << ":" << mRemotePort[i] << ")";
 			}
 		}
 	} else {
-		// SLOGW << "Not sending media, destination not valid or inactive stream.";
+		// LOGW << "Not sending media, destination not valid or inactive stream";
 	}
 	return err;
 }
@@ -276,6 +272,7 @@ RelaySession::RelaySession(MediaRelayServer* server, const string& frontId, cons
 	mLastActivityTime = getCurrentTime();
 	mUsed = true;
 	mFront = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "RelaySession");
 }
 
 shared_ptr<RelayChannel> RelaySession::getChannel(const string& partyId, const string& trId) const {
@@ -301,7 +298,7 @@ RelaySession::createBranch(const std::string& trId, const RelayTransport& rt, bo
 	ret->setMultipleTargets(hasMultipleTargets);
 	mBacks.insert(make_pair(trId, ret));
 	mMutex.unlock();
-	SLOGD << "RelayChannel [" << this << "]: branch corresponding to transaction [" << trId << "] added.";
+	LOGD << "Branch corresponding to transaction [" << trId << "] added";
 	return ret;
 }
 
@@ -315,7 +312,7 @@ void RelaySession::removeBranch(const std::string& trId) {
 	}
 	mMutex.unlock();
 	if (removed) {
-		SLOGD << "RelayChannel [" << this << "]: branch corresponding to transaction [" << trId << "] removed.";
+		LOGD << "Branch corresponding to transaction [" << trId << "] removed";
 	}
 }
 
@@ -326,7 +323,7 @@ int RelaySession::getActiveBranchesCount() {
 		if ((*it).second->getRemoteRtpPort() > 0) count++;
 	}
 	mMutex.unlock();
-	SLOGD << "getActiveBranchesCount(): " << count;
+	LOGD << "getActiveBranchesCount(): " << count;
 	return count;
 }
 
@@ -334,12 +331,12 @@ void RelaySession::setEstablished(const std::string& tr_id) {
 	if (mBack) return;
 	shared_ptr<RelayChannel> winner = getChannel("", tr_id);
 	if (winner) {
-		SLOGD << "RelaySession [" << this << "] is established.";
+		LOGD << "Is established";
 		mMutex.lock();
 		mBack = winner;
 		mBacks.clear();
 		mMutex.unlock();
-	} else SLOGE << "RelaySession [" << this << "] is with from an unknown branch [" << tr_id << "].";
+	} else LOGE << "Is with from an unknown branch [" << tr_id << "]";
 }
 
 void RelaySession::fillPollFd(PollFd* pfd) {
@@ -373,26 +370,29 @@ void RelaySession::checkPollFd(const PollFd* pfd, time_t curtime) {
 }
 
 RelaySession::~RelaySession() {
-	SLOGD << "RelaySession " << this << " destroyed";
+	LOGD << "Destroyed instance";
 }
 
 struct Statistics {
+	static constexpr std::string_view mLogPrefix{"Statistics"};
+
 	int port = 0;
 	uint64_t recv = 0;
 	uint64_t sent = 0;
+
 	static void log(const Statistics st[2], const std::string& identifier) {
-		SLOGD << identifier << " statistics:\n"
-		      << "RTP port: " << st[0].port << "\tReceived packets: " << st[0].recv << "\tSent packets: " << st[0].sent
-		      << "\n"
-		      << "RTCP port: " << st[1].port << "\tReceived packets: " << st[1].recv << "\tSent packets: " << st[1].sent
-		      << "\n";
+		LOGD << identifier << " statistics:\n"
+		     << "RTP port: " << st[0].port << "\tReceived packets: " << st[0].recv << "\tSent packets: " << st[0].sent
+		     << "\n"
+		     << "RTCP port: " << st[1].port << "\tReceived packets: " << st[1].recv << "\tSent packets: " << st[1].sent
+		     << "\n";
 	}
 };
 
 void RelaySession::unuse() {
 	Statistics front[2], back[2];
 
-	SLOGD << "RelaySession [" << this << "] terminated.";
+	LOGD << "Terminated";
 
 	/* Do not log while holding a mutex, so copy out statistics first, and then display them. */
 
@@ -491,7 +491,7 @@ RtpSession* MediaRelayServer::createRtpSession(const std::string& bindIp) {
 		}
 	}
 
-	SLOGE << "Could not find a random port on interface " << bindIp << " !";
+	LOGE << "Could not find a random port on interface " << bindIp;
 	return session;
 }
 
@@ -503,7 +503,7 @@ void MediaRelayServer::start() {
 MediaRelayServer::~MediaRelayServer() {
 	if (mRunning) {
 		mRunning = false;
-		if (write(mCtlPipe[1], "e", 1) == -1) SLOGE << "MediaRelayServer: Fail to write to control pipe.";
+		if (write(mCtlPipe[1], "e", 1) == -1) LOGE << "Fail to write to control pipe";
 		pthread_join(mThread, NULL);
 	}
 	mSessions.clear();
@@ -521,7 +521,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string& fron
 	mMutex.unlock();
 	if (!mRunning) start();
 
-	SLOGI << "There are now " << mSessionsCount << " relay sessions running on MediaRelayServer [" << this << "]";
+	LOGI << "There are now " << mSessionsCount << " relay sessions running";
 	/*write to the control pipe to wakeup the server thread */
 	update();
 	return s;
@@ -529,7 +529,7 @@ shared_ptr<RelaySession> MediaRelayServer::createSession(const std::string& fron
 
 void MediaRelayServer::update() {
 	/*write to the control pipe to wakeup the server thread */
-	if (write(mCtlPipe[1], "e", 1) == -1) SLOGE << "MediaRelayServer: fail to write to control pipe.";
+	if (write(mCtlPipe[1], "e", 1) == -1) LOGE << "Fail to write to control pipe";
 }
 
 static void set_high_prio() {
@@ -551,14 +551,14 @@ static void set_high_prio() {
 			    is to use setpriority().
 			*/
 			if (setpriority(PRIO_PROCESS, 0, -20) == -1) {
-				SLOGD << "MediaRelayServer setpriority() failed: " << strerror(errno) << ", nevermind.";
+				LOGD_CTX("MediaRelayServer") << "setpriority() failed: " << strerror(errno) << ", nevermind";
 			} else {
-				SLOGI << "MediaRelayServer priority increased to maximum.";
+				LOGI_CTX("MediaRelayServer") << "Priority increased to maximum";
 			}
-		} else SLOGW << "MediaRelayServer: pthread_setschedparam failed: " << strerror(result);
+		} else LOGW_CTX("MediaRelayServer") << "pthread_setschedparam failed: " << strerror(result);
 	} else {
-		SLOGI << "MediaRelayServer: priority set to [" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR")
-		      << "] and value [" << param.sched_priority << "]";
+		LOGI_CTX("MediaRelayServer") << "Priority set to [" << (policy == SCHED_FIFO ? "SCHED_FIFO" : "SCHED_RR")
+		                             << "] and value [" << param.sched_priority << "]";
 	}
 }
 
@@ -585,7 +585,7 @@ void MediaRelayServer::run() {
 			if (pfd.getREvents(ctl_index) & POLLIN) {
 				char tmp;
 				if (read(mCtlPipe[0], &tmp, 1) == -1) {
-					SLOGE << "Fail to read from control pipe.";
+					LOGE << "Fail to read from control pipe";
 				}
 			}
 			time_t curtime = getCurrentTime();
@@ -594,7 +594,7 @@ void MediaRelayServer::run() {
 				if (!(*it)->isUsed()) {
 					it = mSessions.erase(it);
 					mSessionsCount--;
-					SLOGI << "There are now " << mSessionsCount << " relay sessions running.";
+					LOGI << "There are now " << mSessionsCount << " relay sessions running";
 				} else {
 					(*it)->checkPollFd(&pfd, curtime);
 					++it;

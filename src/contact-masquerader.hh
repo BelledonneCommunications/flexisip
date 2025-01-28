@@ -50,6 +50,9 @@ public:
 	void masquerade(MsgSip& ms, bool insertDomain = false);
 
 	void restore(su_home_t* home, url_t* dest, char ctrt_param[64], const char* new_param = NULL);
+
+private:
+	static constexpr std::string_view mLogPrefix{"ContactMasquerader"};
 };
 
 } // namespace flexisip

@@ -37,14 +37,15 @@ ForkBasicContext::ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
                       std::move(event),
                       router->mStats.mCountBasicForks,
                       priority) {
-    SLOGD << "New ForkBasicContext " << this;
 	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20s);
 	// start the acceptance timer immediately
 	mDecisionTimer->set([this]() { onDecisionTimer(); });
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "ForkBasicContext");
+	LOGD << "New instance";
 }
 
 ForkBasicContext::~ForkBasicContext() {
-    SLOGD << "Destroy ForkBasicContext " << this;
+	LOGD << "Destroy instance";
 }
 
 void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
@@ -78,7 +79,7 @@ void ForkBasicContext::finishIncomingTransaction() {
 }
 
 void ForkBasicContext::onDecisionTimer() {
-    SLOGD << "ForkBasicContext::onDecisionTimer()";
+	LOGD << "Running " << __func__;
 	finishIncomingTransaction();
 }
 

@@ -41,7 +41,7 @@ public:
 			snprintf(command, sizeof(command) - 1, "%s %lu", mCommand.c_str(), sip->sip_date->d_time);
 			int err = system(command);
 			if (err == -1) {
-				SLOGE << "Command invocation '" << command << "' failed: " << strerror(errno);
+				LOGE << "Command invocation '" << command << "' failed: " << strerror(errno);
 			}
 		}
 		return std::move(ev);

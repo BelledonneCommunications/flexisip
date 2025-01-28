@@ -88,6 +88,7 @@ private:
 	static std::string sConnectionString;
 	static unsigned int sNbThreadsMax;
 	static std::unique_ptr<ForkMessageContextSociRepository> singleton;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

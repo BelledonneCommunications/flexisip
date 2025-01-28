@@ -38,6 +38,8 @@ class Agent;
 class ResponseContext;
 
 class OnRequestBindListener : public ContactUpdateListener {
+	static constexpr std::string_view mLogPrefix{"OnRequestBindListener"};
+
 	ModuleRegistrar* mModule;
 	std::unique_ptr<RequestSipEvent> mEv;
 	sip_from_t* mSipFrom;
@@ -60,6 +62,8 @@ public:
 };
 
 class OnResponseBindListener : public ContactUpdateListener {
+	static constexpr std::string_view mLogPrefix{"OnResponseBindListener"};
+
 	ModuleRegistrar* mModule;
 	std::unique_ptr<ResponseSipEvent> mEv;
 	std::shared_ptr<OutgoingTransaction> mTr;
@@ -77,6 +81,8 @@ public:
 };
 
 class OnStaticBindListener : public ContactUpdateListener {
+	static constexpr std::string_view mLogPrefix{"OnStaticBindListener"};
+
 	friend class ModuleRegistrar;
 	sofiasip::Home mHome;
 	std::string mContact;
@@ -93,6 +99,8 @@ public:
 
 class FakeFetchListener : public ContactUpdateListener {
 	friend class ModuleRegistrar;
+
+	static constexpr std::string_view mLogPrefix{"FakeFetchListener"};
 
 public:
 	FakeFetchListener();

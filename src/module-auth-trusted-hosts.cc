@@ -107,14 +107,13 @@ void ModuleAuthTrustedHosts::loadTrustedHosts(const ConfigStringList& trustedHos
 		const auto* url = contact ? contact->m_url : nullptr;
 		if (url && url->url_host) {
 			BinaryIp::emplace(mTrustedHosts, url->url_host);
-			SLOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
+			LOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
 		} else {
-			SLOGW << "Could not parse presence server URL '" << presenceServer
-			      << "', cannot be added to trusted hosts!";
+			LOGW << "Could not parse presence server URL '" << presenceServer << "', cannot be add to trusted hosts";
 		}
 	}
 	for (const auto& trustedHost : mTrustedHosts) {
-		SLOGI << "IP " << trustedHost << " added to trusted hosts";
+		LOGI << "IP " << trustedHost << " added to trusted hosts";
 	}
 }
 

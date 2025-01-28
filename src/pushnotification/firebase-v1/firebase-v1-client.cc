@@ -33,11 +33,9 @@ std::string FirebaseV1Client::FIREBASE_PORT{"443"};
 FirebaseV1Client::FirebaseV1Client(sofiasip::SuRoot& root,
                                    std::shared_ptr<FirebaseV1AuthenticationManager>&& authenticationManager,
                                    const Service* service)
-    : Client{service}, mProjectId(authenticationManager->getProjectId()) {
-	ostringstream os{};
-	os << "FirebaseV1Client[" << this << "]";
-	mLogPrefix = os.str();
-	SLOGD << mLogPrefix << ": constructing FirebaseV1Client";
+    : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "FirebaseV1Client")),
+      mProjectId(authenticationManager->getProjectId()) {
+	LOGD << "Constructing client";
 
 	mHttp2Client = Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT, std::move(authenticationManager));
 }

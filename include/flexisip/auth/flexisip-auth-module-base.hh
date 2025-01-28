@@ -55,6 +55,8 @@ public:
 	}
 
 protected:
+	static constexpr std::string_view mLogPrefix{"FlexisipAuthModuleBase"};
+
 	void onCheck(AuthStatus& as, msg_auth_t* credentials, auth_challenger_t const* ach) override;
 	void onChallenge(AuthStatus& as, auth_challenger_t const* ach) override;
 	void onCancel(AuthStatus& as) override;

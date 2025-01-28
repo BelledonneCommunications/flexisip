@@ -39,14 +39,14 @@ msg_auth_t* ModuleToolbox::findAuthorizationForRealm(su_home_t* home, msg_auth_t
 		memset(&r, 0, sizeof(r));
 		r.ar_size = sizeof(r);
 		auth_digest_response_get(home, &r, au->au_params);
-		SLOGD << "Examining auth digest response " << r.ar_username << " " << r.ar_realm;
+		LOGD << "Examining auth digest response " << r.ar_username << " " << r.ar_realm;
 		if (strcasecmp(r.ar_realm, realm) == 0) {
-			SLOGD << "Expected realm found : " << r.ar_realm;
+			LOGD << "Expected realm found: " << r.ar_realm;
 			return au;
 		}
 		au = au->au_next;
 	}
-	SLOGI << "authorization with expected realm '" << realm << "' not found" << realm;
+	LOGI << "Authorization with expected realm '" << realm << "' not found" << realm;
 	return nullptr;
 }
 
@@ -86,7 +86,7 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 			const url_t* reg_uri = drm->getPublicUri(tport);
 			if (reg_uri) {
 				url = url_hdup(home, reg_uri);
-				SLOGD << "ModuleToolbox::addRecordRoute(): public uri found from domain registration manager.";
+				LOGD << "Public uri found from domain registration manager";
 			}
 		}
 		if (!url) {
@@ -95,7 +95,7 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 
 			url = ag->urlFromTportName(home, name);
 			if (!url) {
-				SLOGE << "ModuleToolbox::addRecordRoute(): urlFromTportName() returned NULL";
+				LOGE << "urlFromTportName() returned NULL";
 				return;
 			}
 		}
@@ -117,22 +117,22 @@ void ModuleToolbox::addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t
 		if (url->url_user == nullptr) {
 			url->url_user = su_strdup(home, token.data());
 		} else {
-			SLOGD << "ModuleToolbox::addRecordRoute(): failed to add flow-token in sip uri, url_user is not empty";
+			LOGD << "Failed to add flow-token in sip uri, url_user is not empty";
 		}
 	}
 
 	sip_record_route_t* rr = sip_record_route_create(home, url, NULL);
 	if (!rr) {
-		SLOGE << "ModuleToolbox::addRecordRoute(): sip_record_route_create() returned NULL";
+		LOGE << "sip_record_route_create() returned NULL";
 		return;
 	}
 
 	if (!prependNewRoutable(msg, sip, sip->sip_record_route, rr)) {
-		SLOGD << "Skipping addition of record route identical to top one";
+		LOGD << "Skipping addition of record route identical to top one";
 		return;
 	}
 
-	SLOGD << "Record route added.";
+	LOGD << "Record route added";
 	ev.mRecordRouteAdded = true;
 }
 
@@ -141,7 +141,7 @@ void ModuleToolbox::addRecordRouteIncoming(Agent* ag, RequestSipEvent& ev, const
 
 	const auto tport = ev.getIncomingTport();
 	if (!tport) {
-		SLOGE << "Cannot find incoming tport, cannot add a Record-Route.";
+		LOGE << "Cannot find incoming tport, cannot add a Record-Route";
 		return;
 	} else {
 		// We have a tport, check if we are in a case of proxy to proxy communication.
@@ -195,7 +195,7 @@ bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t* home, [[maybe_unused]] msg
 	par = msg_params_find_slot((msg_param_t*)auth->au_params, "qop");
 	if (par != NULL) {
 		if (strstr(*par, "auth-int")) {
-			SLOGD << "Authentication header has qop with 'auth-int', replacing by 'auth'";
+			LOGD << "Authentication header has qop with 'auth-int', replacing by 'auth'";
 			// if the qop contains "auth-int", replace it by "auth" so that it allows to modify the SDP
 			*par = su_strdup(home, "qop=\"auth\"");
 		}
@@ -247,7 +247,7 @@ bool ModuleToolbox::urlHostMatch(const char* host1, const char* host2) {
 		if (inet_pton(AF_INET6, ip1.c_str(), &addr1) == 1 && inet_pton(AF_INET6, ip2.c_str(), &addr2) == 1) {
 			return memcmp(&addr1, &addr2, sizeof(addr1)) == 0;
 		} else {
-			SLOGD << "Comparing invalid IPv6 addresses " << host1 << " | " << host2;
+			LOGD << "Comparing invalid IPv6 addresses " << host1 << " | " << host2;
 		}
 	}
 	return strncasecmp(host1, host2, MAX(len1, len2)) == 0;
@@ -345,7 +345,7 @@ static const char* url_get_transport(const url_t* url) {
 			ret = get_transport_name_sips(transport);
 			break;
 		default:
-			SLOGE << "url_get_transport(): invalid url kind " << static_cast<int>(url->url_type);
+			LOGE_CTX("ModuleToolbox") << "Invalid url type " << static_cast<int>(url->url_type);
 			break;
 	}
 	return ret;
@@ -425,7 +425,7 @@ void ModuleToolbox::addPathHeader(Agent* ag, MsgSip& ms, tport_t* tport, const c
 
 		url = ag->urlFromTportName(home, name);
 		if (!url) {
-			SLOGE << "ModuleToolbox::addPathHeader(): urlFromTportName() returned NULL";
+			LOGE << "urlFromTportName() returned NULL";
 			return;
 		}
 	} else {
@@ -445,16 +445,16 @@ void ModuleToolbox::addPathHeader(Agent* ag, MsgSip& ms, tport_t* tport, const c
 			url->url_user = su_strdup(home, token.data());
 			url_param_add(home, url, "ob");
 		} else {
-			SLOGD << "ModuleToolbox::addPathHeader(): failed to add flow-token in sip uri, url_user is not empty";
+			LOGD << "Failed to add flow-token in sip uri, url_user is not empty";
 		}
 	}
 
 	path->r_url[0] = *url;
 
 	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
-		SLOGD << "Identical path already existing: " << url_as_string(home, url);
+		LOGD << "Identical path already existing: " << url_as_string(home, url);
 	} else {
-		SLOGI << "Path added to: " << url_as_string(home, url);
+		LOGI << "Path added to: " << url_as_string(home, url);
 		if (tport && proxyToProxy) {
 			ag->applyProxyToProxyTransportSettings(tport);
 		}
@@ -509,10 +509,10 @@ int ModuleToolbox::getCpuCount() {
 		while (fgets(line, sizeof(line), f)) {
 			if (strstr(line, "processor") == line) count++;
 		}
-		SLOGI << "Found " << count << " processors";
+		LOGI << "Found " << count << " processors";
 		fclose(f);
 	} else {
-		SLOGE << "ModuleToolbox::getCpuCount() not implemented outside of Linux";
+		LOGE << "Not implemented outside of Linux";
 		count = 1;
 	}
 	return count;

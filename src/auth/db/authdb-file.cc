@@ -172,24 +172,22 @@ shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupPars
    File parsing using belr with custom grammar for authdb file
 */
 void FileAuthDb::sync() {
-	SLOGD << "Syncing password file";
+	LOGD << "Synchronizing password file...";
 	GenericStruct* ma = mConfigRoot.get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 
 	mLastSync = getCurrentTime();
 
 	if (mFileString.empty()) {
-		throw FlexisipException{"'file' authentication backend was requested but no path specified in 'file-path'."};
-		return;
+		throw FlexisipException{"'file' authentication backend was requested but no path specified in 'file-path'"};
 	}
 
 	auto parser = setupParser();
 	if (!parser) {
-		throw FlexisipException{"Failed to create authdb file parser."};
-		return;
+		throw FlexisipException{"failed to create authdb file parser"};
 	}
 
-	SLOGD << "Opening file " << mFileString;
+	LOGD << "Opening file \"" << mFileString << "\"";
 	string fileContent = loadFromFile(mFileString);
 
 	size_t parsedSize = 0;
@@ -208,7 +206,7 @@ void FileAuthDb::sync() {
 		throw FlexisipException{"Version '" + pwdFile->getVersion() + "' is not supported for file " + mFileString};
 	}
 
-	SLOGD << "AuthDb file succesfully parsed:\n" << fileContent;
+	LOGD << "AuthDb file successfully parsed:\n" << fileContent;
 
 	auto authLines = pwdFile->getAuthLines();
 	for (auto it = authLines.begin(); it != authLines.end(); ++it) {
@@ -232,10 +230,10 @@ void FileAuthDb::sync() {
 			string key(createPasswordKey(userLine->getUser(), userLine->getUserId()));
 			cachePassword(key, userLine->getDomain(), destPasswords, mCacheExpire);
 		} else {
-			SLOGW << "Domain '" << userLine->getDomain() << "' is not handled by Authentication module";
+			LOGW << "Domain " << userLine->getDomain() << " is not handled by the Authentication module";
 		}
 	}
-	SLOGD << "Syncing done";
+	LOGD << "Synchronization done";
 }
 
 } // namespace flexisip

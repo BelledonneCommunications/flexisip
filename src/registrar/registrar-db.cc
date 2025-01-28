@@ -50,8 +50,7 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	const auto& notifyContact = [this](const auto& key, const auto& uid) {
 		if (!uid.has_value()) {
 			// Unreachable, see REDISPUBSUBFORMAT
-			SLOGE << "RegistrarDb::notifyContactListenerCallback: Subscription failed, erasing all listeners for "
-			      << key;
+			LOGE_CTX(mLogPrefix, "notifyContact") << "Subscription failed, erasing all listeners for " << key;
 			this->mContactListenersMap.erase(key.asString());
 			return;
 		}
@@ -59,14 +58,14 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 		this->notifyContactListener(key, *uid);
 	};
 	if ("internal" == dbImplementation) {
-		SLOGI << "RegistrarDB implementation is internal";
+		LOGI << "RegistrarDB implementation is internal";
 		mBackend = make_unique<RegistrarDbInternal>(mRecordConfig, mLocalRegExpire, notifyContact);
 	}
 #ifdef ENABLE_REDIS
 	/* Previous implementations allowed "redis-sync" and "redis-async", whereas we now expect "redis".
 	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
 	else if (dbImplementation.find("redis") == 0) {
-		SLOGI << "RegistrarDB implementation is REDIS";
+		LOGI << "RegistrarDB implementation is REDIS";
 		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
 		auto params = redis::async::RedisParameters::fromRegistrarConf(registrar);
 
@@ -110,11 +109,11 @@ bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegiste
 		    return mapEntry.second.lock() == strongPtr;
 	    }) != alreadyRegisteredListener.second;
 	if (listenerAlreadyPresent) {
-		SLOGD << "Already subscribe topic = " << topic << " with listener " << strongPtr;
+		LOGD << "Already subscribe topic = " << topic << " with listener " << strongPtr;
 		return false;
 	}
 
-	SLOGD << "Subscribe topic = " << topic << " with listener " << strongPtr;
+	LOGD << "Subscribe topic = " << topic << " with listener " << strongPtr;
 	mContactListenersMap.emplace(topic, std::move(listener));
 	mBackend->subscribe(key);
 	return true;
@@ -122,7 +121,7 @@ bool RegistrarDb::subscribe(const Record::Key& key, std::weak_ptr<ContactRegiste
 
 void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRegisteredListener>& listener) {
 	const auto& topic = key.asString();
-	SLOGD << "Unsubscribe topic = " << topic << " with listener " << listener;
+	LOGD << "Unsubscribe topic = " << topic << " with listener " << listener;
 	bool found = false;
 	auto range = mContactListenersMap.equal_range(topic);
 	for (auto it = range.first; it != range.second;) {
@@ -132,14 +131,14 @@ void RegistrarDb::unsubscribe(const Record::Key& key, const shared_ptr<ContactRe
 		} else it++;
 	}
 	if (!found) {
-		SLOGE << "RegistrarDb::unsubscribe() for topic " << topic << " and listener = " << listener << " is invalid.";
+		LOGE << "For topic " << topic << " and listener = " << listener << " is invalid";
 	}
 	if (0 < mContactListenersMap.count(topic)) return;
 	mBackend->unsubscribe(key);
 }
 
 void RegistrarDb::publish(const Record::Key& key, const string& uid) {
-	SLOGD << "Publish topic = " << key << ", uid = " << uid;
+	LOGD << "Publish topic = " << key << ", uid = " << uid;
 	mBackend->publish(key, uid);
 }
 
@@ -171,7 +170,7 @@ private:
 void RegistrarDb::notifyContactListener(const Record::Key& key, std::string_view uid) {
 	const auto& sipUri = key.toSipUri();
 	auto listener = make_shared<ContactNotificationListener>(uid, this, sipUri);
-	SLOGD << "Notify topic = " << key << ", uid = " << uid;
+	LOGD << "Notify topic = " << key << ", uid = " << uid;
 	fetch(sipUri, listener, true);
 }
 
@@ -191,7 +190,7 @@ void RegistrarDb::notifyContactListener(const shared_ptr<Record>& r, const strin
 		}
 	}
 	for (const auto& l : listeners) {
-		SLOGD << "Notify topic = " << r->getKey() << " to listener " << l.get();
+		LOGD << "Notify topic = " << r->getKey() << " to listener " << l.get();
 		l->onContactRegistered(r, uid);
 	}
 }
@@ -222,7 +221,7 @@ void LocalRegExpire::removeExpiredBefore(time_t before) {
 	unique_lock<mutex> lock(mMutex);
 
 	for (auto it = mRegMap.begin(); it != mRegMap.end();) {
-		// SLOGE << "> " << it->first << " [" << (it->second - before) << "]";
+		// LOGE << "> " << it->first << " [" << (it->second - before) << "]";
 		if ((*it).second <= before) {
 			auto prevIt = it;
 			++it;
@@ -242,12 +241,12 @@ void LocalRegExpire::getRegisteredAors(std::list<std::string>& aors) const {
 }
 
 void LocalRegExpire::subscribe(LocalRegExpireListener* listener) {
-	SLOGD << "Subscribe LocalRegExpire";
+	LOGD << "Subscribe LocalRegExpire";
 	mLocalRegListenerList.push_back(listener);
 }
 
 void LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) {
-	SLOGD << "Unsubscribe LocalRegExpire";
+	LOGD << "Unsubscribe LocalRegExpire";
 	auto result = find(mLocalRegListenerList.begin(), mLocalRegListenerList.end(), listener);
 	if (result != mLocalRegListenerList.end()) {
 		mLocalRegListenerList.erase(result);
@@ -255,7 +254,7 @@ void LocalRegExpire::unsubscribe(LocalRegExpireListener* listener) {
 }
 
 void LocalRegExpire::notifyLocalRegExpireListener(unsigned int count) {
-	SLOGD << "Notify LocalRegExpire count = " << count;
+	LOGD << "Notify LocalRegExpire count = " << count;
 	for (auto& listener : mLocalRegListenerList) {
 		listener->onLocalRegExpireUpdated(count);
 	}
@@ -293,6 +292,9 @@ void RegistrarDb::clear(const SipUri& url,
 class RecursiveRegistrarDbListener : public ContactUpdateListener,
                                      public enable_shared_from_this<RecursiveRegistrarDbListener> {
 private:
+	static int sMaxStep;
+	static constexpr std::string_view mLogPrefix{"RecursiveRegistrarDbListener"};
+
 	sofiasip::Home mHome;
 	RegistrarDb* mDatabase = nullptr;
 	shared_ptr<ContactUpdateListener> mOriginalListener;
@@ -302,7 +304,6 @@ private:
 	int mStep = 0;
 	float mOriginalQ = 1.0; // the q parameter. When recursing, we choose to inherit it from the original target.
 	bool mRecursionDone = false;
-	static int sMaxStep;
 
 public:
 	RecursiveRegistrarDbListener(RegistrarDb* database,
@@ -321,8 +322,8 @@ public:
 			auto& contacts = mRecord->getExtendedContacts();
 			for (auto ec : extlist) {
 				// Also add alias for late forking (context in the forks map for this alias key)
-				SLOGI << "Step: " << mStep << (ec->mAlias ? "\tFound alias " : "\tFound contact ") << mUrl << " -> "
-				      << ExtendedContact::urlToString(ec->mSipContact->m_url) << " usedAsRoute:" << ec->mUsedAsRoute;
+				LOGI << (ec->mAlias ? "Found alias " : "Found contact ") << "(step " << mStep << ") " << mUrl << " -> "
+				     << ExtendedContact::urlToString(ec->mSipContact->m_url) << " usedAsRoute:" << ec->mUsedAsRoute;
 				if (!ec->mAlias && ec->mUsedAsRoute) {
 					ec = transformContactUsedAsRoute(mUrl.str(), ec);
 				}
@@ -342,27 +343,27 @@ public:
 					listener->mOriginalQ = itrec->mQ;
 					mDatabase->fetch(uri, listener, false);
 				} catch (const sofiasip::InvalidUrlError& e) {
-					SLOGE << "Invalid fetched URI while fetching [" << mUrl.str() << "] recusively." << endl
-					      << "The invalid URI is [" << e.getUrl() << "]. Reason: " << e.getReason();
+					LOGE << "Invalid fetched URI while fetching [" << mUrl.str()
+					     << "] recursively, the invalid URI is [" << e.getUrl() << "], reason: " << e.getReason();
 				}
 			}
 		}
 
 		if (waitPullUpOrFail()) {
-			SLOGI << "Step: " << mStep << "\tNo contact found for " << mUrl;
+			LOGI << "No contact found for " << mUrl << " (step " << mStep << ")";
 			mOriginalListener->onRecordFound(nullptr);
 		}
 	}
 
 	void onError(const SipStatus& response) override {
-		SLOGE << "Step: " << mStep << "\tError during recursive fetch of " << mUrl;
+		LOGE << "Error during recursive fetch of " << mUrl << " (step " << mStep << ")";
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onError(response);
 		}
 	}
 
 	void onInvalid(const SipStatus& response) override {
-		SLOGE << "Step: " << mStep << "\tInvalid during recursive fetch of " << mUrl;
+		LOGE << "Invalid during recursive fetch of " << mUrl << " (step " << mStep << ")";
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onInvalid(response);
 		}
@@ -389,7 +390,7 @@ private:
 		ostringstream path;
 		path << *ec->toSofiaUrlClean(newEc->mHome.home());
 		newEc->mPath.push_back(path.str());
-		// SLOGD << "transformContactUsedAsRoute(): path to " << ec->mSipUri << " added for " << uri;
+		// LOGD << "transformContactUsedAsRoute(): path to " << ec->mSipUri << " added for " << uri;
 		newEc->mUsedAsRoute = false;
 		return newEc;
 	}
@@ -403,7 +404,7 @@ private:
 		}
 
 		// returning records collected on below recursion levels
-		SLOGD << "Step: " << mStep << "\tReturning collected records " << mRecord->getExtendedContacts().size();
+		LOGD << "Returning collected records " << mRecord->getExtendedContacts().size() << " (step " << mStep << ")";
 		mOriginalListener->onRecordFound(mRecord);
 		return false;
 	}
@@ -442,16 +443,18 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 		}
 
 	private:
+		const std::string_view mLogPrefix{"InternalContactUpdateListener"};
+
 		void onError(const SipStatus&) override {
-			SLOGE << "Error while fetching contact";
+			LOGE << "Error while fetching contact";
 			updateCount();
 		}
 		void onInvalid(const SipStatus&) override {
-			SLOGE << "Invalid fetch of contact";
+			LOGE << "Invalid fetch of contact";
 			updateCount();
 		}
 		void onRecordFound(const shared_ptr<Record>& r) override {
-			SLOGI << "Contact fetched";
+			LOGI << "Contact fetched";
 			if (r) listListener->records.push_back(r);
 			updateCount();
 		}
@@ -521,13 +524,13 @@ void RegistrarDb::bind(MsgSip&& sipMsg,
 	int countSipContacts = RegistrarDb::countSipContacts(sip->sip_contact);
 	const auto maxContacts = mRecordConfig.getMaxContacts();
 	if (countSipContacts > maxContacts) {
-		SLOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url, mRecordConfig.useGlobalDomain())
-		      << " " << countSipContacts << " > " << maxContacts;
+		LOGD << "Too many contacts in register " << Record::Key(sip->sip_from->a_url, mRecordConfig.useGlobalDomain())
+		     << " " << countSipContacts << " > " << maxContacts;
 		listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 		return;
 	}
 
-	SLOGD << "RegistrarDB - Binding: " << SipUri{sipMsg.getSip()->sip_from->a_url}.str();
+	LOGD << "Binding: " << SipUri{sipMsg.getSip()->sip_from->a_url}.str();
 	mBackend->doBind(sipMsg, parameter, listener);
 }
 

@@ -64,6 +64,7 @@ private:
 	std::string mBranch; /*of the via of the first Invite request*/
 	uint32_t mViaCount;
 	time_t mLastSIPActivity;
+	std::string mLogPrefix;
 };
 
 class CallStore {
@@ -91,6 +92,8 @@ public:
 	int size();
 
 private:
+	static constexpr std::string_view mLogPrefix{"CallStore"};
+
 	std::list<std::shared_ptr<CallContextBase>> mCalls;
 	StatCounter64* mCountCalls;
 	StatCounter64* mCountCallsFinished;

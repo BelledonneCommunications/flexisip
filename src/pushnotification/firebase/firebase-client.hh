@@ -74,7 +74,7 @@ private:
 	void onError(const std::shared_ptr<HttpMessage>& request);
 
 	std::shared_ptr<Http2Client> mHttp2Client;
-	std::string mLogPrefix{};
+	std::string mLogPrefix;
 	std::string mApiKey;
 };
 

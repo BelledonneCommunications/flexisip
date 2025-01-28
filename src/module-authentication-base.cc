@@ -181,7 +181,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 		try {
 			mRealmExtractor = new RegexRealmExtractor{std::move(realmRegex)};
 		} catch (const regex_error& e) {
-            throw BadConfiguration{"invalid regex in '" + realmRegexCfg->getCompleteName() + "' (" + e.what()};
+			throw BadConfiguration{"invalid regex in '" + realmRegexCfg->getCompleteName() + "' (" + e.what()};
 		}
 	} else if (!realm.empty()) {
 		mRealmExtractor = new StaticRealmExtractor{std::move(realm)};
@@ -201,19 +201,19 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<Reque
 		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
 			ppi = sip_p_preferred_identity(sip);
 			if (ppi) fromDomain = ppi->ppid_url->url_host;
-			else SLOGD << "There is no p-preferred-identity";
+			else LOGD << "There is no p-preferred-identity";
 		}
 
 		FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
 		if (am == nullptr) {
-			SLOGI << "Registration failure, domain is forbidden: " << fromDomain;
+			LOGI << "Registration failure, domain is forbidden: " << fromDomain;
 			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return {};
 		}
 
 		processAuthentication(std::move(ev), *am);
 	} catch (const runtime_error& e) {
-		SLOGE << e.what();
+		LOGE << e.what();
 		ev->reply(500, "Internal error", TAG_END());
 		return {};
 	}
@@ -222,7 +222,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<Reque
 
 FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
 	auto* as = new FlexisipAuthStatus(msgSip);
-	SLOGD << "New FlexisipAuthStatus [" << as << "]";
+	LOGD << "New " << as->getStrId();
 	ModuleAuthenticationBase::configureAuthStatus(*as);
 	return as;
 }
@@ -238,8 +238,8 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 	string realm{};
 	if (mRealmExtractor) {
 		auto userUriStr = url_as_string(ms->getHome(), userUri);
-		SLOGD << "AuthStatus[" << &as << "]: searching for realm in " << (ppi ? "P-Prefered-Identity" : "From")
-		      << " URI (" << userUriStr << ")";
+		LOGD << as.getStrId() << " - Searching for realm in " << (ppi ? "P-Prefered-Identity" : "From") << " URI ("
+		     << userUriStr << ")";
 
 		realm = mRealmExtractor->extract(userUriStr);
 		if (realm.empty()) throw runtime_error{"couldn't find the realm out"};
@@ -247,7 +247,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 		realm = userUri->url_host;
 	}
 
-	SLOGD << "AuthStatus[" << &as << "]: '" << realm << "' will be used as realm";
+	LOGD << as.getStrId() << " - '" << realm << "' will be used as realm";
 
 	as.method(sip->sip_request->rq_method_name);
 	as.source(msg_addrinfo(ms->getMsg()));
@@ -288,7 +288,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthentication(uniq
 	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
 	// Reject if absent.
 	if (sip->sip_from->a_url->url_user == NULL) {
-		SLOGI << "Registration failure, no username in From header: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
+		LOGI << "Registration failure, no username in From header: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
 		request.reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return {};
 	}
@@ -299,7 +299,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthentication(uniq
 	// with retransmissions.
 	request->createIncomingTransaction();
 
-	SLOGD << "start digest authentication";
+	LOGD << "Start digest authentication";
 
 	FlexisipAuthStatus* as = createAuthStatus(request->getMsgSip());
 
@@ -431,14 +431,13 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 		const auto* url = contact ? contact->m_url : nullptr;
 		if (url && url->url_host) {
 			BinaryIp::emplace(mTrustedHosts, url->url_host);
-			SLOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
+			LOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
 		} else {
-			SLOGW << "Could not parse presence server URL '" << presenceServer
-			      << "', cannot be added to trusted hosts!";
+			LOGW << "Could not parse presence server URL '" << presenceServer << "', cannot add to trusted hosts";
 		}
 	}
 	for (const auto& trustedHost : mTrustedHosts) {
-		SLOGI << "IP " << trustedHost << " added to trusted hosts";
+		LOGI << "IP " << trustedHost << " added to trusted hosts";
 	}
 }
 
@@ -452,7 +451,7 @@ bool ModuleAuthenticationBase::isTrustedPeer(const MsgSip& ms) {
 	BinaryIp receivedHost(printableReceivedHost);
 
 	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()) {
-		SLOGD << "Allowing message from trusted host " << printableReceivedHost;
+		LOGD << "Allowing message from trusted host " << printableReceivedHost;
 		return true;
 	}
 	return false;

@@ -34,7 +34,7 @@ namespace flexisip {
 
 std::shared_ptr<SocketAddress> SocketAddress::make(const su_sockaddr_t* sockAddr) {
 	if (sockAddr == nullptr) {
-		SLOGD << "SocketAddress::make: sockAddr pointer is empty";
+		LOGD_CTX("SocketAddress") << "SockAddr pointer is empty";
 		return nullptr;
 	}
 
@@ -44,7 +44,7 @@ std::shared_ptr<SocketAddress> SocketAddress::make(const su_sockaddr_t* sockAddr
 		return make_shared<SocketAddressIPV6>(&sockAddr->su_sin6);
 	}
 
-	SLOGD << "SocketAddress::make: unknown IP address family (" << to_string(sockAddr->su_sa.sa_family) << ")";
+	LOGD_CTX("SocketAddress") << "Unknown IP address family (" << to_string(sockAddr->su_sa.sa_family) << ")";
 	return nullptr;
 }
 

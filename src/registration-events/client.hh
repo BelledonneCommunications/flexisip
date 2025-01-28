@@ -54,6 +54,8 @@ public:
 	std::shared_ptr<Client> create(const std::shared_ptr<const linphone::Address>& to);
 
 private:
+	static constexpr std::string_view mLogPrefix{"ClientFactory"};
+
 	virtual void onNotifyReceived(const std::shared_ptr<linphone::Core>& lc,
 	                              const std::shared_ptr<linphone::Event>& lev,
 	                              const std::string& notifiedEvent,
@@ -87,13 +89,16 @@ protected:
 	Client(const std::shared_ptr<ClientFactory>& factory, const std::shared_ptr<const linphone::Address>& to);
 
 private:
+	static constexpr const char* eventKey = "Regevent::Client";
+	static constexpr std::string_view mLogPrefix{"Client"};
+
 	void onNotifyReceived(const std::shared_ptr<const linphone::Content>& body);
 	void onSubscriptionStateChanged(linphone::SubscriptionState state);
+
 	std::shared_ptr<linphone::Event> mSubscribeEvent;
 	ClientListener* mListener = nullptr;
 	std::shared_ptr<ClientFactory> mFactory;
 	std::shared_ptr<linphone::Address> mTo;
-	static constexpr const char* eventKey = "Regevent::Client";
 };
 
 } // end of namespace RegistrationEvent

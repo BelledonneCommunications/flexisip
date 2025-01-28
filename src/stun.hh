@@ -31,8 +31,11 @@ public:
 	void stop();
 
 private:
+	static constexpr std::string_view mLogPrefix{"StunServer"};
+
 	void run();
 	static void* threadfunc(void* arg);
+
 	bool mRunning;
 	pthread_t mThread;
 	int mPort;

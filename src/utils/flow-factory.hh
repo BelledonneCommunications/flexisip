@@ -62,6 +62,8 @@ public:
 		const HashKey& getHashKey() const;
 
 	private:
+		static constexpr std::string_view mLogPrefix{"FlowFactory::Helper"};
+
 		HashKey mHashKey{};
 	};
 
@@ -78,6 +80,8 @@ public:
 	bool tokenIsValid(const Flow::Token& token) const;
 
 private:
+	static constexpr std::string_view mLogPrefix{"FlowFactory"};
+
 	Helper mHelper;
 };
 

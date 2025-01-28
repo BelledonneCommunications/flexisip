@@ -78,7 +78,7 @@ BctbxLogLevel LogManager::logLevelFromName(const std::string& name) const {
 	} else if (name == "error") {
 		log_level = BCTBX_LOG_ERROR;
 	} else {
-		SLOGE << "Invalid log level name '" << name << "'";
+		LOGE << "Invalid log level name '" << name << "'";
 		log_level = BCTBX_LOG_ERROR;
 	}
 	return log_level;
@@ -86,7 +86,7 @@ BctbxLogLevel LogManager::logLevelFromName(const std::string& name) const {
 
 void LogManager::initialize(const Parameters& params) {
 	if (mInitialized) {
-		SLOGE << "LogManager already initialized.";
+		LOGE << "Already initialized";
 		return;
 	}
 	mInitialized = true;
@@ -125,7 +125,7 @@ void LogManager::initialize(const Parameters& params) {
 		}
 		pathStream << params.logDirectory << "/" << params.logFilename;
 
-		string msg = "Writing logs in : " + pathStream.str();
+		string msg = "Writing logs in: " + pathStream.str();
 		if (params.enableSyslog) ::syslog(LOG_INFO, msg.c_str(), msg.size());
 		else printf("%s\n", msg.c_str());
 
@@ -138,8 +138,8 @@ void LogManager::initialize(const Parameters& params) {
 			if (!params.enableStdout) {
 				throw FlexisipException{"could not create or open log file '" + pathStream.str() + "'"};
 			} else {
-				SLOGE << "Could not create/open log file '" << pathStream.str()
-				      << "' (not fatal when logging is enabled on stdout)";
+				LOGE << "Could not create/open log file '" << pathStream.str()
+				     << "' (not fatal when logging is enabled on stdout)";
 			}
 		}
 	}
@@ -185,14 +185,14 @@ int LogManager::setContextualFilter(const std::string& expression) {
 		try {
 			expr = SipBooleanExpressionBuilder::get().parse(expression);
 		} catch (...) {
-			SLOGE << "Invalid contextual expression filter '" << expression << "'";
+			LOGE << "Invalid contextual expression filter '" << expression << "'";
 			return -1;
 		}
 	}
 	mMutex.lock();
 	mCurrentFilter = expr;
 	mMutex.unlock();
-	SLOGD << "Contextual log filter set: " << expression << '\n';
+	LOGD << "Contextual log filter set: " << expression << '\n';
 	return 0;
 }
 

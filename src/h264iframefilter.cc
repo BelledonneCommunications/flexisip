@@ -70,7 +70,7 @@ bool H264IFrameFilter::onOutgoingTransfer(uint8_t* data,
 			}
 		} break;
 		case TYPE_STAP_A:
-			SLOGW << "H264 STAP-A packets not properly handled.";
+			LOGW << "H264 STAP-A packets not properly handled.";
 			ret = true; // anyway these are usually small NALs
 			break;
 		default:
@@ -78,7 +78,7 @@ bool H264IFrameFilter::onOutgoingTransfer(uint8_t* data,
 	}
 	if (isIFrame) {
 		if (mLastIframeTimestamp != ts || mIframeCount == 0) {
-			SLOGD << "Seeing a new I-frame";
+			LOGD << "Seeing a new I-frame";
 			mLastIframeTimestamp = ts;
 			mIframeCount++;
 		}

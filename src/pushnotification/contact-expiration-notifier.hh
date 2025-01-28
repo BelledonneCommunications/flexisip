@@ -50,6 +50,8 @@ public:
 	                                                              const RegistrarDb&);
 
 private:
+	static constexpr std::string_view mLogPrefix{"ContactExpirationNotifier"};
+
 	const float mLifetimeThreshold; // Notify devices that have passed that proportion of their time to live
 	sofiasip::Timer mTimer;
 	std::weak_ptr<pushnotification::Service> mPNService;

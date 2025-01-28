@@ -37,7 +37,7 @@ SnmpAgent::SnmpAgent(ConfigManager& cm, map<string, string>& oset) : mInitialize
 
 SnmpAgent::~SnmpAgent() {
 	mTask.mKeepRunning = false;
-	SLOGI << "Waiting for the SNMP agent task to terminate";
+	LOGI << "Waiting for the SNMP agent task to terminate";
 	mThread.join();
 }
 
@@ -47,7 +47,7 @@ void SnmpAgent::setInitialized(bool status) {
 		const GenericEntry* source;
 		string msg;
 		if (!mPendingTraps.empty()) {
-			SLOGI << "Sending " << mPendingTraps.size() << " pending notifications";
+			LOGI << "Sending " << mPendingTraps.size() << " pending notifications";
 		}
 		while (!mPendingTraps.empty()) {
 			tie(source, msg) = mPendingTraps.front();
@@ -130,14 +130,14 @@ void SnmpAgent::registerSnmpOid(GenericEntry& entry) {
 			}
 			default: {
 				res = MIB_REGISTRATION_FAILED;
-				SLOGE << "Unknown handle mode " << entryMode;
+				LOGE << "Unknown handle mode " << entryMode;
 			}
 		}
 		if (res != MIB_REGISTERED_OK) {
 			if (res == MIB_DUPLICATE_REGISTRATION) {
-				SLOGE << "Duplicate registration of SNMP " << entryName;
+				LOGE << "Duplicate registration of SNMP " << entryName;
 			} else {
-				SLOGE << "Couldn't register SNMP " << entryName;
+				LOGE << "Could not register SNMP " << entryName;
 			}
 		}
 	}
@@ -148,7 +148,7 @@ int SnmpAgent::sHandleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
                                   netsnmp_agent_request_info* reqinfo,
                                   netsnmp_request_info* requests) {
 	if (!reginfo->my_reg_void) {
-		SLOGE << "no reg";
+		LOGE << "no reg";
 		return SNMP_ERR_GENERR;
 	} else {
 		auto cv = static_cast<GenericEntry*>(reginfo->my_reg_void);
@@ -159,11 +159,11 @@ int SnmpAgent::sHandleSnmpRequest([[maybe_unused]] netsnmp_mib_handler* handler,
 }
 
 void SnmpAgent::sendTrap(const GenericEntry* source, const string& msg) {
-	SLOGI << "Sending trap " << (source ? source->getName().c_str() : "") << ": " << msg;
+	LOGI << "Sending trap " << (source ? source->getName().c_str() : "") << ": " << msg;
 
 	if (!mInitialized) {
 		mPendingTraps.emplace(source, msg);
-		SLOGD << "Pending trap: SNMP not initialized";
+		LOGD << "Pending trap: SNMP not initialized";
 		return;
 	}
 
@@ -208,7 +208,7 @@ SnmpAgent::SnmpAgentTask::SnmpAgentTask(SnmpAgent& snmpAgent, ConfigManager& cm,
 
 void SnmpAgent::SnmpAgentTask::operator()() {
 	if (!mKeepRunning) {
-		SLOGD << "SNMP has been disabled";
+		LOGD << "SNMP has been disabled";
 		return;
 	}
 	init_snmp("flexisip");

@@ -72,6 +72,8 @@ public:
 	void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"FlowTokenStrategy"};
+
 	Helper mHelper;
 };
 

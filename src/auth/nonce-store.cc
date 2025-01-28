@@ -40,8 +40,8 @@ void NonceStore::insert(const msg_auth_t* response) {
 	const char* nonce = msg_header_find_param(response->au_common, "nonce");
 	string snonce(nonce);
 	snonce = snonce.substr(1, snonce.length() - 2);
-	SLOGD << "New nonce " << snonce;
 	insert(snonce);
+	LOGD << "Inserted new nonce: " << snonce;
 }
 
 void NonceStore::insert(const string& nonce) {
@@ -49,7 +49,7 @@ void NonceStore::insert(const string& nonce) {
 	time_t expiration = getCurrentTime() + mNonceExpires;
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
-		SLOGE << "Replacing nonce count for " << nonce;
+		LOGE << "Replacing nonce count for: " << nonce;
 		it->second.nc = 0;
 		it->second.expires = expiration;
 	} else {
@@ -61,17 +61,17 @@ void NonceStore::updateNc(const string& nonce, int newnc) {
 	unique_lock<mutex> lck(mMutex);
 	auto it = mNc.find(nonce);
 	if (it != mNc.end()) {
-		SLOGD << "Updating nonce " << nonce << " with nc=" << newnc;
+		LOGD << "Updating nonce '" << nonce << "' with nc=" << newnc;
 		(*it).second.nc = newnc;
 	} else {
-		SLOGI << "Couldn't update nonce " << nonce << ": not found";
+		LOGI << "Could not update nonce '" << nonce << "': not found";
 	}
 }
 
 void NonceStore::erase(const string& nonce) {
 	unique_lock<mutex> lck(mMutex);
-	SLOGD << "Erasing nonce " << nonce;
 	mNc.erase(nonce);
+	LOGD << "Erased nonce: " << nonce;
 }
 
 void NonceStore::cleanExpired() {
@@ -81,7 +81,7 @@ void NonceStore::cleanExpired() {
 	size_t size = 0;
 	for (auto it = mNc.begin(); it != mNc.end();) {
 		if (now > it->second.expires) {
-			SLOGD << "Cleaning expired nonce " << it->first;
+			LOGD << "Cleaning expired nonce: " << it->first;
 			auto eraseIt = it;
 			++it;
 			mNc.erase(eraseIt);
@@ -89,7 +89,7 @@ void NonceStore::cleanExpired() {
 		} else ++it;
 		size++;
 	}
-	if (count) SLOGD << "Cleaned " << count << " expired nonces, " << size << " remaining";
+	if (count) LOGD << "Cleaned " << count << " expired nonces, " << size << " remaining";
 }
 
 // ====================================================================================================================

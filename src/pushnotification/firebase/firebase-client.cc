@@ -32,11 +32,8 @@ std::string FirebaseClient::FIREBASE_ADDRESS{"fcm.googleapis.com"};
 std::string FirebaseClient::FIREBASE_PORT{"443"};
 
 FirebaseClient::FirebaseClient(sofiasip::SuRoot& root, const std::string& apiKey, const Service* service)
-    : Client{service}, mApiKey(apiKey) {
-	ostringstream os{};
-	os << "FirebaseClient[" << this << "]";
-	mLogPrefix = os.str();
-	SLOGD << mLogPrefix << ": constructing FirebaseClient";
+    : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "FirebaseClient")), mApiKey(apiKey) {
+	LOGD << "Constructing client";
 
 	mHttp2Client = Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT);
 }

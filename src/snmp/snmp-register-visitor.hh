@@ -42,6 +42,8 @@ public:
 	};
 
 private:
+	static constexpr std::string_view mLogPrefix{"SnmpRegisterVisitor"};
+
 	int mEntryMode;
 };
 

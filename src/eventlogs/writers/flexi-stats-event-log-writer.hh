@@ -35,6 +35,8 @@ public:
 	                         const std::string& token);
 
 private:
+	static constexpr std::string_view mLogPrefix{"FlexiStatsEventLogWriter"};
+
 	void write(const CallStartedEventLog&) override;
 	void write(const CallRingingEventLog&) override;
 	void write(const CallLog&) override;
@@ -44,7 +46,7 @@ private:
 
 #define STUB(T)                                                                                                        \
 	void write(const T&) override {                                                                                    \
-		SLOGD << "Stubbed: " << __PRETTY_FUNCTION__ << " is not implemented";                                          \
+		LOGD << "Stubbed: " << __PRETTY_FUNCTION__ << " is not implemented";                                          \
 	}
 
 	STUB(RegistrationLog)

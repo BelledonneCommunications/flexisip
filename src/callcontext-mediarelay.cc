@@ -31,8 +31,9 @@ using namespace std;
 using namespace flexisip;
 
 RelayedCall::RelayedCall(const shared_ptr<MediaRelayServer>& server, sip_t* sip)
-    : CallContextBase(sip), mServer(server), mBandwidthThres(0), mDropTelephoneEvents(false), mIsEstablished(false) {
-	SLOGD << "New RelayedCall " << this;
+    : CallContextBase(sip), mServer(server), mBandwidthThres(0), mDropTelephoneEvents(false), mIsEstablished(false),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RelayedCall")) {
+	LOGD << "New instance";
 }
 
 /* Enable filtering of H264 Iframes for low bandwidth. */
@@ -85,7 +86,7 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& sdpModifier,
 			continue;
 		}
 		if (i >= sMaxSessions) {
-			SLOGE << "Max sessions per relayed call is reached.";
+			LOGE << "Max sessions per relayed call is reached";
 			return;
 		}
 		shared_ptr<RelaySession> s = mSessions[i];
@@ -177,7 +178,7 @@ RelayedCall::getChannelSources(int sessionId, const std::string& partyTag, const
 	if (s != NULL) {
 		shared_ptr<RelayChannel> chan = s->getChannel(partyTag, trId);
 		if (chan == NULL) {
-			SLOGW << "RelayedCall::getChannelSources(): no channel";
+			LOGW << "No channel";
 		} else {
 			return &chan->getRelayTransport();
 		}
@@ -235,7 +236,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 
 	auto chan = s->getChannel(partyTag, trId);
 	if (chan == NULL) {
-		SLOGW << "RelayedCall::setChannelDestinations(): no channel";
+		LOGW << "No channel";
 		return;
 	}
 
@@ -251,7 +252,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 					 Finally, we wish that only adjacent clients are counted.
 					 */
 				} else if (s->getActiveBranchesCount() >= maxEarlyRelays) {
-					SLOGW << "Maximum number of relayed early media streams reached for RelayedCall [" << this << "]";
+					LOGW << "Maximum number of relayed early media streams reached";
 					dir = RelayChannel::Inactive;
 				}
 			}
@@ -313,7 +314,7 @@ void RelayedCall::terminate() {
 }
 
 RelayedCall::~RelayedCall() {
-	SLOGD << "Destroy RelayedCall " << this;
+	LOGD << "Destroy instance";
 	terminate();
 }
 
@@ -332,11 +333,11 @@ static bool isTls(url_t* url) {
 static bool isLastProxy(Agent* ag, sip_t* sip) {
 	sip_record_route_t* rr = sip->sip_record_route;
 	if (!rr) {
-		SLOGE << "No record-route in response handled by media-relay, should never happen";
+		LOGE_CTX("RelayedCall") << "No record-route in response handled by media-relay, it should never happen";
 		return false;
 	}
 	if (ag->isUs(rr->r_url)) {
-		SLOGD << "We are last proxy of the call flow.";
+		LOGD_CTX("RelayedCall") << "We are last proxy of the call flow";
 		return true;
 	}
 	return false;
@@ -361,7 +362,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms,
 						enabled = mH264DecimOnlyIfLastProxy ? isLastProxy(mServer->getAgent(), sip) : true;
 					} else enabled = true;
 					if (enabled) {
-						SLOGI << "Enabling H264 filtering for channel " << ms.get();
+						LOGI << "Enabling H264 filtering for channel " << ms.get();
 						ms->setFilter(make_shared<H264IFrameFilter>(mDecim));
 					}
 				}
@@ -376,7 +377,7 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms,
 				sdp_rtpmap_t* rtpmap;
 				for (rtpmap = mline->m_rtpmaps; rtpmap != NULL; rtpmap = rtpmap->rm_next) {
 					if (strcasecmp(rtpmap->rm_encoding, "telephone-event") == 0) {
-						SLOGI << "Enabling telephone-event filtering on payload type " << rtpmap->rm_pt;
+						LOGI << "Enabling telephone-event filtering on payload type " << rtpmap->rm_pt;
 						ms->setFilter(make_shared<TelephoneEventFilter>((int)rtpmap->rm_pt));
 					}
 				}

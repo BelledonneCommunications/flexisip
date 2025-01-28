@@ -45,6 +45,8 @@ public:
 	~Mutex();
 
 private:
+	static constexpr std::string_view mLogPrefix{"Mutex"};
+
 	const bool mReentrant;
 	pthread_t mThread;
 	int mCount;
@@ -111,7 +113,10 @@ public:
 	std::string asString() const;
 
 private:
+	static constexpr std::string_view mLogPrefix{"BinaryIp"};
+
 	static struct addrinfo* resolve(const std::string& hostname, bool numericOnly);
+
 	struct in6_addr mAddr;
 };
 

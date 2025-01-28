@@ -24,6 +24,7 @@ namespace flexisip {
 namespace pushnotification {
 
 void MessagePushStrategy::sendMessageNotification(const std::shared_ptr<const PushInfo>& pInfo) {
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "MessagePushStrategy");
 	auto req = mService->makeRequest(PushType::Message, pInfo);
 	mService->sendPush(req);
 	notifyPushSent();
@@ -44,7 +45,7 @@ void MessagePushStrategy::sendCallNotification(const std::shared_ptr<const PushI
 	mCallPushInfo->mCollapseId = mCallPushInfo->mCallId;
 
 	auto sendPush = [this]() {
-		SLOGI << this << ": sending ringing push notification";
+		LOGI_CTX(mLogPrefix, "sendCallNotification") << "Sending ringing push notification";
 		auto req = mService->makeRequest(PushType::Message, mCallPushInfo);
 		mService->sendPush(req);
 	};
@@ -74,12 +75,12 @@ void MessagePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_pt
 	}
 
 	// Stop sending ringing push notifications
-	SLOGD << this << ": stop sending ringing message PN";
+	LOGD << "Stop sending ringing message PN";
 	mCallRingingTimeoutTimer.reset();
 
 	// Send the final PN
 	try {
-		SLOGD << this << ": sending last message PN";
+		LOGD << "Sending last message PN";
 		switch (cancelReason) {
 			case ForkStatus::AcceptedElsewhere:
 				mCallPushInfo->mAlertMsgId = mCallPushInfo->mAcceptedElsewhereMsg;
@@ -94,7 +95,7 @@ void MessagePushStrategy::onBranchCanceled([[maybe_unused]] const std::shared_pt
 		auto req = mService->makeRequest(PushType::Message, mCallPushInfo);
 		mService->sendPush(req);
 	} catch (const std::runtime_error& e) {
-		SLOGE << this << ": last message PN sending failed: " << e.what();
+		LOGE << "Last message PN sending failed: " << e.what();
 	}
 }
 
@@ -106,7 +107,7 @@ void MessagePushStrategy::onBranchCompleted(const std::shared_ptr<BranchInfo>& b
 
 	auto status = br->getStatus();
 	if (status != 408 && status != 503) {
-		SLOGD << this << ": stop sending ringing message PN";
+		LOGD << "Stop sending ringing message PN";
 		mCallRingingTimeoutTimer.reset();
 	}
 }

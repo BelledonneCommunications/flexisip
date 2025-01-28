@@ -34,20 +34,21 @@ RedisClient::RedisClient(const sofiasip::SuRoot& root,
     : mRoot{root}, mSessionListener{std::move(listener)},
       mCmdSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
       mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mParams(redisParams),
-      mSubSessionKeepAliveTimer{mRoot.getCPtr(), mParams.mSubSessionKeepAliveTimeout} {
+      mSubSessionKeepAliveTimer{mRoot.getCPtr(), mParams.mSubSessionKeepAliveTimeout},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RedisClient")) {
 }
 
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::connect() {
-	SLOGI << logPrefix() << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port;
+	LOGI << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port << " ...";
 	const Session::Ready* cmdSession = nullptr;
 	auto& cmdState = mCmdSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((cmdSession = std::get_if<Session::Ready>(&cmdState)) == nullptr) return nullopt;
-	SLOGD << logPrefix() << mCmdSession.getLogPrefix() << "Command session created";
+	LOGD << mCmdSession.getLogPrefix() << " - Command session created";
 
 	const SubscriptionSession::Ready* subsSession = nullptr;
 	auto& subState = mSubSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((subsSession = std::get_if<SubscriptionSession::Ready>(&subState)) == nullptr) return nullopt;
-	SLOGD << logPrefix() << mSubSession.getLogPrefix() << "Subscription session created";
+	LOGD << mSubSession.getLogPrefix() << " - Subscription session created";
 
 	Match(mParams.auth)
 	    .against([this, cmdSession](redis::auth::None) { getReplicationInfo(*cmdSession); },
@@ -95,7 +96,7 @@ const SubscriptionSession::Ready* RedisClient::tryGetSubSession() {
 }
 
 void RedisClient::forceDisconnect() {
-	SLOGD << logPrefix() << "Redis server force-disconnected";
+	LOGD << "Redis server force-disconnected";
 	mCmdSession.forceDisconnect();
 	mSubSession.forceDisconnect();
 }
@@ -140,16 +141,15 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 			// If there is no slaves, this is already a full rotation.
 			mLastReconnectRotation = std::chrono::system_clock::now();
 		}
-		SLOGI << logPrefix() << "Trying to reconnect to last active connection at " << mParams.domain << ":"
-		      << mParams.port;
+		LOGI << "Trying to reconnect to last active connection at " << mParams.domain << ":" << mParams.port << " ...";
 		return connect();
 	}
 
 	// If last active connection still fail
 	// we can try one of the previously determined slaves
 	if (mCurSlave != mSlaves.cend()) {
-		SLOGW << logPrefix() << "Connection failed or lost to " << mParams.domain << ":" << mParams.port
-		      << ", trying a known slave " << mCurSlave->id << " at " << mCurSlave->address << ":" << mCurSlave->port;
+		LOGW << "Connection failed or lost to " << mParams.domain << ":" << mParams.port << ", trying a known slave "
+		     << mCurSlave->id << " at " << mCurSlave->address << ":" << mCurSlave->port << " ...";
 
 		mParams.domain = mCurSlave->address;
 		mParams.port = mCurSlave->port;
@@ -159,7 +159,7 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 		return connect();
 	}
 
-	SLOGW << logPrefix().c_str() << "No slave to try, giving up.";
+	LOGW << "No slave to try, giving up";
 	return nullopt;
 }
 
@@ -169,49 +169,50 @@ bool RedisClient::isReady() const {
 }
 
 void RedisClient::getReplicationInfo(const redis::async::Session::Ready& readySession) {
-	SLOGD << logPrefix() << "Collecting replication information";
+	LOGD << "Collecting replication information";
 	readySession.timedCommand({"INFO", "replication"}, [this](const Session&, Reply reply) {
 		Match(reply).against([this](const reply::String& stringReply) { handleReplicationInfoReply(stringReply); },
 		                     [this](const auto& unexpected) {
-			                     SLOGW << logPrefix() << "Unexpected reply to INFO command: " << unexpected;
+			                     LOGW_CTX(mLogPrefix, "getReplicationInfo")
+			                         << "Unexpected reply to INFO command: " << unexpected;
 		                     });
 	});
 }
 
 void RedisClient::handleAuthReply(const Session& session, redis::async::Reply reply) {
-	const auto& prefix = logPrefix() + session.getLogPrefix();
 	if (auto* err = std::get_if<reply::Error>(&reply)) {
-		SLOGE << prefix << "Couldn't authenticate with Redis server: " << *err;
+		LOGE << session.getLogPrefix() << " - Could not authenticate with Redis server: " << *err;
 		forceDisconnect();
 		return;
 	}
 
 	if (std::holds_alternative<reply::Disconnected>(reply)) {
-		SLOGD << prefix << "Connection aborted.";
+		LOGD << session.getLogPrefix() << " - Connection aborted";
 		return;
 	}
 
-	SLOGI << prefix << "Authentication succeeded. Reply: " << StreamableVariant(reply);
+	LOGI << session.getLogPrefix() << " - Authentication succeeded, reply: " << StreamableVariant(reply);
 
 	Match(mCmdSession.getState())
 	    .against([this](const Session::Ready& session) { getReplicationInfo(session); },
-	             [&prefix](const auto& unexpected) {
+	             [this, &session](const auto& unexpected) {
 		             // Used to happen when force-disconnecting from a replica to reconnect to a master node
-		             SLOGE << prefix
-		                   << "Receiving success response to Redis AUTH request but we are no longer connected. This "
-		                      "should never happen! Aborting replication info fetch! Unexpected session state: "
-		                   << unexpected;
+		             LOGE_CTX(mLogPrefix, "handleAuthReply")
+		                 << session.getLogPrefix()
+		                 << " - Receiving success response to Redis AUTH request but we are no longer connected, this "
+		                    "should never happen: aborting replication info fetch (unexpected session state: "
+		                 << unexpected << ")";
 		             assert(!"unreachable");
 	             });
 }
 
 void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) {
-	SLOGD << logPrefix() << "Replication information received";
+	LOGD << "Replication information received";
 	auto replyMap = StringUtils::parseKeyValue(std::string(reply));
 	if (replyMap.find("role") != replyMap.end()) {
 		if (string role = replyMap["role"]; role == "master") {
 			// We are speaking to the master, set the DB as writable and update the list of slaves
-			SLOGI << logPrefix() << "Redis server is a master";
+			LOGI << "Redis server is a master";
 			if (auto listener = mSessionListener.lock()) {
 				listener->onConnect(REDIS_OK); // TODO should this be called only on first connection ?
 			}
@@ -224,10 +225,9 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 			int masterPort = atoi(replyMap["master_port"].c_str());
 			string masterStatus = replyMap["master_link_status"];
 
-			SLOGI << logPrefix() << "Our redis instance is a slave of " << masterAddress << ":" << masterPort;
+			LOGI << "Our redis instance is a slave of " << masterAddress << ":" << masterPort;
 			if (masterStatus == "up") {
-				SLOGI << logPrefix() << "Master is up, will attempt to connect to the master at " << masterAddress
-				      << ":" << masterPort;
+				LOGI << "Master is up, will attempt to connect to the master at " << masterAddress << ":" << masterPort;
 
 				mParams.domain = masterAddress;
 				mParams.port = masterPort;
@@ -236,20 +236,19 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 				forceDisconnect();
 				connect();
 			} else {
-				SLOGI << logPrefix() << "Master is " << masterStatus
-				      << " but not up, wait for next periodic check to decide to connect.";
+				LOGI << "Master is " << masterStatus
+				     << " but not up, wait for next periodic check to decide to connect";
 			}
 		} else {
-			SLOGE << logPrefix() << "Unknown role '" << role << "'";
+			LOGE << "Unknown role '" << role << "'";
 		}
 		if (!mReplicationTimer.has_value()) {
-			SLOGD << logPrefix() << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count()
-			      << "s";
+			LOGD << "Creating replication timer with delay of " << mParams.mSlaveCheckTimeout.count() << "s";
 			mReplicationTimer.emplace(mRoot.getCPtr(), mParams.mSlaveCheckTimeout);
 			mReplicationTimer->setForEver([this]() { onInfoTimer(); });
 		}
 	} else {
-		SLOGE << logPrefix() << "Invalid INFO reply: no role specified";
+		LOGE << "Invalid INFO reply: no role specified";
 	}
 }
 
@@ -269,8 +268,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 				if (host.id != -1) {
 					// only tell if a new host was found
 					if (std::find(mSlaves.begin(), mSlaves.end(), host) == mSlaves.end()) {
-						SLOGD << logPrefix() << "Replication: Adding host " << host.id << " " << host.address << ":"
-						      << host.port << " state:" << host.state;
+						LOGD << "Replication: adding host " << host.id << " " << host.address << ":" << host.port
+						     << " state:" << host.state;
 					}
 					newSlaves.push_back(host);
 				}
@@ -281,8 +280,8 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 
 	for (const auto& oldSlave : mSlaves) {
 		if (find(newSlaves.begin(), newSlaves.end(), oldSlave) == newSlaves.end()) {
-			SLOGD << logPrefix() << "Replication: Removing host " << oldSlave.id << " " << oldSlave.address << ":"
-			      << oldSlave.port << " previous state: " << oldSlave.state;
+			LOGD << "Replication: removing host " << oldSlave.id << " " << oldSlave.address << ":" << oldSlave.port
+			     << " (previous state: " << oldSlave.state << ")";
 		}
 	}
 
@@ -293,7 +292,7 @@ void RedisClient::updateSlavesList(const map<std::string, std::string>& redisRep
 
 void RedisClient::onInfoTimer() {
 	if (auto* session = tryGetCmdSession()) {
-		SLOGD << logPrefix() << "Launching periodic INFO query on REDIS";
+		LOGD << "Launching periodic INFO query on REDIS";
 		getReplicationInfo(*session);
 	}
 }
@@ -307,7 +306,7 @@ void RedisClient::onTryReconnectTimer() {
 void RedisClient::onSubSessionKeepAliveTimer() {
 	if (auto* session = tryGetSubSession()) {
 		if (mSubSessionState == SubSessionState::PENDING) {
-			SLOGW << logPrefix() << "Periodic PING to REDIS subscribtion session timeout, try to reconnect";
+			LOGW << "Periodic PING to REDIS subscription session timeout, try to reconnect";
 			// disconnect session and try to reconnect
 			mSubSessionState = SubSessionState::DISCONNECTED;
 			mSubSession.forceDisconnect();
@@ -315,7 +314,7 @@ void RedisClient::onSubSessionKeepAliveTimer() {
 			return;
 		}
 
-		SLOGD << logPrefix() << "Launching periodic PING to REDIS subscribtion session";
+		LOGD << "Launching periodic PING to REDIS subscription session";
 		mSubSessionState = SubSessionState::PENDING;
 		session->ping([this](const redis::async::Reply& reply) { handlePingReply(reply); });
 	}
@@ -324,10 +323,10 @@ void RedisClient::onSubSessionKeepAliveTimer() {
 void RedisClient::handlePingReply(const redis::async::Reply& reply) {
 	if (reply == reply::Disconnected()) return;
 
-	const auto prefix = logPrefix() + "Subscription session keep alive, PING request received ";
+	const auto prefix = "Subscription session keep alive, PING request received ";
 
 	if (const auto* error = std::get_if<reply::Error>(&reply)) {
-		SLOGE << prefix << *error;
+		LOGE << prefix << *error;
 		return;
 	}
 
@@ -335,28 +334,22 @@ void RedisClient::handlePingReply(const redis::async::Reply& reply) {
 	mSubSessionState = SubSessionState::ACTIVE;
 
 	if (reply == reply::Status("PONG")) {
-		SLOGI << prefix << "PONG (Command-style)";
+		LOGI << prefix << "PONG (Command-style)";
 		return;
 	}
 
 	const auto* array = std::get_if<reply::Array>(&reply);
 	if (array && (*array)[0] == reply::String("pong")) {
-		SLOGI << prefix << "PONG (Subscription-style)";
+		LOGI << prefix << "PONG (Subscription-style)";
 		return;
 	}
 
-	SLOGW << prefix << "unexpected " << StreamableVariant(reply);
+	LOGW << prefix << "unexpected " << StreamableVariant(reply);
 }
 
 void RedisClient::forceDisconnectForTest(RedisClient& thiz) {
 	thiz.mCmdSession.forceDisconnect();
 	thiz.mSubSession.forceDisconnect();
-}
-
-std::string RedisClient::logPrefix() const {
-	std::stringstream prefix;
-	prefix << "RedisClient[" << this << "] - ";
-	return prefix.str();
 }
 
 } // namespace flexisip::redis::async

@@ -48,6 +48,12 @@ public:
 		mPriv = auth_status_new(&mHome);
 		mPriv->as_plugin = reinterpret_cast<auth_splugin_t*>(this);
 		mPriv->as_callback = responseCb;
+
+		mStrId = [this] {
+			std::stringstream output{};
+			output << "AuthStatus[" << this << "]";
+			return output.str();
+		}();
 	}
 	AuthStatus(const AuthStatus& other) = delete;
 	virtual ~AuthStatus() {
@@ -212,6 +218,13 @@ public:
 		return mPriv;
 	}
 
+	/**
+	 * @return string 'identifier' to identify this AuthStatus instance.
+	 */
+	std::string getStrId() const {
+		return mStrId;
+	}
+
 private:
 	static void responseCb([[maybe_unused]] auth_magic_t* magic, auth_status_t* as) {
 		AuthStatus& authStatus = *reinterpret_cast<AuthStatus*>(as->as_plugin);
@@ -221,6 +234,7 @@ private:
 	su_home_t mHome;
 	auth_status_t* mPriv = nullptr;
 	ResponseCb mResponseCb;
+	std::string mStrId;
 };
 
 } // namespace flexisip

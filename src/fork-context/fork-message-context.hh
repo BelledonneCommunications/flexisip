@@ -100,6 +100,7 @@ private:
 	 * Is used in fork late mode with message saved in DB to remember message expiration date.
 	 */
 	time_t mExpirationDate;
+    std::string mLogPrefix;
 };
 
 } // namespace flexisip

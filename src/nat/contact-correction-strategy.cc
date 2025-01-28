@@ -48,16 +48,17 @@ void ContactCorrectionStrategy::Helper::fixContactInResponse(su_home_t* home, ms
 		int err = getnameinfo(ai->ai_addr, ai->ai_addrlen, ip, sizeof(ip), port, sizeof(port),
 		                      NI_NUMERICHOST | NI_NUMERICSERV);
 		if (err != 0) {
-			SLOGE << "getnameinfo() error: " << gai_strerror(err);
+			LOGE << "getnameinfo() error: " << gai_strerror(err);
 		} else {
 			sip_contact_t* ctt = sip->sip_contact;
 			if (ctt && ctt->m_url->url_host) {
 				if (!ModuleToolbox::urlHostMatch(ctt->m_url, ip) ||
 				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, port)) {
-					SLOGD << "Response is coming from " << ip << ":" << port << ", fixing contact";
+					LOGD << "Response is coming from " << ip << ":" << port << ", fixing contact";
 					ModuleToolbox::urlSetHost(home, ctt->m_url, ip);
 					ctt->m_url->url_port = su_strdup(home, port);
-				} else SLOGD << "Contact in response is correct.";
+				} else LOGD << "Contact in response is correct";
+
 				url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
 				NatTraversalStrategy::Helper::fixTransport(home, ctt->m_url, via_transport);
 			}
@@ -90,8 +91,8 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 			const char* host = ctt->m_url->url_host;
 			char ct_transport[20] = {0};
 			if (url_has_param(ctt->m_url, "gr")) {
-				SLOGD << "Gruu found in contact header [" << ctt << "] for message [" << msg
-				      << "] skipping nat fixing process for contact";
+				LOGD << "Gruu found in contact header [" << ctt << "] for message [" << msg
+				     << "]: skip nat fixing process for contact";
 				continue;
 			}
 			url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
@@ -103,9 +104,9 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 
 				if (!ModuleToolbox::urlHostMatch(host, received) ||
 				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, rport)) {
-					SLOGD << "Fixing contact header with " << ctt->m_url->url_host << ":"
-					      << (ctt->m_url->url_port ? ctt->m_url->url_port : "") << " to " << received << ":"
-					      << (rport ? rport : "");
+					LOGD << "Fixing contact header with " << ctt->m_url->url_host << ":"
+					     << (ctt->m_url->url_port ? ctt->m_url->url_port : "") << " to " << received << ":"
+					     << (rport ? rport : "");
 					ModuleToolbox::urlSetHost(home, ctt->m_url, received);
 					ctt->m_url->url_port = rport;
 				}
@@ -180,7 +181,7 @@ void ContactCorrectionStrategy::onResponseNatHelper(const ResponseSipEvent& ev) 
 				const auto contactCorrectionParam = mHelper.getContactCorrectionParameter();
 				if (!url_has_param(contact->m_url, contactCorrectionParam.c_str())) {
 					url_param_add(home, contact->m_url, contactCorrectionParam.c_str());
-					SLOGD << "Added \"" << contactCorrectionParam << R"(" in "Contact" header)";
+					LOGD << "Added '" << contactCorrectionParam << "' in 'Contact' header";
 				}
 			}
 		}

@@ -25,13 +25,13 @@ using namespace flexisip;
  when we later have to route an INVITE to him */
 void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* c, const char* domain) {
 	if (c == NULL || c->m_url->url_host == NULL) {
-		SLOGD << "Sip contact or url is null";
+		LOGD << "Sip contact or url is null";
 		return;
 	}
 
 	url_t* ct_url = c->m_url;
 	if (ct_url->url_scheme && ct_url->url_scheme[0] == '*') {
-		SLOGD << "not masquerading star contact";
+		LOGD << "not masquerading star contact";
 		return;
 	}
 
@@ -53,9 +53,9 @@ void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* c, const cha
 	}
 
 	// Add parameter
-	SLOGD << "Rewriting contact with param [" << param << "]";
+	LOGD << "Rewriting contact with param [" << param << "]";
 	if (url_param_add(home, ct_url, param.c_str())) {
-		SLOGE << "Cannot insert url param [" << param << "]";
+		LOGE << "Cannot insert url param [" << param << "]";
 	}
 
 	/*masquerade the contact, so that later requests (INVITEs) come to us */
@@ -69,7 +69,7 @@ void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* c, const cha
 		char* lParam = su_sprintf(home, "transport=%s", tport_value);
 		url_param_add(home, ct_url, lParam);
 	}
-	SLOGI << "Contact has been rewritten to " << url_as_string(home, ct_url);
+	LOGI << "Contact has been rewritten to " << url_as_string(home, ct_url);
 }
 
 void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) {
@@ -78,7 +78,7 @@ void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) {
 	while (contact) {
 		if (contact->m_expires && strcmp(contact->m_expires, "0") == 0 &&
 		    (contact != ms.getSip()->sip_contact || contact->m_next)) {
-			SLOGD << "Removing one contact header: " << url_as_string(ms.getHome(), contact->m_url);
+			LOGD << "Removing one contact header: " << url_as_string(ms.getHome(), contact->m_url);
 			sip_contact_t* tmp = contact->m_next;
 			msg_header_remove(ms.getMsg(), (msg_pub_t*)ms.getSip(), (msg_header_t*)contact);
 			contact = tmp;
@@ -106,7 +106,7 @@ void ContactMasquerader::restore(su_home_t* home, url_t* dest, char ctrt_param[6
 	// second change dest to
 	char* tend = strchr(ctrt_param, ':');
 	if (!tend) {
-		SLOGD << "Skipping url rewrite: first ':' not found";
+		LOGD << "Skipping url rewrite: first ':' not found";
 		return;
 	}
 
@@ -114,7 +114,7 @@ void ContactMasquerader::restore(su_home_t* home, url_t* dest, char ctrt_param[6
 	const url_t* paramurl = url_format(home, "sip:%s", tend + 1);
 
 	if (!paramurl) {
-		SLOGE << "ContactMasquerader::restore() aborted.";
+		LOGE << "Aborted";
 		return;
 	}
 	dest->url_host = paramurl->url_host; // move ownership
@@ -128,5 +128,5 @@ void ContactMasquerader::restore(su_home_t* home, url_t* dest, char ctrt_param[6
 		url_param_add(home, dest, new_param);
 	}
 
-	SLOGI << "Request url changed to " << url_as_string(home, dest);
+	LOGI << "Request url changed to " << url_as_string(home, dest);
 }

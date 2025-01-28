@@ -44,8 +44,8 @@ int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& 
 		mConn->resetConnection();
 		/*the client was inactive possibly for a long time. In such case, close and re-create the socket.*/
 	} else if (getCurrentTime() - mLastUse > 60) {
-		SLOGD << "PushNotificationTransportTls PNR " << &req << " previous was " << getCurrentTime() - mLastUse
-		      << " secs ago, re-creating connection with server.";
+		LOGD << "LegacyRequest[" << &req << "]: previous was " << getCurrentTime() - mLastUse
+		     << " secs ago, re-creating connection with server";
 		mConn->resetConnection();
 	}
 
@@ -59,21 +59,21 @@ int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& 
 	const auto& buffer = req.getData(mUrl, mMethod);
 	int wcount = mConn->write(buffer);
 
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " sent " << wcount << "/" << buffer.size() << " data";
+	LOGD << "LegacyRequest[" << &req << "]: sent " << wcount << "/" << buffer.size() << " data";
 	if (wcount <= 0) {
-		SLOGE << "PushNotificationTransportTls PNR " << &req << " failed to send to server.";
+		LOGE << "LegacyRequest " << &req << ": failed to send to server";
 		onError(req, "Cannot send to server");
 		mConn->resetConnection();
 		return -2;
 	}
 
 	/* wait for server response */
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " waiting for server response";
+	LOGD << "LegacyRequest[" << &req << "]: waiting for server response";
 	/* if the server response is NOT immediate, wait for something to read on the socket first */
 	if (!req.isServerAlwaysResponding()) {
 		int fdSocket;
 		if (BIO_get_fd(mConn->getBIO(), &fdSocket) < 0) {
-			SLOGE << "PushNotificationTransportTls PNR " << &req << " could not retrieve the socket";
+			LOGE << "LegacyRequest[" << &req << "]: could not retrieve the socket";
 			onError(req, "Broken socket");
 			return -2;
 		}
@@ -88,17 +88,16 @@ int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& 
 		int nRet = poll(&polls, 1, timeout);
 		// this is specific to iOS which does not send a response in case of success
 		if (nRet == 0) { // poll timeout, we shall not expect a response.
-			SLOGD << "PushNotificationTransportTls PNR " << &req << " nothing read, assuming success";
+			LOGD << "LegacyRequest[" << &req << "]: nothing read, assuming success";
 			onSuccess(req);
 			return 0;
 		} else if (nRet == -1) {
-			SLOGD << "PushNotificationTransportTls PNR " << &req << " poll error (" << strerror(errno)
-			      << "), assuming success";
+			LOGD << "LegacyRequest[" << &req << "]: poll error (" << strerror(errno) << "), assuming success";
 			onSuccess(req);
 			mConn->resetConnection(); // our socket is not going so well if we go here.
 			return 0;
 		} else if ((polls.revents & POLLIN) == 0) {
-			SLOGD << "PushNotificationTransportTls PNR " << &req << "error reading response, closing connection";
+			LOGD << "LegacyRequest[" << &req << "]: error reading response, closing connection";
 			mConn->resetConnection();
 			return -2;
 		}
@@ -107,12 +106,12 @@ int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& 
 	string responseStr{};
 	int nbRead = mConn->readAll(responseStr);
 	if (nbRead <= 0) {
-		SLOGE << "PushNotificationTransportTls PNR " << &req << "error reading mandatory response: " << responseStr;
+		LOGE << "LegacyRequest[" << &req << "]: error reading mandatory response (" << responseStr << ")";
 		mConn->resetConnection();
 		return -2;
 	}
 
-	SLOGD << "PushNotificationTransportTls PNR " << &req << " read " << nbRead << " data:\n" << responseStr;
+	LOGD << "LegacyRequest[" << &req << "]: read " << nbRead << " data\n" << responseStr;
 	string error = req.isValidResponse(responseStr);
 	if (!error.empty()) {
 		onError(req, "Invalid server response: " + error);
@@ -129,7 +128,8 @@ LegacyClient::LegacyClient(std::unique_ptr<Transport>&& transport,
                            const string& name,
                            unsigned maxQueueSize,
                            const Service* service)
-    : Client{service}, mName{name}, mTransport{std::move(transport)}, mMaxQueueSize{maxQueueSize} {
+    : Client{service}, mName{name}, mTransport{std::move(transport)}, mMaxQueueSize{maxQueueSize},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "LegacyClient[" + mName + "]")) {
 }
 
 LegacyClient::~LegacyClient() {
@@ -156,16 +156,14 @@ void LegacyClient::sendPush(const std::shared_ptr<Request>& req) {
 	auto size = mRequestQueue.size();
 	if (size >= mMaxQueueSize) {
 		mMutex.unlock();
-		SLOGW << "LegacyClient PushNotificationClient " << mName << " PNR " << legacyReq.get()
-		      << " queue full, push lost";
+		LOGW << "LegacyRequest[" << legacyReq.get() << "]: queue full, push lost";
 		onError(*legacyReq, "Error queue full");
 		legacyReq->setState(Request::State::Failed);
 	} else {
 		legacyReq->setState(Request::State::InProgress);
 		mRequestQueue.push(legacyReq);
 		/*client is running, it will pop the queue as soon he is finished with current request*/
-		SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << legacyReq.get()
-		      << " running, queue_size=" << size;
+		LOGD << "LegacyRequest[" << legacyReq.get() << "]: running, queue_size=" << size;
 
 		if (mThreadWaiting) mCondVar.notify_one();
 		mMutex.unlock();
@@ -177,7 +175,7 @@ void LegacyClient::run() noexcept {
 	while (mThreadRunning) {
 		if (!mRequestQueue.empty()) {
 			size_t size = mRequestQueue.size();
-			SLOGD << "LegacyClient PushNotificationClient " << mName << " next, queue_size=" << size;
+			LOGD << "Next, queue_size=" << size;
 			auto req = mRequestQueue.front();
 			mRequestQueue.pop();
 			lock.unlock();
@@ -188,12 +186,11 @@ void LegacyClient::run() noexcept {
 			bool hurryUp = size > 2;
 			try {
 				if (mTransport->sendPush(*req, hurryUp, _onSuccess, _onError) == -2) {
-					SLOGD << "LegacyClient PushNotificationClient " << mName << " PNR " << req.get()
-					      << ": try to send again";
+					LOGD << "LegacyRequest[" << req.get() << "]: try to send again";
 					mTransport->sendPush(*req, hurryUp, _onSuccess, _onError);
 				}
 			} catch (const exception& e) {
-				SLOGE << "LegacyClient[" << this << "]: cannot send PNR[" << req.get() << "]: " << e.what();
+				LOGE << "Cannot send Request[" << req.get() << "]: " << e.what();
 				_onError(*req, e.what());
 			}
 
@@ -207,7 +204,7 @@ void LegacyClient::run() noexcept {
 }
 
 void LegacyClient::onError(LegacyRequest& req, const string& msg) {
-	SLOGW << "LegacyClient PushNotificationClient " << mName << " PNR " << &req << " failed: " << msg;
+	LOGW << "LegacyRequest[" << &req << "] failed: " << msg;
 	req.setState(Request::State::Failed);
 	incrFailedCounter();
 }

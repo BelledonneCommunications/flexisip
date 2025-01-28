@@ -42,6 +42,8 @@ public:
 	          async::Session::CommandCallback&&) const;
 
 private:
+	static constexpr std::string_view mLogPrefix{"Script"};
+
 	const char* mSource;
 	const char* mSHA1;
 };

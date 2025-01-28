@@ -28,6 +28,7 @@ using namespace flexisip;
 
 SdpMasqueradeContext::SdpMasqueradeContext() {
 	mIceState = IceNone;
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "SdpMasqueradContext");
 }
 
 const char* SdpMasqueradeContext::toString(SdpMasqueradeContext::IceState state) {
@@ -74,7 +75,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 						/*This should not happen. We are discovering an already established ice session.*/
 						mIceState = IceCompleted;
 						needsCandidates = false;
-						SLOGD << "Unexpected remote-candidates in SDP offer.";
+						LOGD << "Unexpected remote-candidates in SDP offer";
 					} else if (hasCandidates(media)) {
 						mIceState = IceOffered;
 						needsCandidates = true;
@@ -89,8 +90,8 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 					/*ICE restart*/
 					mIceState = IceOffered;
 					needsCandidates = true;
-					SLOGD << "Ice restart detected ufrag " << mIceUfrag << "->" << ufrag << " pwd " << mIcePasswd
-					      << "->" << passwd;
+					LOGD << "Ice restart detected ufrag " << mIceUfrag << "->" << ufrag << " pwd " << mIcePasswd << "->"
+					     << passwd;
 				} else if (!hasCandidates(media)) {
 					/*case of a stream that is put inactive*/
 					mIceState = IceNone;
@@ -99,7 +100,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 		}
 		mIceUfrag = ufrag;
 		mIcePasswd = passwd;
-		SLOGD << "updateIceFromOffer() this=" << this << " setting ufrag, pwd to " << ufrag << " " << passwd;
+		LOGD << "Setting ufrag, pwd to " << ufrag << " " << passwd;
 	} else {
 		switch (mIceState) {
 			case IceNone:
@@ -117,8 +118,7 @@ bool SdpMasqueradeContext::updateIceFromOffer(sdp_session_t* session, sdp_media_
 				break;
 		}
 	}
-	SLOGD << "updateIceFromOffer() this=" << this << " " << (isOfferer ? "offerer" : "offered") << " state "
-	      << toString(oldState) << " ->" << toString(mIceState);
+	LOGD << (isOfferer ? "Offerer" : "Offered") << " state " << toString(oldState) << " ->" << toString(mIceState);
 	return needsCandidates;
 }
 
@@ -162,17 +162,16 @@ bool SdpMasqueradeContext::updateIceFromAnswer(sdp_session_t* session, sdp_media
 					/*ICE restart*/
 					mIceState = IceCompleted; /* no op*/
 					needsCandidates = true;
-					SLOGD << "Ice restart detected ufrag " << mIceUfrag << "->" << ufrag << " pwd " << mIcePasswd
-					      << "->" << passwd;
+					LOGD << "Ice restart detected ufrag " << mIceUfrag << "->" << ufrag << " pwd " << mIcePasswd << "->"
+					     << passwd;
 				}
 				break;
 		}
 		mIceUfrag = ufrag;
 		mIcePasswd = passwd;
-		SLOGD << "updateIceFromAnswer() this=" << this << " setting ufrag, pwd to " << ufrag << " " << passwd;
+		LOGD << "Setting ufrag, pwd to " << ufrag << " " << passwd;
 	}
-	SLOGD << "updateIceFromAnswer() this=" << this << " " << (isOfferer ? "offerer" : "offered") << " state "
-	      << toString(oldState) << " -> " << toString(mIceState);
+	LOGD << (isOfferer ? "Offerer" : "Offered") << " state " << toString(oldState) << " -> " << toString(mIceState);
 	return needsCandidates;
 }
 
@@ -196,17 +195,17 @@ bool SdpModifier::hasSdp(const sip_t* sip) {
 bool SdpModifier::initFromSipMsg(sip_t* sip) {
 	sip_payload_t* payload = sip->sip_payload;
 	if (payload == NULL || payload->pl_data == NULL) {
-		SLOGD << "SIP message has no payload";
+		LOGD << "SIP message has no payload";
 		return false;
 	}
 	mParser = sdp_parse(mHome, payload->pl_data, (int)payload->pl_len, 0);
 	mSession = sdp_session(mParser);
 	if (mSession == NULL) {
-		SLOGD << "SDP parsing error: " << sdp_parsing_error(mParser);
+		LOGD << "SDP parsing error: " << sdp_parsing_error(mParser);
 		return false;
 	}
 	if (mSession->sdp_media == NULL) {
-		SLOGD << "SDP with no mline.";
+		LOGD << "SDP with no mline";
 		return false;
 	}
 	mSip = sip;
@@ -217,6 +216,7 @@ SdpModifier::SdpModifier(su_home_t* home, std::string nortproxy) : mHome(home), 
 	mParser = NULL;
 	mSip = NULL;
 	mSession = NULL;
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "SdpModifier");
 }
 
 SdpModifier::~SdpModifier() {
@@ -238,7 +238,7 @@ static sdp_list_t *sdp_list_append(su_home_t *home, sdp_list_t *l, char *text){
 
 static PayloadType* payload_type_make_from_sdp_rtpmap(sdp_rtpmap_t* rtpmap) {
 	if (rtpmap->rm_rate == 0 || rtpmap->rm_encoding == NULL) {
-		SLOGW << "Bad media description for payload type : " << static_cast<unsigned>(rtpmap->rm_pt);
+		LOGW_CTX("SdpModifier") << "Bad media description for payload type: " << static_cast<unsigned>(rtpmap->rm_pt);
 		return NULL;
 	}
 	PayloadType* pt = payload_type_new();
@@ -342,7 +342,7 @@ void SdpModifier::replacePayloads(const std::list<PayloadType*>& payloads,
 		pt = *elem;
 		ref.rm_encoding = pt->mime_type;
 		ref.rm_rate = (unsigned long)pt->clock_rate;
-		SLOGD << "Adding new payload to sdp: " << pt->mime_type << "/" << pt->clock_rate;
+		LOGD << "Adding new payload to sdp: " << pt->mime_type << "/" << pt->clock_rate;
 		int number = payload_type_get_number(pt);
 		if (number == -1) {
 			/*see if it was numbered in the original offer*/
@@ -484,7 +484,7 @@ void SdpModifier::addIceCandidate(std::function<const RelayTransport*(int)> getR
 				media->m_port = (unsigned long)rt->mRtpPort;
 				changeRtcpAttr(media, relayAddr, rt->mRtcpPort, isIP6);
 			}
-			SLOGD << "rt= " << rt->mIpv6Address << " " << rt->mIpv4Address;
+			LOGD << "rt= " << rt->mIpv6Address << " " << rt->mIpv4Address;
 
 			for (uint16_t componentID = 1; componentID <= 2; componentID++) {
 				int port = componentID == 1 ? rt->mRtpPort : rt->mRtcpPort;
@@ -735,12 +735,12 @@ int SdpModifier::update(msg_t* msg, sip_t* sip) {
 		sip_payload_t* payload = sip_payload_make(mHome, sdp);
 		err = sip_header_remove(msg, sip, (sip_header_t*)sip_payload(sip));
 		if (err != 0) {
-			SLOGE << "Could not remove payload from SIP message";
+			LOGE << "Could not remove payload from SIP message";
 			goto end;
 		}
 		err = sip_header_insert(msg, sip, (sip_header_t*)payload);
 		if (err != 0) {
-			SLOGE << "Could not add payload to SIP message";
+			LOGE << "Could not add payload to SIP message";
 			goto end;
 		}
 		if (sip->sip_content_length != NULL) {
@@ -748,7 +748,7 @@ int SdpModifier::update(msg_t* msg, sip_t* sip) {
 			sip_header_insert(msg, sip, (sip_header_t*)sip_content_length_format(mHome, "%i", (int)msgsize));
 		}
 	} else {
-		SLOGE << "Could not print SDP message !";
+		LOGE << "Could not print SDP message";
 		err = -1;
 	}
 end:

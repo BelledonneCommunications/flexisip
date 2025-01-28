@@ -110,6 +110,8 @@ static pid_t monitor_pid = -1;
 static pid_t flexisip_pid = -1;
 static shared_ptr<sofiasip::SuRoot> root{};
 static constexpr auto startupMessage = "ok";
+static constexpr string_view kLogPrefix{"Main"};
+static constexpr string_view kWatchdogLogPrefix{"Watchdog"};
 
 /*
  * Get the identifier of the current thread.
@@ -133,11 +135,11 @@ static void setOpenSSLThreadSafe() {
 static void flexisip_stop(int signum) {
 	if (flexisip_pid > 0) {
 		// We can't log from the parent process
-		// SLOGD << "Watchdog received quit signal...passing to child.";
+		// LOGD_CTX(kWatchdogLogPrefix) << "Received quit signal...passing to child.";
 		/*we are the watchdog, pass the signal to our child*/
 		kill(flexisip_pid, signum);
 	} else if (run != 0) {
-		// SLOGD << "Received quit signal...";
+		// LOGD_CTX(kWatchdogLogPrefix) << "Received quit signal...";
 
 		run = 0;
 		if (root) root->quit();
@@ -162,7 +164,7 @@ static map<msg_t*, string> msg_map;
 
 static void flexisip_msg_create(msg_t* msg) {
 	msg_map[msg] = "";
-	SLOGD << "New <-> msg " << msg;
+	LOGD_CTX(kLogPrefix) << "New <-> msg " << msg;
 }
 
 static void flexisip_msg_destroy(msg_t* msg) {
@@ -173,9 +175,9 @@ static void flexisip_msg_destroy(msg_t* msg) {
 }
 
 static void dump_remaining_msgs() {
-	SLOGD << "### Remaining messages: " << msg_map.size();
+	LOGD_CTX(kLogPrefix) << "### Remaining messages: " << msg_map.size();
 	for (auto it = msg_map.begin(); it != msg_map.end(); ++it) {
-		SLOGD << "### \t- " << it->first << "\n";
+		LOGD_CTX(kLogPrefix) << "### \t- " << it->first << "\n";
 	}
 }
 
@@ -192,10 +194,10 @@ static rlim_t getSystemFdLimit() {
 		try {
 			f.open(fileMaxFilePath, ios::in);
 			f >> maxSysFd;
-			SLOGI << "system wide maximum number of file descriptors is " << maxSysFd;
+			LOGI_CTX(kLogPrefix) << "System wide maximum number of file descriptors is " << maxSysFd;
 			f.close();
 		} catch (const exception& e) {
-			SLOGE << "cannot read value from " << fileMaxFilePath << ": " << e.what();
+			LOGE_CTX(kLogPrefix) << "Cannot read value from " << fileMaxFilePath << ": " << e.what();
 			throw runtime_error{systemLimitGetError};
 		}
 
@@ -204,11 +206,11 @@ static rlim_t getSystemFdLimit() {
 			f.open(nrOpenFilePath, ios::in);
 			decltype(maxSysFd) value = 0;
 			f >> value;
-			SLOGI << "system wide maximum number open files is " << value;
+			LOGI_CTX(kLogPrefix) << "System wide maximum number open files is " << value;
 			maxSysFd = min(value, maxSysFd);
 			f.close();
 		} catch (const exception& e) {
-			SLOGE << "cannot read value from " << nrOpenFilePath << ": " << e.what();
+			LOGE_CTX(kLogPrefix) << "Cannot read value from " << nrOpenFilePath << ": " << e.what();
 		}
 	}
 
@@ -218,7 +220,7 @@ static rlim_t getSystemFdLimit() {
 
 	return maxSysFd;
 #else
-	SLOGW << "Guessing of system wide fd limit is not implemented.";
+	LOGW_CTX(kLogPrefix) << "Guessing of system wide fd limit is not implemented.";
 	return 2048;
 #endif
 }
@@ -226,7 +228,7 @@ static rlim_t getSystemFdLimit() {
 static void increaseFDLimit() noexcept {
 	struct rlimit lm {};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
-		SLOGE << "getrlimit(RLIMIT_NOFILE) failed: " << strerror(errno);
+		LOGE_CTX(kLogPrefix) << "getrlimit(RLIMIT_NOFILE) failed: " << strerror(errno);
 		return;
 	}
 
@@ -237,8 +239,8 @@ static void increaseFDLimit() noexcept {
 		newLimitAsStr = "<unknown>";
 	}
 
-	SLOGI << "Maximum number of open file descriptors is " << lm.rlim_cur << ", limit=" << lm.rlim_max
-	      << ", system wide limit=" << newLimitAsStr;
+	LOGI_CTX(kLogPrefix) << "Maximum number of open file descriptors is " << lm.rlim_cur << ", limit=" << lm.rlim_max
+	                     << ", system wide limit=" << newLimitAsStr;
 
 	try {
 		const auto systemLimit = getSystemFdLimit();
@@ -246,16 +248,16 @@ static void increaseFDLimit() noexcept {
 			const auto oldLimit = lm.rlim_cur;
 			lm.rlim_cur = lm.rlim_max = systemLimit;
 			if (setrlimit(RLIMIT_NOFILE, &lm) == -1) {
-				SLOGW << "setrlimit(RLIMIT_NOFILE) failed: " << strerror(errno)
-				      << ". Limit of number of file descriptors is low (" << oldLimit << ")";
-				SLOGW << "Flexisip will not be able to process a big number of calls.";
+				LOGW_CTX(kLogPrefix) << "setrlimit(RLIMIT_NOFILE) failed: " << strerror(errno)
+				                     << ", limit of number of file descriptors is low (" << oldLimit << ")";
+				LOGW_CTX(kLogPrefix) << "Flexisip will not be able to process a big number of calls";
 			}
 			if (getrlimit(RLIMIT_NOFILE, &lm) == 0) {
-				SLOGI << "Maximum number of file descriptor set to " << lm.rlim_cur;
+				LOGI_CTX(kLogPrefix) << "Maximum number of file descriptor set to " << lm.rlim_cur;
 			}
 		}
 	} catch (const exception& e) {
-		SLOGE << "error while setting file descriptors limit: " << e.what();
+		LOGE_CTX(kLogPrefix) << "Error while setting file descriptors limit: " << e.what();
 	}
 }
 
@@ -282,7 +284,7 @@ static void makePidFile(const string& pidfile) {
 			fprintf(f, "%i", getpid());
 			fclose(f);
 		} else {
-			SLOGE << "Could not write pid file [" << pidfile << "]";
+			LOGE_CTX(kLogPrefix) << "Could not write pid file [" << pidfile << "]";
 		}
 	}
 }
@@ -290,7 +292,7 @@ static void makePidFile(const string& pidfile) {
 static void set_process_name([[maybe_unused]] const string& process_name) {
 #ifdef PR_SET_NAME
 	if (prctl(PR_SET_NAME, process_name.c_str(), NULL, NULL, NULL) == -1) {
-		SLOGW << "prctl() failed: " << strerror(errno);
+		LOGW_CTX(kLogPrefix) << "prctl() failed: " << strerror(errno);
 	}
 #endif
 }
@@ -340,7 +342,7 @@ static void forkAndDetach(ConfigManager& cfg,
 			makePidFile(pidfile);
 			return;
 		} else {
-			SLOGI << "[WDOG] Flexisip PID: " << flexisip_pid;
+			LOGI_CTX(kWatchdogLogPrefix) << "Flexisip PID: " << flexisip_pid;
 		}
 
 		/*
@@ -349,10 +351,10 @@ static void forkAndDetach(ConfigManager& cfg,
 		 */
 		auto res = pipe::ReadOnly(::move(rPipe)).readUntilDataReception(strlen(startupMessage));
 		if (holds_alternative<SysErr>(res)) {
-			throw ExitFailure{"[WDOG] read error from flexisip, "s + strerror(get<SysErr>(res).number())};
+			throw ExitFailure{"read error from flexisip, "s + strerror(get<SysErr>(res).number())};
 		}
 		if (get<string>(res).empty()) {
-			throw ExitFailure{"[WDOG] read error from flexisip, empty message"};
+			throw ExitFailure{"read error from flexisip, empty message"};
 		}
 
 	/*
@@ -384,7 +386,7 @@ static void forkAndDetach(ConfigManager& cfg,
 			err = read(pipe_wd_mo[0], buf, sizeof(buf));
 			if (err == -1 || err == 0) {
 				kill(flexisip_pid, SIGTERM);
-				throw ExitFailure{"[WDOG] read error from Monitor process, killed flexisip"};
+				throw ExitFailure{"read error from Monitor process, killed flexisip"};
 			}
 			close(pipe_wd_mo[0]);
 		}
@@ -415,19 +417,20 @@ static void forkAndDetach(ConfigManager& cfg,
 					if (startMonitor) kill(monitor_pid, SIGTERM);
 					if (WIFEXITED(status)) {
 						if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
-							SLOGI << "Flexisip restart to apply new config...";
+							LOGI_CTX(kWatchdogLogPrefix) << "Flexisip restart to apply new config";
 							sleep(1);
 							goto fork_flexisip;
 						} else {
 							throw ExitSuccess{"Flexisip exited normally"};
 						}
 					} else if (auto_respawn) {
-						SLOGI << "Flexisip apparently crashed, respawning now...";
+						LOGI_CTX(kWatchdogLogPrefix) << "Flexisip apparently crashed, respawning now";
 						sleep(1);
 						goto fork_flexisip;
 					}
 				} else if (retpid == monitor_pid) {
-					SLOGI << "The Flexisip monitor has crashed or has been illegally terminated. Restarting now";
+					LOGI_CTX(kWatchdogLogPrefix)
+					    << "The Flexisip monitor has crashed or has been illegally terminated, restarting now";
 					sleep(1);
 					goto fork_monitor;
 				}
@@ -439,7 +442,7 @@ static void forkAndDetach(ConfigManager& cfg,
 		/* This is the initial process.
 		 * It should block until flexisip has started sucessfully or rejected to start.
 		 */
-		SLOGI << "[LAUNCHER] Watchdog PID: " << pid;
+		LOGI_CTX(kWatchdogLogPrefix) << "Watchdog PID: " << pid;
 		uint8_t buf[4];
 		// we don't need the write side of the pipe:
 		close(pipe_launcher_wdog[1]);
@@ -448,10 +451,10 @@ static void forkAndDetach(ConfigManager& cfg,
 		err = read(pipe_launcher_wdog[0], buf, sizeof(buf));
 		if (err == -1 || err == 0) {
 			// pipe was closed, flexisip failed to start -> exit with failure
-			throw ExitFailure{"[LAUNCHER] Flexisip failed to start"};
+			throw ExitFailure{"Flexisip failed to start"};
 		} else {
 			// pipe written to, flexisip was OK
-			throw ExitSuccess{"[LAUNCHER] Flexisip started correctly: exit"};
+			throw ExitSuccess{"Flexisip started correctly, exit"};
 		}
 	}
 }
@@ -599,7 +602,7 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 	if (!pkcsFile.getValue().empty()) {
 		ifstream dacb(pkcsFile.getValue());
 		if (!dacb.is_open()) {
-			SLOGE << "Can't open pkcs passphrase file : " << pkcsFile.getValue();
+			LOGE_CTX(kLogPrefix) << "Cannot open pkcs passphrase file: " << pkcsFile.getValue();
 		} else {
 			while (!dacb.eof()) {
 				dacb >> passphrase;
@@ -867,7 +870,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		lm.rlim_cur = RLIM_INFINITY;
 		lm.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &lm) == -1) {
-			SLOGW << "Cannot enable core dump, setrlimit() failed: " << strerror(errno);
+			LOGW_CTX(kLogPrefix) << "Cannot enable core dump, setrlimit() failed: " << strerror(errno);
 		}
 	}
 
@@ -986,7 +989,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 			try {
 				Monitor::createAccounts(authDb, *cfg->getRoot());
 			} catch (const FlexisipException& e) {
-				SLOGE << "Could not create test accounts for the monitor. " << e.str();
+				LOGE_CTX(kLogPrefix) << "Could not create test accounts for the monitor: " << e.str();
 			}
 		}
 
@@ -1103,7 +1106,8 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		}
 		if (allDone) break;
 		if (deadline < std::chrono::system_clock::now()) {
-			SLOGE << "Async cleanup timed out after " << timeout.count() << "s. Force quitting the server.";
+			LOGE_CTX(kLogPrefix) << "Async cleanup timed out after " << timeout.count()
+			                     << "s, force quitting the server";
 			errcode = EXIT_FAILURE;
 			break;
 		}
@@ -1116,7 +1120,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	}
 	proxy_cli = nullptr;
 
-	LOGN("Flexisip %s-server exiting normally.", fName.c_str());
+	LOGN("Flexisip %s-server exiting normally", fName.c_str());
 	if (trackAllocs) dump_remaining_msgs();
 #ifdef ENABLE_SNMP
 	bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();

@@ -38,6 +38,8 @@ public:
 
 private:
 	static const std::chrono::seconds FIREBASE_MAX_TTL;
+
+    std::string mLogPrefix;
 };
 
 } // namespace pushnotification

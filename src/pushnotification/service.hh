@@ -80,6 +80,9 @@ public:
 	static const std::string sGenericClientName;
 
 private:
+	static const std::string sFallbackClientKey;
+	static constexpr std::string_view mLogPrefix{"Service"};
+
 	std::shared_ptr<Client> createAppleClient(const std::filesystem::path& caFile,
 	                                          const std::filesystem::path& certDir,
 	                                          const std::filesystem::path& certName);
@@ -94,8 +97,6 @@ private:
 	std::map<std::filesystem::path, std::filesystem::path> mAppleCertDirs{};
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};
-
-	static const std::string sFallbackClientKey;
 };
 
 } // namespace flexisip::pushnotification

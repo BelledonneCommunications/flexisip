@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "mediarelay.hh"
 
 namespace flexisip {
@@ -31,6 +33,8 @@ public:
 	bool onOutgoingTransfer(uint8_t* data, size_t size, const sockaddr* addr, socklen_t addrlen);
 
 private:
+	static constexpr std::string_view mLogPrefix{"H264IFrameFilter"};
+
 	int mSkipCount;
 	uint32_t mLastIframeTimestamp;
 	int mIframeCount;

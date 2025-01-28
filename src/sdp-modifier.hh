@@ -65,6 +65,7 @@ private:
 	static const char* toString(IceState state);
 	static bool hasCandidates(sdp_media_t* mline);
 	static bool hasRemoteCandidates(sdp_media_t* mline);
+	std::string mLogPrefix;
 };
 
 struct MasqueradeContextPair {
@@ -139,6 +140,7 @@ private:
 	sdp_parser_t* mParser;
 	su_home_t* mHome;
 	std::string mNortproxy;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

@@ -107,7 +107,7 @@ sip_route_t* ExtendedContact::toSofiaRoute(su_home_t* home) const {
 	for (auto it = mPath.begin(); it != mPath.end(); ++it) {
 		sip_route_t* newr = sip_route_format(home, "<%s>", (*it).c_str());
 		if (!newr) {
-			SLOGE << "Cannot parse " << *it << " into route header";
+			LOGE << "Cannot parse " << *it << " into route header";
 			break;
 		}
 		if (!url_has_param(newr->r_url, "lr")) {
@@ -161,7 +161,7 @@ void ExtendedContact::extractInfoFromHeader(const char* urlHeaders) {
 					if (path) {
 						mPath.push_back(url_as_string(home.home(), path->r_url));
 					} else {
-						SLOGE << "ExtendedContact::extractInfoFromHeader(): bad path [" << valueStr << "]";
+						LOGE << "Bad path [" << valueStr << "]";
 					}
 				} else if (keyStr == "accept") {
 					mAcceptHeader.push_back(valueStr);
@@ -315,14 +315,14 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 	sip_contact_t* temp_contact = sip_contact_make(mHome.home(), full_url);
 	url_t* url = nullptr;
 	if (temp_contact == nullptr) {
-		SLOGD << "Couldn't parse " << full_url << " as contact, fallback to url instead";
+		LOGD << "Could not parse " << full_url << " as contact, fallback to url instead";
 		url = url_make(mHome.home(), full_url);
 	} else {
 		url = temp_contact->m_url;
 	}
 
 	if (url == nullptr) {
-		SLOGE << "ExtendedContact::extractInfoFromUrl() url is null.";
+		LOGE << "Url is null";
 		return;
 	}
 

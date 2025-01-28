@@ -71,6 +71,7 @@ private:
 	std::weak_ptr<OutgoingTransaction> mOutgoing{}; /* The outgoing transaction that was eventually created to forward
 	                                                 the message through a RequestSipEvent. */
 	std::shared_ptr<IncomingTransaction> mSofiaRef{};
+	std::string mLogPrefix;
 
 	friend class RequestSipEvent;
 };

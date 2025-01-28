@@ -30,8 +30,10 @@ namespace flexisip {
 
 class SmartTransaction {
 public:
-	SmartTransaction(soci::session* session, const char* name) : mSession(session), mName(name), mIsCommitted(false) {
-		SLOGI << "Start transaction " << this << " in " << mName << ".";
+	SmartTransaction(soci::session* session, const char* name)
+	    : mSession(session), mName(name), mIsCommitted(false),
+	      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SmartTransaction")) {
+		LOGI << "Start transaction in " << mName;
 		mSession->begin();
 	}
 
@@ -41,21 +43,21 @@ public:
 	~SmartTransaction() {
 		if (!mIsCommitted) {
 			try {
-				SLOGI << "Rollback transaction " << this << " in " << mName << ".";
+				LOGI << "Rollback transaction in " << mName;
 				mSession->rollback();
 			} catch (const std::runtime_error& e) {
-				SLOGE << "Rollback of transaction " << this << " has failed: " << e.what();
+				LOGE << "Rollback of transaction has failed: " << e.what();
 			}
 		}
 	}
 
 	void commit() {
 		if (mIsCommitted) {
-			SLOGE << "Transaction " << this << " in " << mName << " already committed!!!";
+			LOGE << "Transaction in " << mName << " already committed";
 			return;
 		}
 
-		SLOGI << "Commit transaction " << this << " in " << mName << ".";
+		LOGI << "Commit transaction in " << mName;
 		mIsCommitted = true;
 		mSession->commit();
 	}
@@ -64,6 +66,7 @@ private:
 	soci::session* mSession;
 	const char* mName;
 	bool mIsCommitted;
+	std::string mLogPrefix;
 };
 
 struct DbTransactionInfo {
@@ -94,7 +97,7 @@ public:
 			SmartTransaction tr(session, name);
 			mResult = exec<InternalReturnType>(tr);
 		} catch (const soci::soci_error& e) {
-			SLOGW << "Catched exception in " << name << "(" << e.what() << ").";
+			LOGW << "Caught exception in " << name << ": " << e.what();
 			soci::soci_error::error_category category = e.get_error_category();
 			if ((category == soci::soci_error::connection_error || category == soci::soci_error::unknown) &&
 			    forceReconnect(session)) {
@@ -102,14 +105,14 @@ public:
 					SmartTransaction tr(session, name);
 					mResult = exec<InternalReturnType>(tr);
 				} catch (const std::exception& e) {
-					SLOGE << "Unable to execute query after reconnect in " << name << "(" << e.what() << ").";
+					LOGE << "Unable to execute query after reconnect in " << name << ": " << e.what();
 				}
 				return;
 			}
-			SLOGE << "Unhandled [" << getErrorCategoryAsString(category) << "] exception in " << name << ": `"
-			      << e.what() << "`.";
+			LOGE << "Unhandled [" << getErrorCategoryAsString(category) << "] exception in " << name << ": "
+			     << e.what();
 		} catch (const std::exception& e) {
-			SLOGE << "Unhandled generic exception in " << name << ": `" << e.what() << "`.";
+			LOGE << "Unhandled generic exception in " << name << ": " << e.what();
 		}
 	}
 
@@ -124,6 +127,8 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"DbTransaction"};
+
 	// Exec function with no return type.
 	template <typename T>
 	typename std::enable_if<std::is_same<T, void>::value, bool>::type exec(SmartTransaction& tr) const {
@@ -139,26 +144,25 @@ private:
 
 	bool forceReconnect(soci::session* session) {
 		constexpr int retryCount = 2;
-		SLOGI << "Trying sql backend reconnect...";
+		LOGI << "Trying sql backend reconnect...";
 
 		try {
 			for (int i = 0; i < retryCount; ++i) {
 				try {
-					SLOGI << "Reconnect... Try: " << i;
+					LOGI << "Reconnect... Try: " << i;
 					session->reconnect();
-					SLOGI << "Database reconnection successful!";
+					LOGI << "Database reconnection successful";
 					return true;
 				} catch (const soci::soci_error& e) {
 					if (e.get_error_category() != soci::soci_error::connection_error) throw e;
 				}
 			}
 		} catch (const std::exception& e) {
-			SLOGE << "Unable to reconnect: `" << e.what() << "`.";
+			LOGE << "Unable to reconnect: " << e.what();
 			return false;
 		}
 
-		SLOGE << "Database reconnection failed!";
-
+		LOGE << "Database reconnection failed";
 		return false;
 	}
 

@@ -31,7 +31,7 @@ void SnmpHandlerVisitor::visitConfigRuntimeError(ConfigRuntimeError& entry) {
 	}
 
 	const std::string errors = entry.generateErrors();
-	// SLOGD << "runtime error handleSnmpRequest " << mReqInfo->handlerName << " -> " << errors;
+	// LOGD << "runtime error handleSnmpRequest " << mReqInfo->handlerName << " -> " << errors;
 	mSnmpErrCode =
 	    snmp_set_var_typed_value(mRequests->requestvb, ASN_OCTET_STR, (const u_char*)errors.c_str(), errors.size());
 }
@@ -43,7 +43,7 @@ void SnmpHandlerVisitor::visitConfigValue(ConfigValue& entry) {
 
 	switch (mReqInfo->mode) {
 		case MODE_GET:
-			// SLOGD << "str handleSnmpRequest " << mReqInfo->handlerName << " -> " << get();
+			// LOGD << "str handleSnmpRequest " << mReqInfo->handlerName << " -> " << get();
 			mSnmpErrCode = snmp_set_var_typed_value(mRequests->requestvb, ASN_OCTET_STR,
 			                                        (const u_char*)entry.get().c_str(), entry.get().size());
 			return;
@@ -73,7 +73,7 @@ void SnmpHandlerVisitor::visitConfigValue(ConfigValue& entry) {
 			entry.onConfigStateChanged(entry, ConfigState::Changed);
 			break;
 		case MODE_SET_COMMIT:
-			// SLOGD << "str handleSnmpRequest " << mRegInfo->handlerName << " <- " get();
+			// LOGD << "str handleSnmpRequest " << mRegInfo->handlerName << " <- " get();
 			entry.onConfigStateChanged(entry, ConfigState::Committed);
 			break;
 		case MODE_SET_FREE:
@@ -97,7 +97,7 @@ void SnmpHandlerVisitor::visitConfigBoolean(ConfigBoolean& entry) {
 	u_short* old_value;
 	switch (mReqInfo->mode) {
 		case MODE_GET:
-			// SLOGD << "bool handleSnmpRequest " << mRegInfo->handlerName << " -> " << (read()?1:0);
+			// LOGD << "bool handleSnmpRequest " << mRegInfo->handlerName << " -> " << (read()?1:0);
 			snmp_set_var_typed_integer(mRequests->requestvb, ASN_INTEGER, entry.read() ? 1 : 0);
 			break;
 		case MODE_SET_RESERVE1:
@@ -124,7 +124,7 @@ void SnmpHandlerVisitor::visitConfigBoolean(ConfigBoolean& entry) {
 			entry.onConfigStateChanged(entry, ConfigState::Changed);
 			break;
 		case MODE_SET_COMMIT:
-			// SLOGD << "bool handleSnmpRequest " << mRegInfo->handlerName << " <- " << (read()?1:0);
+			// LOGD << "bool handleSnmpRequest " << mRegInfo->handlerName << " <- " << (read()?1:0);
 			entry.onConfigStateChanged(entry, ConfigState::Committed);
 			break;
 		case MODE_SET_FREE:
@@ -150,7 +150,7 @@ void SnmpHandlerVisitor::visitConfigInt(ConfigInt& entry) {
 
 	switch (mReqInfo->mode) {
 		case MODE_GET:
-			// SLOGD << "int handleSnmpRequest " << mRegInfo->handlerName << " -> " << read();
+			// LOGD << "int handleSnmpRequest " << mRegInfo->handlerName << " -> " << read();
 			snmp_set_var_typed_integer(mRequests->requestvb, ASN_INTEGER, entry.read());
 			break;
 		case MODE_SET_RESERVE1:
@@ -180,7 +180,7 @@ void SnmpHandlerVisitor::visitConfigInt(ConfigInt& entry) {
 			entry.onConfigStateChanged(entry, ConfigState::Changed);
 			break;
 		case MODE_SET_COMMIT:
-			// SLOGD << "int handleSnmpRequest " << mRegInfo->handlerName << " <- " << read();
+			// LOGD << "int handleSnmpRequest " << mRegInfo->handlerName << " <- " << read();
 			entry.onConfigStateChanged(entry, ConfigState::Committed);
 			break;
 		case MODE_SET_FREE:
@@ -200,7 +200,7 @@ void SnmpHandlerVisitor::visitConfigInt(ConfigInt& entry) {
 }
 
 void SnmpHandlerVisitor::visitStatCounter64(StatCounter64& entry) {
-	// SLOGD << "counter64 handleSnmpRequest " << mRegInfo->handlerName << " -> " << read();
+	// LOGD << "counter64 handleSnmpRequest " << mRegInfo->handlerName << " -> " << read();
 
 	switch (mReqInfo->mode) {
 		case MODE_GET: {

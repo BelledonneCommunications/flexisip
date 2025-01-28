@@ -67,11 +67,11 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 
 	const auto& authResult = ev->getAuthResult();
 	if (authResult.trustedHost) {
-		SLOGD << "Access granted: trusted host.";
+		LOGD << "Access granted: trusted host";
 		return std::move(ev);
 	}
 
-	SLOGD << "Checking asserted identities.";
+	LOGD << "Checking asserted identities";
 
 	sip_t* sip = ev->getMsgSip()->getSip();
 	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
@@ -81,11 +81,11 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 		if (authResult.getResult() == RequestSipEvent::AuthResult::Result::Invalid) continue;
 		if (authResult.getType() == RequestSipEvent::AuthResult::Type::Bearer) {
 			if (!authResult.getIdentity().rfc3261Compare(userUri.get())) {
-				SLOGD << "Asserted identity '" << authResult.getIdentity().str() << "' doesn't match user identity '"
-				      << userUri.str() << "'";
+				LOGD << "Asserted identity '" << authResult.getIdentity().str() << "' does not match user identity '"
+				     << userUri.str() << "'";
 				continue;
 			}
-			SLOGI << "Accept authorization.";
+			LOGI << "Accept authorization";
 			return std::move(ev); // on first valid
 		}
 	}

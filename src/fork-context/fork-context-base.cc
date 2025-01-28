@@ -41,11 +41,12 @@ ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& r
                                  bool isRestored)
     : mCurrentPriority(-1), mAgent(agent), mRouter(router), mCfg(cfg), mLateTimer(mAgent->getRoot()),
       mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority),
-      mListener(listener), mEvent(std::move(event)), mStatCounter(counter) {
+      mListener(listener), mEvent(std::move(event)), mStatCounter(counter),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkContextBase")) {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << "ForkContextBase [" << this << "] - fork error - weak_ptr mStatCounter should be present here.";
+		LOGE << "Fork error: weak_ptr mStatCounter should be present here";
 	}
 
 	if (!isRestored) {
@@ -63,7 +64,7 @@ ForkContextBase::~ForkContextBase() {
 	if (auto sharedCounter = mStatCounter.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << "ForkContextBase [" << this << "] - fork error -weak_ptr mStatCounter should be present here.";
+		LOGE << "Fork error: weak_ptr mStatCounter should be present here";
 	}
 }
 
@@ -194,7 +195,7 @@ bool ForkContextBase::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode
 }
 
 void ForkContextBase::removeBranch(const shared_ptr<BranchInfo>& br) {
-	SLOGD << "ForkContext [" << this << "] " << br << " removed.";
+	LOGD << "Removed branch: " << br;
 
 	mWaitingBranches.remove(br);
 	mCurrentBranches.remove(br);
@@ -225,14 +226,14 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 	if (br) {
 		int code = br->getStatus();
 		if (code == 503 || code == 408) {
-			SLOGD << "ForkContext " << this << ": shouldDispatch(): instance failed to receive the request previously.";
+			LOGD << "Instance failed to receive the request previously";
 			return make_pair(DispatchStatus::DispatchNeeded, br);
 		} else if (code >= 200) {
 			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
-			SLOGD << "ForkContext " << this << ": shouldDispatch(): instance has already answered the request.";
+			LOGD << "Instance has already answered the request";
 			return make_pair(DispatchStatus::DispatchNotNeeded, nullptr);
 		} else {
 			/*
@@ -242,13 +243,13 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 			 * from a new socket, in which case the current branch will receive no response.
 			 */
 			if (br_by_url == nullptr) {
-				SLOGD << "ForkContext " << this << ": shouldDispatch(): instance reconnected.";
+				LOGD << "Instance reconnected";
 				return make_pair(DispatchStatus::DispatchNeeded, br);
 			}
 		}
 	}
 	if (br_by_url) {
-		SLOGD << "ForkContext " << this << ": shouldDispatch(): pending transaction for this destination.";
+		LOGD << "Pending transaction for this destination";
 		return make_pair(DispatchStatus::PendingTransaction, nullptr);
 	}
 
@@ -259,7 +260,7 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 // caller that we've sent a push notification.
 void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) {
 	if (!mCfg->mPermitSelfGeneratedProvisionalResponse) {
-		SLOGD << "ForkCallContext::sendResponse(): self-generated provisional response are disabled by configuration.";
+		LOGD << "Self-generated provisional response are disabled by configuration";
 		return;
 	}
 
@@ -314,8 +315,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 	auto oldBr = findBranchByUid(br->mUid);
 	if (oldBr) {
 		if (oldBr->getStatus() >= 200) {
-			SLOGD << "ForkContext [" << this << "]: new fork branch [" << br.get() << "] clears out old branch ["
-			      << oldBr.get() << "]";
+			LOGD << "New fork branch [" << br.get() << "] clears out old branch [" << oldBr.get() << "]";
 			removeBranch(oldBr);
 		}
 		/*
@@ -347,7 +347,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 		}
 	}
 
-	SLOGD << "ForkContext [" << this << "]: new fork branch [" << br.get() << "]";
+	LOGD << "New fork branch [" << br.get() << "]";
 
 	return br;
 }
@@ -387,7 +387,7 @@ void ForkContextBase::nextBranches() {
 
 void ForkContextBase::start() {
 	if (mFinished) {
-		SLOGE << errorLogPrefix() << "Calling start() on a completed. Doing nothing";
+		LOGE << "Calling start() on a completed: do nothing";
 		return;
 	}
 
@@ -397,7 +397,7 @@ void ForkContextBase::start() {
 	/* Prepare branches */
 	nextBranches();
 
-	SLOGD << "Started forking branches with priority [" << this << "]: " << mCurrentPriority;
+	LOGD << "Started forking branches with priority: " << mCurrentPriority;
 
 	/* Start the processing */
 	for (const auto& br : mCurrentBranches) {
@@ -427,7 +427,7 @@ void ForkContextBase::onFinished() {
 	if (auto listener = mListener.lock()) {
 		listener->onForkContextFinished(shared_from_this());
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mListener should be present here.";
+		LOGE << "Fork error: weak_ptr mListener should be present here";
 	}
 }
 
@@ -502,7 +502,7 @@ bool ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
 		} else br->mLastResponseEvent->setIncomingAgent(shared_ptr<IncomingAgent>());
 
 	} else {
-		SLOGE << errorLogPrefix() << "forwardResponse(): no response received on this branch";
+		LOGE << "Fork error: no response received on this branch";
 	}
 
 	return false;
@@ -540,8 +540,7 @@ int ForkContextBase::getLastResponseCode() const {
 
 unique_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
 	if (mIncoming == nullptr) {
-		SLOGD << logPrefix() << "cannot forward SIP response [" << status << " " << phrase
-		      << "]: no incoming transaction.";
+		LOGD << "Cannot forward SIP response [" << status << " " << phrase << "]: no incoming transaction";
 		return {};
 	}
 	auto msgsip = mIncoming->createResponse(status, phrase);
@@ -549,8 +548,7 @@ unique_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, 
 		auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
 		return forwardResponse(std::move(ev));
 	} else { // Should never happen
-		SLOGE << errorLogPrefix()
-		      << "Because MsgSip can't be created fork is finished without forwarding any response.";
+		LOGE << "Fork error: MsgSip cannot be created, fork is completed without forwarding any response";
 		setFinished();
 	}
 	return {};

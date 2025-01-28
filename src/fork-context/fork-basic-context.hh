@@ -70,6 +70,7 @@ private:
 	 * received on the outgoing transactions
 	 */
 	std::unique_ptr<sofiasip::Timer> mDecisionTimer{nullptr};
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

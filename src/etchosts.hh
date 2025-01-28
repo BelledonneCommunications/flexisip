@@ -32,11 +32,15 @@ public:
 	void setHost(const std::string& name, const std::string& result);
 
 private:
+	static constexpr std::string_view mLogPrefix{"EtcHostsResolver"};
+
+	static EtcHostsResolver* sInstance;
+
 	EtcHostsResolver();
 	static void atexit(); // Don't call directly!
+
 	std::map<std::string, std::string> mMap;
 	std::map<std::string, std::string> mOverrideMap;
-	static EtcHostsResolver *sInstance;
 };
 
 } // namespace flexisip

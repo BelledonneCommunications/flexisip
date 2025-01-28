@@ -426,11 +426,11 @@ void DataBaseEventLogWriter::write(const std::shared_ptr<const EventLogWriteDisp
 
 		// Save event in database.
 		if (!mThreadPool->run(bind(&DataBaseEventLogWriter::writeEventFromQueue, this))) {
-			SLOGE << "DataBaseEventLogWriter: unable to enqueue event!";
+			LOGE << "Unable to enqueue event";
 		}
 	} else {
 		mMutex.unlock();
-		SLOGE << "DataBaseEventLogWriter: too many events in queue! (" << mMaxQueueSize << ")";
+		LOGE << "Too many events in queue (current=" << mListLogs.size() << ", max=" << mMaxQueueSize << ")";
 	}
 }
 

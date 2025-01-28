@@ -33,6 +33,7 @@ std::string GenericHttpRequest::getAppIdentifier() const noexcept {
 }
 
 const std::vector<char>& GenericHttpRequest::getData(const sofiasip::Url& url, Method method) {
+	if (mLogPrefix.empty()) mLogPrefix = LogManager::makeLogPrefixForInstance(this, "GenericHttpRequest");
 	auto methodStr = method == Method::HttpPost ? "POST" : "GET";
 	auto host = url.getHost();
 	auto port = url.getPort();
@@ -59,7 +60,7 @@ const std::vector<char>& GenericHttpRequest::getData(const sofiasip::Url& url, M
 		httpMessage << "\r\n";
 	}
 	auto httpMessageStr = httpMessage.str();
-	SLOGD << "GenericPushNotificationRequest" << this << " http message is " << httpMessageStr;
+	LOGD << "Http message is: " << httpMessageStr;
 	mBuffer.assign(httpMessageStr.cbegin(), httpMessageStr.cend());
 	return mBuffer;
 }

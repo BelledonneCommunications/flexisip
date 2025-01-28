@@ -228,25 +228,25 @@ SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
 	conn_pool.reset(new connection_pool(poolSize));
 	thread_pool = make_unique<AutoThreadPool>(poolSize, max_queue_size);
 
-	SLOGD << "[SOCI] Authentication provider for backend " << backend << " created. Pooled for " << poolSize
-	      << " connections";
+	LOGD << "Created authentication provider for backend " << backend << " (pool of " << poolSize << " connections)";
 	connectDatabase();
 }
 
 void SociAuthDB::connectDatabase() {
-	SLOGD << "[SOCI] Connecting to database (" << poolSize << " pooled connections)";
+	LOGD << "Connecting to database (pool of " << poolSize << " connections)...";
 	try {
 		for (size_t i = 0; i < poolSize; i++) {
 			conn_pool->at(i).open(backend, connection_string);
 		}
 		_connected = true;
 	} catch (const soci::mysql_soci_error& e) {
-		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
+		LOGE << "Got a MySQL error while opening a connection [" << e.err_num_ << "]: " << e.what();
 		closeOpenedSessions();
 	} catch (const runtime_error& e) { // std::runtime_error includes all soci exceptions
-		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
+		LOGE << "Got an error while opening a connection: " << e.what() << endl;
 		closeOpenedSessions();
 	}
+	LOGD << "Connection to database done";
 }
 
 void SociAuthDB::closeOpenedSessions() {
@@ -387,7 +387,7 @@ void SociAuthDB::getUsersWithPhonesWithPool(list<tuple<string, string, AuthDbLis
 		});
 		notifyAllListeners(creds, presences);
 	} catch (DatabaseException& e) {
-		SLOGE << "[SOCI] MySQL request causing the error was : " << s;
+		LOGE << "Caught an unexpected exception while executing the following SQL request:" << s;
 		presences.clear();
 		notifyAllListeners(creds, presences);
 	}
@@ -430,8 +430,7 @@ void SociAuthDB::getPasswordFromBackend(const string& id,
 	bool success = thread_pool->run(func);
 	if (!success) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
-		SLOGE << "[SOCI] Auth queue is full, cannot fullfil password request for " << id << " / " << domain << " / "
-		      << authid;
+		LOGE << "Auth queue is full, cannot fulfill password request for: " << id << "|" << domain << "|" << authid;
 		if (listener) listener->onResult(AUTH_ERROR, PwList());
 	}
 }
@@ -449,7 +448,7 @@ void SociAuthDB::getUserWithPhoneFromBackend(const string& phone, const string& 
 	bool success = thread_pool->run(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
-		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << phone;
+		LOGE << "Auth queue is full, cannot fulfill user request for: " << phone;
 		if (listener) listener->onResult(AUTH_ERROR, "");
 	}
 }
@@ -470,7 +469,7 @@ void SociAuthDB::getUsersWithPhonesFromBackend(list<tuple<string, string, AuthDb
 	bool success = thread_pool->run(func);
 	if (success == FALSE) {
 		// Enqueue() can fail when the queue is full, so we have to act on that
-		SLOGE << "[SOCI] Auth queue is full, cannot fullfil user request for " << &creds;
+		LOGE << "Auth queue is full, cannot fulfill user request for " << &creds;
 		for (const auto& cred : creds) {
 			AuthDbListener* listener = std::get<2>(cred);
 			if (listener) listener->onResult(AUTH_ERROR, "");

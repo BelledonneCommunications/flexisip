@@ -73,7 +73,7 @@ unique_ptr<ResponseSipEvent> NatHelper::onResponse(unique_ptr<ResponseSipEvent>&
 		if (url_has_param(contact->m_url, mContactCorrectionParameter.c_str()) /* is verified */) {
 			contact->m_url->url_params = url_strip_param_string(su_strdup(ev->getHome(), contact->m_url->url_params),
 			                                                    mContactCorrectionParameter.c_str());
-			SLOGD << "Proxy is last hop, removed \"" << mContactCorrectionParameter << R"(" from "Contact" header)";
+			LOGD << "Proxy is last hop, removed \"" << mContactCorrectionParameter << R"(" from "Contact" header)";
 		}
 	}
 	return std::move(ev);
@@ -104,14 +104,14 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 		if (mRRPolicy == Safe) {
 			if (ModuleToolbox::urlViaMatch(sip->sip_record_route->r_url, sip->sip_via, false)) {
 				const char* transport = sip_via_transport(sip->sip_via);
-				SLOGD << "Record-route and via are matching.";
+				LOGD << "Record-route and via are matching";
 				if (sip->sip_via->v_received) {
-					SLOGD << "This record-route needs to be fixed for host";
+					LOGD << "This record-route needs to be fixed for host";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-received=%s", sip->sip_via->v_received));
 				}
 				if (sip->sip_via->v_rport) {
-					SLOGD << "This record-route needs to be fixed for port";
+					LOGD << "This record-route needs to be fixed for port";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-rport=%s", sip->sip_via->v_rport));
 				}
@@ -124,12 +124,12 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 				const char* received = sip->sip_via->v_received ? sip->sip_via->v_received : sip->sip_via->v_host;
 				const char* rport = sip->sip_via->v_rport ? sip->sip_via->v_rport : sip->sip_via->v_port;
 				if (!ModuleToolbox::urlHostMatch(received, host)) {
-					SLOGD << "This record-route needs to be fixed for host";
+					LOGD << "This record-route needs to be fixed for host";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-received=%s", received));
 				}
 				if (!ModuleToolbox::sipPortEquals(rport, sip->sip_record_route->r_url->url_port, transport)) {
-					SLOGD << "This record-route needs to be fixed for port";
+					LOGD << "This record-route needs to be fixed for port";
 					url_param_add(ms->getHome(), sip->sip_record_route->r_url,
 					              su_sprintf(ms->getHome(), "fs-rport=%s", rport));
 				}

@@ -111,6 +111,8 @@ protected:
 
 	void sendTrap(const std::string& msg);
 
+	std::string mLogPrefix;
+
 protected:
 	sofiasip::Home mHome;
 	Agent* mAgent = nullptr;
@@ -138,6 +140,9 @@ public:
 	static ModuleInfoManager* get();
 
 private:
+	static std::unique_ptr<ModuleInfoManager> sInstance;
+	static constexpr std::string_view mLogPrefix{"ModuleInfoManager"};
+
 	void registerModuleInfo(ModuleInfoBase* moduleInfo);
 	void unregisterModuleInfo(ModuleInfoBase* moduleInfo);
 	void dumpModuleDependencies(const std::list<ModuleInfoBase*>& l) const;
@@ -146,8 +151,6 @@ private:
 	                    const std::list<ModuleInfoBase*>& replacingModules) const;
 
 	std::list<ModuleInfoBase*> mRegisteredModuleInfo;
-
-	static std::unique_ptr<ModuleInfoManager> sInstance;
 };
 
 class ModuleInfoBase {

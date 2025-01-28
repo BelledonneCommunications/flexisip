@@ -43,7 +43,7 @@ private:
 		if (cv.getName() == "presence-server") {
 			url_t* uri = url_make(&mHome, cv.getName().c_str());
 			if (!uri) {
-				SLOGE << getModuleName() << ": wrong destination uri for presence server [" << cv.getName() << "]";
+				LOGE << "Wrong destination URI for presence server [" << cv.getName() << "]";
 				return false;
 			} else {
 				su_free(&mHome, uri);
@@ -64,16 +64,16 @@ private:
 		}
 
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();
-		SLOGI << getModuleName() << ": presence server is [" << mDestRoute.str() << "]";
-		SLOGI << getModuleName() << ": Non list subscription are " << (mOnlyListSubscription ? "not" : "")
-		      << " redirected by presence server";
+		LOGI << "Presence server is [" << mDestRoute.str() << "]";
+		LOGI << "Non list subscription are " << (mOnlyListSubscription ? "not" : "")
+		     << " redirected by presence server";
 	}
 
 	void onUnload() override {
 	}
 
 	void route(const shared_ptr<MsgSip>& msgSip) {
-		SLOGI << getModuleName() << " routing to [" << mDestRoute.str() << "]";
+		LOGI << "Routing to [" << mDestRoute.str() << "]";
 		ModuleToolbox::cleanAndPrependRoute(this->getAgent(), msgSip->getMsg(), msgSip->getSip(),
 		                                    sip_route_create(msgSip->getHome(), mDestRoute.get(), nullptr));
 	}

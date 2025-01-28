@@ -68,7 +68,7 @@ protected:
 
 #define STUB(T)                                                                                                        \
 	virtual void write(const T&) {                                                                                     \
-		SLOGD << typeid(*this).name() << " does not implement " << __PRETTY_FUNCTION__;                                \
+		LOGD << "Method not implemented: " << __PRETTY_FUNCTION__;                                                     \
 	}
 
 	STUB(CallStartedEventLog)
@@ -77,6 +77,9 @@ protected:
 	STUB(MessageSentEventLog)
 
 #undef STUB
+
+private:
+	static constexpr std::string_view mLogPrefix{"EventLogWriter"};
 };
 
 } // namespace flexisip

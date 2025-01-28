@@ -72,7 +72,7 @@ public:
 
 	std::string extract(const std::string& fromUri) noexcept override {
 		std::smatch m{};
-        SLOGD << "searching for realm in '" << fromUri << "' with '" << mRegexStr << "' as extracting regex";
+		LOGD << "Searching for realm in '" << fromUri << "' with '" << mRegexStr << "' as extracting regex";
 		if (!std::regex_search(fromUri, m, mRegex)) {
 			return "";
 		}
@@ -81,6 +81,8 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegexRealmExtractor"};
+
 	std::string mRegexStr{};
 	std::regex mRegex{};
 };

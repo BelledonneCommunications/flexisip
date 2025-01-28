@@ -253,6 +253,8 @@ protected:
 	std::string mErrorMessage;
 
 private:
+	static constexpr std::string_view mLogPrefix{"GenericEntry"};
+
 	std::string mHelp;
 	GenericValueType mType;
 	GenericEntry* mParent = nullptr;
@@ -455,6 +457,8 @@ public:
 	void acceptVisit(ConfigManagerVisitor& visitor) override;
 
 protected:
+	static constexpr std::string_view mLogPrefix{"ConfigValue"};
+
 	void checkType(const std::string& value, bool isDefault);
 
 	std::string mValue;
@@ -717,7 +721,10 @@ public:
 	~FileConfigReader();
 
 private:
+	static constexpr std::string_view mLogPrefix{"FileConfigReader"};
+
 	int read2(GenericEntry* entry, int level);
+
 	GenericStruct* mRoot;
 	std::unique_ptr<flexisip::LpConfig> mCfg;
 	std::string mFilename;
@@ -757,8 +764,11 @@ public:
 	bool mDirtyConfig = false;
 
 private:
+	static constexpr std::string_view mLogPrefix{"ConfigManager"};
+
 	static bool doIsValidNextConfig(const ConfigValue& cv);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
+
 	std::string mConfigFile;
 	RootConfigStruct mConfigRoot;
 	FileConfigReader mReader;

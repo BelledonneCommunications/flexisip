@@ -72,6 +72,8 @@ public:
 		return *this;
 	}
 
+	static std::string toString(msg_t& msg);
+
 	Borrowed<msg_t> getMsg() const {
 		return {mMsg};
 	}
@@ -164,6 +166,7 @@ private:
 	Owned<msg_t> mMsg{nullptr};
 
 	static std::shared_ptr<flexisip::SipBooleanExpression> sShowBodyFor;
+	std::string mLogPrefix;
 };
 
 std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept;

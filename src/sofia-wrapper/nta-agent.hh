@@ -160,11 +160,12 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"NtaAgent"};
+
 	void onOutgoingTransactionResponse(nta_outgoing_t* transaction, const sip_t* response) noexcept {
 		auto it = mTransactions.find(transaction);
 		if (it == mTransactions.end()) {
-			SLOGE << "NtaAgent::onOutgoingTransactionResponse(transaction=" << transaction
-			      << "): no C++ transaction associated";
+			LOGE << "No C++ transaction associated (transaction=" << transaction << ")";
 			return;
 		}
 		if (response == nullptr || response->sip_status->st_status >= 200) {

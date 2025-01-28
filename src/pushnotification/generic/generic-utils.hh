@@ -46,6 +46,8 @@ public:
 	                                      const std::map<std::string, std::shared_ptr<Client>>& allClients);
 
 private:
+	static constexpr std::string_view mLogPrefix{"GenericUtils"};
+
 	/**
 	 * Get the legacy push parameters (pnType, appID and pnToken).
 	 */

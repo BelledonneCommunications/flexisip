@@ -47,11 +47,10 @@ GenericUtils::getLegacyParams(const std::shared_ptr<const PushInfo> pushInfo, Pu
 			return make_tuple(pnProvider, pnParam, pnPrid);
 		}
 	} catch (const std::out_of_range&) {
-		SLOGE << "GenericRequest::" << __func__ << "(): no push parameters found for the given push type [" << pushType
-		      << "]";
+		LOGE << "No push parameters found for the given push type [" << pushType << "]";
 		return make_tuple(kInvalid, kInvalid, kInvalid);
 	} catch (const std::exception& e) {
-		SLOGE << "GenericRequest::" << __func__ << "(): unexpected exception: " << e.what();
+		LOGE << "Unexpected exception: " << e.what();
 		return make_tuple(kInvalid, kInvalid, kInvalid);
 	}
 }

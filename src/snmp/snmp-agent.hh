@@ -65,10 +65,14 @@ private:
 		void operator()();
 
 	private:
+		static constexpr std::string_view mLogPrefix{"SnmpAgentTask"};
+
 		bool mKeepRunning;
 		ConfigManager& mConfigManager;
 		SnmpAgent& mSnmpAgent;
 	};
+
+	static constexpr std::string_view mLogPrefix{"SnmpAgent"};
 
 	bool mInitialized;
 	std::queue<std::tuple<const GenericEntry*, std::string>> mPendingTraps;

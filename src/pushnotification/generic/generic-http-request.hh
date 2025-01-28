@@ -46,6 +46,7 @@ private:
 	// Private attributes
 	std::vector<char> mBuffer{};    /**< Buffer returned by getData(). */
 	std::string mFirebaseAuthKey{}; /**< Authentication key required by Firebase service. */
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip::pushnotification

@@ -22,8 +22,6 @@
 
 #include "flexisip/logmanager.hh"
 
-#define FUNC_LOG_PREFIX mLogPrefix << "::" << __func__ << "() - "
-
 using namespace std;
 using namespace chrono;
 
@@ -53,9 +51,9 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 		start = steady_clock::now();
 		session = make_unique<soci::session>(mPool);
 		stop = steady_clock::now();
-		SLOGD << FUNC_LOG_PREFIX << "Session acquired from pool in " << duration(start, stop).count() << "ms";
+		LOGD << "Session acquired from pool in " << duration(start, stop).count() << "ms";
 	} catch (const runtime_error& exception) {
-		SLOGE << FUNC_LOG_PREFIX << "Caught an unexpected exception during session acquisition: " << exception.what();
+		LOGE << "Caught an unexpected exception during session acquisition: " << exception.what();
 		throw DatabaseException();
 	}
 
@@ -64,7 +62,7 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 			start = steady_clock::now();
 			requestLambda(*session);
 			stop = steady_clock::now();
-			SLOGD << FUNC_LOG_PREFIX << "Successfully executed SQL query in " << duration(start, stop).count() << "ms";
+			LOGD << "Successfully executed SQL query in " << duration(start, stop).count() << "ms";
 			return;
 		} catch (const runtime_error& exception) { // soci::mysql_soci_error is a subclass of std::runtime_error
 			stop = steady_clock::now();
@@ -82,11 +80,10 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 				        (mysqlError->err_num_ == 4031 || mysqlError->err_num_ == 2014 || mysqlError->err_num_ == 2006);
 
 				// Log with warning level if the error can be fixed quickly (retryable error).
-				(retry ? SLOGW : SLOGE) << FUNC_LOG_PREFIX << "MySQL error after " << duration(start, stop).count()
-				                        << "ms [" << mysqlError->err_num_ << "]: " << exception.what();
+				(retry ? LOGW : LOGE) << "MySQL error after " << duration(start, stop).count() << "ms ["
+				                      << mysqlError->err_num_ << "]: " << exception.what();
 			} else {
-				SLOGE << FUNC_LOG_PREFIX << "Error after " << duration(start, stop).count()
-				      << "ms: " << exception.what();
+				LOGE << "Error after " << duration(start, stop).count() << "ms: " << exception.what();
 			}
 
 			// Always try to reconnect even if we know that we will not try to execute the SQL query again.
@@ -94,7 +91,7 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 			reconnectSession(*session);
 
 			if (retry) {
-				SLOGI << FUNC_LOG_PREFIX << "Trying SQL query execution again";
+				LOGI << "Trying SQL query execution again";
 				continue;
 			}
 			throw DatabaseException();
@@ -104,15 +101,15 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 
 void SociHelper::reconnectSession(soci::session& session) {
 	try {
-		SLOGI << FUNC_LOG_PREFIX << "Closing and reconnecting session...";
+		LOGI << "Closing and reconnecting session...";
 		session.close();
 		session.reconnect();
-		SLOGI << FUNC_LOG_PREFIX << "Session [" << session.get_backend_name() << "] successfully reconnected";
+		LOGI << "Session [" << session.get_backend_name() << "] successfully reconnected";
 	} catch (const soci::mysql_soci_error& exception) {
-		SLOGE << FUNC_LOG_PREFIX << "MySQL error [" << exception.err_num_ << "]: " << exception.what();
+		LOGE << "MySQL error [" << exception.err_num_ << "]: " << exception.what();
 		throw DatabaseException();
 	} catch (const exception& exception) {
-		SLOGE << FUNC_LOG_PREFIX << "Error: " << exception.what();
+		LOGE << "Error: " << exception.what();
 		throw DatabaseException();
 	}
 }

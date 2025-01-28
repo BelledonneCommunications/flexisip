@@ -172,12 +172,15 @@ class OnContactRegisteredListener : public ContactRegisteredListener,
                                     public ContactUpdateListener,
                                     public std::enable_shared_from_this<OnContactRegisteredListener> {
 	friend class ModuleRouter;
+
+	static constexpr std::string_view mLogPrefix{"OnContactRegisteredListener"};
+
 	ModuleRouter* mModule;
 	sofiasip::Home mHome;
 
 public:
 	OnContactRegisteredListener(ModuleRouter* module) : mModule(module) {
-		SLOGD << "OnContactRegisteredListener created";
+		LOGD << "Listener created";
 	}
 
 	~OnContactRegisteredListener() = default;

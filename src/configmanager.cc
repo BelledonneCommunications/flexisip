@@ -65,7 +65,7 @@ bool GenericEntry::onConfigStateChanged(const ConfigValue& conf, ConfigState sta
 	// Get first available listener
 	if (mConfigListener == nullptr) {
 		if (getParent() == nullptr) {
-			SLOGE << conf.getName() << " doesn't implement a config change listener.";
+			LOGE << conf.getName() << " does not implement a config change listener";
 			return false;
 		}
 		return getParent()->onConfigStateChanged(conf, state);
@@ -85,7 +85,7 @@ bool GenericEntry::onConfigStateChanged(const ConfigValue& conf, ConfigState sta
 				dumper.setMode(FileConfigDumper::Mode::CurrentValue);
 				cfgfile << dumper;
 				cfgfile.close();
-				SLOGI << "New configuration wrote to " << configFile;
+				LOGI << "New configuration wrote to " << configFile;
 				rootStruct->setCommittedChange(true);
 			}
 			break;
@@ -324,8 +324,8 @@ void ConfigValue::setDefault(const string& value) {
 
 const string& ConfigValue::get() const {
 	if (mIsDefault && mFallback && !mFallback->isDefault()) {
-		SLOGW << "'" << getCompleteName() << "' is not set but its old name is, falling back on '"
-		      << mFallback->getCompleteName() << "'";
+		LOGW << "'" << getCompleteName() << "' is not set but its old name is, falling back on '"
+		     << mFallback->getCompleteName() << "'";
 
 		return mFallback->get();
 	}
@@ -1216,7 +1216,7 @@ bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState 
 			break;
 		case ConfigState::Committed:
 			if (mDirtyConfig) {
-				SLOGI << "Scheduling server restart to apply new config.";
+				LOGI << "Scheduling server restart to apply new config";
 				mDirtyConfig = false;
 				mNeedRestart = true;
 			}
@@ -1226,7 +1226,7 @@ bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState 
 }
 
 int ConfigManager::load(const std::string& configfile) {
-	SLOGI << "Loading config file " << configfile;
+	LOGI << "Loading config file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
 
@@ -1250,7 +1250,7 @@ void ConfigManager::applyOverrides(bool strict) {
 		auto val = mConfigRoot.getDeep<ConfigValue>(key, strict);
 		if (val) val->set(value);
 		else {
-			SLOGUE << "Skipping config override " << key << ":" << value;
+			LOGUE << "Skipping config override " << key << ":" << value;
 		}
 	}
 }
@@ -1307,7 +1307,7 @@ void FileConfigReader::checkUnread() {
 				}
 			}
 		}
-		SLOGE << ss.str();
+		LOGE_CTX(mLogPrefix, "checkUnread") << ss.str();
 	};
 	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
 	if (mHaveUnreads)
@@ -1331,10 +1331,10 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 		if (val) {
 			if (cv->isDeprecated()) {
 				const auto& info = cv->getDeprecationInfo();
-				SLOGW << "Deprecated parameter:\n"
-				      << "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
-				      << "\t" << info.getText() << "\n"
-				      << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
+				LOGW << "Deprecated parameter:\n"
+				     << "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
+				     << "\t" << info.getText() << "\n"
+				     << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
 			}
 			try {
 				cv->set(val);

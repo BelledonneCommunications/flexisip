@@ -55,6 +55,7 @@ public:
 
 private:
 	static constexpr int kMaxTrials = 1;
+	static constexpr std::string_view mLogPrefix{"SociHelper"};
 
 	/**
 	 * Try to close then reconnect the given session.
@@ -64,7 +65,6 @@ private:
 	 */
 	void reconnectSession(soci::session& session);
 
-	const std::string mLogPrefix = "SociHelper";
 	soci::connection_pool& mPool;
 };
 

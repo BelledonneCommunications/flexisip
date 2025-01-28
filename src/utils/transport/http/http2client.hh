@@ -206,7 +206,7 @@ private:
 		return nghttp2_session_send(mHttpSession.get());
 	}
 	// Send pending frames for all streams, if any. Log on error
-	void resumeSending(const std::string& logPrefix);
+	void resumeSending();
 
 	void setState(State state) noexcept;
 
@@ -217,7 +217,7 @@ private:
 	sofiasip::SuRoot& mRoot;
 	su_wait_t mPollInWait{0};
 	sofiasip::Timer mIdleTimer;
-	std::string mLogPrefix{};
+	std::string mLogPrefix;
 	int32_t mLastSID{-1};
 
 	using NgHttp2SessionPtr = std::unique_ptr<nghttp2_session, NgHttp2SessionDeleter>;

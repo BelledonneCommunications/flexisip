@@ -86,13 +86,13 @@ void PushParamList::constructFromContactParameters(const string& provider,
 	auto splitPrId = StringUtils::split(customPrId, "&");
 	if (splitPrId.size() != 2 ||
 	    any_of(splitPrId.cbegin(), splitPrId.cend(), [](const auto& prId) { return prId.empty(); })) {
-		SLOGD << "Bad pn-prid format : " << customPrId;
+		LOGD << "Bad pn-prid format: " << customPrId;
 		return;
 	}
 
 	const auto lastDotIndex = customParam.find_last_of('.');
 	if (lastDotIndex == string::npos) {
-		SLOGD << "Bad pn-param format (no dot) : " << customParam;
+		LOGD << "Bad pn-param format (no dot): " << customParam;
 		return;
 	}
 	const auto paramSuffix = customParam.substr(lastDotIndex + 1);
@@ -108,11 +108,12 @@ void PushParamList::constructFromContactParameters(const string& provider,
 				mPushParams.emplace_back(StringUtils::split(splitPrId.at(0), ":").at(0), pushKitParam);
 			}
 		} catch (const PushNotificationException& exception) {
-			SLOGD << exception.what() << " pn-prid[" << customPrId << "] pn-param[" << customParam << "]";
+			LOGD << "Caught an exception: " << exception.what() << " pn-prid[" << customPrId << "] pn-param["
+			     << customParam << "]";
 			mPushParams.clear();
 		}
 	} else {
-		SLOGD << "Bad pn-param format : " << customParam;
+		LOGD << "Bad pn-param format: " << customParam;
 		return;
 	}
 }

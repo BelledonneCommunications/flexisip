@@ -155,7 +155,7 @@ Record::Config::Config(const ConfigManager& cfg) {
 }
 
 ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
-	SLOGI << "Updating record with contact " << *ec;
+	LOGI << "Updating record with contact " << *ec;
 	ChangeSet changeSet{};
 
 	if (mConfig.assumeUniqueDomains() && mIsDomain) {
@@ -181,10 +181,10 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 			/* fallthrough */
 			case ContactMatch::ForceErase:
 				if (remove) {
-					SLOGI << "Removing " << *existing;
+					LOGI << "Removing " << *existing;
 					changeSet.mDelete.push_back(existing);
 				} else {
-					SLOGI << "Updating " << *existing;
+					LOGI << "Updating " << *existing;
 
 					// Carry over existing key
 					// (otherwise the contact would get duplicated instead of updated)
@@ -213,13 +213,13 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, const ExtendedContact& neo) {
 	if (existing.mPushParamList == neo.mPushParamList) {
 		if (existing.getRegisterTime() <= neo.getRegisterTime()) {
-			SLOGD << "Removing contact [" << existing.contactId() << "] with identical push params : new["
-			      << neo.mPushParamList << "], current[" << existing.mPushParamList << "]";
+			LOGD << "Removing contact [" << existing.contactId() << "] with identical push params : new["
+			     << neo.mPushParamList << "], current[" << existing.mPushParamList << "]";
 			return ContactMatch::ForceErase;
 		} else {
-			SLOGW << "Inserted contact has the same push parameters as another more recent contact, this should not "
-			         "happen. (existing: "
-			      << existing.getRegisterTime() << " ≮ new: " << neo.getRegisterTime() << ")";
+			LOGW << "Inserted contact has the same push parameters as another more recent contact, this should not "
+			        "happen (existing: "
+			     << existing.getRegisterTime() << " ≮ new: " << neo.getRegisterTime() << ")";
 		}
 	}
 
@@ -232,7 +232,7 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 
 	if (!followRfc3261) { // RFC 5626
 		if (existing.mKey == neo.mKey) {
-			SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on unique id";
+			LOGD << "Contact [" << existing << "] matches [" << neo << "] based on unique id";
 			return ContactMatch::EraseAndNotify;
 		}
 
@@ -242,7 +242,7 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 	// "For each address, the registrar […] searches the list of current bindings using the URI comparison rules."
 	// (RFC 3261 §10.3)
 	if (SipUri(existing.mSipContact->m_url).rfc3261Compare(neo.mSipContact->m_url)) {
-		SLOGD << "Contact [" << existing << "] matches [" << neo << "] based on URI";
+		LOGD << "Contact [" << existing << "] matches [" << neo << "] based on URI";
 		// "If the binding does exist, the registrar checks the Call-ID value. If the Call-ID value in the existing
 		// binding differs from the Call-ID value in the request, the binding MUST be removed [or] updated. If they are
 		// the same, the registrar compares the CSeq value. If the value is higher than that of the existing binding, it
@@ -252,12 +252,12 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 		};
 
 		// "If not, the update MUST be aborted and the request fails." (RFC 3261 §10.3)
-		SLOGD << "Existing contact [" << existing << "] has a higher CSeq value than request [" << neo << "]";
+		LOGD << "Existing contact [" << existing << "] has a higher CSeq value than request [" << neo << "]";
 		THROW_LINE(InvalidCSeq);
 	}
 
 	if (existing.isExpired()) {
-		SLOGD << "Cleaning expired contact '" << existing.contactId() << "'";
+		LOGD << "Cleaning expired contact '" << existing.contactId() << "'";
 		return ContactMatch::ForceErase;
 	}
 
@@ -290,7 +290,7 @@ void Record::eliminateAmbiguousContacts(list<unique_ptr<ExtendedContact>>& exten
 			    find_if(extendedContacts.begin(), extendedContacts.end(),
 			            [&exc](const auto& exc2) -> bool { return exc != exc2 && exc->mKey == exc2->mKey; });
 			if (duplicate != extendedContacts.end()) {
-				SLOGD << "Eliminating duplicate contact with unique id [" << exc->mKey.str() << "]";
+				LOGD << "Eliminating duplicate contact with unique id [" << exc->mKey.str() << "]";
 				it = extendedContacts.erase(it);
 				continue;
 			}
@@ -304,7 +304,7 @@ ChangeSet Record::removeInvalidContacts() {
 		auto contact = *it;
 		if (!isValidSipUri(contact->mSipContact->m_url)) {
 			changeSet.mDelete.push_back(contact);
-			SLOGD << "Removing invalid contact: " << contact->urlAsString();
+			LOGD << "Removing invalid contact: " << contact->urlAsString();
 			it = mContacts.erase(it);
 		} else ++it;
 	}
@@ -357,7 +357,7 @@ ChangeSet Record::update(const sip_t* sip,
 
 	changeSet += applyMaxAor();
 
-	SLOGD << *this;
+	LOGD << *this;
 	return changeSet;
 }
 
@@ -375,12 +375,12 @@ void Record::update(const ExtendedContactCommon& ecc,
 	url_t* sipUri = url_make(home.home(), sipuri);
 
 	if (!sipUri) {
-		SLOGE << "Record::update(): could not build sip uri.";
+		LOGE << "Could not build SIP URI";
 		return;
 	}
 	sip_contact_t* contact = sip_contact_create(home.home(), (url_string_t*)sipUri, nullptr);
 	if (!contact) {
-		SLOGE << "Record::update(): could not build contact.";
+		LOGE << "Could not build contact";
 		return;
 	}
 
@@ -390,32 +390,32 @@ void Record::update(const ExtendedContactCommon& ecc,
 	try {
 		insertOrUpdateBinding(std::move(exct), listener.get());
 	} catch (const InvalidRequestError& e) {
-		SLOGE << "Unexpected exception encountered when deserializing " << sipuri << ": " << e.what();
+		LOGE << "Unexpected exception encountered when deserializing " << sipuri << ": " << e.what();
 	}
 	applyMaxAor();
 
-	SLOGD << *this;
+	LOGD << *this;
 }
 
 /* This function is designed for non-regression tests. It is not performant and non-exhaustive in the compararison */
 bool Record::isSame(const Record& other) const {
-	SLOGD << "Comparing " << this << "\nwith " << other;
+	LOGD << "Comparing " << this << "\nwith " << other;
 	if (!getAor().compareAll(other.getAor())) {
-		SLOGD << "Record::isSame(): aors differ.";
+		LOGD << "AORs differ";
 		return false;
 	}
 	if (getExtendedContacts().size() != other.getExtendedContacts().size()) {
-		SLOGD << "Record::isSame(): number of extended contacts differ.";
+		LOGD << "Number of extended contacts differ";
 		return false;
 	}
 	for (const auto& exc : getExtendedContacts()) {
 		const auto& otherExc = extractContactByUniqueId(exc->mKey);
 		if (otherExc == nullptr) {
-			SLOGD << "Record::isSame(): no contact with uniqueId [" << exc->mKey.str() << "] in other record.";
+			LOGD << "No contact with uniqueId [" << exc->mKey.str() << "] in other record";
 			return false;
 		}
 		if (!exc->isSame(*otherExc)) {
-			SLOGD << "Record::isSame(): contacts differ: [" << *this << "] <> [" << *otherExc << "]";
+			LOGD << "Contacts differ: [" << *this << "] <> [" << *otherExc << "]";
 			return false;
 		}
 	}
@@ -425,7 +425,7 @@ bool Record::isSame(const Record& other) const {
 void Record::print(ostream& stream) const {
 	time_t now = getCurrentTime();
 	time_t offset = getTimeOffset(now);
-	stream << "Record[" << this << "] {\n";
+	stream << mLogPrefix << "[" << this << "] {\n";
 	stream << "mContacts (" << mContacts.size() << "): [";
 	for (const auto& contact : mContacts) {
 		stream << "\n\t";

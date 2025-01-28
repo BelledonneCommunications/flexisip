@@ -37,7 +37,7 @@ void ServiceServer::init() {
 				const auto stop = high_resolution_clock::now();
 				const auto duration = duration_cast<milliseconds>(stop - start);
 				if (duration > 50ms)
-					SLOGD << "ServiceServer::_run() - took more than 50ms [" << duration.count() << " ms].";
+					LOGD_CTX(mLogPrefix, "run") << "Took more than 50ms [" << duration.count() << " ms]";
 			}
 		});
 	}

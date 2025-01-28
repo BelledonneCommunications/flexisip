@@ -35,7 +35,8 @@ std::string readData(const http_payload_t* httpPayload) {
 }
 } // namespace
 
-Http1Client::Http1Client(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {
+Http1Client::Http1Client(const std::shared_ptr<sofiasip::SuRoot>& root)
+    : mRoot{root}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Http1Client")) {
 	mNthEngine.reset(nth_engine_create(mRoot->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END()));
 }
 
@@ -53,7 +54,8 @@ void Http1Client::sendNextRequest() {
 		if (status != 200) {
 			const auto phrase = rep && rep->http_status ? rep->http_status->st_phrase : "";
 			const auto url = sofiasip::Url(nth_client_url(client));
-			SLOGE << "Server replies " << status << " " << phrase << " to " << url.str() << " GET request.";
+			LOGE_CTX(thiz->mLogPrefix, "sendNextRequest")
+			    << "Server replies " << status << " " << phrase << " to " << url.str() << " GET request";
 			thiz->onRequestResponse("");
 			return 1;
 		}
@@ -65,7 +67,7 @@ void Http1Client::sendNextRequest() {
 	mNthClient.reset(nth_client_tcreate(mNthEngine.get(), callback, this, HTTP_METHOD_GET,
 	                                    URL_STRING_MAKE(pendingReq.url.data()), TAG_END()));
 	if (!mNthClient) {
-		SLOGW << "Failed to send GET request to " << pendingReq.url;
+		LOGW << "Failed to send GET request to " << pendingReq.url;
 		onRequestResponse("");
 	}
 }

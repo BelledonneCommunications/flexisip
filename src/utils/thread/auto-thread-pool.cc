@@ -36,9 +36,9 @@ std::unique_ptr<AutoThreadPool>& AutoThreadPool::getDbThreadPool(unsigned int ma
 }
 
 AutoThreadPool::AutoThreadPool(unsigned int maxThreadNumber, unsigned int maxQueueSize)
-    : BaseThreadPool(maxQueueSize, maxThreadNumber) {
-	SLOGD << "AutoThreadPool [" << this << "]: init with " << maxThreadNumber << " threads and queue size "
-	      << maxQueueSize;
+    : BaseThreadPool(maxQueueSize, maxThreadNumber),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "AutoThreadPool")) {
+	LOGD << "Init with " << maxThreadNumber << " threads and queue size " << maxQueueSize;
 
 	// Run the thread that will start every other thread
 	mainThread = make_unique<thread>(&AutoThreadPool::_run, this);
@@ -49,7 +49,7 @@ AutoThreadPool::~AutoThreadPool() {
 }
 
 void AutoThreadPool::stop() {
-	SLOGD << "AutoThreadPool [" << this << "]: shutdown";
+	LOGD << "Shutdown";
 	// Scope based locking.
 	{
 		// Put unique lock on task mutex.
@@ -79,7 +79,7 @@ void AutoThreadPool::_run() {
 			// Wait until queue is not empty or termination signal is sent, respecting max thread count.
 			mCondition.wait(lock, [this]() {
 				if (mCurrentThreadNumber == mMaxThreadNumber) {
-					SLOGD << "AutoThreadPool::_run : notified but max thread number is reached.";
+					LOGD_CTX(mLogPrefix, "run") << "Notified but max thread number is reached";
 				}
 				return (!mTasks.empty() && mCurrentThreadNumber < mMaxThreadNumber) ||
 				       (mCurrentThreadNumber < mMaxThreadNumber && mState == Shutdown);
@@ -87,7 +87,7 @@ void AutoThreadPool::_run() {
 
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (mTasks.empty() && mState == Shutdown) {
-				SLOGD << "AutoThreadPool [" << this << "]: terminate threads";
+				LOGD << "Terminate threads";
 				mCondition.wait(lock, [this]() { return mCurrentThreadNumber == 0; });
 				return;
 			}
@@ -104,9 +104,7 @@ void AutoThreadPool::_run() {
 				// Remove task from the queue.
 				mTasks.pop();
 			} catch (const system_error& e) {
-				SLOGE << "AutoThreadPool[" << this << "] - error while creating a new thread (n°"
-				      << mCurrentThreadNumber << "), with error :\n"
-				      << e.what();
+				LOGE << "Error while creating new thread (n°" << mCurrentThreadNumber << "), with error: " << e.what();
 				lock.unlock();
 
 				// Hard wait to allow task thread to run before new task thread creation

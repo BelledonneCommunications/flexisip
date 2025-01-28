@@ -104,8 +104,9 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
                       router->mStats.mCountMessageForks,
                       msgPriority,
                       isRestored),
-      mKind(*getEvent().getMsgSip()->getSip(), msgPriority) {
-	SLOGD << "New ForkMessageContext " << this;
+      mKind(*getEvent().getMsgSip()->getSip(), msgPriority),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkMessageContext")) {
+	LOGD << "New instance";
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
@@ -119,7 +120,7 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
 }
 
 ForkMessageContext::~ForkMessageContext() {
-	SLOGD << "Destroy ForkMessageContext " << this;
+	LOGD << "Destroy instance";
 }
 
 bool ForkMessageContext::shouldFinish() {
@@ -145,7 +146,7 @@ void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch, Resp
 		log->setCompleted();
 		respEv.writeLog(log);
 	} catch (const exception& e) {
-		SLOGE << "Could not log response from recipient: " << e.what();
+		LOGE << "Could not log response from recipient: " << e.what();
 	}
 }
 
@@ -167,7 +168,7 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 	ForkContextBase::onResponse(br, event);
 
 	const auto code = event.getMsgSip()->getSip()->sip_status->st_status;
-	SLOGD << "ForkMessageContext[" << this << "]::onResponse()";
+	LOGD << "Running " << __func__;
 
 	if (code > 100 && code < 300) {
 		if (code >= 200) {
@@ -211,7 +212,7 @@ void ForkMessageContext::acceptMessage() {
 }
 
 void ForkMessageContext::onAcceptanceTimer() {
-	SLOGD << "ForkMessageContext[" << this << "]::onAcceptanceTimer()";
+	LOGD << "Running " << __func__;
 	acceptMessage();
 	mAcceptanceTimer.reset(nullptr);
 }
@@ -224,7 +225,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 			removeBranch(tmp);
 		}
 	} else {
-		SLOGD << errorLogPrefix() << "No unique id found for contact";
+		LOGD << "Fork error: no unique id found for contact";
 	}
 	if (mKind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		// Pass event ID to the conference server to get it back when it dispatches the message to the intended
@@ -239,10 +240,10 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 void ForkMessageContext::onNewRegister(const SipUri& dest,
                                        const std::string& uid,
                                        const std::shared_ptr<ExtendedContact>& newContact) {
-	SLOGD << "ForkMessageContext[" << this << "] onNewRegister";
+	LOGD << "Running " << __func__;
 	const auto& sharedListener = mListener.lock();
 	if (!sharedListener) {
-		SLOGE << "ForkMessageContext[" << this << "] onNewRegister: listener missing, this should not happened";
+		LOGE << "Listener missing, this should not happened";
 		return;
 	}
 
@@ -257,19 +258,19 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 		if (br == nullptr) {
 			// this is a new client instance. The message needs
 			// to be delivered.
-			SLOGD << "ForkMessageContext::onNewRegister(): this is a new client instance.";
+			LOGD << "This is a new client instance";
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		} else if (br->needsDelivery(FinalStatusMode::ForkLate)) {
 			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
 			// needs to be delivered.
-			SLOGD << "ForkMessageContext::onNewRegister(): this client is reconnecting but was not delivered before.";
+			LOGD << "This client is reconnecting but was not delivered before";
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		}
 	}
 	// in all other case we can accept a new transaction only if the message hasn't been delivered already.
-	SLOGD << "Message has been delivered " << mDeliveredCount << " times.";
+	LOGD << "Message has been delivered " << mDeliveredCount << " times";
 
 	if (mDeliveredCount == 0) {
 		sharedListener->onDispatchNeeded(shared_from_this(), newContact);

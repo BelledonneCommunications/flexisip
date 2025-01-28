@@ -185,6 +185,7 @@ private:
 	std::unique_ptr<RequestSipEvent> mEvent;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	std::weak_ptr<StatPair> mStatCounter;
+    std::string mLogPrefix;
 };
 
 } // namespace flexisip

@@ -91,6 +91,9 @@ public:
 	static sip_via_t* getLastVia(sip_t* sip);
 	/* same as url_make() from sofia, but unsure that the url is sip or sips; otherwise return NULL*/
 	static url_t* sipUrlMake(su_home_t* home, const char* value);
+
+private:
+	static constexpr std::string_view mLogPrefix{"ModuleToolbox"};
 };
 
 } // namespace flexisip

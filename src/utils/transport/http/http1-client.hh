@@ -68,6 +68,7 @@ private:
 	std::unique_ptr<nth_engine_t, nthEngineDeleter> mNthEngine;
 	std::queue<PendingRequest> mPendingRequests;
 	std::unique_ptr<nth_client_t, nthClientDeleter> mNthClient;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

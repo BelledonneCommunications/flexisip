@@ -74,8 +74,6 @@ private:
 	 */
 	void handlePingReply(const redis::async::Reply& reply);
 
-	std::string logPrefix() const;
-
 	// First members so they are destructed last and still valid when destructing the redis sessions
 	const sofiasip::SuRoot& mRoot;
 	SoftPtr<SessionListener> mSessionListener{};
@@ -93,6 +91,7 @@ private:
 	std::optional<sofiasip::Timer> mReplicationTimer{std::nullopt};
 	std::optional<sofiasip::Timer> mReconnectTimer{std::nullopt};
 	std::chrono::system_clock::time_point mLastReconnectRotation{};
+    std::string mLogPrefix;
 };
 
 } // namespace flexisip::redis::async

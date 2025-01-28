@@ -120,6 +120,7 @@ protected:
 	int mRetryCounter{0};
 	std::chrono::seconds mRetryInterval{0};
 	bool mToTagEnabled{false};
+	std::string mLogPrefix;
 
 	// Friendship
 	friend class pushnotification::Strategy; /**< Allow Strategy to invoke notifyPushSent(). */

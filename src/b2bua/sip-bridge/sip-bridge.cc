@@ -142,7 +142,7 @@ AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolC
 		    .against(
 		        [this, &loader, &capPoolName = poolName](config::v2::StaticLoader& staticPool) {
 			        if (staticPool.empty()) {
-				        LOGD_CTX(this->mLogPrefix, "getAccountPoolsFromConfig")
+				        LOGD_CTX(mLogPrefix, "getAccountPoolsFromConfig")
 				            << "AccountPool '" << capPoolName
 				            << "' has no `accounts` and will not be used to bridge calls";
 			        }

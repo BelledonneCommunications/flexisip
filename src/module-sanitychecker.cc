@@ -36,7 +36,7 @@ public:
 
 		const char* error = checkHeaders(sip);
 		if (error) {
-			SLOGD << "Rejecting request because of " << error;
+			LOGD << "Rejecting request because of " << error;
 			ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 			return {};
 		}

@@ -33,7 +33,7 @@ std::unique_ptr<RequestSipEvent> ModuleCapabilities::onRequest(std::unique_ptr<R
 		//   3. the domain and port of the Request-URI match this proxy.
 		const auto* requestURI = msg->getSip()->sip_request->rq_url;
 		if (msg->getSip()->sip_route == nullptr && requestURI->url_user == nullptr && mAgent->isUs(requestURI, true)) {
-			SLOGI << "Replying to OPTIONS request";
+			LOGI << "Replying to OPTIONS request";
 			ev->reply(SIP_200_OK, TAG_END());
 			return {};
 		}

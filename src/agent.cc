@@ -222,7 +222,7 @@ void Agent::initializePreferredRoute() {
 
 		auto pos = internalTransport.find("\%auto");
 		if (pos != string::npos) {
-			SLOGW << "using '\%auto' token in '" << internalTransportParam->getCompleteName() << "' is deprecated";
+			LOGW << "Using '\%auto' token in '" << internalTransportParam->getCompleteName() << "' is deprecated";
 			char result[NI_MAXHOST] = {0};
 			// Currently only IpV4
 			if (bctbx_get_local_ip_for(AF_INET, nullptr, 0, result, sizeof(result)) != 0)
@@ -234,7 +234,7 @@ void Agent::initializePreferredRoute() {
 		try {
 			SipUri url{internalTransport};
 			mPreferredRouteV4 = url_hdup(&mHome, url.get());
-			SLOGI << "Agent's preferred IP for internal routing find: v4: " << internalTransport;
+			LOGI << "Agent preferred IP for internal routing find: v4: " << internalTransport;
 		} catch (const sofiasip::InvalidUrlError& e) {
 			throw runtime_error{"invalid URI in '" + internalTransportParam->getCompleteName() + "': " + e.getReason()};
 		}
@@ -254,7 +254,7 @@ void Agent::loadModules() {
 
 #if ENABLE_MDNS
 static void mDnsRegisterCallback(void* data, int error) {
-	if (error != 0) SLOGE << "Error while registering a mDNS service";
+	if (error != 0) LOGE << "Error while registering a mDNS service";
 }
 #endif
 
@@ -277,7 +277,7 @@ void Agent::startMdns() {
 		char hostname[HOST_NAME_MAX];
 		int err = gethostname(hostname, sizeof(hostname));
 		if (err != 0) {
-			SLOGE << "Cannot retrieve machine hostname.";
+			LOGE << "Cannot retrieve machine hostname";
 		} else {
 			int prio;
 			if (mdnsPrioMin == mdnsPrioMax) {
@@ -285,10 +285,10 @@ void Agent::startMdns() {
 			} else {
 				/* Randomize the priority */
 				prio = belle_sip_random() % (mdnsPrioMax - mdnsPrioMin + 1) + mdnsPrioMin;
-				SLOGD << "Multicast DNS services will be started with priority: " << prio;
+				LOGD << "Multicast DNS services will be started with priority: " << prio;
 			}
 
-			SLOGD << "Registering multicast DNS services.";
+			LOGD << "Registering multicast DNS services";
 			for (tport_t* tport = tport_primaries(nta_agent_tports(mAgent)); tport != NULL; tport = tport_next(tport)) {
 				char registerName[512];
 				const tp_name_t* name = tport_name(tport);
@@ -379,7 +379,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		int err;
 		su_home_t home;
 		su_home_init(&home);
-		SLOGI << "Enabling transport " << uri;
+		LOGI << "Enabling transport " << uri;
 		if (uri.find("sips") == 0) {
 			unsigned int tls_policy = 0;
 
@@ -433,8 +433,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 						                                lastUpdateTime);
 					} catch (exception& e) {
 						// This should not happen as the file are already tested while adding a transport.
-						SLOGE << "Failed to get the last modification time for the certificate files of transport "
-						      << url.str() << ". It will not be periodically updated. Cause: " << e.what();
+						LOGE << "Failed to get the last modification time for the certificate files of transport "
+						     << url.str() << ", it will not be periodically updated (cause: " << e.what() << ")";
 					}
 				}
 			}
@@ -506,14 +506,14 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		if (tport_is_tcp(tport)) tport_set_max_read_size(tport, tcpMaxReadSize->read());
 	}
 
-	SLOGI << "Agent 's primaries are:";
+	LOGI << "Agent primaries are:";
 	for (tport_t* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
 		auto name = tport_name(tport);
 		char url[512];
 		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
 		         name->tpn_host);
 		su_md5_strupdate(&ctx, url);
-		SLOGI << "\t" << url;
+		LOGI << "\t" << url;
 		auto isIpv6 = strchr(name->tpn_host, ':') != nullptr;
 
 		// The public and bind values are different
@@ -564,7 +564,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		}
 	}
 	if (mPublicResolvedIpV6.empty()) {
-		SLOGW << "This flexisip instance has no public IPv6 address detected.";
+		LOGW << "This flexisip instance has no public IPv6 address detected";
 	}
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
@@ -575,9 +575,9 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		digest[16] = '\0'; // keep half of the digest, should be enough
 		// compute a network wide unique id
 		mUniqueId = digest;
-		SLOGD << "Generating the unique ID: " << mUniqueId;
+		LOGD << "Generating the unique ID: " << mUniqueId;
 	} else {
-		SLOGD << "Static unique ID: " << mUniqueId;
+		LOGD << "Static unique ID: " << mUniqueId;
 	}
 
 	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()) {
@@ -585,9 +585,9 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		                    mPublicIpV6 + "). Cannot continue."};
 	}
 
-	SLOGI << "Agent public hostname/ip: v4:" << mPublicIpV4 << " v6:" << mPublicIpV6;
-	SLOGI << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
-	SLOGI << "Agent's _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
+	LOGI << "Agent public hostname/ip: v4:" << mPublicIpV4 << " v6:" << mPublicIpV6;
+	LOGI << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
+	LOGI << "Agent _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
 
 	startLogWriter();
 
@@ -606,14 +606,14 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 	}
 	if (!tlsConfigInfoFromConf.certifFile.empty()) {
 		tlsConfigInfoFromConf.mode = TlsMode::NEW;
-		SLOGI << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
-		      << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file [" << tlsConfigInfoFromConf.certifCaFile
-		      << "].";
+		LOGI << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
+		     << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file [" << tlsConfigInfoFromConf.certifCaFile
+		     << "]";
 
 	} else {
 		tlsConfigInfoFromConf.mode = TlsMode::OLD;
-		SLOGI << "Main tls certs dir : " << tlsConfigInfoFromConf.certifDir
-		      << " . Be careful you are using a deprecated config tls-certificates-dir.";
+		LOGI << "Main tls certs dir: " << tlsConfigInfoFromConf.certifDir
+		     << " (be careful you are using a deprecated config tls-certificates-dir)";
 	}
 
 	return tlsConfigInfoFromConf;
@@ -639,7 +639,7 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 	GenericStruct* global = cr->get<GenericStruct>("global");
 	const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
 	for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
-		SLOGI << "Loading [" << pluginName << "] plugin...";
+		LOGI << "Loading [" << pluginName << "] plugin...";
 		PluginLoader pluginLoader(pluginDir + "/lib" + pluginName + ".so");
 		const ModuleInfoBase* moduleInfo = pluginLoader.getModuleInfo();
 		if (!moduleInfo) {
@@ -655,7 +655,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<AuthDb>& authDb,
              const std::shared_ptr<RegistrarDb>& registrarDb)
     : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mTimer(mRoot, 5s) {
-	SLOGD << "New Agent[" << this << "]";
+	LOGD << "New Agent instance: " << this;
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	GenericStruct* cr = cm->getRoot();
 
@@ -666,8 +666,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	// Instantiate the modules.
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
-		SLOGI << "Creating module instance of "
-		      << "[" << moduleInfo->getModuleName() << "].";
+		LOGI << "Creating module instance of [" << moduleInfo->getModuleName() << "]";
 		mModules.push_back(moduleInfo->create(this));
 	}
 
@@ -681,14 +680,14 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		struct ifaddrs* ifa = net_addrs;
 		while (ifa != nullptr) {
 			if (ifa->ifa_netmask != nullptr && ifa->ifa_addr != nullptr) {
-				SLOGI << "New network: " << Network::print(ifa);
+				LOGI << "New network: " << Network::print(ifa);
 				mNetworks.emplace_front(ifa);
 			}
 			ifa = ifa->ifa_next;
 		}
 		freeifaddrs(net_addrs);
 	} else {
-		SLOGE << "Can't find interface addresses: " << strerror(err);
+		LOGE << "Cannot find interface addresses: " << strerror(err);
 	}
 
 	/**
@@ -706,9 +705,9 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->setConfigListener(this);
 	mAliases = mConfigManager->getGlobal()->get<ConfigStringList>("aliases")->read();
-	SLOGI << "List of host aliases:";
+	LOGI << "List of host aliases:";
 	for (const auto& alias : mAliases) {
-		SLOGI << alias;
+		LOGI << "\t" << alias;
 	}
 
 	mUseRfc2543RecordRoute = mConfigManager->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
@@ -723,7 +722,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 }
 
 Agent::~Agent() {
-	SLOGD << "Destroy Agent[" << this << "]";
+	LOGD << "Destroy Agent instance: " << this;
 #if ENABLE_MDNS
 	for (belle_sip_mdns_register_t* reg : mMdnsRegisterList) {
 		belle_sip_mdns_unregister(reg);
@@ -756,11 +755,11 @@ string Agent::getPreferredRoute() const {
 }
 
 bool Agent::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
-	SLOGI << "Configuration of agent changed for key " << conf.getName() << " to " << conf.get();
+	LOGI << "Configuration of agent changed for key " << conf.getName() << " to " << conf.get();
 
 	if (conf.getName() == "aliases" && state == ConfigState::Committed) {
 		mAliases = ((ConfigStringList*)(&conf))->read();
-		SLOGD << "Global aliases updated";
+		LOGD << "Global aliases updated";
 	}
 	return true;
 }
@@ -791,13 +790,13 @@ string Agent::computeResolvedPublicIp(const string& host, int family) const {
 		if (err == 0) {
 			return ip;
 		} else {
-			SLOGE << "getnameinfo error: " << gai_strerror(err) << " for host [" << host << "]";
+			LOGE << "getnameinfo error: " << gai_strerror(err) << " for host [" << host << "]";
 		}
 	} else {
 		if (!((UriUtils::isIpv4Address(dest) && family != AF_INET) ||
 		      (UriUtils::isIpv6Address(dest) && family != AF_INET6))) {
-			SLOGW << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host << "] and family=[" << family
-			      << "]";
+			LOGW << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host << "] and family=[" << family
+			     << "]";
 		}
 	}
 	return "";
@@ -823,7 +822,7 @@ pair<string, string> Agent::getPreferredIp(const string& destination) const {
 		}
 		freeaddrinfo(result);
 	} else {
-		SLOGE << "getPreferredIp() getaddrinfo() error while resolving '" << dest << "': " << gai_strerror(err);
+		LOGE << "getPreferredIp() getaddrinfo() error while resolving '" << dest << "': " << gai_strerror(err);
 	}
 	isIpv6 = strchr(dest.c_str(), ':') != NULL;
 	if (getResolvedPublicIp(true).empty()) {
@@ -872,7 +871,7 @@ Agent::Network::Network(const struct ifaddrs* ifaddr) {
 	if (err == 0) {
 		mIP = string(ipAddress);
 	} else {
-		SLOGE << "getnameinfo error: " << strerror(errno);
+		LOGE << "getnameinfo error: " << strerror(errno);
 	}
 }
 
@@ -921,15 +920,13 @@ string Agent::Network::print(const struct ifaddrs* ifaddr) {
 
 	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tAddress: "
-		   << "(Error)";
+		ss << "\tAddress: (Error)";
 	} else {
 		ss << "\tAddress: " << result;
 	}
 	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tMask: "
-		   << "(Error)";
+		ss << "\tMask: (Error)";
 	} else {
 		ss << "\tMask: " << result;
 	}
@@ -1025,50 +1022,55 @@ Agent::doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, con
 void Agent::sendRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 	const auto msgSip = ev->getMsgSip();
 	SipLogContext ctx(msgSip);
-	sip_t* sip = msgSip->getSip();
-	const sip_request_t* req = sip->sip_request;
-	const url_t* from_url = sip->sip_from ? sip->sip_from->a_url : NULL;
+	auto* sip = msgSip->getSip();
+	const auto* req = sip->sip_request ? sip->sip_request->rq_method_name : "<unknown>";
+	const auto cSeq = sip->sip_cseq ? to_string(sip->sip_cseq->cs_seq) : "<unknown>";
+	const auto callId = sip->sip_call_id ? sip->sip_call_id->i_id : "<unknown>";
+	const auto* from = sip->sip_from ? url_as_string(ev->getHome(), sip->sip_from->a_url) : "<unknown>";
+	const auto* to = sip->sip_to ? url_as_string(ev->getHome(), sip->sip_to->a_url) : "<unknown>";
 
-	SLOGI << "Received new SIP message (request) " << (req ? req->rq_method_name : "<unknown SIP method name>")
-	      << " from " << (from_url ? url_as_string(ev->getHome(), from_url) : "<unknown expeditor>");
-    SLOGD << "Message:\n" << msgSip->msgAsString();
+	LOGI << "Received SIP request [" << ev.get() << "] " << req << " (" << cSeq << " - " << callId << ") from " << from
+	     << " to " << to;
+	LOGD << "Message:\n" << *msgSip;
 
-	switch (req->rq_method) {
-		case sip_method_register:
-			++*mCountIncomingRegister;
-			break;
-		case sip_method_invite:
-			++*mCountIncomingInvite;
-			break;
-		case sip_method_ack:
-			++*mCountIncomingAck;
-			break;
-		case sip_method_info:
-			++*mCountIncomingInfo;
-			break;
-		case sip_method_cancel:
-			++*mCountIncomingCancel;
-			break;
-		case sip_method_bye:
-			++*mCountIncomingBye;
-			break;
-		case sip_method_message:
-			++*mCountIncomingMessage;
-			break;
-		case sip_method_notify:
-			++*mCountIncomingNotify;
-			break;
-		case sip_method_options:
-			++*mCountIncomingOptions;
-			break;
-		default:
-			if (strcmp(req->rq_method_name, "DECLINE") == 0) {
-				++*mCountIncomingDecline;
-			} else {
-				++*mCountIncomingReqUnknown;
-			}
-			break;
-	}
+	if (const auto* sipRequest = sip->sip_request) {
+		switch (sipRequest->rq_method) {
+			case sip_method_register:
+				++*mCountIncomingRegister;
+				break;
+			case sip_method_invite:
+				++*mCountIncomingInvite;
+				break;
+			case sip_method_ack:
+				++*mCountIncomingAck;
+				break;
+			case sip_method_info:
+				++*mCountIncomingInfo;
+				break;
+			case sip_method_cancel:
+				++*mCountIncomingCancel;
+				break;
+			case sip_method_bye:
+				++*mCountIncomingBye;
+				break;
+			case sip_method_message:
+				++*mCountIncomingMessage;
+				break;
+			case sip_method_notify:
+				++*mCountIncomingNotify;
+				break;
+			case sip_method_options:
+				++*mCountIncomingOptions;
+				break;
+			default:
+				if (strcmp(sipRequest->rq_method_name, "DECLINE") == 0) {
+					++*mCountIncomingDecline;
+				} else {
+					++*mCountIncomingReqUnknown;
+				}
+				break;
+		}
+	} else LOGD << "Could not increment counters for the current SIP request: sipRequest pointer is empty";
 
 	doSendEvent(std::move(ev), mModules.begin(), mModules.end());
 }
@@ -1076,65 +1078,70 @@ void Agent::sendRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 unique_ptr<ResponseSipEvent> Agent::sendResponseEvent(unique_ptr<ResponseSipEvent>&& ev) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
-		SLOGI << "Skipping incoming message on expired agent";
+		LOGI << "Skipping incoming message on expired agent";
 		return {};
 	}
 	const auto msgSip = ev->getMsgSip();
 	SipLogContext ctx(msgSip);
 
-	const auto* sipStatus = msgSip->getSip()->sip_status;
-	const auto* sipTo = msgSip->getSip()->sip_to; // a response is associated to the 'To' header
-	SLOGI << "Received new SIP message (response) "
-	      << (sipStatus ? to_string(sipStatus->st_status) : "<unknown SIP status code>") << " "
-	      << (sipStatus ? sipStatus->st_phrase : "<unknown SIP status phrase>") << " from "
-	      << (sipTo ? url_as_string(&mHome, sipTo->a_url) : "<unknown expeditor>");
-    SLOGD << "Message:\n" << msgSip->msgAsString();
+	const auto* sip = msgSip->getSip();
+	const auto status = sip->sip_status ? to_string(sip->sip_status->st_status) : "<unknown>";
+	const auto* phrase = sip->sip_status ? sip->sip_status->st_phrase : "<unknown>";
+	const auto cSeq = sip->sip_cseq ? to_string(sip->sip_cseq->cs_seq) : "<unknown>";
+	const auto callId = sip->sip_call_id ? sip->sip_call_id->i_id : "<unknown>";
+	const auto* from = sip->sip_from ? url_as_string(ev->getHome(), sip->sip_from->a_url) : "<unknown>";
+	const auto* to = sip->sip_to ? url_as_string(ev->getHome(), sip->sip_to->a_url) : "<unknown>";
 
-	sip_t* sip = msgSip->getSip();
-	switch (sip->sip_status->st_status) {
-		case 100:
-			++*mCountIncoming100;
-			break;
-		case 101:
-			++*mCountIncoming101;
-			break;
-		case 180:
-			++*mCountIncoming180;
-			break;
-		case 200:
-			++*mCountIncoming200;
-			break;
-		case 202:
-			++*mCountIncoming202;
-			break;
-		case 401:
-			++*mCountIncoming401;
-			break;
-		case 404:
-			++*mCountIncoming404;
-			break;
-		case 407:
-			++*mCountIncoming407;
-			break;
-		case 408:
-			++*mCountIncoming408;
-			break;
-		case 486:
-			++*mCountIncoming486;
-			break;
-		case 487:
-			++*mCountIncoming487;
-			break;
-		case 488:
-			++*mCountIncoming488;
-			break;
-		case 603:
-			++*mCountIncoming603;
-			break;
-		default:
-			++*mCountIncomingResUnknown;
-			break;
-	}
+	LOGI << "Received SIP response [" << ev.get() << "] " << status << " " << phrase << " (" << cSeq << " - " << callId
+	     << ") from " << from << " to " << to;
+	LOGD << "Message:\n" << *msgSip;
+
+	if (const auto* sipStatus = sip->sip_status) {
+		switch (sipStatus->st_status) {
+			case 100:
+				++*mCountIncoming100;
+				break;
+			case 101:
+				++*mCountIncoming101;
+				break;
+			case 180:
+				++*mCountIncoming180;
+				break;
+			case 200:
+				++*mCountIncoming200;
+				break;
+			case 202:
+				++*mCountIncoming202;
+				break;
+			case 401:
+				++*mCountIncoming401;
+				break;
+			case 404:
+				++*mCountIncoming404;
+				break;
+			case 407:
+				++*mCountIncoming407;
+				break;
+			case 408:
+				++*mCountIncoming408;
+				break;
+			case 486:
+				++*mCountIncoming486;
+				break;
+			case 487:
+				++*mCountIncoming487;
+				break;
+			case 488:
+				++*mCountIncoming488;
+				break;
+			case 603:
+				++*mCountIncoming603;
+				break;
+			default:
+				++*mCountIncomingResUnknown;
+				break;
+		}
+	} else LOGD << "Could not increment counters for the current SIP response: sipStatus pointer is empty";
 
 	return doSendEvent(std::move(ev), mModules.begin(), mModules.end());
 }
@@ -1142,8 +1149,8 @@ unique_ptr<ResponseSipEvent> Agent::sendResponseEvent(unique_ptr<ResponseSipEven
 void Agent::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	SLOGI << "Inject request SIP event [" << ev.get() << "] after " << currModule->getModuleName();
-    SLOGD << "Message:\n" << ev->getMsgSip()->msgAsString();
+	LOGI << "Inject SIP request [" << ev.get() << "] after " << currModule->getModuleName();
+	LOGD << "Message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	doSendEvent(std::move(ev), ++it, mModules.cend());
@@ -1153,8 +1160,8 @@ void Agent::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
 unique_ptr<ResponseSipEvent> Agent::injectResponseEvent(unique_ptr<ResponseSipEvent>&& ev) {
 	SipLogContext ctx{ev->getMsgSip()};
 	auto currModule = ev->mCurrModule.lock(); // Used to be a basic pointer
-	SLOGI << "Inject response SIP event [" << ev.get() << "] after " << currModule->getModuleName();
-    SLOGD << "Message:\n" << ev->getMsgSip()->msgAsString();
+	LOGI << "Inject SIP response [" << ev.get() << "] after " << currModule->getModuleName();
+	LOGD << "Message:\n" << *ev->getMsgSip();
 	ev->restartProcessing();
 	auto it = find(mModules.cbegin(), mModules.cend(), currModule);
 	ev = doSendEvent(std::move(ev), ++it, mModules.cend());
@@ -1185,7 +1192,7 @@ tport_t* Agent::getIncomingTport(const msg_t* orig) {
 int Agent::onIncomingMessage(msg_t* msg, const sip_t* sip) {
 	if (mTerminating) {
 		// Avoid throwing a bad weak pointer on GatewayAdapter destruction
-		SLOGI << "Skipping incoming message on expired agent";
+		LOGI << "Skipping incoming message on expired agent";
 		return -1;
 	}
 	// Assuming sip is derived from msg
@@ -1310,16 +1317,18 @@ void Agent::applyProxyToProxyTransportSettings(tport_t* tp) {
 		unsigned int currentKeepAliveInterval = 0;
 		tport_get_params(tp, TPTAG_KEEPALIVE_REF(currentKeepAliveInterval), TAG_END());
 		if (currentKeepAliveInterval != mProxyToProxyKeepAliveInterval) {
-			SLOGD << "Applying proxy to proxy keepalive interval for tport [" << tp << "]";
+			LOGD << "Applying proxy to proxy keepalive interval for tport [" << tp << "]";
 			tport_set_params(tp, TPTAG_KEEPALIVE(mProxyToProxyKeepAliveInterval), TAG_END());
 		}
 	}
 }
 
-const std::string Agent::sEventSeparator(110, '=');
+const string Agent::sEventSeparator(100, '-');
 
 void Agent::printEventTailSeparator() {
-	SLOGD << "\n\n" << sEventSeparator << '\n';
+	STREAM_LOG(BCTBX_LOG_DEBUG);
+	STREAM_LOG(BCTBX_LOG_MESSAGE) << sEventSeparator;
+	STREAM_LOG(BCTBX_LOG_DEBUG);
 }
 
 bool Agent::shouldUseRfc2543RecordRoute() const {
@@ -1337,12 +1346,12 @@ void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
 	try {
 		lastModificationTime = getLastCertUpdate(tlsTpInfo.tlsConfigInfo);
 	} catch (exception& e) {
-		SLOGW << "Failed to get last modification date of the certificates for TLS transport " << tlsTpInfo.url.str()
-		      << ": " << e.what();
+		LOGW << "Failed to get last modification date of the certificates for TLS transport " << tlsTpInfo.url.str()
+		     << ": " << e.what();
 		return;
 	}
 	if (lastModificationTime > tlsTpInfo.lastModificationTime) {
-		SLOGI << "Updating TLS certificate for transport: " << tlsTpInfo.url.str();
+		LOGI << "Updating TLS certificate for transport: " << tlsTpInfo.url.str();
 		if (nta_agent_update_tport_certificates(
 		        mAgent, reinterpret_cast<const url_string_t*>(tlsTpInfo.url.get()),
 		        TPTAG_CERTIFICATE_FILE(tlsTpInfo.tlsConfigInfo.certifFile.c_str()),
@@ -1350,9 +1359,9 @@ void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
 		        TPTAG_CERTIFICATE_CA_FILE(tlsTpInfo.tlsConfigInfo.certifCaFile.c_str()),
 		        TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(tlsTpInfo.ciphers.c_str()),
 		        TPTAG_TLS_VERIFY_POLICY(tlsTpInfo.policy), TAG_END())) {
-			SLOGE << "Error while updating the TLS transport. " << tlsTpInfo.url.str()
-			      << " cert: " << tlsTpInfo.tlsConfigInfo.certifFile
-			      << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey << " (" << strerror(errno) << ").";
+			LOGE << "Error while updating the TLS transport: " << tlsTpInfo.url.str()
+			     << " cert: " << tlsTpInfo.tlsConfigInfo.certifFile
+			     << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey << " (" << strerror(errno) << ")";
 		}
 
 		tlsTpInfo.lastModificationTime = lastModificationTime;

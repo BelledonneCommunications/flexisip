@@ -72,6 +72,8 @@ private:
 		AuthDbBackend::PwList mPasswords;
 	};
 
+	static constexpr std::string_view mLogPrefix{"FlexisipAuthModule"};
+
 	void onChallenge(AuthStatus& as, auth_challenger_t const* ach) override;
 	void makeChallenge(AuthStatus& as, const auth_challenger_t& ach);
 

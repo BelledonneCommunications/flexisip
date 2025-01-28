@@ -40,9 +40,10 @@ public:
 	};
 
 private:
+	static constexpr std::string_view mLogPrefix{"SnmpHandlerVisitor"};
+
 	netsnmp_agent_request_info* mReqInfo;
 	netsnmp_request_info* mRequests;
-
 	int mSnmpErrCode;
 };
 

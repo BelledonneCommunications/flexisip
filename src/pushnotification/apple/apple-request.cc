@@ -31,7 +31,8 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>& info) : Request{pType, info} {
+AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>& info)
+    : Request{pType, info}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "AppleRequest")) {
 	const auto& deviceToken = getDeviceToken();
 	const auto& msg_id = mPInfo->mAlertMsgId;
 	const auto& arg = mPInfo->mFromName.empty() ? mPInfo->mFromUri : mPInfo->mFromName;
@@ -124,9 +125,9 @@ AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>
 		}
 	}
 
-	SLOGD << "Apple PNR " << this << " payload is :\n" << mBody.data();
+	LOGD << "Payload is:\n" << mBody.data();
 	if (nwritten < 0 || unsigned(nwritten) >= mBody.size()) {
-		SLOGE << "Apple PNR " << this << " cannot be sent because the payload size is higher than " << MAXPAYLOAD_SIZE;
+		LOGE << "Cannot be sent because the payload size is higher than " << MAXPAYLOAD_SIZE;
 		mBody.clear();
 		return;
 	}
@@ -140,10 +141,10 @@ AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>
 	auto collapseId = mPInfo->mCollapseId;
 	if (collapseId.size() > 64) {
 		ostringstream msg{};
-		msg << "apns-collapse-id value exceeds 64 characters. Shrinking '" << collapseId << "' -> '";
+		msg << "Value of apns-collapse-id exceeds 64 characters, shrinking '" << collapseId << "' -> '";
 		collapseId.resize(64);
 		msg << collapseId << "'";
-		SLOGW << msg.str();
+		LOGW << msg.str();
 	}
 
 	HttpHeaders headers{};
@@ -157,7 +158,7 @@ AppleRequest::AppleRequest(PushType pType, const std::shared_ptr<const PushInfo>
 	if (!collapseId.empty()) headers.add("apns-collapse-id", collapseId);
 	this->setHeaders(headers);
 
-	SLOGD << "Apple PNR  " << this << " https headers are :\n" << headers.toString();
+	LOGD << "Https headers are:\n" << headers.toString();
 }
 
 std::string AppleRequest::getTeamId() const noexcept {

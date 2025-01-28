@@ -45,7 +45,7 @@ Client::Client(const shared_ptr<ClientFactory>& factory, const shared_ptr<const 
 
 void Client::subscribe() {
 	if (mSubscribeEvent) {
-		SLOGE << "Already subscribed.";
+		LOGE << "Already subscribed";
 		return;
 	}
 	mSubscribeEvent = mFactory->getCore()->createSubscribe(mTo, "reg", 600);
@@ -56,7 +56,7 @@ void Client::subscribe() {
 
 void Client::unsubscribe() {
 	if (!mSubscribeEvent) {
-		SLOGE << "No subscribe.";
+		LOGE << "No subscribe";
 		return;
 	}
 	mSubscribeEvent->unsetData(eventKey);
@@ -145,9 +145,9 @@ void ClientFactory::onSubscriptionStateChanged([[maybe_unused]] const std::share
 		Client& client = linphoneEvent->getData<Client>(Client::eventKey);
 		client.onSubscriptionStateChanged(state);
 	} catch (const std::out_of_range&) {
-		SLOGW << "ClientFactory::onSubscriptionStateChanged: Client disconnected";
+		LOGW << "Client disconnected";
 	} catch (const std::exception& exc) {
-		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
+		LOGE << "Caught exception: " << exc.what();
 	}
 }
 
@@ -159,9 +159,9 @@ void ClientFactory::onNotifyReceived([[maybe_unused]] const shared_ptr<Core>& lc
 		Client& client = lev->getData<Client>(Client::eventKey);
 		client.onNotifyReceived(body);
 	} catch (const std::out_of_range&) {
-		SLOGW << "ClientFactory::onSubscriptionStateChanged: Client disconnected";
+		LOGW << "Client disconnected";
 	} catch (const std::exception& exc) {
-		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
+		LOGE << "Caught exception: " << exc.what();
 	}
 }
 

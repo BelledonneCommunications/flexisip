@@ -157,6 +157,7 @@ private:
 	std::shared_ptr<tport_t> mIncomingTport;
 	std::weak_ptr<IncomingAgent> mIncomingAgent;
 	std::weak_ptr<OutgoingAgent> mOutgoingAgent;
+    std::string mLogPrefix;
 };
 
 class RequestSipEvent : public SipEvent {
@@ -245,6 +246,7 @@ private:
 	// keep ownership of transactions
 	std::shared_ptr<IncomingTransaction> mIncomingTransactionOwner;
 	std::shared_ptr<OutgoingTransaction> mOutgoingTransactionOwner;
+    std::string mLogPrefix;
 };
 
 class ResponseSipEvent : public SipEvent {
@@ -267,6 +269,7 @@ public:
 private:
 	void checkContentLength(const std::shared_ptr<MsgSip>& msg, const sip_via_t* via);
 	bool mPopVia; // set to true if the response comes from an outgoing transaction.
+    std::string mLogPrefix;
 };
 
 } // namespace flexisip

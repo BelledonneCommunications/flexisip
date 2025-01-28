@@ -47,6 +47,8 @@ struct UacRegister {
 	void send(const sip_contact_t* contact);
 
 private:
+	static constexpr std::string_view mLogPrefix{"UacRegister"};
+
 	void authenticate(const msg_param_t* au_params);
 };
 

@@ -180,9 +180,9 @@ bool Authentication::tlsClientCertificatePostCheck(RequestSipEvent& ev) {
 	if (mRequiredSubjectCheckSet) {
 		bool ret = ev.matchIncomingSubject(&mRequiredSubject);
 		if (ret) {
-			SLOGD << "TLS certificate postcheck successful.";
+			LOGD << "TLS certificate post check successful";
 		} else {
-			SLOGUE << "TLS certificate postcheck failed.";
+			LOGUE << "TLS certificate post check failed";
 		}
 		return ret;
 	}
@@ -216,18 +216,18 @@ bool Authentication::handleTlsClientAuthentication(RequestSipEvent& ev) {
 			searched = url_as_string(home.home(), &searched_uri);
 
 			if (ev.findIncomingSubject(searched)) {
-				SLOGD << "Allowing message from matching TLS certificate";
+				LOGD << "Allowing message from matching TLS certificate";
 				goto postcheck;
 			} else if (sip->sip_request->rq_method != sip_method_register &&
 			           (res = findIncomingSubjectInTrusted(ev, fromDomain))) {
-				SLOGD << "Found trusted TLS certificate " << res;
+				LOGD << "Found trusted TLS certificate " << res;
 				goto postcheck;
 			} else {
 				/*case where the certificate would work for the entire domain*/
 				searched_uri.url_user = NULL;
 				searched = url_as_string(home.home(), &searched_uri);
 				if (ev.findIncomingSubject(searched)) {
-					SLOGD << "Found TLS certificate for entire domain";
+					LOGD << "Found TLS certificate for entire domain";
 					goto postcheck;
 				}
 			}
@@ -237,14 +237,14 @@ bool Authentication::handleTlsClientAuthentication(RequestSipEvent& ev) {
 				searched_uri.url_host = sip->sip_request->rq_url->url_host;
 				searched = url_as_string(home.home(), &searched_uri);
 				if (ev.findIncomingSubject(searched)) {
-					SLOGD << "Found trusted TLS certificate for the request URI domain";
+					LOGD << "Found trusted TLS certificate for the request URI domain";
 					goto postcheck;
 				}
 			}
 
-			SLOGD << "Client is presenting a TLS certificate not matching its identity.";
-			SLOGUE << "Registration failure for " << url_as_string(home.home(), from)
-			       << ", TLS certificate doesn't match its identity";
+			LOGD << "Client is presenting a TLS certificate not matching its identity";
+			LOGUE << "Registration failure for " << url_as_string(home.home(), from)
+			      << ", TLS certificate doesn't match its identity";
 			goto bad_certificate;
 
 		postcheck:
@@ -286,10 +286,10 @@ unique_ptr<ResponseSipEvent> Authentication::onResponse(unique_ptr<ResponseSipEv
 			fam->challenge(*as, &mProxyChallenger);
 			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t*)sip, (msg_header_t*)as->response());
 		} else {
-			SLOGD << "Authentication module for " << as->realm() << " not found";
+			LOGD << "Authentication module for " << as->realm() << " not found";
 		}
 	} else {
-		SLOGD << "not handled newauthon401";
+		LOGD << "not handled newauthon401";
 	}
 	return std::move(ev);
 }
@@ -305,7 +305,7 @@ void Authentication::onIdle() {
 bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	if (conf.getName() == "trusted-hosts" && state == ConfigState::Committed) {
 		loadTrustedHosts((const ConfigStringList&)conf);
-		SLOGI << "Trusted hosts updated";
+		LOGI << "Trusted hosts updated";
 		return true;
 	} else {
 		return Module::doOnConfigStateChanged(conf, state);
@@ -321,7 +321,7 @@ FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& doma
 	    new FlexisipAuthModule(mAuthDb.db(), getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
 	authModule->setOnPasswordFetchResultCb(
 	    [this](bool passFound) { passFound ? mCountPassFound++ : mCountPassNotFound++; });
-	SLOGI << "Found auth domain: " << domain;
+	LOGI << "Found auth domain: " << domain;
 	return authModule;
 }
 

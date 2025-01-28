@@ -209,6 +209,8 @@ struct ExtendedContact {
 	bool isSame(const ExtendedContact& otherContact) const;
 
 private:
+	static constexpr std::string_view mLogPrefix{"ExtendedContact"};
+
 	time_t mRegisterTime{0};
 	std::string mMessageExpiresName;
 	std::chrono::seconds mExpires{0};        // Standard SIP expires= field

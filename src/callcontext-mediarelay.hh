@@ -108,6 +108,7 @@ private:
 	bool mIsEstablished;
 	bool mForcePublicAddressEnabled = false;
 	std::string mSendRecvTrId{};
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

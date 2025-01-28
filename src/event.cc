@@ -37,8 +37,9 @@ using namespace std;
 namespace flexisip {
 
 SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<MsgSip>& msgSip, tport_t* tport)
-    : mCurrModule{}, mMsgSip(msgSip), mState(State::STARTED) {
-	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
+    : mCurrModule{}, mMsgSip(msgSip), mState(State::STARTED),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SipEvent")) {
+	LOGD << "New instance with msg: " << msgSip->getMsg();
 	mIncomingAgent = inAgent;
 	mAgent = inAgent->getAgent();
 	auto it = dynamic_pointer_cast<IncomingTransaction>(inAgent);
@@ -53,8 +54,9 @@ SipEvent::SipEvent(const shared_ptr<IncomingAgent>& inAgent, const shared_ptr<Ms
 }
 
 SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<MsgSip>& msgSip, tport_t* tport)
-    : mCurrModule{}, mMsgSip(msgSip), mState(State::STARTED) {
-	SLOGD << "New SipEvent " << this << " - msg " << msgSip->getMsg();
+    : mCurrModule{}, mMsgSip(msgSip), mState(State::STARTED),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SipEvent")) {
+	LOGD << "New instance with msg: " << msgSip->getMsg();
 	mOutgoingAgent = outAgent;
 	mAgent = outAgent->getAgent();
 	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(outAgent);
@@ -74,14 +76,14 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<M
 SipEvent::SipEvent(const SipEvent& sipEvent)
     : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mAgent(sipEvent.mAgent),
       mState(sipEvent.mState), mIncomingTport(sipEvent.mIncomingTport), mIncomingAgent(sipEvent.mIncomingAgent),
-      mOutgoingAgent(sipEvent.mOutgoingAgent) {
-	SLOGD << "New SipEvent " << this << " with state " << stateStr(mState);
+      mOutgoingAgent(sipEvent.mOutgoingAgent), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SipEvent")) {
+	LOGD << "New instance with state: " << stateStr(mState);
 	// make a copy of the msgsip when the SipEvent is copy-constructed
 	mMsgSip = make_shared<MsgSip>(*sipEvent.mMsgSip);
 }
 
 SipEvent::~SipEvent() {
-	SLOGD << "Destroy SipEvent " << this;
+	LOGD << "Destroy instance";
 }
 
 void SipEvent::flushLog() {
@@ -105,21 +107,21 @@ void SipEvent::setEventLog(const std::shared_ptr<EventLog>& log) {
 }
 
 void SipEvent::terminateProcessing() {
-	SLOGD << "Terminate SipEvent " << this;
+	LOGD << "Terminate event";
 	if (mState == State::STARTED || mState == State::SUSPENDED) {
 		mState = State::TERMINATED;
 		flushLog();
 		mIncomingAgent.reset();
 		mOutgoingAgent.reset();
 	} else if (mState == State::TERMINATED) {
-		SLOGE << "SipEvent::terminateProcessing(): event is already terminated. Please fix your code.";
+		LOGE << "Event is already terminated, please fix your code";
 	} else {
 		throw FlexisipException{"can't terminateProcessing, wrong state " + stateStr(mState)};
 	}
 }
 
 void SipEvent::suspendProcessing() {
-	SLOGD << "Suspend SipEvent " << this;
+	LOGD << "Suspend event";
 	if (mState == State::STARTED) {
 		mState = State::SUSPENDED;
 	} else {
@@ -128,7 +130,7 @@ void SipEvent::suspendProcessing() {
 }
 
 void SipEvent::restartProcessing() {
-	SLOGD << "Restart SipEvent " << this;
+	LOGD << "Restart event";
 	if (mState == State::SUSPENDED) {
 		mState = State::STARTED;
 	} else {
@@ -187,7 +189,7 @@ void RequestSipEvent::checkContentLength(const url_t* url) {
 			/*if there is no Content-length and we are switching to a non-udp transport, we have to add a
 			 * Content-Length, as requested by
 			 * RFC3261 for reliable transports*/
-			SLOGD << "Automatically adding content-length because going to a stream-based transport";
+			LOGD << "Automatically adding content-length because going to a stream-based transport";
 			sip->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
 		}
 	}
@@ -206,11 +208,13 @@ std::unique_ptr<RequestSipEvent> RequestSipEvent::makeRestored(std::shared_ptr<I
 RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
                                  const shared_ptr<MsgSip>& msgSip,
                                  tport_t* tport)
-    : SipEvent(incomingAgent, msgSip, tport), mRecordRouteAdded(false) {
+    : SipEvent(incomingAgent, msgSip, tport), mRecordRouteAdded(false),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RequestSipEvent")) {
 }
 
 RequestSipEvent::RequestSipEvent(const RequestSipEvent& sipEvent)
-    : SipEvent(sipEvent), mRecordRouteAdded(sipEvent.mRecordRouteAdded) {
+    : SipEvent(sipEvent), mRecordRouteAdded(sipEvent.mRecordRouteAdded),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RequestSipEvent")) {
 	// transaction ownership is not copied, only the event that created it owns it
 }
 
@@ -218,32 +222,38 @@ void RequestSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 
 	if (auto sharedOutgoingAgent = getOutgoingAgent()) {
-		const auto* sipRequest = msg->getSip()->sip_request;
-		SLOGI << "Sending request SIP message "
-		      << (sipRequest ? sipRequest->rq_method_name : "<unknown SIP method name>") << " to "
-		      << (u ? url_as_string(msg->getHome(), (url_t const*)u) : "<unknown destination>");
-		SLOGD << "Message:\n" << msg->msgAsString();
+		const auto* sip = msg->getSip();
+		const auto* req = sip->sip_request ? sip->sip_request->rq_method_name : "<unknown>";
+		const auto cSeq = sip->sip_cseq ? to_string(sip->sip_cseq->cs_seq) : "<unknown>";
+		const auto callId = sip->sip_call_id ? sip->sip_call_id->i_id : "<unknown>";
+		const auto* from = sip->sip_from ? url_as_string(msg->getHome(), sip->sip_from->a_url) : "<unknown>";
+		const auto* to = sip->sip_to ? url_as_string(msg->getHome(), sip->sip_to->a_url) : "<unknown>";
+
+		LOGI << "Sending SIP request " << req << " (" << cSeq << " - " << callId << ") from " << from << " to " << to;
+		LOGD << "Message:\n" << *msg;
 
 		ta_list ta;
 		ta_start(ta, tag, value);
 		sharedOutgoingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		SLOGI << "The Request SIP message is not send";
+		LOGI << "The SIP request is not sent";
 	}
+
 	terminateProcessing();
 }
 
 void RequestSipEvent::reply(int status, char const* phrase, tag_type_t tag, tag_value_t value, ...) {
 	if (auto sharedIncomingAgent = getIncomingAgent()) {
-		SLOGI << "Replying request SIP message: " << status << " " << phrase;
+		LOGI << "Replying to SIP request: " << status << " " << phrase;
 		ta_list ta;
 		ta_start(ta, tag, value);
 		sharedIncomingAgent->reply(getMsgSip(), status, phrase, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		SLOGI << "The Request SIP message is not replied";
+		LOGI << "Reply to SIP request is not sent";
 	}
+
 	if (status >= 200) terminateProcessing();
 }
 
@@ -331,12 +341,12 @@ bool RequestSipEvent::matchIncomingSubject(regex_t* regex) {
 
 	for (int k = 0; k < count; ++k) {
 		const char* subj = su_strlst_item(strlst, k);
-		SLOGD << "matchIncomingSubject " << subj;
+		LOGD << "matchIncomingSubject " << subj;
 		int res = regexec(regex, subj, 0, NULL, 0);
 		if (res == 0) {
 			return true;
 		} else if (res != REG_NOMATCH) {
-			SLOGE << "RequestSipEvent::matchIncomingSubject() regexec() returned unexpected " << res;
+			LOGE << "regexec() returned unexpected " << res;
 		}
 	}
 	return false;
@@ -359,13 +369,16 @@ const char* RequestSipEvent::findIncomingSubject(const list<string>& in) const {
 ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent,
                                    const shared_ptr<MsgSip>& msgSip,
                                    tport_t* tport)
-    : SipEvent(outgoingAgent, msgSip, tport), mPopVia(false) {
+    : SipEvent(outgoingAgent, msgSip, tport), mPopVia(false),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ResponseSipEvent")) {
 
 	// we pop the via if sending through transaction
 	mPopVia = dynamic_pointer_cast<OutgoingTransaction>(getOutgoingAgent()) != nullptr;
 }
 
-ResponseSipEvent::ResponseSipEvent(const ResponseSipEvent& sipEvent) : SipEvent(sipEvent), mPopVia(sipEvent.mPopVia) {
+ResponseSipEvent::ResponseSipEvent(const ResponseSipEvent& sipEvent)
+    : SipEvent(sipEvent), mPopVia(sipEvent.mPopVia),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ResponseSipEvent")) {
 }
 
 void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const sip_via_t* via) {
@@ -373,7 +386,7 @@ void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const s
 		/*if there is no Content-length and we are switching to a non-udp transport, we have to add a Content-Length, as
 		 * requested by
 		 * RFC3261 for reliable transports*/
-		SLOGD << "Automatically adding content-length because going to a stream-based transport";
+		LOGD << "Automatically adding content-length because going to a stream-based transport";
 		msg->getSip()->sip_content_length = sip_content_length_make(mMsgSip->getHome(), "0");
 	}
 }
@@ -381,27 +394,32 @@ void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const s
 void ResponseSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	if (auto sharedIncomingAgent = getIncomingAgent()) {
-		bool via_popped = false;
+		bool viaPopped = false;
 		if (mPopVia && msg == mMsgSip) {
 			sip_via_remove(msg->getMsg(), msg->getSip());
-			via_popped = true;
+			viaPopped = true;
 		}
 		if (msg->getSip()->sip_via) checkContentLength(msg, msg->getSip()->sip_via);
-		const auto* sipStatus = msg->getSip()->sip_status;
-		const auto* sipTo = msg->getSip()->sip_to;
-		SLOGI << "Sending response" << (via_popped ? " (via popped)" : "") << " "
-		      << (sipStatus ? to_string(sipStatus->st_status) : "<unknown SIP status code>") << " '"
-		      << (sipStatus ? sipStatus->st_phrase : "<unknown SIP status phrase>") << "' intended to "
-		      << (sipTo ? url_as_string(sofiasip::Home{}.home(), sipTo->a_url) : "<unknown destination>");
-		SLOGD << "Message:\n" << msg->msgAsString();
+		const auto* sip = msg->getSip();
+		const auto status = sip->sip_status ? to_string(sip->sip_status->st_status) : "<unknown>";
+		const auto* phrase = sip->sip_status ? sip->sip_status->st_phrase : "<unknown>";
+		const auto cSeq = sip->sip_cseq ? to_string(sip->sip_cseq->cs_seq) : "<unknown>";
+		const auto callId = sip->sip_call_id ? sip->sip_call_id->i_id : "<unknown>";
+		const auto* from = sip->sip_from ? url_as_string(msg->getHome(), sip->sip_from->a_url) : "<unknown>";
+		const auto* to = sip->sip_to ? url_as_string(msg->getHome(), sip->sip_to->a_url) : "<unknown>";
+
+		LOGI << "Sending SIP response " << (viaPopped ? "(via popped) " : "") << status << " " << phrase << " (" << cSeq
+		     << " - " << callId << ") from " << from << " to " << to;
+		LOGD << "Message:\n" << *msg;
 
 		ta_list ta;
 		ta_start(ta, tag, value);
 		sharedIncomingAgent->send(msg, u, ta_tags(ta));
 		ta_end(ta);
 	} else {
-		SLOGI << "The response is discarded.";
+		LOGI << "The SIP response is not sent (discarded)";
 	}
+
 	terminateProcessing();
 }
 

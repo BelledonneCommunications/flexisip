@@ -73,11 +73,11 @@ ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
                       router->mStats.mCountCallForks,
                       priority),
       mLog{getEvent().getEventLog<CallLog>()} {
-	SLOGD << "New ForkCallContext " << this;
+	LOGD << "New instance";
 }
 
 ForkCallContext::~ForkCallContext() {
-	SLOGD << "Destroy ForkCallContext " << this;
+	LOGD << "Destroy instance";
 	if (mIncoming) {
 		getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
 	}
@@ -151,7 +151,7 @@ const int* ForkCallContext::getUrgentCodes() {
 }
 
 void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
-	SLOGD << "ForkCallContext[" << this << "]::onResponse()";
+	LOGD << "Running" << __func__;
 
 	ForkContextBase::onResponse(br, event);
 
@@ -220,7 +220,7 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
                                     const std::string& uid,
                                     const std::shared_ptr<ExtendedContact>& newContact) {
 
-	SLOGD << "ForkCallContext[" << this << "]::onNewRegister()";
+	LOGD << "Running" << __func__;
 	const auto& sharedListener = mListener.lock();
 	if (!sharedListener) {
 		return;
@@ -273,7 +273,7 @@ bool ForkCallContext::isRingingSomewhere() const {
 }
 
 void ForkCallContext::onShortTimer() {
-	SLOGD << "ForkCallContext [" << this << "]: time to send urgent replies";
+	LOGD << "Time to send urgent replies";
 
 	/*first stop the timer, it has to be one shot*/
 	mShortTimer.reset();

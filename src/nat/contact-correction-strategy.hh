@@ -50,6 +50,8 @@ public:
 		const std::string& getContactCorrectionParameter() const;
 
 	private:
+		static constexpr std::string_view mLogPrefix{"ContactCorrectionStrategy::Helper"};
+
 		std::string mContactCorrectionParameter;
 	};
 
@@ -64,6 +66,8 @@ public:
 	void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"ContactCorrectionStrategy"};
+
 	Helper mHelper;
 };
 

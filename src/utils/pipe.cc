@@ -46,7 +46,7 @@ Descriptor& Descriptor::operator=(Descriptor&& other) {
 Descriptor::~Descriptor() {
 	if (mDesc < 0) return;
 	if (::close(mDesc) < 0) {
-		SLOGE << "Failed to close " << *this << ": " << SysErr();
+		LOGE << "Failed to close " << *this << ": " << SysErr();
 	}
 }
 std::optional<SysErr> Descriptor::duplicateTo(RawPipeDesc other) {

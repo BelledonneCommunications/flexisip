@@ -45,6 +45,9 @@ protected:
 	static constexpr std::size_t DEVICE_BINARY_SIZE = 32;
 
 	friend class AppleClient;
+
+private:
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip::pushnotification

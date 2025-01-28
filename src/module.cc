@@ -44,6 +44,7 @@ Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
       mModuleConfig(ag->getConfigManager().getRoot()->get<GenericStruct>("module::" + getModuleConfigName())),
       mFilter(new ConfigEntryFilter(*mModuleConfig)) {
 	mModuleConfig->setConfigListener(this);
+	mLogPrefix = "module::" + getModuleName();
 }
 
 Module::~Module() = default;
@@ -54,8 +55,8 @@ bool Module::isEnabled() const {
 
 bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) {
 	bool dirtyConfig = false;
-	SLOGI << "Configuration of module " << mInfo->getModuleName() << " changed for key " << conf.getName() << " to "
-	      << conf.get();
+	LOGI << "Configuration of module " << mInfo->getModuleName() << " changed for key " << conf.getName() << " to "
+	     << conf.get();
 	switch (state) {
 		case ConfigState::Check:
 			return isValidNextConfig(conf);
@@ -67,7 +68,7 @@ bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) 
 			break;
 		case ConfigState::Committed:
 			if (dirtyConfig) {
-				SLOGI << "Reloading config of module " << mInfo->getModuleName();
+				LOGI << "Reloading configuration of module " << mInfo->getModuleName();
 				reload();
 				dirtyConfig = false;
 			}
@@ -106,8 +107,9 @@ void Module::reload() {
 
 unique_ptr<RequestSipEvent> Module::processRequest(unique_ptr<RequestSipEvent>&& ev) {
 	auto errorReply = [&](int code, string_view reason, string_view error_msg) {
-		SLOGD << "Exception while onRequest() on module " << getModuleName() << " because " << error_msg;
-		SLOGI << "Replying with message " << code << " and reason " << reason.data();
+		LOGD_CTX(mLogPrefix, "processRequest")
+		    << "Exception while executing onRequest() on module " << getModuleName() << ": " << error_msg;
+		LOGI_CTX(mLogPrefix, "processRequest") << "Replying with message " << code << " and reason " << reason.data();
 		ev->reply(code, reason.data(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	};
 
@@ -115,9 +117,11 @@ unique_ptr<RequestSipEvent> Module::processRequest(unique_ptr<RequestSipEvent>&&
 	try {
 		if (mFilter->isEnabled()) {
 			if (mFilter->canEnter(ms)) {
-				SLOGD << "Running onRequest() on module " << getModuleName();
+				LOGD_CTX("Module") << "Execute onRequest() on module " << getModuleName();
 				return onRequest(std::move(ev));
-			} else SLOGI << "Skipped onRequest() on module " << getModuleName() << ": filter evaluated to 'false'";
+			} else
+				LOGD_CTX("Module") << "Skipped onRequest() on module " << getModuleName()
+				                   << ": filter evaluated to 'false'";
 		}
 	} catch (SignalingException& se) {
 		ostringstream msg;
@@ -142,12 +146,14 @@ unique_ptr<ResponseSipEvent> Module::processResponse(unique_ptr<ResponseSipEvent
 	try {
 		if (mFilter->isEnabled()) {
 			if (mFilter->canEnter(ms)) {
-				SLOGD << "Running onResponse() on module " << getModuleName();
+				LOGD_CTX("Module") << "Execute onResponse() on module " << getModuleName();
 				return onResponse(std::move(ev));
-			} else SLOGI << "Skipped onResponse() on module " << getModuleName() << ": filter evaluated to 'false'";
+			} else
+				LOGD_CTX("Module") << "Skipped onResponse() on module " << getModuleName()
+				                   << ": filter evaluated to 'false'";
 		}
 	} catch (FlexisipException& fe) {
-		SLOGD << "Skipped onResponse() on module " << getModuleName() << ": " << fe;
+		LOGD_CTX("Module") << "Skipped onResponse() on module " << getModuleName() << ": " << fe;
 	}
 	return std::move(ev);
 }
@@ -202,24 +208,26 @@ ModuleInfoManager* ModuleInfoManager::get() {
 }
 
 void ModuleInfoManager::registerModuleInfo(ModuleInfoBase* moduleInfo) {
-	SLOGI << "Registering module info [" << moduleInfo->getModuleName() << "]...";
+	LOGD << "Registering module info [" << moduleInfo->getModuleName() << "]...";
 
 	if (moduleInfo->getAfter().empty()) {
-		SLOGE << "Cannot register module info [" << moduleInfo->getModuleName() << "] with empty after member.";
+		LOGE << "Cannot register module info [" << moduleInfo->getModuleName() << "] with empty after member";
 		return;
 	}
 
 	auto it = find(mRegisteredModuleInfo.cbegin(), mRegisteredModuleInfo.cend(), moduleInfo);
 	if (it != mRegisteredModuleInfo.cend()) {
-		SLOGE << "Unable to register already registered module [" << moduleInfo->getModuleName() << "].";
+		LOGE << "Unable to register, already registered module [" << moduleInfo->getModuleName() << "]";
 	} else {
 		mRegisteredModuleInfo.push_back(moduleInfo);
 		moduleInfo->setRegistered(true);
 	}
+
+	LOGI << "Registered module info [" << moduleInfo->getModuleName() << "]";
 }
 
 void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase* moduleInfo) {
-	SLOGI << "Unregistering module info [" << moduleInfo->getModuleName() << "]...";
+	LOGI << "Unregistered module info [" << moduleInfo->getModuleName() << "]";
 	mRegisteredModuleInfo.remove(moduleInfo);
 	moduleInfo->setRegistered(false);
 }
@@ -264,7 +272,7 @@ void ModuleInfoManager::dumpModuleDependencies(const list<ModuleInfoBase*>& l) c
 		}
 		ostr << endl;
 	}
-	SLOGD << ostr.str();
+	LOGD << ostr.str();
 }
 
 void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
@@ -276,12 +284,11 @@ void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
 			return module->getModuleName() == replace;
 		});
 		if (replacedModule == sortedList.end()) {
-			SLOGE << "Unable to find module [" << replace << "] to be replaced by module [" << moduleName << "]";
+			LOGE << "Unable to find module [" << replace << "] to be replaced by module [" << moduleName << "]";
 			continue;
 		}
 
-		SLOGD << "Module "
-		      << "[" << moduleName << "] will replace module [" << replace << "].";
+		LOGD << "Module [" << moduleName << "] will replace module [" << replace << "]";
 		*replacedModule = module;
 	}
 }
@@ -324,16 +331,16 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 			}
 		}
 		if (!sortProgressing && !pendingModules.empty()) {
-			SLOGE << "Some modules have position references to other modules that could not be found:";
+			LOGE << "Some modules have position references to other modules that could not be found:";
 			dumpModuleDependencies(pendingModules);
 			throw FlexisipException{
 			    "some modules could not be positioned in the module's processing chain (hint: it is usually caused by "
-			    "an invalid module declaration in Flexisip's source code, or in a loaded plugin"};
+			    "an invalid module declaration in Flexisip's source code, or in a loaded plugin)"};
 		}
 	}
 
 	// Replace the modules which are targeted by replacingModules.
 	replaceModules(sortedList, replacingModules);
-	SLOGI << "Module chain computed succesfully.";
+	LOGI << "Module chain computed successfully";
 	return sortedList;
 }

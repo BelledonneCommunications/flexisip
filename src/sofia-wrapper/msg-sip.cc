@@ -31,7 +31,8 @@ namespace sofiasip {
 /*Invoking the copy constructor of MsgSip implies the deep copy of the underlying msg_t */
 MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
 	serialize();
-	SLOGD << "New MsgSip " << this << " copied from MsgSip " << &msgSip;
+	mLogPrefix = flexisip::LogManager::makeLogPrefixForInstance(this, "MsgSip");
+	LOGD << "Copied from MsgSip " << &msgSip;
 }
 
 MsgSip::MsgSip(int flags, std::string_view msg) : mMsg(msg_make(sip_default_mclass(), flags, msg.data(), msg.size())) {
@@ -40,6 +41,18 @@ MsgSip::MsgSip(int flags, std::string_view msg) : mMsg(msg_make(sip_default_mcla
 		msg_destroy(mMsg.take());
 		throw error;
 	}
+}
+
+std::string MsgSip::toString(msg_t& msg) {
+	struct rawMsg_deleter {
+		void operator()(char* raw) {
+			su_free(nullptr, raw);
+		}
+	};
+
+	size_t msg_size{};
+	unique_ptr<char, rawMsg_deleter> raw{msg_as_string(nullptr, &msg, nullptr, 0, &msg_size)};
+	return string{raw.get(), msg_size};
 }
 
 msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
@@ -66,20 +79,9 @@ msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
 }
 
 std::string MsgSip::msgAsString() const {
-	struct rawMsg_deleter {
-		void operator()(char* raw) {
-			su_free(nullptr, raw);
-		}
-	};
-
 	// Here we hack out the constness.
-	// msg_as_string is non const as it will modify the internal buffers of msg_t
-	// during serialization.
-	auto& msg = const_cast<msg_t&>(*mMsg);
-
-	size_t msg_size{};
-	unique_ptr<char, rawMsg_deleter> raw{msg_as_string(nullptr, &msg, nullptr, 0, &msg_size)};
-	return string{raw.get(), msg_size};
+	// msg_as_string is non const as it will modify the internal buffers of msg_t during serialization.
+	return toString(const_cast<msg_t&>(*mMsg));
 }
 
 std::string MsgSip::contextAsString() const {

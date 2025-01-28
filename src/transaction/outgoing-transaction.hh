@@ -75,6 +75,7 @@ private:
 	std::shared_ptr<OutgoingTransaction> mSofiaRef{};
 	std::string mBranchId{};
 	std::weak_ptr<IncomingTransaction> mIncoming; // The incoming transaction from which the message comes from, if any.
+    std::string mLogPrefix;
 
 	friend class RequestSipEvent;
 };

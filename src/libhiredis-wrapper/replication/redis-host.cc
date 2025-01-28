@@ -44,7 +44,7 @@ RedisHost RedisHost::parseSlave(const string& slaveLine, int id) {
 		if (m.find("ip") != m.end() && m.find("port") != m.end() && m.find("state") != m.end()) {
 			return RedisHost(id, m.at("ip"), atoi(m.at("port").c_str()), m.at("state"));
 		} else {
-			SLOGW << "Missing fields in the slaveline " << slaveLine;
+			LOGW << "Missing fields in the slave line " << slaveLine;
 		}
 	} else if (context.size() >= 3) {
 		// Old-style slave format, use the context from the array directly
@@ -52,7 +52,7 @@ RedisHost RedisHost::parseSlave(const string& slaveLine, int id) {
 		                 (unsigned short)atoi(context[1].c_str()), // port
 		                 context[2]);                              // state
 	} else {
-		SLOGW << "Invalid host line: " << slaveLine;
+		LOGW << "Invalid host line: " << slaveLine;
 	}
 	return RedisHost(); // invalid host
 }

@@ -120,6 +120,8 @@ private:
 	// Listener class NEED to copy the shared pointer
 	class OnAuthListener : public AuthDbListener {
 	private:
+		static constexpr std::string_view mLogPrefix{"OnAuthListener"};
+
 		GatewayRegister* gw;
 
 	public:
@@ -127,7 +129,7 @@ private:
 		}
 
 		void checkPassword(const char* ipassword) {
-			SLOGI << "Found password";
+			LOGI << "Found password";
 			gw->setPassword(ipassword);
 			gw->sendRegister();
 		}
@@ -136,7 +138,7 @@ private:
 			if (result == AuthDbResult::PASSWORD_FOUND) {
 				checkPassword(passwd.c_str());
 			} else {
-				SLOGE << "GatewayRegister onResult(): Can't find user password, give up.";
+				LOGE << "Cannot find user password, give up";
 			}
 			delete this;
 		}
@@ -145,7 +147,7 @@ private:
 			if (result == AuthDbResult::PASSWORD_FOUND) {
 				checkPassword(passwd.front().pass.c_str());
 			} else {
-				SLOGE << "GatewayRegister onResult(): Can't find user password, give up.";
+				LOGE << "Cannot find user password, give up";
 			}
 			delete this;
 		}
@@ -158,6 +160,8 @@ private:
 	// Listener class NEED to copy the shared pointer
 	class OnFetchListener : public ContactUpdateListener {
 	private:
+		static constexpr std::string_view mLogPrefix{"OnFetchListener"};
+
 		GatewayRegister* gw;
 		AuthDbBackend& mAuthDb;
 
@@ -169,16 +173,16 @@ private:
 		}
 
 		void onInvalid(const SipStatus&) override {
-			SLOGI << "GATEWAY: invalid";
+			LOGI << "GATEWAY: invalid";
 		}
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			if (r == NULL) {
-				SLOGI << "Record doesn't exist. Fork";
+				LOGI << "Record doest not exist, fork";
 				url_t* url = gw->getFrom()->a_url;
 				mAuthDb.getPassword(url->url_user, url->url_host, url->url_user, new OnAuthListener(gw));
 			} else {
-				SLOGI << "Record already exists. Not forked";
+				LOGI << "Record already exists, not forked";
 			}
 		}
 
@@ -189,6 +193,8 @@ private:
 		void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
 		}
 	};
+
+	static constexpr std::string_view mLogPrefix{"GatewayRegister"};
 };
 
 StatCounter64* GatewayRegister::mCountInitialMsg = NULL;
@@ -258,7 +264,7 @@ GatewayRegister::~GatewayRegister() {
 }
 
 void GatewayRegister::sendRegister() {
-	SLOGD << "Send REGISTER";
+	LOGD << "Send REGISTER";
 	state = State::REGISTRING;
 
 	// Add a parameter with the domain so that when the gateway sends an INVITE
@@ -284,7 +290,7 @@ void GatewayRegister::authenticate(const msg_param_t* au_params) {
 	digest << ":" << user << ":" << password;
 
 	string digeststr(digest.str());
-	// SLOGD << "GR authentication with " << digeststr; // expose password
+	// LOGD << "GR authentication with " << digeststr; // expose password
 	nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()), TAG_END());
 }
 
@@ -299,28 +305,28 @@ void GatewayRegister::onMessage(const sip_t* sip) {
 			switch (sip->sip_status->st_status) {
 				case 200:
 					++*mCountRegisteringMsg200;
-					SLOGD << "REGISTER done";
+					LOGD << "REGISTER done";
 					state = State::REGISTRED;
 					end(); // TODO: stop the dialog?
 					break;
 				case 408:
 					++*mCountRegisteringMsg408;
-					SLOGD << "REGISTER timeout";
+					LOGD << "REGISTER timeout";
 					end();
 					break;
 				case 401:
 					++*mCountRegisteringMsg401;
-					SLOGD << "REGISTER challenged 401";
+					LOGD << "REGISTER challenged 401";
 					authenticate(sip->sip_www_authenticate->au_params);
 					break;
 				case 407:
 					++*mCountRegisteringMsg407;
-					SLOGD << "REGISTER challenged 407";
+					LOGD << "REGISTER challenged 407";
 					authenticate(sip->sip_proxy_authenticate->au_params);
 					break;
 				default:
 					++*mCountRegisteringMsgUnknown;
-					SLOGD << "REGISTER not handled response: " << sip->sip_status->st_status;
+					LOGD << "REGISTER not handled response: " << sip->sip_status->st_status;
 					end();
 					break;
 			}
@@ -328,7 +334,7 @@ void GatewayRegister::onMessage(const sip_t* sip) {
 
 		case State::REGISTRED:
 			++*mCountRegisteredUnknown;
-			SLOGD << "new message " << sip->sip_status->st_status;
+			LOGD << "New message " << sip->sip_status->st_status;
 			break;
 	}
 }
@@ -337,22 +343,22 @@ void GatewayRegister::onError(const char* message, ...) {
 	++*mCountError;
 	va_list args;
 	va_start(args, message);
-	SLOGE << message;
+	LOGE << message;
 	va_end(args);
 	end();
 }
 
 void GatewayRegister::start() {
-	SLOGD << "GatewayRegister start";
+	LOGD << "Start";
 	SipUri fromUri(from->a_url);
-	SLOGD << "Fetching binding";
+	LOGD << "Fetching binding";
 	++*mCountStart;
 	mRegistrarDb.fetch(fromUri, make_shared<OnFetchListener>(this, mAuthDb));
 }
 
 void GatewayRegister::end() {
 	++*mCountEnd;
-	SLOGD << "GatewayRegister end";
+	LOGD << "End";
 }
 
 class GatewayAdapter : public Module {
@@ -413,7 +419,7 @@ bool GatewayAdapter::isValidNextConfig(const ConfigValue& cv) {
 	if (!module_config->get<ConfigBoolean>("enabled")->readNext()) return true;
 	if (cv.getName() == "gateway") {
 		if (cv.getNextValue().empty()) {
-			SLOGE << "Empty value GatewayAdapter::" << cv.getName() << "=" << cv.getNextValue();
+			LOGE << "Empty value " << cv.getCompleteName() << "=" << cv.getNextValue();
 			return false;
 		}
 	}
@@ -467,7 +473,7 @@ unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent
 
 		} catch (const sofiasip::InvalidUrlError& e) {
 			// Thrown by GatewayRegister::start() when From URI isn't a SIP URI.
-			SLOGE << "Invalid 'From' Uri [" << e.what() << "]";
+			LOGE << "Invalid 'From' URI [" << e.what() << "]";
 			ev->reply(400, "Bad request", TAG_END());
 			return {};
 		}
@@ -477,7 +483,7 @@ unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent
 		url_t* dest = sip->sip_request->rq_url;
 		if (url_param(dest->url_params, mRoutingParam.c_str(), routing_param, sizeof(routing_param))) {
 			++*mCountDomainRewrite;
-			SLOGI << "Rewriting request uri and to with domain " << routing_param;
+			LOGI << "Rewriting request uri and to with domain " << routing_param;
 			dest->url_host = su_strdup(ms->getHome(), routing_param);
 			sip->sip_to->a_url[0].url_host = su_strdup(ms->getHome(), routing_param);
 		}

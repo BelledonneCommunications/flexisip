@@ -58,7 +58,7 @@ CallSide::CallSide(TranscodedCall* ctx, const CallContextParams& params) : mCall
 	jbpar.max_packets = 100;
 	rtp_session_enable_jitter_buffer(mSession, params.mJbNomSize == 0 ? FALSE : TRUE);
 	rtp_session_set_jitter_buffer_params(mSession, &jbpar);
-	SLOGD << "Jitter buffer nominal size: " << params.mJbNomSize;
+	LOGD << "Jitter buffer nominal size: " << params.mJbNomSize;
 	rtp_session_set_symmetric_rtp(mSession, TRUE);
 	rtp_session_set_data(mSession, this);
 	rtp_session_signal_connect(mSession, "payload_type_changed", &CallSide::payloadTypeChanged,
@@ -191,13 +191,13 @@ void CallSide::connect(CallSide* recvSide, MSTicker* ticker) {
 	ms_connection_helper_start(&conHelper);
 	ms_connection_helper_link(&conHelper, recvSide->getRecvPoint().filter, -1, recvSide->getRecvPoint().pin);
 
-	SLOGD << "recvside (" << recvSide << ") enc=" << payload_type_get_number(recvpt) << " " << recvpt->mime_type << "/"
-	      << recvpt->clock_rate << " sendside (" << this << ") enc=" << payload_type_get_number(sendpt) << " "
-	      << sendpt->mime_type << "/" << sendpt->clock_rate;
+	LOGD << "recvside (" << recvSide << ") enc=" << payload_type_get_number(recvpt) << " " << recvpt->mime_type << "/"
+	     << recvpt->clock_rate << " sendside (" << this << ") enc=" << payload_type_get_number(sendpt) << " "
+	     << sendpt->mime_type << "/" << sendpt->clock_rate;
 	if (strcasecmp(recvpt->mime_type, sendpt->mime_type) != 0 || recvpt->clock_rate != sendpt->clock_rate ||
 	    mToneGen != 0) {
 
-		SLOGD << "Will instanciate new codecs";
+		LOGD << "Will instantiate new codecs";
 		if (mDecoder) {
 			if (ticker) ms_filter_postprocess(mDecoder);
 			ms_filter_destroy(mDecoder);
@@ -206,7 +206,7 @@ void CallSide::connect(CallSide* recvSide, MSTicker* ticker) {
 
 		mDecoder = ms_factory_create_decoder(factory, recvpt->mime_type);
 		if (mDecoder == NULL) {
-			SLOGE << "Could not instanciate decoder for " << recvpt->mime_type;
+			LOGE << "Could not instantiate decoder for " << recvpt->mime_type;
 		} else {
 			if (!mUsePlc) ms_filter_call_method(mDecoder, MS_FILTER_ADD_FMTP, (void*)"plc=0");
 			if (recvpt->clock_rate > 0)
@@ -223,7 +223,7 @@ void CallSide::connect(CallSide* recvSide, MSTicker* ticker) {
 		}
 		mEncoder = ms_factory_create_encoder(factory, sendpt->mime_type);
 		if (mEncoder == NULL) {
-			SLOGE << "Could not instanciate encoder for " << sendpt->mime_type;
+			LOGE << "Could not instantiate encoder for " << sendpt->mime_type;
 		} else {
 			if (mPtime > 0) {
 				char tmp[20];
@@ -273,7 +273,7 @@ void CallSide::payloadTypeChanged(RtpSession* session, void* data, void*, void*)
 	if (pt != NULL) {
 		ctx->redraw(side);
 	} else {
-		SLOGW << "Receiving unknown payload type " << num;
+		LOGW << "Receiving unknown payload type " << num;
 	}
 }
 
@@ -285,23 +285,23 @@ void CallSide::onTelephoneEvent(RtpSession* s, void* dtmfIndex, void* userData, 
 
 	const uintptr_t i = reinterpret_cast<intptr_t>(dtmfIndex);
 	if (i > sizeof dtmfs / sizeof dtmfs[0]) {
-		SLOGE << "Unsupported telephone-event type: " << i;
+		LOGE << "Unsupported telephone-event type: " << i;
 		return;
 	}
 
 	const int dtmf = dtmfs[i];
-	SLOGD << "Receiving telephone event: " << dtmf;
+	LOGD << "Receiving telephone event: " << dtmf;
 	ctx->playTone(side, dtmf);
 }
 
 void CallSide::playTone(char tone_name) {
 	if (mSession && rtp_session_telephone_events_supported(mSession) != -1) {
-		SLOGD << "Sending dtmf signal " << tone_name;
+		LOGD << "Sending dtmf signal " << tone_name;
 		ms_filter_call_method(mSender, MS_RTP_SEND_SEND_DTMF, &tone_name);
 	} else if (mEncoder && mToneGen) {
 		const char* enc_fmt = mEncoder->desc->enc_fmt;
 		if (strcasecmp(enc_fmt, "pcmu") == 0 || strcasecmp(enc_fmt, "pcma") == 0) {
-			SLOGD << "Modulating dtmf " << tone_name;
+			LOGD << "Modulating dtmf " << tone_name;
 			ms_filter_call_method(mToneGen, MS_DTMF_GEN_PUT, &tone_name);
 		} else {
 			ms_warning("Cannot send tone [%i] because selected codec is not G711", tone_name);
@@ -333,9 +333,9 @@ TranscodedCall::TranscodedCall(MSFactory* factory, sip_t* sip, const string& bin
 }
 
 void TranscodedCall::prepare(const CallContextParams& params) {
-	SLOGD << "Preparing...";
+	LOGD << "Preparing...";
 	if (mFrontSide) {
-		SLOGD << "Call sides used to be front=" << mFrontSide << " back=" << mBackSide;
+		LOGD << "Call sides used to be front=" << mFrontSide << " back=" << mBackSide;
 		if (isJoined()) unjoin();
 		delete mFrontSide;
 		delete mBackSide;
@@ -348,21 +348,21 @@ void TranscodedCall::prepare(const CallContextParams& params) {
 	}
 	mFrontSide = new CallSide(this, params);
 	mBackSide = new CallSide(this, params);
-	SLOGD << "Call sides are now front=" << mFrontSide << " back=" << mBackSide;
+	LOGD << "Call sides are now front=" << mFrontSide << " back=" << mBackSide;
 }
 
 void TranscodedCall::join(MSTicker* t) {
-	SLOGD << "Joining...";
+	LOGD << "Joining...";
 	mFrontSide->connect(mBackSide);
 	mBackSide->connect(mFrontSide);
 	ms_ticker_attach(t, mFrontSide->getRecvPoint().filter);
 	ms_ticker_attach(t, mBackSide->getRecvPoint().filter);
 	mTicker = t;
-	SLOGD << "Graphs now running";
+	LOGD << "Graphs now running";
 }
 
 void TranscodedCall::unjoin() {
-	SLOGD << "Unjoining...";
+	LOGD << "Unjoining...";
 	ms_ticker_detach(mTicker, mFrontSide->getRecvPoint().filter);
 	ms_ticker_detach(mTicker, mBackSide->getRecvPoint().filter);
 	mFrontSide->disconnect(mBackSide);
@@ -375,7 +375,7 @@ bool TranscodedCall::isJoined() const {
 }
 
 void TranscodedCall::redraw(CallSide* r) {
-	SLOGI << "Redrawing in context of MSTicker";
+	LOGI << "Redrawing in context of MSTicker";
 	CallSide* s = (r == mFrontSide) ? mBackSide : mFrontSide;
 	s->disconnect(r);
 	s->connect(r, mTicker);
@@ -399,11 +399,11 @@ const std::list<PayloadType*>& TranscodedCall::getInitialOffer() const {
 void TranscodedCall::dump() {
 	CallContextBase::dump();
 	if (mTicker != NULL) {
-		SLOGD << "Front side " << mFrontSide << ": " << mFrontSide->getAudioPort();
+		LOGD << "Front side " << mFrontSide << ": " << mFrontSide->getAudioPort();
 		mFrontSide->dump();
-		SLOGD << "Back side " << mBackSide << ": " << mBackSide->getAudioPort();
+		LOGD << "Back side " << mBackSide << ": " << mBackSide->getAudioPort();
 		mBackSide->dump();
-	} else SLOGD << "is inactive";
+	} else LOGD << "is inactive";
 }
 
 void TranscodedCall::playTone(sip_t* info) {
@@ -416,12 +416,12 @@ void TranscodedCall::playTone(sip_t* info) {
 				p += strlen("Signal=");
 				dtmf = p[0];
 				if (dtmf != 0) {
-					SLOGD << "Intercepting dtmf in SIP info";
+					LOGD << "Intercepting dtmf in SIP info";
 					mBackSide->playTone(dtmf);
 				}
 			}
 		}
-	} else SLOGW << "Tone not played because graph is not ready.";
+	} else LOGW << "Tone not played because graph is not ready";
 }
 
 CallSide* TranscodedCall::getOther(CallSide* cs) {

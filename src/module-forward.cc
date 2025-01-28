@@ -247,12 +247,12 @@ public:
 			const auto* urlStr = url_as_string(home, iterator->r_url);
 
 			if (agent->isUs(iterator->r_url)) {
-				SLOGD << "Route header \"" << urlStr << "\" is us: remove and continue";
+				LOGD << "Route header \"" << urlStr << "\" is us: remove and continue";
 				iterator = iterator->r_next;
 				continue;
 			}
 
-			SLOGD << "Route header \"" << urlStr << "\" is not us: forward";
+			LOGD << "Route header \"" << urlStr << "\" is not us: forward";
 			dest = url_hdup(home, iterator->r_url);
 			break;
 		}
@@ -268,13 +268,13 @@ public:
 	}
 
 	void onError(const SipStatus& response) override {
-		SLOGE << "RegistrarListener error, reply: " << response.getReason();
+		LOGE << "Error, reply: " << response.getReason();
 		mEv->reply(response.getCode(), response.getReason(), SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()),
 		           TAG_END());
 	};
 
 	void onInvalid(const SipStatus&) override {
-		SLOGE << "RegistrarListener invalid";
+		LOGE << "RegistrarListener invalid";
 		// do not use SipStatus, treat as an error
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
@@ -282,6 +282,8 @@ public:
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override{};
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegistrarListener"};
+
 	ForwardModule* mModule;
 	unique_ptr<RequestSipEvent> mEv;
 };
@@ -293,7 +295,7 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 
 	// Check max forwards
 	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(*ev->getMsgSip())) {
-		SLOGD << "Too Many Hops";
+		LOGD << "Too many hops";
 		if (auto transaction = ev->getOutgoingTransaction()) {
 			if (auto forkContext = ForkContext::getFork(transaction)) {
 				forkContext->processInternalError(SIP_483_TOO_MANY_HOPS);
@@ -310,14 +312,14 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	// Prepend conditional route if any
 	const sip_route_t* route = mRoutesMap.resolveRoute(ms);
 	if (route) {
-		SLOGD << "Prepending route '" << url_as_string(ms->getHome(), route->r_url) << "'";
+		LOGD << "Prepended route '" << url_as_string(ms->getHome(), route->r_url) << "'";
 		ModuleToolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
 	}
 
 	// Remove top route headers if they match us.
 	sip_route_t* lastRoute = nullptr;
 	while (sip->sip_route != nullptr && isUs(getAgent(), sip->sip_route)) {
-		SLOGD << "Removing top route '" << url_as_string(ms->getHome(), sip->sip_route->r_url) << "'";
+		LOGD << "Removed top route '" << url_as_string(ms->getHome(), sip->sip_route->r_url) << "'";
 		lastRoute = sip_route_remove(msg, sip);
 	}
 
@@ -366,7 +368,7 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
-		SLOGD << "Stopping request to us (" << url_as_string(ms->getHome(), dest) << ")";
+		LOGD << "Stop request to us (" << url_as_string(ms->getHome(), dest) << ")";
 		ev->terminateProcessing();
 		return;
 	}
@@ -387,7 +389,7 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 			// However, if Forward module has to send a REGISTER with path headers but add-path is set to false,
 			// they must be removed.
 			while (sip->sip_path != nullptr && isUs(getAgent(), sip->sip_path)) {
-				SLOGD << "Removing path '" << url_as_string(ms->getHome(), sip->sip_path->r_url) << "'";
+				LOGD << "Removed path '" << url_as_string(ms->getHome(), sip->sip_path->r_url) << "'";
 				msg_header_remove(msg, (msg_pub_t*)sip, (msg_header_t*)sip->sip_path);
 			}
 		}
@@ -396,7 +398,7 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// Clean push notifs params from contacts
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
 		ModuleToolbox::removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
-		SLOGD << "Removed push params from contact";
+		LOGD << "Removed push params from contact";
 	}
 	ModuleToolbox::removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
 
@@ -461,7 +463,7 @@ url_t* ForwardModule::getDestinationFromRoute(su_home_t* home, sip_t* sip) {
 bool ForwardModule::isLooping(const MsgSip& ms, const char* branch) {
 	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next) {
 		if (via->v_branch != nullptr && strcmp(via->v_branch, branch) == 0) {
-			SLOGD << "Loop detected: " << via->v_branch;
+			LOGD_CTX("module::Forward") << "Loop detected: " << via->v_branch;
 			return true;
 		}
 	}
@@ -483,7 +485,7 @@ url_t* ForwardModule::overrideDest(MsgSip& ms, url_t* dest) {
 			url_t* req_url = sip->sip_request->rq_url;
 			for (sip_via_t* via = sip->sip_via; via != nullptr; via = via->v_next) {
 				if (ModuleToolbox::urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
-					SLOGD << "Found forced outgoing route in via, skipping";
+					LOGD << "Found forced outgoing route in via, skipping";
 					return dest;
 				}
 			}
@@ -515,7 +517,7 @@ tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, ur
 
 	string ip;
 	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
-		SLOGD << "Found " << dest->url_host << " in /etc/hosts";
+		LOGD << "Found " << dest->url_host << " in /etc/hosts";
 		// Duplicate "dest" because we don't want to modify the message with our name resolution result.
 		dest = url_hdup(ms->getHome(), dest);
 		dest->url_host = ip.c_str();
@@ -539,26 +541,26 @@ tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, ur
 	const auto* destToFindTportUrlStr = url_as_string(ms->getHome(), destToFindTport);
 	if (ev.getOutgoingAgent() != nullptr) {
 		if (isAClusterNode(destToFindTport) && (tport = getAgent()->getInternalTport()) != nullptr) {
-			SLOGD << "Using internal transport to route message to a node of the cluster.";
+			LOGD << "Using internal transport to route message to a node of the cluster";
 		} else if ((tport = getAgent()->getDRM()->lookupTport(destToFindTport)) != nullptr) {
-			SLOGD << "Found outgoing tport from domain registration manager.";
+			LOGD << "Found outgoing tport from domain registration manager";
 		} else if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(destToFindTport)) == 0) {
 			// tport_by_name can only work for IP addresses.
 			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
 			if (!tport) {
-				SLOGD << "Could not find existing tport to send message to " << destToFindTportUrlStr;
+				LOGD << "Could not find existing tport to send message to " << destToFindTportUrlStr;
 			} else if (tport_get_user_data(tport) != nullptr && destConnId != 0 &&
 			           (uintptr_t)tport_get_user_data(tport) != destConnId) {
-				SLOGD << "Stopping request ConnId(" << hex << destConnId << " ) is different than tport ConnId("
-				      << (uintptr_t)tport_get_user_data(tport) << ")";
+				LOGD << "Stopping request ConnId(" << hex << destConnId << " ) is different than tport ConnId("
+				     << (uintptr_t)tport_get_user_data(tport) << ")";
 
 				// Set tport at -1 for sofia.
 				tport = (tport_t*)-1;
 			}
 		} else if (UriUtils::isIpAddress(dest->url_host)) {
-			SLOGE << "tport_name_by_url() failed for url " << destToFindTportUrlStr;
+			LOGE << "tport_name_by_url() failed for url " << destToFindTportUrlStr;
 		} else {
-			SLOGD << "This URI [" << destToFindTportUrlStr << "] does not match a tport.";
+			LOGD << "This URI [" << destToFindTportUrlStr << "] does not match a tport";
 		}
 	}
 

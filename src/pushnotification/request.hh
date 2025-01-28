@@ -64,6 +64,9 @@ protected:
 	PushType mPType{PushType::Unknown};
 	std::shared_ptr<const PushInfo> mPInfo{};
 	State mState{State::NotSubmitted};
+
+private:
+	std::string mLogPrefix;
 };
 
 std::ostream& operator<<(std::ostream& os, Request::State state) noexcept;

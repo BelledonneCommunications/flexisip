@@ -43,7 +43,7 @@ private:
 		if (cv.getName() == "regevent-server") {
 			url_t* uri = url_make(&mHome, cv.getName().c_str());
 			if (!uri) {
-				SLOGE << getModuleName() << ": wrong destination uri for presence server [" << cv.getName() << "]";
+				LOGE << "Wrong destination URI for RegEvent server [" << cv.getName() << "]";
 				return false;
 			} else {
 				su_free(&mHome, uri);
@@ -62,7 +62,7 @@ private:
 			                       destRouteParam->getCompleteName() + "' (" + e.what() + ")"};
 		}
 
-		SLOGI << getModuleName() << ": presence server is [" << mDestRoute->str() << "]";
+		LOGI << "RegEvent server is [" << mDestRoute->str() << "]";
 	}
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {

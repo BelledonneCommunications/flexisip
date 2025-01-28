@@ -185,7 +185,7 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 	if (mRegisterWhenNeeded) mAgent->getRegistrarDb().unsubscribeLocalRegExpire(this);
 
 	if (mNbRegistration > 0) {
-		SLOGD << "Starting domain un-registration";
+		LOGD << "Starting domain un-registration";
 		for (const auto& reg : mRegistrations) {
 			reg->stop();
 		}
@@ -231,7 +231,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 			throw BadConfiguration{"invalid regex in '" + relayRegsToDomainsRegexParam->getCompleteName() + "' (" +
 			                       e.what() + ")"};
 		}
-		SLOGD << "Found relay-reg-to-domain regex: " << relayRegsToDomainsRegex;
+		LOGD << "Found relay-reg-to-domain regex: " << relayRegsToDomainsRegex;
 	}
 
 	/* Parse the client domain registration file if any */
@@ -240,11 +240,11 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	ifs.open(configFile);
 	if (!ifs.is_open()) {
-		SLOGW << "Cannot open domain registration configuration file '" << configFile << "'";
+		LOGW << "Cannot open domain registration configuration file '" << configFile << "'";
 		return -1;
 	}
 
-	SLOGI << "Loading domain registration configuration from " << configFile;
+	LOGI << "Loading domain registration configuration from " << configFile;
 	do {
 		sofiasip::Home home;
 		string line;
@@ -265,7 +265,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 		istr >> password;
 		if (domain.empty()) continue; /*empty line */
 		if (uri.empty()) {
-			SLOGE << "Empty URI in domain registration definition.";
+			LOGE << "Empty URI in domain registration definition";
 			goto error;
 		}
 		if (uri[0] == '<') uri = uri.substr(1, uri.size() - 2);
@@ -333,15 +333,15 @@ void DomainRegistrationManager::onLocalRegExpireUpdated(unsigned int count) {
 bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string& url_host) {
 	bool ret;
 
-	SLOGD << "mRelayRegsToDomains=" << mRelayRegsToDomains;
+	LOGD << "mRelayRegsToDomains=" << mRelayRegsToDomains;
 	if (url_host.empty()) return mRelayRegsToDomains; // no host provided - just return global relay reg cfg status
 
 	if (!mRelayRegsToDomains) return false;
 
 	/* See if the host part matches the relay rule regex */
 	ret = regex_match(url_host, mRelayRegsToDomainsRegex);
-	SLOGD << "DomainRegistrationManager: REGISTER for domain " << (ret ? "matches" : "does not match") << " -> "
-	      << url_host << " domain relay rule";
+	LOGD << "REGISTER for domain " << (ret ? "matches" : "does not match") << " -> " << url_host
+	     << " domain relay rule";
 	return ret;
 }
 
@@ -370,7 +370,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 		    Agent::getTlsConfigInfo(mManager.mAgent->getConfigManager().getRoot()->get<GenericStruct>("global"));
 		if (mainTlsConfigInfo == clientCertConf) {
 			// Certs dir is the same as for the existing tport
-			SLOGD << "Domain registration certificates are the same as the one for existing tports, let's use them";
+			LOGD << "Domain registration certificates are the same as the one for existing tports, let's use them";
 			mPrimaryTport = nta_agent_tports(agent);
 		} else {
 			list<const tp_name_t*> tp_names;
@@ -437,7 +437,7 @@ int DomainRegistration::sLegCallback([[maybe_unused]] nta_leg_magic_t* ctx,
                                      [[maybe_unused]] nta_leg_t* leg,
                                      [[maybe_unused]] nta_incoming_t* incoming,
                                      [[maybe_unused]] const sip_t* request) {
-	SLOGE << "legCallback called";
+	LOGE << "legCallback called";
 	return 500;
 }
 
@@ -462,18 +462,17 @@ void DomainRegistration::onConnectionBroken(tport_t* tport, [[maybe_unused]] msg
 	// restart registration...
 	if (tport == mCurrentTport) {
 		/* Cleanup current tport here, to force creation of a new one upon next registraion attempt */
-		SLOGD << "Current tport is broken";
+		LOGD << "Current tport is broken";
 		cleanCurrentTport();
 	}
 
 	const auto& nextSchedule = mManager.mReconnectionDelay;
 	mTimer.reset(); // Cancel the old timer
 	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0ms);
-	SLOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in "
-	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
+	LOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in "
+	     << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mTimer->set([this]() { this->sendRequest(); }, nextSchedule);
-	SLOGI << "DomainRegistration::onConnectionBroken(), restarting registration in "
-	      << duration_cast<seconds>(nextSchedule).count() << " seconds";
+	LOGI << "Restarting registration in " << duration_cast<seconds>(nextSchedule).count() << " seconds";
 	mRegistrationStatus->set(503);
 }
 
@@ -490,12 +489,16 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 	mTimer = make_unique<sofiasip::Timer>(mManager.mAgent->getRoot(), 0ms);
 	if (resp) {
 		msg_t* msg = nta_outgoing_getresponse(orq);
-		const auto* sipStatus = resp->sip_status;
-		const auto* sipTo = resp->sip_to; // a response is associated to the 'To' header
-		SLOGI << "DomainRegistration::responseCallback(): receiving response "
-		      << (sipStatus ? to_string(sipStatus->st_status) : "<unknown SIP status code>") << " "
-		      << (sipStatus ? sipStatus->st_phrase : "<unknown SIP status phrase>") << " from "
-		      << (sipTo ? url_as_string(mHome.home(), sipTo->a_url) : "<unknown expeditor>");
+		const auto status = resp->sip_status ? to_string(resp->sip_status->st_status) : "<unknown>";
+		const auto* phrase = resp->sip_status ? resp->sip_status->st_phrase : "<unknown>";
+		const auto cSeq = resp->sip_cseq ? to_string(resp->sip_cseq->cs_seq) : "<unknown>";
+		const auto callId = resp->sip_call_id ? resp->sip_call_id->i_id : "<unknown>";
+		const auto* from = resp->sip_from ? url_as_string(home.home(), resp->sip_from->a_url) : "<unknown>";
+		const auto* to = resp->sip_to ? url_as_string(home.home(), resp->sip_to->a_url) : "<unknown>";
+
+		LOGI << "Received SIP response [" << this << "] " << status << " " << phrase << " (" << cSeq << " - " << callId
+		     << ") from " << from << " to " << to;
+		LOGD << "Message:\n" << MsgSip::toString(*msg);
 
 		msg_unref(msg);
 	}
@@ -504,15 +507,15 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 
 	if (!resp || resp->sip_status->st_status == 408) {
 		nextSchedule = 1s;
-		SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << ", timeout.";
+		LOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << ", timeout";
 		if (mCurrentTport) {
-			SLOGD << "No domain registration response, connection might be broken. Shutting down current connection.";
+			LOGD << "No domain registration response, connection might be broken, shutting down current connection";
 			tport_shutdown(mCurrentTport, 2);
 		}
 		mLastResponseWas401 = false;
 	} else if (resp->sip_status->st_status == 401) {
 		if (mLastResponseWas401) {
-			SLOGW << "Authentication failing constantly, will retry later.";
+			LOGW << "Authentication failing constantly, will retry later";
 			nextSchedule = 30s;
 		} else {
 			nextSchedule = 0s;
@@ -523,8 +526,8 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 	} else if (resp->sip_status->st_status != 200) {
 		/*the registration failed for whatever reason. Retry shortly.*/
 		nextSchedule = 30s;
-		SLOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << " : "
-		       << resp->sip_status->st_status << " , will retry in " << nextSchedule.count() << " seconds.";
+		LOGUE << "Domain registration error for " << url_as_string(home.home(), mFrom) << ": "
+		      << resp->sip_status->st_status << " , will retry in " << nextSchedule.count() << " seconds";
 		mLastResponseWas401 = false;
 	} else { /* is 200 OK */
 		const auto* domain = mFrom->url_host;
@@ -534,7 +537,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 			      mManager.mRegistrationList.end())) {
 				mManager.mNbRegistration++;
 				mManager.mRegistrationList.emplace_back(domain);
-				SLOGI << "Incrementing number of domain registration to : " << mManager.mNbRegistration;
+				LOGI << "Incrementing number of domain registration to: " << mManager.mNbRegistration;
 			}
 		} else {
 			if (find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain) !=
@@ -542,14 +545,14 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 				mManager.mNbRegistration--;
 				mManager.mRegistrationList.erase(
 				    find(mManager.mRegistrationList.begin(), mManager.mRegistrationList.end(), domain));
-				SLOGI << "Decrementing number of domain registration to : " << mManager.mNbRegistration;
+				LOGI << "Decrementing number of domain registration to: " << mManager.mNbRegistration;
 			}
 		}
 		mPongsExpected = !!sip_has_supported(resp->sip_supported, "outbound");
 		setCurrentTport(nta_outgoing_transport(orq));
 		nextSchedule = ((expire * 90) / 100) + 1s;
-		SLOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
-		      << " seconds";
+		LOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
+		     << " seconds";
 
 		/*store contact sent in response, as it gives information about our public IP/port*/
 		if (resp->sip_contact) {
@@ -559,7 +562,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 			mExternalContact = sip_contact_dup(mHome.home(), resp->sip_contact);
 		}
 		if (mManager.mNbRegistration <= 0) {
-			SLOGD << "Quiting domain registration";
+			LOGD << "Quiting domain registration";
 			mTimer.reset();
 		}
 	}
@@ -601,7 +604,7 @@ int DomainRegistration::generateUuid(const string& uniqueId) {
 	if (!mUuid.empty()) return 0;
 
 	if (uniqueId.empty() || uniqueId.length() != 16) {
-		SLOGD << "generateUuid(): uniqueId is either empty or not with a length of 16";
+		LOGD << "generateUuid(): uniqueId is either empty or not with a length of 16";
 		return -1;
 	}
 
@@ -623,7 +626,7 @@ int DomainRegistration::generateUuid(const string& uniqueId) {
 	             uuid_struct.time_hi_and_version, uuid_struct.clock_seq_hi_and_reserved, uuid_struct.clock_seq_low);
 
 	if ((written < 0) || ((size_t)written > (len + 13))) {
-		SLOGE << "generateUuid(): buffer is too short !";
+		LOGE << "generateUuid(): buffer is too short";
 		free(uuid);
 		return -1;
 	}
@@ -642,12 +645,13 @@ int DomainRegistration::generateUuid(const string& uniqueId) {
 void DomainRegistration::sendRequest() {
 	/* Re-use current transport, whenever possible */
 	auto tport = mCurrentTport ? mCurrentTport : mPrimaryTport;
+	Home home{};
 
 	mTimer.reset();
 
-	auto msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
+	auto* msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
 	if (nta_msg_request_complete(msg, mLeg, sip_method_register, nullptr, (url_string_t*)mProxy) != 0) {
-		SLOGE << "nta_msg_request_complete() failed";
+		LOGE << "nta_msg_request_complete() failed";
 	}
 	auto sip = sip_object(msg);
 	msg_header_insert(msg, msg_object(msg), (msg_header_t*)sip_expires_create(msg_home(msg), mExpires.count()));
@@ -678,7 +682,15 @@ void DomainRegistration::sendRequest() {
 	sip_complete_message(msg);
 	msg_serialize(msg, msg_object(msg));
 
-	SLOGI << "Domain registration (REGISTER) about to be sent to " << url_as_string(mHome.home(), mProxy);
+	const auto* req = sip->sip_request ? sip->sip_request->rq_method_name : "<unknown>";
+	const auto cSeq = sip->sip_cseq ? to_string(sip->sip_cseq->cs_seq) : "<unknown>";
+	const auto callId = sip->sip_call_id ? sip->sip_call_id->i_id : "<unknown>";
+	const auto* from = sip->sip_from ? url_as_string(home.home(), sip->sip_from->a_url) : "<unknown>";
+	const auto* to = sip->sip_to ? url_as_string(home.home(), sip->sip_to->a_url) : "<unknown>";
+
+	LOGI << "Sending domain registration [" << msg << "] " << req << " (" << cSeq << " - " << callId << ") from "
+	     << from << " to " << to;
+	LOGD << "Message:\n" << MsgSip::toString(*msg);
 
 	if (mOutgoing) {
 		nta_outgoing_destroy(mOutgoing);
@@ -686,7 +698,7 @@ void DomainRegistration::sendRequest() {
 	mOutgoing = nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t*)this,
 	                                 nullptr, msg, NTATAG_TPORT(tport), TAG_END());
 	if (!mOutgoing) {
-		SLOGE << "Could not create outgoing transaction";
+		LOGE << "Could not create outgoing transaction";
 		return;
 	}
 }
@@ -709,7 +721,7 @@ void DomainRegistration::setCurrentTport(tport_t* tport) {
 	auto pingPongTimeoutDelay = mPongsExpected ? duration_cast<milliseconds>(mManager.mPingPongTimeoutDelay) : 0ms;
 	cleanCurrentTport();
 	mCurrentTport = tport;
-	if (pingPongTimeoutDelay.count() > 0) SLOGI << "Enabling PING/PONG for broken connection detection.";
+	if (pingPongTimeoutDelay.count() > 0) LOGI << "Enabling PING/PONG for broken connection detection";
 	tport_set_params(tport, TPTAG_SDWN_ERROR(1), TPTAG_KEEPALIVE(keepAliveInterval.count()),
 	                 TPTAG_PINGPONG(pingPongTimeoutDelay.count()), TAG_END());
 	mPendId = tport_pend(tport, nullptr, &DomainRegistration::sOnConnectionBroken, (tp_client_t*)this);
@@ -725,7 +737,7 @@ void DomainRegistration::cleanCurrentTport() {
 }
 
 void DomainRegistration::stop() {
-	SLOGD << "Unregistering domain.";
+	LOGD << "Unregistering domain";
 	mExpires = 0s;
 	sendRequest();
 }

@@ -168,6 +168,13 @@ public:
 	static ParsingResult parseLegacyPushParams(const char* params);
 
 private:
+	static const std::regex sApplePnProviderRegex;
+	static const std::regex sPnParamRegex;
+	static const std::regex sPnParamNoServiceRegex;
+	static const std::regex sPnPridOneTokenRegex;
+	static const std::regex sPnPridMultipleTokensRegex;
+	static constexpr std::string_view mLogPrefix{"RFC8599PushParams"};
+
 	// Private methods
 	/**
 	 * Test whether a given 'pn-provider' parameter matches the Apple Push Notification Service.
@@ -180,12 +187,6 @@ private:
 	std::string mProvider{}; /**< Value of 'pn-provider' */
 	std::string mParam{};    /**< Value of 'pn-param' */
 	std::string mPrid{};     /**< Value of 'pn-prid' */
-
-	static const std::regex sApplePnProviderRegex;
-	static const std::regex sPnParamRegex;
-	static const std::regex sPnParamNoServiceRegex;
-	static const std::regex sPnPridOneTokenRegex;
-	static const std::regex sPnPridMultipleTokensRegex;
 };
 
 } // namespace pushnotification

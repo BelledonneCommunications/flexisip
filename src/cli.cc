@@ -65,7 +65,7 @@ CommandLineInterface::CommandLineInterface(string name,
                                            const shared_ptr<ConfigManager>& cfg,
                                            const shared_ptr<SuRoot>& root)
     : mName(std::move(name)), handlers(make_shared<CliHandler::HandlerTable>()), mConfigManager(cfg), mRoot(root),
-      mLogPrefix("CommandLineInterface[" + mName + "] - ") {
+      mLogPrefix("CommandLineInterface[" + mName + "]") {
 	if (pipe(mControlFds) == -1)
 		throw FlexisipException{"cannot create control pipe of CommandLineInterface thread ("s + strerror(errno) + ")"};
 }
@@ -267,25 +267,25 @@ int SocketHandle::recv(char* buffer, size_t length, int flags) const {
 void CommandLineInterface::run() {
 	int server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (server_socket == -1) {
-		SLOGE << mLogPrefix << "Socket error " << errno << ": " << strerror(errno);
+		LOGE << "Socket error " << errno << ": " << strerror(errno);
 		stop();
 	}
 
 	const auto& pid = getpid();
 	const auto& path = "/tmp/flexisip-" + mName + "-" + to_string(pid);
-	SLOGI << mLogPrefix << "CLI socket is at " << path;
+	LOGI << "CLI socket is at " << path;
 	struct sockaddr_un local {};
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
 	int local_length = static_cast<int>(strlen(local.sun_path) + sizeof(local.sun_family));
 	if (::bind(server_socket, (struct sockaddr*)&local, local_length) == -1) {
-		SLOGE << mLogPrefix << "Bind error " << errno << ": " << strerror(errno);
+		LOGE << "Bind error " << errno << ": " << strerror(errno);
 		stop();
 	}
 
 	if (listen(server_socket, 1) == -1) {
-		SLOGE << mLogPrefix << "Listen error " << errno << ": " << strerror(errno);
+		LOGE << "Listen error " << errno << ": " << strerror(errno);
 		stop();
 	}
 
@@ -301,7 +301,7 @@ void CommandLineInterface::run() {
 
 		int ret = poll(pfd, 2, -1);
 		if (ret == -1) {
-			if (errno != EINTR) SLOGE << mLogPrefix << "thread getting poll() error: " << strerror(errno);
+			if (errno != EINTR) LOGE << "thread getting poll() error: " << strerror(errno);
 			continue;
 		} else if (ret == 0) {
 			continue; // Timeout not possible
@@ -314,7 +314,7 @@ void CommandLineInterface::run() {
 		auto remote_length = (socklen_t)sizeof(remote);
 		const auto& child_handle = accept(server_socket, (struct sockaddr*)&remote, &remote_length);
 		if (child_handle == -1) {
-			SLOGE << mLogPrefix << "Accept error " << errno << ": " << strerror(errno);
+			LOGE << "Accept error " << errno << ": " << strerror(errno);
 			continue;
 		}
 
@@ -325,10 +325,10 @@ void CommandLineInterface::run() {
 			char buffer[512] = {0};
 			const auto& n = child_socket->recv(buffer, sizeof(buffer) - 1, 0);
 			if (n < 0) {
-				SLOGE << mLogPrefix << "Recv error " << errno << ": " << strerror(errno);
+				LOGE << "Recv error " << errno << ": " << strerror(errno);
 				finished = true;
 			} else if (n > 0) {
-				SLOGI << mLogPrefix << "Received: " << buffer;
+				LOGI << "Received: " << buffer;
 				auto split_query = StringUtils::split(string(buffer), " ");
 				auto command = split_query.front();
 				split_query.erase(split_query.begin());
@@ -339,8 +339,8 @@ void CommandLineInterface::run() {
 					try {
 						parseAndAnswer(std::move(childSocket), cmd, splitQuery);
 					} catch (const exception& exception) {
-						SLOGE << mLogPrefix << "Caught an unexpected exception while executing command (" << cmd
-						      << "): " << exception.what();
+						LOGE_CTX(mLogPrefix, "run") << "Caught an unexpected exception while executing command (" << cmd
+						                            << "): " << exception.what();
 					}
 				});
 				finished = true;

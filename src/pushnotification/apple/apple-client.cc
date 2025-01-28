@@ -36,11 +36,8 @@ AppleClient::AppleClient(sofiasip::SuRoot& root,
                          const std::string& certPath,
                          const std::string& certName,
                          const Service* service)
-    : Client{service} {
-	ostringstream os{};
-	os << "AppleClient[" << this << "]";
-	mLogPrefix = os.str();
-	SLOGD << mLogPrefix << ": constructing AppleClient";
+    : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "AppleClient")) {
+	LOGD << "Constructing client";
 
 	const auto apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
 	mHttp2Client = Http2Client::make(root, apn_server, APN_PORT, trustStorePath, certPath);

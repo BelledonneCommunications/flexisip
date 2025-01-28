@@ -37,6 +37,8 @@ public:
 	void unbanIP(const std::string& ip, const std::string& port, const std::string& protocol) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"IptablesExecutor"};
+
 	static int runIptables(const std::string& arguments, bool ipv6 = false, bool dumpErrors = true);
 
 	bool mIptablesSupportsWait = false;

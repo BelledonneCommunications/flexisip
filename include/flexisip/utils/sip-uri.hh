@@ -255,6 +255,8 @@ public:
 		}
 
 	private:
+		static constexpr std::string_view mLogPrefix{"SipUri::Headers"};
+
 		std::unordered_map<std::string, std::string> mHeaders{};
 	};
 

@@ -34,16 +34,16 @@ int IptablesExecutor::runIptables(const std::string& arguments, bool ipv6, bool 
 	command << " 2>&1";
 	FILE* f = popen(command.str().c_str(), "r");
 	if (f == nullptr) {
-		SLOGE << "DoSProtection: popen() failed: " << strerror(errno);
+		LOGE << "popen() failed: " << strerror(errno);
 		return -1;
 	}
 	size_t readCount = fread(output, 1, sizeof(output) - 1, f);
 	int ret = pclose(f);
 	if (WIFEXITED(ret)) ret = WEXITSTATUS(ret);
 	if (ret != 0 && dumpErrors) {
-		SLOGE << "DoSProtection: '" << command.str() << "' failed with output '" << output << "'.";
+		LOGE << "'" << command.str() << "' failed with output: " << output;
 	}
-	if (ret == 0 || !dumpErrors) SLOGI << "DoSProtection: '" << command.str() << "' executed.";
+	if (ret == 0 || !dumpErrors) LOGI << "'" << command.str() << "' successfully executed";
 	(void)readCount; // This variable is useless here, I know.
 	return ret;
 }
@@ -120,8 +120,7 @@ void IptablesExecutor::banIP(const string& ip, const string& port, const string&
 	         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(), port.c_str());
 	bool is_ipv6 = strchr(ip.c_str(), ':') != nullptr;
 	if (runIptables(iptables_cmd, is_ipv6, false) == 0) {
-		SLOGI << "IP " << ip << " port " << port << " on protocol " << protocol
-		      << " is already in the iptables banned list, skipping...";
+		LOGI << "Skip " << ip << ":" << port << " on " << protocol << " as it is already in the iptables banned list";
 	} else {
 		snprintf(iptables_cmd, sizeof(iptables_cmd), "%s -A %s -p %s -s %s -m multiport --sports %s -j REJECT",
 		         mIptablesSupportsWait ? "-w" : "", mFlexisipChain.c_str(), protocol.c_str(), ip.c_str(), port.c_str());
@@ -139,5 +138,5 @@ void IptablesExecutor::unbanIP(const string& ip, const string& port, const strin
 
 void IptablesExecutor::checkConfig() {
 	if (runIptables("-V > /dev/null", true) != 0)
-		SLOGW << "ip6tables command is not installed, DoS protection is inactive for IPv6";
+		LOGW << "ip6tables command is not installed, DoS protection is inactive for IPv6";
 }

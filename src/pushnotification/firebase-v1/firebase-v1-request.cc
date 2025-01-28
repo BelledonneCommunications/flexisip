@@ -35,7 +35,8 @@ namespace flexisip::pushnotification {
 FirebaseV1Request::FirebaseV1Request(PushType pType,
                                      const std::shared_ptr<const PushInfo>& pInfo,
                                      std::string_view projectId)
-    : Request{pType, pInfo}, mProjectId(projectId) {
+    : Request{pType, pInfo}, mProjectId(projectId),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "FirebaseV1Request")) {
 	const string& from = mPInfo->mFromName.empty() ? mPInfo->mFromUri : mPInfo->mFromName;
 	auto ttl = min(mPInfo->mTtl, FIREBASE_MAX_TTL);
 
@@ -83,7 +84,7 @@ FirebaseV1Request::FirebaseV1Request(PushType pType,
 
 	mBody.assign(formattedBody.begin(), formattedBody.end());
 
-	SLOGD << "FirebaseV1 request[" << this << "] creation, payload:\n" << formattedBody;
+	LOGD << "Creation, payload:\n" << formattedBody;
 
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
@@ -93,7 +94,7 @@ FirebaseV1Request::FirebaseV1Request(PushType pType,
 	headers.add("content-type", "application/json");
 	this->setHeaders(headers);
 
-	SLOGD << "FirebaseV1 request[" << this << "] creation, headers:\n" << headers.toString();
+	LOGD << "Creation, headers:\n" << headers.toString();
 }
 
 } // namespace flexisip::pushnotification

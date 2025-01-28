@@ -88,6 +88,9 @@ private:
 		std::string mTableNamesQuery{};
 	};
 
+	static constexpr unsigned int sRequiredSchemaVersion = 1;
+	static constexpr std::string_view mLogPrefix{"DataBaseEventLogWriter"};
+
 	class Sqlite3Info : public BackendInfo {
 	public:
 		Sqlite3Info() noexcept;
@@ -123,8 +126,6 @@ private:
 	unsigned int mMaxQueueSize{0};
 
 	std::array<std::string, 5> mInsertReq{};
-
-	static constexpr unsigned int sRequiredSchemaVersion = 1;
 };
 
 } // namespace flexisip

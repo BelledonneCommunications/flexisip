@@ -35,6 +35,7 @@ namespace flexisip {
 namespace pushnotification {
 
 struct PushInfo {
+	static constexpr std::string_view mLogPrefix{"PushInfo"};
 	// Generic attributes
 
 	/**

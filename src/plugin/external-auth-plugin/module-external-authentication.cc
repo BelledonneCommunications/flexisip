@@ -75,8 +75,7 @@ FlexisipAuthStatus* ModuleExternalAuthentication::createAuthStatus(const shared_
 		if (withoutNamespace) {
 			as->uuid(string(*withoutNamespace));
 		} else {
-			SLOGE << "ExternalAuthentication: error while getting UUID: '" << uuid
-			      << "' does not start with 'urn:uuid:'";
+			LOGE << "Error while getting UUID '" << uuid << "', it does not start with 'urn:uuid:'";
 		}
 	}
 

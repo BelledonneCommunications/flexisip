@@ -100,12 +100,12 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	list<string> whiteList = cluster->get<ConfigStringList>("nodes")->read();
 	whiteList.splice(whiteList.end(), mc->get<ConfigStringList>("white-list")->read());
 
-	SLOGI << "IP 127.0.0.1 and ::1 automatically added to DOS protection white list";
+	LOGI << "Addresses 127.0.0.1 and ::1 automatically added to the white list";
 	whiteList.push_back("127.0.0.1");
 	whiteList.push_back("::1");
 	for (auto it = whiteList.begin(); it != whiteList.end(); ++it) {
 		const char* white_ip = (*it).c_str();
-		SLOGI << "Host " << white_ip << " is in DOS protection white list";
+		LOGI << "Host " << white_ip << " is in white list";
 		BinaryIp::emplace(mWhiteList, white_ip);
 	}
 
@@ -115,7 +115,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 		tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 	}
 	if (getuid() != 0) {
-		SLOGW << "Flexisip not started with root privileges! iptables commands for DoS protection won't work.";
+		LOGW << "Flexisip not started with root privileges: iptables commands for DoS protection will not work";
 		return;
 	}
 
@@ -133,7 +133,7 @@ bool ModuleDoSProtection::isValidNextConfig(const ConfigValue& value) {
 #if __APPLE__
 		module_config->get<ConfigBoolean>("enabled")->set("false");
 		mExecutorConfigChecked = true; // unused-private-field if not set
-		SLOGW << "DosProtection only works on linux hosts, Disabling this module.";
+		LOGW << "This module only works on linux hosts, disabling";
 		return true;
 #else
 		if (!mExecutorConfigChecked) {
@@ -170,8 +170,8 @@ void ModuleDoSProtection::onIdle() {
 		}
 
 		if (now_in_millis - started_time_in_millis >= 100) { // Do not use more than 100ms to clean the hashtable
-			SLOGW << "Started to clean dos hashtable " << (now_in_millis - started_time_in_millis)
-			      << "ms ago, let's stop for now a continue later";
+			LOGW << "Started to clean hashtable " << (now_in_millis - started_time_in_millis)
+			     << "ms ago, stop for now and continue later";
 			break;
 		}
 	}
@@ -196,7 +196,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 	tport_t* tport = inTport.get();
 
 	if (tport == NULL) {
-		SLOGD << "Tport is null, can't check the packet count rate";
+		LOGD << "Tport is null, cannot check the packet count rate";
 		return std::move(ev);
 	}
 
@@ -235,29 +235,28 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 				dosContext.packet_count_rate = dosContext.recv_msg_count_since_last_check / time_elapsed * 1000;
 				dosContext.recv_msg_count_since_last_check = 0;
 				dosContext.last_check_recv_msg_check_time = now_in_millis;
-				SLOGD << "Packet count rate (" << dosContext.packet_count_rate << ") for ip/port " << ip << "/" << port
-				      << " on protocol udp";
+				LOGD << "Packet count rate (" << dosContext.packet_count_rate << ") for " << ip << ":" << port
+				     << " on protocol UDP";
 			}
 
 			if (dosContext.packet_count_rate >= mPacketRateLimit) {
-				SLOGW << "Packet count rate (" << dosContext.packet_count_rate << ") >= limit (" << mPacketRateLimit
-				      << "), blocking ip/port " << ip << "/" << port << " on protocol udp for " << mBanTime
-				      << " minutes";
+				LOGW << "Packet count rate (" << dosContext.packet_count_rate << ") >= limit (" << mPacketRateLimit
+				     << "), blocking " << ip << ":" << port << " on protocol UDP for " << mBanTime << " minutes";
 				if (!isIpWhiteListed(ip)) {
 					mThreadPool->run([&, ip, port] { mBanExecutor->banIP(ip, port, "udp"); });
 					registerUnbanTimer(ip, port, "udp");
 					ev->terminateProcessing(); // the event is discarded
 				} else {
-					SLOGI << "IP " << ip << " should be banned but wasn't because in white list";
+					LOGI << "Address " << ip << " should be banned but was not because it is part of the white list";
 				}
 				dosContext.packet_count_rate = 0; // Reset it to not add the iptables rule twice by mistake
 			}
 		} else {
-			SLOGW << "getnameinfo() failed: " << gai_strerror(err);
+			LOGW << "getnameinfo() failed: " << gai_strerror(err);
 		}
 	} else {
 		unsigned long packet_count_rate = tport_get_packet_count_rate(tport);
-		SLOGD << "Packet count rate (" << packet_count_rate << ") for current tport on protocol tcp";
+		LOGD << "Packet count rate (" << packet_count_rate << ") for current tport on protocol TCP";
 		if (packet_count_rate >= (unsigned long)mPacketRateLimit) {
 			sockaddr* addr = tport_get_address(tport)->ai_addr;
 			socklen_t len = tport_get_address(tport)->ai_addrlen;
@@ -266,19 +265,18 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 
 			if ((err = getnameinfo(addr, len, ip, sizeof(ip), port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) ==
 			    0) {
-				SLOGW << "Packet count rate (" << packet_count_rate << ") >= limit (" << mPacketRateLimit
-				      << "), blocking ip/port " << ip << "/" << port << " on protocol tcp for " << mBanTime
-				      << " minutes";
+				LOGW << "Packet count rate (" << packet_count_rate << ") >= limit (" << mPacketRateLimit
+				     << "), blocking " << ip << ":" << port << " on protocol TCP for " << mBanTime << " minutes";
 				if (!isIpWhiteListed(ip)) {
 					mThreadPool->run([&, ip, port] { mBanExecutor->banIP(ip, port, "tcp"); });
 					registerUnbanTimer(ip, port, "tcp");
 					ev->terminateProcessing(); // the event is discarded
 				} else {
-					SLOGI << "IP " << ip << " should be banned but wasn't because in white list";
+					LOGI << "Address " << ip << " should be banned but was not because it is part of the white list";
 				}
 				tport_reset_packet_count_rate(tport); // Reset it to not add the iptables rule twice by mistake
 			} else {
-				SLOGW << "getnameinfo() failed: " << gai_strerror(err);
+				LOGW << "getnameinfo() failed: " << gai_strerror(err);
 			}
 		}
 	}

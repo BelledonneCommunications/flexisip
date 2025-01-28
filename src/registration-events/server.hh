@@ -40,6 +40,8 @@ public:
 		}
 
 	private:
+		static constexpr std::string_view mLogPrefix{"Subscriptions"};
+
 		void onSubscribeReceived(const std::shared_ptr<linphone::Core>&,
 		                         const std::shared_ptr<linphone::Event>&,
 		                         const std::string&,
@@ -77,6 +79,8 @@ protected:
 	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegistrationEventServer"};
+
 	std::shared_ptr<ConfigManager> mConfigManager;
 	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<linphone::Core> mCore;

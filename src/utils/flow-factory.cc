@@ -36,7 +36,7 @@ namespace flexisip {
 
 FlowFactory::Helper::Helper(const std::filesystem::path& hashKeyFilePath) {
 	if (fs::exists(hashKeyFilePath)) {
-		SLOGD << "FlowFactory::Helper: found hash key in " << hashKeyFilePath;
+		LOGD << "Found hash key in " << hashKeyFilePath;
 		ifstream file;
 		file.open(hashKeyFilePath.c_str(), ios_base::in);
 		if (!file.good()) {
@@ -52,7 +52,7 @@ FlowFactory::Helper::Helper(const std::filesystem::path& hashKeyFilePath) {
 		return;
 	}
 
-	SLOGD << "FlowFactory::Helper: no hash key file found, creating one...";
+	LOGD << "No hash key file found, creating one...";
 
 	const auto directory = hashKeyFilePath.parent_path();
 	if (!fs::exists(directory)) {
@@ -82,7 +82,7 @@ FlowFactory::Helper::Helper(const std::filesystem::path& hashKeyFilePath) {
 		throw runtime_error("an error has occurred while writing hash key in file: " + hashKeyFilePath.string());
 	}
 	file.close();
-	SLOGD << "FlowFactory::Helper: successfully created hash key in " << hashKeyFilePath;
+	LOGD << "Successfully created hash key in " << hashKeyFilePath;
 }
 
 /*
@@ -96,12 +96,10 @@ std::pair<FlowData, Flow::HMAC> FlowFactory::Helper::decode(const Flow::Token& t
 	const auto error = bctbx_base64_decode(rawToken.data(), &tokenSize, data, token.size());
 
 	if (error == BCTBX_ERROR_OUTPUT_BUFFER_TOO_SMALL) {
-		throw runtime_error(
-		    "FlowFactory::Helper::decode: an error has occurred while decoding flow-token, output buffer is too small");
+		throw runtime_error("an error has occurred while decoding flow-token, output buffer is too small");
 	}
 	if (error == BCTBX_ERROR_INVALID_BASE64_INPUT) {
-		throw runtime_error("FlowFactory::Helper::decode: an error has occurred while decoding flow-token, base64 "
-		                    "input data is invalid");
+		throw runtime_error("an error has occurred while decoding flow-token, base64 input data is invalid");
 	}
 
 	FlowData flowData{readSocketAddressFromRawToken(rawToken, FlowData::Address::local),
@@ -142,8 +140,7 @@ std::shared_ptr<SocketAddress> FlowFactory::Helper::readSocketAddressFromRawToke
 		memcpy(portPtr, dataPtr + sizeof(in6_addr), sizeof(in_port_t));
 
 	} else {
-		throw runtime_error("FlowFactory::Helper::readSocketAddressFromRawToken: unknown token size " +
-		                    to_string(token.size()));
+		throw runtime_error("unknown token size " + to_string(token.size()));
 	}
 
 	return SocketAddress::make(&rawSocketAddress);
@@ -157,7 +154,7 @@ Flow::HMAC FlowFactory::Helper::hash(const FlowData::Raw& rawData) const {
 	const auto* md = EVP_get_digestbyname("SHA1");
 
 	if (!HMAC(md, mHashKey.data(), mHashKey.size(), rawData.data(), rawData.size(), mdValue, nullptr)) {
-		throw runtime_error("FlowFactory::Helper::computeHMAC: an error has occurred while computing HMAC");
+		throw runtime_error("an error has occurred while computing HMAC");
 	}
 
 	return {mdValue, mdValue + kHMACSize};
@@ -177,7 +174,7 @@ Flow::Token FlowFactory::Helper::encode(const FlowData::Raw& rawData) const {
 	Flow::RawToken encodedToken(encodedTokenSize);
 
 	if (bctbx_base64_encode(encodedToken.data(), &encodedTokenSize, token.data(), token.size()) != 0) {
-		throw runtime_error("FlowFactory::Helper::encode: error while encoding in base64, output buffer is too small");
+		throw runtime_error("error while encoding in base64, output buffer is too small");
 	}
 
 	return {encodedToken.data(), encodedToken.data() + encodedTokenSize};
@@ -227,22 +224,22 @@ FlowFactory::FlowFactory(const std::filesystem::path& hashKeyFilePath) : mHelper
  */
 bool FlowFactory::tokenIsValid(const Flow::Token& token) const {
 	if (token.size() != Helper::kEncodedFlowTokenSizeIPv4 and token.size() != Helper::kEncodedFlowTokenSizeIPv6) {
-		SLOGD << "FlowFactory::tokenIsValid: invalid flow-token size " << token.size();
+		LOGD << "Invalid flow-token size " << token.size();
 		return false;
 	}
 
 	try {
 		const auto flow = create(token);
 		if (flow.mData.mTransportProtocol == FlowData::Transport::Protocol::unknown) {
-			SLOGD << "FlowFactory::tokenIsValid: invalid transport protocol (unknown)";
+			LOGD << "Invalid transport protocol (unknown)";
 			return false;
 		}
 		if (flow.isFalsified()) {
-			SLOGD << "FlowFactory::tokenIsValid: invalid HMAC (token may have been tampered with)";
+			LOGD << "Invalid HMAC (token may have been tampered with)";
 			return false;
 		}
 	} catch (const exception& error) {
-		SLOGD << "FlowFactory::tokenIsValid: an error has occurred while verifying token (" << error.what() << ")";
+		LOGD << "An error has occurred while verifying token (" << error.what() << ")";
 		return false;
 	}
 

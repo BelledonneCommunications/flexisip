@@ -76,6 +76,8 @@ private:
 		unsigned char node[6];
 	};
 
+	static constexpr std::string_view mLogPrefix{"DomainRegistration"};
+
 	// Private methods
 	void setContact(msg_t* msg);
 	std::chrono::seconds getExpires(nta_outgoing_t* orq, const sip_t* response);
@@ -159,6 +161,8 @@ public:
 	static void declareConfig(GenericStruct& rootConfig);
 
 private:
+	static constexpr std::string_view mLogPrefix{"DomainRegistrationManager"};
+
 	Agent* mAgent{nullptr};
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations{};
 	int mNbRegistration{0};

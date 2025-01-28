@@ -19,6 +19,7 @@
 #pragma once
 
 #include <memory>
+#include <string_view>
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
@@ -50,6 +51,9 @@ protected:
 	bool mStarted{true};
 	std::shared_ptr<sofiasip::SuRoot> mRoot{};
 	std::unique_ptr<sofiasip::Timer> mTimer{};
+
+private:
+	static constexpr std::string_view mLogPrefix{"ServiceServer"};
 };
 
 } // namespace flexisip

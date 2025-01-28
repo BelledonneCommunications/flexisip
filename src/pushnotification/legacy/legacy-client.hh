@@ -63,7 +63,8 @@ public:
 	TlsTransport(std::unique_ptr<TlsConnection>&& connection,
 	             Method method = Method::Raw,
 	             const sofiasip::Url& url = sofiasip::Url{}) noexcept
-	    : Transport{}, mConn{std::move(connection)}, mMethod{method}, mUrl{url} {
+	    : Transport{}, mConn{std::move(connection)}, mMethod{method}, mUrl{url},
+	      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "TlsTransport")} {
 	}
 	int sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) override;
 
@@ -79,6 +80,7 @@ private:
 	Method mMethod{Method::Raw};
 	sofiasip::Url mUrl{};
 	time_t mLastUse{0};
+	std::string mLogPrefix;
 };
 
 class LegacyClient : public Client {
@@ -112,6 +114,7 @@ private:
 
 	bool mThreadRunning{false};
 	bool mThreadWaiting{false};
+    std::string mLogPrefix;
 };
 
 } // namespace pushnotification

@@ -25,6 +25,8 @@
 namespace flexisip {
 
 class RecordSerializer {
+	static constexpr std::string_view mLogPrefix{"RecordSerializer"};
+
 	static RecordSerializer* sInstance;
 
 public:
@@ -44,12 +46,18 @@ class RecordSerializerC : public RecordSerializer {
 public:
 	bool parse(const char* str, int len, Record* r) override;
 	bool serialize(Record* r, std::string& serialized, bool log) override;
+
+private:
+	static constexpr std::string_view mLogPrefix{"RecordSerializerC"};
 };
 
 class RecordSerializerJson : public RecordSerializer {
 public:
 	bool parse(const char* str, int len, Record* r) override;
 	bool serialize(Record* r, std::string& serialized, bool log) override;
+
+private:
+    static constexpr std::string_view mLogPrefix{"RecordSerializerJson"};
 };
 
 #ifdef ENABLE_MSGPACK

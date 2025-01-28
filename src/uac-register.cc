@@ -35,7 +35,7 @@ UacRegister::UacRegister(const sip_from_t* ifrom, const sip_to_t* ito, int iexpi
 	from = sip_from_dup(&home, ifrom);
 	to = sip_to_dup(&home, ito);
 
-	SLOGD << "Creating UacRegister " << this << " from " << from->a_url->url_user << "@" << from->a_url->url_host;
+	LOGD << "New instance [" << this << "] from " << from->a_url->url_user << "@" << from->a_url->url_host;
 	nh = nua_handle(nua, userptr, SIPTAG_FROM(from), SIPTAG_TO(to), TAG_END());
 	state = INITIAL;
 	challengeReceived = false;
@@ -44,7 +44,7 @@ UacRegister::UacRegister(const sip_from_t* ifrom, const sip_to_t* ito, int iexpi
 void UacRegister::send(const sip_contact_t* contact) {
 	char expirechars[32];
 	state = INITIAL;
-	SLOGD << "Sending UacRegister " << this << " with refresh " << expire << "s";
+	LOGD << "Sending UacRegister [" << this << "] with refresh " << expire << "s";
 	snprintf(expirechars, sizeof(expirechars), "%i", expire);
 	// string expirestr = to_string((long long int)expire); //does not work with gcc-4.4.
 	string expirestr = expirechars;
@@ -57,12 +57,12 @@ void UacRegister::send(const sip_contact_t* contact) {
 UacRegister::~UacRegister() {
 	if (nh) nua_handle_destroy(nh);
 	su_home_deinit(&home);
-	SLOGD << "Destroyed UacRegister " << this;
+	LOGD << "Destroyed instance [" << this << "]";
 }
 
 void UacRegister::authenticate(const msg_param_t* au_params) {
 	if (challengeReceived) {
-		SLOGD << "A second challenge was received.";
+		LOGD << "A second challenge was received";
 		state = ERROR;
 		return;
 	}
@@ -80,30 +80,30 @@ void UacRegister::authenticate(const msg_param_t* au_params) {
 	digest << ":" << user << ":" << password;
 
 	string digeststr(digest.str());
-	// SLOGD << "GR authentication with " << digeststr; // expose password
+	// LOGD << "GR authentication with " << digeststr; // expose password
 	nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()), TAG_END());
 }
 
 void UacRegister::onMessage(const sip_t* sip) {
 	switch (sip->sip_status->st_status) {
 		case 200:
-			SLOGD << "REGISTER done";
+			LOGD << "REGISTER done";
 			state = REGISTERED;
 			break;
 		case 408:
-			SLOGD << "REGISTER timeout";
+			LOGD << "REGISTER timeout";
 			state = ERROR;
 			break;
 		case 401:
-			SLOGD << "REGISTER challenged 401";
+			LOGD << "REGISTER challenged 401";
 			authenticate(sip->sip_www_authenticate->au_params);
 			break;
 		case 407:
-			SLOGD << "REGISTER challenged 407";
+			LOGD << "REGISTER challenged 407";
 			authenticate(sip->sip_proxy_authenticate->au_params);
 			break;
 		default:
-			SLOGD << "REGISTER not handled response: " << sip->sip_status->st_status;
+			LOGD << "REGISTER not handled response: " << sip->sip_status->st_status;
 			state = ERROR;
 			break;
 	}

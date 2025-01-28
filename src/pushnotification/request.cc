@@ -31,7 +31,8 @@ using namespace std;
 namespace flexisip {
 namespace pushnotification {
 
-Request::Request(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) : mPType{pType}, mPInfo{pInfo} {
+Request::Request(PushType pType, const std::shared_ptr<const PushInfo>& pInfo)
+    : mPType{pType}, mPInfo{pInfo}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Request")) {
 	const auto& dests = mPInfo->mDestinations;
 	if (dests.find(mPType) == dests.cend()) {
 		throw UnsupportedPushType{pType};
@@ -39,7 +40,7 @@ Request::Request(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) :
 }
 
 void Request::setState(State state) noexcept {
-	SLOGD << "Request[" << this << "]: switching state from " << mState << " -> " << state;
+	LOGD << "Switching state from " << mState << " to " << state;
 	mState = state;
 }
 
@@ -61,7 +62,7 @@ std::string Request::getPushTimeStamp() const noexcept {
 	string date(20, '\0');
 	auto ret = strftime(&date[0], date.size(), "%Y-%m-%d %H:%M:%S", &time);
 	if (ret == 0) {
-		SLOGE << "Invalid time stamp for push notification PNR: " << this;
+		LOGE << "Invalid timestamp";
 	}
 	date.resize(ret);
 	return date;

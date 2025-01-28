@@ -31,6 +31,8 @@ public:
 	const sip_route_t* resolveRoute(const sip_t& sip) const;
 
 private:
+	static constexpr std::string_view mLogPrefix{"ConditionalRouteMap"};
+
 	sip_route_t* buildRoute(const std::string& route);
 	std::list<std::pair<sip_route_t*, std::shared_ptr<SipBooleanExpression>>> mRoutes;
 	sofiasip::Home mHome;

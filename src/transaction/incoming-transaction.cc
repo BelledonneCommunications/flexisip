@@ -27,12 +27,13 @@
 using namespace flexisip;
 using namespace std;
 
-IncomingTransaction::IncomingTransaction(std::weak_ptr<Agent> agent) : Transaction(std::move(agent)) {
-	SLOGD << "New IncomingTransaction " << this;
+IncomingTransaction::IncomingTransaction(std::weak_ptr<Agent> agent)
+    : Transaction(std::move(agent)), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "IncomingTransaction")) {
+	LOGD << "New instance";
 }
 
 IncomingTransaction::~IncomingTransaction() {
-	SLOGD << "Delete IncomingTransaction " << this;
+	LOGD << "Delete instance";
 }
 
 void IncomingTransaction::_customDeinit(nta_incoming_t* incoming, nta_incoming_magic_t* magic) noexcept {
@@ -53,7 +54,7 @@ void IncomingTransaction::handle(const shared_ptr<MsgSip>& ms) {
 		                               reinterpret_cast<nta_incoming_magic_t*>(this));
 		mSofiaRef = shared_from_this();
 	} else {
-		SLOGE << "Error during incoming transaction creation";
+		LOGE << "Error during incoming transaction creation";
 	}
 }
 
@@ -61,14 +62,13 @@ shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* p
 	if (mIncoming) {
 		auto msg = ownership::owned(nta_incoming_create_response(mIncoming, status, phrase));
 		if (!msg) {
-			SLOGE << "IncomingTransaction::createResponse(): this=" << this << " cannot create response.";
+			LOGE << "Cannot create response";
 			return shared_ptr<MsgSip>();
 		}
 
 		return make_shared<MsgSip>(std::move(msg));
 	}
-	SLOGE << "IncomingTransaction::createResponse(): this=" << this
-	      << " transaction is finished, cannot create response.";
+	LOGE << "Transaction is finished, cannot create response";
 	return shared_ptr<MsgSip>();
 }
 
@@ -76,13 +76,13 @@ void IncomingTransaction::send(const shared_ptr<MsgSip>& ms, url_string_t const*
 	if (mIncoming) {
 		msg_t* msg =
 		    msg_ref_create(ms->getMsg()); // need to increment refcount of the message because mreply will decrement it.
-		SLOGD << "Response is sent through an incoming transaction.";
+		LOGD << "Response is sent through an incoming transaction";
 		nta_incoming_mreply(mIncoming, msg);
 		if (ms->getSip()->sip_status != nullptr && ms->getSip()->sip_status->st_status >= 200) {
 			destroy();
 		}
 	} else {
-		SLOGW << "Invalid incoming";
+		LOGW << "Invalid incoming";
 	}
 }
 
@@ -98,13 +98,13 @@ void IncomingTransaction::reply(
 			destroy();
 		}
 	} else {
-		SLOGW << "Invalid incoming";
+		LOGW << "Invalid incoming";
 	}
 }
 
 int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t*, const sip_t* sip) noexcept {
 	IncomingTransaction* it = reinterpret_cast<IncomingTransaction*>(magic);
-	SLOGD << "IncomingTransaction callback " << it;
+	LOGD_CTX("IncomingTransaction") << "Callback execution for instance " << it;
 	if (sip != nullptr) {
 		auto ev = make_unique<RequestSipEvent>(
 		    it->shared_from_this(),

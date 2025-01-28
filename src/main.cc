@@ -32,7 +32,7 @@ int main(int argc, const char* argv[]) {
 		return exception.getExitStatus();
 	} catch (const ExitSuccess& exception) {
 		if (exception.what() != nullptr && exception.what()[0] != '\0') {
-			SLOGD << "Exit success: " << exception.what();
+			LOGD_CTX("Main") << "Exit success: " << exception.what();
 		}
 		return EXIT_SUCCESS;
 	} catch (const Exit& exception) {

@@ -25,9 +25,9 @@ using namespace std;
 namespace flexisip {
 
 BasicThreadPool::BasicThreadPool(unsigned int maxThreadNumber, unsigned int maxQueueSize)
-    : BaseThreadPool(maxQueueSize, maxThreadNumber) {
-	SLOGD << "BasicThreadPool [" << this << "]: init with " << maxThreadNumber << " threads and queue size "
-	      << maxQueueSize;
+    : BaseThreadPool(maxQueueSize, maxThreadNumber),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "BasicThreadPool")) {
+	LOGD << "Init with " << maxThreadNumber << " threads and queue size " << maxQueueSize;
 
 	// Create number of required threads and add them to the thread pool vector.
 	for (unsigned int i = 0; i < mMaxThreadNumber; i++) {
@@ -40,7 +40,7 @@ BasicThreadPool::~BasicThreadPool() {
 }
 
 void BasicThreadPool::stop() {
-	SLOGD << "BasicThreadPool [" << this << "]: shutdown";
+	LOGD << "Shutdown";
 	// Scope based locking.
 	{
 		// Put unique lock on task mutex.
@@ -77,7 +77,7 @@ void BasicThreadPool::_run() {
 			mCondition.wait(lock, [this]() { return !mTasks.empty() || mState == Shutdown; });
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (mState == Shutdown && mTasks.empty()) {
-				SLOGD << "ThreadPool [" << this << "]: terminate thread";
+				LOGD << "Terminate thread";
 				return;
 			}
 

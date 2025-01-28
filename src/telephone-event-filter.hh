@@ -29,6 +29,8 @@ public:
 	virtual bool onOutgoingTransfer(uint8_t* data, size_t size, const struct sockaddr* sockaddr, socklen_t addrlen);
 
 private:
+	static constexpr std::string_view mLogPrefix{"TelephoneEventFilter"};
+
 	int mTelephoneEventPt;
 };
 

@@ -115,9 +115,10 @@ public:
 			               started = std::chrono::system_clock::now()](auto& session, Reply reply) mutable {
 				const auto wallClockTime = std::chrono::system_clock::now() - started;
 				if (!std::holds_alternative<reply::Disconnected>(reply)) {
-					SLOGD << session.mLogPrefix << "Redis command completed in "
-					      << std::chrono::duration_cast<std::chrono::milliseconds>(wallClockTime).count()
-					      << "ms (wall-clock time):\n\t" << cmdString;
+					LOGD_CTX(session.mLogPrefix, "timedCommand")
+					    << "Redis command completed in "
+					    << std::chrono::duration_cast<std::chrono::milliseconds>(wallClockTime).count()
+					    << "ms (wall-clock time):\n\t" << cmdString;
 				}
 
 				callback(session, std::move(reply));
@@ -365,6 +366,7 @@ private:
 
 	SubsMap mSubscriptions{};
 	Session mWrapped;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip::redis::async

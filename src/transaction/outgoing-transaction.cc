@@ -30,12 +30,13 @@ using namespace flexisip;
 using namespace std;
 
 OutgoingTransaction::OutgoingTransaction(std::weak_ptr<Agent> agent)
-    : Transaction{std::move(agent)}, mBranchId{getRandomBranch()} {
-	SLOGD << "New OutgoingTransaction " << this;
+    : Transaction{std::move(agent)}, mBranchId{getRandomBranch()},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "OutgoingTransaction")) {
+	LOGD << "New instance";
 }
 
 OutgoingTransaction::~OutgoingTransaction() {
-	SLOGD << "Delete OutgoingTransaction " << this;
+	LOGD << "Delete instance";
 	auto outgoing = mOutgoing.take();
 	auto sharedAgent = mAgent.lock();
 	if (outgoing && sharedAgent &&
@@ -65,7 +66,7 @@ void OutgoingTransaction::_cancel(Tags... tags) {
 		// NTATAG_CANCEL_2543(1) --> the stack generates a 487 response to the request internally
 		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_2543(1), TAG_END());
 	} else {
-		SLOGD << "OutgoingTransaction::cancel(): transaction already destroyed.";
+		LOGD << "Transaction already destroyed";
 	}
 }
 
@@ -79,7 +80,7 @@ void OutgoingTransaction::cancelWithReason(sip_reason_t* reason) {
 
 const url_t* OutgoingTransaction::getRequestUri() const {
 	if (mOutgoing == nullptr) {
-		SLOGE << "OutgoingTransaction::getRequestUri(): transaction not started !";
+		LOGE << "Transaction not started";
 		return nullptr;
 	}
 	return nta_outgoing_request_uri(mOutgoing);
@@ -87,7 +88,7 @@ const url_t* OutgoingTransaction::getRequestUri() const {
 
 int OutgoingTransaction::getResponseCode() const {
 	if (mOutgoing == nullptr) {
-		SLOGE << "OutgoingTransaction::getResponseCode(): transaction not started !";
+		LOGE << "Transaction not started";
 		return 0;
 	}
 	return nta_outgoing_status(mOutgoing);
@@ -95,7 +96,7 @@ int OutgoingTransaction::getResponseCode() const {
 
 shared_ptr<MsgSip> OutgoingTransaction::getRequestMsg() {
 	if (mOutgoing == nullptr) {
-		SLOGE << "OutgoingTransaction::getRequestMsg(): transaction not started !";
+		LOGE << "Transaction not started !";
 		return nullptr;
 	}
 
@@ -106,7 +107,7 @@ void OutgoingTransaction::send(
     const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
 	ta_list ta;
 
-	SLOGD << "Message is sent through an outgoing transaction.";
+	LOGD << "Message is sent through an outgoing transaction";
 
 	if (!mOutgoing) {
 		msg_t* msg = msg_ref_create(ms->getMsg());
@@ -119,7 +120,7 @@ void OutgoingTransaction::send(
 		ta_end(ta);
 		if (mOutgoing == nullptr) {
 			/*when nta_outgoing_mcreate() fails, we must destroy the message because it won't take the reference*/
-			SLOGE << "Error during outgoing transaction creation";
+			LOGE << "Error during outgoing transaction creation";
 			msg_destroy(msg);
 		} else {
 			mSofiaRef = shared_from_this();
@@ -130,15 +131,15 @@ void OutgoingTransaction::send(
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			cancelWithReason(sip->sip_reason);
 		} else {
-			SLOGE << "Attempting to send request " << sip->sip_request->rq_method_name
-			      << " through an already created outgoing transaction.";
+			LOGE << "Attempting to send request " << sip->sip_request->rq_method_name
+			     << " through an already created outgoing transaction.";
 		}
 	}
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*, const sip_t* sip) noexcept {
 	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
-	SLOGD << "OutgoingTransaction[" << otr << "] : _callback";
+	LOGD_CTX("OutgoingTransaction") << "Callback execution for instance " << otr;
 	if (sip != nullptr) {
 		auto msgSip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
 		const auto& agent = otr->mAgent.lock();

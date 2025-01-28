@@ -135,6 +135,8 @@ public:
 	void publish(const Record::Key& topic, const std::string& uid) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegistrarDbRedisAsync"};
+
 	static void sBindRetry(void* ud) noexcept;
 	void setWritable(bool value);
 

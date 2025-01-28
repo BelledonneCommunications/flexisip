@@ -220,6 +220,7 @@ private:
 	std::vector<std::string> mSavedKeys{};
 	sofiasip::MsgSipPriority mSavedMsgPriority;
 	const unsigned int mMaxThreadNumber;
+    std::string mLogPrefix;
 };
 
 std::ostream& operator<<(std::ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept;

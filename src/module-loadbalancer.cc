@@ -55,10 +55,10 @@ void LoadBalancer::onLoad(const GenericStruct* modconf) {
 	list<string> routes = modconf->get<ConfigStringList>("routes")->read();
 	list<string>::iterator it;
 
-	SLOGI << "Load balancer configured to balance over:";
+	LOGI << "Load balancer configured to balance over:";
 	for (it = routes.begin(); it != routes.end(); ++it) {
 		mRoutes.push_back(*it);
-		SLOGI << *it;
+		LOGI << *it;
 	}
 	mRoutesCount = mRoutes.size();
 }
@@ -79,7 +79,7 @@ unique_ptr<RequestSipEvent> LoadBalancer::onRequest(unique_ptr<RequestSipEvent>&
 		route = mRoutes[index].c_str();
 		ModuleToolbox::cleanAndPrependRoute(getAgent(), ms->getMsg(), sip, sip_route_make(ms->getHome(), route));
 	} else {
-		SLOGW << "request has no call id";
+		LOGW << "Request has no call id";
 	}
 	return std::move(ev);
 }

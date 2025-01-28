@@ -286,19 +286,21 @@ private:
 	};
 	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
 
-	static void handleBioError(const std::string& msg, int status);
-	static int handleVerifyCallback(X509_STORE_CTX* ctx, void* ud);
-	static bool isCertExpired(const std::string& certPath) noexcept;
 	/**
 	 * Utility function to convert ASN1_TIME to a printable string in a buffer.
 	 */
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
 	static SSLCtxUniquePtr makeDefaultCtx();
-	static int getFd(BIO& bio);
 	std::string loadCertificate();
 
+	static int handleVerifyCallback(X509_STORE_CTX* ctx, void* ud);
 	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
 	void doConnectAsync(su_root_t& root, const std::function<void()>& onConnectCb);
+
+	int getFd(BIO& bio) const;
+
+	void handleBioError(const std::string& msg, int status) const;
+	bool isCertExpired(const std::string& certPath) noexcept;
 
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};

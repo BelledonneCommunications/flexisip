@@ -45,6 +45,7 @@ private:
 	static constexpr std::chrono::seconds FIREBASE_MAX_TTL{4 * 7 * 24 * 3600}; // Equals 4 weeks;
 
 	std::string mProjectId;
+    std::string mLogPrefix;
 };
 
 } // namespace flexisip::pushnotification

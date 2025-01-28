@@ -52,17 +52,17 @@ public:
 	          [this](su_root_magic_t*, su_wait_t* waiter) noexcept {
 		          // Logging is safe in here since we're out of the signal handler
 		          if (waiter->revents & SU_WAIT_ERR) {
-			          SLOGE << "Error on signal pipe";
+			          LOGE_CTX(mLogPrefix, "SofiaDrivenSignalHandler") << "Error on signal pipe";
 			          return 0;
 		          }
 		          if (waiter->revents & SU_WAIT_HUP) {
-			          SLOGE << "Signal pipe closed";
+			          LOGE_CTX(mLogPrefix, "SofiaDrivenSignalHandler") << "Signal pipe closed";
 			          return 0;
 		          }
 
 		          SignalData signal;
 		          if (mSignalPipe.read(signal) != sizeof(signal)) {
-			          SLOGE << "Error reading from signal pipe";
+			          LOGE_CTX(mLogPrefix, "SofiaDrivenSignalHandler") << "Error reading from signal pipe";
 			          return 0;
 		          }
 
@@ -73,6 +73,8 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"SofiaDrivenSignalHandler"};
+
 	PipedSignal mSignalPipe;
 	Callback mCallback;
 	sofiasip::Waker mWaker;

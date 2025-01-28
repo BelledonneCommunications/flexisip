@@ -79,10 +79,10 @@ void ExternalAuthModule::popAndSendRequest() {
 		// and swtich to waiting state.
 		ctx.release();
 		mWaitingForResponse = true;
-		SLOGI << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
+		LOGI << "HTTP request [" << request << "] to '" << uri << "' successfully sent";
 
 	} catch (const runtime_error& e) {
-		SLOGE << e.what();
+		LOGE << e.what();
 		onError(ctx->as);
 		notify(ctx->as);
 	}
@@ -103,7 +103,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx& ctx, nth_client_t* reque
 
 		auto status = http->http_status->st_status;
 		auto httpBody = toString(http->http_payload);
-		SLOGI << "HTTP response received [" << status << "]: " << endl << (!httpBody.empty() ? httpBody : "<empty>");
+		LOGI << "HTTP response received [" << status << "]: " << (!httpBody.empty() ? "\n" + httpBody : "<empty>");
 		if (status != 200) {
 			os << "unhandled HTTP status code [" << status << "]";
 			throw runtime_error(os.str());
@@ -137,7 +137,7 @@ void ExternalAuthModule::onHttpResponse(HttpRequestCtx& ctx, nth_client_t* reque
 		httpAuthStatus.pAssertedIdentity(pAssertedIdentity);
 		if (sipCode == 401 || sipCode == 407) challenge(ctx.as, &ctx.ach);
 	} catch (const runtime_error& e) {
-		SLOGE << "HTTP request [" << request << "]: " << e.what();
+		LOGE << "HTTP request [" << request << "]: " << e.what();
 		onError(ctx.as);
 	} catch (...) {
 		if (request) nth_client_destroy(request);

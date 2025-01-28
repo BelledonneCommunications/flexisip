@@ -47,6 +47,8 @@ private:
 		std::time_t expires;
 	};
 
+	static constexpr std::string_view mLogPrefix{"NonceStore"};
+
 	std::map<std::string, NonceCount> mNc;
 	std::mutex mMutex;
 	int mNonceExpires = 3600;

@@ -47,16 +47,14 @@ using namespace std::string_view_literals;
 
 namespace flexisip::redis::async {
 
-Session::Session(SoftPtr<SessionListener>&& listener) : mListener(std::move(listener)) {
-	std::stringstream prefix{};
-	prefix << "redis::async::Session[" << this << "] - ";
-	mLogPrefix = prefix.str();
+Session::Session(SoftPtr<SessionListener>&& listener)
+    : mListener(std::move(listener)), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Session")) {
 }
 
 const Session::State& Session::connect(su_root_t* sofiaRoot, const std::string_view& address, int port) {
 	[&]() {
 		if (auto* ready = std::get_if<Ready>(&mState)) {
-			SLOGD << mLogPrefix << ".connect() called on " << *ready << ". noop.";
+			LOGD_CTX(mLogPrefix, "connect") << "Called on " << *ready << ": noop";
 			return;
 		}
 
@@ -66,7 +64,7 @@ const Session::State& Session::connect(su_root_t* sofiaRoot, const std::string_v
 		}
 
 		if (ctx->err) {
-			SLOGE << mLogPrefix << "Connection error: " << ctx->err;
+			LOGE_CTX(mLogPrefix, "connect") << "Connection error: " << ctx->err;
 			return;
 		}
 
@@ -88,13 +86,13 @@ const Session::State& Session::connect(su_root_t* sofiaRoot, const std::string_v
 		}
 
 		if (REDIS_OK != redisSofiaAttach(ctx.get(), sofiaRoot)) {
-			SLOGE << mLogPrefix << "Failed to hook into Sofia loop: " << ::strerror(errno);
+			LOGE_CTX(mLogPrefix, "connect") << "Failed to hook into Sofia loop: " << ::strerror(errno);
 			return;
 		}
 
 		mState = Ready(std::move(ctx));
-		SLOGD << mLogPrefix << "Connection initiated to " << address << ":" << port
-		      << ". New state: " << StreamableVariant(mState);
+		LOGD_CTX(mLogPrefix, "connect") << "Connection initiated to " << address << ":" << port
+		                                << ", new state: " << StreamableVariant(mState);
 	}();
 	return mState;
 }
@@ -129,18 +127,18 @@ void Session::onConnect(const redisAsyncContext*, int status) {
 	             .against(
 	                 [&prefix = this->mLogPrefix, status](Ready&& ready) -> State {
 		                 if (status == REDIS_OK) {
-			                 SLOGI << prefix << "Connected";
+			                 LOGI_CTX(prefix, "onConnect") << "Connected";
 			                 return std::move(ready);
 		                 }
 
-		                 SLOGE << prefix << "Couldn't connect to redis: " << ready.mCtx->errstr;
+		                 LOGE_CTX(prefix, "onConnect") << "Could not connect to redis: " << ready.mCtx->errstr;
 		                 // The context will be freed by hiredis right after this callback. Prevent double-freeing
 		                 std::ignore = ready.mCtx.release();
 		                 return Disconnected();
 	                 },
 	                 [&prefix = this->mLogPrefix, status](auto&& unexpectedState) -> State {
-		                 SLOGE << prefix << "onConnect called with status " << status << " while in state "
-		                       << unexpectedState;
+		                 LOGE_CTX(prefix, "onConnect")
+		                     << "Called with status " << status << " while in state " << unexpectedState;
 		                 return std::move(unexpectedState);
 	                 });
 	if (auto listener = mListener.lock()) {
@@ -153,8 +151,8 @@ void Session::onDisconnect(const redisAsyncContext* ctx, int status) {
 	    Match(mState).against([](const Disconnected&) -> ContextPtr::pointer { return nullptr; },
 	                          [](const auto& state) -> ContextPtr::pointer { return state.mCtx.get(); });
 	if (ourCtx != ctx) {
-		SLOGD << mLogPrefix << "Zombie context " << ctx
-		      << " is trying to call us from beyond the grave. Ignore it. (Ours is " << ourCtx << ")";
+		LOGD << "Zombie context " << ctx << " is trying to call us from beyond the grave: ignore it (ours is " << ourCtx
+		     << ")";
 		// This happens when `forceDisconnect` is called from within a command callback. `redisAsyncFree` bails out and
 		// schedules the actual destruction to the next loop iteration. By the time we're being called back we have
 		// already updated our state so it would be harmful to do anything here.
@@ -162,9 +160,9 @@ void Session::onDisconnect(const redisAsyncContext* ctx, int status) {
 	}
 
 	if (status != REDIS_OK) {
-		SLOGW << mLogPrefix << "Forcefully disconnecting. Reason: " << ctx->errstr;
+		LOGW << "Forcefully disconnecting, reason: " << ctx->errstr;
 	}
-	SLOGI << mLogPrefix << "Disconnected. Was in state: " << StreamableVariant(mState);
+	LOGI << "Disconnected, was in state: " << StreamableVariant(mState);
 	mState = Disconnected();
 	if (auto listener = mListener.lock()) {
 		listener->onDisconnect(status);
@@ -198,9 +196,10 @@ void Session::Ready::command(const ArgsPacker& args, CommandCallback&& callback)
 			    try {
 				    (*callback)(sessionContext, reply::tryFrom(static_cast<const redisReply*>(reply)));
 			    } catch (const std::exception& exc) {
-				    SLOGE << sessionContext.mLogPrefix << "unhandled exception in Redis callback: " << exc.what();
+				    LOGE_CTX(sessionContext.mLogPrefix, "command")
+				        << "Unhandled exception in Redis callback: " << exc.what();
 			    } catch (...) {
-				    SLOGE << sessionContext.mLogPrefix << "unidentified Thrown Object in Redis callback";
+				    LOGE_CTX(sessionContext.mLogPrefix, "command") << "Unidentified thrown object in Redis callback";
 			    }
 		    }
 	    });
@@ -222,7 +221,8 @@ auto& SubscriptionSession::getSubscriptionsFrom(const redisAsyncContext* rawCont
 }
 
 SubscriptionSession::SubscriptionSession(SoftPtr<SessionListener>&& listener)
-    : mListener(std::move(listener)), mWrapped(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)) {
+    : mListener(std::move(listener)), mWrapped(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SubscriptionSession")) {
 }
 
 SubscriptionSession::Subscriptions SubscriptionSession::Ready::subscriptions() const {
@@ -294,9 +294,11 @@ void SubscriptionSession::SubscriptionEntry::subscribe(SubscriptionCallback&& ca
 			    try {
 				    callback(handle->first, std::move(reply));
 			    } catch (const std::exception& exc) {
-				    SLOGE << "Unhandled exception in Redis subscription callback: " << exc.what();
+				    LOGE_CTX("SubscriptionEntry", "subscribe")
+				        << "Unhandled exception in Redis subscription callback: " << exc.what();
 			    } catch (...) {
-				    SLOGE << "Unidentified Thrown Object in Redis subscription callback";
+				    LOGE_CTX("SubscriptionEntry", "subscribe")
+				        << "Unidentified thrown object in Redis subscription callback";
 			    }
 		    }
 		    if (subscription.unsubbed && !serverHasIt) {
@@ -364,8 +366,7 @@ void SubscriptionSession::onConnect(int status) {
 
 		auto newSubs = ready->subscriptions();
 		auto reSubbedChannelsLog = std::ostringstream();
-		reSubbedChannelsLog
-		    << "redis::async::SubscriptionSession::onConnect - Channels automatically re-subscribed: (none)";
+		reSubbedChannelsLog << "Channels automatically re-subscribed: (none)";
 		reSubbedChannelsLog.seekp(-static_cast<int>(sizeof("(none)")));
 		for (auto& [channel, subscription] : mSubscriptions) {
 			// This `onConnect()` callback is called before responses are processed, so skip over any subscription
@@ -373,9 +374,9 @@ void SubscriptionSession::onConnect(int status) {
 			if (subscription.fresh) continue;
 
 			if (subscription.unsubbed) {
-				SLOGW << "Memory leak detected: Redis subscription to '" << channel
-				      << "' was unsubbed before the session was disconnected and never got cleaned up properly. "
-				         "This should never happen, if you see this in your log, please open a ticket.";
+				LOGW << "Memory leak detected: Redis subscription to '" << channel
+				     << "' was unsubbed before the session was disconnected and never got cleaned up properly, "
+				        "this should never happen (if you see this in your log, please open a ticket)";
 				continue;
 			};
 
@@ -384,7 +385,7 @@ void SubscriptionSession::onConnect(int status) {
 			newSubs[channel].subscribe(std::move(subscription.callback));
 			reSubbedChannelsLog << " '" << channel << "',";
 		}
-		SLOGI << reSubbedChannelsLog.str();
+		LOGI << reSubbedChannelsLog.str();
 	}
 
 	if (auto listener = mListener.lock()) {

@@ -67,6 +67,8 @@ public:
 	void removeContext(const std::shared_ptr<ForkContext>& fork, const std::string& contactId) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"ScheduleInjector"};
+
 	void startInject(const std::string& contactId);
 	InjectContextMap& getMapFromPriority(sofiasip::MsgSipPriority msgSipPriority);
 

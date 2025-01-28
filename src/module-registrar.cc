@@ -70,16 +70,17 @@ static void _onContactUpdated(ModuleRegistrar* module, tport_t* new_tport, const
 			if (old_tport && new_tport != old_tport &&
 			    (tport_get_user_data(old_tport) == nullptr ||
 			     ec->mConnId == (uintptr_t)tport_get_user_data(old_tport))) {
-				SLOGD << "Removing old tport for sip uri " << ExtendedContact::urlToString(ec->mSipContact->m_url);
+				LOGD_CTX("Registrar") << "Removing old tport for sip uri "
+				                      << ExtendedContact::urlToString(ec->mSipContact->m_url);
 				// 0 close incoming data, 1 close outgoing data, 2 both
 				tport_shutdown(old_tport, 2);
 			}
 		} else if (UriUtils::isIpAddress(ec->mSipContact->m_url->url_host)) {
-			SLOGE << "ContactUpdated: tport_name_by_url() failed for sip uri "
-			      << ExtendedContact::urlToString(ec->mSipContact->m_url);
+			LOGE_CTX("Registrar") << "ContactUpdated: tport_name_by_url() failed for sip uri "
+			                      << ExtendedContact::urlToString(ec->mSipContact->m_url);
 		} else {
-			SLOGD << "ContactUpdated: This URI [" << ExtendedContact::urlToString(ec->mSipContact->m_url)
-			      << "] does not match a tport.";
+			LOGD_CTX("Registrar") << "ContactUpdated: this URI ["
+			                      << ExtendedContact::urlToString(ec->mSipContact->m_url) << "] does not match a tport";
 		}
 	}
 }
@@ -123,21 +124,21 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 		auto sip = mEv->getMsgSip()->getSip();
 		if (sip_has_supported(sip->sip_supported, "outbound")) {
 			auto tport = mEv->getIncomingTport();
-			SLOGD << "Enable Pong2ping on IncomingTport[" << tport << "]";
+			LOGD << "Enable Pong2ping on IncomingTport[" << tport << "]";
 			tport_set_params(tport.get(), TPTAG_PONG2PING(1), TAG_END());
 		}
 	} else {
-		SLOGE << "OnRequestBindListener::onRecordFound: reply Record is null";
+		LOGE << "Record is null";
 		mModule->reply(*mEv, SIP_500_INTERNAL_SERVER_ERROR);
 	}
 }
 void OnRequestBindListener::onError(const SipStatus& response) {
-	SLOGE << "OnRequestBindListener::onError: reply " << response.getReason();
+	LOGE << "Reply " << response.getReason();
 	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
 void OnRequestBindListener::onInvalid(const SipStatus& response) {
-	SLOGE << "OnRequestBindListener::onInvalid: reply " << response.getReason();
+	LOGE << "Reply " << response.getReason();
 	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
@@ -153,7 +154,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 
 	if (r == nullptr) {
-		SLOGE << "OnResponseBindListener::onRecordFound(): Record is null";
+		LOGE << "Record is null";
 		mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		mEv->terminateProcessing();
 		return;
@@ -177,13 +178,13 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	mModule->getAgent()->injectResponseEvent(std::move(mEv));
 }
 void OnResponseBindListener::onError(const SipStatus& response) {
-	SLOGE << "OnResponseBindListener::onError: reply " << response.getReason();
+	LOGE << "Reply " << response.getReason();
 	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
 
 void OnResponseBindListener::onInvalid(const SipStatus& response) {
-	SLOGE << "OnResponseBindListener::onInvalid: reply " << response.getReason();
+	LOGE << "Reply " << response.getReason();
 	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
@@ -197,14 +198,14 @@ OnStaticBindListener::OnStaticBindListener(const url_t* from, const sip_contact_
 	mContact = url_as_string(mHome.home(), ct->m_url);
 }
 void OnStaticBindListener::onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) {
-	SLOGI << "Static route added for " << mFrom << ": " << mContact;
+	LOGI << "Static route added for " << mFrom << ": " << mContact;
 }
 void OnStaticBindListener::onError(const SipStatus&) {
-	SLOGE << "Can't add static route for " << mFrom;
+	LOGE << "Cannot add static route for " << mFrom;
 }
 void OnStaticBindListener::onInvalid(const SipStatus&) {
-	SLOGE << "OnStaticBindListener onInvalid";
 }
+
 void OnStaticBindListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
 }
 
@@ -213,16 +214,16 @@ FakeFetchListener::FakeFetchListener() {
 
 void FakeFetchListener::onRecordFound(const shared_ptr<Record>& r) {
 	if (r != nullptr) {
-		SLOGD << r;
+		LOGD << r;
 	} else {
-		SLOGD << "No record found";
+		LOGD << "No record found";
 	}
 }
 void FakeFetchListener::onError(const SipStatus&) {
 }
 
 void FakeFetchListener::onInvalid(const SipStatus&) {
-	SLOGD << "FakeFetchListener: onInvalid";
+	LOGD << "Invalid";
 }
 
 void FakeFetchListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
@@ -534,7 +535,7 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	mUpdateOnResponse = mc->get<ConfigBoolean>("reg-on-response")->read();
 	mDomains = mc->get<ConfigStringList>("reg-domains")->read();
 	for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
-		SLOGI << "Found registrar domain: " << *it;
+		LOGI << "Found registrar domain: " << *it;
 	}
 	mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
 	mServiceRoute = mc->get<ConfigString>("service-route")->read();
@@ -606,10 +607,10 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	    // SAFETY: Capturing `this` is safe because we keep a handle to the Handler.
 	    [this](auto signum) {
 		    if (signum == SIGUSR1) {
-			    SLOGI << "Received signal triggering static records file re-read";
+			    LOGI_CTX(mLogPrefix, "onLoad") << "Received signal triggering static records file re-read";
 			    readStaticRecords();
 		    } else if (signum == SIGUSR2) {
-			    SLOGI << "Received signal triggering fake fetch";
+			    LOGI_CTX(mLogPrefix, "onLoad") << "Received signal triggering fake fetch";
 			    auto listener = make_shared<FakeFetchListener>();
 			    mAgent->getRegistrarDb().fetch(SipUri("sip:contact@domain"), listener, false);
 		    }
@@ -630,7 +631,7 @@ void ModuleRegistrar::idle() {
 	unsigned long durationMs =
 	    (unsigned long)std::chrono::duration_cast<std::chrono::milliseconds>((stop) - (start)).count();
 	if (durationMs >= 1000) {
-		SLOGW << "ModuleRegistrar::idle() (registrar expired aor cleanup) took " << durationMs << "ms";
+		LOGW << "Took " << durationMs << "ms (registrar expired aor cleanup)";
 	}
 }
 
@@ -691,7 +692,7 @@ void ModuleRegistrar::reply(RequestSipEvent& ev, int code, const char* reason, c
 	replyPopulateEventLog(ev, sip, code, reason);
 
 	if (!mServiceRoute.empty()) {
-		SLOGD << "Setting service route to " << mServiceRoute;
+		LOGD << "Setting service route to " << mServiceRoute;
 	}
 
 	if (contacts) {
@@ -765,14 +766,14 @@ void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT>& ev, const sip_
 	if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 		auto listener = make_shared<ListenerT>(this, ev);
 		mStats.mCountClear->incrStart();
-		SLOGD << "Clearing bindings";
+		LOGD << "Clearing bindings";
 		listener->addStatCounter(mStats.mCountClear->finish);
 		mAgent->getRegistrarDb().clear(sip, listener);
 		return;
 	} else {
 		auto listener = make_shared<ListenerT>(this, ev, sip->sip_from, sip->sip_contact);
 		mStats.mCountBind->incrStart();
-		SLOGD << "Updating binding";
+		LOGD << "Updating binding";
 		listener->addStatCounter(mStats.mCountBind->finish);
 		mAgent->getRegistrarDb().bind(sip, maindelta, false, 0, listener);
 		return;
@@ -795,7 +796,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	try {
 		sipurl = SipUri(sip->sip_from->a_url);
 	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGUE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
+		LOGUE << "Invalid 'From' URI [" << e.getUrl() << "]: " << e.getReason();
 		ev->reply(400, "Bad request", TAG_END());
 		return {};
 	}
@@ -805,7 +806,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {
-		SLOGI << "No sip contact, it is a fetch only request for " << sipurl.str();
+		LOGI << "No SIP contact, it is a fetch only request for " << sipurl.str();
 		auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
 		mAgent->getRegistrarDb().fetch(sipurl, listener);
 		return {};
@@ -815,7 +816,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	const auto* expires = sip->sip_expires;
 	const auto maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 	if (!checkHaveExpire(sip->sip_contact, maindelta)) {
-		SLOGD << "No global or local expire found in at least one contact";
+		LOGD << "No global or local expire found in at least one contact";
 		reply(*ev, 400, "Invalid request");
 		return {};
 	}
@@ -826,7 +827,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 		}
 	}
 	if (!checkStarUse(sip->sip_contact, maindelta)) {
-		SLOGD << "The star rules are not respected.";
+		LOGD << "The star rules are not respected";
 		reply(*ev, 400, "Invalid request");
 		return {};
 	}
@@ -842,7 +843,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 		    sip_path_format(ms->getHome(), "<%s>", getAgent()->getPreferredRoute().c_str()); // format a Path
 		msg_t* msg = ev->getMsgSip()->getMsg();
 		if (!ModuleToolbox::prependNewRoutable(msg, sip, sip->sip_path, path)) {
-			SLOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
+			LOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
 		}
 	} else {
 		mAgent->getNatTraversalStrategy()->addPathOnRegister(*ev, ev->getIncomingTport().get(), nullptr);
@@ -862,8 +863,8 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Domain registration case, does nothing for the moment
 	if (sipurl.getUser().empty() && !mAllowDomainRegistrations) {
-		SLOGD << "Not accepting domain registration";
-		SLOGUE << "Not accepting domain registration:  " << sipurl;
+		LOGD << "Not accepting domain registration";
+		LOGUE << "Not accepting domain registration:  " << sipurl;
 		reply(*ev, 403, "Domain registration forbidden", nullptr);
 		return {};
 	}
@@ -887,7 +888,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
 			auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
 			mStats.mCountClear->incrStart();
-			SLOGD << "Clearing bindings";
+			LOGD << "Clearing bindings";
 			listener->addStatCounter(mStats.mCountClear->finish);
 			mAgent->getRegistrarDb().clear(*ms, listener);
 			return {};
@@ -900,7 +901,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			auto listener =
 			    make_shared<OnRequestBindListener>(this, std::move(ev), sip->sip_from, sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
-			SLOGD << "Updating binding";
+			LOGD << "Updating binding";
 			listener->addStatCounter(mStats.mCountBind->finish);
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
@@ -934,7 +935,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			// Legacy code: just cleaner contacts
 			ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
 			ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
-			SLOGD << "Removed instance and push params: \n" << sip->sip_contact;
+			LOGD << "Removed instance and push params:\n" << sip->sip_contact;
 		}
 		// Let the modified initial event flow (will not be forked).
 	}
@@ -960,7 +961,7 @@ unique_ptr<ResponseSipEvent> ModuleRegistrar::onResponse(unique_ptr<ResponseSipE
 
 	auto context = transaction->getProperty<ResponseContext>(getModuleName());
 	if (!context) {
-		SLOGD << "No response context found";
+		LOGD << "No response context found";
 		return std::move(ev);
 	}
 
@@ -978,13 +979,13 @@ unique_ptr<ResponseSipEvent> ModuleRegistrar::onResponse(unique_ptr<ResponseSipE
 
 		if ('*' == request->getSip()->sip_contact->m_url[0].url_scheme[0]) {
 			mStats.mCountClear->incrStart();
-			SLOGD << "Clearing bindings";
+			LOGD << "Clearing bindings";
 			listener->addStatCounter(mStats.mCountClear->finish);
 			mAgent->getRegistrarDb().clear(*request, listener);
 		} else {
 			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
-			SLOGD << "Updating binding";
+			LOGD << "Updating binding";
 			parameter.alias = false;
 			parameter.globalExpire = maindelta;
 			parameter.version = 0;
@@ -1008,16 +1009,16 @@ void ModuleRegistrar::readStaticRecords() {
 	int linenum = 0;
 
 	if (mStaticRecordsFile.empty()) {
-		SLOGW << "No static-records-file configured. Nothing to read.";
+		LOGW << "No static-records-file configured, nothing to read";
 		return;
 	}
-	SLOGD << "Reading static records file";
+	LOGD << "Reading static records file";
 
 	sofiasip::Home home;
 
 	ifstream file(mStaticRecordsFile);
 	if (!file.is_open()) {
-		SLOGE << "Can't open file " << mStaticRecordsFile;
+		LOGE << "Cannot open file " << mStaticRecordsFile;
 		return;
 	}
 
@@ -1069,19 +1070,20 @@ void ModuleRegistrar::readStaticRecords() {
 					}
 
 					void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-						SLOGI << "Cleared record " << mUri;
+						LOGI << "Cleared record " << mUri;
 					}
 					void onError(const SipStatus&) override {
-						SLOGE << "Error: cannot clear record " << mUri;
+						LOGE << "Error: cannot clear record " << mUri;
 					}
 					void onInvalid(const SipStatus&) override {
-						SLOGE << "Invalid: cannot clear record " << mUri;
+						LOGE << "Invalid: cannot clear record " << mUri;
 					}
 					void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-						SLOGE << "Unexpected call to " << __FUNCTION__ << " for record " << mUri;
+						LOGE << "Unexpected call to " << __FUNCTION__ << " for record " << mUri;
 					}
 
 				private:
+					const std::string_view mLogPrefix{"ClearListener"};
 					std::string mUri;
 				};
 
@@ -1110,8 +1112,8 @@ void ModuleRegistrar::readStaticRecords() {
 			}
 
 		} catch (const runtime_error& e) {
-			SLOGE << "error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
-			      << "\t`" << line << "`: " << e.what();
+			LOGE << "Error while reading the static record file [" << mStaticRecordsFile << ":" << linenum << endl
+			     << "\t`" << line << "`: " << e.what();
 		}
 	}
 }

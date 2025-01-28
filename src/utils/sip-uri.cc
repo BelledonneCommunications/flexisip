@@ -406,7 +406,7 @@ bool SipUri::Headers::operator==(const SipUri::Headers& other) const {
 			if (!SipUri(theirs).rfc3261Compare(SipUri(pair.second))) return false;
 		} else {
 			// TODO: Parse and handle Via properly
-			if (name == "via") SLOGW << "'Via' SIP Header comparison is not properly implemented";
+			if (name == "via") LOGW << "'Via' SIP Header comparison is not properly implemented";
 			if (theirs != pair.second) return false;
 		}
 	}

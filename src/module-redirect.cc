@@ -41,8 +41,7 @@ private:
 		if (cv.getName() == "contact") {
 			sip_contact_t* contact = sip_contact_make(&mHome, cv.getName().c_str());
 			if (!contact) {
-				SLOGE << this->getModuleName() << ": wrong destination contact for redirection [" << cv.getName()
-				      << "]";
+				LOGE << "Wrong destination contact for redirection [" << cv.getName() << "]";
 				return false;
 			}
 		}
@@ -51,8 +50,7 @@ private:
 
 	void onLoad(const GenericStruct* mc) override {
 		mContact = sip_contact_make(&mHome, mc->get<ConfigString>("contact")->read().c_str());
-		SLOGI << this->getModuleName() << ": redirect contact is [" << mc->get<ConfigString>("contact")->read().c_str()
-		      << "]";
+		LOGI << "Redirect contact is [" << mc->get<ConfigString>("contact")->read() << "]";
 	}
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {

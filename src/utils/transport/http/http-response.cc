@@ -40,7 +40,7 @@ int HttpResponse::getStatusCode() const {
 	try {
 		i = stoi(itr->value);
 	} catch (const invalid_argument& e) {
-		throw runtime_error(string("Status code is not a valid integer value : ") + e.what());
+		throw runtime_error(string("Status code is not a valid integer value: ") + e.what());
 	}
 
 	if (i < 100 || i > 599) {

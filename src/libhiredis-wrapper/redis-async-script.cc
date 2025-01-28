@@ -36,7 +36,7 @@ void Script::call(const Session::Ready& session,
 
 	auto& argsRef = *args;
 	session.timedCommand(argsRef, [callScriptArgs = std::move(args), callback = std::move(callback),
-	                          this](Session& session, Reply reply) mutable {
+	                               this](Session& session, Reply reply) mutable {
 		bool loaded = true;
 		if (const auto* err = std::get_if<reply::Error>(&reply)) {
 			if (*err == "NOSCRIPT No matching script. Please use EVAL.") loaded = false;
@@ -49,24 +49,25 @@ void Script::call(const Session::Ready& session,
 		// Script cache is cold. Load script and retry
 		const Session::Ready* cmdSession;
 		if (!(cmdSession = std::get_if<Session::Ready>(&session.getState()))) {
-			SLOGW << "Redis session not ready. Aborting script load operation.";
+			LOGW << "Redis session not ready: aborting script load operation";
 			return;
 		}
 
 		cmdSession->timedCommand({"SCRIPT", "LOAD", mSource}, [callScriptArgs = std::move(callScriptArgs),
-		                                                  callback = std::move(callback),
-		                                                  sha1 = mSHA1](Session& session, Reply reply) mutable {
+		                                                       callback = std::move(callback),
+		                                                       sha1 = mSHA1](Session& session, Reply reply) mutable {
 			Match(reply).against(
 			    [sha1, &session, &callScriptArgs = *callScriptArgs, &callback](const reply::String& loadedSHA1) {
 				    if (loadedSHA1 != sha1) {
-					    SLOGE << "Redis script SHA checksum mismatch. Expected " << sha1 << " got " << loadedSHA1
-					          << "If you have changed the Lua source code, you should update the SHA.";
+					    LOGE_CTX("Script", "call")
+					        << "Redis script SHA checksum mismatch. Expected " << sha1 << " got " << loadedSHA1
+					        << "If you have changed the Lua source code, you should update the SHA.";
 					    return;
 				    }
 
 				    const Session::Ready* cmdSession;
 				    if (!(cmdSession = std::get_if<Session::Ready>(&session.getState()))) {
-					    SLOGW << "Redis session not ready. Aborting script retry operation.";
+					    LOGW_CTX("Script", "call") << "Redis session not ready: aborting script retry operation";
 					    return;
 				    }
 
@@ -74,7 +75,7 @@ void Script::call(const Session::Ready& session,
 				    cmdSession->timedCommand(callScriptArgs, std::move(callback));
 			    },
 			    [](const auto& unexpected) {
-				    SLOGE << "Unexpected Redis reply to SCRIPT LOAD command: " << unexpected;
+				    LOGE_CTX("Script", "call") << "Unexpected Redis reply to SCRIPT LOAD command: " << unexpected;
 			    });
 		});
 	});

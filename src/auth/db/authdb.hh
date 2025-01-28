@@ -258,6 +258,8 @@ private:
 
 class FileAuthDb : public AuthDbBackend {
 private:
+	static constexpr std::string_view mLogPrefix{"FileAuthDb"};
+
 	const GenericStruct& mConfigRoot;
 	std::string mFileString;
 	time_t mLastSync;
@@ -310,6 +312,8 @@ public:
 	SociAuthDB(const GenericStruct&);
 
 private:
+	static constexpr std::string_view mLogPrefix{"SociAuthDb"};
+
 	void connectDatabase();
 	void closeOpenedSessions();
 

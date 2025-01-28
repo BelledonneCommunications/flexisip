@@ -86,8 +86,7 @@ bool B2bua::isValidNextConfig(const ConfigValue& cv) {
 	if (cv.getName() == "b2bua-server") {
 		url_t* uri = url_make(&mHome, cv.getName().c_str());
 		if (!uri) {
-			SLOGE << getModuleName() << ": wrong destination uri for back to back user agent server [" << cv.getName()
-			      << "]";
+			LOGE << "Wrong destination URI for B2BUA server [" << cv.getName() << "]";
 			return false;
 		} else {
 			su_free(&mHome, uri);
@@ -105,13 +104,12 @@ void B2bua::onLoad(const GenericStruct* moduleConfig) {
 		throw FlexisipException{"Invalid SIP URI " + destRouteStr + " in parameter " +
 		                        b2buaDestinationRouteParameter->getCompleteName() + ": " + e.what()};
 	}
-	SLOGI << "module::" << getModuleName() << ": b2bua server is [" << mDestRoute->str() << "]";
+	LOGI << "B2bua server is [" << mDestRoute->str() << "]";
 
 	const auto* b2buaServerConfig = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("b2bua-server");
 	const auto userAgent = b2bua::parseUserAgentFromConfig(b2buaServerConfig->get<ConfigString>("user-agent")->read());
 	mB2buaUserAgent = userAgent.first + (userAgent.second.empty() ? "" : ("/" + userAgent.second));
-	SLOGI << "module::" << getModuleName() << ": ignore INVITE and CANCEL requests with \"User-Agent\" header set to "
-	      << mB2buaUserAgent;
+	LOGI << "Ignore INVITE and CANCEL requests with \"User-Agent\" header set to " << mB2buaUserAgent;
 }
 
 void B2bua::onUnload() {
@@ -126,9 +124,9 @@ unique_ptr<RequestSipEvent> B2bua::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 		if (!requestIsFromB2BUA) {
 			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
 			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
-			SLOGI << "Clean and prepend done to route " << mDestRoute->str();
+			LOGI << "Clean and prepend done to route " << mDestRoute->str();
 		} else { // Do not intercept the call
-			SLOGI << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
+			LOGI << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
 		}
 	}
 	return std::move(ev);

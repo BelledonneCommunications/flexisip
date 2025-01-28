@@ -30,6 +30,8 @@ class EventLog;
 
 class FilesystemEventLogWriter : public EventLogWriter {
 public:
+	static constexpr std::string_view mLogPrefix{"FilesystemEventLogWriter"};
+
 	FilesystemEventLogWriter(const std::string& rootpath);
 
 	bool isReady() const {

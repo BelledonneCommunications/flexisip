@@ -93,6 +93,8 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"LocalRegExpire"};
+
 	std::map<std::string, time_t> mRegMap;
 	mutable std::mutex mMutex;
 	std::list<LocalRegExpireListener*> mLocalRegListenerList;
@@ -191,6 +193,8 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegistrarDb"};
+
 	void fetchWithDomain(const SipUri& url, const std::shared_ptr<ContactUpdateListener>& listener, bool recursive);
 	void notifyContactListener(const Record::Key& key, std::string_view uid);
 	void notifyStateListener(bool bWritable) const;

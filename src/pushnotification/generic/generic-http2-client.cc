@@ -30,12 +30,10 @@ GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
                                        Method method,
                                        sofiasip::SuRoot& root,
                                        Service* pushService)
-    : Client{pushService}, mHost{url.getHost()}, mPort{url.getPort(true)}, mPath(url.getPath()),
-      mUrlParameters{url.getHeaders()}, mMethod{method} {
-	ostringstream os{};
-	os << "GenericHttp2Client[" << this << "]";
-	mLogPrefix = os.str();
-	SLOGD << mLogPrefix << ": constructing GenericHttp2Client";
+    : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")},
+      mHost{url.getHost()}, mPort{url.getPort(true)}, mPath(url.getPath()), mUrlParameters{url.getHeaders()},
+      mMethod{method} {
+	LOGD << "Constructing client";
 
 	mHttp2Client = Http2Client::make(root, mHost, mPort);
 }

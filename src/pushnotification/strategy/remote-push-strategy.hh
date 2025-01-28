@@ -72,6 +72,7 @@ private:
 	std::chrono::seconds mCallRingingTimeout{45};
 	std::shared_ptr<PushInfo> mCallPushInfo{};
 	std::unique_ptr<sofiasip::Timer> mCallRingingTimeoutTimer{};
+	std::string mLogPrefix;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const MessagePushStrategy* s) noexcept {

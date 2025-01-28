@@ -76,6 +76,8 @@ public:
 	bool operator==(const PushParamList& ppl) const;
 
 private:
+	static constexpr std::string_view mLogPrefix{"PushParamList"};
+
 	void constructFromContactParameters(const std::string& provider,
 	                                    const std::string& customPrid,
 	                                    const std::string& customParam);

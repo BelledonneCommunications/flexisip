@@ -35,7 +35,6 @@ unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
 std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
                                                                            unique_ptr<RequestSipEvent>&& event,
                                                                            sofiasip::MsgSipPriority priority) {
-	SLOGD << "Make ForkMessageContextDbProxy";
 	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, priority)};
 
@@ -46,7 +45,6 @@ std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const
 
 shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
                                                                       ForkMessageContextDb& forkFromDb) {
-	SLOGD << "Make ForkMessageContextDbProxy from a restored message";
 	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, forkFromDb)};
 
@@ -59,13 +57,13 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<Modul
                                                      sofiasip::MsgSipPriority priority)
     : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{router->getAgent()->getRoot()},
       mCounter{router->mStats.mCountMessageProxyForks}, mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()},
-      mSavedMsgPriority{priority}, mMaxThreadNumber{getMaxThreadNumber(router->getAgent()->getConfigManager())} {
-
-	SLOGD << "New ForkMessageContextDbProxy " << this;
+      mSavedMsgPriority{priority}, mMaxThreadNumber{getMaxThreadNumber(router->getAgent()->getConfigManager())},
+      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "ForkMessageContextDbProxy")} {
+	LOGD << "New instance";
 	if (auto sharedCounter = mCounter.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mCounter should be present here.";
+		LOGE << "Fork error: weak_ptr mCounter should be present here";
 	}
 }
 
@@ -79,16 +77,16 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<Modul
 }
 
 ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
-	SLOGD << "Destroy ForkMessageContextDbProxy " << this;
+	LOGD << "Destroy instance";
 	if (auto sharedCounter = mCounter.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mCounter should be present here.";
+		LOGE << "Fork error: weak_ptr mCounter should be present here";
 	}
 
 	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
-    		SLOGD << "ForkMessageContextDbProxy[" << this << "] was present in DB, cleaning UUID[" << mForkUuidInDb << "]";
+		LOGD << "Was present in database, cleaning UUID [" << mForkUuidInDb << "]";
 		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([uuid = mForkUuidInDb]() {
 			ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid);
 		});
@@ -96,41 +94,39 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 }
 
 void ForkMessageContextDbProxy::loadFromDb() const {
-	SLOGD << "ForkMessageContextDbProxy[" << this << "] retrieving message in DB for UUID [" << mForkUuidInDb << "]";
+	LOGD << "Retrieving message in database for UUID [" << mForkUuidInDb << "]";
 	mDbFork = make_unique<ForkMessageContextDb>(
 	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
 }
 
 bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
-	SLOGD << "ForkMessageContextDbProxy[" << this << "] saving ForkMessage to DB.";
+	LOGD << "Saving ForkMessage to DB";
 	try {
 		if (mForkUuidInDb.empty()) {
-			SLOGD << "ForkMessageContextDbProxy[" << this << "] not saved before, creating a new entry.";
+			LOGD << "Not saved before, creating a new entry";
 			mForkUuidInDb = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(dbFork);
 		} else {
-			SLOGD << "ForkMessageContextDbProxy[" << this << "] already in DB with UUID[" << mForkUuidInDb
-			      << "], updating";
+			LOGD << "Already in database with UUID [" << mForkUuidInDb << "], updating";
 			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(dbFork, mForkUuidInDb);
 		}
 		if (mForkUuidInDb.empty()) {
-			SLOGE << errorLogPrefix() << "mForkUuidInDb empty after save, keeping message in memory";
+			LOGE << "Fork error: mForkUuidInDb empty after save, keeping message in memory";
 			return false;
 		}
 	} catch (const exception& e) {
-		SLOGE << errorLogPrefix()
-		      << "A problem occurred during ForkMessageContext saving, it will remain in memory : " << e.what();
+		LOGE << "A problem occurred while saving ForkMessageContext, it will remain in RAM: " << e.what();
 		return false;
 	}
 	return true;
 }
 
 void ForkMessageContextDbProxy::onForkContextFinished([[maybe_unused]] const shared_ptr<ForkContext>& ctx) {
-	SLOGD << "ForkMessageContextDbProxy[" << this << "] onForkContextFinished";
+	LOGD << "Running " << __func__;
 	mIsFinished = true;
 	if (auto savedRouter = mSavedRouter.lock()) {
 		savedRouter->onForkContextFinished(shared_from_this());
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mSavedRouter should be present here (onForkContextFinished).";
+		LOGE << "Fork error: weak_ptr mSavedRouter should be present here (onForkContextFinished)";
 	}
 }
 
@@ -141,7 +137,7 @@ ForkMessageContextDbProxy::onDispatchNeeded([[maybe_unused]] const shared_ptr<Fo
 		mCurrentVersion++;
 		return savedRouter->onDispatchNeeded(shared_from_this(), newContact);
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mSavedRouter should be present here (onDispatchNeeded).";
+		LOGE << "Fork error: weak_ptr mSavedRouter should be present here (onDispatchNeeded)";
 		return nullptr;
 	}
 }
@@ -164,7 +160,7 @@ void ForkMessageContextDbProxy::onUselessRegisterNotification([[maybe_unused]] c
 	if (auto savedRouter = mSavedRouter.lock()) {
 		savedRouter->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, reason);
 	} else {
-		SLOGE << errorLogPrefix() << "weak_ptr mSavedRouter should be present here (onUselessRegisterNotification).";
+		LOGE << "Fork error: weak_ptr mSavedRouter should be present here (onUselessRegisterNotification)";
 	}
 }
 
@@ -190,7 +186,7 @@ void ForkMessageContextDbProxy::runSavingThread() {
 }
 
 void ForkMessageContextDbProxy::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
-	SLOGD << "ForkMessageContextDbProxy[" << this << "] onResponse";
+	LOGD << "Running " << __func__;
 	checkState(__FUNCTION__, State::IN_MEMORY);
 
 	mForkMessage->onResponse(br, event);
@@ -215,10 +211,10 @@ void ForkMessageContextDbProxy::onPushSent(PushNotificationContext& aPNCtx, bool
 void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
                                               const std::string& uid,
                                               const std::shared_ptr<ExtendedContact>& newContact) {
-	SLOGD << "ForkMessageContextDbProxy[" << this << "] onNewRegister";
+	LOGD << "Running " << __func__;
 	const auto& sharedRouter = mSavedRouter.lock();
 	if (!sharedRouter) {
-		SLOGE << "ForkMessageContext[" << this << "] onNewRegister: router missing, this should not happened";
+		LOGE << "Router missing, this should not happen";
 		return;
 	}
 
@@ -238,22 +234,23 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
-		SLOGD << "ForkMessageContext[" << this << "] onNewRegister: message is in DB. Initiating load from DB";
+		LOGD << "Message is in database, initiating load";
 		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([thiz = shared_from_this(), dest, uid, newContact]() {
 			lock_guard<mutex> lock(thiz->mDbAccessMutex);
 			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
 				try {
 					thiz->loadFromDb();
 				} catch (const exception& e) {
-					SLOGE << thiz->errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
+					LOGE_CTX(thiz->mLogPrefix, "onNewRegister")
+					    << "Error loading ForkMessageContext from database: " << e.what();
 				}
 			} else {
-				SLOGD << "ForkMessageContext[" << thiz << "] onNewRegister (thread): message was previously loaded.";
+				LOGD_CTX(thiz->mLogPrefix, "onNewRegister") << "Message was previously loaded (thread)";
 			}
 
 			if (auto router = thiz->mSavedRouter.lock()) {
-				SLOGD << "ForkMessageContext[" << thiz
-				      << "] onNewRegister (thread): loaded or previously loaded, recursively added to main loop";
+				LOGD_CTX(thiz->mLogPrefix, "onNewRegister")
+				    << "Loaded or previously loaded, recursively added to main loop (thread)";
 				router->getAgent()->getRoot()->addToMainLoop(
 				    [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid, newContact]() {
 					    if (auto shared = weak.lock()) {
@@ -261,7 +258,7 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 					    }
 				    });
 			} else {
-				SLOGE << thiz->errorLogPrefix() << " onNewRegister: router missing, this should not happened";
+				LOGE_CTX(thiz->mLogPrefix, "onNewRegister") << "Router missing, this should not happen";
 			}
 		});
 
@@ -312,9 +309,8 @@ bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 			mProxyLateTimer.reset();
 			setState(State::IN_MEMORY);
 		} catch (const runtime_error& e) {
-			SLOGE << errorLogPrefix() << "An error occurred during ForkMessage creation from DB object with uuid ["
-			      << mForkUuidInDb << "] : \n"
-			      << e.what();
+			LOGE << "An error occurred during ForkMessage creation from database object with UUID [" << mForkUuidInDb
+			     << "]: " << e.what();
 
 			mForkMessage.reset();
 			setState(State::IN_DATABASE);
@@ -330,9 +326,7 @@ void ForkMessageContextDbProxy::checkState(const string& methodName,
 	lock_guard<recursive_mutex> lock(mStateMutex);
 	if (mState != expectedState) {
 		stringstream ss;
-		ss << errorLogPrefix() << "Bad state :  actual [" << mState << "] expected [" << expectedState << "] in "
-		   << methodName;
-		SLOGE << ss.str();
+		LOGE << "Bad state: actual [" << mState << "], expected [" << expectedState << "] in " << methodName;
 		throw logic_error{ss.str()};
 	}
 }
@@ -342,8 +336,7 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 	auto diff = system_clock::from_time_t(expirationDate) - system_clock::now();
 	if (diff < 0s) diff = 0s;
 
-	SLOGD << "ForkMessageContextDbProxy[" << this
-	      << "] startTimerAndResetFork, expiration in : " << duration_cast<seconds>(diff).count() << "s";
+	LOGD << "Expiration in: " << duration_cast<seconds>(diff).count() << "s";
 
 	mProxyLateTimer.set(
 	    [weak = weak_ptr<ForkMessageContextDbProxy>{shared_from_this()}]() {

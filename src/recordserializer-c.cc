@@ -31,11 +31,11 @@ using namespace flexisip;
 
 #define CHECK(msg, test)                                                                                               \
 	if (test) {                                                                                                        \
-		SLOGE << "Invalid serialized contact " << i << " " << msg;                                                     \
+		LOGE << "Invalid serialized contact " << i << " " << msg;                                                     \
 		free(rc);                                                                                                      \
 		return false;                                                                                                  \
 	}
-// #define CHECK_VAL(msg, test, value) if (test) { SLOGE << "Invalid serialized contact " << i << " " << msg << " " <<
+// #define CHECK_VAL(msg, test, value) if (test) { LOGE << "Invalid serialized contact " << i << " " << msg << " " <<
 //  value; free(rc); return false; }
 
 /**
@@ -129,7 +129,7 @@ bool RecordSerializerC::serialize(Record* r, string& serialized, bool log) {
 	}
 
 	serialized.assign(oss.str());
-	if (log) SLOGI << "Serialized contact: " << serialized;
+	if (log) LOGI << "Serialized contact: " << serialized;
 
 	return true;
 }

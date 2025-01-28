@@ -23,8 +23,6 @@
 
 #include "utils/transport/http/http-message.hh"
 
-constexpr auto kLogPrefix = "[ContactExpirationNotifier] ";
-
 using namespace std;
 
 namespace flexisip {
@@ -59,16 +57,16 @@ ContactExpirationNotifier::ContactExpirationNotifier(chrono::seconds interval,
 }
 
 void ContactExpirationNotifier::onTimerElapsed() {
-	SLOGI << kLogPrefix << "Sending service push notifications to wake up mobile devices that have passed "
-	      << mLifetimeThreshold << " of their expiration time...";
+	LOGI << "Sending service push notifications to wake up mobile devices that have passed " << mLifetimeThreshold
+	     << " of their expiration time...";
 	mRegistrar.fetchExpiringContacts(
 	    getCurrentTime(), mLifetimeThreshold, [weakPNService = mPNService](auto&& contacts) mutable {
 		    static constexpr const auto pushType = pn::PushType::Background;
 		    auto pnService = weakPNService.lock();
 		    if (!pnService) {
-			    SLOGI << kLogPrefix
-			          << "Push notification service destructed, cannot send register wake up notifications "
-			             "(This is expected if flexisip is being shut down)";
+			    LOGI_CTX(ContactExpirationNotifier::mLogPrefix, "onTimerElapsed")
+			        << "Push notification service destructed, cannot send register wake up notifications (this is "
+			           "expected if Flexisip is being shut down)";
 			    return;
 		    }
 
@@ -84,11 +82,14 @@ void ContactExpirationNotifier::onTimerElapsed() {
 
 				    pnService->sendPush(request);
 
-				    SLOGI << kLogPrefix << "background push notification successfully sent to " << devInfo;
+				    LOGI_CTX(ContactExpirationNotifier::mLogPrefix, "onTimerElapsed")
+				        << "Background push notification successfully sent to " << devInfo;
 			    } catch (const pn::PushNotificationException& e) {
-				    SLOGD << kLogPrefix << "failed to send push notification to " << devInfo << ": " << e.what();
+				    LOGD_CTX(ContactExpirationNotifier::mLogPrefix, "onTimerElapsed")
+				        << "Failed to send push notification to " << devInfo << ": " << e.what();
 			    } catch (const exception& e) {
-				    SLOGE << kLogPrefix << "failed to send push notification to " << devInfo << ": " << e.what();
+				    LOGE_CTX(ContactExpirationNotifier::mLogPrefix, "onTimerElapsed")
+				        << "Failed to send push notification to " << devInfo << ": " << e.what();
 			    }
 		    }
 	    });

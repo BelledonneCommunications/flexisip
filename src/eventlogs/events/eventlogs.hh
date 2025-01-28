@@ -188,6 +188,8 @@ public:
 	void write(EventLogWriter& writer) const override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"AuthLog"};
+
 	void setOrigin(const sip_via_t* via);
 
 	url_t* mOrigin{nullptr};

@@ -101,7 +101,7 @@ void FlowTokenStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
 		const auto flow = mHelper.getFlowFactory().create(localAddress, remoteAddress, tport_name(tport)->tpn_proto);
 		ModuleToolbox::addRecordRouteIncoming(mAgent, ev, flow.getToken());
 
-		SLOGD << "Flow in record-route: " << flow.str();
+		LOGD << "Flow in record-route: " << flow.str();
 
 		return;
 	}
@@ -134,9 +134,9 @@ url_t* FlowTokenStrategy::getTportDestFromLastRoute(const RequestSipEvent& ev, c
 	const auto localAddress = SocketAddress::make(localAddrInfo);
 
 	const auto currentFlow = mHelper.getFlowFactory().create(localAddress, remoteAddress, tport_name(tport)->tpn_proto);
-	SLOGD << "Current flow: " << currentFlow.str();
+	LOGD << "Current flow: " << currentFlow.str();
 	const auto flow = mHelper.getFlowFactory().create(lastRoute->r_url->url_user);
-	SLOGD << "Flow from last route: " << flow.str();
+	LOGD << "Flow from last route: " << flow.str();
 
 	// Point of view is from the proxy server.
 	// If the flow (from the flow-token) matches the current flow of the request, it is an outgoing request.
@@ -196,7 +196,7 @@ void FlowTokenStrategy::addPathOnRegister(RequestSipEvent& ev, tport_t* tport, c
 		const auto flow = mHelper.getFlowFactory().create(localAddr, remoteAddr, tport_name(primaryTport)->tpn_proto);
 		ModuleToolbox::addPathHeader(mAgent, ms, tport, uniq, flow.getToken());
 
-		SLOGD << "Flow in \"Path\": " << flow.str();
+		LOGD << "Flow in 'Path' header: " << flow.str();
 
 		return;
 	}

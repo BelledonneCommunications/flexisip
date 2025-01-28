@@ -41,7 +41,7 @@ void ConfigEntryFilter::declareConfig(GenericStruct& moduleConfig) {
 	        "filter",
 	        "A request/response enters module if the boolean filter evaluates to true. Ex: from.uri.domain contains "
 	        "'sip.linphone.org', from.uri.domain in 'a.org b.org c.org', (to.uri.domain in 'a.org b.org c.org') && "
-	        "(user-agent == 'Linphone v2'). You can consult the full filter documentation here : "
+	        "(user-agent == 'Linphone v2'). You can consult the full filter documentation here: "
 	        "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
 	        "",
 	    },

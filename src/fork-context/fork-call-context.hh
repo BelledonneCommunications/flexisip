@@ -108,6 +108,7 @@ private:
 	std::optional<CancelInfo> mCancel;
 	static const int sUrgentCodesWithout603[];
 	static constexpr auto CLASS_NAME = "ForkCallContext";
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

@@ -70,10 +70,10 @@ FirebaseV1AuthenticationManager::FirebaseV1AuthenticationManager(
 	chrono::milliseconds interval;
 	if (mToken = mTokenProvider->getToken(); mToken) {
 		interval = mToken->lifetime - mTokenExpirationAnticipationTime;
-		SLOGI << mLogPrefix << ": successfully get access token [lifetime=" << mToken->lifetime.count() << "ms]";
+		LOGI << "Successfully get access token [lifetime=" << mToken->lifetime.count() << "ms]";
 	} else {
 		interval = mDefaultRefreshInterval;
-		SLOGW << mLogPrefix << ": failed to get access token, automatic retry in " << interval.count() << "ms";
+		LOGW << "Failed to get access token, automatic retry in " << interval.count() << "ms";
 	}
 
 	mTimer = make_unique<sofiasip::Timer>(root->getCPtr());
@@ -92,7 +92,7 @@ bool FirebaseV1AuthenticationManager::addAuthentication(const std::shared_ptr<Ht
 }
 
 void FirebaseV1AuthenticationManager::onTokenRefreshStart() {
-	SLOGI << mLogPrefix << ": trying to refresh access token...";
+	LOGI << mLogPrefix << ": trying to refresh access token...";
 
 	// WARNING: this code can still block execution of the main loop if successive rapid calls are made to this method.
 	// Indeed, it will wait for the end of the current thread before starting the new one (see operator=).
@@ -105,7 +105,7 @@ void FirebaseV1AuthenticationManager::onTokenRefreshStart() {
 		// Get new access token.
 		const auto tokenProvider = weakTokenProvider.lock();
 		if (tokenProvider == nullptr) {
-			SLOGW << logPrefix << ": pointer on access token provider is empty, cancel refresh";
+			LOGW_CTX(logPrefix, "onTokenRefreshStart") << "Pointer on access token provider is empty, cancel refresh";
 			return;
 		}
 
@@ -114,14 +114,15 @@ void FirebaseV1AuthenticationManager::onTokenRefreshStart() {
 		// Add update token event to the main loop.
 		const auto root = weakRoot.lock();
 		if (root == nullptr) {
-			SLOGW << logPrefix << ": pointer on main loop is empty, cancel refresh";
+			LOGW_CTX(logPrefix, "onTokenRefreshStart") << "Pointer on main loop is empty, cancel refresh";
 			return;
 		}
 
 		root->addToMainLoop([weakThis, newToken = token, logPrefix]() {
 			const auto manager = weakThis.lock();
 			if (manager == nullptr) {
-				SLOGW << logPrefix << ": pointer on authentication manager is empty, cancel refresh";
+				LOGW_CTX(logPrefix, "onTokenRefreshStart")
+				    << "Pointer on authentication manager is empty, cancel refresh";
 				return;
 			}
 			manager->onTokenRefreshEnd(newToken);
@@ -135,16 +136,15 @@ void FirebaseV1AuthenticationManager::onTokenRefreshEnd(
 	if (newToken) {
 
 		if (newToken == mToken) {
-			SLOGW << mLogPrefix << ": token provider returned same token as the one currently in use";
+			LOGW << "Token provider returned same token as the one currently in use";
 		}
 
 		mToken = newToken;
 		interval = mToken->lifetime - mTokenExpirationAnticipationTime;
-		SLOGI << mLogPrefix
-		      << ": successfully refreshed and updated access token [lifetime=" << mToken->lifetime.count() << "ms]";
+		LOGI << "Successfully refreshed and updated access token [lifetime=" << mToken->lifetime.count() << "ms]";
 	} else {
 		interval = mDefaultRefreshInterval;
-		SLOGW << mLogPrefix << ": failed to refresh access token, automatic retry in " << interval.count() << "ms";
+		LOGW << "Failed to refresh access token, automatic retry in " << interval.count() << "ms";
 	}
 
 	mTimer->set([this]() { this->onTokenRefreshStart(); }, interval);

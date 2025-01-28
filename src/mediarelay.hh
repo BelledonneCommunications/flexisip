@@ -119,9 +119,12 @@ public:
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"MediaRelayServer"};
+
 	void start();
 	void run();
 	static void* threadFunc(void* arg);
+
 	Mutex mMutex;
 	std::list<std::shared_ptr<RelaySession>> mSessions;
 	size_t mSessionsCount; /* since std::list::size() is O(n), we use our own counter*/
@@ -190,6 +193,7 @@ private:
 	std::map<std::string, std::shared_ptr<RelayChannel>> mBacks;
 	std::shared_ptr<RelayChannel> mBack;
 	bool_t mUsed;
+	std::string mLogPrefix;
 };
 
 class MediaFilter {
@@ -267,7 +271,7 @@ private:
 	bool mDestAddrChanged;
 	bool mIsOpen; /* Initially false, it is set to true when the remote address is set. It controls whether tranfer can
 	                 occur. */
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

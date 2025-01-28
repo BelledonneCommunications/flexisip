@@ -55,8 +55,11 @@ public:
 	void doBgTasks();
 
 private:
+	static constexpr std::string_view mLogPrefix{"CallSide"};
+
 	static void payloadTypeChanged(RtpSession* s, void* data, void*, void*);
 	static void onTelephoneEvent(RtpSession* s, void* dtmfIndex, void* userData, void*);
+
 	TranscodedCall* mCallCtx;
 	RtpSession* mSession;
 	RtpProfile* mProfile;
@@ -106,6 +109,7 @@ public:
 	}
 
 private:
+	const std::string mLogPrefix{"TranscodedCall"};
 	MSFactory* mFactory;
 	CallSide* getOther(CallSide* cs);
 	MSTicker* mTicker;

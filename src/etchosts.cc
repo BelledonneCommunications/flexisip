@@ -29,7 +29,7 @@ EtcHostsResolver::EtcHostsResolver() {
 	char line[256] = {0};
 	FILE* f = fopen("/etc/hosts", "r");
 	if (f == NULL) {
-		SLOGE << "Could not open /etc/hosts";
+		LOGE << "Could not open /etc/hosts";
 		return;
 	}
 
@@ -42,7 +42,7 @@ EtcHostsResolver::EtcHostsResolver() {
 		if (sscanf(subLine, "%s%n", ip, &consumed) == 1 && ip[0] != '#') {
 			subLine += consumed;
 			while (sscanf(subLine, "%s%n", name, &consumed) == 1) {
-				SLOGD << "Read " << ip << " " << name;
+				LOGD << "Read " << ip << " " << name;
 				mMap[name] = ip;
 				subLine += consumed;
 			}
@@ -84,10 +84,10 @@ bool EtcHostsResolver::resolve(const string& name, string* result) const {
 
 void EtcHostsResolver::setHost(const std::string& name, const std::string& result) {
 	if (result.empty()) {
-		SLOGI << "Erasing host association for " << name;
+		LOGI << "Erasing host association for " << name;
 		mOverrideMap.erase(name);
 	} else {
-		SLOGI << "Overriding hostname " << name << " with address " << result;
+		LOGI << "Overriding hostname " << name << " with address " << result;
 		mOverrideMap.insert(make_pair(name, result));
 	}
 }

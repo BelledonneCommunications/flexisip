@@ -67,9 +67,8 @@ void FlexiStatsEventLogWriter::write(const CallRingingEventLog& call) {
 void FlexiStatsEventLogWriter::write(const CallLog& call) {
 	if (call.getInviteKind() != InviteKind::Call) return;
 	if (!call.getDevice()) {
-		SLOGE << "FlexiStatsEventLogWriter::write - I don't know how to log a device state update without a "
-		         "device. EventId:"
-		      << std::string(call.getId()) << " Call-ID: " << call.getCallId();
+		LOGE << "I don't know how to log a device state update without a device, EventId:" << std::string(call.getId())
+		     << ", Call-ID: " << call.getCallId();
 		return;
 	}
 

@@ -26,6 +26,8 @@ namespace flexisip::redis::async {
  * @brief The RedisHost struct, which is used to store redis slave description.
  */
 struct RedisHost {
+	static constexpr std::string_view mLogPrefix{"RedisHost"};
+
 	RedisHost(int id, const std::string& address, unsigned short port, const std::string& state)
 	    : id(id), address(address), port(port), state(state) {
 	}

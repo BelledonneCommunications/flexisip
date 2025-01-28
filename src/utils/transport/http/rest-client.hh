@@ -54,8 +54,8 @@ public:
 	          const std::string& responseLog,
 	          const std::string& errorLog) {
 		post(
-		    path, jsonObject, [responseLog](const auto&, const auto&) { SLOGI << responseLog; },
-		    [errorLog](const auto&) { SLOGE << errorLog; });
+		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "post") << responseLog; },
+		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "post") << errorLog; });
 	}
 
 	template <class JsonObject>
@@ -71,8 +71,8 @@ public:
 	         const std::string& responseLog,
 	         const std::string& errorLog) {
 		put(
-		    path, jsonObject, [responseLog](const auto&, const auto&) { SLOGI << responseLog; },
-		    [errorLog](const auto&) { SLOGE << errorLog; });
+		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "put") << responseLog; },
+		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "put") << errorLog; });
 	}
 
 	template <class JsonObject>
@@ -88,11 +88,13 @@ public:
 	           const std::string& responseLog,
 	           const std::string& errorLog) {
 		patch(
-		    path, jsonObject, [responseLog](const auto&, const auto&) { SLOGI << responseLog; },
-		    [errorLog](const auto&) { SLOGE << errorLog; });
+		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "patch") << responseLog; },
+		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "patch") << errorLog; });
 	}
 
 private:
+	static constexpr std::string_view mLogPrefix{"RestClient"};
+
 	void httpCall(const std::string& path,
 	              const std::string& method,
 	              const std::optional<nlohmann::json>& jsonObject,

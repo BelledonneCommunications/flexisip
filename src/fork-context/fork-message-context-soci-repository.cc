@@ -43,8 +43,8 @@ const std::unique_ptr<ForkMessageContextSociRepository>& ForkMessageContextSociR
 ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string& backendString,
                                                                    const string& connectionString,
                                                                    unsigned int nbThreadsMax)
-    : mConnectionPool{nbThreadsMax} {
-
+    : mConnectionPool{nbThreadsMax},
+      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "ForkMessageContextSociRepository")} {
 	try {
 		for (size_t i = 0; i != nbThreadsMax; ++i) {
 			session& sql = mConnectionPool.at(i);
@@ -66,7 +66,7 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		try {
 			sql << R"sql(CREATE INDEX expiration_date_index ON fork_message_context (expiration_date))sql";
 		} catch (const soci_error& e) {
-			SLOGD << "ForkMessageContextSociRepository - Index was already created.";
+			LOGD << "Index was already created";
 		}
 
 		sql << R"sql(CREATE TABLE IF NOT EXISTS branch_info (
@@ -116,7 +116,7 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		try {
 			sql << R"sql(ALTER TABLE fork_message_context ADD COLUMN msg_priority TINYINT NOT NULL DEFAULT 0;)sql";
 		} catch (const soci_error& e) {
-			SLOGD << "ForkMessageContextSociRepository - ADD COLUMN msg_priority already done";
+			LOGD << "ADD COLUMN msg_priority already done";
 		}
 	} catch (const runtime_error& e) {
 		throw FlexisipException{
@@ -272,7 +272,7 @@ void ForkMessageContextSociRepository::deleteByUuid(const string& uuid) {
 			}
 		});
 	} catch (const DatabaseException& e) {
-		SLOGW << "An SQL error occurred while removing fork message from DB. It will be removed with the next one.";
+		LOGW << "An SQL error occurred while removing fork message from database, it will be removed with the next one";
 	}
 }
 
