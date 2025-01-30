@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,7 +38,9 @@ public:
 	                                           const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
 	                                           std::chrono::seconds callPushInterval,
 	                                           const std::string& pnKey) {
-		auto obj = std::shared_ptr<PNContextCall>{new PNContextCall{transaction, _module, pInfo, pnKey}};
+		// The call context must expire after the forkCall which lasts for "call-fork-timeout" seconds.
+		auto obj = std::shared_ptr<PNContextCall>{
+		    new PNContextCall{transaction, _module, pInfo, pnKey, pInfo->mTtl + std::chrono::seconds{1}}};
 		obj->init(callPushInterval);
 		return obj;
 	}
@@ -60,7 +62,8 @@ public:
 	                                              PushNotification* _module,
 	                                              const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
 	                                              const std::string& pnKey) {
-		auto obj = std::shared_ptr<PNContextMessage>{new PNContextMessage{transaction, _module, pInfo, pnKey}};
+		auto obj = std::shared_ptr<PNContextMessage>{
+		    new PNContextMessage{transaction, _module, pInfo, pnKey, std::chrono::seconds{30}}};
 		obj->init();
 		return obj;
 	}

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -55,7 +55,7 @@ ContactExpirationNotifier::ContactExpirationNotifier(chrono::seconds interval,
       mRegistrar(registrar) {
 	// SAFETY: This lambda is safe memory-wise if and only if it doesn't outlive `this`.
 	// Which is the case as long as `this` holds the sofiasip::Timer.
-	mTimer.run([this] { onTimerElapsed(); });
+	mTimer.setForEver([this] { onTimerElapsed(); });
 }
 
 void ContactExpirationNotifier::onTimerElapsed() {

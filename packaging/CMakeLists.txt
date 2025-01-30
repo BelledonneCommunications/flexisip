@@ -123,11 +123,12 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 	set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 	set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
+	cmake_path(GET FLEXISIP_SYSTEMD_INSTALL_DIR PARENT_PATH SYSTEMD_DIR)
 	set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION
 		"/etc/logrotate.d"
 		"/lib"
-		"/lib/systemd"
-		"/lib/systemd/system"
+		${FLEXISIP_SYSTEMD_INSTALL_DIR}
+		${SYSTEMD_DIR}
 		"/opt/belledonne-communications/include"
 	)
 

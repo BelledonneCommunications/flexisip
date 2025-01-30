@@ -1,10 +1,10 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20240911_remove_protobuf
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20250127_update_clang
 ###############################################################################
 
 FROM archlinux:base
 
-MAINTAINER François Grisez <francois.grisez@belledonne-communications.com>
+LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
 
 # Configure locale
@@ -14,9 +14,9 @@ ENV LANG='en_US.UTF-8' LANGUAGE='en_US:en' LC_ALL='en_US.UTF-8'
 ENV SHELL=/bin/bash
 
   # Update the system
-RUN pacman --noconfirm --noprogressbar -Syu \
+RUN pacman --noconfirm --noprogressbar --sync --refresh --sysupgrade \
   # Install development tools
- && pacman --noconfirm --noprogressbar -S \
+ && pacman --noconfirm --noprogressbar --sync \
         ccache \
         clang \
         cmake \
@@ -67,6 +67,30 @@ WORKDIR /home/bc
 ENTRYPOINT /bin/bash
 CMD "--login"
 
+RUN sudo pacman --noconfirm --noprogressbar --sync \
+    # Build-time dependencies of AUR packages
+      fakeroot \
+      debugedit \
+  # Install AUR packages
+ && aurinstall() { \
+    # https://wiki.archlinux.org/title/AUR_helpers
+      local AURL="https://aur.archlinux.org/cgit/aur.git/snapshot/${1}.tar.gz"; \
+      local WDIR="$(mktemp --directory)"; \
+      cd "${WDIR}"; \
+      curl --remote-name --fail --silent "${AURL}"; \
+      tar --extract --file "${1}.tar.gz"; \
+      cd "${WDIR}/${1}"; \
+      makepkg --noconfirm --syncdeps --install --clean; \
+      rm -rf "${WDIR}"; \
+    } \
+  # OpenID Connect dependency
+ && aurinstall cpp-jwt \
+ && sudo pacman --noconfirm --remove --nosave --recursive \
+      fakeroot \
+      debugedit \
+  # Clean package cache
+ && sudo pacman --noconfirm -Scc
+
 # CVE-2022-24765, from git 2.35.2 onward
 RUN git config --global --add safe.directory *
 
@@ -75,5 +99,5 @@ RUN git config --global --add safe.directory *
 # export CC=gcc
 # export CXX=g++
 # export BUILD_DIR_NAME="build.archlinux"
-# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=OFF
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
 # cmake --build . --target install

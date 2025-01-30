@@ -16,7 +16,7 @@ variables:
   DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/usr/lib/systemd/system'
 
   # Docker image version
-  ARCHLINUX_IMAGE_VERSION: 20240911_remove_protobuf
+  ARCHLINUX_IMAGE_VERSION: 20250127_update_clang
   ROCKY_8_IMAGE_VERSION: 20240911_remove_protobuf
   ROCKY_9_IMAGE_VERSION: 20240911_remove_protobuf
   DEBIAN_10_IMAGE_VERSION: 220240911_remove_protobuf

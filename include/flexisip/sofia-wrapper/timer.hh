@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -96,6 +96,8 @@ public:
 	 * of time. The context of the function is copied and is
 	 * only destroyed on reset() call.
 	 * @throw std::logic_error if the timer couldn't be stated.
+	 *
+	 * Use with care as it will be called numerous times in case of time leap.
 	 */
 	void run(const Func& func);
 	/**
