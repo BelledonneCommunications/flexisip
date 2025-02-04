@@ -318,7 +318,6 @@ void Http2Client::onHeaderRecv([[maybe_unused]] nghttp2_session& session,
                                uint8_t flags) noexcept {
 	const auto& streamId = frame.hd.stream_id;
 	auto logPrefix = string{mLogPrefix} + "[" + to_string(streamId) + "]";
-	// LOGD << "Receiving HTTP2 header [" << name << " = " << value << "]";
 
 	auto contextIterator = mActiveHttpContexts.find(streamId);
 	if (contextIterator != mActiveHttpContexts.end()) {
@@ -334,11 +333,6 @@ void Http2Client::onDataReceived([[maybe_unused]] nghttp2_session& session,
                                  const uint8_t* data,
                                  size_t datalen) noexcept {
 	string stringData(reinterpret_cast<const char*>(data), datalen);
-
-	//	ostringstream msg{};
-	//	msg << "Received " << datalen << "B of data on stream[" << streamId << "]:\n";
-	//	msg << stringData;
-	//	LOGD << msg.str();
 
 	auto contextIterator = mActiveHttpContexts.find(streamId);
 	if (contextIterator != mActiveHttpContexts.end()) {

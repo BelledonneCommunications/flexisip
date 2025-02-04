@@ -56,6 +56,7 @@ bool ForkContext::processResponse(ResponseSipEvent& ev) {
 	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
 	if (transaction) {
 		auto bInfo = BranchInfo::getBranchInfo(transaction);
+		// If not, responses has not been processed.
 		if (bInfo) {
 			bInfo->mLastResponseEvent = make_unique<ResponseSipEvent>(ev); // make a copy
 			bInfo->mLastResponse = bInfo->mLastResponseEvent->getMsgSip();
@@ -68,12 +69,10 @@ bool ForkContext::processResponse(ResponseSipEvent& ev) {
 			// the event may go through but it will not be sent*/
 			ev.setIncomingAgent(nullptr);
 
+			// A response has been submitted, else, it has been retained.
 			if (!bInfo->mLastResponseEvent || !bInfo->mLastResponseEvent->isSuspended()) {
-				// SLOGD << "A response has been submitted";
 				// mLastResponseEvent has been resubmitted, so stop original event.
 				ev.terminateProcessing();
-			} else {
-				// SLOGD << "The response has been retained";
 			}
 
 			if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) {
@@ -81,8 +80,6 @@ bool ForkContext::processResponse(ResponseSipEvent& ev) {
 			}
 
 			return true;
-		} else {
-			// SLOGD << "ForkContext: un-processed response";
 		}
 	}
 

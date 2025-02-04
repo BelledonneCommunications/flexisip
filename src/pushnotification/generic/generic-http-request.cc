@@ -66,7 +66,6 @@ const std::vector<char>& GenericHttpRequest::getData(const sofiasip::Url& url, M
 }
 
 std::string GenericHttpRequest::isValidResponse([[maybe_unused]] const std::string& str) {
-	// SLOGD << "GenericPushNotificationRequest: http response is \n" << str;
 	return "";
 }
 

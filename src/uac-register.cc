@@ -80,7 +80,6 @@ void UacRegister::authenticate(const msg_param_t* au_params) {
 	digest << ":" << user << ":" << password;
 
 	string digeststr(digest.str());
-	// LOGD << "GR authentication with " << digeststr; // expose password
 	nua_authenticate(nh, NUTAG_AUTH(digeststr.c_str()), TAG_END());
 }
 

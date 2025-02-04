@@ -221,7 +221,6 @@ void LocalRegExpire::removeExpiredBefore(time_t before) {
 	unique_lock<mutex> lock(mMutex);
 
 	for (auto it = mRegMap.begin(); it != mRegMap.end();) {
-		// LOGE << "> " << it->first << " [" << (it->second - before) << "]";
 		if ((*it).second <= before) {
 			auto prevIt = it;
 			++it;
@@ -390,7 +389,6 @@ private:
 		ostringstream path;
 		path << *ec->toSofiaUrlClean(newEc->mHome.home());
 		newEc->mPath.push_back(path.str());
-		// LOGD << "transformContactUsedAsRoute(): path to " << ec->mSipUri << " added for " << uri;
 		newEc->mUsedAsRoute = false;
 		return newEc;
 	}

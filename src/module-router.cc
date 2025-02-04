@@ -659,10 +659,8 @@ private:
 
 	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>>::iterator findDestination(const url_t* url) {
 		Home home;
-		// LOGD << "Looking for " << url_as_string(home.home(), url);
 		for (auto it = mAllContacts.begin(); it != mAllContacts.end(); ++it) {
 			url_t* it_route = url_make(home.home(), (*it).second->mPath.back().c_str());
-			// LOGD << "Seeing " << url_as_string(home.home(), it_route);
 			if (url_cmp(it_route, url) == 0) {
 				return it;
 			}

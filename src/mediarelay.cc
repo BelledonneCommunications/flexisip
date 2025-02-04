@@ -223,7 +223,6 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 		}
 
 		if (!mIsOpen || mDir == SendOnly || mDir == Inactive) {
-			/*LOGD << "ignored packet";*/
 			return 0;
 		}
 		if (mFilter &&
@@ -257,8 +256,6 @@ int RelayChannel::send(int i, uint8_t* buf, size_t buflen) {
 				     << " dest=" << mRemoteIp << ":" << mRemotePort[i] << ")";
 			}
 		}
-	} else {
-		// LOGW << "Not sending media, destination not valid or inactive stream";
 	}
 	return err;
 }

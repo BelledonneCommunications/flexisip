@@ -283,17 +283,6 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthentication(uniq
                                                                             FlexisipAuthModuleBase& am) {
 	sip_t* sip = request->getMsgSip()->getSip();
 
-#if 0
-	const shared_ptr<MsgSip>& ms = request.getMsgSip();
-	// Check for the existence of username, which is required for proceeding with digest authentication in flexisip.
-	// Reject if absent.
-	if (sip->sip_from->a_url->url_user == NULL) {
-		LOGI << "Registration failure, no username in From header: " << url_as_string(ms->getHome(), sip->sip_from->a_url);
-		request.reply(403, "Username must be provided", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return {};
-	}
-#endif
-
 	// Create incoming transaction if not already exists
 	// Necessary in qop=auth to prevent nonce count chaos
 	// with retransmissions.
