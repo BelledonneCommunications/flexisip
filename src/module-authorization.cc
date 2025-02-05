@@ -63,10 +63,9 @@ bool isAuthorized(const MsgSip& msgSip) {
 
 	if (sip->sip_request->rq_method == sip_method_cancel ||
 	    sip->sip_request->rq_method == sip_method_bye // same as in the sofia auth modules
-	) {
-		/*ack and cancel shall never be challenged according to the RFC 3261-22.1.*/
+	)
 		return true;
-	}
+
 	return false;
 }
 
@@ -116,6 +115,17 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 		return {};
 	}
 
+	// ACK and CANCEL shall never be challenged according to the RFC 3261-22.1
+	if (sip->sip_request->rq_method == sip_method_ack) {
+		// expect an ACK to be authenticated
+		// the challenge result is not checked, as a valid credential in the INVITE could become invalid in the ACK
+		// (e.g. JWT expiration)
+		if (authResult.challenges.empty()) {
+			ev->terminateProcessing();
+			return {};
+		}
+		return std::move(ev);
+	}
 	if (isAuthorized(msgSip)) return std::move(ev);
 
 	// Stateful transaction state, for example an ACK will be linked to the corresponding INVITE by nta
