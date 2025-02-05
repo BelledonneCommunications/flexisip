@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -1679,12 +1679,32 @@ void transportAndOneConnectionPerAccount() {
 	    '#',
 	};
 
-	Server externalProxy{{
-	    {"global/transports", "sip:127.0.0.2:0"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "external.example.org"},
-	    {"module::MediaRelay/enabled", "false"},
+	unordered_set<basic_string<char>> registerPorts{}, unregisterPorts{};
+
+	auto hooks = InjectedHooks{.onRequest = [&registerPorts, &unregisterPorts](auto&& request) {
+		const auto* sip = request->getSip();
+		if (sip->sip_request->rq_method != sip_method_register) return std::move(request);
+		SipUri uri(sip->sip_contact->m_url);
+
+		// For unREGISTER requests the "Expires" header is set to 0
+		if (sip->sip_expires->ex_delta == 0) {
+			unregisterPorts.emplace(uri.getPort());
+		} else {
+			registerPorts.emplace(uri.getPort());
+		}
+
+		return std::move(request);
 	}};
+
+	Server externalProxy{{
+	        {"global/transports", "sip:127.0.0.2:0"},
+	        {"module::DoSProtection/enabled", "false"},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", "external.example.org"},
+	        {"module::MediaRelay/enabled", "false"},
+	    },
+	    &hooks,
+	};
 	externalProxy.start();
 	ofstream{providersConfigPath} << providersConfig.format({
 	    {"externalProxyPort", externalProxy.getFirstPort()},
@@ -1711,44 +1731,45 @@ void transportAndOneConnectionPerAccount() {
 	    .assert_passed();
 
 	BC_HARD_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
-	auto portsUsed = unordered_set<string>();
 	for (const auto& record : registeredUsers) {
 		const auto& contacts = record.second->getExtendedContacts();
 		BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
 		const SipUri uri{contacts.begin()->get()->mSipContact->m_url};
 		BC_ASSERT_CPP_EQUAL(uri.getParam("transport"), (outgoingTransport == "udp" ? "" : outgoingTransport));
-		portsUsed.emplace(uri.getPort());
 	}
 
-	// Test ports of (B2BUA) registered users on external proxy.
-	const auto& portUsed1 = *portsUsed.begin();
-	if constexpr (oneConnectionPerAccount) {
+	auto checkPorts = [&b2buaUdpPort, &b2buaTcpPort](const auto& ports) -> AssertionResult {
+		// Test ports of (B2BUA) registered users on external proxy.
+		const auto& portUsed1 = *ports.begin();
+		if constexpr (oneConnectionPerAccount) {
+			// TODO: fix non-working case (UDP-UDP), parameter one-connection-per-account does not have any effect.
+			if (incomingTransport == "udp" and outgoingTransport == "udp") {
+				FAIL_IF(ports.size() != 1);
+				FAIL_IF(portUsed1 != b2buaUdpPort);
+			} else {
+				FAIL_IF(ports.size() != 2);
+				const auto& portUsed2 = *(ports.begin()++);
 
-		// TODO: fix non-working case (UDP-UDP), parameter one-connection-per-account does not have any effect.
-		if (incomingTransport == "udp" and outgoingTransport == "udp") {
-			BC_ASSERT_CPP_EQUAL(portsUsed.size(), 1);
-			BC_ASSERT_CPP_EQUAL(portUsed1, b2buaUdpPort);
+				FAIL_IF(portUsed1 == b2buaUdpPort);
+				FAIL_IF(portUsed2 == b2buaUdpPort);
+
+				FAIL_IF(portUsed2 == b2buaTcpPort);
+			}
+
+			FAIL_IF(portUsed1 == b2buaTcpPort);
 		} else {
-			BC_HARD_ASSERT_CPP_EQUAL(portsUsed.size(), 2);
-			const auto& portUsed2 = *(portsUsed.begin()++);
+			FAIL_IF(ports.size() != 1);
 
-			BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaUdpPort);
-			BC_ASSERT_CPP_NOT_EQUAL(portUsed2, b2buaUdpPort);
-
-			BC_ASSERT_CPP_NOT_EQUAL(portUsed2, b2buaTcpPort);
+			if (incomingTransport == "udp" and outgoingTransport == "udp") {
+				FAIL_IF(portUsed1 != b2buaUdpPort);
+			} else {
+				FAIL_IF(portUsed1 == b2buaTcpPort);
+				FAIL_IF(portUsed1 == b2buaUdpPort);
+			}
 		}
-
-		BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaTcpPort);
-	} else {
-		BC_ASSERT_CPP_EQUAL(portsUsed.size(), 1);
-
-		if (incomingTransport == "udp" and outgoingTransport == "udp") {
-			BC_ASSERT_CPP_EQUAL(portUsed1, b2buaUdpPort);
-		} else {
-			BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaTcpPort);
-			BC_ASSERT_CPP_NOT_EQUAL(portUsed1, b2buaUdpPort);
-		}
-	}
+		return ASSERTION_PASSED();
+	};
+	BC_HARD_ASSERT(checkPorts(registerPorts).assert_passed());
 
 	// Test connection with the B2BUA server.
 	NtaAgent client{suRoot, "sip:user-1@127.0.0.1:0;transport=" + incomingTransport};
@@ -1768,6 +1789,32 @@ void transportAndOneConnectionPerAccount() {
 	        [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted() and transaction->getStatus() == 200); },
 	        100ms)
 	    .assert_passed();
+
+	// Check that the B2BUA send unREGISTER message with the right ports when stopping
+	const auto& asyncCleanup = b2buaServer->stop();
+
+	constexpr static auto timeout = 500ms;
+	// As of 2024-03-27 and SDK 5.3.33, the SDK goes on a busy loop to wait for accounts to unregister, instead of
+	// waiting for iterate to be called again. That blocks the iteration of the proxy, so we spawn a separate cleanup
+	// thread to be able to keep iterating the proxy on the main thread (sofia aborts if we attempt to step the main
+	// loop on a non-main thread). See SDK-136.
+	const auto& cleanupThread = std::async(std::launch::async, [&asyncCleanup = *asyncCleanup]() {
+		BcAssert()
+		    .iterateUpTo(
+		        1, [&asyncCleanup]() { return LOOP_ASSERTION(asyncCleanup.finished()); }, timeout)
+		    .assert_passed();
+	});
+	CoreAssert(externalProxy)
+	    .iterateUpTo(
+	        10, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.empty()); }, timeout)
+	    .assert_passed();
+	externalProxy.getRoot()->step(1ms);
+
+	// Join proxy iterate thread. Leave ample time to let the asserter time-out first.
+	cleanupThread.wait_for(10s);
+
+	BC_ASSERT_CPP_EQUAL(registeredUsers.size(), 0);
+	BC_HARD_ASSERT(checkPorts(unregisterPorts).assert_passed());
 }
 
 const string UDP = "udp";
