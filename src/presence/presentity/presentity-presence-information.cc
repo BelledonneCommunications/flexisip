@@ -49,7 +49,8 @@ FlexisipException& operator<<(FlexisipException& e, const Xsd::XmlSchema::Except
 	return e;
 }
 
-std::shared_ptr<PresentityPresenceInformation> PresentityPresenceInformation::make(const belle_sip_uri_t* entity,
+std::shared_ptr<PresentityPresenceInformation>
+PresentityPresenceInformation::make(const belle_sip_uri_t* entity,
                                     PresentityManagerInterface& presentityManager,
                                     belle_sip_main_loop_t* mainloop,
                                     const PresenceStats& presenceStats,
