@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 
+#include "exceptions/presence-server.hh"
 #include "presence/presentity/presence-information-element.hh"
 #include "presence/presentity/presentity-presence-information-listener.hh"
 #include "utils/limited-unordered-map.hh"
@@ -59,7 +60,7 @@ public:
 			emplace(newEtag, std::move(elementToRefresh));
 			setupLastActivity();
 		} else {
-			throw FLEXISIP_EXCEPTION << "Unknown eTag [" << oldEtag << "] in map.";
+			throw PresenceServerException{"unknown ETag [" + oldEtag + "] in map"};
 		}
 	}
 
@@ -107,6 +108,7 @@ private:
 
 	mutable std::list<std::weak_ptr<PresentityPresenceInformation>> mParents;
 	const std::weak_ptr<StatPair> mCountPresenceElementMap;
+    std::string mLogPrefix;
 };
 
 } /* namespace flexisip */

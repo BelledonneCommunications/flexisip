@@ -39,6 +39,8 @@ public:
 	void onResult(AuthDbResult result, const std::vector<passwd_algo_t>& passwd) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"PresenceAuthDbListener"};
+
 	void processResponse(AuthDbResult result, const std::string& user);
 
 	belle_sip_main_loop_t* mMainLoop;

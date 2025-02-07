@@ -64,6 +64,8 @@ public:
 	static unsigned int sLastActivityRetentionMs;
 
 private:
+	static constexpr std::string_view mLogPrefix{"PresenceServer"};
+
 	template <typename T, typename BelleSipObjectT>
 	static void setSubscription(BelleSipObjectT* obj, const std::shared_ptr<T>& sub) {
 		belle_sip_object_data_set(BELLE_SIP_OBJECT(obj), sSubscriptionDataTag, new std::shared_ptr<Subscription>{sub},

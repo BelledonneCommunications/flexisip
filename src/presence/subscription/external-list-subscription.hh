@@ -41,6 +41,8 @@ public:
 	                         ThreadPool* threadPool);
 
 private:
+    static constexpr std::string_view mLogPrefix{"ExternalListSubscription"};
+
 	void getUsersList(const std::string& sqlRequest, belle_sip_server_transaction_t* ist);
 
 	soci::connection_pool* mConnPool;

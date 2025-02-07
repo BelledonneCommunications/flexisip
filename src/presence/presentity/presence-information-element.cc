@@ -25,6 +25,7 @@
 #include "flexisip/flexisip-exception.hh"
 #include <belle-sip/belle-sip.h>
 
+#include "exceptions/presence-server.hh"
 #include "flexisip/logmanager.hh"
 #include "xml/data-model.hh"
 #include "xml/pidf+xml.hh"
@@ -38,10 +39,11 @@ namespace flexisip {
 PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
                                                        Xsd::DataModel::Person* person,
                                                        const std::weak_ptr<StatPair>& countPresenceElement)
-    : mCountPresenceElement(countPresenceElement) {
-	SLOGD << "Presence information element [" << this << "] created.";
+    : mCountPresenceElement(countPresenceElement),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresenceInformationElement")) {
+	LOGD << "New instance";
 	for (auto tupleIt = tuples->begin(); tupleIt != tuples->end();) {
-		SLOGD << "Adding tuple id [" << tupleIt->getId() << "] to presence info element [" << this << "]";
+		LOGD << "Adding tuple id [" << tupleIt->getId() << "]";
 		unique_ptr<Xsd::Pidf::Tuple> r;
 		tupleIt = tuples->detach(tupleIt, r);
 		mTuples.push_back(unique_ptr<Xsd::Pidf::Tuple>(r.release()));
@@ -56,14 +58,15 @@ PresenceInformationElement::PresenceInformationElement(Xsd::Pidf::Presence::Tupl
 	if (auto sharedCounter = mCountPresenceElement.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << "PresenceInformationElement [" << this << "] - weak_ptr mCountPresenceElement should be present here.";
+		LOGE << "Failed to increment counter 'presence-element' (std::weak_ptr is empty)";
 	}
 }
 
 PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t* contact,
                                                        const std::weak_ptr<StatPair>& countPresenceElement)
-    : mCountPresenceElement(countPresenceElement) {
-	SLOGD << "Presence information element [" << this << "] created as default element.";
+    : mCountPresenceElement(countPresenceElement),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresenceInformationElement")) {
+	LOGD << "New instance (as default element)";
 	char* contact_as_string = belle_sip_uri_to_string(contact);
 	time_t t;
 	time(&t);
@@ -85,7 +88,7 @@ PresenceInformationElement::PresenceInformationElement(const belle_sip_uri_t* co
 	if (auto sharedCounter = mCountPresenceElement.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << "PresenceInformationElement [" << this << "] - weak_ptr mCountPresenceElement should be present here.";
+        LOGE << "Failed to increment counter 'presence-element' (std::weak_ptr is empty)";
 	}
 }
 
@@ -93,9 +96,9 @@ PresenceInformationElement::~PresenceInformationElement() {
 	if (auto sharedCounter = mCountPresenceElement.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << "PresenceInformationElement [" << this << "] - weak_ptr mCountPresenceElement should be present here.";
+        LOGE << "Failed to increment counter 'presence-element-finished' (std::weak_ptr is empty)";
 	}
-	SLOGD << "Presence information element [" << this << "] deleted";
+	LOGD << "Destroyed instance";
 }
 
 void PresenceInformationElement::clearTuples() {
@@ -106,7 +109,7 @@ const unique_ptr<Xsd::Pidf::Tuple>& PresenceInformationElement::getTuple(const s
 	for (const unique_ptr<Xsd::Pidf::Tuple>& tup : mTuples) {
 		if (tup->getId() == id) return tup;
 	}
-	throw FLEXISIP_EXCEPTION << "No tuple found for id [" << id << "]";
+	throw PresenceServerException{"no tuple found for id [" + id + "]"};
 }
 const list<unique_ptr<Xsd::Pidf::Tuple>>& PresenceInformationElement::getTuples() const {
 	return mTuples;

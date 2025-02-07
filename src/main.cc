@@ -16,13 +16,11 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "main/flexisip.hh"
-
+#include <flexisip/logmanager.hh>
 #include <tclap/CmdLine.h>
 
-#include <flexisip/logmanager.hh>
-
 #include "exceptions/exit.hh"
+#include "main/flexisip.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -39,7 +37,9 @@ int main(int argc, const char* argv[]) {
 		}
 		return EXIT_SUCCESS;
 	} catch (const Exit& exception) {
-		cerr << "Error: " << exception.what() << endl;
+		if (exception.what() != nullptr && exception.what()[0] != '\0') {
+			LOGD_CTX("Main") << "Exit failure: " << exception.what();
+		}
 		return exception.code();
 	} catch (const exception& exception) {
 		cerr << "Error, caught an unexpected exception: " << exception.what() << endl;

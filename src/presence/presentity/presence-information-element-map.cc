@@ -30,15 +30,15 @@ PresenceInformationElementMap::PresenceInformationElementMap(
     const std::weak_ptr<StatPair>& countPresenceElementMap,
     size_t maximumElementsNumber)
     : mBelleSipMainloop(belleSipMainloop), mInformationElements{maximumElementsNumber},
-      mCountPresenceElementMap(countPresenceElementMap) {
+      mCountPresenceElementMap(countPresenceElementMap),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresenceInformationElementMap")) {
 	mParents.push_back(initialParent);
 	mListeners.push_back(initialParent);
 
 	if (auto sharedCounter = mCountPresenceElementMap.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << "PresenceInformationElementMap [" << this
-		      << "] - weak_ptr mCountPresenceElementMap should be present here.";
+        LOGE << "Failed to increment counter 'presence-element-map' (std::weak_ptr is empty)";
 	}
 };
 
@@ -46,8 +46,7 @@ PresenceInformationElementMap::~PresenceInformationElementMap() {
 	if (auto sharedCounter = mCountPresenceElementMap.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << "PresenceInformationElementMap [" << this
-		      << "] - weak_ptr mCountPresenceElementMap should be present here.";
+        LOGE << "Failed to increment counter 'presence-element-map-finished' (std::weak_ptr is empty)";
 	}
 }
 
@@ -59,7 +58,7 @@ void PresenceInformationElementMap::removeByEtag(const std::string& eTag, bool n
 		if (notifyOther) {
 			notifyListeners();
 		}
-	} else SLOGD << "No tuples found for etag [" << eTag << "]";
+	} else LOGD << "No tuples found for ETag [" << eTag << "]";
 }
 
 void PresenceInformationElementMap::setupLastActivity() {
@@ -80,8 +79,7 @@ void PresenceInformationElementMap::emplace(const std::string& eTag,
 	if (mInformationElements.try_emplace(eTag, std::move(element)).second) {
 		notifyListeners();
 		if (mInformationElements.size() > 10) {
-			SLOGI << "PresenceInformationElementMap[" << this << "] - large map of " << mInformationElements.size()
-			      << " elements.";
+			LOGD << "Large map of " << mInformationElements.size() << " elements";
 		}
 	}
 }

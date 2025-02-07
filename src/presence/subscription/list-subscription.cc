@@ -44,7 +44,8 @@ ListSubscription::ListSubscription(unsigned int expires,
                    belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)),
                    aProv,
                    countListSubscription),
-      mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime), mListAvailable(listAvailable) {
+      mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime), mListAvailable(listAvailable),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ListSubscription")) {
 }
 
 list<shared_ptr<PresentityPresenceInformationListener>>& ListSubscription::getListeners() {
@@ -54,7 +55,7 @@ ListSubscription::~ListSubscription() {
 	if (mTimer) {
 		belle_sip_source_cancel(mTimer.get());
 	}
-	SLOGD << "List subscription [" << this << "] deleted";
+	LOGD << "Destroyed instance";
 };
 
 void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource& resource,
@@ -84,8 +85,8 @@ void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource& resource,
 	    belle_sip_header_create("Content-Type", "application/pidf+xml;charset=\"UTF-8\""));
 	multipartList.push_back(BELLE_SIP_BODY_HANDLER(bodyPart));
 	resource.getInstance().push_back(instance);
-	SLOGI << "Presence info " << (extended ? "(extended)" : "(non-extended)") << " added to list [" << mName.get()
-	      << " for entity [" << presentityInformation.getEntity() << "]";
+	LOGI << "Presence info " << (extended ? "(extended)" : "(non-extended)") << " added to list [" << mName.get()
+	     << "] for entity [" << presentityInformation.getEntity() << "]";
 }
 
 void ListSubscription::notify(bool isFullState) {
@@ -109,14 +110,14 @@ void ListSubscription::notify(bool isFullState) {
 			 the first NOTIFY sent after receipt of a SUBSCRIBE request for the
 			 subscription.
 			 */
-			SLOGE << "First NOTIFY sent in subscription [" << mName.get() << "] MUST contain full state";
+			LOGE << "First NOTIFY sent in subscription [" << mName.get() << "] MUST contain full state";
 		}
 		Xsd::Rlmi::List resourceList(string(uri), mVersion, isFullState);
 		belle_sip_free(uri);
 		list<belle_sip_body_handler_t*> multipartList;
 
 		if (isFullState) {
-			SLOGI << "Building full state rlmi for list name [" << mName.get() << "]";
+			LOGD << "Building full state rlmi for list name [" << mName.get() << "]";
 			for (shared_ptr<PresentityPresenceInformationListener>& resourceListener : mListeners) {
 				char* presentityUri = belle_sip_uri_to_string(resourceListener->getPresentityUri());
 				Xsd::Rlmi::Resource resource(presentityUri);
@@ -131,12 +132,12 @@ void ListSubscription::notify(bool isFullState) {
 					                      resourceListener->extendedNotifyEnabled());
 					mPendingStates.erase(it); // might be optimized
 				} else {
-					SLOGI << "No presence info yet for uri [" << resourceListener->getPresentityUri() << "]";
+					LOGI << "No presence info yet for uri [" << resourceListener->getPresentityUri() << "]";
 				}
 				resourceList.getResource().push_back(resource);
 			}
 		} else {
-			SLOGI << "Building partial state rlmi for list name [" << mName.get() << "]";
+			LOGD << "Building partial state rlmi for list name [" << mName.get() << "]";
 			for (PendingStateType::iterator it = mPendingStates.begin();
 			     it != mPendingStates.end() && resourceList.getResource().size() < mMaxPresenceInfoNotifiedAtATime;
 			     /*nop*/) {
@@ -193,11 +194,11 @@ void ListSubscription::notify(bool isFullState) {
 		mVersion++;
 		mLastNotify = chrono::system_clock::now();
 		if (!mPendingStates.empty() && !mTimer) {
-			SLOGD << "Still [" << mPendingStates.size() << "] to be notified for list [" << this << "]";
+			LOGD << "Still [" << mPendingStates.size() << "] to be notified";
 			auto func = [this]([[maybe_unused]] unsigned int events) {
 				mTimer.reset(nullptr);
 				notify(false);
-				SLOGD << "defered notify sent on [" << this << "]";
+				LOGD_CTX(mLogPrefix, "notify") << "Deferred notify";
 				return BELLE_SIP_STOP;
 			};
 			mTimer = belle_sip_main_loop_create_cpp_timeout(
@@ -205,10 +206,13 @@ void ListSubscription::notify(bool isFullState) {
 			    "timer for list notify");
 		}
 	} catch (const Xsd::XmlSchema::Serialization& e) {
-		throw FLEXISIP_EXCEPTION << "serialization error: " << e.diagnostics();
+		stringstream message{};
+		message << "serialization error (" << e.diagnostics() << ")";
+		throw PresenceServerException{message.str()};
 	} catch (exception& e) {
-		throw FLEXISIP_EXCEPTION << "Cannot get build list notidy for [" << mName.get() << "]error [" << e.what()
-		                         << "]";
+		stringstream message{};
+		message << "cannot get build list notify for [" << mName.get() << "] (" << e.what() << ")";
+		throw PresenceServerException{message.str()};
 	}
 }
 void ListSubscription::onInformationChanged(PresentityPresenceInformation& presenceInformation, bool extended) {
@@ -223,7 +227,7 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation& prese
 				// cb function to invalidate an unrefreshed etag;
 				auto func = [this]([[maybe_unused]] unsigned int events) {
 					notify(false);
-					SLOGD << "defered notify sent on [" << this << "]";
+					LOGD_CTX(mLogPrefix, "onInformationChanged") << "Deferred notify";
 					mTimer.reset(nullptr);
 					return BELLE_SIP_STOP;
 				};
@@ -237,11 +241,11 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation& prese
 			}
 
 			if (mVersion > 0) {
-				SLOGI << "Defering presence information notify for entity [" << presenceInformation.getEntity() << "/"
-				      << this << "] to [" << (belle_sip_source_get_timeout_int64(mTimer.get())) << " ms]";
+				LOGI << "Deferring presence information notify for entity [" << presenceInformation.getEntity()
+				     << "] to [" << (belle_sip_source_get_timeout_int64(mTimer.get())) << " ms]";
 			} else {
-				SLOGI << "First notify, defering presence information for entity [" << presenceInformation.getEntity()
-				      << "/" << this << "]";
+				LOGI << "First notify, deferring presence information for entity [" << presenceInformation.getEntity()
+				     << "]";
 			}
 		}
 	} // else for list subscription final notify is handled separatly
@@ -257,7 +261,7 @@ void ListSubscription::finishCreation(belle_sip_server_transaction_t* ist) {
 			auto dialog = mDialog.lock();
 			auto callid =
 			    dialog ? belle_sip_header_call_id_get_call_id(belle_sip_dialog_get_call_id(dialog.get())) : "nullptr";
-			SLOGD << "Empty list entry for dialog id[" << callid << "]";
+			LOGD_CTX(mLogPrefix, "finishCreation") << "Empty list entry for dialog id [" << callid << "]";
 			setState(Subscription::State::terminated);
 		}
 

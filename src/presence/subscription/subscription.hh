@@ -112,6 +112,7 @@ private:
 	time_t mCreationTime{0};
 	time_t mExpirationTime{0};
 	const std::weak_ptr<StatPair> mCountSubscription;
+	std::string mLogPrefix;
 };
 
 /**
@@ -145,5 +146,6 @@ public:
 private:
 	using BelleSipUriPtr = std::unique_ptr<belle_sip_uri_t, BelleSipObjectDeleter<belle_sip_uri_t>>;
 	BelleSipUriPtr mPresentity;
+    std::string mLogPrefix;
 };
 } // namespace flexisip

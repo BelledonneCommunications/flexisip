@@ -38,7 +38,8 @@ public:
 	using PresentityManagerInterface::PresentityManagerInterface;
 
 	PresentityManager(belle_sip_stack_t* stack, const PresenceStats& presenceStats, size_t maxElementsByEntity)
-	    : PresentityManagerInterface(stack), mPresenceStats(presenceStats), mMaxElementsByEntity(maxElementsByEntity) {
+	    : PresentityManagerInterface(stack), mPresenceStats(presenceStats), mMaxElementsByEntity(maxElementsByEntity),
+	      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresentityManager")) {
 	}
 
 	std::string handlePublishFor(const belle_sip_uri_t* entityUri,
@@ -79,6 +80,7 @@ private:
 	const size_t mMaxElementsByEntity;
 
 	std::vector<std::shared_ptr<PresenceInfoObserver>> mPresenceInfoObservers;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

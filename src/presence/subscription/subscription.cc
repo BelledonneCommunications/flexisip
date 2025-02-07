@@ -35,13 +35,14 @@ Subscription::Subscription(const string& eventName,
                            const bellesip::weak_ptr<belle_sip_dialog_t>& aDialog,
                            belle_sip_provider_t* prov,
                            const std::weak_ptr<StatPair>& countSubscription)
-    : mDialog{aDialog}, mProv{prov}, mEventName{eventName}, mCountSubscription{countSubscription} {
+    : mDialog{aDialog}, mProv{prov}, mEventName{eventName}, mCountSubscription{countSubscription},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Subscription")) {
 	time(&mCreationTime);
 	mExpirationTime = mCreationTime + expires;
 	if (auto sharedCounter = mCountSubscription.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << "Subscription [" << this << "] - weak_ptr mCountSubscription should be present here.";
+		LOGE << "Failed to increment counter 'presence-element' (std::weak_ptr is empty)";
 	}
 }
 
@@ -49,7 +50,7 @@ Subscription::~Subscription() {
 	if (auto sharedCounter = mCountSubscription.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << "Subscription [" << this << "] - weak_ptr mCountSubscription should be present here.";
+		LOGE << "Failed to increment counter 'presence-subscription-finished' (std::weak_ptr is empty)";
 	}
 }
 
@@ -80,12 +81,12 @@ void Subscription::notify(belle_sip_header_content_type_t* content_type,
                           const string* content_encoding) {
 	auto dialog = mDialog.lock();
 	if (!dialog) {
-		SLOGI << "Cannot notify information change for [" << this << "] because dialog no more exists";
+		LOGI << "Cannot notify information change because dialog no more exists";
 		return;
 	}
 	if (belle_sip_dialog_get_state(dialog.get()) != BELLE_SIP_DIALOG_CONFIRMED) {
-		SLOGI << "Cannot notify information change for [" << this << "] because dialog [" << dialog.get()
-		      << "] is in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get())) << "]";
+		LOGI << "Cannot notify information change because dialog [" << dialog.get() << "] is in state ["
+		     << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get())) << "]";
 		return;
 	}
 	belle_sip_request_t* notify = belle_sip_dialog_create_queued_request(dialog.get(), "NOTIFY");
@@ -141,7 +142,7 @@ void Subscription::notify(belle_sip_header_content_type_t* content_type,
 	mCurrentTransaction = belle_sip_provider_create_client_transaction(mProv, notify);
 	setSubscription(mCurrentTransaction, shared_from_this());
 	if (belle_sip_client_transaction_send_request(mCurrentTransaction)) {
-		SLOGE << "Cannot send notify information change for [" << this << "]";
+		LOGE << "Failed to send notify information change (error in belle-sip, enable debug logs for more information)";
 	}
 }
 
@@ -159,11 +160,12 @@ PresenceSubscription::PresenceSubscription(unsigned int expires,
                                            belle_sip_provider_t* aProv,
                                            const std::weak_ptr<StatPair>& countPresenceSubscription)
     : Subscription{"Presence", expires, aDialog, aProv, countPresenceSubscription},
-      mPresentity{(belle_sip_uri_t*)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))} {
+      mPresentity{(belle_sip_uri_t*)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresenceSubscription")) {
 }
 
 PresenceSubscription::~PresenceSubscription() {
-	SLOGD << "PresenceSubscription [" << this << "] deleted";
+	LOGD << "Destroyed instance";
 }
 
 void PresenceSubscription::onInformationChanged(PresentityPresenceInformation& presenceInformation, bool extended) {
@@ -174,8 +176,8 @@ void PresenceSubscription::onInformationChanged(PresentityPresenceInformation& p
 			body += presenceInformation.getPidf(extended);
 			content_type = belle_sip_header_content_type_create("application", "pidf+xml");
 		}
-	} catch (FlexisipException& e) {
-		SLOGD << "Cannot notify [" << this->getPresentityUri() << "] caused by [" << e << "]";
+	} catch (const PresenceServerException& e) {
+		LOGD << "Cannot notify [" << this->getPresentityUri() << "]: " << e.what();
 		return;
 	}
 

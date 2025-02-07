@@ -42,13 +42,6 @@ using namespace std::chrono;
 
 namespace flexisip {
 
-FlexisipException& operator<<(FlexisipException& e, const Xsd::XmlSchema::Exception& val) {
-	stringstream e_out;
-	e_out << val;
-	e << e_out.str();
-	return e;
-}
-
 std::shared_ptr<PresentityPresenceInformation>
 PresentityPresenceInformation::make(const belle_sip_uri_t* entity,
                                     PresentityManagerInterface& presentityManager,
@@ -69,18 +62,18 @@ PresentityPresenceInformation::PresentityPresenceInformation(const belle_sip_uri
     : mEntity((belle_sip_uri_t*)belle_sip_object_clone(BELLE_SIP_OBJECT(entity))),
       mPresentityManager(presentityManager), mBelleSipMainloop(mainloop),
       mCountPresencePresentity(presenceStats.countPresencePresentity),
-      mCountPresenceElement(presenceStats.countPresenceElement) {
+      mCountPresenceElement(presenceStats.countPresenceElement),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresentityPresenceInformation")) {
 	belle_sip_object_ref(mainloop);
 	belle_sip_object_ref((void*)mEntity);
 
 	if (auto sharedCounter = mCountPresencePresentity.lock()) {
 		sharedCounter->incrStart();
 	} else {
-		SLOGE << "PresentityPresenceInformation [" << this
-		      << "] - weak_ptr mCountPresencePresentity should be present here.";
+		LOGE << "Failed to increment counter 'presence-presentity' (std::weak_ptr is empty)";
 	}
 
-	SLOGD << "Presence information [" << this << "] created for uri [" << mEntity << "]";
+	LOGD << "New instance created for uri [" << mEntity << "]";
 }
 
 PresentityPresenceInformation::~PresentityPresenceInformation() {
@@ -91,11 +84,10 @@ PresentityPresenceInformation::~PresentityPresenceInformation() {
 	if (auto sharedCounter = mCountPresencePresentity.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-		SLOGE << "PresentityPresenceInformation [" << this
-		      << "] - weak_ptr mCountPresencePresentity should be present here.";
+		LOGE << "Failed to increment counter 'presence-presentity-finished' (std::weak_ptr is empty)";
 	}
 
-	SLOGD << "Presence information [" << this << "] deleted";
+	LOGD << "Destroyed instance";
 }
 
 size_t PresentityPresenceInformation::getNumberOfListeners() const {
@@ -146,12 +138,13 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 
 	if (eTag && !eTag->empty()) {
 		if (etagAlreadyPresent = mInformationElements->isEtagPresent(*eTag); !etagAlreadyPresent) {
-			throw FLEXISIP_EXCEPTION << "Unknown eTag [" << *eTag << "] for presentity [" << *this << "]";
+			stringstream message{};
+			message << "unknown eTag [" << *eTag << "] for presentity [" << *this << "]";
+			throw PresenceServerException{message.str()};
 		}
 		if (!tuples) {
-			// juste a refresh
-			SLOGD << "Updating presence information element with etag [" << *eTag << "]  for presentity [" << *this
-			      << "]";
+			// just a refresh
+			LOGD << "Updating presence information elem with ETag [" << *eTag << "] for presentity [" << *this << "]";
 		} else {
 			// remove
 			mInformationElements->removeByEtag(*eTag, false);
@@ -159,9 +152,11 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 		}
 	} else {
 		// no etag, check for tuples
-		if (!tuples)
-			throw FLEXISIP_EXCEPTION << "Cannot create information element for presentity [" << *this
-			                         << "]  without tuple";
+		if (!tuples) {
+			stringstream message{};
+			message << "cannot create information element for presentity [" << *this << "] without tuple";
+			throw PresenceServerException{message.str()};
+		}
 	}
 
 	// generate new etag
@@ -172,7 +167,7 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 	// cb function to invalidate an unrefreshed etag;
 	auto func = [this, generatedETag](unsigned int) {
 		// find information element
-		SLOGD << "eTag [" << generatedETag << "] has expired";
+		LOGD_CTX(mLogPrefix, "setOrUpdate") << "ETag [" << generatedETag << "] has expired";
 		this->removeTuplesForEtag(generatedETag);
 		mPresentityManager.invalidateETag(generatedETag);
 		return BELLE_SIP_STOP;
@@ -190,13 +185,13 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 		mPresentityManager.addEtag(shared_from_this(), generatedETag);
 		auto informationElement =
 		    make_unique<PresenceInformationElement>(tuples, person, generatedETag, timer, mCountPresenceElement);
-		SLOGD << "Presence information element [" << informationElement.get() << "] created for presentity [" << *this
-		      << "]";
+		LOGD << "Presence information element [" << informationElement.get() << "] created for presentity [" << *this
+		     << "]";
 		// modify etag list for this presenceInfo and trigger notify on all listeners
 		mInformationElements->emplace(generatedETag, std::move(informationElement));
 	}
 
-	SLOGD << "Etag [" << generatedETag << "] associated to Presentity [" << *this << "]";
+	LOGD << "Etag [" << generatedETag << "] associated to presentity [" << *this << "]";
 	return generatedETag;
 }
 
@@ -226,9 +221,6 @@ void PresentityPresenceInformation::removeTuplesForEtag(const string& eTag) {
 	mInformationElements->removeByEtag(eTag);
 }
 
-FlexisipException& operator<<(FlexisipException& ex, const PresentityPresenceInformation& p) {
-	return ex << "entity [" << p.getEntity() << "]/" << &p;
-}
 ostream& operator<<(ostream& __os, const PresentityPresenceInformation& p) {
 	return __os << "entity [" << p.getEntity() << "]/" << &p;
 }
@@ -255,7 +247,7 @@ void PresentityPresenceInformation::addListenerIfNecessary(
 		mSubscribers.emplace_back(listener);
 		op = "Adding";
 	}
-	SLOGD << op << " listener [" << listener.get() << "] on [" << *this << "]";
+	LOGD << op << " listener [" << listener.get() << "] on [" << *this << "]";
 }
 
 void PresentityPresenceInformation::addOrUpdateListener(
@@ -272,7 +264,8 @@ void PresentityPresenceInformation::addOrUpdateListener(
 		// PresentityPresenceInformationListener* listener_ptr=listener.get();
 		// cb function to invalidate an unrefreshed etag;
 		auto func = [this, listener /*_ptr*/]([[maybe_unused]] unsigned int events) {
-			SLOGD << "Listener [" << listener.get() << "] on [" << *this << "] has expired";
+			LOGD_CTX(mLogPrefix, "addOrUpdateListener")
+			    << "Listener [" << listener.get() << "] on [" << *this << "] has expired";
 			listener->onExpired(*this);
 			this->mPresentityManager.removeListener(listener);
 			return BELLE_SIP_STOP;
@@ -299,7 +292,7 @@ void PresentityPresenceInformation::addOrUpdateListener(
 }
 
 void PresentityPresenceInformation::removeListener(const shared_ptr<PresentityPresenceInformationListener>& listener) {
-	SLOGD << "removing listener [" << listener.get() << "] on [" << *this << "]";
+	LOGD << "Removing listener [" << listener.get() << "] on [" << *this << "]";
 	// 1 cancel expiration time
 	listener->setExpiresTimer(mBelleSipMainloop, nullptr);
 	// 2 remove listener
@@ -348,7 +341,7 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 						presence.getTuple().push_back(*tup);
 						tupleList.push_back(tup->getId());
 					} else {
-						SLOGW << "Already existing tuple id [" << tup->getId() << " for [" << *this << "], skipping";
+						LOGI << "Already existing tuple id [" << tup->getId() << " for [" << *this << "], skipping";
 					}
 				}
 				// copy extensions
@@ -454,9 +447,11 @@ string PresentityPresenceInformation::getPidf(bool extended) {
 		serializePresence(out, presence, map);
 
 	} catch (const Xsd::XmlSchema::Exception& e) {
-		throw FLEXISIP_EXCEPTION << "error: " << e;
-	} catch (exception& e) {
-		throw FLEXISIP_EXCEPTION << "Cannot get pidf for for [" << *this << "]error [" << e.what() << "]";
+		throw PresenceServerException{"failed to get pidf ("s + e.what() + ")"};
+	} catch (const exception& e) {
+		stringstream message{};
+		message << "failed to get pidf for [" << *this << "] (" << e.what() << ")";
+		throw PresenceServerException{message.str()};
 	}
 
 	return out.str();
@@ -466,7 +461,7 @@ void PresentityPresenceInformation::notifyAll() {
 	forEachSubscriber([this](const shared_ptr<PresentityPresenceInformationListener>& listener) {
 		listener->onInformationChanged(*this, listener->extendedNotifyEnabled());
 	});
-	SLOGD << *this << " has notified [" << mSubscribers.size() << " ] listeners";
+	LOGD << *this << " has notified [" << mSubscribers.size() << "] listeners";
 }
 
 std::shared_ptr<PresentityPresenceInformationListener> PresentityPresenceInformation::findSubscriber(

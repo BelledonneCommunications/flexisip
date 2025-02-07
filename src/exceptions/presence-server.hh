@@ -18,26 +18,15 @@
 
 #pragma once
 
-#include "flexisip/configmanager.hh"
-
-#include "list-subscription.hh"
+#include <stdexcept>
 
 namespace flexisip {
 
-/*
- * This class manage a subscription for a list of presentities.
+/**
+ * Report an unexpected event related to the Presence server.
  */
-class BodyListSubscription : public ListSubscription {
-public:
-	BodyListSubscription(unsigned int expires,
-	                     belle_sip_server_transaction_t* ist,
-	                     belle_sip_provider_t* aProv,
-	                     size_t maxPresenceInfoNotifiedAtATime,
-	                     const std::weak_ptr<StatPair>& countBodyListSubscription,
-	                     std::function<void(std::shared_ptr<ListSubscription>)> listAvailable);
-
-private:
-	static constexpr std::string_view mLogPrefix{"BodyListSubscription"};
+class PresenceServerException : public std::runtime_error {
+	using std::runtime_error::runtime_error;
 };
 
 } // namespace flexisip

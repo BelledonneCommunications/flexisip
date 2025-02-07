@@ -47,7 +47,7 @@ ExternalListSubscription::ExternalListSubscription(unsigned int expires,
 
 	bool success = threadPool->run(func);
 	if (!success) // Enqueue() can fail when the queue is full, so we have to act on that
-		SLOGE << "[SOCI] Auth queue is full, cannot fulfill user request for list subscription";
+		LOGE << "Queue is full, cannot fulfill user request for list subscription";
 }
 
 void ExternalListSubscription::getUsersList(const string& sqlRequest, belle_sip_server_transaction_t* ist) {
@@ -78,12 +78,12 @@ void ExternalListSubscription::getUsersList(const string& sqlRequest, belle_sip_
 				unique_ptr<belle_sip_header_address_t, void (*)(void*)> addr(
 				    belle_sip_header_address_parse(addrStr.c_str()), belle_sip_object_unref);
 				if (addr == nullptr) {
-					SLOGD << "Cannot parse list entry [" << addrStr << "]";
+					LOGD_CTX(mLogPrefix, "getUsersList") << "Cannot parse list entry [" << addrStr << "]";
 					continue;
 				}
 				const belle_sip_uri_t* uri = belle_sip_header_address_get_uri(addr.get());
 				if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-					SLOGD << "Cannot parse list entry [" << addrStr << "]";
+					LOGD_CTX(mLogPrefix, "getUsersList") << "Cannot parse list entry [" << addrStr << "]";
 					continue;
 				}
 				const char* name = belle_sip_header_address_get_displayname(addr.get());

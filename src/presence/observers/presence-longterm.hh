@@ -38,6 +38,8 @@ public:
 	void onListenerEvents(std::list<std::shared_ptr<PresentityPresenceInformation>>& info) const override;
 
 private:
+    static constexpr std::string_view mLogPrefix{"PresenceLongterm"};
+
 	belle_sip_main_loop_t* mMainLoop;
 	const std::shared_ptr<AuthDb> mAuthDb;
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;

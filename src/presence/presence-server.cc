@@ -30,6 +30,7 @@
 
 #include "bellesip-signaling-exception.hh"
 #include "exceptions/bad-configuration.hh"
+#include "exceptions/presence-server.hh"
 #include "observers/presence-longterm.hh"
 #include "presence/presentity/presentity-manager.hh"
 #include "presence/presentity/presentity-presence-information.hh"
@@ -302,9 +303,9 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, co
 			mConnPool->at(i).open("mysql", connectionString);
 		}
 	} catch (soci::mysql_soci_error const& e) {
-		SLOGE << "[SOCI] connection pool open MySQL error: " << e.err_num_ << " " << e.what() << endl;
+		LOGE << "Connection pool open MySQL error [" << e.err_num_ << "]: " << e.what();
 	} catch (exception const& e) {
-		SLOGE << "[SOCI] connection pool open error: " << e.what() << endl;
+		LOGE << "Connection pool open error: " << e.what();
 	}
 #endif
 }
@@ -334,7 +335,7 @@ PresenceServer::~PresenceServer() {
 #if ENABLE_SOCI
 	if (mConnPool) delete mConnPool;
 #endif
-	SLOGD << "Presence server destroyed";
+	LOGD << "Destroyed instance";
 }
 
 void PresenceServer::_init() {
@@ -382,7 +383,7 @@ void PresenceServer::_init() {
 			    belle_sip_uri_get_transport_param(uri) ? belle_sip_uri_get_transport_param(uri) : "udp");
 			belle_sip_object_unref(uri);
 			if (belle_sip_provider_add_listening_point(mProvider, lp))
-				throw FLEXISIP_EXCEPTION << "Cannot add lp for [" << transport << "]";
+				throw FlexisipException{"cannot add lp for [" + transport + "]"};
 		}
 	}
 }
@@ -399,12 +400,12 @@ void PresenceServer::processDialogTerminated(PresenceServer* thiz, const belle_s
 	belle_sip_dialog_t* dialog = belle_sip_dialog_terminated_event_get_dialog(event);
 	auto sub = getSubscription(dialog);
 	if (dynamic_pointer_cast<ListSubscription>(sub)) {
-		SLOGD << "Subscription [" << sub << "] has expired";
+		LOGD << "Subscription [" << sub << "] has expired";
 		thiz->removeSubscription(sub);
 	} // else  nothing to be done for now because expire is performed at SubscriptionLevel
 }
 void PresenceServer::processIoError(PresenceServer*, const belle_sip_io_error_event_t*) {
-	SLOGD << "PresenceServer::processIoError not implemented yet";
+	LOGD << "Not implemented yet";
 }
 void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_request_event_t* event) {
 	belle_sip_request_t* request = belle_sip_request_event_get_request(event);
@@ -417,19 +418,19 @@ void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_r
 			thiz->processSubscribeRequestEvent(event);
 
 		} else {
-			throw BELLESIP_SIGNALING_EXCEPTION_1(405, BELLE_SIP_HEADER(belle_sip_header_allow_create("PUBLISH")))
-			    << "Unsupported method [" << belle_sip_request_get_method(request) << "]";
+			LOGI << "Unsupported method: " << belle_sip_request_get_method(request);
+			throw BelleSipSignalingException{405, BELLE_SIP_HEADER(belle_sip_header_allow_create("PUBLISH"))};
 		}
 	} catch (const BelleSipSignalingException& e) {
-		SLOGW << e.what();
 		resp = belle_sip_response_create_from_request(request, e.getStatusCode());
 		for (belle_sip_header_t* header : e.getHeaders())
 			belle_sip_message_add_header(BELLE_SIP_MESSAGE(resp), header);
-	} catch (const FlexisipException& e) {
-		SLOGE << e;
+	} catch (const PresenceServerException& e) {
+		// Catch non-critical exceptions (however, request processing needed to be stopped)
+		LOGI << "Interrupted request processing: " << e.what();
 		resp = belle_sip_response_create_from_request(request, 500);
 	} catch (const exception& e) {
-		SLOGE << "Unknown exception [" << e.what() << " << use FlexisipException instead";
+		LOGE << "Caught an unexpected exception: " << e.what();
 		resp = belle_sip_response_create_from_request(request, 500);
 	}
 	if (resp) {
@@ -446,11 +447,10 @@ void PresenceServer::processResponseEvent(PresenceServer*, const belle_sip_respo
 	belle_sip_response_t* resp = belle_sip_response_event_get_response(event);
 	int code = belle_sip_response_get_status_code(resp);
 	if (code == 407) {
-		SLOGE << __FUNCTION__
-		      << ": presence server being challenged by flexisip probably means that flexisip is misconfigured. "
-		         "Presence server should be a trusted host.";
+		LOGE << "Presence server being challenged by Flexisip probably means that Flexisip is misconfigured, this "
+		        "server should be a trusted host";
 	} else {
-		SLOGD << __FUNCTION__ << " not handled yet for " << code << ": " << belle_sip_response_get_reason_phrase(resp);
+		LOGD << "Not handled yet for " << code << ": " << belle_sip_response_get_reason_phrase(resp);
 	}
 }
 void PresenceServer::processTimeout(PresenceServer* thiz, const belle_sip_timeout_event_t* event) {
@@ -458,7 +458,7 @@ void PresenceServer::processTimeout(PresenceServer* thiz, const belle_sip_timeou
 	auto subscription = client ? getSubscription(client) : nullptr;
 	if (subscription) {
 		thiz->removeSubscription(subscription);
-		SLOGD << "Removing subscription [" << subscription << "] because no response received";
+		LOGD << "Removing subscription [" << subscription << "] because no response received";
 	}
 }
 void PresenceServer::processTransactionTerminated(PresenceServer*,
@@ -516,13 +516,15 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t*
 	 remaining steps.
 	 */
 	belle_sip_header_t* eventHeader = belle_sip_message_get_header(BELLE_SIP_MESSAGE(request), "Event");
-	if (!eventHeader)
-		throw BELLESIP_SIGNALING_EXCEPTION(489) << "No sip Event for request [" << hex << (long)request << "]";
+	if (!eventHeader) {
+		LOGI << "No sip event for request [" << hex << (long)request << "]";
+		throw BelleSipSignalingException{489};
+	}
 
 	if (strcasecmp(belle_sip_header_get_unparsed_value(eventHeader), "Presence") != 0) {
-		throw BELLESIP_SIGNALING_EXCEPTION(489)
-		    << "Unsuported  Event [" << belle_sip_header_get_unparsed_value(eventHeader) << "for request [" << hex
-		    << (long)request << "]";
+		LOGI << "Unsupported event [" << belle_sip_header_get_unparsed_value(eventHeader) << "] for request [" << hex
+		     << (long)request << "]";
+		throw BelleSipSignalingException{489};
 	}
 
 	/*
@@ -544,10 +546,10 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t*
 		if (!contentType || strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") != 0 ||
 		    strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "pidf+xml") != 0) {
 
-			throw BELLESIP_SIGNALING_EXCEPTION_1(415, belle_sip_header_create("Accept", "application/pidf+xml"))
-			    << "Unsupported media type ["
-			    << (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
-			    << (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
+			LOGI << "Unsupported media type ["
+			     << (contentType ? belle_sip_header_content_type_get_type(contentType) : "<unknown>") << "/"
+			     << (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "<unknown>") << "]";
+			throw BelleSipSignalingException{415, belle_sip_header_create("Accept", "application/pidf+xml")};
 		}
 
 	}
@@ -569,8 +571,8 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t*
 		 a response of 412 (Conditional Request Failed), and skip the
 		 remaining steps.*/
 		if (!mPresentityManager->getPresenceInfo(eTag)) {
-			throw BELLESIP_SIGNALING_EXCEPTION(412)
-			    << "Unknown eTag [" << eTag << " for request [" << hex << (long)request << "]";
+			LOGI << "Unknown ETag [" << eTag << "] for request [" << hex << (long)request << "]";
+			throw BelleSipSignalingException{412};
 		}
 	}
 	belle_sip_header_expires_t* headerExpires =
@@ -614,9 +616,10 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t*
 	 event package has defined semantics for an initial publication
 	 containing no message body, the ESC MAY accept it.
 	 */
-	if (!sipIfMatch && belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request)) <= 0)
-		throw BELLESIP_SIGNALING_EXCEPTION(400)
-		    << "Publish without eTag must contain a body for request [" << hex << (long)request << "]";
+	if (!sipIfMatch && belle_sip_message_get_body_size(BELLE_SIP_MESSAGE(request)) <= 0) {
+		LOGI << "Publish without ETag must contain a body for request [" << hex << (long)request << "]";
+		throw BelleSipSignalingException{400};
+	}
 
 	// At that point, we are safe
 
@@ -626,23 +629,25 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t*
 			istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 			presenceBody = Xsd::Pidf::parsePresence(data, Xsd::XmlSchema::Flags::dont_validate);
 		} catch (const Xsd::XmlSchema::Exception& e) {
-			ostringstream os;
-			os << "Cannot parse body caused by [" << e << "]";
+			stringstream error;
+			error << "Cannot parse body: " << e.what();
+			LOGI << error.str();
 			// todo check error code
-			throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+			throw BelleSipSignalingException{400, belle_sip_header_create("Warning", error.str().c_str())};
 		}
 
 		// check entity
 		bellesip::shared_ptr<belle_sip_uri_t> entity{belle_sip_uri_parse(presenceBody->getEntity().c_str())};
-		if (!entity)
-			throw BELLESIP_SIGNALING_EXCEPTION(400)
-			    << "Invalid presence entity [" << presenceBody->getEntity() << "] for request [" << request << "]";
+		if (!entity) {
+			LOGI << "Invalid presence entity [" << presenceBody->getEntity() << "] for request [" << request << "]";
+			throw BelleSipSignalingException{400};
+		}
 
 		belle_sip_header_from_t* from = belle_sip_message_get_header_by_type(request, belle_sip_header_from_t);
 		if (!belle_sip_uri_equals(entity.get(), belle_sip_header_address_get_uri(BELLE_SIP_HEADER_ADDRESS(from)))) {
-			throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Entity must be same as From"))
-			    << "Invalid presence entity [" << presenceBody->getEntity() << "] for request [" << request
-			    << "] must be same as From";
+			LOGI << "Invalid presence entity [" << presenceBody->getEntity() << "] for request [" << request
+			     << "]: must be same as From";
+			throw BelleSipSignalingException{400, belle_sip_header_create("Warning", "Entity must be same as From")};
 		}
 
 		eTag = mPresentityManager->handlePublishFor(entity.get(), eTag, std::move(presenceBody), expires);
@@ -720,13 +725,15 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 		belle_sip_header_user_agent_get_products_as_string(userAgent, userAgentStr, sizeof(userAgentStr));
 		bypass = mBypass != "false" && strcasestr(userAgentStr, mBypass.c_str()) != nullptr;
 	}
-	if (!headerEvent)
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "No Event package"))
-		    << "No Event package";
+	if (!headerEvent) {
+		LOGI << "No event package";
+		throw BelleSipSignalingException{400, belle_sip_header_create("Warning", "No Event package")};
+	}
 
-	if (strcmp("presence", belle_sip_header_event_get_package_name(headerEvent)) != 0)
-		throw BELLESIP_SIGNALING_EXCEPTION(489)
-		    << "Unexpected Event package [" << belle_sip_header_event_get_package_name(headerEvent) << "]";
+	if (strcmp("presence", belle_sip_header_event_get_package_name(headerEvent)) != 0) {
+		LOGI << "Unexpected event package [" << belle_sip_header_event_get_package_name(headerEvent) << "]";
+		throw BelleSipSignalingException{489};
+	}
 
 	/*
 	 The notifier SHOULD also perform any necessary authentication and
@@ -787,7 +794,10 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 	bellesip::shared_ptr<belle_sip_dialog_t> dialog{belle_sip_request_event_get_dialog(event)};
 	if (!dialog) dialog.reset(belle_sip_provider_create_dialog(mProvider, BELLE_SIP_TRANSACTION(server_transaction)));
 
-	if (!dialog) throw BELLESIP_SIGNALING_EXCEPTION(481) << "Cannot create dialog from request [" << request << "]";
+	if (!dialog) {
+		LOGI << "Cannot create dialog from request [" << request << "]";
+		throw BelleSipSignalingException{481};
+	}
 
 	belle_sip_header_expires_t* headerExpires =
 	    belle_sip_message_get_header_by_type(request, belle_sip_header_expires_t);
@@ -808,8 +818,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			// List subscription
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported),
 			                                            (belle_sip_compare_func)strcasecmp, "eventlist")) {
-				SLOGD << "Subscribe for resource list "
-				      << "for dialog [" << BELLE_SIP_OBJECT(dialog.get()) << "]";
+				LOGD << "Subscribe to resource list for dialog [" << BELLE_SIP_OBJECT(dialog.get()) << "]";
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t* contentType =
@@ -819,8 +828,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				                               shared_ptr<ListSubscription> listSubscription) {
 					auto dialog = wDialog.lock();
 					if (!dialog) {
-						SLOGD << "Dialog for ListSubscription[" << listSubscription
-						      << "] no more exists. Abort list subscription";
+						LOGI_CTX(mLogPrefix, "processSubscribeRequestEvent")
+						    << "Dialog for ListSubscription[" << listSubscription
+						    << "] no more exists: aborting list subscription";
 						return;
 					}
 
@@ -840,7 +850,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				if (!contentType) { // case of rfc4662 (list subscription without resource list in body)
 #if ENABLE_SOCI
 					if (!mThreadPool || !mConnPool) {
-						SLOGE << "Can't answer a bodyless subscription: no pool available.";
+						LOGE << "Cannot answer a bodiless subscription: no available pool";
 						goto error;
 					}
 
@@ -862,11 +872,11 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					    mPresenceStats.countBodyListSub, listAvailableLambda);
 				} else { // Unsuported
 				error:
-					throw BELLESIP_SIGNALING_EXCEPTION_1(
-					    415, belle_sip_header_create("Accept", "application/resource-lists+xml"))
-					    << "Unsupported media type ["
-					    << (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
-					    << (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
+					LOGI << "Unsupported media type ["
+					     << (contentType ? belle_sip_header_content_type_get_type(contentType) : "not set") << "/"
+					     << (contentType ? belle_sip_header_content_type_get_subtype(contentType) : "not set") << "]";
+					throw BelleSipSignalingException{
+					    415, belle_sip_header_create("Accept", "application/resource-lists+xml")};
 				}
 				setSubscription(dialog.get(), listSubscription);
 			} else { // Simple subscription
@@ -874,8 +884,8 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				                                             mProvider, mPresenceStats.countPresenceSub);
 				shared_ptr<PresentityPresenceInformationListener> subscription{sub};
 				setSubscription(dialog.get(), sub);
-				SLOGD << " setting sub pointer [" << belle_sip_dialog_get_application_data(dialog.get())
-				      << "] to dialog [" << dialog.get() << "]";
+				LOGD << "Setting sub pointer [" << belle_sip_dialog_get_application_data(dialog.get())
+				     << "] to dialog [" << dialog.get() << "]";
 				// send 200ok late to allow deeper anylise of request
 				belle_sip_server_transaction_send_response(server_transaction, resp.get());
 				subscription->enableBypass(bypass);
@@ -914,9 +924,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			//			 3.1.4.1.)
 
 			if (!subscription || subscription->getState() == Subscription::State::terminated) {
-				throw BELLESIP_SIGNALING_EXCEPTION(481)
-				    << "Subscription [" << hex << subscription << "] for dialog [" << BELLE_SIP_OBJECT(dialog.get())
-				    << "] already in terminated state";
+				LOGI << "Subscription [" << hex << subscription << "] for dialog [" << BELLE_SIP_OBJECT(dialog.get())
+				     << "] already in terminated state";
+				throw BelleSipSignalingException{481};
 			}
 
 			//			 If a SUBSCRIBE request to refresh a subscription fails with a non-481
@@ -955,9 +965,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 		}
 
 		default: {
-			throw BELLESIP_SIGNALING_EXCEPTION(400)
-			    << "Unexpected request [" << hex << (long)request << "for dialog [" << hex << (long)dialog.get()
-			    << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get()));
+			LOGI << "Unexpected request [" << hex << (long)request << "] for dialog [" << hex << (long)dialog.get()
+			     << "in state [" << belle_sip_dialog_state_to_string(belle_sip_dialog_get_state(dialog.get()));
+			throw BelleSipSignalingException{400};
 		}
 	}
 }

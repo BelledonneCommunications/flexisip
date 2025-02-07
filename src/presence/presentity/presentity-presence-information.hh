@@ -196,9 +196,9 @@ private:
 	std::string mName;
 	std::string mCapabilities;
 	std::unordered_map<std::string, std::string> mAddedCapabilities;
+    std::string mLogPrefix;
 };
 
 std::ostream& operator<<(std::ostream& __os, const PresentityPresenceInformation&);
-FlexisipException& operator<<(FlexisipException& ex, const PresentityPresenceInformation&);
 
 } /* namespace flexisip */

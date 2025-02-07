@@ -59,7 +59,8 @@ private:
 	                    const std::shared_ptr<sofiasip::SuRoot>& aRoot,
 	                    const std::shared_ptr<Service>& aService,
 	                    const std::weak_ptr<BranchInfo>& aBr)
-	    : Strategy{aPNContext, aRoot, aService}, mBranchInfo{aBr} {
+	    : Strategy{aPNContext, aRoot, aService}, mBranchInfo{aBr},
+	      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "MessagePushStrategy")) {
 	}
 
 	// Private methods

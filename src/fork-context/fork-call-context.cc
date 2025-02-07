@@ -72,7 +72,8 @@ ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
                       std::move(event),
                       router->mStats.mCountCallForks,
                       priority),
-      mLog{getEvent().getEventLog<CallLog>()} {
+      mLog{getEvent().getEventLog<CallLog>()},
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkCallContext")) {
 	LOGD << "New instance";
 }
 

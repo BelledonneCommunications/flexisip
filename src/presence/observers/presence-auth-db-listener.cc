@@ -72,13 +72,11 @@ void PresenceAuthDbListener::processResponse(AuthDbResult result, const string& 
 			belle_sip_parameters_remove_parameter(params, "user");
 			belle_sip_uri_set_user(uri, user.c_str());
 			contactString = belle_sip_uri_to_string(uri);
-			SLOGD << __FILE__ << ": "
-			      << "Found user " << user << " for phone " << belle_sip_uri_get_user(info->getEntity())
-			      << ", adding contact " << contactString << " presence information";
+			LOGD << "Found user '" << user << "' for phone '" << belle_sip_uri_get_user(info->getEntity())
+			     << "', adding contact '" << contactString << "' presence information";
 			info->setDefaultElement(uri);
 		} else {
-			SLOGD << __FILE__ << ": "
-			      << "Found user " << user << ", adding presence information";
+			LOGD << "Found user '" << user << "', adding presence information";
 			info->setDefaultElement();
 		}
 		belle_sip_object_unref(uri);
@@ -114,8 +112,7 @@ void PresenceAuthDbListener::processResponse(AuthDbResult result, const string& 
 		mRegistrarDb->fetch(SipUri{contactString}, listener);
 		belle_sip_free(contactString);
 	} else {
-		SLOGD << __FILE__ << ": "
-		      << "Could not find user " << cuser << ".";
+		LOGD << "Could not find user " << cuser;
 	}
 	delete this;
 }

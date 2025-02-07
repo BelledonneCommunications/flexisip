@@ -35,7 +35,8 @@ BodyListSubscription::BodyListSubscription(unsigned int expires,
     : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, countBodyListSubscription, listAvailable) {
 	belle_sip_request_t* request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", "Empty body")) << "Empty body";
+		LOGI << "Unexpected: body is empty";
+		throw BelleSipSignalingException{400, belle_sip_header_create("Warning", "Body is empty")};
 	}
 
 	unique_ptr<Xsd::ResourceLists::ResourceLists> resource_list_body;
@@ -43,17 +44,18 @@ BodyListSubscription::BodyListSubscription(unsigned int expires,
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
 	} catch (const Xsd::XmlSchema::Exception& e) {
-		ostringstream os;
-		os << "Cannot parse body caused by [" << e << "]";
+        stringstream error;
+        error << "Cannot parse body: " << e.what();
+		LOGI << error.str();
 		// todo check error code
-		throw BELLESIP_SIGNALING_EXCEPTION_1(400, belle_sip_header_create("Warning", os.str().c_str())) << os.str();
+		throw BelleSipSignalingException{400, belle_sip_header_create("Warning", error.str().c_str())};
 	}
 
 	for (const auto& list : resource_list_body->getList()) {
 		for (const auto& entry : list.getEntry()) {
 			belle_sip_uri_t* uri = belle_sip_fast_uri_parse(entry.getUri().c_str());
 			if (!uri || !belle_sip_uri_get_host(uri) || !belle_sip_uri_get_user(uri)) {
-				SLOGE << "Cannot parse list entry [" << entry.getUri() << "]";
+				LOGD << "Cannot parse list entry [" << entry.getUri() << "]";
 				continue;
 			}
 			if (entry.getUri().find(";user=phone") != string::npos) {

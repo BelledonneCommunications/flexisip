@@ -45,6 +45,3 @@ private:
 };
 
 } /* namespace flexisip */
-#define BELLESIP_SIGNALING_EXCEPTION_1(code, header)                                                                   \
-	BelleSipSignalingException(code, header) << " " << __FILE__ << ":" << __LINE__ << " "
-#define BELLESIP_SIGNALING_EXCEPTION(code) BELLESIP_SIGNALING_EXCEPTION_1(code, NULL)

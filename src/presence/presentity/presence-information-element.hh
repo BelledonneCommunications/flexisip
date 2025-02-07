@@ -72,6 +72,7 @@ private:
 	Xsd::DataModel::Person mPerson{""};
 	BelleSipSourcePtr mTimer;
 	std::string mEtag;
+    std::string mLogPrefix;
 };
 
 } /* namespace flexisip */
