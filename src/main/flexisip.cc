@@ -109,9 +109,8 @@ static int run = 1;
 static pid_t monitor_pid = -1;
 static pid_t flexisip_pid = -1;
 static shared_ptr<sofiasip::SuRoot> root{};
-static constexpr auto startupMessage = "ok";
+static const string kStartupMessage{"ok"};
 static constexpr string_view kLogPrefix{"Main"};
-static constexpr string_view kWatchdogLogPrefix{"Watchdog"};
 
 /*
  * Get the identifier of the current thread.
@@ -261,22 +260,6 @@ static void increaseFDLimit() noexcept {
 	}
 }
 
-/*
- * Allows to detach the watchdog from the PTY so that we don't get traces clobbering the terminal.
- */
-static void detach() {
-	int fd;
-	setsid();
-	fd = open("/dev/null", O_RDWR);
-	if (fd == -1) {
-		throw ExitFailure{-1, "could not open /dev/null"};
-	}
-	dup2(fd, 0);
-	dup2(fd, 1);
-	dup2(fd, 2);
-	close(fd);
-}
-
 static void makePidFile(const string& pidfile) {
 	if (!pidfile.empty()) {
 		FILE* f = fopen(pidfile.c_str(), "w");
@@ -303,6 +286,10 @@ static void forkAndDetach(ConfigManager& cfg,
                           bool startMonitor,
                           const string& functionName,
                           optional<pipe::WriteOnly>& flexisipStartupPipe) {
+
+	static constexpr string_view kWatchdogLogPrefix{"Watchdog - "};
+#define WLOGI cout << kWatchdogLogPrefix
+
 	int pipe_launcher_wdog[2];
 	int err = ::pipe(pipe_launcher_wdog);
 	bool launcherExited = false;
@@ -312,6 +299,8 @@ static void forkAndDetach(ConfigManager& cfg,
 
 	/* Creation of the watch-dog process */
 	pid_t pid = fork();
+	if (pid > 0) WLOGI << "Watchdog PID: " << pid << endl;
+
 	if (pid < 0) {
 		throw ExitFailure{"could not fork: "s + strerror(errno)};
 	}
@@ -323,6 +312,7 @@ static void forkAndDetach(ConfigManager& cfg,
 
 	/* Creation of the flexisip process */
 	fork_flexisip:
+		WLOGI << "Spawning Flexisip server process" << endl;
 		auto newPipe = pipe::open();
 		if (holds_alternative<SysErr>(newPipe)) {
 			throw ExitFailure{"unable to create start pipe "s + strerror(get<SysErr>(newPipe).number())};
@@ -330,26 +320,24 @@ static void forkAndDetach(ConfigManager& cfg,
 		auto rPipe = ::move(get<pipe::Ready>(newPipe));
 
 		flexisip_pid = fork();
+		if (flexisip_pid > 0) WLOGI << "Flexisip PID: " << flexisip_pid << endl;
+
 		if (flexisip_pid < 0) {
 			throw ExitFailure{"could not fork: "s + strerror(errno)};
 		}
 		if (flexisip_pid == 0) {
-			/* This is the real flexisip process now.
-			 * We can proceed with real start
-			 */
-			flexisipStartupPipe = pipe::WriteOnly(::move(rPipe));
+			// This is the real flexisip process now: we can proceed with real start.
+			flexisipStartupPipe = pipe::WriteOnly(std::move(rPipe));
 			set_process_name("flexisip-" + functionName);
 			makePidFile(pidfile);
 			return;
-		} else {
-			LOGI_CTX(kWatchdogLogPrefix) << "Flexisip PID: " << flexisip_pid;
 		}
 
 		/*
 		 * We are in the watch-dog process again
 		 * Waiting for successful initialisation of the flexisip process
 		 */
-		auto res = pipe::ReadOnly(::move(rPipe)).readUntilDataReception(strlen(startupMessage));
+		auto res = pipe::ReadOnly(::move(rPipe)).readUntilDataReception(kStartupMessage.size());
 		if (holds_alternative<SysErr>(res)) {
 			throw ExitFailure{"read error from flexisip, "s + strerror(get<SysErr>(res).number())};
 		}
@@ -363,13 +351,18 @@ static void forkAndDetach(ConfigManager& cfg,
 	 */
 	fork_monitor:
 		if (startMonitor) {
+			WLOGI << "Spawning Flexisip::Monitor process" << endl;
+
 			int pipe_wd_mo[2];
 			err = ::pipe(pipe_wd_mo);
 			if (err == -1) {
 				kill(flexisip_pid, SIGTERM);
 				throw ExitFailure{"could not create pipes: "s + strerror(errno)};
 			}
+
 			monitor_pid = fork();
+			if (monitor_pid > 0) WLOGI << "Flexisip::Monitor PID: " << monitor_pid << endl;
+
 			if (monitor_pid < 0) {
 				throw ExitFailure{"could not fork: "s + strerror(errno)};
 			}
@@ -381,6 +374,7 @@ static void forkAndDetach(ConfigManager& cfg,
 				Monitor::exec(cfg, pipe_wd_mo[1]);
 				throw ExitFailure{"failed to launch Flexisip monitor"};
 			}
+
 			/* We are in the watchdog process */
 			close(pipe_wd_mo[1]);
 			err = read(pipe_wd_mo[0], buf, sizeof(buf));
@@ -395,18 +389,15 @@ static void forkAndDetach(ConfigManager& cfg,
 		 * We are in the watchdog process once again, and all went well, tell the launcher that it can exit
 		 */
 
-		if (!launcherExited && write(pipe_launcher_wdog[1], startupMessage, strlen(startupMessage)) == -1) {
-			throw ExitFailure{"[WDOG] write to pipe failed, exiting"};
+		if (!launcherExited && write(pipe_launcher_wdog[1], kStartupMessage.c_str(), kStartupMessage.size()) == -1) {
+			throw ExitFailure{"write to pipe failed, exiting"};
 		} else {
 			close(pipe_launcher_wdog[1]);
 			launcherExited = true;
 		}
 
-		/* Detach ourselves from the PTY. */
-		detach();
-
 		/*
-		 * This loop aims to restart childs of the watchdog process
+		 * This loop aims to restart children of the watchdog process
 		 * when they have a crash
 		 */
 		while (true) {
@@ -417,32 +408,30 @@ static void forkAndDetach(ConfigManager& cfg,
 					if (startMonitor) kill(monitor_pid, SIGTERM);
 					if (WIFEXITED(status)) {
 						if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
-							LOGI_CTX(kWatchdogLogPrefix) << "Flexisip restart to apply new config";
+							WLOGI << "Restarting Flexisip to apply new config" << endl;
 							sleep(1);
 							goto fork_flexisip;
 						} else {
 							throw ExitSuccess{"Flexisip exited normally"};
 						}
 					} else if (auto_respawn) {
-						LOGI_CTX(kWatchdogLogPrefix) << "Flexisip apparently crashed, respawning now";
+						WLOGI << "Flexisip has crashed: restarting now" << endl;
 						sleep(1);
 						goto fork_flexisip;
 					}
 				} else if (retpid == monitor_pid) {
-					LOGI_CTX(kWatchdogLogPrefix)
-					    << "The Flexisip monitor has crashed or has been illegally terminated, restarting now";
+					WLOGI << "Flexisip monitor has crashed or has been illegally terminated: restarting now" << endl;
 					sleep(1);
 					goto fork_monitor;
 				}
 			} else if (errno != EINTR) {
-				throw ExitFailure{"waitpid() error, "s + strerror(errno)};
+				throw ExitFailure{"wait() error, "s + strerror(errno)};
 			}
 		}
 	} else {
 		/* This is the initial process.
-		 * It should block until flexisip has started sucessfully or rejected to start.
+		 * It should block until flexisip has started successfully or rejected to start.
 		 */
-		LOGI_CTX(kWatchdogLogPrefix) << "Watchdog PID: " << pid;
 		uint8_t buf[4];
 		// we don't need the write side of the pipe:
 		close(pipe_launcher_wdog[1]);
@@ -457,6 +446,8 @@ static void forkAndDetach(ConfigManager& cfg,
 			throw ExitSuccess{"Flexisip started correctly, exit"};
 		}
 	}
+
+#undef WLOGI
 }
 
 static void depthFirstSearch(string& path, GenericEntry* config, list<string>& allCompletions) {
@@ -559,7 +550,7 @@ static void sendStartedNotification(optional<pipe::WriteOnly>& flexisipStartupPi
 		throw ExitFailure{"Failed to write starter pipe: No pipe available"};
 	}
 
-	auto res = flexisipStartupPipe->write(startupMessage);
+	auto res = flexisipStartupPipe->write(kStartupMessage);
 	if (res.has_value()) {
 		throw ExitFailure{"Failed to write starter pipe: "s + strerror(res->number())};
 	}

@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <stdexcept>
+
 namespace flexisip {
 
 /*

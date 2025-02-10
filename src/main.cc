@@ -16,10 +16,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/logmanager.hh>
+#include "main/flexisip.hh"
+
 #include <tclap/CmdLine.h>
 
-#include "main/flexisip.hh"
+#include <flexisip/logmanager.hh>
+
+#include "exceptions/exit.hh"
 
 using namespace std;
 using namespace flexisip;
