@@ -55,14 +55,23 @@ public:
 	// Stops processing until the lock is released (lock_guard destructed)
 	std::lock_guard<std::recursive_mutex> pauseProcessing();
 
+	/**
+	 * Specify a response to a GET request
+	 * return false if the endpoint is unknown and the response cannot be added
+	 */
+	bool addResponseToGET(const std::string& endpoint, const std::string& response);
+
 private:
-	void handleRequest(const nghttp2::asio_http2::server::request&, const nghttp2::asio_http2::server::response&);
+	void handleRequest(const nghttp2::asio_http2::server::request&,
+	                   const nghttp2::asio_http2::server::response&,
+	                   const std::string& endpoint);
 
 	nghttp2::asio_http2::server::http2 mServer{};
 	ssl::context mCtx;
 	mutable std::recursive_mutex mMutex{};
 	std::queue<std::shared_ptr<Request>> mRequestsReceived{};
 	std::atomic<int>* mRequestReceivedCount{nullptr};
+	std::map<std::string, std::string> mGETResponse;
 };
 
 } // namespace flexisip::tester::http_mock

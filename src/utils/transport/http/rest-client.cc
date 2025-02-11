@@ -30,9 +30,11 @@ void RestClient::httpCall(const string& path,
 	const auto body = jsonObject ? to_string(jsonObject.value()) : "";
 	const auto bodySize = to_string(body.size());
 
+	// RFC 7540 https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.3
 	HttpHeaders headers;
 	headers.add(":method", method);
 	headers.add(":scheme", "https");
+	headers.add(":authority", mHttp->getHost());
 	headers.add(":path", path);
 	headers.concat(mCustomHeaders);
 	headers.add("content-length", bodySize);

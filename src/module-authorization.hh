@@ -18,12 +18,16 @@
 
 #pragma once
 
+#include <chrono>
 #include <list>
 #include <memory>
-#include <unordered_map>
+#include <unordered_set>
 
 #include "auth/auth-scheme.hh"
 #include "flexisip/module.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
+#include "utils/transport/http/rest-client.hh"
 
 namespace flexisip {
 class ModuleAuthorization : public Module {
@@ -41,8 +45,50 @@ private:
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
+	class IDomainManager {
+	public:
+		virtual ~IDomainManager() = default;
+		virtual const std::unordered_set<std::string>& getAuthorizedDomains() = 0;
+	};
+
+	class StaticDomainManger : public IDomainManager {
+	public:
+		StaticDomainManger(const std::list<std::string>& domains) {
+			for (const auto& domain : domains)
+				mAuthorizedDomains.emplace(domain);
+		}
+		const std::unordered_set<std::string>& getAuthorizedDomains() override {
+			return mAuthorizedDomains;
+		};
+
+	private:
+		std::unordered_set<std::string> mAuthorizedDomains;
+	};
+
+	class DynamicDomainManager : public IDomainManager {
+	public:
+		DynamicDomainManager(const std::shared_ptr<sofiasip::SuRoot>& root,
+		                     const std::string& host,
+		                     const std::string& port,
+		                     const std::string& apiKey,
+		                     std::chrono::milliseconds delay);
+
+		const std::unordered_set<std::string>& getAuthorizedDomains() override {
+			return mAuthorizedDomains;
+		};
+
+	private:
+		void askAccountManager();
+		void onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep);
+
+		std::string mLogPrefix;
+		RestClient mFAMClient;
+		sofiasip::Timer mTimer;
+		std::unordered_set<std::string> mAuthorizedDomains;
+	};
+
 	std::unordered_map<std::string, std::shared_ptr<AuthScheme>> mAuthModules;
-	std::list<std::string> mAuthorizedDomains;
+	std::unique_ptr<IDomainManager> mDomainManager;
 };
 
 } // namespace flexisip

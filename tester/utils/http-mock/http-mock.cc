@@ -34,13 +34,19 @@ using namespace boost::asio::ssl;
 
 namespace flexisip::tester::http_mock {
 
+namespace {
+constexpr auto kDefaultResponse = "200 OK";
+}
+
 HttpMock::HttpMock(const std::initializer_list<std::string> endpoints, std::atomic_int* requestReceivedCount)
     : mCtx(ssl::context::tls), mRequestReceivedCount(requestReceivedCount) {
 	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
 	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
 
 	for (const auto& handle : endpoints) {
-		mServer.handle(handle, [this](const request& req, const response& res) { handleRequest(req, res); });
+		mServer.handle(handle,
+		               [this, handle](const request& req, const response& res) { handleRequest(req, res, handle); });
+		mGETResponse[handle] = kDefaultResponse;
 	}
 }
 
@@ -48,7 +54,7 @@ std::lock_guard<std::recursive_mutex> HttpMock::pauseProcessing() {
 	return lock_guard<recursive_mutex>(mMutex);
 }
 
-void HttpMock::handleRequest(const request& req, const response& res) {
+void HttpMock::handleRequest(const request& req, const response& res, const string& endpoint) {
 	SLOGD << " HttpMock::handleRequest()";
 	lock_guard<recursive_mutex> lock(mMutex);
 	auto requestReceived = make_shared<Request>();
@@ -74,7 +80,11 @@ void HttpMock::handleRequest(const request& req, const response& res) {
 	mRequestsReceived.push(requestReceived);
 
 	res.write_head(200);
-	res.end("200 OK");
+	if (req.method() == "GET" && mGETResponse.find(endpoint) != mGETResponse.cend()) {
+		res.end(mGETResponse[endpoint]);
+		return;
+	}
+	res.end(kDefaultResponse);
 }
 
 int HttpMock::serveAsync(const std::string& port) {
@@ -105,6 +115,12 @@ std::shared_ptr<Request> HttpMock::popRequestReceived() {
 	}
 
 	return ret;
+}
+
+bool HttpMock::addResponseToGET(const std::string& endpoint, const std::string& response) {
+	if (mGETResponse.find(endpoint) == mGETResponse.cend()) return false;
+	mGETResponse[endpoint] = response;
+	return true;
 }
 
 } // namespace flexisip::tester::http_mock

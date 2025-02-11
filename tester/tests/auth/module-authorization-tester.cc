@@ -20,6 +20,7 @@
 #include "module-authorization.hh"
 
 #include "auth-utils.hh"
+#include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

@@ -159,6 +159,7 @@ void TlsConnection::connect() noexcept {
 		newBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
 		BIO_set_conn_hostname(newBio.get(), hostname.c_str());
 		BIO_get_ssl(newBio.get(), &ssl);
+		SSL_set_tlsext_host_name(ssl, hostname.c_str());
 		SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 		SSL_set_options(ssl, SSL_OP_ALL);
 		if (mMustBeHttp2) {

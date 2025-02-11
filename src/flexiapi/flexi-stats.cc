@@ -32,7 +32,6 @@ FlexiStats::FlexiStats(sofiasip::SuRoot& root,
                        const std::string& token)
     : mRestClient(Http2Client::make(root, host, port),
                   HttpHeaders{
-                      {":authority"s, host + ":" + port},
                       {"accept", "application/json"},
                       {"content-type", "application/json"},
                       {"x-api-key"s, token},

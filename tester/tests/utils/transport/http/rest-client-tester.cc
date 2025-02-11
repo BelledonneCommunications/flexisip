@@ -43,7 +43,6 @@ public:
 		BC_HARD_ASSERT_TRUE(port > -1);
 
 		HttpHeaders httpHeaders{};
-		httpHeaders.add(":authority", "localhost");
 		httpHeaders.add("custom_header", "custom_header_value");
 		httpHeaders.add("custom_header2", "custom_header_value2");
 		RestClient restClient{Http2Client::make(mRoot, "127.0.0.1", to_string(port)), httpHeaders};
@@ -149,7 +148,7 @@ protected:
 };
 
 namespace {
-TestSuite _("Rest client unit tests",
+TestSuite _("RestClient",
             {
                 CLASSY_TEST(PostRestTest),
                 CLASSY_TEST(PutRestTest),

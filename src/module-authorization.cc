@@ -21,14 +21,20 @@
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
 #include "agent.hh"
+#include "utils/transport/http/http-message-context.hh"
+#include "utils/transport/http/http2client.hh"
 
 using namespace std;
+using namespace std::string_view_literals;
 using namespace std::string_literals;
 
 namespace flexisip {
 
 namespace {
+constexpr auto kDynamicDomainPath = "/api/spaces";
 
 constexpr auth_challenger_t kRegistrarChallenger{401, sip_401_Unauthorized, sip_www_authenticate_class,
                                                  sip_authentication_info_class};
@@ -46,8 +52,35 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
 	        {
+	            String,
+	            "account-manager-host",
+	            "The HTTPS URL of the flexisip account manager.\n"
+	            "This parameter MUST be set for dynamic domain loading.",
+	            "",
+	        },
+	        {
+	            String,
+	            "account-manager-port",
+	            "The listening port of the flexisip account manager.\n",
+	            "443",
+	        },
+	        {
+	            String,
+	            "account-manager-api-key",
+	            "The token used to connect to the flexisip account manager.\n"
+	            "This parameter MUST be set for dynamic domain loading.",
+	            "",
+	        },
+	        {
+	            DurationMIN,
+	            "accounts-refresh-delay",
+	            "The duration in minutes between two refreshes of the dynamic domain cache.",
+	            "5",
+	        },
+	        {
 	            StringList,
 	            "auth-domains",
+	            "This parameter is used when no account-manager-server is defined.\n"
 	            "List of whitespace separated domains served by the proxy. "
 	            "Requests from any other domain are rejected.\n",
 	            "localhost",
@@ -69,8 +102,10 @@ bool isAuthorized(const MsgSip& msgSip) {
 	return false;
 }
 
-bool isRequestDomainValid(const string& usrDomain, const string& dstDomain, const list<string>& authorizedDomains) {
-	if (find(authorizedDomains.cbegin(), authorizedDomains.cend(), usrDomain) == authorizedDomains.cend()) {
+bool isRequestDomainValid(const string& usrDomain,
+                          const string& dstDomain,
+                          const unordered_set<string>& authorizedDomains) {
+	if (authorizedDomains.find(usrDomain) == authorizedDomains.cend()) {
 		LOGI_CTX(sAuthorizationInfo.getLogPrefix()) << "Unauthorized domain: '" << usrDomain << "'";
 		return false;
 	}
@@ -83,11 +118,86 @@ bool isRequestDomainValid(const string& usrDomain, const string& dstDomain, cons
 }
 } // namespace
 
+ModuleAuthorization::DynamicDomainManager::DynamicDomainManager(const shared_ptr<sofiasip::SuRoot>& root,
+                                                                const string& host,
+                                                                const string& port,
+                                                                const string& apiKey,
+                                                                chrono::milliseconds delay)
+    : mLogPrefix(sAuthorizationInfo.getLogPrefix()), mFAMClient(Http2Client::make(*root, host, port),
+                                                                HttpHeaders{
+                                                                    {"accept", "application/json"},
+                                                                    {"content-type", "application/json"},
+                                                                    {"x-api-key", apiKey},
+                                                                }),
+      mTimer(root, delay) {
+	mTimer.setForEver([this] { askAccountManager(); });
+	askAccountManager();
+}
+
+void ModuleAuthorization::DynamicDomainManager::askAccountManager() {
+	mFAMClient.get(
+	    kDynamicDomainPath,
+	    [this](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>& rep) {
+		    onAccountManagerResponse(rep);
+	    },
+	    [](const std::shared_ptr<HttpMessage>&) {
+		    LOGE_CTX(sAuthorizationInfo.getLogPrefix(), "onAccountManagerResponseFailure")
+		        << "Received an error while connecting to the account manager, please check your "
+		        << sAuthorizationInfo.getLogPrefix()
+		        << " configuration settings and make sure that the account manager is correctly configured";
+	    });
+}
+
+void ModuleAuthorization::DynamicDomainManager::onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep) {
+	if (rep->getStatusCode() != 200) {
+		LOGE << "Received error " << rep->getStatusCode()
+		     << ", please check your api key validity and that the account manager is running "
+		        "properly";
+		return;
+	}
+
+	try {
+		const auto spaces = nlohmann::json::parse(string(rep->getBody().data(), rep->getBody().size()));
+		if (!spaces.is_array()) {
+			LOGE << "Authorized domains not updated, failed to read spaces";
+			return;
+		}
+
+		constexpr auto domain = "domain"sv;
+		unordered_set<string> authDomains{};
+
+		for (auto i = 0; i < (int)spaces.size(); ++i) {
+			const auto& space = spaces[i];
+			if (!space.contains(domain) || !space[domain].is_string()) {
+				LOGE << "Authorized domains not updated, expect to have a domain in each space";
+				return;
+			}
+			authDomains.emplace(space[domain]);
+		}
+
+		mAuthorizedDomains = authDomains;
+		LOGI << "Authorized domains updated";
+		if (mAuthorizedDomains.empty()) LOGW << "Authorized domains are empty, all requests will be rejected";
+	} catch (const exception& e) {
+		LOGE << "Unexpected error while parsing response: " << e.what();
+	}
+}
+
 ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 }
 
 void ModuleAuthorization::onLoad(const GenericStruct* mc) {
-	mAuthorizedDomains = mc->get<ConfigStringList>("auth-domains")->read();
+	auto host = mc->get<ConfigString>("account-manager-host")->read();
+	if (host.empty()) {
+		mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());
+		return;
+	}
+	auto port = mc->get<ConfigString>("account-manager-port")->read();
+	auto apiKey = mc->get<ConfigString>("account-manager-api-key")->read();
+	const auto refresh = chrono::duration_cast<chrono::milliseconds>(
+	    mc->get<ConfigDuration<chrono::minutes>>("accounts-refresh-delay")->read());
+
+	mDomainManager = make_unique<DynamicDomainManager>(getAgent()->getRoot(), host, port, apiKey, refresh);
 }
 
 unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSipEvent>&& ev) {
@@ -105,7 +215,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
 	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
 
-	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mAuthorizedDomains)) {
+	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mDomainManager->getAuthorizedDomains())) {
 		if (sip->sip_request->rq_method == sip_method_ack) {
 			ev->terminateProcessing(); // ACK of 403 response should not be processed further
 			return {};
