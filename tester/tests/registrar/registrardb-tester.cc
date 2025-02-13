@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -43,8 +43,7 @@
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class IgnoreUpdatesListener : public SuccessfulBindListener {
 	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
@@ -789,9 +788,9 @@ TestSuite _(
         TEST_NO_TAG("Registrations with Redis backend", run<RegistrarTester>),
     },
     Hooks().beforeSuite([]() noexcept {
-	    flexisip::ContactKey::sRsg.mEngine.seed(tester::seed());
+	    flexisip::ContactKey::sRandom.mEngine.seed(tester::random::seed());
 	    return 0;
     }));
+
 } // namespace
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -75,32 +75,35 @@ Call-ID: NISmf-QTgo
 Content-Length: 0
 )sip"};
 
+/**
+ * Flexisip server configuration.
+ */
+const map<string, string> configuration{
+    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+    {"module::DoSProtection/enabled", "false"},
+    {"module::Router/fork-late", "true"},
+    {"module::Router/message-fork-late", "true"},
+    {"module::Router/message-database-enabled", "true"},
+    {"module::Router/message-database-backend", "mysql"},
+    {"module::Router/message-database-connection-string",
+     "db=flexisip_messages user='belledonne' password='cOmmu2015nicatiOns' host=127.0.0.1"},
+    {"module::Registrar/reg-domains", "sip.test.org 127.0.0.1"},
+};
+
 // Use it to create an instance before the configuration is overridden by a reload.
 void forceSociRepositoryInstantiation() {
 	mysqlServer->waitReady();
 	ForkMessageContextSociRepository::getInstance();
 }
 
-class RandomTimestampGenerator {
-public:
-	time_t operator()() {
-		return mDistribution(mEngine);
-	}
-
-private:
-	default_random_engine mEngine = tester::randomEngine();
-	constexpr static time_t minSecondsInAYear = 365 * 24 * 60 * 60;
-	// ⚠️ We use a TIMESTAMP for the expiration date in MySQL which does not support dates beyond 2038.
-	uniform_int_distribution<time_t> mDistribution{0, (2038 - 1970) * minSecondsInAYear};
-};
-
-void forkMessageContextSociRepositoryMysqlUnitTests() {
-	Server server{"config/flexisip_fork_context_db.conf"};
+void forkMessageContextSociRepositoryMysql() {
+	Server server{configuration};
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
-	RandomTimestampGenerator randomTime{};
+	Random random{tester::random::seed()};
+	auto timestampGenerator = random.timestamp();
 
 	// Save and find test.
-	time_t targetTime = randomTime();
+	auto targetTime = timestampGenerator.generate();
 	SLOGD << "Target time: " << targetTime;
 	BC_ASSERT_PTR_NOT_NULL(gmtime(&targetTime));
 
@@ -116,7 +119,7 @@ void forkMessageContextSociRepositoryMysqlUnitTests() {
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find test.
-	targetTime = randomTime();
+	targetTime = timestampGenerator.generate();
 	fakeDbObject = ForkMessageContextDb{2, 10, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::Urgent};
 	// We keep the same keys because they are not updated.
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
@@ -128,13 +131,14 @@ void forkMessageContextSociRepositoryMysqlUnitTests() {
 	actualFork->assertEqual(expectedFork);
 }
 
-void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
-	Server server{"/config/flexisip_fork_context_db.conf"};
+void forkMessageContextWithBranchesSociRepositoryMysql() {
+	Server server{configuration};
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
-	RandomTimestampGenerator randomTime{};
+	Random random{tester::random::seed()};
+	Random::TimestampGenerator timestampGenerator = random.timestamp();
 
 	// Save and find with branch info test.
-	time_t targetTime = randomTime();
+	auto targetTime = timestampGenerator.generate();
 	auto fakeDbObject = ForkMessageContextDb{1.52, 5, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::Normal};
 	fakeDbObject.dbKeys = vector<string>{"key1"};
 	BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
@@ -151,7 +155,7 @@ void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find with branch info test
-	targetTime = randomTime();
+	targetTime = timestampGenerator.generate();
 	fakeDbObject = ForkMessageContextDb{10, 1000, true, *gmtime(&targetTime), rawRequest, MsgSipPriority::Emergency};
 	fakeDbObject.dbKeys = vector<string>{"key1"}; // We keep the same keys because they are not updated
 	branchInfoDb = BranchInfoDb{"contactUid", 3.0, rawRequest, rawResponse, false};
@@ -166,45 +170,64 @@ void forkMessageContextWithBranchesSociRepositoryMysqlUnitTests() {
 	actualFork->assertEqual(expectedFork);
 }
 
-void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
-	Server server{"/config/flexisip_fork_context_db.conf"};
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
-	RandomTimestampGenerator randomTime{};
+void forkMessageContextSociRepositoryFullLoadMysql() {
+	Server server{configuration};
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	Random random{tester::random::seed()};
+	auto timestampGenerator = random.timestamp();
 
+	auto integerGenerator = random.integer<int>(10, 20);
+	const auto nbForks = integerGenerator.generate();
 	map<string, shared_ptr<ForkMessageContext>> expectedForks{};
-	auto targetTime = randomTime();
-	for (int i = 0; i < 10; i++) {
-		auto fakeDbObject =
-		    ForkMessageContextDb{1.52, 5, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
-		fakeDbObject.dbKeys = vector<string>{"key"};
-		BranchInfoDb branchInfoDb{"contactUid", 4.0, rawRequest, rawResponse, true};
-		BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
-		BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
-		fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-		auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+	for (int forkId = 0; forkId < nbForks; forkId++) {
+		auto targetTime = timestampGenerator.generate();
+		auto fakeFork = ForkMessageContextDb{1., 5, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
+
+		auto stringGenerator = random.string();
+		auto stringLengthGenerator = random.integer<size_t>(1, 255);
+		const auto nbDbKeys = integerGenerator.generate();
+		for (int dbKeyId = 0; dbKeyId < nbDbKeys; dbKeyId++)
+			fakeFork.dbKeys.push_back(stringGenerator.generate(stringLengthGenerator.generate()));
+
+		const auto nbBranchInfo = integerGenerator.generate();
+		auto priorityGenerator = random.real<double>(1.0, 5.0);
+		for (int branchInfoId = 0; branchInfoId < nbBranchInfo; branchInfoId++)
+			fakeFork.dbBranches.emplace_back("contactUID-" + to_string(branchInfoId), priorityGenerator.generate(),
+			                                 rawRequest, rawResponse, random.boolean().generate());
+
+		const auto fork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeFork);
 		mysqlServer->waitReady();
-		const auto insertedUuid =
-		    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
-		expectedForks.insert(make_pair(insertedUuid, expectedFork));
+		const auto uuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(fork->getDbObject());
+		expectedForks.insert({uuid, fork});
 	}
 
 	auto dbForks = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
-	map<string, shared_ptr<ForkMessageContextDbProxy>> actualForks{};
+	BC_HARD_ASSERT_CPP_EQUAL(dbForks.size(), expectedForks.size());
 
-	for (auto dbFork : dbForks) {
-		auto actualFork = ForkMessageContextDbProxy::make(moduleRouter, dbFork);
-		actualForks.insert(make_pair(dbFork.uuid, actualFork));
-		BC_ASSERT_TRUE(!dbFork.dbKeys.empty());
+	// Verify order of dbForks (must be ordered by expiration date).
+	time_t lastExpirationTime{};
+	for (auto& dbFork : dbForks) {
+		const auto expirationTime = std::mktime(&dbFork.expirationDate);
+		BC_HARD_ASSERT(difftime(expirationTime, lastExpirationTime) >= 0.);
+		lastExpirationTime = expirationTime;
 	}
 
-	if (actualForks.size() != expectedForks.size()) {
-		BC_FAIL("[" << expectedForks.size() << "] expected forks but [" << actualForks.size() << "] found");
-	}
-	for (const auto& actualFork : actualForks) {
-		auto it = expectedForks.find(actualFork.first);
-		if (it == expectedForks.end()) {
-			BC_FAIL("Forks with UUID " << actualFork.first << " not expected");
+	// Compare uuid and dbKeys.
+	for (auto& actualFork : dbForks) {
+		auto expectedForkIt = expectedForks.find(actualFork.uuid);
+		if (expectedForkIt == expectedForks.end()) {
+			BC_FAIL("uuid from dbForks not found in expectedForks map");
+			continue;
 		}
+
+		auto actualKeys = ForkMessageContextDbProxy::make(moduleRouter, actualFork)->getKeys();
+		auto expectedKeys = expectedForkIt->second->getKeys();
+		BC_HARD_ASSERT_CPP_EQUAL(actualKeys.size(), expectedKeys.size());
+
+		sort(actualKeys.begin(), actualKeys.end());
+		sort(expectedKeys.begin(), expectedKeys.end());
+		for (size_t keyId = 0; keyId < actualKeys.size(); keyId++)
+			BC_HARD_ASSERT_CPP_EQUAL(actualKeys[keyId], expectedKeys[keyId]);
 	}
 }
 
@@ -216,7 +239,7 @@ void forkMessageContextSociRepositoryFullLoadMysqlUnitTests() {
  */
 void globalTest() {
 	SLOGD << "Step 1: Setup";
-	Server server{"/config/flexisip_fork_context_db.conf"};
+	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
 
@@ -302,7 +325,7 @@ void globalTest() {
 
 void globalTestMultipleDevices() {
 	SLOGD << "Step 1: Setup";
-	Server server{"/config/flexisip_fork_context_db.conf"};
+	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
 
@@ -453,7 +476,7 @@ void globalTestMultipleDevices() {
 
 void testDBAccessOptimization() {
 	SLOGD << "Step 1: Setup";
-	Server server{"/config/flexisip_fork_context_db.conf"};
+	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
 
@@ -578,10 +601,10 @@ void testDBAccessOptimization() {
 static void globalTestMultipleMessages() {
 	// This test log too much, modify this value to "BCTBX_LOG_DEBUG" if you need logs
 	bctbx_set_log_level(nullptr, BCTBX_LOG_FATAL);
-	auto server = make_shared<Server>("/config/flexisip_fork_context_db.conf");
-	server->start();
+	Server server{configuration};
+	server.start();
 
-	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server->getAgent());
+	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server.getAgent());
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	unsigned nbAcceptedMessages = 0;
@@ -618,7 +641,7 @@ static void globalTestMultipleMessages() {
 	auto beforePlus10 = system_clock::now() + 10s;
 	while (nbAcceptedMessages != i && beforePlus10 >= system_clock::now()) {
 		bellesipUtils.stackSleep(10);
-		server->getAgent()->getRoot()->step(10ms);
+		server.getAgent()->getRoot()->step(10ms);
 	}
 	BC_ASSERT_EQUAL(nbAcceptedMessages, i, int, "%i");
 
@@ -626,9 +649,9 @@ static void globalTestMultipleMessages() {
 	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
 	 * saved
 	 */
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server->getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	if (!CoreAssert({receiverClient}, server->getAgent()).wait([&moduleRouter, i] {
+	if (!CoreAssert(receiverClient, server.getAgent()).wait([&moduleRouter, i] {
 		    return moduleRouter->mStats.mCountMessageForks->finish->read() == i;
 	    })) {
 		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), i, int, "%i");
@@ -639,7 +662,7 @@ static void globalTestMultipleMessages() {
 
 	// Client REGISTER and receive message
 	receiverClient->getCore()->setNetworkReachable(true);
-	if (!CoreAssert({receiverClient}, server->getAgent()).waitUntil(20s, [receiverClient, i] {
+	if (!CoreAssert(receiverClient, server.getAgent()).waitUntil(20s, [receiverClient, i] {
 		    return receiverClient->getAccount()->getState() == RegistrationState::Ok &&
 		           (unsigned int)receiverClient->getCore()->getUnreadChatMessageCount() == i;
 	    })) {
@@ -647,7 +670,7 @@ static void globalTestMultipleMessages() {
 	}
 
 	// Assert Fork is destroyed after being delivered
-	if (!CoreAssert({receiverClient}, server->getAgent()).waitUntil(10s, [&moduleRouter, i] {
+	if (!CoreAssert(receiverClient, server.getAgent()).waitUntil(10s, [&moduleRouter, i] {
 		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == i;
 	    })) {
 		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), i, int, "%i");
@@ -671,7 +694,7 @@ static void globalTestMultipleMessages() {
  */
 void globalTestDatabaseDeleted() {
 	SLOGD << "Step 1: Setup";
-	Server server{"/config/flexisip_fork_context_db.conf"};
+	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
 
@@ -755,7 +778,7 @@ void globalTestDatabaseDeleted() {
  */
 void globalOrderTest() {
 	SLOGD << "Step 1: Setup";
-	Server server{"/config/flexisip_fork_context_db.conf"};
+	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
 	ModuleRouter::setMaxPriorityHandled(sofiasip::MsgSipPriority::Emergency);
@@ -863,9 +886,9 @@ void globalOrderTest() {
 
 TestSuite _("ForkContext::mysql",
             {
-                CLASSY_TEST(forkMessageContextSociRepositoryMysqlUnitTests),
-                CLASSY_TEST(forkMessageContextWithBranchesSociRepositoryMysqlUnitTests),
-                CLASSY_TEST(forkMessageContextSociRepositoryFullLoadMysqlUnitTests),
+                CLASSY_TEST(forkMessageContextSociRepositoryMysql),
+                CLASSY_TEST(forkMessageContextWithBranchesSociRepositoryMysql),
+                CLASSY_TEST(forkMessageContextSociRepositoryFullLoadMysql),
                 CLASSY_TEST(globalTest),
                 CLASSY_TEST(globalTestMultipleDevices),
                 CLASSY_TEST(testDBAccessOptimization),

@@ -65,4 +65,19 @@ void Rand::makeSeed() noexcept {
 
 bool Rand::sSeeded{false};
 
+Random::Random(Random::Engine::result_type seed) : mEngine(seed) {
+}
+
+Random::TimestampGenerator Random::timestamp(std::time_t min, std::time_t max) & {
+	return TimestampGenerator{mEngine, min, max};
+}
+
+Random::BooleanGenerator Random::boolean() & {
+	return BooleanGenerator{mEngine, 0, 1};
+}
+
+Random::StringGenerator Random::string(std::string_view alphabet) & {
+	return Random::StringGenerator{mEngine, alphabet};
+}
+
 } // namespace flexisip

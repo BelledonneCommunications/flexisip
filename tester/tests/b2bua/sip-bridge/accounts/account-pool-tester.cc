@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -438,7 +438,10 @@ void accountCreation() {
 	auto pool = make_optional<AccountPool>(proxy.getRoot(), b2bua, "createAccountTest", poolConfig,
 	                                       make_unique<StaticAccountLoader>(std::move(accounts)));
 	BC_HARD_ASSERT(pool->allAccountsLoaded());
-	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(servers.registers.size() == 1); }, 200ms).assert_passed();
+	asserter
+	    .iterateUpTo(
+	        3, [&]() { return LOOP_ASSERTION(servers.registers.size() == 1); }, 200ms)
+	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(servers.registers.size(), 1);
 }
 
@@ -460,8 +463,10 @@ void accountRegistrationThrottling() {
 	/////////
 	constexpr auto accountCount = 10;
 	auto accounts = vector{accountCount, config::v2::Account{}};
+	Random random{tester::random::seed()};
+	auto stringGenerator = random.string();
 	for (auto& account : accounts) {
-		account.uri = "sip:uri-" + randomString(10) + "@example.org";
+		account.uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org";
 	}
 	auto proxyServer = ProxyServer();
 	const auto& proxy = proxyServer.proxy;
@@ -485,7 +490,10 @@ void accountRegistrationThrottling() {
 	auto& registers = proxyServer.registers;
 	registers.clear();
 	// Let the Proxy receive the REGISTER requests
-	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(registers.size() == accountCount); }, 200ms).assert_passed();
+	asserter
+	    .iterateUpTo(
+	        3, [&]() { return LOOP_ASSERTION(registers.size() == accountCount); }, 200ms)
+	    .assert_passed();
 	BC_HARD_ASSERT_CPP_EQUAL(registers.size(), accountCount);
 	registers.clear();
 
@@ -546,12 +554,14 @@ public:
 		        .secretType = config::v2::SecretType::Cleartext,
 		    },
 		};
+		Random random{tester::random::seed()};
+		auto stringGenerator = random.string();
 		for (auto& account : dbAccounts) {
-			account.uri = "sip:uri-" + randomString(10) + "@example.org";
-			account.alias = "sip:alias-" + randomString(10) + "@example.org";
-			account.secret = "secret-" + randomString(10);
-			account.userid = "userid-" + randomString(10);
-			account.realm = "realm-" + randomString(10);
+			account.uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org";
+			account.alias = "sip:alias-" + stringGenerator.generate(10) + "@example.org";
+			account.secret = "secret-" + stringGenerator.generate(10);
+			account.userid = "userid-" + stringGenerator.generate(10);
+			account.realm = "realm-" + stringGenerator.generate(10);
 		}
 		return dbAccounts;
 	}();
@@ -647,7 +657,10 @@ void accountsUpdatedOnRedisResubscribe() {
 	        sRedisServer->params.mSubSessionKeepAliveTimeout)
 	    .hard_assert_passed();
 
-	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(!registers.empty()); }, 1s).assert_passed();
+	asserter
+	    .iterateUpTo(
+	        3, [&]() { return LOOP_ASSERTION(!registers.empty()); }, 1s)
+	    .assert_passed();
 	if constexpr (registerIntervalMs == 0) {
 		// All operations are generated in the same loop iteration, and are received in one iteration
 		BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded + accountsUpdated);
@@ -751,7 +764,10 @@ void accountsUpdatePartiallyAbortedOnRapidReload() {
 	std::ignore = redisServer.port();
 	// Resume iterating
 	ASSERT_PASSED(accountPool.allAccountsAvailable(asserter));
-	asserter.iterateUpTo(10, [&]() { return LOOP_ASSERTION(unregisters.size() == 2); }, 1s).assert_passed();
+	asserter
+	    .iterateUpTo(
+	        10, [&]() { return LOOP_ASSERTION(unregisters.size() == 2); }, 1s)
+	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(registers.size(), 2);
 	BC_ASSERT_CPP_EQUAL(unregisters.size(), 2);
 	BC_ASSERT_CPP_EQUAL(defaultView.count("sip:latest-value@example.org"), 1);
@@ -798,7 +814,10 @@ void accountRegistrationOnAuthInfoUpdate() {
 		ready.command({"PUBLISH", "flexisip/B2BUA/account",
 		               R"({"username":"user","domain":"example.org","identifier":"userID"})"},
 		              {});
-		asserter.iterateUpTo(10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s).assert_passed();
+		asserter
+		    .iterateUpTo(
+		        10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s)
+		    .assert_passed();
 
 		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
 		BC_HARD_ASSERT(authInfo != nullptr);
@@ -814,7 +833,10 @@ void accountRegistrationOnAuthInfoUpdate() {
 		ready.command({"PUBLISH", "flexisip/B2BUA/account",
 		               R"({"username":"user","domain":"example.org","identifier":"userID"})"},
 		              {});
-		asserter.iterateUpTo(10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s).assert_passed();
+		asserter
+		    .iterateUpTo(
+		        10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s)
+		    .assert_passed();
 		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
 		BC_HARD_ASSERT(authInfo != nullptr);
 		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.secret);

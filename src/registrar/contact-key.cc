@@ -20,12 +20,13 @@
 
 namespace flexisip {
 
-RandomStringGenerator ContactKey::sRsg{kPlaceholderAlphabet}; // String generator is automatically seeded here
-constexpr const char ContactKey::kAutoGenTag[];
+// String generator is automatically seeded here.
+Random ContactKey::sRandom{};
+Random::StringGenerator ContactKey::sStringGenerator{ContactKey::sRandom.string(ContactKey::kPlaceholderAlphabet)};
 
 std::string ContactKey::generateUniqueId() {
 	constexpr auto size = requiredCharCountForUniqueness();
-	return sRsg(size);
+	return sStringGenerator.generate(size);
 }
 
 bool ContactKey::isPlaceholder() const {

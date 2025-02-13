@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -36,8 +36,7 @@
 
 using namespace std::chrono_literals;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class PasswordRequestListener : public AuthDbListener {
 public:
@@ -110,7 +109,9 @@ static const char none[] = R"SQL(
 template <typename Backend, const char request[]>
 void customPasswordRequestParamInjection() {
 	Backend backend{};
-	const auto injectedPassword = tester::randomString(0x10);
+	Random random{tester::random::seed()};
+
+	const auto injectedPassword = random.string().generate(0x10);
 	std::string empty{};
 	RootConfigStruct configRoot{"flexisip-tester", "Fake configuration for testing purposes", {}, empty};
 	for (const auto& init : ConfigManager::defaultInit()) {
@@ -171,5 +172,4 @@ TestSuite _("SociAuthDB",
 	            return 0;
             }));
 }
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

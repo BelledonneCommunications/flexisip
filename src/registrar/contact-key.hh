@@ -34,10 +34,11 @@ public:
 	// even if it starts with `kAutoGenTag`
 	static constexpr const char kNotAPlaceholderFlag[] = "NOT_A_PLACEHOLDER";
 	// base64url alphabet as defined in RFC 4648 §5
-	static constexpr auto kPlaceholderAlphabet =
-	    std::string_view("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_");
+	static constexpr std::string_view kPlaceholderAlphabet{
+	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"};
 
-	static RandomStringGenerator sRsg;
+	static Random sRandom;
+	static Random::StringGenerator sStringGenerator;
 
 	template <class... Args>
 	ContactKey(Args&&... args) : mValue(std::forward<Args>(args)...) {

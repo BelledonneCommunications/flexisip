@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -56,12 +56,14 @@ void loadManyAccounts() {
 	};
 	b2buaCore->start();
 	auto accounts = vector<config::v2::Account>(accountCount, config::v2::Account{});
+	Random random{tester::random::seed()};
+	auto stringGenerator = random.string();
 	for (auto& account : accounts) {
-		account.uri = "sip:uri-" + randomString(10) + "@stub.example.org";
+		account.uri = "sip:uri-" + stringGenerator.generate(10) + "@stub.example.org";
 		account.secretType = config::v2::SecretType::Cleartext;
-		account.secret = randomString(10);
-		account.alias = "sip:alias-" + randomString(10) + "@stub.example.org";
-		account.outboundProxy = "<sip:" + randomString(10) + ".example.org;transport=tls>";
+		account.secret = stringGenerator.generate(10);
+		account.alias = "sip:alias-" + stringGenerator.generate(10) + "@stub.example.org";
+		account.outboundProxy = "<sip:" + stringGenerator.generate(10) + ".example.org;transport=tls>";
 	}
 
 	const auto& before = chrono::steady_clock::now();
@@ -149,8 +151,10 @@ void reRegisterManyAccounts() {
 	                      *externalProxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	b2buaCore->start();
 	auto* externalAuthDb = authEnabled ? &externalProxy.getAgent()->getAuthDb().db() : nullptr;
+	Random random{tester::random::seed()};
+	auto usernameGenerator = random.string();
 	for (auto& account : accounts) {
-		auto username = randomString(10);
+		auto username = usernameGenerator.generate(10);
 		SLOGD << __FUNCTION__ << " - " << username << " is account no. " << expectedUserNames.size();
 		account.uri = "sip:" + username + "@example.org";
 		if constexpr (authEnabled) {

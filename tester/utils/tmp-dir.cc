@@ -24,7 +24,11 @@ using namespace std;
 
 namespace flexisip::tester {
 
-TmpDir::TmpDir(const std::string& prefix) : mPath(bcTesterWriteDir() / (prefix + randomString(10))) {
+TmpDir::TmpDir(const std::string& prefix)
+    : mPath(bcTesterWriteDir() / (prefix + [] {
+	            static Random random{};
+	            return random.string().generate(10);
+            }())) {
 	filesystem::create_directory(mPath);
 }
 
