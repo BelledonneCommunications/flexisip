@@ -712,7 +712,7 @@ protected:
 		// Change threshold boundary with care, increasing the maximum will probably need an interval increase.
 		const auto interval = 6s;
 		const auto threshold = [] {
-			auto engine = tester::randomEngine();
+			auto engine = tester::random::engine();
 			return std::uniform_real_distribution<float>(1. / 100, 50. / 100)(engine);
 		}();
 		auto minExpiration = interval + 2s;

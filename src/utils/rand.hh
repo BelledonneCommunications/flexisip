@@ -1,20 +1,20 @@
 /*
- * Flexisip, a flexible SIP proxy server with media capabilities.
- * Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -25,8 +25,6 @@
 #include <set>
 #include <string>
 #include <vector>
-
-#include "flexisip/logmanager.hh"
 
 namespace flexisip {
 
@@ -99,19 +97,20 @@ public:
 	 * @param max Upper boundary.
 	 * @return An integer in the given boundary.
 	 */
-	static int generate(int min = 0, int max = RAND_MAX) noexcept;
+	[[deprecated("Use Random instead")]] static int generate(int min = 0, int max = RAND_MAX) noexcept;
 	/**
 	 * Randomly generate a character from a class of characters.
 	 * @param aAllowedChars A class of characters that defines the allowed
 	 * characters to return.
 	 */
-	static char generate(const CharClass& aAllowedChars) noexcept;
+	[[deprecated("Use Random instead")]] static char generate(const CharClass& aAllowedChars) noexcept;
 	/**
 	 * Randomly generate a string.
 	 * @param aLength Size of the string to generate.
 	 * @param aAllowedChars Character class of allowed characters in the string.
 	 */
-	static std::string generate(std::size_t aLength, const CharClass& aAllowedChars);
+	[[deprecated("Use Random instead")]] static std::string generate(std::size_t aLength,
+	                                                                 const CharClass& aAllowedChars);
 
 private:
 	/**
@@ -122,30 +121,157 @@ private:
 	static bool sSeeded; /**< True if the seed has been initialized, False otherwise. */
 };
 
-/* Generates random strings of given lengths with uniform probability accross .kAlphabet. If no seed is given at
- * construction, seeds itself from the system's random source. */
-class RandomStringGenerator {
+/**
+ * Tool for creating random generators.
+ * @note if no seed is given at construction, seeds itself from the system's random source
+ * @warning created generators use the same random engine instance as the 'Random' instance, so their lifetimes are
+ * linked
+ */
+class Random {
 public:
-	explicit RandomStringGenerator(std::string_view alphabet, uint_fast32_t seed = std::random_device()())
-	    : mEngine(seed), mDist(0, alphabet.size() - 1 /* Array indexing starts at 0 and dist() is inclusive */),
-	      mAlphabet(alphabet) {
-	}
+	using Engine = std::default_random_engine;
 
-	std::string operator()(std::size_t length) {
-		std::string result(length, '\0');
+	class StringGenerator;
 
-		for (char& c : result) {
-			c = mAlphabet[mDist(mEngine)];
+	/**
+	 * Generates random integers in the provided range.
+	 */
+	template <typename Type>
+	class IntGenerator {
+	public:
+		// Make it more difficult to accidentally outlive the referenced `Random` instance.
+		IntGenerator() = delete;
+		IntGenerator(IntGenerator&) = delete;
+
+		/**
+		 * @param engine reference to a random engine instance
+		 * @param min lower bound
+		 * @param max upper bound (included)
+		 */
+		IntGenerator(Engine& engine, Type min, Type max) : mEngine(engine), mDistribution(min, max) {
 		}
 
-		return result;
+		Type generate() {
+			return mDistribution(mEngine);
+		}
+
+	private:
+		Engine& mEngine;
+		std::uniform_int_distribution<Type> mDistribution;
+	};
+
+	/**
+	 * Generates random real numbers (floating point numbers) in the provided range.
+	 */
+	template <typename Type>
+	class RealGenerator {
+	public:
+		// Make it more difficult to accidentally outlive the referenced `Random` instance.
+		RealGenerator() = delete;
+		RealGenerator(RealGenerator&) = delete;
+
+		/**
+		 * @param engine reference to a random engine instance
+		 * @param min lower bound
+		 * @param max upper bound (excluded)
+		 */
+		RealGenerator(Engine& engine, Type min, Type max) : mEngine(engine), mDistribution(min, max) {
+		}
+
+		Type generate() {
+			return mDistribution(mEngine);
+		}
+
+	private:
+		Engine& mEngine;
+		std::uniform_real_distribution<Type> mDistribution;
+	};
+
+	/**
+	 * Generates random strings of varying lengths with uniform probability across the provided alphabet.
+	 */
+	class StringGenerator {
+	public:
+		// Make it more difficult to accidentally outlive the referenced `Random` instance.
+		StringGenerator() = delete;
+		StringGenerator(StringGenerator&) = delete;
+
+		/**
+		 * @param engine reference to a random engine instance
+		 * @param alphabet set of characters
+		 */
+		StringGenerator(Engine& engine, std::string_view alphabet)
+		    : mIntGenerator(engine, 0, alphabet.size() - 1 /* array indexing starts at 0 and dist() is inclusive */),
+		      mAlphabet(alphabet) {
+		}
+
+		/**
+		 * @param length length of the generated string
+		 */
+		std::string generate(std::size_t length) {
+			std::string result(length, '\0');
+
+			for (char& c : result)
+				c = mAlphabet[mIntGenerator.generate()];
+
+			return result;
+		}
+
+	private:
+		IntGenerator<size_t> mIntGenerator;
+		const std::string_view mAlphabet;
+	};
+
+	explicit Random(Engine::result_type seed = std::random_device()());
+
+	/**
+	 * @param min lower bound
+	 * @param max upper bound (included)
+	 * @return integer generator
+	 */
+	template <class Type>
+	IntGenerator<Type> integer(Type min = std::numeric_limits<Type>::min(),
+	                           Type max = std::numeric_limits<Type>::max()) & {
+		return IntGenerator<Type>{mEngine, min, max};
 	}
 
-	std::default_random_engine mEngine;
+	/**
+	 * Generates timestamps (up to year 2038).
+	 */
+	using TimestampGenerator = IntGenerator<std::time_t>;
 
-private:
-	std::uniform_int_distribution<size_t> mDist;
-	const std::string_view mAlphabet;
+	/**
+	 * @param max maximum timestamp (defaults to year 2038 because MySql (TIMESTAMP) does not support dates beyond)
+	 * @return timestamp in the provided range
+	 */
+	TimestampGenerator timestamp(std::time_t min = 0, std::time_t max = (2038 - 1970) * 365 * 24 * 60 * 60) &;
+
+	/**
+	 * Generates random boolean values.
+	 */
+	using BooleanGenerator = IntGenerator<int>;
+
+	BooleanGenerator boolean() &;
+
+	/**
+	 * @param min lower bound
+	 * @param max upper bound (excluded)
+	 * @return real generator
+	 */
+	template <class Type>
+	RealGenerator<Type> real(Type min = std::numeric_limits<Type>::min(),
+	                         Type max = std::numeric_limits<Type>::max()) & {
+		return RealGenerator<Type>{mEngine, min, max};
+	}
+
+	/**
+	 * @param alphabet set of characters (default is base64url alphabet as defined in RFC 4648 §5)
+	 * @return string generator
+	 */
+	StringGenerator
+	string(std::string_view alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_") &;
+
+	std::default_random_engine mEngine;
 };
 
 } // namespace flexisip

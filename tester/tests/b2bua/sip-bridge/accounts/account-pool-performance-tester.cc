@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2024 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "b2bua/sip-bridge/accounts/account-pool.hh"
 
@@ -10,12 +24,12 @@
 #include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
 #include "tester.hh"
+#include "utils/assertion-debug-print.hh"
 #include "utils/background-thread.hh"
 #include "utils/core-assert.hh"
 #include "utils/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/assertion-debug-print.hh"
 
 namespace flexisip::tester {
 namespace {
@@ -41,12 +55,14 @@ void loadManyAccounts() {
 	};
 	b2buaCore->start();
 	auto accounts = vector<config::v2::Account>(accountCount, config::v2::Account{});
+	Random random{tester::random::seed()};
+	auto stringGenerator = random.string();
 	for (auto& account : accounts) {
-		account.uri = "sip:uri-" + randomString(10) + "@stub.example.org";
+		account.uri = "sip:uri-" + stringGenerator.generate(10) + "@stub.example.org";
 		account.secretType = config::v2::SecretType::Cleartext;
-		account.secret = randomString(10);
-		account.alias = "sip:alias-" + randomString(10) + "@stub.example.org";
-		account.outboundProxy = "<sip:" + randomString(10) + ".example.org;transport=tls>";
+		account.secret = stringGenerator.generate(10);
+		account.alias = "sip:alias-" + stringGenerator.generate(10) + "@stub.example.org";
+		account.outboundProxy = "<sip:" + stringGenerator.generate(10) + ".example.org;transport=tls>";
 	}
 
 	const auto& before = chrono::steady_clock::now();
@@ -107,7 +123,7 @@ void reRegisterManyAccounts() {
 		        {"module::Registrar/max-expires", minMaxExpiresConfig},
 		        {"module::Authentication/enabled", to_string(authEnabled)},
 		        {"module::Authentication/auth-domains", "example.org"},
-				// Trick to avoid creating an authdb file
+		        // Trick to avoid creating an authdb file
 		        {"module::Authentication/db-implementation", "fixed"},
 		    },
 		    &hooks);
@@ -134,8 +150,10 @@ void reRegisterManyAccounts() {
 	                      *externalProxy.getConfigManager()->getRoot()->get<GenericStruct>(b2bua::configSection));
 	b2buaCore->start();
 	auto* externalAuthDb = authEnabled ? &externalProxy.getAgent()->getAuthDb().db() : nullptr;
+	Random random{tester::random::seed()};
+	auto usernameGenerator = random.string();
 	for (auto& account : accounts) {
-		auto username = randomString(10);
+		auto username = usernameGenerator.generate(10);
 		SLOGD << __FUNCTION__ << " - " << username << " is account no. " << expectedUserNames.size();
 		account.uri = "sip:" + username + "@example.org";
 		if constexpr (authEnabled) {

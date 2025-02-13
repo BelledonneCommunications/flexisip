@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,25 +39,27 @@
 #include "flexisip-tester-config.hh"
 #include <flexisip/logmanager.hh>
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 namespace {
 auto sSeed = std::random_device()();
 }
 
+namespace random {
+
 std::random_device::result_type seed() {
 	return sSeed;
 }
 
-std::default_random_engine randomEngine() {
+std::default_random_engine engine() {
 	return std::default_random_engine{seed()};
 }
 
-std::string randomString(std::size_t length) {
-	static RandomStringGenerator generator{"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", seed()};
-	return generator(length);
+Random random() {
+	return Random{seed()};
 }
+
+} // namespace random
 
 std::string bcTesterFile(const std::string& name) {
 	char* file = bc_tester_file(name.c_str());
@@ -150,7 +152,7 @@ void flexisip_tester_init() {
 	constexpr auto kVCardLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belcard/src";
 	constexpr auto kSdpLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/belle-sip/src/sdp";
 	constexpr auto kLibLinphoneLocalGrammarLocation = FLEXISIP_ROOT_DIR "/linphone-sdk/liblinphone/share";
-	
+
 	flexisip_tester_add_grammar_loader_path(kAuthDbLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kVCardLocalGrammarLocation);
 	flexisip_tester_add_grammar_loader_path(kSdpLocalGrammarLocation);
@@ -163,8 +165,7 @@ void flexisip_tester_uninit(void) {
 	bc_tester_uninit();
 }
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
 
 int main(int argc, char* argv[]) {
 	using namespace flexisip::tester;

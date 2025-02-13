@@ -14,7 +14,12 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.4.0]
+## [2.4.1]
+### [Fixed]
+- **Conference server:** compatibility issue between conference server using linphone-SDK 5.3 and clients using linphone-SDK 5.4.
+- **Proxy**: drastically improved performances when retrieving undelivered chat messages from the database at startup.
+
+## [2.4.0] - 2025-01-30
 ### [Added]
 - **B2BUA server/SIP Bridge:**
   - Now supports bridging **incoming** (external) calls.

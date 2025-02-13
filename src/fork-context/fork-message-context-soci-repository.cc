@@ -209,25 +209,31 @@ void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessag
 }
 
 std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkMessage() {
-	vector<ForkMessageContextDb> allForkMessages;
+	vector<ForkMessageContextDb> forks;
 
 	SociHelper helper{mConnectionPool};
-	helper.execute([&allForkMessages](auto& sql) {
-		ForkMessageContextDb currentFork{};
+	helper.execute([&forks](auto& sql) {
+		soci::rowset<soci::row> set = (sql.prepare << "SELECT UuidFromBin(fork_uuid), key_value, expiration_date"
+		                                              " FROM fork_key"
+		                                              " INNER JOIN fork_message_context"
+		                                              " ON fork_key.fork_uuid = fork_message_context.uuid"
+		                                              " ORDER BY fork_message_context.expiration_date, uuid");
 
-		soci::statement forkSt =
-		    (sql.prepare
-		         << "select UuidFromBin(uuid), expiration_date from fork_message_context order by expiration_date",
-		     into(currentFork.uuid), into(currentFork.expirationDate));
+		auto _ = ForkMessageContextDb();
+		auto* fork = &_;
+		for (const auto& row : set) {
+			const auto uuid = row.get<string>(0);
+			if (fork->uuid != uuid) {
+				fork = &forks.emplace_back();
+				fork->uuid = uuid;
+				fork->expirationDate = row.get<tm>(2);
+			}
 
-		forkSt.execute();
-		while (forkSt.fetch()) {
-			findAndPushBackKeys(currentFork.uuid, currentFork, sql);
-			allForkMessages.push_back(currentFork);
+			fork->dbKeys.push_back(row.get<string>(1));
 		}
 	});
 
-	return allForkMessages;
+	return forks;
 }
 
 void ForkMessageContextSociRepository::findAndPushBackKeys(const string& uuid,

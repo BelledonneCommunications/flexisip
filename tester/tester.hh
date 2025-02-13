@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,8 +23,9 @@
 #include <random>
 #include <string>
 
-namespace flexisip {
-namespace tester {
+#include "utils/rand.hh"
+
+namespace flexisip::tester {
 
 std::string bcTesterFile(const std::string& name);
 std::string bcTesterRes(const std::string& name);
@@ -36,9 +37,24 @@ void flexisip_tester_set_factory_resources_path(const std::string& path);
 void flexisip_tester_init();
 void flexisip_tester_uninit();
 
-std::random_device::result_type seed();
-std::default_random_engine randomEngine();
-std::string randomString(std::size_t);
+namespace random {
 
-} // namespace tester
-} // namespace flexisip
+/**
+ * Get seed for the currently running instance.
+ * @return seed
+ */
+std::random_device::result_type seed();
+
+/**
+ * Get default random engine initialized with the seed of the currently running instance.
+ * @return default random engine
+ */
+[[deprecated("Use random() instead")]] std::default_random_engine engine();
+
+/**
+ * Creates a 'Random' instance seeded with random::seed().
+ */
+Random random();
+
+} // namespace random
+} // namespace flexisip::tester

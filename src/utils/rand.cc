@@ -1,20 +1,20 @@
 /*
- * Flexisip, a flexible SIP proxy server with media capabilities.
- * Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <sstream>
 
@@ -64,5 +64,20 @@ void Rand::makeSeed() noexcept {
 }
 
 bool Rand::sSeeded{false};
+
+Random::Random(Random::Engine::result_type seed) : mEngine(seed) {
+}
+
+Random::TimestampGenerator Random::timestamp(std::time_t min, std::time_t max) & {
+	return TimestampGenerator{mEngine, min, max};
+}
+
+Random::BooleanGenerator Random::boolean() & {
+	return BooleanGenerator{mEngine, 0, 1};
+}
+
+Random::StringGenerator Random::string(std::string_view alphabet) & {
+	return Random::StringGenerator{mEngine, alphabet};
+}
 
 } // namespace flexisip

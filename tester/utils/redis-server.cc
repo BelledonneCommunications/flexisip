@@ -47,7 +47,7 @@ namespace flexisip {
 namespace tester {
 
 uint16_t RedisServer::genPort() noexcept {
-	static auto engine = tester::randomEngine();
+	static auto engine = tester::random::engine();
 	static std::uniform_int_distribution<uint16_t> dist(1024, numeric_limits<uint16_t>::max());
 
 	return dist(engine);
