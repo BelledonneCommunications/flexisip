@@ -71,7 +71,7 @@ job-ubuntu-24-04-deb-deploy:
     - .job-debian-deb-deploy
     - .ubuntu-24-04-image
   variables:
-    RELEASE: jammy
+    RELEASE: noble
     FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
   dependencies:
     - job-ubuntu-24-04-deb
