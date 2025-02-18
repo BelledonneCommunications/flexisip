@@ -27,6 +27,7 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/flexisip-exception.hh"
 #include "module-toolbox.hh"
 #include "utils/string-utils.hh"
 
@@ -61,8 +62,8 @@ void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	        "fetching "
 	        "the credentials of a user from the user database. For example, if a user has its password hashed by MD5 "
 	        "and "
-	        "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
-	        "UAC.\n"
+	        "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submitted to "
+	        "the UAC.\n"
 	        "Furthermore, should a user have several hashed passwords and these are present in the list, then a "
 	        "challenge "
 	        "header will be put in the 401 response for each fetched password in the order given by the list.\n"
@@ -104,7 +105,7 @@ void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        String,
 	        "realm-regex",
-	        "Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in "
+	        "Extraction regex applied on the URI of the 'from' header (or P-Preferred-Identity header if present) in "
 	        "order "
 	        "to extract the realm. The realm is found out by getting the first slice of the URI that matches the "
 	        "regular "
@@ -137,7 +138,7 @@ ModuleAuthenticationBase::ModuleAuthenticationBase(Agent* agent, const ModuleInf
 }
 
 ModuleAuthenticationBase::~ModuleAuthenticationBase() {
-	if (mRealmExtractor) delete mRealmExtractor;
+	delete mRealmExtractor;
 }
 
 void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
@@ -193,38 +194,33 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	sip_t* sip = ev->getMsgSip()->getSip();
 
-	try {
-		if (!validateRequest(*ev->getMsgSip())) return std::move(ev);
+	if (!validateRequest(*ev->getMsgSip())) return std::move(ev);
 
-		sip_p_preferred_identity_t* ppi = nullptr;
-		const char* fromDomain = sip->sip_from->a_url[0].url_host;
-		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-			ppi = sip_p_preferred_identity(sip);
-			if (ppi) fromDomain = ppi->ppid_url->url_host;
-			else LOGD << "There is no p-preferred-identity";
-		}
+	sip_p_preferred_identity_t* ppi = nullptr;
+	const char* fromDomain = sip->sip_from->a_url[0].url_host;
+	if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
+		ppi = sip_p_preferred_identity(sip);
+		if (ppi) fromDomain = ppi->ppid_url->url_host;
+		else LOGD << "There is no p-preferred-identity";
+	}
 
-		FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
-		if (am == nullptr) {
-			LOGI << "Registration failure, domain is forbidden: " << fromDomain;
-			ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-			return {};
-		}
-
-		processAuthentication(std::move(ev), *am);
-	} catch (const runtime_error& e) {
-		LOGE << e.what();
-		ev->reply(500, "Internal error", TAG_END());
+	FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
+	if (am == nullptr) {
+		LOGI << "Registration failure, domain is forbidden: " << fromDomain;
+		ev->reply(403, "Domain forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return {};
 	}
+
+	processAuthentication(std::move(ev), *am);
+
 	return std::move(ev);
 }
 
 FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
-	auto* as = new FlexisipAuthStatus(msgSip);
+	auto as = make_unique<FlexisipAuthStatus>(msgSip);
 	LOGD << "New " << as->getStrId();
 	ModuleAuthenticationBase::configureAuthStatus(*as);
-	return as;
+	return as.release();
 }
 
 void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
@@ -234,15 +230,18 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 	sip_t* sip = ms->getSip();
 	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
 	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+	if (userUri->url_host == nullptr) {
+		THROW_LINE(InvalidRequestError, "malformed P-Preferred-Identity");
+	}
 
 	string realm{};
 	if (mRealmExtractor) {
 		auto userUriStr = url_as_string(ms->getHome(), userUri);
-		LOGD << as.getStrId() << " - Searching for realm in " << (ppi ? "P-Prefered-Identity" : "From") << " URI ("
+		LOGD << as.getStrId() << " - Searching for realm in " << (ppi ? "P-Preferred-Identity" : "From") << " URI ("
 		     << userUriStr << ")";
 
 		realm = mRealmExtractor->extract(userUriStr);
-		if (realm.empty()) throw runtime_error{"couldn't find the realm out"};
+		if (realm.empty()) THROW_LINE(InternalError, "couldn't find the realm out");
 	} else {
 		realm = userUri->url_host;
 	}
