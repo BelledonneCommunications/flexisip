@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -26,9 +26,9 @@
 #include "auth/realm-extractor.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "flexisip/flexisip-exception.hh"
 #include "module-toolbox.hh"
 #include "utils/string-utils.hh"
-
 
 using namespace std;
 
@@ -49,7 +49,7 @@ void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	    {StringList, "available-algorithms",
 	     "List of digest algorithms to use for password hashing. Think this setting as filter applied after fetching "
 	     "the credentials of a user from the user database. For example, if a user has its password hashed by MD5 and "
-	     "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submited to the "
+	     "SHA-256 but 'available-algorithms' only has MD5, then only a MD5-based challenged will be submitted to the "
 	     "UAC.\n"
 	     "Furthermore, should a user have several hashed passwords and these are present in the list, then a challenge "
 	     "header will be put in the 401 response for each fetched password in the order given by the list.\n"
@@ -74,7 +74,8 @@ void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	     "\trealm=regex:sip:.*@sip\\.(.*)\\.com\n",
 	     ""},
 	    {String, "realm-regex",
-	     "Extraction regex applied on the URI of the 'from' header (or P-Prefered-Identity header if present) in order "
+	     "Extraction regex applied on the URI of the 'from' header (or P-Preferred-Identity header if present) in "
+	     "order "
 	     "to extract the realm. The realm is found out by getting the first slice of the URI that matches the regular "
 	     "expression. If it has one or more capturing parentheses, the content of the first one is used as realm.\n"
 	     "If no regex is specified, then the realm will be the domain part of the URI.\n"
@@ -103,7 +104,7 @@ ModuleAuthenticationBase::ModuleAuthenticationBase(Agent* agent, const ModuleInf
 }
 
 ModuleAuthenticationBase::~ModuleAuthenticationBase() {
-	if (mRealmExtractor) delete mRealmExtractor;
+	delete mRealmExtractor;
 }
 
 void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
@@ -178,18 +179,15 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 		}
 
 		processAuthentication(ev, *am);
-	} catch (const runtime_error& e) {
-		SLOGE << e.what();
-		ev->reply(500, "Internal error", TAG_END());
 	} catch (const StopRequestProcessing&) {
 	}
 }
 
 FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const std::shared_ptr<RequestSipEvent>& ev) {
-	auto* as = new FlexisipAuthStatus(ev);
-	LOGD("New FlexisipAuthStatus [%p]", as);
+	auto as = make_unique<FlexisipAuthStatus>(ev);
+	LOGD("New FlexisipAuthStatus [%p]", as.get());
 	ModuleAuthenticationBase::configureAuthStatus(*as, ev);
-	return as;
+	return as.release();
 }
 
 void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const std::shared_ptr<RequestSipEvent>& ev) {
@@ -197,15 +195,18 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const
 	sip_t* sip = ms->getSip();
 	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
 	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
+	if (userUri->url_host == nullptr) {
+		THROW_LINE(InvalidRequestError, "malformed P-Preferred-Identity");
+	}
 
 	string realm{};
 	if (mRealmExtractor) {
 		auto userUriStr = url_as_string(ev->getHome(), userUri);
-		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)", &as, ppi ? "P-Prefered-Identity" : "From",
+		LOGD("AuthStatus[%p]: searching for realm in %s URI (%s)", &as, ppi ? "P-Preferred-Identity" : "From",
 		     userUriStr);
 
 		realm = mRealmExtractor->extract(userUriStr);
-		if (realm.empty()) throw runtime_error{"couldn't find the realm out"};
+		if (realm.empty()) THROW_LINE(InternalError, "couldn't find the realm out");
 	} else {
 		realm = userUri->url_host;
 	}
