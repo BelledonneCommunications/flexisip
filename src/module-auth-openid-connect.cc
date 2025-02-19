@@ -119,6 +119,12 @@ Bearer::PubKeyType getPubKeyType(string_view pubKeyType) {
 	return Bearer::PubKeyType::wellKnown;
 }
 
+auto getAuthHdr(const MsgSip& msg) {
+	const auto* sip = msg.getSip();
+	if (sip->sip_request->rq_method == sip_method_register) return sip->sip_authorization;
+	return sip->sip_proxy_authorization;
+}
+
 } // namespace
 
 ModuleAuthOpenIDConnect::ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
@@ -173,15 +179,14 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 }
 
 unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	sip_t* sip = ev->getMsgSip()->getSip();
-	bool registerMethod = sip->sip_request->rq_method == sip_method_register;
-	auto* credentials = registerMethod ? sip->sip_authorization : sip->sip_proxy_authorization;
+	auto msg = ev->getMsgSip();
+	bool registerMethod = msg->getSip()->sip_request->rq_method == sip_method_register;
 
-	while (credentials != nullptr) {
-		if (strcmp(credentials->au_scheme, "Bearer") == 0) {
-			const auto result = mBearerAuth->check(
-			    credentials, [event = ev.get(), agent = getAgent(),
-			                  &suspendedEvents = mSuspendedEvents](AuthScheme::ChallengeResult&& challenge) {
+	for (auto* authHdr = getAuthHdr(*msg); authHdr != nullptr; authHdr = authHdr->au_next) {
+		if (strcmp(authHdr->au_scheme, "Bearer") == 0) {
+			const auto result =
+			    mBearerAuth->check(authHdr, [event = ev.get(), agent = getAgent(), &suspendedEvents = mSuspendedEvents](
+			                                    AuthScheme::ChallengeResult&& challenge) {
 				    event->addChallengeResult(std::move(challenge));
 
 				    // Was the event suspended? (Pending)
@@ -194,12 +199,11 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 
 			const auto notForUs = (result == AuthScheme::State::Inapplicable);
 			if (notForUs) {
-				credentials = credentials->au_next;
 				continue;
 			}
 
 			if (!registerMethod) {
-				msg_header_remove(ev->getMsgSip()->getMsg(), nullptr, (msg_header_t*)credentials);
+				msg_header_remove(msg->getMsg(), nullptr, (msg_header_t*)authHdr);
 			}
 
 			if (result == AuthScheme::State::Pending) {
@@ -209,6 +213,7 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 			break; // expect only one bearer header of our realm
 		}
 	}
+
 	return std::move(ev);
 }
 

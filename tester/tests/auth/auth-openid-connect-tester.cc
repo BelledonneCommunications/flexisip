@@ -78,6 +78,7 @@ string generateToken(string_view issuer, string_view sipUri, string_view kid, st
 	return obj.signature();
 }
 
+// Check that an authenticated request is rejected
 void rejectUnauthReq() {
 	Server proxy({{"module::Registrar/reg-domains", "*"},
 	              {"module::AuthOpenIDConnect/enabled", "true"},
@@ -118,6 +119,45 @@ void rejectUnauthReq() {
 	}
 }
 
+// Check that an authorization header that is not for the module doesn't cause an issue
+void rejectDigestAuthReq() {
+	const auto issuer = "https://example.org";
+	const auto realm = "testRealm";
+
+	Server proxy({{"module::Registrar/reg-domains", "*"},
+	              {"module::AuthOpenIDConnect/enabled", "true"},
+	              {"module::AuthOpenIDConnect/authorization-server", issuer},
+	              {"module::AuthOpenIDConnect/realm", realm},
+	              {"module::AuthOpenIDConnect/audience", audienceA},
+	              {"module::AuthOpenIDConnect/sip-id-claim", "sip_identity"},
+	              {"module::AuthOpenIDConnect/public-key-type", "file"},
+	              {"module::AuthOpenIDConnect/public-key-location", sSuiteScope->rsaPubKey},
+	              {"module::Authorization/enabled", "true"}});
+
+	const auto& root = proxy.getRoot();
+	proxy.start();
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+
+	// clang-format off
+	string authorization(
+		"Authorization: Digest username=\""s + userName + "\","
+			" realm=\"" + realm + "\","
+			" nonce=\"fake-nonce\","
+			" uri="+ sipUri + ","
+			" response=\"b3bbfb167db5b34da8285546af976a10\","
+			" algorithm=MD5,"
+			" opaque=\"fake-opaque\"\r\n");
+	// clang-format on
+	const auto request = registerRequest(sipUri, "1", authorization);
+	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+	checkResponse(transaction, response_401_unauthorized);
+}
+
+/**
+ * Check complete Bearer authentication process:
+ * - the server replies with authentication parameters to an unauthenticated request
+ * - the server accepts a valid token with the appropriate sip-identity
+ */
 void bearerAuth() {
 	const auto issuer = "https://example.org";
 	const auto realm = "testRealm";
@@ -281,10 +321,15 @@ void bearerMsgOfAToB() {
 	BC_ASSERT_CPP_EQUAL(expectedProxyAuth, 0);
 }
 
+/**
+ * SIP RFC: https://datatracker.ietf.org/doc/html/rfc3261#section-22
+ * HTTP RFC: https://datatracker.ietf.org/doc/html/rfc2617
+ */
 const TestSuite kSuite{
     "AuthOpenIDConnect",
     {
         CLASSY_TEST(rejectUnauthReq),
+        CLASSY_TEST(rejectDigestAuthReq),
         CLASSY_TEST(bearerAuth),
         CLASSY_TEST(bearerMsgOfAToB),
     },
