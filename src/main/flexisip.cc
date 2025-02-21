@@ -99,6 +99,7 @@
 
 #include "flexisip.hh"
 #include "utils/pipe.hh"
+#include "utils/process-monitoring/memory-watcher.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -224,7 +225,7 @@ static rlim_t getSystemFdLimit() {
 }
 
 static void increaseFDLimit() noexcept {
-	struct rlimit lm {};
+	struct rlimit lm{};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
 		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
 		return;
@@ -951,6 +952,14 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	cfg->sendTrap("Flexisip " + fName + "-server starting");
 
 	increaseFDLimit();
+
+#ifndef __APPLE__
+	auto memoryCheckInterval = chrono::duration_cast<chrono::seconds>(
+	    cfg->getGlobal()->get<ConfigDuration<chrono::seconds>>("memory-usage-log-interval")->read());
+	unique_ptr<process_monitoring::MemoryWatcher> memoryWatcher;
+	if (memoryCheckInterval != 0s)
+		memoryWatcher = make_unique<process_monitoring::MemoryWatcher>(root, memoryCheckInterval);
+#endif
 
 	/*
 	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server

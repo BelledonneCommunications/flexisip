@@ -128,6 +128,8 @@ add_library(flexisip SHARED
 	transport.cc transport.hh
 	uac-register.cc uac-register.hh
 	conditional-routes.cc conditional-routes.hh
+	utils/process-monitoring/memory-watcher.hh
+	utils/process-monitoring/memory-watcher.cc
 )
 
 if(ENABLE_FLEXIAPI)
