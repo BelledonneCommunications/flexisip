@@ -131,6 +131,7 @@ add_library(flexisip SHARED
 	telephone-event-filter.cc telephone-event-filter.hh
 	transport.cc transport.hh
 	uac-register.cc uac-register.hh
+	utils/process-monitoring/memory-watcher.cc utils/process-monitoring/memory-watcher.hh
 	conditional-routes.cc conditional-routes.hh
 	i-supervisor-notifier.hh
 )

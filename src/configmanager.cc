@@ -1040,6 +1040,16 @@ ConfigManager::ConfigManager()
 	        "This is not sufficient for instant messaging applications.",
 	        "1000",
 	    },
+	    {
+	        DurationS,
+	        "memory-usage-log-interval",
+	        "Interval between logs about server memory usage.\n"
+	        "This feature periodically logs the value occupied in RAM by the process (VmRSS). These logs use debug "
+	        "level.\n"
+	        "Only works on Linux.\n"
+	        "Set to 0 in order to disable the feature.",
+	        "0",
+	    },
 
 	    // Deprecated parameters.
 	    {
