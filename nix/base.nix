@@ -26,6 +26,10 @@ in
 pkgs.mkShell.override { stdenv = pkgs.gcc13Stdenv; } {
   buildInputs = dependencies
     ++ additionalInputs pkgs;
-  
+
+  # Any level of optimization (higher than 0) will throw off debuggers while stepping through source code.
+  # With sanitizers enabled, fortifying source requires some optimizations. This is unwanted in Debug builds.
+  hardeningDisable = [ "fortify" ];
+
   CMAKE_PREFIX_PATH = with pkgs; "${cpp-jwt}/lib/cmake:${nlohmann_json}/share/cmake";
 }
