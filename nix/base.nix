@@ -26,4 +26,6 @@ in
 pkgs.mkShell.override { stdenv = pkgs.gcc13Stdenv; } {
   buildInputs = dependencies
     ++ additionalInputs pkgs;
+  
+  CMAKE_PREFIX_PATH = with pkgs; "${cpp-jwt}/lib/cmake:${nlohmann_json}/share/cmake";
 }
