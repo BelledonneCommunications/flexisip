@@ -27,7 +27,7 @@
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
-#include "utils/media/media.hh"
+#include "utils/configuration/media.hh"
 #include "utils/string-utils.hh"
 
 namespace flexisip::b2bua {
@@ -132,7 +132,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 		bool enabled = false;
 		for (const auto& payloadType : (core.*codecList)()) {
-			if (StringUtils::iequals(payloadType->getMimeType(), codec) &&
+			if (string_utils::iequals(payloadType->getMimeType(), codec) &&
 			    (rate.empty() || to_string(payloadType->getClockRate()) == rate)) {
 				payloadType->enable(true);
 				enabled = true;
@@ -161,11 +161,13 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	const auto audioPortMin = config.get<ConfigIntRange>("audio-port")->readMin();
 	const auto audioPortMax = config.get<ConfigIntRange>("audio-port")->readMax();
-	setMediaPort(audioPortMin, audioPortMax, *core, &linphone::Core::setAudioPort, &linphone::Core::setAudioPortRange);
+	configuration_utils::setMediaPort(audioPortMin, audioPortMax, *core, &linphone::Core::setAudioPort,
+	                                  &linphone::Core::setAudioPortRange);
 
 	const auto videoPortMin = config.get<ConfigIntRange>("video-port")->readMin();
 	const auto videoPortMax = config.get<ConfigIntRange>("video-port")->readMax();
-	setMediaPort(videoPortMin, videoPortMax, *core, &linphone::Core::setVideoPort, &linphone::Core::setVideoPortRange);
+	configuration_utils::setMediaPort(videoPortMin, videoPortMax, *core, &linphone::Core::setVideoPort,
+	                                  &linphone::Core::setVideoPortRange);
 
 	const auto* noRTPTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
 	const auto noRTPTimeout = noRTPTimeoutParameter->read();
@@ -185,48 +187,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	// Get transport from flexisip configuration.
 	const auto b2buaTransport = factory.createTransports();
-	b2buaTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
-	b2buaTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
-	b2buaTransport->setTlsPort(LC_SIP_TRANSPORT_DONTBIND);
-	b2buaTransport->setDtlsPort(LC_SIP_TRANSPORT_DONTBIND);
-
-	const auto* b2buaTransportParameter = config.get<ConfigString>("transport");
-	const auto transportParameterName = b2buaTransportParameter->getCompleteName();
-	if (const auto transport = b2buaTransportParameter->read(); !transport.empty()) {
-		try {
-			const SipUri urlTransport{transport};
-			const auto scheme = urlTransport.getScheme();
-			const auto transportParam = urlTransport.getParam("transport");
-			auto listeningPort = stoi(urlTransport.getPort(true));
-			if (listeningPort == 0) listeningPort = LC_SIP_TRANSPORT_RANDOM;
-
-			if (scheme == "sip") {
-				if (transportParam.empty() || transportParam == "udp") {
-					b2buaTransport->setUdpPort(listeningPort);
-				} else if (transportParam == "tcp") {
-					b2buaTransport->setTcpPort(listeningPort);
-				} else if (transportParam == "tls") {
-					b2buaTransport->setTlsPort(listeningPort);
-				} else {
-					throw BadConfiguration{"invalid transport parameter value for 'sip' scheme in " +
-					                       transportParameterName + " (" + transportParam + ")"};
-				}
-			} else if (scheme == "sips") {
-				if (transportParam == "udp") {
-					b2buaTransport->setDtlsPort(listeningPort);
-				} else if (transportParam.empty() || transportParam == "tcp") {
-					b2buaTransport->setTlsPort(listeningPort);
-				} else {
-					throw BadConfiguration{"invalid transport parameter value for 'sips' scheme in " +
-					                       transportParameterName + " (" + transportParam + ")"};
-				}
-			}
-		} catch (const sofiasip::InvalidUrlError& exception) {
-			throw BadConfiguration{"failed to configure " + transportParameterName + " (" + transport + "), " +
-			                       exception.what()};
-		}
-	}
-
+	configuration_utils::configureTransport(b2buaTransport, config.get<ConfigString>("transport"));
 	core->setTransports(b2buaTransport);
 
 	static_assert(sizeof(B2buaCore) == sizeof(decltype(*core)));

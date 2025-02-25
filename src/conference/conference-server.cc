@@ -32,7 +32,7 @@
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registration-events/client.hh"
-#include "utils/media/media.hh"
+#include "utils/configuration/media.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -45,43 +45,28 @@ namespace flexisip {
 sofiasip::Home ConferenceServer::mHome;
 
 void ConferenceServer::_init() {
-	string bindAddress{};
-
-	// Set config, transport, create core, etc
-	auto cTransport = Factory::get()->createTransports();
-	cTransport->setTcpPort(0);
-	cTransport->setUdpPort(0);
-	cTransport->setTlsPort(0);
-	cTransport->setDtlsPort(0);
-
-	// Flexisip config
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("conference-server");
-	try {
-		mTransport = SipUri{config->get<ConfigString>("transport")->read()};
-		if (mTransport.empty()) throw sofiasip::InvalidUrlError{"", "empty URI"};
 
-		bindAddress = mTransport.getHost();
+	// Transport configuration.
+	const auto transports = Factory::get()->createTransports();
+	const auto* transportParam = config->get<ConfigString>("transport");
+	if (transportParam->read().empty()) throw BadConfiguration{transportParam->getCompleteName() + " cannot be empty"};
+	configuration_utils::configureTransport(transports, transportParam, {"", "udp", "tcp"});
+	mTransport = SipUri{transportParam->read()};
+	const auto bindAddress = mTransport.getHost();
 
-		const auto& portStr = mTransport.getPort();
-		auto port = !portStr.empty() ? stoi(portStr) : 5060;
-		cTransport->setTcpPort(port);
-	} catch (const sofiasip::InvalidUrlError& e) { // thrown by SipUri constructor and when mTransport is empty
-		throw BadConfiguration{"conference transport ('" + e.getUrl() +
-		                       "') is not a SPI URI (hint: if you have '<>' in your transport, remove them)"};
-	}
 	mCheckCapabilities = config->get<ConfigBoolean>("check-capabilities")->read();
 	mStateDir = config->get<ConfigString>("state-directory")->read();
 
-	/* Read enabled media types (audio, video, text) */
+	// Read enabled media types (audio, video, text).
 	auto mediaTypes = config->get<ConfigStringList>("supported-media-types")->read();
 	if (find(mediaTypes.begin(), mediaTypes.end(), "audio") != mediaTypes.end()) mMediaConfig.audioEnabled = true;
 	if (find(mediaTypes.begin(), mediaTypes.end(), "video") != mediaTypes.end()) mMediaConfig.videoEnabled = true;
 	if (find(mediaTypes.begin(), mediaTypes.end(), "text") != mediaTypes.end()) mMediaConfig.textEnabled = true;
-	if (mMediaConfig.audioEnabled == false && mMediaConfig.videoEnabled == false && mMediaConfig.textEnabled == false) {
-		throw BadConfiguration{"no media types enabled in conference server, please verify your configuration"};
-	}
+	if (mMediaConfig.audioEnabled == false && mMediaConfig.videoEnabled == false && mMediaConfig.textEnabled == false)
+		throw BadConfiguration{"no media types enabled in conference server (at least one media type must be enabled)"};
 
-	// Core
+	// Linphone-sdk configuration.
 	auto configLinphone = Factory::get()->createConfig("");
 	configLinphone->setString("sip", "bind_address", bindAddress);
 	configLinphone->setBool("misc", "conference_server_enabled", true);
@@ -91,10 +76,11 @@ void ConferenceServer::_init() {
 	                        config->get<ConfigBoolean>("empty-chat-room-deletion")->read());
 
 	if (mMediaConfig.textEnabled) {
-		string dbUri = config->get<ConfigString>("database-connection-string")->read();
+		const auto* dbConnectionStringParam = config->get<ConfigString>("database-connection-string");
+		string dbUri = dbConnectionStringParam->read();
 		if (dbUri.empty())
-			throw BadConfiguration{"the parameter 'conference-server/database-connection-string' is not set but is "
-			                       "mandatory when text media type is enabled"};
+			throw BadConfiguration{dbConnectionStringParam->getCompleteName() +
+			                       " is not set but is mandatory when 'text' media type is enabled"};
 		configLinphone->setInt("misc", "hide_empty_chat_rooms", 0);
 		configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
 		configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
@@ -102,6 +88,7 @@ void ConferenceServer::_init() {
 	} else {
 		configLinphone->setString("storage", "uri", "null");
 	}
+
 	configLinphone->setString("storage", "call_logs_db_uri", "null");
 	configLinphone->setString("storage", "zrtp_secrets_db_uri", "null");
 	configLinphone->setString("lime", "x3dh_db_path", ":memory:");
@@ -113,15 +100,13 @@ void ConferenceServer::_init() {
 	configLinphone->setBool("rtp", "rtcp_enabled", true);
 	configLinphone->setBool("rtp", "rtcp_mux", true);
 	configLinphone->setBool("video", "dont_check_codecs", true);
-	configLinphone->setBool("net", "enable_nat_helper",
-	                        false); // to make sure contact address is not fixed by belle-sip
+	// To make sure contact address is not fixed by belle-sip.
+	configLinphone->setBool("net", "enable_nat_helper", false);
 
 	const auto* mediaEngineParameter = config->get<ConfigString>("media-engine-type");
 	const auto mediaEngine = mediaEngineParameter->read();
-	if (mediaEngine != "mixer" && mediaEngine != "sfu") {
-		throw BadConfiguration{mediaEngineParameter->getCompleteName() + " is not correctly set ('" + mediaEngine +
-		                       "'), please verify your configuration"};
-	}
+	if (mediaEngine != "mixer" && mediaEngine != "sfu")
+		throw BadConfiguration{mediaEngineParameter->getCompleteName() + " is not correctly set (" + mediaEngine + ")"};
 
 	if (mediaEngine == "mixer") {
 		// In mixer mode we set the audio conference to Mixer mode (0) and video conference to RouterPayload mode (1)
@@ -149,36 +134,38 @@ void ConferenceServer::_init() {
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
-	mCore->setTransports(cTransport);
+	mCore->setTransports(transports);
 
-	// Make LinphoneCore to slice incoming LIME multipart messages in order
-	// each forwarded message contains only one encrypted message instead
-	// of having the encrypted version for each recipient.
+	// Make LinphoneCore slice incoming LIME multipart messages so every forwarded message contains only one encrypted
+	// message instead of having the encrypted version for each recipient.
 	mCore->enableLimeX3Dh(true);
 
 	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
 	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
-	setMediaPort(audioPortMin, audioPortMax, *mCore, &linphone::Core::setAudioPort, &linphone::Core::setAudioPortRange);
+	configuration_utils::setMediaPort(audioPortMin, audioPortMax, *mCore, &linphone::Core::setAudioPort,
+	                                  &linphone::Core::setAudioPortRange);
 
 	const int videoPortMin = config->get<ConfigIntRange>("video-port")->readMin();
 	const int videoPortMax = config->get<ConfigIntRange>("video-port")->readMax();
-	setMediaPort(videoPortMin, videoPortMax, *mCore, &linphone::Core::setVideoPort, &linphone::Core::setVideoPortRange);
+	configuration_utils::setMediaPort(videoPortMin, videoPortMax, *mCore, &linphone::Core::setVideoPort,
+	                                  &linphone::Core::setVideoPortRange);
 
 	mCore->setUseFiles(true); // No sound card shall be used in calls.
-	/*
-	 * Let the conference server work with all liblinphone's default audio codec s(opus, speex, pcmu, pcma).
-	 * enableSelectedCodecs(mCore->getAudioPayloadTypes(), {"opus", "speex"});
-	 * We have to restrict for video because as of today only VP8 is supported.
-	 */
+
+	// Let the conference server work with all liblinphone's default audio codecs (opus, speex, pcmu, pcma)
+	// enableSelectedCodecs(mCore->getAudioPayloadTypes(), {"opus", "speex"});
+
+	// We have to restrict for video because as of today only VP8 is supported.
 	enableSelectedCodecs(mCore->getVideoPayloadTypes(), {"VP8"});
 
-	string encryption = config->get<ConfigString>("encryption")->read();
+	const auto encryption = config->get<ConfigString>("encryption")->read();
 	const auto encryptionMode = StringUtils::string2MediaEncryption(encryption);
 	if (encryptionMode) {
 		mCore->setMediaEncryption(*encryptionMode);
 	}
-	/* Create a directory for automatically generated DTLS-SRTP certificates */
-	filesystem::path dtlsDir = getStateDir("dtls-srtp");
+
+	// Create a directory in order to automatically generate DTLS-SRTP certificates.
+	const auto dtlsDir = getStateDir("dtls-srtp");
 	ensureDirectoryCreated(dtlsDir);
 	mCore->setUserCertificatesPath(dtlsDir);
 
@@ -195,13 +182,13 @@ void ConferenceServer::_init() {
 	const auto* outboundProxyParam = config->get<ConfigString>("outbound-proxy");
 	auto outboundProxy = outboundProxyParam->read();
 	auto outboundProxyAddress = Factory::get()->createAddress(outboundProxy);
-	if (!outboundProxyAddress) {
-		throw BadConfiguration{"invalid value ('" + outboundProxy + "') for " + outboundProxyParam->getCompleteName()};
-	}
+	if (!outboundProxyAddress)
+		throw BadConfiguration{outboundProxyParam->getCompleteName() + " is invalid (" + outboundProxy + ")"};
+
 	bool defaultAccountSet = false;
 	for (const auto& conferenceServerUris : mConfServerUris) {
-		auto factoryUri = Factory::get()->createAddress(conferenceServerUris.first);
-		auto accountParams = mCore->createAccountParams();
+		const auto factoryUri = Factory::get()->createAddress(conferenceServerUris.first);
+		const auto accountParams = mCore->createAccountParams();
 
 		if (!conferenceServerUris.second.empty()) {
 			auto focusUri = Factory::get()->createAddress(conferenceServerUris.second);
@@ -209,13 +196,16 @@ void ConferenceServer::_init() {
 		} else {
 			accountParams->setIdentityAddress(factoryUri);
 		}
+
 		accountParams->setServerAddress(outboundProxyAddress);
 		accountParams->enableRegister(false);
 		accountParams->enableOutboundProxy(true);
-		accountParams->setConferenceFactoryUri(factoryUri->asString());
+		accountParams->setConferenceFactoryAddress(factoryUri);
 		auto account = mCore->createAccount(accountParams);
-		// The default contact address is the identity address. It will be used if the connection to the REDIS server is
-		// broken or the answer is very slow and a client calls a conference before onRecordFound() is called
+
+		// The default contact address is the identity address.
+		// It will be used if the connection to the REDIS server is broken or the answer is very slow and a client calls
+		// a conference before onRecordFound() is executed.
 		account->setContactAddress(accountParams->getIdentityAddress());
 		mCore->addAccount(account);
 		if (!defaultAccountSet) {
@@ -225,10 +215,11 @@ void ConferenceServer::_init() {
 		mLocalDomains.push_back(factoryUri->getDomain());
 	}
 
-	/* Get additional local domains */
+	// Get additional local domains.
 	auto otherLocalDomains = config->get<ConfigStringList>("local-domains")->read();
 	for (auto& domain : otherLocalDomains)
 		mLocalDomains.emplace_back(std::move(domain));
+
 	otherLocalDomains.clear();
 	mLocalDomains.sort();
 	mLocalDomains.unique();
@@ -236,21 +227,15 @@ void ConferenceServer::_init() {
 	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore);
 
 	Status err = mCore->start();
-	if (err == -2)
-		throw FlexisipException{"the Linphone core could not start because the connection to the database failed"};
-	if (err < 0) throw FlexisipException{"the Linphone core failed to start, please check logs"};
+	if (err == -2) throw ExitFailure{"the Linphone core could not start because the connection to the database failed"};
+	if (err < 0) throw ExitFailure{"the Linphone core failed to start (please check the logs)"};
 
-	if (uuid.empty()) {
-		// In case no uuid was set in persistent state directory, take the one randomly choosen by Liblinphone.
-		writeUuid(configLinphone->getString("misc", "uuid", ""));
-	} else if (configLinphone->getString("misc", "uuid", "") != uuid) {
-		throw BadConfiguration{"inconsistent uuid"};
-	}
+	// In case no uuid was set in persistent state directory, take the one randomly chosen by Liblinphone.
+	if (uuid.empty()) writeUuid(configLinphone->getString("misc", "uuid", ""));
+	else if (configLinphone->getString("misc", "uuid", "") != uuid) throw BadConfiguration{"inconsistent uuid"};
 
 	mRegistrarDb->addStateListener(shared_from_this());
-	if (mRegistrarDb->isWritable()) {
-		bindAddresses();
-	}
+	if (mRegistrarDb->isWritable()) bindAddresses();
 }
 
 void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> natPolicy, const list<string>& addresses) {
@@ -643,7 +628,9 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "List of media types supported by the server.\n"
 	        "This allows to specify if this instance is able to provide chat services or audio/video conference "
 	        "services, or both.\n"
-	        "Valid values: audio, video, text.\n"
+	        "This parameter cannot be empty.\n"
+	        "If 'text' media type is enabled, 'database-connection-string' must be set.\n"
+	        "Valid values: 'audio', 'video', 'text'.\n"
 	        "Example: audio video text",
 	        "text",
 	    },
@@ -675,9 +662,9 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "server to receive RTP media packets from clients.\n"
 	        "If no hostname is given, the v4 and v6 IP addresses can be listed, in any order. It is not possible to "
 	        "configure several v4 addresses or several v6 addresses.\n"
-	        "Example:\n"
+	        "Examples:\n"
 	        "nat-addresses=conference.linphone.org\n"
-	        "nat-addresses=5.135.31.160   2001:41d0:303:3aee::1",
+	        "nat-addresses=5.135.31.160  2001:41d0:303:3aee::1",
 	        "",
 	    },
 	    {

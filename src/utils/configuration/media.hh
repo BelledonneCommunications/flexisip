@@ -23,7 +23,7 @@
 #include "linphone++/linphone.hh"
 #include "linphone/misc.h"
 
-namespace flexisip {
+namespace flexisip::configuration_utils {
 
 /**
  * @brief Set media port or port range on the given core.
@@ -51,6 +51,6 @@ static void setMediaPort(const int min,
 	} else {
 		setPortRange(core, min, max);
 	}
-};
+}
 
-} // namespace flexisip
+} // namespace flexisip::configuration_utils

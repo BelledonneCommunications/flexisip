@@ -165,6 +165,12 @@ add_executable(flexisip_tester
 	utils/utf8-string-tester.cc
 )
 
+if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
+	target_sources(flexisip_tester PRIVATE
+		tests/utils/configuration/transport.cc
+	)
+endif()
+
 if(ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
 		registration-event-tester.cc
@@ -220,7 +226,6 @@ if(ENABLE_FLEXIAPI AND ENABLE_CONFERENCE AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		)
 	endif()
 endif()
-
 
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE

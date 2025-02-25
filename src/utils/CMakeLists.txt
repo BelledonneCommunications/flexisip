@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -11,12 +11,12 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 ############################################################################
 
@@ -29,7 +29,6 @@ target_sources(flexisip PRIVATE
 	flow-factory.cc flow-factory.hh
 	limited-unordered-map.hh
 	load-file.hh
-	media/media.hh
 	observable.hh
 	pipe.cc pipe.hh
 	posix-process.cc posix-process.hh
@@ -58,3 +57,10 @@ target_sources(flexisip PRIVATE
 	variant-utils.hh
 	xsd-utils.hh
 )
+
+if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
+	target_sources(flexisip PRIVATE
+		configuration/media.hh
+		configuration/transport.cc configuration/transport.hh
+	)
+endif()
