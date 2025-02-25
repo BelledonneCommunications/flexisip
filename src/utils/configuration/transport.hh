@@ -51,4 +51,30 @@ void configureTransport(const std::shared_ptr<linphone::Transports>& transports,
                         const std::set<std::string>& allowedSip = {"", "udp", "tcp", "tls"},
                         const std::set<std::string>& allowedSips = {"udp", "", "tcp"});
 
+using IP_FAMILY = int;
+
+/**
+ * Parse a host name or a numeric host address for a given service.
+ *
+ * @param address host name or numeric host address
+ * @param service service name or port number
+ *
+ * @return corresponding IP address along with IP address family if successful, empty string and unspecified family in
+ * case of error
+ */
+std::pair<std::string, IP_FAMILY> parseInternetAddress(std::string_view address, std::string_view service = "5060");
+
+/**
+ * Configure NAT addresses of the provided 'linphone::NatPolicy' in function of the provided addresses.
+ * @note you can only configure one IP address for each IP address family
+ *
+ * @param policy NAT policy
+ * @param parameter parameter from Flexisip configuration file (list of IP addresses)
+ *
+ * @throw BadConfiguration if an error occurred while parsing the provided addresses
+ * @throw BadConfiguration if several IP addresses of the same type are provided
+ * @throw BadConfiguration if one of the IP address family of the provided addresses is invalid
+ */
+void configureNatAddresses(const std::shared_ptr<linphone::NatPolicy>& policy, const ConfigStringList* parameter);
+
 } // namespace flexisip::configuration_utils

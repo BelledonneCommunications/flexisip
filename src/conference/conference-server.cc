@@ -33,6 +33,7 @@
 #include "registrar/record.hh"
 #include "registration-events/client.hh"
 #include "utils/configuration/media.hh"
+#include "utils/configuration/transport.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
@@ -174,7 +175,7 @@ void ConferenceServer::_init() {
 	// Enable ICE (with host candidates only) so that the relay service of the proxies is bypassed.
 	shared_ptr<linphone::NatPolicy> natPolicy = mCore->createNatPolicy();
 	natPolicy->enableIce(true);
-	configureNatAddresses(natPolicy, config->get<ConfigStringList>("nat-addresses")->read());
+	configuration_utils::configureNatAddresses(natPolicy, config->get<ConfigStringList>("nat-addresses"));
 	mCore->setNatPolicy(natPolicy);
 
 	loadFactoryUris();
@@ -236,59 +237,6 @@ void ConferenceServer::_init() {
 
 	mRegistrarDb->addStateListener(shared_from_this());
 	if (mRegistrarDb->isWritable()) bindAddresses();
-}
-
-void ConferenceServer::configureNatAddresses(shared_ptr<linphone::NatPolicy> natPolicy, const list<string>& addresses) {
-	int err;
-	bool ipv4_set = false;
-	bool ipv6_set = false;
-	for (const auto& addr : addresses) {
-		struct addrinfo* res = nullptr;
-		struct addrinfo* ai_it = nullptr;
-		struct addrinfo hints;
-
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_UNSPEC;
-		hints.ai_socktype = SOCK_STREAM;
-
-		err = bctbx_getaddrinfo(addr.c_str(), "5060", &hints, &res);
-		if (err != 0) {
-			throw FlexisipException{"error while processing nat-address value '" + addr + "' ('" + gai_strerror(err) +
-			                        "')"};
-		}
-		for (ai_it = res; ai_it != nullptr; ai_it = ai_it->ai_next) {
-			char ipaddress[NI_MAXHOST] = {0};
-			int port = 0;
-			if (bctbx_addrinfo_to_ip_address(ai_it, ipaddress, sizeof(ipaddress), &port) == 0) {
-				switch (ai_it->ai_family) {
-					case AF_INET:
-						if (!ipv4_set) {
-							natPolicy->setNatV4Address(ipaddress);
-							ipv4_set = true;
-							SLOGI << "Nat v4 address set: " << ipaddress;
-						} else {
-							SLOGE << "Ignoring nat-address '" << ipaddress
-							      << "', there can be a single one per IP family.";
-						}
-						break;
-					case AF_INET6:
-						if (!ipv6_set) {
-							natPolicy->setNatV6Address(ipaddress);
-							SLOGI << "Nat v6 address set: " << ipaddress;
-							ipv6_set = true;
-						} else {
-							SLOGE << "Ignoring nat-address '" << ipaddress
-							      << "', there can be a single one per IP family.";
-						}
-						break;
-					default:
-						SLOGE << "Unknown address family while supporting NAT addresses.";
-						break;
-				}
-			}
-		}
-		bctbx_freeaddrinfo(res);
-	}
 }
 
 void ConferenceServer::enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs,

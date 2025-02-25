@@ -28,6 +28,7 @@
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/configuration/media.hh"
+#include "utils/configuration/transport.hh"
 #include "utils/string-utils.hh"
 
 namespace flexisip::b2bua {
@@ -112,7 +113,16 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	core->setVideoActivationPolicy(videoActivationPolicy);
 
 	const auto natPolicy = core->createNatPolicy();
-	natPolicy->enableIce(config.get<ConfigBoolean>("enable-ice")->read());
+	const auto natAddressesParameter = config.get<ConfigStringList>("nat-addresses");
+	if (config.get<ConfigBoolean>("enable-ice")->read()) {
+		natPolicy->enableIce(true);
+		configuration_utils::configureNatAddresses(natPolicy, natAddressesParameter);
+	} else if (!natAddressesParameter->read().empty()) {
+		throw BadConfiguration{"NAT addresses cannot be configured if ICE is not enabled"};
+	} else {
+		natPolicy->enableIce(false);
+	}
+
 	core->setNatPolicy(natPolicy);
 
 	const auto& forceCodec = [&config, &core = *core, &configLinphone](const auto& flexisipConfigName,

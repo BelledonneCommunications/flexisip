@@ -20,6 +20,7 @@
 
 #include <flexisip/configmanager.hh>
 
+#include <linphone++/core.hh>
 #include <linphone++/factory.hh>
 #include <linphone/misc.h>
 
@@ -151,6 +152,87 @@ void configureTransportWithForbiddenUriScheme() {
 	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter, {}, {}), BadConfiguration)
 }
 
+void parseInternetAddress() {
+	{
+		const auto [ipAddress, ipFamily] = configuration_utils::parseInternetAddress("127.0.0.1");
+		BC_ASSERT_CPP_EQUAL(ipAddress, "127.0.0.1");
+		BC_ASSERT_CPP_EQUAL(ipFamily, AF_INET);
+	}
+	{
+		const auto [ipAddress, ipFamily] = configuration_utils::parseInternetAddress("::1");
+		BC_ASSERT_CPP_EQUAL(ipAddress, "::1");
+		BC_ASSERT_CPP_EQUAL(ipFamily, AF_INET6);
+	}
+}
+
+void parseInternetAddressWithUnknownNameOrService() {
+	const auto [ipAddress, ipFamily] = configuration_utils::parseInternetAddress("test.example");
+	BC_ASSERT_CPP_EQUAL(ipAddress, "");
+	BC_ASSERT_CPP_EQUAL(ipFamily, AF_UNSPEC);
+}
+
+void configureNatAddresses() {
+	const auto core =
+	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+	{
+		const auto policy = core->createNatPolicy();
+		const ConfigStringList parameter{"nat-addresses", "", "", 0};
+
+		configuration_utils::configureNatAddresses(policy, &parameter);
+
+		BC_ASSERT_CPP_EQUAL(policy->getNatV4Address(), "");
+		BC_ASSERT_CPP_EQUAL(policy->getNatV6Address(), "");
+	}
+	{
+		const auto policy = core->createNatPolicy();
+		const ConfigStringList parameter{"nat-addresses", "", "127.0.0.1", 0};
+
+		configuration_utils::configureNatAddresses(policy, &parameter);
+
+		BC_ASSERT_CPP_EQUAL(policy->getNatV4Address(), "127.0.0.1");
+		BC_ASSERT_CPP_EQUAL(policy->getNatV6Address(), "");
+	}
+	{
+		const auto policy = core->createNatPolicy();
+		const ConfigStringList parameter{"nat-addresses", "", "::1 127.0.0.1", 0};
+
+		configuration_utils::configureNatAddresses(policy, &parameter);
+
+		BC_ASSERT_CPP_EQUAL(policy->getNatV4Address(), "127.0.0.1");
+		BC_ASSERT_CPP_EQUAL(policy->getNatV6Address(), "::1");
+	}
+}
+
+void configureNatAddressesWithUnknownNameOrService() {
+	const auto core =
+	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+
+	const auto policy = core->createNatPolicy();
+	const ConfigStringList parameter{"nat-addresses", "", "::1 test.example", 0};
+
+	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfiguration)
+}
+
+void configureNatAddressesWithSeveralIPv4Addresses() {
+	const auto core =
+	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+
+	const auto policy = core->createNatPolicy();
+	const ConfigStringList parameter{"nat-addresses", "", "127.0.0.1 127.0.0.2", 0};
+
+	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfiguration)
+}
+
+void configureNatAddressesWithSeveralIPv6Addresses() {
+	const auto core =
+	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+
+	const auto policy = core->createNatPolicy();
+	const ConfigStringList parameter{"nat-addresses", "", "::1 ::2", 0};
+
+	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfiguration)
+}
+
 TestSuite _("utils::configuration::transport",
             {
                 CLASSY_TEST(configureTransportWithSipScheme),
@@ -159,8 +241,13 @@ TestSuite _("utils::configuration::transport",
                 CLASSY_TEST(configureTransportWithMissingPortInUri),
                 CLASSY_TEST(configureTransportWithForbiddenTransportUriParameter),
                 CLASSY_TEST(configureTransportWithForbiddenUriScheme),
+                CLASSY_TEST(parseInternetAddress),
+                CLASSY_TEST(parseInternetAddressWithUnknownNameOrService),
+                CLASSY_TEST(configureNatAddresses),
+                CLASSY_TEST(configureNatAddressesWithUnknownNameOrService),
+                CLASSY_TEST(configureNatAddressesWithSeveralIPv4Addresses),
+                CLASSY_TEST(configureNatAddressesWithSeveralIPv6Addresses),
             });
 
 } // namespace
-
 } // namespace flexisip::tester

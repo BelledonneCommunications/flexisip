@@ -731,6 +731,21 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "true",
 	    },
 	    {
+	        StringList,
+	        "nat-addresses",
+	        "Public host name or IP addresses of the server.\n"
+	        "WARNING: 'enable-ice' must be set to 'true' to use this feature.\n"
+	        "Setting this parameter is required when the B2BUA server is deployed behind a firewall. This way, "
+	        "public IP address (v4, v6) can be advertised in SDP, as ICE server-reflexive candidates in order for the "
+	        "server to receive RTP media packets from clients.\n"
+	        "If no hostname is given, the v4 and v6 IP addresses can be listed, in any order. It is not possible to "
+	        "configure several v4 addresses or several v6 addresses.\n"
+	        "Examples:\n"
+	        "nat-addresses=b2bua.linphone.org\n"
+	        "nat-addresses=5.135.31.160 2001:41d0:303:3aee::1",
+	        "",
+	    },
+	    {
 	        DurationS,
 	        "no-rtp-timeout",
 	        "Duration after which the server will terminate a call if no RTP packets are received from the other call "

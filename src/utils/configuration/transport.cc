@@ -94,12 +94,69 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 
 		if (allowedSips.find(transportUriParam) == allowedSips.end())
 			throw BadConfiguration{parameterName + " transport type '" + transportUriParam +
-			                       "' is not allowed for 'sip' scheme (" + transport + ")"};
+			                       "' is not allowed for 'sips' scheme (" + transport + ")"};
 
 		sipsSchemeTransports.at(transportUriParam)(*transports, listeningPort);
 
 	} else {
 		throw BadConfiguration{parameterName + " invalid scheme for SIP URI (" + transport + ")"};
+	}
+}
+
+pair<string, IP_FAMILY> parseInternetAddress(string_view address, string_view service) {
+	struct addrinfo* res{nullptr};
+	struct addrinfo hints {};
+	hints.ai_family = AF_UNSPEC;
+	hints.ai_socktype = SOCK_STREAM;
+
+	if (const auto error = bctbx_getaddrinfo(address.data(), service.data(), &hints, &res); error != 0) {
+		LOGD_CTX(kLogPrefix) << "Failed to get address information on '" << address << "' with service '" << service
+		                     << "': " << gai_strerror(error);
+		return {"", AF_UNSPEC};
+	}
+
+	for (struct addrinfo* info = res; info != nullptr; info = info->ai_next) {
+		int ipFamily = info->ai_family;
+		char ipAddress[NI_MAXHOST] = {0};
+		if (bctbx_addrinfo_to_ip_address(info, ipAddress, sizeof(ipAddress), nullptr) == 0) {
+			bctbx_freeaddrinfo(res);
+			return {ipAddress, ipFamily};
+		}
+	}
+
+	bctbx_freeaddrinfo(res);
+	return {"", AF_UNSPEC};
+}
+
+void configureNatAddresses(const shared_ptr<linphone::NatPolicy>& policy, const ConfigStringList* parameter) {
+	const auto addresses = parameter->read();
+	const auto parameterName = parameter->getCompleteName();
+	for (const auto& address : addresses) {
+		const auto [ipAddress, ipFamily] = parseInternetAddress(address);
+		if (ipAddress.empty())
+			throw BadConfiguration{parameterName + " failed to configure NAT address (" + address + ")"};
+
+		switch (ipFamily) {
+			case AF_INET: {
+				if (policy->getNatV4Address().empty()) {
+					policy->setNatV4Address(ipAddress);
+					LOGI_CTX(kLogPrefix) << "Configured IPv4 NAT address: " << ipAddress;
+				} else {
+					throw BadConfiguration{parameterName + " only one IPv4 NAT address can be configured"};
+				}
+			} break;
+			case AF_INET6: {
+				if (policy->getNatV6Address().empty()) {
+					policy->setNatV6Address(ipAddress);
+					LOGI_CTX(kLogPrefix) << "Configured IPv6 NAT address: " << ipAddress;
+				} else {
+					throw BadConfiguration{parameterName + " only one IPv6 NAT address can be configured"};
+				}
+			} break;
+			default:
+				throw BadConfiguration{parameterName + " unknown IP family (" + ipAddress + " | " +
+				                       to_string(ipFamily) + ")"};
+		}
 	}
 }
 
