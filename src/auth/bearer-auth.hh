@@ -115,7 +115,7 @@ private:
 		Http1Client mHttpClient;
 		sofiasip::Timer mWellKnownTimer;
 		sofiasip::Timer mJWKSTimer;
-		std::function<void()> mOnPubKeyRefresh;
+		std::function<void()> mProcessPendingToken;
 	};
 	struct PendingToken {
 		std::string token;

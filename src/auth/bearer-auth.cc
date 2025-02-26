@@ -387,7 +387,7 @@ Bearer::KeyStore::KeyStore(const shared_ptr<sofiasip::SuRoot>& root,
                            const KeyStoreParams& params,
                            function<void()>&& refreshCallback)
     : mKeyType{params.keyType}, mIssuer{issuer}, mHttpClient{root}, mWellKnownTimer{root, params.wellKnownRefreshDelay},
-      mJWKSTimer{root, params.jwksRefreshDelay}, mOnPubKeyRefresh{std::move(refreshCallback)} {
+      mJWKSTimer{root, params.jwksRefreshDelay}, mProcessPendingToken{std::move(refreshCallback)} {
 	switch (mKeyType) {
 		case Bearer::PubKeyType::file: {
 			updateKeys({{kDefaultKid, {.key = loadPemKey(params.keyPath), .algo = kRS256}}});
@@ -410,6 +410,7 @@ void Bearer::KeyStore::askForWellKnown() {
 
 void Bearer::KeyStore::onWellKnownResponse(string_view response) {
 	auto quickRetry = [this] {
+		checkKeysValidity();
 		const auto timeout = 5min;
 		mWellKnownTimer.set([this] { askForWellKnown(); }, timeout);
 	};
@@ -457,6 +458,9 @@ void Bearer::KeyStore::onWellKnownResponse(string_view response) {
 }
 
 void Bearer::KeyStore::askForJWKS() {
+	// wait to receive the first wellknown response
+	if (mKeyPath.empty()) return;
+
 	// wait next response
 	if (mKeyCacheUpdate == KeyCache::Pending) return;
 
@@ -488,7 +492,7 @@ void Bearer::KeyStore::onJWKSResponse(string_view response) {
 void Bearer::KeyStore::updateKeys(const unordered_map<std::string, KeyInfo>& pubKeys) {
 	mPubKeys = pubKeys;
 	mKeyCacheUpdate = KeyCache::Done;
-	mOnPubKeyRefresh();
+	mProcessPendingToken();
 }
 
 void Bearer::KeyStore::checkKeysValidity() {
@@ -500,6 +504,8 @@ void Bearer::KeyStore::checkKeysValidity() {
 		LOGI_CTX(kOpenIDConnect) << "Remove expired key with kid '" << pubKey->first << "'";
 		pubKey = mPubKeys.erase(pubKey);
 	}
+	// ensure pendingToken are not kept indefinitely
+	mProcessPendingToken();
 }
 
 Bearer::KeyInfo Bearer::KeyStore::getPubKey(const string& kid) const {
