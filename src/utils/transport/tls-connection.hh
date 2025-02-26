@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,11 +19,9 @@
 #pragma once
 
 #include <chrono>
-#include <condition_variable>
 #include <cstring>
 #include <filesystem>
 #include <stdexcept>
-#include <thread>
 #include <vector>
 
 #include <openssl/ssl.h>
@@ -61,7 +59,7 @@ public:
 	 * @param port other end port
 	 * @param mustBeHttp2 whether or not to force use of HTTP/2
 	 */
-	TlsConnection(const std::string& host, const std::string& port, bool mustBeHttp2 = false);
+	TlsConnection(const std::string& host, std::string_view port, bool mustBeHttp2 = false);
 	/** Instantiate a new TLS or TCP connection.
 	 *
 	 * @note You can leave trustStorePath and certPath empty in order to create a simple TCP connection.
@@ -73,7 +71,7 @@ public:
 	 * @param mustBeHttp2 whether or not to force use of HTTP/2
 	 */
 	TlsConnection(const std::string& host,
-	              const std::string& port,
+	              std::string_view port,
 	              const std::string& trustStorePath,
 	              const std::string& certPath,
 	              bool mustBeHttp2 = false);

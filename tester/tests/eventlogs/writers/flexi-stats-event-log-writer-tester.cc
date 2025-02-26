@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,7 +38,6 @@
 #include "utils/eventlogs/event-logs.hh"
 #include "utils/http-mock/http-mock.hh"
 #include "utils/server/mysql-server.hh"
-#include "utils/server/proxy-server.hh"
 #include "utils/server/test-conference-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -432,14 +431,8 @@ void messageToChatroomClearText() {
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	});
 	const auto& agent = proxy->getAgent();
-	proxy->getAgent()
-	    ->getConfigManager()
-	    .getRoot()
-	    ->get<GenericStruct>("conference-server")
-	    ->get<ConfigValue>("outbound-proxy")
-	    ->set("sip:127.0.0.1:"s + proxy->getFirstPort() + ";transport=tcp");
-	ClientBuilder builder{*proxy->getAgent()};
-	builder.setConferenceFactoryUri(confFactoryUri);
+	ClientBuilder builder{*agent};
+	builder.setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri));
 	builder.setLimeX3DH(OnOff::Off);
 	const string expectedFrom = "clemence@sip.example.org";
 	const string expectedTos[] = {"pauline@sip.example.org", "tony@sip.example.org", "mike@sip.example.org"};
@@ -460,7 +453,7 @@ void messageToChatroomClearText() {
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
 	mysqlServer.waitReady();
-	const TestConferenceServer confServer(*agent, proxy->getConfigManager(), proxy->getRegistrarDb());
+	const TestConferenceServer confServer(*proxy);
 	const auto before = chrono::system_clock::now();
 
 	clemChat->createMessageFromUtf8("💃🏼")->send();

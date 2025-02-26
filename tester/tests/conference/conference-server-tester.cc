@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,14 +19,10 @@
 #include <chrono>
 #include <initializer_list>
 #include <memory>
-#include <string_view>
-#include <unordered_set>
 #include <vector>
 
 #include "flexisip/registrar/registar-listeners.hh"
 
-#include "agent.hh"
-#include "conference/chatroom-prefix.hh"
 #include "conference/conference-server.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
@@ -41,7 +37,6 @@
 #include "utils/core-assert.hh"
 #include "utils/server/mysql-server.hh"
 #include "utils/server/proxy-server.hh"
-#include "utils/string-utils.hh"
 #include "utils/server/test-conference-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -104,17 +99,15 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	              {"conference-server/empty-chat-room-deletion", "false"},
 	              {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")}}};
 	proxy.start();
-	auto* configRoot = proxy.getAgent()->getConfigManager().getRoot();
-	configRoot->get<GenericStruct>("conference-server")
-	    ->get<ConfigValue>("outbound-proxy")
-	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
-	const auto* registrarBackend =
-	    dynamic_cast<const RegistrarDbInternal*>(&proxy.getAgent()->getRegistrarDb().getRegistrarBackend());
+	const auto& regDb = proxy.getRegistrarDb();
+	const auto* registrarBackend = dynamic_cast<const RegistrarDbInternal*>(&regDb->getRegistrarBackend());
 	BC_HARD_ASSERT_TRUE(registrarBackend != nullptr);
 	const auto& records = registrarBackend->getAllRecords();
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 0);
-	ClientBuilder clientBuilder{*proxy.getAgent()};
-	clientBuilder.setConferenceFactoryUri(confFactoryUri).setLimeX3DH(OnOff::Off);
+	const auto& agent = *proxy.getAgent();
+	ClientBuilder clientBuilder{agent};
+	clientBuilder.setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri))
+	    .setLimeX3DH(OnOff::Off);
 	const auto me = clientBuilder.build("I@sip.example.org");
 	const auto you = clientBuilder.build("you@sip.example.org");
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2);
@@ -122,13 +115,13 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	auto chatroomBuilder = me.chatroomBuilder();
 	chatroomBuilder.setBackend(linphone::ChatRoom::Backend::FlexisipChat).setGroup(OnOff::On);
 	const auto listener = make_shared<AllJoinedWaiter>();
-	const auto conferenceServerUri = [confServerCfg = configRoot->get<GenericStruct>("conference-server")] {
+	const auto& confMan = proxy.getConfigManager();
+	const auto conferenceServerUri = [confServerCfg = confMan->getRoot()->get<GenericStruct>("conference-server")] {
 		return confServerCfg->get<ConfigString>("transport")->read();
 	};
 	{ // Populate conference server's DB
 		mysqlServer.waitReady();
-		const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager(),
-		                                            proxy.getRegistrarDb());
+		const TestConferenceServer conferenceServer(agent, confMan, regDb);
 		BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2 /* users */ + 1 /* factory */ + 1 /* focus */);
 		const auto& inMyRoom = you.getMe();
 		listener->setChatrooms({
@@ -153,7 +146,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	(const_cast<RegistrarDbInternal*>(registrarBackend))->clearAll();
 
 	// Spin it up again
-	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager(), proxy.getRegistrarDb());
+	const TestConferenceServer conferenceServer(agent, confMan, regDb);
 
 	// The conference server restored its chatrooms from DB and bound them back on the Registrar
 	// Chat rooms are now only identified by the parameter conf-id therefore the registrarDb doesn't grow anymore
@@ -184,7 +177,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	}};
 	proxy.start();
-	auto& registrar = proxy.getAgent()->getRegistrarDb();
+	auto& registrar = *proxy.getRegistrarDb();
 	const auto* registrarBackend = dynamic_cast<const RegistrarDbInternal*>(&registrar.getRegistrarBackend());
 	BC_HARD_ASSERT_TRUE(registrarBackend != nullptr);
 	const auto& records = registrarBackend->getAllRecords();
@@ -206,7 +199,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 		BC_ASSERT_CPP_EQUAL(contacts.latest()->get()->urlAsString(), unexpectedContact);
 	}
 
-	const TestConferenceServer conferenceServer(*proxy.getAgent(), proxy.getConfigManager(), proxy.getRegistrarDb());
+	const TestConferenceServer conferenceServer(proxy);
 
 	BC_ASSERT_CPP_EQUAL(records.size(), 1 /* factory */ + 1 /* focus */);
 	const auto& contacts = records.begin()->second->getExtendedContacts();
@@ -217,9 +210,92 @@ void conferenceServerClearsOldBindingsOnInit() {
 	}
 }
 
+/** Assert the conference server re-sends the INVITE when a participant device comes back online.
+ *
+ *  1. Set up two participants with one device each, a proxy and a conference server.
+ *  2. Simulate a device going offline long enough for its REGISTER to expire (but still being within its message-expire
+ * time, such that it is still in the RegistrarDB).
+ *  3. Invite it to a chatroom. The conference server will get a 404 from the proxy for this device.
+ *  4. Simulate device going back online. The proxy will notify the conference server and the latter will re-send the
+ * INVITE to the participant device.
+ */
+void inviteResentOnReconnect() {
+	static const auto confFactoryUri = "sip:conference-factory@sip.example.org"s;
+	const auto testDir = TmpDir(__FUNCTION__ + "."s);
+	auto proxy = Server({
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+
+	    {"conference-server/database-backend", "sqlite"},
+	    {"conference-server/database-connection-string", "/dev/null"},
+	    {"conference-server/conference-factory-uris", confFactoryUri},
+	    {"conference-server/conference-focus-uris", "sip:conference-focus@sip.example.org"},
+	    {"conference-server/state-directory", testDir.path() / "conf-server"},
+	});
+	proxy.start();
+	auto& agent = *proxy.getAgent();
+	const auto& regDb = proxy.getRegistrarDb();
+	auto conferenceServer = TestConferenceServer(agent, proxy.getConfigManager(), regDb);
+	auto clientBuilder = ClientBuilder(agent);
+	clientBuilder.setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri))
+	    .setLimeX3DH(OnOff::Off);
+	const auto simon = clientBuilder.build("simon@sip.example.org");
+	auto julien = clientBuilder.setMessageExpires(0xbah).build("julien@sip.example.org");
+	julien.disconnect(); // Client goes offline
+	const auto julienAddress = julien.getMe();
+	const auto& registrarBackend = dynamic_cast<const RegistrarDbInternal&>(regDb->getRegistrarBackend());
+	auto& records = registrarBackend.getAllRecords();
+	BC_HARD_ASSERT(!records.empty());
+	const auto& julienKey = Record::Key(SipUri(julienAddress->asStringUriOnly()), false);
+	const auto& julienDevices = records.at(julienKey.asString())->getExtendedContacts();
+	auto& julienDeviceContact = (**julienDevices.latest());
+	constexpr auto margin = 10s;
+	const auto inviteExpirationTime = julienDeviceContact.getSipExpires() + margin;
+	julienDeviceContact.setRegisterTime(julienDeviceContact.getRegisterTime() - inviteExpirationTime.count());
+	// Registration expires, but the contact is still in the Registrar (because of message-expires)
+	BC_ASSERT(!julienDeviceContact.isExpired());
+	auto asserter = CoreAssert(proxy, julien, simon);
+	const auto listener = make_shared<AllJoinedWaiter>();
+	const auto simonChatroom = simon.chatroomBuilder()
+	                               .setBackend(linphone::ChatRoom::Backend::FlexisipChat)
+	                               .setGroup(OnOff::On)
+	                               .setSubject("Liblinphone Team")
+	                               .build({julienAddress});
+	listener->setChatrooms({simonChatroom});
+	asserter
+	    .iterateUpTo(
+	        8, [&chatRoomsToCreate = listener->getChatrooms()] { return LOOP_ASSERTION(chatRoomsToCreate.empty()); })
+	    .assert_passed();
+
+	const auto confServerChatrooms = conferenceServer.getChatrooms();
+	BC_HARD_ASSERT_CPP_EQUAL(confServerChatrooms.size(), 1);
+	auto julienParticipant = shared_ptr<linphone::Participant>();
+	for (auto& participant : confServerChatrooms.front()->getParticipants()) {
+		if (participant->getAddress()->equal(julienAddress)) {
+			julienParticipant = participant;
+			break;
+		}
+	}
+	BC_HARD_ASSERT_NOT_NULL(julienParticipant);
+	const auto devices = julienParticipant->getDevices();
+	BC_HARD_ASSERT_CPP_EQUAL(devices.size(), 1);
+	const auto& offlineDevice = devices.front();
+	BC_ASSERT_ENUM_EQUAL(offlineDevice->getState(), linphone::ParticipantDevice::State::Joining);
+
+	SLOGD << "TEST " << __FUNCTION__ << " Client reconnects";
+	julien.reconnect();
+	julien.refreshRegisters();
+	asserter
+	    .iterateUpTo(
+	        8, [&] { return LOOP_ASSERTION(offlineDevice->getState() == linphone::ParticipantDevice::State::Present); })
+	    .assert_passed();
+	BC_ASSERT_ENUM_EQUAL(offlineDevice->getState(), linphone::ParticipantDevice::State::Present);
+}
+
 TestSuite _("Conference",
             {
                 CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit),
                 CLASSY_TEST(conferenceServerClearsOldBindingsOnInit),
+                CLASSY_TEST(inviteResentOnReconnect),
             });
 } // namespace

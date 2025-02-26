@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -25,7 +25,6 @@
 
 #include "flexisip/flexisip-version.h"
 #include "pushnotification/rfc8599-push-params.hh"
-#include "tester.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/string-utils.hh"
@@ -204,8 +203,8 @@ std::shared_ptr<CoreClient> ClientBuilder::make(const std::string& baseAddress) 
 	return std::make_shared<CoreClient>(build(baseAddress));
 }
 
-ClientBuilder& ClientBuilder::setConferenceFactoryUri(const std::string& uri) {
-	mAccountParams->setConferenceFactoryUri(uri);
+ClientBuilder& ClientBuilder::setConferenceFactoryAddress(const std::shared_ptr<linphone::Address>& address) {
+	mAccountParams->setConferenceFactoryAddress(address);
 	return *this;
 }
 
@@ -322,4 +321,13 @@ ClientBuilder& ClientBuilder::setAudioCodec(AudioCodec codec) {
 	return *this;
 }
 
+ClientBuilder& ClientBuilder::setMessageExpires(std::chrono::seconds delay) {
+	const auto paramName = mAgent.getConfigManager()
+	                           .getRoot()
+	                           ->get<GenericStruct>("module::Registrar")
+	                           ->get<ConfigString>("message-expires-param-name")
+	                           ->read();
+	mAccountParams->setContactParameters(paramName + "=" + std::to_string(delay.count()));
+	return *this;
+}
 } // namespace flexisip::tester

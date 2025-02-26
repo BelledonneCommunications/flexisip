@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,7 +19,6 @@
 #include <chrono>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 
 #include <bctoolbox/tester.h>
 #include <linphone++/address.hh>
@@ -547,7 +546,7 @@ int CoreClient::getTcpPort() const {
 	return mCore->getTransportsUsed()->getTcpPort();
 }
 
-std::list<std::shared_ptr<linphone::ChatMessage>> CoreClient::getChatMessages() {
+std::list<std::shared_ptr<linphone::ChatMessage>> CoreClient::getChatMessages() const {
 	const auto& chatRooms = getCore()->getChatRooms();
 	if (chatRooms.empty()) {
 		return {};
@@ -560,6 +559,9 @@ void CoreClient::disconnect() const {
 }
 void CoreClient::reconnect() const {
 	mCore->setNetworkReachable(true);
+}
+void CoreClient::refreshRegisters() const {
+	mCore->refreshRegisters();
 }
 
 ChatRoomBuilder CoreClient::chatroomBuilder() const {

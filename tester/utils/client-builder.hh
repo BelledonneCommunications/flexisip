@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -91,7 +91,7 @@ public:
 	ClientBuilder& setIce(OnOff);
 	ClientBuilder& setCpimInBasicChatroom(OnOff);
 	ClientBuilder& setRegistration(OnOff);
-	ClientBuilder& setConferenceFactoryUri(const std::string&);
+	ClientBuilder& setConferenceFactoryAddress(const std::shared_ptr<linphone::Address>& address);
 	ClientBuilder& setCustomContact(const std::string& contact);
 	ClientBuilder& setPushParams(const pushnotification::RFC8599PushParams& params);
 	ClientBuilder& setInactiveAudioOnPause(OnOff);
@@ -113,6 +113,11 @@ public:
 
 	ClientBuilder& setMwiServerAddress(const std::shared_ptr<linphone::Address>& address);
 	ClientBuilder& setAutoAnswerReplacingCalls(OnOff);
+	/** Set a different expiration time for messages. Lets contacts linger in the RegistrarDB beyond the standard
+	 * expiration time to keep receiving MESSAGEs. Any other type of SIP request will trigger a 404 as if the contact
+	 * were expired.
+	 */
+	ClientBuilder& setMessageExpires(std::chrono::seconds delay);
 
 	CoreClient build(const std::string&) const;
 	std::shared_ptr<CoreClient> make(const std::string&) const;

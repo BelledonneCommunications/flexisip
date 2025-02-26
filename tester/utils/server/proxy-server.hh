@@ -101,9 +101,7 @@ public:
 	/**
 	 * @brief Start the Agent.
 	 */
-	virtual void start() {
-		mAgent->start("", "");
-	}
+	virtual void start();
 
 	/**
 	 * @brief Run the main loop for a given time.

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <functional>
-#include <memory>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -158,7 +156,7 @@ public:
 	std::string getHost() const noexcept {
 		return getUrlAttr(url_host);
 	}
-	std::string getPort(bool usingFallback = false) const noexcept {
+	std::string_view getPort(bool usingFallback = false) const noexcept {
 		return usingFallback ? url_port(_url) : getUrlAttr(url_port);
 	}
 	std::string getPath() const noexcept {
@@ -183,7 +181,7 @@ public:
 	 *
 	 * @throw UrlModificationError if the Url is empty
 	 */
-	Url replace(const char* url_t::*attribute, std::string_view value) const;
+	Url replace(const char* url_t::* attribute, std::string_view value) const;
 
 	/**
 	 * Test whether the URL has a given param by its name.
@@ -234,7 +232,7 @@ class SipUri : public sofiasip::Url {
 public:
 	class Params {
 	public:
-		Params(const char* c);
+		explicit Params(const char* c);
 
 		bool operator==(const Params& other) const;
 		bool operator!=(const Params& other) const {
@@ -247,7 +245,7 @@ public:
 
 	class Headers {
 	public:
-		Headers(const char* c);
+		explicit Headers(const char* c);
 
 		bool operator==(const Headers& other) const;
 		bool operator!=(const Headers& other) const {
@@ -287,16 +285,19 @@ public:
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
+	[[nodiscard]]
 	SipUri replaceUser(std::string_view newUser) const;
 
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
+	[[nodiscard]]
 	SipUri replaceHost(std::string_view newHost) const;
 
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
+	[[nodiscard]]
 	SipUri replacePort(std::string_view newPort) const;
 
 	/**

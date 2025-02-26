@@ -18,7 +18,6 @@
 
 #include "proxy-server.hh"
 
-#include <algorithm>
 #include <optional>
 
 #include "bctoolbox/tester.h"
@@ -26,20 +25,23 @@
 
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
+#include "utils/test-patterns/test.hh"
 
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
+
+tport_t* getPrimaryTports(const Agent& agent) {
+	return ::tport_primaries(::nta_agent_tports(agent.getSofiaAgent()));
+}
 
 const char* getFirstPort(const Agent& agent) {
-	const auto firstTransport = ::tport_primaries(::nta_agent_tports(agent.getSofiaAgent()));
-	return ::tport_name(firstTransport)->tpn_port;
+	return ::tport_name(getPrimaryTports(agent))->tpn_port;
 }
 
 tport_t* getFirstTransport(const Agent& agent, sa_family_t ipAddressFamily) {
-	auto* transport = ::tport_primaries(::nta_agent_tports(agent.getSofiaAgent()));
+	auto* transport = getPrimaryTports(agent);
 
 	while (transport != nullptr) {
 		if (tport_get_address(transport)->ai_addr->sa_family == ipAddressFamily) {
@@ -140,5 +142,29 @@ tport_t* Server::getFirstTransport(sa_family_t ipAddressFamily) const {
 	return tester::getFirstTransport(*mAgent, ipAddressFamily);
 }
 
-} // namespace tester
-} // namespace flexisip
+void Server::start() {
+	mAgent->start("", "");
+
+	// Update transports config with the auto-assigned ports
+	auto* globalTransports =
+	    mConfigManager->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports");
+	const auto previousConfigTransports = globalTransports->read();
+	auto dirty = false;
+	auto newConfigTransports = ""s;
+	auto* activeTransport = getPrimaryTports(*mAgent);
+	for (const auto& prevConfTransport : previousConfigTransports) {
+		auto uri = SipUri(prevConfTransport);
+		if (uri.getPort() == "0"sv) {
+			BC_HARD_ASSERT(activeTransport != nullptr);
+			uri = uri.replacePort(::tport_name(activeTransport)->tpn_port);
+			dirty = true;
+		}
+		newConfigTransports += uri.str() + " ";
+		activeTransport = tport_next(activeTransport);
+	}
+	if (!dirty) return;
+
+	globalTransports->set(newConfigTransports);
+}
+
+} // namespace flexisip::tester

@@ -21,7 +21,6 @@
 #include <chrono>
 #include <ctime>
 #include <list>
-#include <memory>
 #include <sstream>
 #include <string>
 
@@ -46,7 +45,7 @@ struct ExtendedContactCommon {
 	    : mCallId{callId}, mKey{key}, mPath{path} {
 	}
 
-	ExtendedContactCommon(const std::string& route) : mPath{route} {
+	explicit ExtendedContactCommon(const std::string& route) : mPath{route} {
 	}
 };
 
@@ -94,6 +93,9 @@ struct ExtendedContact {
 	std::time_t getRegisterTime() const {
 		return mRegisterTime;
 	}
+	void setRegisterTime(time_t value) {
+		mRegisterTime = value;
+	};
 	std::chrono::seconds getSipExpires() const {
 		return mExpires;
 	}

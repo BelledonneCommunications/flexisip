@@ -30,7 +30,7 @@ namespace flexisip::tester {
  */
 class TmpDir {
 public:
-	explicit TmpDir(const std::string&);
+	explicit TmpDir(const std::string& prefix);
 	TmpDir(const TmpDir&) noexcept = delete;
 	TmpDir& operator=(const TmpDir&) noexcept = delete;
 	TmpDir(TmpDir&&) noexcept;

@@ -88,7 +88,7 @@ const std::string& Url::str() const noexcept {
 	return _urlAsStr;
 }
 
-Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
+Url Url::replace(const char* url_t::* attribute, std::string_view value) const {
 	if (empty()) throw UrlModificationError{"url is empty, cannot replace attribute"};
 	auto url = *_url;
 	url.*attribute = value.empty() ? nullptr : value.data();
@@ -419,10 +419,10 @@ bool SipUri::rfc3261Compare(const url_t* other) const {
 	if (url_cmp(_url, other) != 0) return false;
 
 	// uri-parameters
-	if (Params(_url->url_params) != other->url_params) return false;
+	if (Params(_url->url_params) != Params(other->url_params)) return false;
 
 	// headers
-	if (Headers(_url->url_headers) != other->url_headers) return false;
+	if (Headers(_url->url_headers) != Headers(other->url_headers)) return false;
 
 	return true;
 }

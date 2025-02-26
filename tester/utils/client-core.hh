@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -78,7 +78,7 @@ public:
 	/**
 	 * @return the message list for THE FIRST chatroom in the chatroom list
 	 */
-	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages();
+	std::list<std::shared_ptr<linphone::ChatMessage>> getChatMessages() const;
 
 	std::chrono::seconds getCallInviteReceivedDelay() const noexcept {
 		return mCallInviteReceivedDelay;
@@ -99,6 +99,7 @@ public:
 
 	void disconnect() const;
 	void reconnect() const;
+	void refreshRegisters() const;
 
 	/**
 	 * Establish a call and verifies it is running (media sent/received on both ends).

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,18 +24,23 @@
 #include "conference/conference-server.hh"
 #include "flexisip/configmanager.hh"
 #include "registrar/registrar-db.hh"
+#include "utils/server/proxy-server.hh"
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class TestConferenceServer {
 public:
+	explicit TestConferenceServer(const Server& proxy);
 	TestConferenceServer(const Agent&,
 	                     const std::shared_ptr<ConfigManager>& cfg,
 	                     const std::shared_ptr<RegistrarDb>& registrarDb);
 	~TestConferenceServer();
 
 	void clearLocalDomainList();
+
+	auto getChatrooms() {
+		return mConfServer->getCore()->getChatRooms();
+	}
 
 private:
 	/** Overrides the behaviour of the ConferenceServer to make it use a port chosen at random. This works because it
@@ -65,5 +70,4 @@ private:
 	const std::shared_ptr<PatchedConferenceServer> mConfServer;
 };
 
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

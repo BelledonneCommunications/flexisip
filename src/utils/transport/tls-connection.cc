@@ -44,7 +44,7 @@ using namespace std;
 
 namespace flexisip {
 
-TlsConnection::TlsConnection(const string& host, const string& port, bool mustBeHttp2)
+TlsConnection::TlsConnection(const string& host, string_view port, bool mustBeHttp2)
     : mHost{host}, mPort{port}, mMustBeHttp2{mustBeHttp2},
       mLogPrefix{LogManager::makeLogPrefixForInstance(this, "TlsConnection")} {
 
@@ -53,7 +53,7 @@ TlsConnection::TlsConnection(const string& host, const string& port, bool mustBe
 }
 
 TlsConnection::TlsConnection(
-    const string& host, const string& port, const string& trustStorePath, const string& certPath, bool mustBeHttp2)
+    const string& host, string_view port, const string& trustStorePath, const string& certPath, bool mustBeHttp2)
     : mHost{host}, mPort{port}, mCertPath{certPath}, mMustBeHttp2{mustBeHttp2},
       mLogPrefix{LogManager::makeLogPrefixForInstance(this, "TlsConnection")} {
 
@@ -227,7 +227,7 @@ int TlsConnection::getFd() const noexcept {
 std::uint16_t TlsConnection::getLocalPort() const {
 	auto fd = getFd();
 	if (fd <= 0) return 0;
-	struct sockaddr addr {};
+	struct sockaddr addr{};
 	socklen_t addrLen{sizeof(addr)};
 	if (getsockname(fd, &addr, &addrLen) < 0) {
 		throw system_error{errno, system_category()};
@@ -330,8 +330,7 @@ bool TlsConnection::hasData() {
 
 void TlsConnection::enableInsecureTestMode() {
 	SLOGW << "BE CAREFUL, YOU BETTER BE IN A TESTING ENVIRONMENT, YOU ARE USING AN INSECURE CONNECTION";
-	SSL_CTX_set_cert_verify_callback(
-	    mCtx.get(), [](auto, auto) { return 1; }, nullptr);
+	SSL_CTX_set_cert_verify_callback(mCtx.get(), [](auto, auto) { return 1; }, nullptr);
 }
 
 TlsConnection::SSLCtxUniquePtr TlsConnection::makeDefaultCtx() {

@@ -18,6 +18,8 @@
 
 #include "transport.hh"
 
+#include <charconv>
+
 #include <flexisip/logmanager.hh>
 #include <flexisip/utils/sip-uri.hh>
 
@@ -57,13 +59,13 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 	const auto scheme = transportUri.getScheme();
 	const auto transportUriParam = string_utils::toLower(transportUri.getParam("transport"));
 
+	const auto portText = transportUri.getPort(true);
 	int listeningPort{};
-	try {
-		listeningPort = stoi(transportUri.getPort(true));
-		if (listeningPort == 0) listeningPort = LC_SIP_TRANSPORT_RANDOM;
-	} catch (const std::exception& exception) {
+	if (std::from_chars(portText.data(), portText.data() + portText.size(), listeningPort).ec ==
+	    std::errc::invalid_argument) {
 		throw BadConfiguration{parameterName + " failed to get port from SIP URI (" + transport + ")"};
 	}
+	if (listeningPort == 0) listeningPort = LC_SIP_TRANSPORT_RANDOM;
 
 	if (scheme == "sip") {
 		if (allowedSip.empty())
@@ -105,7 +107,7 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 
 pair<string, IP_FAMILY> parseInternetAddress(string_view address, string_view service) {
 	struct addrinfo* res{nullptr};
-	struct addrinfo hints {};
+	struct addrinfo hints{};
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 

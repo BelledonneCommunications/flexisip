@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -32,10 +32,8 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 
-#include "agent.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
-#include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
@@ -49,8 +47,7 @@
 using namespace std;
 using namespace linphone;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 class StubListener : public ContactUpdateListener {
 public:
@@ -92,29 +89,28 @@ void basicSubscription() {
 		transports->setTcpPort(LC_SIP_TRANSPORT_RANDOM);
 		regEventCore->setTransports(transports);
 	}
-	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>(proxy.getRegistrarDb()));
+	auto& regDb = proxy.getRegistrarDb();
+	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>(regDb));
 	regEventCore->start();
-	auto* configRoot = proxy.getConfigManager()->getRoot();
-	configRoot->get<GenericStruct>("module::RegEvent")
+	const auto& confMan = proxy.getConfigManager();
+	confMan->getRoot()
+	    ->get<GenericStruct>("module::RegEvent")
 	    ->get<ConfigValue>("regevent-server")
 	    ->set("sip:127.0.0.1:"s + std::to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
 	proxy.start();
-	configRoot->get<GenericStruct>("conference-server")
-	    ->get<ConfigValue>("outbound-proxy")
-	    ->set("sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
 	// Client initialisation
-	const auto client =
-	    ClientBuilder(*proxy.getAgent()).setConferenceFactoryUri(confFactoryUri).build("sip:test@sip.example.org");
+	const auto client = ClientBuilder(*proxy.getAgent())
+	                        .setConferenceFactoryAddress(linFactory->createAddress(confFactoryUri))
+	                        .build("sip:test@sip.example.org");
 	const auto& agent = *proxy.getAgent();
 	// Conference Server
-	TestConferenceServer conferenceServer(agent, proxy.getConfigManager(), proxy.getRegistrarDb());
-	auto& regDb = proxy.getAgent()->getRegistrarDb();
-	ContactInserter inserter{regDb, std::make_shared<AcceptUpdatesListener>()};
+	TestConferenceServer conferenceServer(agent, confMan, regDb);
+	ContactInserter inserter{*regDb, std::make_shared<AcceptUpdatesListener>()};
 	const string participantFrom = "sip:participant1@localhost";
-	const Record::Key participantTopic{SipUri(participantFrom), regDb.useGlobalDomain()};
+	const Record::Key participantTopic{SipUri(participantFrom), regDb->useGlobalDomain()};
 	const auto participantAddress = linFactory->createAddress(participantFrom);
 	const string otherParticipantFrom = "sip:participant2@localhost";
-	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), regDb.useGlobalDomain()};
+	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), regDb->useGlobalDomain()};
 	// Fill the Regisrar DB with participants
 	inserter.withGruu(true)
 	    .setExpire(1000s)
@@ -129,7 +125,7 @@ void basicSubscription() {
 	                          .setSubject("reg-event-test")
 	                          .build({participantAddress, linFactory->createAddress(otherParticipantFrom)});
 	const auto totalDevicesCount = [&chatRoom]() {
-		auto count = 0;
+		auto count = size_t(0);
 		for (const auto& participant : chatRoom->getParticipants()) {
 			count += participant->getDevices().size();
 		}
@@ -152,7 +148,7 @@ void basicSubscription() {
 
 	// Let's add a new device
 	inserter.insert({.uniqueId = "new-device"});
-	regDb.publish(otherParticipantTopic, "");
+	regDb->publish(otherParticipantTopic, "");
 	BC_ASSERT_TRUE(asserter.iterateUpTo(7, [&totalDevicesCount] { return 4 <= totalDevicesCount(); }, 1s));
 
 	{
@@ -164,7 +160,7 @@ void basicSubscription() {
 
 	// Remove a device
 	inserter.setExpire(0s).insert({.uniqueId = "new-device"});
-	regDb.publish(otherParticipantTopic, "");
+	regDb->publish(otherParticipantTopic, "");
 	BC_ASSERT_TRUE(asserter.iterateUpTo(10, [&totalDevicesCount] { return totalDevicesCount() == 3; }, 1s));
 
 	{
@@ -175,8 +171,8 @@ void basicSubscription() {
 	}
 
 	// Remove the last device of a participant
-	regDb.clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
-	regDb.publish(participantTopic, "");
+	regDb->clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
+	regDb->publish(participantTopic, "");
 	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&totalDevicesCount] { return totalDevicesCount() == 2; }));
 
 	{
@@ -188,12 +184,12 @@ void basicSubscription() {
 	}
 
 	// Remove participant from chatroom, check that corresponding topic is unsubbed on the "remote" Register
-	const auto& onRegisterListeners = regDb.getOnContactRegisteredListeners();
+	const auto& onRegisterListeners = regDb->getOnContactRegisteredListeners();
 	BC_ASSERT_TRUE(onRegisterListeners.find(participantTopic.asString()) != onRegisterListeners.end());
 	chatRoom->removeParticipant(chatRoom->findParticipant(participantAddress));
 	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&regDb, &participantTopic, &onRegisterListeners] {
 		// Trigger regDb listeners cleanup
-		regDb.publish(participantTopic, "");
+		regDb->publish(participantTopic, "");
 		return onRegisterListeners.find(participantTopic.asString()) == onRegisterListeners.end();
 	}));
 
@@ -220,5 +216,4 @@ TestSuite _("Registration Event",
                 CLASSY_TEST(basicSubscription),
             });
 }
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester
