@@ -30,6 +30,7 @@
 
 #include <sofia-sip/hostdomain.h>
 
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
 
 using namespace std;
@@ -175,7 +176,7 @@ string loadPemKey(string_view pubKeyFile) {
 	};
 	unique_ptr<FILE, file_deleter> fp{fopen(pubKeyFile.data(), "r")};
 	if (!fp) {
-		throw FlexisipException{"failed to open file '"s + pubKeyFile.data() + "'"};
+		throw BadConfiguration{"failed to open file '"s + pubKeyFile.data() + "'"};
 	}
 
 	unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)> pubKey{PEM_read_PUBKEY(fp.get(), nullptr, nullptr, nullptr),
@@ -183,7 +184,7 @@ string loadPemKey(string_view pubKeyFile) {
 	uniqueBioPtr outbio{BIO_new(BIO_s_mem())};
 
 	if (!PEM_write_bio_PUBKEY(outbio.get(), pubKey.get())) {
-		throw FlexisipException{"error loading public key in PEM format"};
+		throw BadConfiguration{"error loading public key in PEM format"};
 	}
 
 	char* buf{};

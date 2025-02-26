@@ -175,16 +175,13 @@ void GenericEntry::doMibFragment(
     ostream& ostr, const string& def, const string& access, const string& syntax, const string& spacing) const {
 	if (!getParent()) throw BadConfiguration{"no parent found for " + getName()};
 	ostr << spacing << sanitize(getName()) << " OBJECT-TYPE" << endl
-	     << spacing << "	SYNTAX"
-	     << "	" << syntax << endl
+	     << spacing << "	SYNTAX" << "	" << syntax << endl
 	     << spacing << "	MAX-ACCESS	" << access << endl
 	     << spacing << "	STATUS	current" << endl
 	     << spacing << "	DESCRIPTION" << endl
 	     << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	     << spacing << "	"
-	     << " Default:" << def << endl
-	     << spacing << "	"
-	     << " PN:" << getPrettyName() << "\"" << endl
+	     << spacing << "	" << " Default:" << def << endl
+	     << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 	     << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -256,8 +253,8 @@ void StatCounter64::mibFragment(ostream& ost, const string& spacing) const {
 }
 void GenericStruct::mibFragment(ostream& ost, const string& spacing) const {
 	string parent = getParent() ? getParent()->getName() : "flexisipMIB";
-	ost << spacing << sanitize(getName()) << "	"
-	    << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " " << mOid->getLeaf() << " }" << endl;
+	ost << spacing << sanitize(getName()) << "	" << "OBJECT IDENTIFIER ::= { " << sanitize(parent) << " "
+	    << mOid->getLeaf() << " }" << endl;
 }
 
 void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
@@ -267,8 +264,7 @@ void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
 	    << spacing << "	STATUS	current" << endl
 	    << spacing << "	DESCRIPTION" << endl
 	    << spacing << "	\"" << escapeDoubleQuotes(getHelp()) << endl
-	    << spacing << "	"
-	    << " PN:" << getPrettyName() << "\"" << endl
+	    << spacing << "	" << " PN:" << getPrettyName() << "\"" << endl
 	    << spacing << "	::= { " << sanitize(getParent()->getName()) << " " << mOid->getLeaf() << " }" << endl;
 }
 
@@ -402,10 +398,10 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 			throw BadConfiguration{"no name provided in configuration item"};
 		}
 		if (!items->help) {
-			throw FlexisipException{"no help provided for configuration item '"s + items->name + "'"};
+			throw BadConfiguration{"no help provided for configuration item '"s + items->name + "'"};
 		}
 		if (!items->default_value) {
-			throw FlexisipException{"no default value provided for configuration item '"s + items->name + "'"};
+			throw BadConfiguration{"no default value provided for configuration item '"s + items->name + "'"};
 		}
 		switch (items->type) {
 			case Boolean:
@@ -442,7 +438,7 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 				val = make_unique<ConfigBooleanExpression>(items->name, items->help, items->default_value, cOid);
 				break;
 			default:
-				throw FlexisipException{"bad ConfigValue type " + to_string(items->type) + " for " + items->name};
+				throw BadConfiguration{"bad ConfigValue type " + to_string(items->type) + " for " + items->name};
 		}
 		addChild(std::move(val));
 		if (!hashed) ++cOid;

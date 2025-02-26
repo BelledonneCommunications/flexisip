@@ -29,6 +29,7 @@
 
 #include "agent.hh"
 #include "dos-executor/iptables-executor.hh"
+#include "exceptions/bad-configuration.hh"
 #include "utils/thread/basic-thread-pool.hh"
 
 using namespace std;
@@ -110,7 +111,7 @@ void ModuleDoSProtection::onLoad(const GenericStruct* mc) {
 	}
 
 	tport_t* primaries = tport_primaries(nta_agent_tports(mAgent->getSofiaAgent()));
-	if (primaries == NULL) throw FlexisipException{"no SIP transport defined"};
+	if (primaries == NULL) throw BadConfiguration{"no SIP transport defined"};
 	for (tport_t* tport = primaries; tport != NULL; tport = tport_next(tport)) {
 		tport_set_params(tport, TPTAG_DOS(mTimePeriod), TAG_END());
 	}

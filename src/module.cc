@@ -30,6 +30,7 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "entryfilter.hh"
+#include "exceptions/bad-configuration.hh"
 #include "utils/signaling-exception.hh"
 
 using namespace std;
@@ -86,7 +87,7 @@ void Module::checkConfig() {
 	for (auto it = children.begin(); it != children.end(); ++it) {
 		auto cv = dynamic_cast<ConfigValue*>(it->get());
 		if (cv && !isValidNextConfig(*cv)) {
-			throw FlexisipException{"invalid configuration " + getModuleName() + ":" + cv->getName() + "=" + cv->get()};
+			throw BadConfiguration{"invalid configuration " + cv->getCompleteName() + "=" + cv->get()};
 		}
 	}
 }

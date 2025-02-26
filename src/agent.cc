@@ -323,7 +323,7 @@ static filesystem::file_time_type getLastCertUpdate(TlsConfigInfo& tlsInfo) {
 void Agent::start(const string& transport_override, const string& passphrase) {
 	char cCurrDir[FILENAME_MAX];
 	if (!getcwd(cCurrDir, sizeof(cCurrDir))) {
-		throw FlexisipException{"could not get current file path"};
+		throw BadConfiguration{"could not get current file path"};
 	}
 	string currDir = cCurrDir;
 
@@ -1183,7 +1183,7 @@ tport_t* Agent::getIncomingTport(const msg_t* orig) {
 		 */
 		const sip_t* sip = (const sip_t*)msg_object(orig);
 		if (sip && sip->sip_request != nullptr) {
-			throw FlexisipException{"tport not found"};
+			throw runtime_error{"tport not found"};
 		}
 	}
 	return tport;
