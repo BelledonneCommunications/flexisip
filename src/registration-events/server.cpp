@@ -200,26 +200,32 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& record, cons
 
 void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
-	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
-
 	mCore->getConfig()->setString("storage", "uri", "null");
 	mCore->getConfig()->setString("storage", "call_logs_db_uri", "null");
 	mCore->getConfig()->setString("storage", "zrtp_secrets_db_uri", "null");
 
-	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
-	string mTransport = config->get<ConfigString>("transport")->read();
-	if (mTransport.length() > 0) {
-		sofiasip::Home mHome;
-		url_t* urlTransport = url_make(mHome.home(), mTransport.c_str());
-		if (urlTransport == nullptr || mTransport.at(0) == '<') {
-			LOGF("ConferenceServer: Your configured conference transport(\"%s\") is not an URI.\n"
-			     "If you have \"<>\" in your transport, remove them.",
-			     mTransport.c_str());
+	const auto transports = Factory::get()->createTransports();
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
+	const auto* transportParameter = config->get<ConfigString>("transport");
+	const auto transport = transportParameter->read();
+	const auto transportParameterName = transportParameter->getCompleteName();
+	if (!transport.empty()) {
+		SipUri urlTransport{};
+		try {
+			urlTransport = SipUri{transport};
+		} catch (const std::exception& exception) {
+			throw BadConfiguration{transportParameterName + " invalid SIP URI (" + exception.what() + ")"};
 		}
-		regEventTransport->setTcpPort(stoi(urlTransport->url_port));
+
+		const auto transportType = string_utils::toLower(urlTransport.getParam("transport"));
+		if (transportType != "tcp")
+			throw BadConfiguration{transportParameterName + " transport type '" + transportType +
+			                       "' is not supported (only 'TCP' is supported)"};
+
+		transports->setTcpPort(stoi(urlTransport.getPort()));
 	}
 
-	mCore->setTransports(regEventTransport);
+	mCore->setTransports(transports);
 	mCore->addListener(make_shared<Subscriptions>(mRegistrarDb));
 	mCore->start();
 }
