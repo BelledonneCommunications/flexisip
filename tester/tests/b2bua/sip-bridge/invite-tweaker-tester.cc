@@ -20,11 +20,11 @@
 
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
-#include "utils/client-core.hh"
+#include "utils/core-assert.hh"
+#include "utils/server/injected-module-info.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/core-assert.hh"
 
 namespace flexisip::tester {
 namespace {
@@ -115,7 +115,8 @@ void test() {
 		    InviteTweaker{{.to = "sip:{account.uri.user}@{incoming.to.hostport}{incoming.from.uriParameters}"},
 		                  b2buaCore}
 		        .tweakInvite(*forgedCall, forgedAccount, *outgoingCallParams);
-		BC_ASSERT_CPP_EQUAL(toAddress->asStringUriOnly(), "sip:%25=expected-account@to.example.org:666;custom-param=%40/From");
+		BC_ASSERT_CPP_EQUAL(toAddress->asStringUriOnly(),
+		                    "sip:%25=expected-account@to.example.org:666;custom-param=%40/From");
 	}
 
 	{
@@ -129,7 +130,8 @@ void test() {
 		const auto& outgoingCallParams = b2buaCore.createCallParams(forgedCall);
 		std::ignore = InviteTweaker{{.to = "sip:stub@example.org", .from = "{incoming.from}"}, b2buaCore}.tweakInvite(
 		    *forgedCall, forgedAccount, *outgoingCallParams);
-		BC_ASSERT_CPP_EQUAL(outgoingCallParams->getFromHeader(), "sip:expected-from@sip.example.org;custom-param=%40/From");
+		BC_ASSERT_CPP_EQUAL(outgoingCallParams->getFromHeader(),
+		                    "sip:expected-from@sip.example.org;custom-param=%40/From");
 	}
 }
 

@@ -75,7 +75,7 @@ public:
 	}
 	template <typename Iterable>
 	void registerSteppables(Iterable&& steppables) {
-		for(const auto& steppable : steppables) {
+		for (const auto& steppable : steppables) {
 			this->addCustomIterate(stepperFrom(steppable));
 		}
 	}

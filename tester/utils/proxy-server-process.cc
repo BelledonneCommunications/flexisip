@@ -16,19 +16,17 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <csignal>
-#include <stdexcept>
-#include <thread>
+#include "proxy-server-process.hh"
 
+#include <csignal> // For macOS
+#include <stdexcept>
 #include <sys/wait.h>
+#include <thread>
 #include <unistd.h>
 
 #include "bctoolbox/tester.h"
 #include "flexisip/logmanager.hh"
-
 #include "utils/server/proxy-server.hh"
-
-#include "proxy-server-process.hh"
 
 using namespace std;
 

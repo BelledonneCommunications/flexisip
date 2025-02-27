@@ -16,23 +16,19 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "bctoolbox/tester.h"
-#include "registrar/record.hh"
 #include "registration-events/server.hh"
-
-#include <bctoolbox/logging.h>
 
 #include <memory>
 #include <string>
 
-#include "flexisip/utils/sip-uri.hh"
-#include "linphone/misc.h"
-#include <linphone++/linphone.hh>
-
+#include "bctoolbox/logging.h"
+#include "bctoolbox/tester.h"
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
-
-#include "registrar/registrar-db.hh"
+#include "flexisip/utils/sip-uri.hh"
+#include "linphone++/linphone.hh"
+#include "linphone/misc.h"
+#include "registrar/record.hh"
 #include "tester.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -57,17 +53,15 @@ public:
 	}
 	void onInvalid(const SipStatus&) override {
 	}
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
+	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
 	}
 };
 
 void basicSubscription() {
 	// Agent initialisation
-	const string confFactoryUri = "sip:conference-factory@sip.example.org";
-	const string confFocusUri = "sip:conference-focus@sip.example.org";
+	const string confFactoryUri{"sip:conference-factory@sip.example.org"};
+	const string confFocusUri{"sip:conference-focus@sip.example.org"};
 	Server proxy{{
-	    // Requesting bind on port 0 to let the kernel find any available port
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::RegEvent/enabled", "true"},
 	    {"module::DoSProtection/enabled", "false"},
 	    {"module::Registrar/reg-domains", "sip.example.org"},
@@ -81,6 +75,7 @@ void basicSubscription() {
 	    {"conference-server/local-domains", "sip.example.org 127.0.0.1"},
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	}};
+
 	// RegEvent Server
 	const auto linFactory = Factory::get();
 	const auto regEventCore = tester::minimalCore(*linFactory);
@@ -96,13 +91,14 @@ void basicSubscription() {
 	confMan->getRoot()
 	    ->get<GenericStruct>("module::RegEvent")
 	    ->get<ConfigValue>("regevent-server")
-	    ->set("sip:127.0.0.1:"s + std::to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
+	    ->set("sip:127.0.0.1:"s + to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
 	proxy.start();
 	// Client initialisation
 	const auto client = ClientBuilder(*proxy.getAgent())
 	                        .setConferenceFactoryAddress(linFactory->createAddress(confFactoryUri))
 	                        .build("sip:test@sip.example.org");
 	const auto& agent = *proxy.getAgent();
+
 	// Conference Server
 	TestConferenceServer conferenceServer(agent, confMan, regDb);
 	ContactInserter inserter{*regDb, std::make_shared<AcceptUpdatesListener>()};
@@ -111,7 +107,7 @@ void basicSubscription() {
 	const auto participantAddress = linFactory->createAddress(participantFrom);
 	const string otherParticipantFrom = "sip:participant2@localhost";
 	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), regDb->useGlobalDomain()};
-	// Fill the Regisrar DB with participants
+	// Fill the Registrar DB with participants
 	inserter.withGruu(true)
 	    .setExpire(1000s)
 	    .setContactParams({R"(+org.linphone.specs="ephemeral/1.1,groupchat/1.2,lime")"})
@@ -124,6 +120,7 @@ void basicSubscription() {
 	const auto chatRoom = client.chatroomBuilder()
 	                          .setSubject("reg-event-test")
 	                          .build({participantAddress, linFactory->createAddress(otherParticipantFrom)});
+
 	const auto totalDevicesCount = [&chatRoom]() {
 		auto count = size_t(0);
 		for (const auto& participant : chatRoom->getParticipants()) {
@@ -131,9 +128,10 @@ void basicSubscription() {
 		}
 		return count;
 	};
-	CoreAssert asserter{client, regEventCore, agent};
 
-	BC_ASSERT_TRUE(asserter.iterateUpTo(20, [&totalDevicesCount] { return 3 <= totalDevicesCount(); }));
+	CoreAssert asserter{client, regEventCore, agent};
+	asserter.iterateUpTo(0x20, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() >= 3); })
+	    .assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -146,10 +144,13 @@ void basicSubscription() {
 		BC_ASSERT_CPP_EQUAL(secondParticipant->getDevices().size(), 2);
 	}
 
-	// Let's add a new device
+	// Let's add a new device.
 	inserter.insert({.uniqueId = "new-device"});
 	regDb->publish(otherParticipantTopic, "");
-	BC_ASSERT_TRUE(asserter.iterateUpTo(7, [&totalDevicesCount] { return 4 <= totalDevicesCount(); }, 1s));
+	asserter
+	    .iterateUpTo(
+	        7, [&totalDevicesCount] { return LOOP_ASSERTION(4 <= totalDevicesCount()); }, 1s)
+	    .assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -158,10 +159,13 @@ void basicSubscription() {
 		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "new-device");
 	}
 
-	// Remove a device
+	// Remove a device.
 	inserter.setExpire(0s).insert({.uniqueId = "new-device"});
 	regDb->publish(otherParticipantTopic, "");
-	BC_ASSERT_TRUE(asserter.iterateUpTo(10, [&totalDevicesCount] { return totalDevicesCount() == 3; }, 1s));
+	asserter
+	    .iterateUpTo(
+	        10, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }, 1s)
+	    .assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -170,10 +174,10 @@ void basicSubscription() {
 		BC_ASSERT_CPP_NOT_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "new-device");
 	}
 
-	// Remove the last device of a participant
+	// Remove the last device of a participant.
 	regDb->clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
 	regDb->publish(participantTopic, "");
-	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&totalDevicesCount] { return totalDevicesCount() == 2; }));
+	asserter.iterateUpTo(3, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 2); }).assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -183,26 +187,30 @@ void basicSubscription() {
 		BC_ASSERT_CPP_EQUAL(firstParticipant.getDevices().size(), 0);
 	}
 
-	// Remove participant from chatroom, check that corresponding topic is unsubbed on the "remote" Register
+	// Remove participant from chatroom, check that corresponding topic is unsubscribed on the "remote" Register.
 	const auto& onRegisterListeners = regDb->getOnContactRegisteredListeners();
 	BC_ASSERT_TRUE(onRegisterListeners.find(participantTopic.asString()) != onRegisterListeners.end());
 	chatRoom->removeParticipant(chatRoom->findParticipant(participantAddress));
-	BC_ASSERT_TRUE(asserter.iterateUpTo(3, [&regDb, &participantTopic, &onRegisterListeners] {
-		// Trigger regDb listeners cleanup
-		regDb->publish(participantTopic, "");
-		return onRegisterListeners.find(participantTopic.asString()) == onRegisterListeners.end();
-	}));
+	asserter
+	    .iterateUpTo(3,
+	                 [&regDb, &participantTopic, &onRegisterListeners] {
+		                 // Trigger regDb listeners cleanup.
+		                 regDb->publish(participantTopic, "");
+		                 FAIL_IF(onRegisterListeners.find(participantTopic.asString()) != onRegisterListeners.end());
+		                 return ASSERTION_PASSED();
+	                 })
+	    .assert_passed();
 
-	// Reroute everything locally on the Conference Server
+	// Reroute everything locally on the Conference Server.
 	conferenceServer.clearLocalDomainList();
 
-	// Add a new participant
+	// Add a new participant.
 	const string participantRebindFrom = "sip:participant_re_bind@localhost";
 	inserter.setExpire(10s).setAor(participantRebindFrom).insert({.uniqueId = "re-ubuntu"});
 	chatRoom->addParticipant(linFactory->createAddress(participantRebindFrom));
-	BC_ASSERT_TRUE(asserter.iterateUpTo(8, [&totalDevicesCount] { return totalDevicesCount() == 3; }));
+	asserter.iterateUpTo(8, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }).assert_passed();
 
-	// Check if the participant was still added (locally)
+	// Check if the participant was still added (locally).
 	const auto participants = chatRoom->getParticipants();
 	BC_ASSERT_CPP_EQUAL(participants.size(), 2);
 	const auto& newParticipant = *participants.back();
@@ -211,9 +219,11 @@ void basicSubscription() {
 }
 
 namespace {
-TestSuite _("Registration Event",
+
+TestSuite _("regevent",
             {
                 CLASSY_TEST(basicSubscription),
             });
+
 }
 } // namespace flexisip::tester

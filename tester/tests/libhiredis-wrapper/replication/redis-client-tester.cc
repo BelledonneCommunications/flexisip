@@ -98,13 +98,17 @@ void autoReconnectToMaster() {
 			BC_ASSERT_CPP_EQUAL(status->substr(0, expected.size()), expected);
 		});
 	}
-	asserter.iterateUpTo(
-	            1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
+	asserter
+	    .iterateUpTo(
+	        1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
 	    .assert_passed();
 
 	// Let the client auto-reconnect to the master
 	BC_ASSERT(!listener.connected);
-	asserter.iterateUpTo(6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms).assert_passed();
+	asserter
+	    .iterateUpTo(
+	        6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms)
+	    .assert_passed();
 
 	// Try sending the write command again. This time it succeeds.
 	writeCommandReturned = false;
@@ -118,8 +122,9 @@ void autoReconnectToMaster() {
 			BC_ASSERT_CPP_EQUAL(*status, "OK");
 		});
 	}
-	asserter.iterateUpTo(
-	            1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
+	asserter
+	    .iterateUpTo(
+	        1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
 	    .assert_passed();
 }
 

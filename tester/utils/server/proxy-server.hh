@@ -26,8 +26,9 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "agent.hh"
-#include "injected-module-info.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "registrar/registrar-db.hh"
+#include "utils/server/injected-module-info.hh"
 
 namespace flexisip::tester {
 

@@ -32,6 +32,7 @@
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/core-assert.hh"
+#include "utils/server/injected-module-info.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -196,8 +197,9 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	BC_ASSERT(!anyRelayCandidate.empty());
 	anyRelayCandidate = noCandidateFound;
 
-	asserter.iterateUpTo(
-	            120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
+	asserter
+	    .iterateUpTo(
+	        120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
 	    .assert_passed();
 	// Video ICE re-INVITE does not contain relay candidates
 	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
@@ -275,8 +277,9 @@ void address_masquerading_in_sdp_with_call_update() {
 	BC_HARD_ASSERT(call != nullptr);
 	recipient.hasReceivedCallFrom(inviter, asserter).hard_assert_passed();
 	recipient.getCurrentCall()->accept();
-	asserter.iterateUpTo(
-	            0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	asserter
+	    .iterateUpTo(
+	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
 	    .hard_assert_passed();
 	asserter
 	    .iterateUpTo(
@@ -292,8 +295,9 @@ void address_masquerading_in_sdp_with_call_update() {
 	const auto& enableVideo = call->getCore()->createCallParams(call);
 	enableVideo->enableVideo(true);
 	call->update(enableVideo);
-	asserter.iterateUpTo(
-	            0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	asserter
+	    .iterateUpTo(
+	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
 	    .hard_assert_passed();
 	asserter
 	    .iterateUpTo(

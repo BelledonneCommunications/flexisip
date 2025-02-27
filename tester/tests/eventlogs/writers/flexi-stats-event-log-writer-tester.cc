@@ -33,7 +33,6 @@
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
-#include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/eventlogs/event-logs.hh"
 #include "utils/http-mock/http-mock.hh"
@@ -162,8 +161,8 @@ void callToConference() {
 	CoreAssert asserter{johan, fakeConfServer, agent};
 
 	johan.invite(chatroom);
-	BC_HARD_ASSERT_TRUE(
-	    asserter.iterateUpTo(4, [&eventLogRequestsReceivedCount] { return 0 < eventLogRequestsReceivedCount; }, 1s));
+	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(
+	    4, [&eventLogRequestsReceivedCount] { return 0 < eventLogRequestsReceivedCount; }, 1s));
 
 	const auto startedEvent = flexiapiServer.popRequestReceived();
 	json actualJson;

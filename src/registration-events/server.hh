@@ -22,9 +22,8 @@
 #include <string>
 #include <unordered_map>
 
-#include <linphone++/linphone.hh>
-
 #include "flexisip/registrar/registar-listeners.hh"
+#include "linphone++/linphone.hh"
 #include "registrar/registrar-db.hh"
 #include "service-server/service-server.hh"
 
@@ -36,7 +35,7 @@ public:
 	                      public ContactRegisteredListener,
 	                      public ContactUpdateListener {
 	public:
-		Subscriptions(const std::shared_ptr<RegistrarDb>& registrarDb) : mRegistrarDb{registrarDb} {
+		explicit Subscriptions(const std::shared_ptr<RegistrarDb>& registrarDb) : mRegistrarDb{registrarDb}, mEvents() {
 		}
 
 	private:
@@ -46,32 +45,29 @@ public:
 		                         const std::shared_ptr<linphone::Event>&,
 		                         const std::string&,
 		                         const std::shared_ptr<const linphone::Content>&) override;
-		void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>& core,
-		                                const std::shared_ptr<linphone::Event>& linphoneEvent,
-		                                linphone::SubscriptionState state) override;
+		void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>&,
+		                                const std::shared_ptr<linphone::Event>&,
+		                                linphone::SubscriptionState) override;
 
 		void onRecordFound(const std::shared_ptr<Record>& r) override;
-		void onError(const SipStatus&) override {
-		}
-		void onInvalid(const SipStatus&) override {
-		}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
-		}
+		void onError(const SipStatus&) override;
+		void onInvalid(const SipStatus&) override;
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override;
 
 		void onContactRegistered(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered) override;
 
 		void processRecord(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered);
 
-		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents{};
 		std::shared_ptr<RegistrarDb> mRegistrarDb;
+		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents;
 	};
-
-	static const std::string CONTENT_TYPE;
 
 	template <typename SuRootPtr>
 	Server(SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<RegistrarDb>& registrarDb)
-	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb) {
+	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb), mCore() {
 	}
+
+	static constexpr std::string_view kContentType{"application/reginfo+xml"};
 
 protected:
 	void _init() override;

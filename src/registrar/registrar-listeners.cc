@@ -20,19 +20,16 @@
 
 namespace flexisip {
 
-RegistrarDbListener::~RegistrarDbListener() {
-}
+RegistrarDbListener::~RegistrarDbListener() = default;
 
-ContactUpdateListener::~ContactUpdateListener() {
-}
+ContactUpdateListener::~ContactUpdateListener() = default;
 
-ContactRegisteredListener::~ContactRegisteredListener() {
-}
+ListContactUpdateListener::~ListContactUpdateListener() = default;
 
-LocalRegExpireListener::~LocalRegExpireListener() {
-}
+ContactRegisteredListener::~ContactRegisteredListener() = default;
 
-RegistrarDbStateListener::~RegistrarDbStateListener() {
-}
+LocalRegExpireListener::~LocalRegExpireListener() = default;
+
+RegistrarDbStateListener::~RegistrarDbStateListener() = default;
 
 } // namespace flexisip

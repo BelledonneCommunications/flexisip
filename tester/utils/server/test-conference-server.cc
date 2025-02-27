@@ -19,7 +19,6 @@
 #include "test-conference-server.hh"
 
 #include <cstdlib>
-#include <linphone/misc.h>
 #include <list>
 #include <string>
 #include <tuple>
@@ -27,6 +26,7 @@
 #include "conference/conference-server.hh"
 #include "eventlogs/writers/event-log-writer.hh" // IWYU pragma: keep
 #include "flexisip/utils/sip-uri.hh"
+#include "linphone/misc.h"
 
 using namespace std;
 

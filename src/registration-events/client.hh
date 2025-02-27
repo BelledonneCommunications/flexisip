@@ -20,11 +20,9 @@
 
 #include <iostream>
 
-#include <linphone++/linphone.hh>
+#include "linphone++/linphone.hh"
 
-namespace flexisip {
-
-namespace RegistrationEvent {
+namespace flexisip::RegistrationEvent {
 
 class ClientListener {
 public:
@@ -41,8 +39,8 @@ class Client;
 
 /*
  * Helper class to create client 'reg' subscriptions.
- * It must be alive as long as there are Client instanciated, otherwise the clients won't receive any notify anymore.
- * And it must be hold by a shared_ptr.
+ * It must be alive as long as there are Client instantiated, otherwise the clients won't receive any notify anymore.
+ * And it must be held by a shared_ptr.
  * Its main purpose is to centralize the linphone::Event callbacks; that are attached to the Core, and dispatch them to
  * the Clients.
  */
@@ -56,31 +54,35 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"ClientFactory"};
 
-	virtual void onNotifyReceived(const std::shared_ptr<linphone::Core>& lc,
-	                              const std::shared_ptr<linphone::Event>& lev,
-	                              const std::string& notifiedEvent,
-	                              const std::shared_ptr<const linphone::Content>& body) override;
-	virtual void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>& core,
-	                                        const std::shared_ptr<linphone::Event>& linphoneEvent,
-	                                        linphone::SubscriptionState state) override;
-	int mUseCount = 0;
+	void onNotifyReceived(const std::shared_ptr<linphone::Core>& lc,
+	                      const std::shared_ptr<linphone::Event>& lev,
+	                      const std::string& notifiedEvent,
+	                      const std::shared_ptr<const linphone::Content>& body) override;
+
+	void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>& core,
+	                                const std::shared_ptr<linphone::Event>& linphoneEvent,
+	                                linphone::SubscriptionState state) override;
+
 	void registerClient(Client& client);
+
 	void unregisterClient(Client& client);
+
 	std::shared_ptr<linphone::Core> getCore() const {
 		return mCore;
 	}
+
 	std::shared_ptr<linphone::Core> mCore;
+	int mUseCount;
 };
 
 /**
- * Base class for a "reg" event client.
+ * Base class for a 'reg' event client.
  * It has to be inherited to get notified of the results of the subscription (the incoming NOTIFY request content).
  */
 class Client {
-	friend class ClientFactory;
-
 public:
 	~Client();
+
 	void subscribe();
 	void unsubscribe();
 	void setListener(ClientListener* listener);
@@ -89,18 +91,18 @@ protected:
 	Client(const std::shared_ptr<ClientFactory>& factory, const std::shared_ptr<const linphone::Address>& to);
 
 private:
-	static constexpr const char* eventKey = "Regevent::Client";
-	static constexpr std::string_view mLogPrefix{"Client"};
+	friend class ClientFactory;
+
+	static constexpr auto* kEventKey{"Regevent::Client"};
 
 	void onNotifyReceived(const std::shared_ptr<const linphone::Content>& body);
 	void onSubscriptionStateChanged(linphone::SubscriptionState state);
 
 	std::shared_ptr<linphone::Event> mSubscribeEvent;
-	ClientListener* mListener = nullptr;
 	std::shared_ptr<ClientFactory> mFactory;
 	std::shared_ptr<linphone::Address> mTo;
+	ClientListener* mListener;
+	std::string mLogPrefix;
 };
 
-} // end of namespace RegistrationEvent
-
-} // namespace flexisip
+} // namespace flexisip::RegistrationEvent
