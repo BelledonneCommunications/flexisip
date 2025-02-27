@@ -25,6 +25,7 @@
 #include "flexisip/utils/sip-uri.hh"
 #include "linphone++/enums.hh"
 #include "registrar/record.hh"
+#include "utils/configuration/transport.hh"
 #include "xml/reginfo.hh"
 
 using namespace std;
@@ -197,23 +198,14 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& record, cons
 
 void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
-	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
-
 	mCore->enableDatabase(false);
 
-	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
-	string mTransport = config->get<ConfigString>("transport")->read();
-	if (mTransport.length() > 0) {
-		sofiasip::Home mHome;
-		url_t* urlTransport = url_make(mHome.home(), mTransport.c_str());
-		if (urlTransport == nullptr || mTransport.at(0) == '<')
-			throw BadConfiguration{"your configured conference transport ('" + mTransport +
-			                       "') is not a valid URI (hint: if you have '<>' in your transport, remove them"};
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
+	const auto* transportParameter = config->get<ConfigString>("transport");
+	const auto transports = Factory::get()->createTransports();
+	configuration_utils::configureTransport(transports, transportParameter, {"tcp"});
 
-		regEventTransport->setTcpPort(stoi(urlTransport->url_port));
-	}
-
-	mCore->setTransports(regEventTransport);
+	mCore->setTransports(transports);
 	mCore->addListener(make_shared<Subscriptions>(mRegistrarDb));
 	mCore->start();
 }
