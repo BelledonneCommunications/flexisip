@@ -27,7 +27,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "injected-module-info.hh"
+#include "utils/injected-module-info.hh"
 #include "registrar/registrar-db.hh"
 
 namespace flexisip {

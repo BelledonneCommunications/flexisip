@@ -21,8 +21,8 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "tester.hh"
 #include "utils/core-assert.hh"
-#include "utils/proxy-server.hh"
-#include "utils/redis-server.hh"
+#include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -104,7 +104,8 @@ void localAndPublicProxies() {
 		auto transaction =
 		    client.createOutgoingTransaction(registerRequest, "sip:127.0.0.1:"s + cloudProxy.getFirstPort());
 
-		BC_ASSERT_TRUE(asserter.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 2s));
+		BC_ASSERT_TRUE(asserter.iterateUpTo(
+		    5, [&transaction] { return transaction->isCompleted(); }, 2s));
 
 		auto response = transaction->getResponse();
 		BC_HARD_ASSERT(response != nullptr);
@@ -132,7 +133,8 @@ void localAndPublicProxies() {
 		// clang-format on
 		sofiasip::NtaAgent client{homeProxy.getRoot(), "sip:127.0.0.1:0"};
 		auto transaction = client.createOutgoingTransaction(request, "sip:127.0.0.1:"s + homeProxy.getFirstPort());
-		BC_ASSERT_TRUE(asserter.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 2s));
+		BC_ASSERT_TRUE(asserter.iterateUpTo(
+		    5, [&transaction] { return transaction->isCompleted(); }, 2s));
 
 		auto response = transaction->getResponse();
 		BC_HARD_ASSERT(response != nullptr);

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,15 +22,12 @@
 #include <string>
 #include <unordered_map>
 
-#include <linphone++/linphone.hh>
-
 #include "flexisip/registrar/registar-listeners.hh"
+#include "linphone++/linphone.hh"
 #include "registrar/registrar-db.hh"
 #include "service-server/service-server.hh"
 
-namespace flexisip {
-
-namespace RegistrationEvent {
+namespace flexisip::RegistrationEvent {
 
 class Server : public ServiceServer {
 public:
@@ -38,7 +35,7 @@ public:
 	                      public ContactRegisteredListener,
 	                      public ContactUpdateListener {
 	public:
-		Subscriptions(const std::shared_ptr<RegistrarDb>& registrarDb) : mRegistrarDb{registrarDb} {
+		explicit Subscriptions(const std::shared_ptr<RegistrarDb>& registrarDb) : mRegistrarDb{registrarDb}, mEvents() {
 		}
 
 	private:
@@ -46,32 +43,29 @@ public:
 		                         const std::shared_ptr<linphone::Event>&,
 		                         const std::string&,
 		                         const std::shared_ptr<const linphone::Content>&) override;
-		void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>& core,
-		                                const std::shared_ptr<linphone::Event>& linphoneEvent,
-		                                linphone::SubscriptionState state) override;
+		void onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>&,
+		                                const std::shared_ptr<linphone::Event>&,
+		                                linphone::SubscriptionState) override;
 
 		void onRecordFound(const std::shared_ptr<Record>& r) override;
-		void onError(const SipStatus&) override {
-		}
-		void onInvalid(const SipStatus&) override {
-		}
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
-		}
+		void onError(const SipStatus&) override;
+		void onInvalid(const SipStatus&) override;
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override;
 
 		void onContactRegistered(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered) override;
 
 		void processRecord(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered);
 
-		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents{};
 		std::shared_ptr<RegistrarDb> mRegistrarDb;
+		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents;
 	};
-
-	static const std::string CONTENT_TYPE;
 
 	template <typename SuRootPtr>
 	Server(SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<RegistrarDb>& registrarDb)
-	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb) {
+	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb), mCore() {
 	}
+
+	static constexpr std::string_view kContentType{"application/reginfo+xml"};
 
 protected:
 	void _init() override;
@@ -79,11 +73,11 @@ protected:
 	std::unique_ptr<AsyncCleanup> _stop() override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"RegistrationEventServer - "};
+
 	std::shared_ptr<ConfigManager> mConfigManager;
 	std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<linphone::Core> mCore;
 };
 
-} // namespace RegistrationEvent
-
-} // namespace flexisip
+} // namespace flexisip::RegistrationEvent

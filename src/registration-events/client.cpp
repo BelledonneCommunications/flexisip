@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,67 +9,66 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <exception>
-#include <iostream>
-#include <sstream>
+#include "client.hh"
 
-#include <linphone++/linphone.hh>
+#include <exception>
+#include <sstream>
 #include <stdexcept>
 
 #include "flexisip/logmanager.hh"
-
+#include "linphone++/linphone.hh"
 #include "utils/string-utils.hh"
 #include "xml/reginfo.hh"
-
-#include "client.hh"
 
 using namespace std;
 using namespace linphone;
 using namespace reginfo;
 
-namespace flexisip {
-
-namespace RegistrationEvent {
+namespace flexisip::RegistrationEvent {
 
 Client::Client(const shared_ptr<ClientFactory>& factory, const shared_ptr<const Address>& to)
-    : mFactory(factory), mTo(to->clone()) {
+    : mSubscribeEvent(), mFactory(factory), mTo(to->clone()), mListener(nullptr), mLogPrefix() {
 	mFactory->registerClient(*this);
+
+	stringstream logPrefix{};
+	logPrefix << "Client[" << this << "] - ";
+	mLogPrefix = logPrefix.str();
 }
 
 void Client::subscribe() {
 	if (mSubscribeEvent) {
-		LOGE("Already subscribed.");
+		SLOGD << mLogPrefix << "Already subscribed";
 		return;
 	}
 	mSubscribeEvent = mFactory->getCore()->createSubscribe(mTo, "reg", 600);
 	mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
-	mSubscribeEvent->setData(eventKey, *this);
+	mSubscribeEvent->setData(kEventKey, *this);
 	mSubscribeEvent->sendSubscribe(nullptr);
 }
 
 void Client::unsubscribe() {
 	if (!mSubscribeEvent) {
-		LOGE("No subscribe.");
+		SLOGD << mLogPrefix << "No subscription";
 		return;
 	}
-	mSubscribeEvent->unsetData(eventKey);
+	mSubscribeEvent->unsetData(kEventKey);
 	mSubscribeEvent->terminate();
 	mSubscribeEvent = nullptr;
 }
 
 Client::~Client() {
 	mFactory->unregisterClient(*this);
-	/* It is not possible to call shared_from_this() from here because we are in the destructor,
-	 so not possible to remove us as a core listener. Too late.*/
+	// It is not possible to call shared_from_this() from here because we are in the destructor,
+	// so not possible to remove us as a core listener. It is too late.
 	if (mSubscribeEvent) {
-		mSubscribeEvent->unsetData(eventKey);
+		mSubscribeEvent->unsetData(kEventKey);
 		mSubscribeEvent->terminate();
 	}
 }
@@ -78,7 +77,7 @@ void Client::setListener(ClientListener* listener) {
 	mListener = listener;
 }
 
-void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& body) {
+void Client::onNotifyReceived(const shared_ptr<const linphone::Content>& body) {
 	if (!body) throw runtime_error("Empty notify Content.");
 
 	istringstream data(body->getUtf8Text());
@@ -102,7 +101,8 @@ void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& bo
 				if (param.getName() != "+org.linphone.specs") continue;
 				shared_ptr<ParticipantDeviceIdentity> identity =
 				    Factory::get()->createParticipantDeviceIdentity(partDeviceAddr, displayName);
-				identity->setCapabilityDescriptor(StringUtils::unquote(param));
+
+				identity->setCapabilityDescriptor(list<string>{StringUtils::unquote(param)});
 
 				if (contact.getEvent() == reginfo::Event::refreshed) {
 					if (mListener) mListener->onRefreshed(identity);
@@ -115,7 +115,7 @@ void Client::onNotifyReceived(const std::shared_ptr<const linphone::Content>& bo
 
 		if (refreshed < participantDevices.size()) {
 			if (mListener) mListener->onNotifyReceived(participantDevices);
-		} /* else: Everything is refreshed, notifying a reception would be redundant */
+		} // else: Everything is refreshed, notifying a reception would be redundant.
 	}
 }
 
@@ -130,7 +130,7 @@ void Client::onSubscriptionStateChanged(linphone::SubscriptionState state) {
 			break;
 		case SubscriptionState::Terminated:
 		case SubscriptionState::Error:
-			mSubscribeEvent->unsetData(eventKey);
+			mSubscribeEvent->unsetData(kEventKey);
 			mSubscribeEvent->terminate();
 			mSubscribeEvent = nullptr;
 			/* TODO: retry later*/
@@ -138,53 +138,51 @@ void Client::onSubscriptionStateChanged(linphone::SubscriptionState state) {
 	}
 }
 
-void ClientFactory::onSubscriptionStateChanged([[maybe_unused]] const std::shared_ptr<linphone::Core>& core,
-                                               const std::shared_ptr<linphone::Event>& linphoneEvent,
+void ClientFactory::onSubscriptionStateChanged(const shared_ptr<linphone::Core>&,
+                                               const shared_ptr<linphone::Event>& linphoneEvent,
                                                linphone::SubscriptionState state) {
 	try {
-		Client& client = linphoneEvent->getData<Client>(Client::eventKey);
+		auto& client = linphoneEvent->getData<Client>(Client::kEventKey);
 		client.onSubscriptionStateChanged(state);
-	} catch (const std::out_of_range&) {
-		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
-	} catch (const std::exception& exc) {
-		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
+	} catch (const out_of_range&) {
+		SLOGI << mLogPrefix << "Client disconnected";
+	} catch (const exception& exception) {
+		SLOGD << mLogPrefix << "Caught an unexpected exception on subscription state change:" << exception.what();
 	}
 }
 
-void ClientFactory::onNotifyReceived([[maybe_unused]] const shared_ptr<Core>& lc,
+void ClientFactory::onNotifyReceived(const shared_ptr<Core>&,
                                      const shared_ptr<linphone::Event>& lev,
-                                     [[maybe_unused]] const string& notifiedEvent,
+                                     const string&,
                                      const shared_ptr<const Content>& body) {
 	try {
-		Client& client = lev->getData<Client>(Client::eventKey);
+		auto& client = lev->getData<Client>(Client::kEventKey);
 		client.onNotifyReceived(body);
-	} catch (const std::out_of_range&) {
-		LOGW("ClientFactory::onSubscriptionStateChanged: Client disconnected");
-	} catch (const std::exception& exc) {
-		SLOGE << "ClientFactory::onSubscriptionStateChanged: " << exc.what();
+	} catch (const out_of_range&) {
+		SLOGI << mLogPrefix << "Client disconnected";
+	} catch (const exception& exception) {
+		SLOGD << mLogPrefix << "Caught an unexpected exception on NOTIFY request receipt:" << exception.what();
 	}
 }
 
-void ClientFactory::registerClient([[maybe_unused]] Client& client) {
+void ClientFactory::registerClient(Client&) {
 	if (mUseCount == 0) {
 		mCore->addListener(shared_from_this());
 	}
 	mUseCount++;
 }
-void ClientFactory::unregisterClient([[maybe_unused]] Client& client) {
+void ClientFactory::unregisterClient(Client&) {
 	mUseCount--;
 	if (mUseCount == 0) {
 		mCore->removeListener(shared_from_this());
 	}
 }
 
-ClientFactory::ClientFactory(const std::shared_ptr<linphone::Core>& core) : mCore(core) {
+ClientFactory::ClientFactory(const shared_ptr<linphone::Core>& core) : mCore(core), mUseCount(0) {
 }
 
-std::shared_ptr<Client> ClientFactory::create(const std::shared_ptr<const linphone::Address>& to) {
-	return shared_ptr<Client>(new Client(shared_from_this(), to));
+shared_ptr<Client> ClientFactory::create(const shared_ptr<const linphone::Address>& to) {
+	return shared_ptr<Client>(new Client{shared_from_this(), to});
 }
 
-} // namespace RegistrationEvent
-
-} // namespace flexisip
+} // namespace flexisip::RegistrationEvent

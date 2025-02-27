@@ -23,10 +23,10 @@
 #include "flexisip/module-registrar.hh"
 
 #include "registrar/extended-contact.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
+#include "utils/successful-bind-listener.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
-#include "utils/successful-bind-listener.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,144 +20,157 @@
 
 #include <memory>
 
-#include "linphone++/enums.hh"
-#include "xml/reginfo.hh"
-
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/registrar/registar-listeners.hh"
-#include <flexisip/utils/sip-uri.hh>
-
+#include "flexisip/utils/sip-uri.hh"
+#include "linphone++/enums.hh"
 #include "registrar/record.hh"
-#include "registrar/registrar-db.hh"
+#include "xml/reginfo.hh"
 
 using namespace std;
 using namespace linphone;
 using namespace reginfo;
 using namespace flexisip::Xsd::XmlSchema;
 
-namespace flexisip {
-
-namespace RegistrationEvent {
-
-static constexpr const char* CONTENT_TYPE = "application/reginfo+xml";
+namespace flexisip::RegistrationEvent {
 
 void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
-                                                const shared_ptr<linphone::Event>& lev,
+                                                const shared_ptr<linphone::Event>& event,
                                                 const string&,
                                                 const shared_ptr<const Content>&) {
-	string eventHeader = lev->getName();
+	const auto eventHeader = event->getName();
 	if (eventHeader != "reg") {
-		lev->denySubscription(Reason::BadEvent);
+		SLOGI << mLogPrefix << "Rejected: 'Event' header value is not set to 'reg'";
+		event->denySubscription(Reason::BadEvent);
 		return;
 	}
 
-	string acceptHeader = lev->getCustomHeader("Accept");
-	if (acceptHeader != RegistrationEvent::CONTENT_TYPE) {
-		lev->denySubscription(Reason::NotAcceptable);
+	const auto acceptHeader = event->getCustomHeader("Accept");
+	if (acceptHeader != Server::kContentType) {
+		SLOGI << mLogPrefix << "Rejected: 'Accept' header value is not set to '" << Server::kContentType << "'";
+		event->denySubscription(Reason::NotAcceptable);
 		return;
 	}
 
-	SipUri url;
+	SipUri toUri{};
 	try {
-		url = SipUri(lev->getTo()->asStringUriOnly());
-	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << "Regevent server: new subscription: invalid URI in 'To' header: " << e.getUrl();
-		lev->denySubscription(Reason::AddressIncomplete);
+		toUri = SipUri(event->getTo()->asStringUriOnly());
+	} catch (const exception& exception) {
+		SLOGI << mLogPrefix << "Rejected: invalid URI in 'To' header (" << exception.what() << ")";
+		event->denySubscription(Reason::AddressIncomplete);
 		return;
 	}
 
-	const auto result = mEvents.emplace(Record::Key(url, mRegistrarDb->useGlobalDomain()).toString(), lev);
+	const auto result = mEvents.emplace(Record::Key(toUri, mRegistrarDb->useGlobalDomain()).toString(), event);
 	if (!result.second) {
-		SLOGE << "Regevent server: There is already a subscription for: " << result.first->first;
-		lev->denySubscription(Reason::Busy);
+		SLOGI << mLogPrefix << "There is already a subscription for: " << result.first->first;
+		event->denySubscription(Reason::Busy);
 		return;
 	}
 
-	// Accept the sub to be able to notify it
-	lev->acceptSubscription();
-	// We need the core to send the NOTIFY (and it holds `this`). So we pass it as the callback to make sure it lives
-	// long enough
-	mRegistrarDb->fetch(url, {core, this}, true);
-	// Subscribe takes a weak_ptr. Passing it the event itself lets us unsubscribe automatically by deleting the event.
-	mRegistrarDb->subscribe(Record::Key(url, mRegistrarDb->useGlobalDomain()),
-	                        std::shared_ptr<ContactRegisteredListener>{lev, this});
+	// Accept the subscription to be able to notify it.
+	event->acceptSubscription();
+
+	// We need the core to send the NOTIFY (and to hold a pointer on this instance).
+	// So we pass it as the callback to make sure it lives long enough.
+	mRegistrarDb->fetch(toUri, {core, this}, true);
+
+	// Subscribe takes a weak_ptr.
+	// Passing it the event itself lets us to automatically unsubscribe by deleting the event.
+	mRegistrarDb->subscribe(Record::Key(toUri, mRegistrarDb->useGlobalDomain()),
+	                        shared_ptr<ContactRegisteredListener>{event, this});
 }
 
-void Server::Subscriptions::onSubscriptionStateChanged(const std::shared_ptr<linphone::Core>&,
-                                                       const std::shared_ptr<linphone::Event>& lev,
+void Server::Subscriptions::onSubscriptionStateChanged(const shared_ptr<linphone::Core>&,
+                                                       const shared_ptr<linphone::Event>& event,
                                                        linphone::SubscriptionState state) {
 	switch (state) {
 		case linphone::SubscriptionState::Terminated: {
-			SipUri url;
+			SipUri toUri{};
 			try {
-				url = SipUri(lev->getTo()->asStringUriOnly());
-			} catch (const sofiasip::InvalidUrlError& e) {
-				SLOGE << "Regevent server: subscription terminated: invalid URI in 'To' header: " << e.getUrl();
+				toUri = SipUri(event->getTo()->asStringUriOnly());
+			} catch (const exception& exception) {
+				SLOGI << mLogPrefix << "Subscription terminated: invalid URI in 'To' header (" << exception.what()
+				      << ")";
 				return;
 			}
 
-			mEvents.erase(Record::Key(url, mRegistrarDb->useGlobalDomain()).toString());
+			mEvents.erase(Record::Key(toUri, mRegistrarDb->useGlobalDomain()).toString());
 		} break;
 		default:
 			break;
 	}
 }
 
-void Server::Subscriptions::onRecordFound(const shared_ptr<Record>& r) {
-	processRecord(r, "");
+void Server::Subscriptions::onRecordFound(const shared_ptr<Record>& record) {
+	processRecord(record, "");
 }
 
-void Server::Subscriptions::onContactRegistered(const shared_ptr<Record>& r, const string& uidOfFreshlyRegistered) {
-	processRecord(r, uidOfFreshlyRegistered);
+void Server::Subscriptions::onError(const flexisip::SipStatus&) {
 }
 
-void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std::string& uidOfFreshlyRegistered) {
-	if (!r) {
-		SLOGW << "RegistrationEvent::Server - Ignoring registration notification with null record.";
+void Server::Subscriptions::onInvalid(const flexisip::SipStatus&) {
+}
+
+void Server::Subscriptions::onContactUpdated(const std::shared_ptr<ExtendedContact>&) {
+}
+
+void Server::Subscriptions::onContactRegistered(const shared_ptr<Record>& record,
+                                                const string& uidOfFreshlyRegistered) {
+	processRecord(record, uidOfFreshlyRegistered);
+}
+
+void Server::Subscriptions::processRecord(const shared_ptr<Record>& record, const string& uidOfFreshlyRegistered) {
+	if (!record) {
+		SLOGI << mLogPrefix << "Ignoring registration notification: record pointer is empty";
 		return;
 	}
 
-	const auto& aor = r->getKey().asString();
+	const auto& aor = record->getKey().asString();
 	const auto maybeEvent = mEvents.find(aor);
 	if (maybeEvent == mEvents.end()) {
-		SLOGW << "RegistrationEvent::Server - Ignoring registration of a contact no one is subscribed to. "
-		         "(aor: "
-		      << aor << ")";
+		SLOGI << mLogPrefix << "Ignoring registration of a AOR no one is subscribed to: " << aor;
 		return;
 	}
-	auto& event = *maybeEvent->second;
 
-	Reginfo ri{0, State::Value::full};
-	Registration re{Uri(event.getTo()->asString().c_str()), aor.c_str(), Registration::StateType::active};
+	auto& event = *maybeEvent->second;
+	Reginfo registrationInfo{0, State::Value::full};
+	Registration registration{Uri(event.getTo()->asString().c_str()), aor.c_str(), Registration::StateType::active};
 	sofiasip::Home home{};
 
-	for (const auto& ec : r->getExtendedContacts()) {
-		auto addr = r->getPubGruu(ec, home.home());
+	for (const auto& ec : record->getExtendedContacts()) {
+		auto addr = record->getPubGruu(ec, home.home());
 		if (!addr) {
-			SLOGE << "RegistrationEvent::Server - Contact has no GRUU, skipping. (contact: " << ec->urlAsString()
-			      << ", aor: " << aor << ")";
+			SLOGD << mLogPrefix << "Skipping contact with no 'GRUU' (contact: " << ec->urlAsString() << ", aor: " << aor
+			      << ")";
 			continue;
 		}
+
 		bool justRegistered = (ec->mKey == uidOfFreshlyRegistered);
 
-		Contact contact(url_as_string(home.home(), addr), Contact::StateType::active,
+		Contact contact{url_as_string(home.home(), addr), Contact::StateType::active,
 		                justRegistered ? Contact::EventType::refreshed : Contact::EventType::registered,
-		                url_as_string(home.home(), addr));
+		                url_as_string(home.home(), addr)};
 
-		// expires
 		if (ec->mSipContact->m_expires) {
-			contact.setExpires(atoi(ec->mSipContact->m_expires));
+			try {
+				contact.setExpires(stoi(ec->mSipContact->m_expires));
+			} catch (const exception& exception) {
+				SLOGI << mLogPrefix << "Failed to convert 'expires' value from string (" << ec->mSipContact->m_expires
+				      << ")";
+				return;
+			}
 		}
 
-		// unknown-params
 		if (ec->mSipContact->m_params) {
 			size_t i;
 
 			for (i = 0; ec->mSipContact->m_params[i]; i++) {
-				auto param = StringUtils::split(std::string_view{ec->mSipContact->m_params[i]}, "=");
+				const auto param = string_utils::split(string_view{ec->mSipContact->m_params[i]}, "=");
 
-				auto unknownParam = UnknownParam(std::string(param.front()));
+				auto unknownParam = UnknownParam(string{param.front()});
 				if (param.size() == 2) {
-					unknownParam.append(StringUtils::unquote(std::string(param.back())));
+					unknownParam.append(string_utils::unquote(string{param.back()}));
 				}
 
 				contact.getUnknownParam().push_back(unknownParam);
@@ -165,25 +178,25 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& r, const std
 		}
 
 		contact.setDisplayName(ec->getDeviceName().asString());
-		re.getContact().push_back(contact);
+		registration.getContact().push_back(contact);
 	}
 
-	re.setState(r->getExtendedContacts().size() == 0 ? Registration::StateType::terminated
-	                                                 : Registration::StateType::active);
+	registration.setState(record->getExtendedContacts().empty() ? Registration::StateType::terminated
+	                                                            : Registration::StateType::active);
 
-	ri.getRegistration().push_back(re);
+	registrationInfo.getRegistration().push_back(registration);
 
-	stringstream xmlBody;
-	serializeReginfo(xmlBody, ri);
-	string body = xmlBody.str();
+	stringstream xmlBody{};
+	serializeReginfo(xmlBody, registrationInfo);
+	const auto body = xmlBody.str();
 
-	auto notifyContent = Factory::get()->createContent();
-	notifyContent->setBuffer((uint8_t*)body.data(), body.length());
+	const auto notifyContent = Factory::get()->createContent();
+	notifyContent->setBuffer(reinterpret_cast<const uint8_t*>(body.data()), body.length());
 	notifyContent->setType("application");
 	notifyContent->setSubtype("reginfo+xml");
 
 	event.notify(notifyContent);
-};
+}
 
 void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
@@ -215,30 +228,36 @@ void Server::_run() {
 	mCore->iterate();
 }
 
-std::unique_ptr<AsyncCleanup> Server::_stop() {
+unique_ptr<AsyncCleanup> Server::_stop() {
 	mCore = nullptr;
 	return nullptr;
 }
 
 namespace {
-// Statically define default configuration items
+// Statically define default configuration items.
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
-	ConfigItemDescriptor items[] = {{String, "transport", "SIP uri on which the RegEvent server is listening on.",
-	                                 "sip:127.0.0.1:6065;transport=tcp"},
-	                                config_item_end};
+	ConfigItemDescriptor items[] = {
+	    {
+	        String,
+	        "transport",
+	        "SIP URI on which the server is listening on.\n"
+	        "WARNING: only 'TCP' transport is supported.",
+	        "sip:127.0.0.1:6065;transport=tcp",
+	    },
+	    config_item_end,
+	};
 
-	auto uS = make_unique<GenericStruct>(
-	    "regevent-server",
-	    "Flexisip RegEvent server parameters."
-	    "The regevent server is in charge of responding to SIP SUBSCRIBEs for the 'reg' event as defined by RFC3680"
-	    " - A Session Initiation Protocol (SIP) Event Package for Registrations - https://tools.ietf.org/html/rfc3680 ."
-	    "To generate the outgoing NOTIFY, it will rely upon the registrar database, as setup in module::Registrar "
-	    "section.",
-	    0);
+	auto uS =
+	    make_unique<GenericStruct>("regevent-server",
+	                               "Flexisip RegEvent server parameters.\n"
+	                               "This server is in charge of responding to SIP SUBSCRIBE requests for the 'reg' "
+	                               "event as defined by RFC3680 (https://tools.ietf.org/html/rfc3680).\n"
+	                               "It relies on the registrar database setup in the 'module::Registrar' section to "
+	                               "generate outgoing NOTIFY requests",
+	                               0);
 	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
 });
-} // namespace
-} // namespace RegistrationEvent
 
-} // namespace flexisip
+} // namespace
+} // namespace flexisip::RegistrationEvent

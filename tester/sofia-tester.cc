@@ -32,10 +32,10 @@
 
 #include "tester.hh"
 #include "utils/core-assert.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
+#include "utils/server/tls-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/tls-server.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;

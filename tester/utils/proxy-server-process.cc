@@ -16,7 +16,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <csignal>
+#include "proxy-server-process.hh"
+
 #include <stdexcept>
 #include <thread>
 
@@ -26,9 +27,7 @@
 #include "bctoolbox/tester.h"
 #include "flexisip/logmanager.hh"
 
-#include "utils/proxy-server.hh"
-
-#include "proxy-server-process.hh"
+#include "utils/server/proxy-server.hh"
 
 using namespace std;
 

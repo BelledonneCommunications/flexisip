@@ -22,7 +22,7 @@
 #include <memory>
 #include <string>
 
-#include "proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 
 namespace flexisip::tester {
 
@@ -42,4 +42,4 @@ public:
 	std::shared_ptr<Agent> mAgent{};
 };
 
-} // namespace flexisip::tester::helper
+} // namespace flexisip::tester

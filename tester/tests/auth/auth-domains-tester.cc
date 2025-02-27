@@ -22,8 +22,8 @@
 
 #include "auth-utils.hh"
 #include "sofia-wrapper/nta-agent.hh"
-#include "utils/proxy-server.hh"
-#include "utils/redis-server.hh"
+#include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

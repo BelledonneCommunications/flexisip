@@ -21,7 +21,7 @@
 
 #include "libhiredis-wrapper/redis-reply.hh"
 #include "utils/core-assert.hh"
-#include "utils/redis-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/soft-ptr.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

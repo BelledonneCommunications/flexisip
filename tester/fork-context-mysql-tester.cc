@@ -35,7 +35,7 @@
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
-#include "utils/mysql-server.hh"
+#include "utils/server/mysql-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 

@@ -19,7 +19,7 @@
 #include "test-conference-server.hh"
 
 #include <cstdlib>
-#include <linphone/misc.h>
+#include "linphone/misc.h"
 #include <list>
 #include <string>
 #include <tuple>

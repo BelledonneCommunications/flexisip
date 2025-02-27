@@ -17,7 +17,7 @@
  */
 #include <thread>
 
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
 
 #include "tcp-server.hh"
 

@@ -27,7 +27,7 @@
 #include "client-core.hh"
 #include "service-server/service-server.hh"
 #include "utils/bellesip-utils.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 
 namespace flexisip::tester {
 
@@ -75,7 +75,7 @@ public:
 	}
 	template <typename Iterable>
 	void registerSteppables(Iterable&& steppables) {
-		for(const auto& steppable : steppables) {
+		for (const auto& steppable : steppables) {
 			this->addCustomIterate(stepperFrom(steppable));
 		}
 	}

@@ -25,7 +25,7 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/override-static.hh"
-#include "utils/proxy-server.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

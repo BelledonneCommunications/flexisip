@@ -16,7 +16,7 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "utils/asserts.hh"
-#include "utils/mysql-server.hh"
+#include "utils/server/mysql-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
