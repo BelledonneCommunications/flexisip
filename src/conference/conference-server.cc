@@ -329,6 +329,7 @@ std::unique_ptr<AsyncCleanup> ConferenceServer::_stop() {
 		chatroom->removeListener(sharedThis);
 	}
 	mSubscriptionHandler.unsubscribeAll();
+	mCore->stop();
 	return nullptr;
 }
 
