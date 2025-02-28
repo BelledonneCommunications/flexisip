@@ -75,14 +75,16 @@ void nthEngineWithSni() {
  * Test that Sofia-SIP closes connections that were inactive for more than 'idle-timeout' seconds.
  * This should be the case even if no data has ever passed through this connection.
  */
+template <typename ProtoT>
 void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
+	const auto transport = (ProtoT::isTls ? "sips"s : "sip"s) + ":127.0.0.1:0";
 	Server proxy{{
-	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"global/transports", transport},
 	    {"global/idle-timeout", "1"},
 	}};
 	proxy.start();
 
-	// Create TCP connection to server.
+	// Create connection to server.
 	auto connection = TlsConnection{"127.0.0.1", proxy.getFirstPort(), "", ""};
 	connection.connect();
 	BC_ASSERT(connection.isConnected());
@@ -99,12 +101,21 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	    2s));
 }
 
+struct TCP {
+	static constexpr auto isTls = false;
+};
+
+struct TLS {
+	static constexpr auto isTls = true;
+};
+
 namespace {
 TestSuite _("Sofia-SIP",
             {
                 CLASSY_TEST(nthEngineWithSni<true>),
                 CLASSY_TEST(nthEngineWithSni<false>),
-                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers),
+                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TCP>),
+                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TLS>),
             });
 }
 
