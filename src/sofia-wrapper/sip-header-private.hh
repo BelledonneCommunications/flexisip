@@ -127,10 +127,18 @@ public:
 
 	/**
 	 * Create a To header.
-	 * @param toURI SIP URI (may be a flexisip::SipUri, an std::string or a raw string)
+	 * @param toURI SIP URI (may be a flexisip::SipUri, an std::string or a raw string) or well-formatted SIP header
+	 * containing a SIP URI.
+	 *
+	 * @note Example of a well-formatted header: "<sip:contact@host:port;transport=tcp>;tag=some-tag"
 	 */
 	template <typename UriT>
 	SipHeaderTo(const UriT& toURI) {
+		const auto sofiasipUrl = toSofiaSipUrlUnion(toURI);
+		if (isFormattedHeaderWithSipUri(sofiasipUrl->us_str)) {
+			setNativePtr(sip_to_make(mHome.home(), sofiasipUrl->us_str));
+			return;
+		}
 		setNativePtr(sip_to_create(mHome.home(), toSofiaSipUrlUnion(toURI)));
 	}
 
@@ -442,6 +450,26 @@ public:
 
 	std::string_view getType() const {
 		return getStrAttribute(reinterpret_cast<SofiaType*>(mNativePtr), o_type);
+	}
+};
+
+/*
+ * Represent an Accept header.
+ */
+class SipHeaderAccept : public SipHeader {
+public:
+	using SofiaType = sip_accept_t;
+
+	/**
+	 * Create an Accept header.
+	 * @param accept the accept value
+	 */
+	SipHeaderAccept(std::string_view accept) {
+		setNativePtr(sip_accept_make(mHome.home(), accept.data()));
+	}
+
+	std::string_view getType() const {
+		return getStrAttribute(reinterpret_cast<SofiaType*>(mNativePtr), ac_type);
 	}
 };
 

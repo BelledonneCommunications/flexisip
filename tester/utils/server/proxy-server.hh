@@ -27,8 +27,8 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "utils/injected-module-info.hh"
 #include "registrar/registrar-db.hh"
+#include "utils/injected-module-info.hh"
 
 namespace flexisip {
 namespace tester {
@@ -75,6 +75,13 @@ public:
 	                InjectedHooks* injectedHooks = nullptr);
 
 	virtual ~Server();
+
+	/**
+	 * Set value of provided parameter in the configuration manager.
+	 *
+	 * @param parameter new parameter to set (format: {"section/parameter", "value"})
+	 */
+	void setConfigParameter(const std::pair<std::string, std::string>& parameter);
 
 	// Accessors
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
