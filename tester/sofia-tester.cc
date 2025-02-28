@@ -154,9 +154,8 @@ void collectAndParseDataFromSocket() {
 	requestRegister->makeAndInsert<SipHeaderExpires>(10);
 	const auto registration = client.createOutgoingTransaction(std::move(requestRegister), routeUri);
 
-	asserter
-	    .iterateUpTo(
-	        0x20, [&registration] { return LOOP_ASSERTION(registration->isCompleted()); }, 100ms)
+	asserter.iterateUpTo(
+	            0x20, [&registration] { return LOOP_ASSERTION(registration->isCompleted()); }, 100ms)
 	    .hard_assert_passed();
 
 	// Send requests to UAS.
@@ -243,14 +242,18 @@ void collectAndTryToParseSIPMessageThatExceedsMsgMaxsize() {
  * Test that Sofia-SIP closes connections that were inactive for more than 'idle-timeout' seconds.
  * This should be the case even if no data has ever passed through this connection.
  */
+template <const string& transportType>
 void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
+	const auto transport = (transportType == "transport=tls" ? "sips"s : "sip"s) + ":127.0.0.1:0";
 	Server proxy{{
-	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"global/transports", transport},
 	    {"global/idle-timeout", "1"},
+	    {"global/tls-certificates-file", bcTesterRes("cert/self.signed.cert.test.pem")},
+	    {"global/tls-certificates-private-key", bcTesterRes("cert/self.signed.key.test.pem")},
 	}};
 	proxy.start();
 
-	// Create TCP connection to server.
+	// Create connection to server.
 	TlsConnection connection{"127.0.0.1", proxy.getFirstPort(), "", ""};
 	connection.connect();
 	BC_ASSERT(connection.isConnected());
@@ -286,7 +289,8 @@ TestSuite _("Sofia-SIP",
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
                 CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
                 CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
-                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers),
+                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TCP>),
+                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TLS>),
             });
 
 } // namespace
