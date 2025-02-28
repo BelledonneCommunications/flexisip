@@ -16,8 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "registration-events/server.hh"
-
 #include <memory>
 #include <string>
 
@@ -27,8 +25,9 @@
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "linphone++/linphone.hh"
-#include "linphone/misc.h"
 #include "registrar/record.hh"
+#include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -36,12 +35,13 @@
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/server/regevent-server.hh"
 #include "utils/server/test-conference-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
-using namespace linphone;
+using namespace sofiasip;
 
 namespace flexisip::tester {
 
@@ -62,6 +62,7 @@ void basicSubscription() {
 	const string confFactoryUri{"sip:conference-factory@sip.example.org"};
 	const string confFocusUri{"sip:conference-focus@sip.example.org"};
 	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"module::RegEvent/enabled", "true"},
 	    {"module::DoSProtection/enabled", "false"},
 	    {"module::Registrar/reg-domains", "sip.example.org"},
@@ -76,50 +77,43 @@ void basicSubscription() {
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	}};
 
-	// RegEvent Server
-	const auto linFactory = Factory::get();
-	const auto regEventCore = tester::minimalCore(*linFactory);
-	{
-		const auto& transports = regEventCore->getTransports();
-		transports->setTcpPort(LC_SIP_TRANSPORT_RANDOM);
-		regEventCore->setTransports(transports);
-	}
-	auto& regDb = proxy.getRegistrarDb();
-	regEventCore->addListener(make_shared<flexisip::RegistrationEvent::Server::Subscriptions>(regDb));
-	regEventCore->start();
-	const auto& confMan = proxy.getConfigManager();
-	confMan->getRoot()
-	    ->get<GenericStruct>("module::RegEvent")
-	    ->get<ConfigValue>("regevent-server")
-	    ->set("sip:127.0.0.1:"s + to_string(regEventCore->getTransportsUsed()->getTcpPort()) + ";transport=tcp");
-	proxy.start();
-	// Client initialisation
-	const auto client = ClientBuilder(*proxy.getAgent())
-	                        .setConferenceFactoryAddress(linFactory->createAddress(confFactoryUri))
-	                        .build("sip:test@sip.example.org");
 	const auto& agent = *proxy.getAgent();
+	const auto& registrarDb = proxy.getRegistrarDb();
+	const auto& confMan = proxy.getConfigManager();
+
+	RegEventServer regEvent{registrarDb};
+	proxy.setConfigParameter({"module::RegEvent/regevent-server", regEvent.getTransport().str()});
+	proxy.start();
+	TestConferenceServer conferenceServer(agent, confMan, registrarDb);
+
+	// Client initialisation
+	const auto client = ClientBuilder(agent)
+	                        .setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri))
+	                        .build("sip:test@sip.example.org");
 
 	// Conference Server
-	TestConferenceServer conferenceServer(agent, confMan, regDb);
-	ContactInserter inserter{*regDb, std::make_shared<AcceptUpdatesListener>()};
+	ContactInserter inserter{*registrarDb, std::make_shared<AcceptUpdatesListener>()};
 	const string participantFrom = "sip:participant1@localhost";
-	const Record::Key participantTopic{SipUri(participantFrom), regDb->useGlobalDomain()};
-	const auto participantAddress = linFactory->createAddress(participantFrom);
+	const Record::Key participantTopic{SipUri(participantFrom), registrarDb->useGlobalDomain()};
+	const auto participantAddress = linphone::Factory::get()->createAddress(participantFrom);
 	const string otherParticipantFrom = "sip:participant2@localhost";
-	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), regDb->useGlobalDomain()};
+	const Record::Key otherParticipantTopic{SipUri(otherParticipantFrom), registrarDb->useGlobalDomain()};
 	// Fill the Registrar DB with participants
 	inserter.withGruu(true)
 	    .setExpire(1000s)
 	    .setContactParams({R"(+org.linphone.specs="ephemeral/1.1,groupchat/1.2,lime")"})
 	    .setAor(participantFrom)
-	    .insert({.uniqueId = "ubuntu"})
+	    .insert({.uniqueId = "device-a"})
 	    .setAor(otherParticipantFrom)
-	    .insert({.uniqueId = "redhat"})
-	    .insert({.uniqueId = "debian"});
+	    .insert({.uniqueId = "device-b"})
+	    .insert({.uniqueId = "device-c"});
 
 	const auto chatRoom = client.chatroomBuilder()
 	                          .setSubject("reg-event-test")
-	                          .build({participantAddress, linFactory->createAddress(otherParticipantFrom)});
+	                          .build({
+	                              participantAddress,
+	                              linphone::Factory::get()->createAddress(otherParticipantFrom),
+	                          });
 
 	const auto totalDevicesCount = [&chatRoom]() {
 		auto count = size_t(0);
@@ -129,9 +123,9 @@ void basicSubscription() {
 		return count;
 	};
 
-	CoreAssert asserter{client, regEventCore, agent};
+	CoreAssert asserter{client, regEvent.getCore(), agent};
 	asserter.iterateUpTo(0x20, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() >= 3); })
-	    .assert_passed();
+	    .hard_assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -145,39 +139,40 @@ void basicSubscription() {
 	}
 
 	// Let's add a new device.
-	inserter.insert({.uniqueId = "new-device"});
-	regDb->publish(otherParticipantTopic, "");
+	inserter.insert({.uniqueId = "device-d"});
+	registrarDb->publish(otherParticipantTopic, "");
 	asserter
 	    .iterateUpTo(
 	        7, [&totalDevicesCount] { return LOOP_ASSERTION(4 <= totalDevicesCount()); }, 1s)
-	    .assert_passed();
+	    .hard_assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
 		const auto& secondParticipantDevices = participants.back()->getDevices();
 		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.size(), 3);
-		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "new-device");
+		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "device-d");
 	}
 
 	// Remove a device.
-	inserter.setExpire(0s).insert({.uniqueId = "new-device"});
-	regDb->publish(otherParticipantTopic, "");
+	inserter.setExpire(0s).insert({.uniqueId = "device-d"});
+	registrarDb->publish(otherParticipantTopic, "");
 	asserter
 	    .iterateUpTo(
 	        10, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }, 1s)
-	    .assert_passed();
+	    .hard_assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
 		const auto& secondParticipantDevices = participants.back()->getDevices();
 		BC_ASSERT_CPP_EQUAL(secondParticipantDevices.size(), 2);
-		BC_ASSERT_CPP_NOT_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "new-device");
+		BC_ASSERT_CPP_NOT_EQUAL(secondParticipantDevices.back()->getAddress()->getUriParam("gr"), "device-d");
 	}
 
 	// Remove the last device of a participant.
-	regDb->clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
-	regDb->publish(participantTopic, "");
-	asserter.iterateUpTo(3, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 2); }).assert_passed();
+	registrarDb->clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
+	registrarDb->publish(participantTopic, "");
+	asserter.iterateUpTo(3, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 2); })
+	    .hard_assert_passed();
 
 	{
 		const auto participants = chatRoom->getParticipants();
@@ -188,27 +183,28 @@ void basicSubscription() {
 	}
 
 	// Remove participant from chatroom, check that corresponding topic is unsubscribed on the "remote" Register.
-	const auto& onRegisterListeners = regDb->getOnContactRegisteredListeners();
+	const auto& onRegisterListeners = registrarDb->getOnContactRegisteredListeners();
 	BC_ASSERT_TRUE(onRegisterListeners.find(participantTopic.asString()) != onRegisterListeners.end());
 	chatRoom->removeParticipant(chatRoom->findParticipant(participantAddress));
 	asserter
 	    .iterateUpTo(3,
-	                 [&regDb, &participantTopic, &onRegisterListeners] {
-		                 // Trigger regDb listeners cleanup.
-		                 regDb->publish(participantTopic, "");
+	                 [&registrarDb, &participantTopic, &onRegisterListeners] {
+		                 // Trigger registrarDb listeners cleanup.
+		                 registrarDb->publish(participantTopic, "");
 		                 FAIL_IF(onRegisterListeners.find(participantTopic.asString()) != onRegisterListeners.end());
 		                 return ASSERTION_PASSED();
 	                 })
-	    .assert_passed();
+	    .hard_assert_passed();
 
 	// Reroute everything locally on the Conference Server.
 	conferenceServer.clearLocalDomainList();
 
 	// Add a new participant.
-	const string participantRebindFrom = "sip:participant_re_bind@localhost";
-	inserter.setExpire(10s).setAor(participantRebindFrom).insert({.uniqueId = "re-ubuntu"});
-	chatRoom->addParticipant(linFactory->createAddress(participantRebindFrom));
-	asserter.iterateUpTo(8, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }).assert_passed();
+	const string participantRebindFrom{"sip:participant_re_bind@localhost"};
+	inserter.setExpire(10s).setAor(participantRebindFrom).insert({.uniqueId = "re-device-a"});
+	chatRoom->addParticipant(linphone::Factory::get()->createAddress(participantRebindFrom));
+	asserter.iterateUpTo(8, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); })
+	    .hard_assert_passed();
 
 	// Check if the participant was still added (locally).
 	const auto participants = chatRoom->getParticipants();
@@ -218,11 +214,285 @@ void basicSubscription() {
 	BC_ASSERT_CPP_EQUAL(newParticipant.getDevices().size(), 1);
 }
 
+/**
+ * Tool for simulating a subscriber to a topic in the registrarDb.
+ */
+struct Subscriber {
+	explicit Subscriber(const SipUri& aor, nta_message_f* onResponse, Random::StringGenerator& rsg)
+	    : mSuRoot(make_shared<sofiasip::SuRoot>()), mClient(mSuRoot,
+	                                                        "sip:" + aor.getUser() + "@127.0.0.1:0;transport=tcp",
+	                                                        onResponse,
+	                                                        reinterpret_cast<nta_agent_magic_t*>(this)),
+	      mAor(aor.str()), mUri("sip:" + aor.getUser() + "@127.0.0.1:" + mClient.getFirstPort() + ";transport=tcp"),
+	      mCallId(rsg.generate(10)), mFromTag(rsg.generate(10)), mTotalNotifyReceived(0), mToHeader(), mEvent("reg"),
+	      mAccept("application/reginfo+xml") {
+	}
+
+	shared_ptr<sofiasip::NtaOutgoingTransaction> subscribe(string_view to, string_view destUri) {
+		auto request = make_unique<MsgSip>();
+		request->makeAndInsert<SipHeaderRequest>(sip_method_subscribe, to);
+		request->makeAndInsert<SipHeaderFrom>(mAor, mFromTag);
+		request->makeAndInsert<SipHeaderTo>(to);
+		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_subscribe);
+		request->insertHeader(SipHeaderCallID{mCallId});
+		request->makeAndInsert<SipHeaderMaxForwards>(70u);
+		request->makeAndInsert<SipHeaderEvent>(mEvent);
+		request->makeAndInsert<SipHeaderExpires>(10);
+		request->makeAndInsert<SipHeaderContact>("<"s + mUri + ">");
+		request->makeAndInsert<SipHeaderUserAgent>("NtaAgent-for-Flexisip-regression-tests");
+		request->makeAndInsert<SipHeaderAccept>(mAccept);
+		return mClient.createOutgoingTransaction(std::move(request), destUri);
+	}
+
+	shared_ptr<sofiasip::NtaOutgoingTransaction> unsubscribe(string_view to, string_view destUri) {
+		auto request = make_unique<MsgSip>();
+		request->makeAndInsert<SipHeaderRequest>(sip_method_subscribe, to);
+		request->makeAndInsert<SipHeaderFrom>(mAor, mFromTag);
+		request->makeAndInsert<SipHeaderTo>(mToHeader);
+		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_subscribe);
+		request->insertHeader(SipHeaderCallID{mCallId});
+		request->makeAndInsert<SipHeaderMaxForwards>(70u);
+		request->makeAndInsert<SipHeaderEvent>(mEvent);
+		request->makeAndInsert<SipHeaderExpires>(0);
+		request->makeAndInsert<SipHeaderContact>("<"s + mUri + ">");
+		request->makeAndInsert<SipHeaderUserAgent>("NtaAgent-for-Flexisip-regression-tests");
+		request->makeAndInsert<SipHeaderAccept>(mAccept);
+		return mClient.createOutgoingTransaction(std::move(request), destUri);
+	}
+
+	shared_ptr<sofiasip::SuRoot> mSuRoot;
+	NtaAgent mClient;
+	string mAor;
+	string mUri;
+	SipHeaderCallID mCallId;
+	string mFromTag;
+	int mTotalNotifyReceived;
+	string mToHeader;
+	string mEvent;
+	string mAccept;
+};
+
+void wrongEventHeaderInSubscribeRequest() {
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	const string aorOfInterest{"sip:aor-of-interest@sip.example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+
+	RegEventServer regEvent{registrarDb};
+
+	Subscriber subscriber{SipUri{"sip:subscriber@sip.example.org"}, nullptr, rsg};
+	subscriber.mEvent = "wrong-event";
+	const auto subscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, regEvent.getTransport().str());
+
+	CoreAssert{regEvent.getCore(), suRoot, subscriber.mSuRoot}
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriber->getStatus() != 489);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 0);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
+void wrongAcceptHeaderInSubscribeRequest() {
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	const string aorOfInterest{"sip:aor-of-interest@sip.example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+
+	RegEventServer regEvent{registrarDb};
+
+	Subscriber subscriber{SipUri{"sip:subscriber@sip.example.org"}, nullptr, rsg};
+	subscriber.mAccept = "wrong-accept";
+	const auto subscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, regEvent.getTransport().str());
+
+	CoreAssert{regEvent.getCore(), suRoot, subscriber.mSuRoot}
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriber->getStatus() != 488);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 0);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
+/**
+ * Test NOTIFY requests receipt when two subscribers are subscribing to the same topic.
+ */
+void multipleSubscribersToOneRecordKey() {
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	const string aorOfInterest{"sip:aor-of-interest@sip.example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+
+	// Fill the Registrar DB with a topic ('AOR of interest').
+	ContactInserter inserter{*registrarDb, make_shared<AcceptUpdatesListener>()};
+	const auto deviceId = rsg.generate(25);
+	inserter.withGruu(true).setExpire(10s).setAor(aorOfInterest).insert({.uniqueId = deviceId});
+
+	RegEventServer regEvent{registrarDb};
+	const auto regEventUri = regEvent.getTransport().str();
+
+	const auto onSubscriberResponse = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		auto* subscriber = reinterpret_cast<Subscriber*>(magic);
+
+		if (sip->sip_request and sip->sip_request->rq_method == sip_method_notify) subscriber->mTotalNotifyReceived++;
+
+		if (subscriber->mToHeader.empty()) {
+			sofiasip::Home home{};
+			subscriber->mToHeader =
+			    "<"s + url_as_string(home.home(), sip->sip_from->a_url) + ">;tag=" + sip->sip_from->a_tag;
+		}
+
+		nta_msg_treply(agent, msg, 200, "Notification received", TAG_END());
+		return 0;
+	};
+
+	Subscriber subscriber{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	const auto subscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, regEventUri);
+	Subscriber otherSubscriber{SipUri{"sip:other-subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	const auto subscriptionFromOtherSubscriber = otherSubscriber.subscribe(aorOfInterest, regEventUri);
+
+	CoreAssert asserter{regEvent.getCore(), suRoot, subscriber.mSuRoot, otherSubscriber.mSuRoot};
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 1);
+		        FAIL_IF(!subscriptionFromOtherSubscriber->isCompleted());
+		        FAIL_IF(subscriptionFromOtherSubscriber->getStatus() != 200);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Add a new device to 'AOR of interest'.
+	const auto newDeviceId = rsg.generate(25);
+	inserter.insert({.uniqueId = newDeviceId});
+	registrarDb->publish(topic, "");
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 2);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Replace subscription from 'subscriber' to topic.
+	const auto newSubscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, regEventUri);
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!newSubscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(newSubscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Unsubscribe 'subscriber' from topic.
+	const auto unsubscriptionFromSubscriber = subscriber.unsubscribe(aorOfInterest, regEventUri);
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!unsubscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(unsubscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Remove a device from 'AOR of interest'.
+	inserter.setExpire(0s).insert({.uniqueId = newDeviceId});
+	registrarDb->publish(topic, "");
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 3);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Unsubscribe 'other-subscriber' from topic.
+	const auto unsubscriptionFromOtherSubscriber = otherSubscriber.unsubscribe(aorOfInterest, regEventUri);
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(!unsubscriptionFromOtherSubscriber->isCompleted());
+		        FAIL_IF(unsubscriptionFromOtherSubscriber->getStatus() != 200);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 3);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Remove last device of 'AOR of interest'.
+	inserter.setExpire(0s).insert({.uniqueId = deviceId});
+	registrarDb->publish(topic, "");
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 3);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
 namespace {
 
 TestSuite _("regevent",
             {
                 CLASSY_TEST(basicSubscription),
+                CLASSY_TEST(wrongEventHeaderInSubscribeRequest),
+                CLASSY_TEST(wrongAcceptHeaderInSubscribeRequest),
+                CLASSY_TEST(multipleSubscribersToOneRecordKey),
             });
 
 }

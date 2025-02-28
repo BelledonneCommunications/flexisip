@@ -35,107 +35,35 @@ using namespace flexisip::Xsd::XmlSchema;
 
 namespace flexisip::RegistrationEvent {
 
-void Server::Subscriptions::onSubscribeReceived(const shared_ptr<Core>& core,
-                                                const shared_ptr<linphone::Event>& event,
-                                                const string&,
-                                                const shared_ptr<const Content>&) {
-	const auto eventHeader = event->getName();
-	if (eventHeader != "reg") {
-		LOGI << "Rejected: 'Event' header value is not set to 'reg'";
-		event->denySubscription(Reason::BadEvent);
-		return;
-	}
-
-	const auto acceptHeader = event->getCustomHeader("Accept");
-	if (acceptHeader != Server::kContentType) {
-		LOGI << "Rejected: 'Accept' header value is not set to '" << Server::kContentType << "'";
-		event->denySubscription(Reason::NotAcceptable);
-		return;
-	}
-
-	SipUri toUri{};
-	try {
-		toUri = SipUri(event->getTo()->asStringUriOnly());
-	} catch (const exception& exception) {
-		LOGI << "Rejected: invalid URI in 'To' header (" << exception.what() << ")";
-		event->denySubscription(Reason::AddressIncomplete);
-		return;
-	}
-
-	const auto result = mEvents.emplace(Record::Key(toUri, mRegistrarDb->useGlobalDomain()).toString(), event);
-	if (!result.second) {
-		LOGI << "There is already a subscription for: " << result.first->first;
-		event->denySubscription(Reason::Busy);
-		return;
-	}
-
-	// Accept the subscription to be able to notify it.
-	event->acceptSubscription();
-
-	// We need the core to send the NOTIFY (and to hold a pointer on this instance).
-	// So we pass it as the callback to make sure it lives long enough.
-	mRegistrarDb->fetch(toUri, {core, this}, true);
-
-	// Subscribe takes a weak_ptr.
-	// Passing it the event itself lets us to automatically unsubscribe by deleting the event.
-	mRegistrarDb->subscribe(Record::Key(toUri, mRegistrarDb->useGlobalDomain()),
-	                        shared_ptr<ContactRegisteredListener>{event, this});
+Server::Subscription::Subscription(const std::shared_ptr<linphone::Event>& event) : mEvent(event) {
 }
 
-void Server::Subscriptions::onSubscriptionStateChanged(const shared_ptr<linphone::Core>&,
-                                                       const shared_ptr<linphone::Event>& event,
-                                                       linphone::SubscriptionState state) {
-	switch (state) {
-		case linphone::SubscriptionState::Terminated: {
-			SipUri toUri{};
-			try {
-				toUri = SipUri(event->getTo()->asStringUriOnly());
-			} catch (const exception& exception) {
-				LOGI << "Subscription terminated: invalid URI in 'To' header (" << exception.what() << ")";
-				return;
-			}
-
-			mEvents.erase(Record::Key(toUri, mRegistrarDb->useGlobalDomain()).toString());
-		} break;
-		default:
-			break;
-	}
-}
-
-void Server::Subscriptions::onRecordFound(const shared_ptr<Record>& record) {
+void Server::Subscription::onRecordFound(const shared_ptr<Record>& record) {
 	processRecord(record, "");
 }
 
-void Server::Subscriptions::onError(const flexisip::SipStatus&) {
+void Server::Subscription::onError(const flexisip::SipStatus&) {
 }
 
-void Server::Subscriptions::onInvalid(const flexisip::SipStatus&) {
+void Server::Subscription::onInvalid(const flexisip::SipStatus&) {
 }
 
-void Server::Subscriptions::onContactUpdated(const std::shared_ptr<ExtendedContact>&) {
+void Server::Subscription::onContactUpdated(const std::shared_ptr<ExtendedContact>&) {
 }
 
-void Server::Subscriptions::onContactRegistered(const shared_ptr<Record>& record,
-                                                const string& uidOfFreshlyRegistered) {
+void Server::Subscription::onContactRegistered(const shared_ptr<Record>& record, const string& uidOfFreshlyRegistered) {
 	processRecord(record, uidOfFreshlyRegistered);
 }
 
-void Server::Subscriptions::processRecord(const shared_ptr<Record>& record, const string& uidOfFreshlyRegistered) {
+void Server::Subscription::processRecord(const shared_ptr<Record>& record, const string& uidOfFreshlyRegistered) {
 	if (!record) {
 		LOGI << "Ignoring registration notification: record pointer is empty";
 		return;
 	}
 
 	const auto& aor = record->getKey().asString();
-	const auto maybeEvent = mEvents.find(aor);
-	if (maybeEvent == mEvents.end()) {
-		LOGI << "Ignoring registration of a AOR no one is subscribed to: " << aor;
-		return;
-	}
-
-	auto& event = *maybeEvent->second;
 	Reginfo registrationInfo{0, State::Value::full};
-	Registration registration{Uri(event.getTo()->asString().c_str()), aor.c_str(), Registration::StateType::active};
+	Registration registration{Uri(mEvent->getTo()->asString().c_str()), aor.c_str(), Registration::StateType::active};
 	sofiasip::Home home{};
 
 	for (const auto& ec : record->getExtendedContacts()) {
@@ -193,7 +121,127 @@ void Server::Subscriptions::processRecord(const shared_ptr<Record>& record, cons
 	notifyContent->setType("application");
 	notifyContent->setSubtype("reginfo+xml");
 
-	event.notify(notifyContent);
+	mEvent->notify(notifyContent);
+}
+
+std::shared_ptr<linphone::Event> Server::Subscription::getEvent() const {
+	return mEvent;
+}
+
+Server::Application::Application(const std::shared_ptr<RegistrarDb>& registrarDb)
+    : mRegistrarDb(registrarDb), mSubscriptions() {
+}
+
+void Server::Application::onSubscribeReceived(const shared_ptr<Core>&,
+                                              const shared_ptr<linphone::Event>& event,
+                                              const string&,
+                                              const shared_ptr<const Content>&) {
+	LOGD << "Received new Subscription[event=" << event << "]";
+
+	const auto eventHeader = event->getName();
+	if (eventHeader != "reg") {
+		LOGI << "Rejected: 'Event' header value is not set to 'reg'";
+		event->denySubscription(Reason::BadEvent);
+		return;
+	}
+
+	const auto acceptHeader = event->getCustomHeader("Accept");
+	if (acceptHeader != Server::kContentType) {
+		LOGI << "Rejected: 'Accept' header value is not set to '" << Server::kContentType << "'";
+		event->denySubscription(Reason::NotAcceptable);
+		return;
+	}
+
+	SipUri toUri{};
+	try {
+		toUri = SipUri(event->getTo()->asStringUriOnly());
+	} catch (const exception& exception) {
+		LOGI << "Rejected: invalid URI in 'To' header (" << exception.what() << ")";
+		event->denySubscription(Reason::AddressIncomplete);
+		return;
+	}
+
+	const auto recordKey = Record::Key(toUri, mRegistrarDb->useGlobalDomain());
+	const auto fromUri = event->getFromAddress()->asStringUriOnly();
+
+	// Iterator to the record key in the subscriptions map.
+	auto recordKeyIt = mSubscriptions.insert({recordKey.asString(), {}}).first;
+
+	auto& subscriptions = recordKeyIt->second;
+	const auto subscriptionIt =
+	    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
+		    return subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri;
+	    });
+
+	// If subscriber already exists, replace the old subscription with the new one.
+	if (subscriptionIt != subscriptions.end()) {
+		LOGD << "Replacing Subscription[event=" << (*subscriptionIt)->getEvent() << "] from '" << fromUri
+		     << "' to record key '" << recordKey.asString() << "'";
+		subscriptions.erase(subscriptionIt);
+	}
+	subscriptions.emplace_back(make_shared<Subscription>(event));
+	LOGD << "Added Subscription[event=" << event << "] from '" << fromUri << "' to record key '" << recordKey.asString()
+	     << "'";
+
+	LOGD << "Record key '" << recordKey.asString() << "' has " << subscriptions.size() << " subscriptions";
+
+	// Accept the subscription to be able to notify it.
+	event->acceptSubscription();
+
+	mRegistrarDb->fetch(toUri, subscriptions.back(), true);
+	mRegistrarDb->subscribe(recordKey, subscriptions.back());
+}
+
+void Server::Application::onSubscriptionStateChanged(const shared_ptr<linphone::Core>&,
+                                                     const shared_ptr<linphone::Event>& event,
+                                                     linphone::SubscriptionState state) {
+	LOGD << "Subscription[event=" << event << "] state changed to " << static_cast<int>(state);
+
+	switch (state) {
+		case linphone::SubscriptionState::Terminated: {
+			SipUri toUri{};
+			try {
+				toUri = SipUri(event->getTo()->asStringUriOnly());
+			} catch (const exception& exception) {
+				LOGI << "Subscription[event=" << event << "] terminated: invalid URI in 'To' header ("
+				     << exception.what() << ")";
+				return;
+			}
+
+			const auto recordKey = Record::Key(toUri, mRegistrarDb->useGlobalDomain()).toString();
+			if (mSubscriptions.find(recordKey) == mSubscriptions.end()) {
+				LOGD << "Subscription[event=" << event
+				     << "] terminated: nothing to do as there is no subscription to record key '" << recordKey << "'";
+				return;
+			}
+
+			// Remove subscription for current fromUri.
+			auto& subscriptions = mSubscriptions[recordKey];
+			const auto fromUri = event->getFromAddress()->asStringUriOnly();
+			const auto subscriptionIt =
+			    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
+				    return subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri;
+			    });
+
+			if (subscriptionIt != subscriptions.end()) {
+				subscriptions.erase(subscriptionIt);
+				LOGD << "Removed Subscription[event=" << event << "] from '" << fromUri << "' to record key '"
+				     << recordKey << "'";
+			} else {
+				LOGD << "Tried to remove Subscription[event=" << event << "] to '" << recordKey
+				     << "' but event pointer was not found in the subscriptions vector";
+			}
+
+			// Remove key if there are no more subscriptions to it.
+			if (mSubscriptions[recordKey].empty()) {
+				mSubscriptions.erase(recordKey);
+				LOGI << "Removed record key '" << recordKey
+				     << "' from subscriptions map (no more active subscriptions)";
+			}
+		} break;
+		default:
+			break;
+	}
 }
 
 void Server::_init() {
@@ -206,7 +254,7 @@ void Server::_init() {
 	configuration_utils::configureTransport(transports, transportParameter, {"tcp"});
 
 	mCore->setTransports(transports);
-	mCore->addListener(make_shared<Subscriptions>(mRegistrarDb));
+	mCore->addListener(make_shared<Application>(mRegistrarDb));
 	mCore->start();
 }
 

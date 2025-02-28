@@ -80,6 +80,13 @@ public:
 
 	virtual ~Server();
 
+	/**
+	 * Set value of provided parameter in the configuration manager.
+	 *
+	 * @param parameter new parameter to set (format: {"section/parameter", "value"})
+	 */
+	void setConfigParameter(const std::pair<std::string, std::string>& parameter);
+
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept {
 		return mAgent->getRoot();
 	}

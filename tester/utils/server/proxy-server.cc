@@ -103,20 +103,9 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 	config.merge(map<string, string>{// Requesting bind on port 0 to let the kernel find any available port
 	                                 {"global/transports", "sip:127.0.0.1:0"},
 	                                 {"module::Registrar/reg-domains", "*.example.org"}});
-	for (const auto& kv : config) {
-		const auto& key = kv.first;
-		const auto& value = kv.second;
-		auto slashPos = key.find('/');
-		if (slashPos == decay_t<decltype(key)>::npos) {
-			throw invalid_argument{"missing '/' in parameter name [" + key + "]"};
-		}
-		if (slashPos == key.size() - 1) {
-			throw invalid_argument{"invalid parameter name [" + key + "]: forbidden ending '/'"};
-		}
-		auto sectionName = key.substr(0, slashPos);
-		auto parameterName = key.substr(slashPos + 1);
-		mConfigManager->getRoot()->get<GenericStruct>(sectionName)->get<ConfigValue>(parameterName)->set(value);
-	}
+
+	for (const auto& kv : config)
+		setConfigParameter(kv);
 
 	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
@@ -125,6 +114,21 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 
 Server::~Server() {
 	mAgent->unloadConfig();
+}
+
+void Server::setConfigParameter(const std::pair<std::string, std::string>& parameter) {
+	const auto& key = parameter.first;
+	const auto& value = parameter.second;
+	auto slashPos = key.find('/');
+	if (slashPos == decay_t<decltype(key)>::npos) {
+		throw invalid_argument{"missing '/' in parameter name [" + key + "]"};
+	}
+	if (slashPos == key.size() - 1) {
+		throw invalid_argument{"invalid parameter name [" + key + "]: forbidden ending '/'"};
+	}
+	auto sectionName = key.substr(0, slashPos);
+	auto parameterName = key.substr(slashPos + 1);
+	mConfigManager->getRoot()->get<GenericStruct>(sectionName)->get<ConfigValue>(parameterName)->set(value);
 }
 
 void Server::runFor(std::chrono::milliseconds duration) {

@@ -31,16 +31,30 @@ namespace flexisip::RegistrationEvent {
 
 class Server : public ServiceServer {
 public:
-	class Subscriptions : public linphone::CoreListener,
-	                      public ContactRegisteredListener,
-	                      public ContactUpdateListener {
+	class Subscription : public ContactRegisteredListener, public ContactUpdateListener {
 	public:
-		explicit Subscriptions(const std::shared_ptr<RegistrarDb>& registrarDb) : mRegistrarDb{registrarDb}, mEvents() {
-		}
+		explicit Subscription(const std::shared_ptr<linphone::Event>& event);
+
+		void onRecordFound(const std::shared_ptr<Record>& r) override;
+		void onError(const SipStatus&) override;
+		void onInvalid(const SipStatus&) override;
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override;
+
+		void onContactRegistered(const std::shared_ptr<Record>&, const std::string&) override;
+
+		void processRecord(const std::shared_ptr<Record>&, const std::string&);
+
+		std::shared_ptr<linphone::Event> getEvent() const;
 
 	private:
-		static constexpr std::string_view mLogPrefix{"Subscriptions"};
+		std::shared_ptr<linphone::Event> mEvent;
+	};
 
+	class Application : public linphone::CoreListener {
+	public:
+		explicit Application(const std::shared_ptr<RegistrarDb>& registrarDb);
+
+	private:
 		void onSubscribeReceived(const std::shared_ptr<linphone::Core>&,
 		                         const std::shared_ptr<linphone::Event>&,
 		                         const std::string&,
@@ -49,17 +63,8 @@ public:
 		                                const std::shared_ptr<linphone::Event>&,
 		                                linphone::SubscriptionState) override;
 
-		void onRecordFound(const std::shared_ptr<Record>& r) override;
-		void onError(const SipStatus&) override;
-		void onInvalid(const SipStatus&) override;
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override;
-
-		void onContactRegistered(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered) override;
-
-		void processRecord(const std::shared_ptr<Record>&, const std::string& uidOfFreshlyRegistered);
-
 		std::shared_ptr<RegistrarDb> mRegistrarDb;
-		std::unordered_map<std::string, std::shared_ptr<linphone::Event>> mEvents;
+		std::unordered_map<std::string, std::vector<std::shared_ptr<Subscription>>> mSubscriptions;
 	};
 
 	template <typename SuRootPtr>
