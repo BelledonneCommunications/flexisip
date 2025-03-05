@@ -187,7 +187,7 @@ void Server::_init() {
 	mCore = Factory::get()->createCore("", "", nullptr);
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
 
-	mCore->getConfig()->setString("storage", "uri", "null");
+	mCore->enableDatabase(false);
 
 	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
 	string mTransport = config->get<ConfigString>("transport")->read();
