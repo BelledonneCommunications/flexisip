@@ -190,6 +190,8 @@ void Server::_init() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
 
 	mCore->getConfig()->setString("storage", "uri", "null");
+	mCore->getConfig()->setString("storage", "call_logs_db_uri", "null");
+	mCore->getConfig()->setString("storage", "zrtp_secrets_db_uri", "null");
 
 	shared_ptr<Transports> regEventTransport = Factory::get()->createTransports();
 	string mTransport = config->get<ConfigString>("transport")->read();
