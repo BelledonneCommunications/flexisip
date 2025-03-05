@@ -15,9 +15,19 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.4.1]
+### [Added]
+- **B2BUA, Conference, Presence, Proxy, RegEvent:** periodically log the server memory usage (on Linux and with debug
+  log level).
+
 ### [Fixed]
+- **B2BUA, Conference, Presence, Proxy, RegEvent:** error in Flexisip startup phase (daemon mode) caused the watchdog process to freeze
+- **RegEvent:** server did not support several subscriptions to the same record key
+- **RegEvent:** not disabling call-logs and zrtp-secrets DBs caused crash at init
+- **Sofia-SIP:** idle-timeout was not set in TLS connections if no message was received
+- **Proxy:** invalid P-Preferred-Identity could lead to crash
+- **B2BUA, Conference, Presence, Proxy, RegEvent:** watchdog logs could not be printed into journald
 - **Conference server:** compatibility issue between conference server using linphone-SDK 5.3 and clients using linphone-SDK 5.4.
-- **Proxy**: drastically improved performances when retrieving undelivered chat messages from the database at startup.
+- **Proxy:** drastically improved performances when retrieving undelivered chat messages from the database at startup.
 
 ## [2.4.0] - 2025-01-30
 ### [Added]
