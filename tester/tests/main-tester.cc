@@ -61,7 +61,7 @@ void callAndStopMain() {
 		// if not, it could destruct objects of the parent process.
 		int returnValue = EXIT_FAILURE;
 		try {
-			returnValue = _main(args.size(), args.data(), ::move(pipeReady));
+			returnValue = flexisip::main(args.size(), args.data(), ::move(pipeReady));
 		} catch (const exception& e) {
 			SLOGE << "Unexpected exception while running main: " << e.what();
 		}
@@ -71,12 +71,12 @@ void callAndStopMain() {
 
 	// Main process:
 	// Check that flexisip started, stop it and check that it exited cleanly
-	auto res = pipe::ReadOnly(::move(pipeReady)).readUntilDataReceptionOrTimeout(sizeof("ok"), 5s);
+	auto res = pipe::ReadOnly(::move(pipeReady)).readUntilDataReceptionOrTimeout(startup::kMessageSize, 5s);
 	if (holds_alternative<TimeOut>(res)) {
 		// Flexisip not started or failed, kill it to be sure that no process is left running
 		::kill(childPid, SIGKILL);
 	}
-	BC_ASSERT_CPP_EQUAL(EXPECT_VARIANT(string).in(res), "ok");
+	BC_ASSERT_CPP_EQUAL(EXPECT_VARIANT(string).in(res), startup::kSuccessMessage);
 
 	// Short wait to ensure that main loop starts
 	this_thread::sleep_for(0.5s);

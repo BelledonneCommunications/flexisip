@@ -27,6 +27,15 @@
 #include "flexisip-config.h"
 #endif
 
-using namespace flexisip;
+namespace flexisip {
 
-int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe = std::nullopt);
+namespace startup {
+
+static constexpr auto* kSuccessMessage{"success"};
+static constexpr size_t kMessageSize{7};
+
+} // namespace startup
+
+int main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe = std::nullopt);
+
+} // namespace flexisip

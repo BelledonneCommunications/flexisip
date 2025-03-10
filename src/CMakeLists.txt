@@ -80,8 +80,7 @@ add_library(flexisip SHARED
 	lib/nlohmann-json-3-11-2/json.hpp
 	log/logmanager.cc
 	lpconfig.cc
-	main/flexisip.cc
-	main/flexisip.hh
+	main/flexisip.cc main/flexisip.hh
 	mediarelay.cc mediarelay.hh
 	module-auth.cc
 	module-authentication-base.cc
@@ -106,7 +105,6 @@ add_library(flexisip SHARED
 	module-toolbox.cc module-toolbox.hh
 	module-transcode.cc module-transcode.hh
 	module.cc
-	monitor.cc monitor.hh
 	nat/contact-correction-strategy.cc nat/contact-correction-strategy.hh
 	nat/flow-token-strategy.cc nat/flow-token-strategy.hh
 	nat/nat-traversal-strategy.hh nat/nat-traversal-strategy.cc

@@ -224,6 +224,10 @@ public:
 		mReopenRequired = true;
 	}
 
+	bool isInitialized() const {
+		return mInitialized;
+	}
+
 	// Public class methods
 	static LogManager& get();
 
@@ -231,7 +235,7 @@ private:
 	// Private ctor
 	LogManager() = default;
 
-    static constexpr std::string_view mLogPrefix{"LogManager"};
+	static constexpr std::string_view mLogPrefix{"LogManager"};
 
 	// Private methods
 	void setCurrentContext(const SipLogContext& ctx);

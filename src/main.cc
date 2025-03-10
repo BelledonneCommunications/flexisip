@@ -23,29 +23,44 @@
 #include "main/flexisip.hh"
 
 using namespace std;
-using namespace flexisip;
 
 int main(int argc, const char* argv[]) {
+	/**
+	 * Log message using provided level if the LogManager is initialized, otherwise log to stdout or stderr.
+	 */
+	static const auto log = [](BctbxLogLevel level, string_view message) {
+		if (flexisip::LogManager::get().isInitialized()) STREAM_LOG(level) << message;
+		else switch (level) {
+				case BCTBX_LOG_ERROR:
+					cerr << message << '\n';
+					break;
+				case BCTBX_LOG_DEBUG:
+				default:
+					cout << message << '\n';
+					break;
+			}
+	};
+
 	try {
-		return _main(argc, argv);
+		return flexisip::main(argc, argv);
 	} catch (const TCLAP::ExitException& exception) {
 		// Exception raised when the program failed to correctly parse command line options.
 		return exception.getExitStatus();
-	} catch (const ExitSuccess& exception) {
-		if (exception.what() != nullptr && exception.what()[0] != '\0') {
-			LOGD_CTX("Main") << "Exit success: " << exception.what();
-		}
+	} catch (const flexisip::ExitSuccess& exception) {
+		if (exception.what() != nullptr && exception.what()[0] != '\0')
+			log(BCTBX_LOG_DEBUG, "Exit success: "s + exception.what());
+
 		return EXIT_SUCCESS;
-	} catch (const Exit& exception) {
-		if (exception.what() != nullptr && exception.what()[0] != '\0') {
-			LOGD_CTX("Main") << "Exit failure: " << exception.what();
-		}
+	} catch (const flexisip::Exit& exception) {
+		if (exception.what() != nullptr && exception.what()[0] != '\0')
+			log(BCTBX_LOG_ERROR, "Exit failure: "s + exception.what());
+
 		return exception.code();
 	} catch (const exception& exception) {
-		cerr << "Error, caught an unexpected exception: " << exception.what() << endl;
+		log(BCTBX_LOG_ERROR, "Error, caught an unexpected exception: "s + exception.what());
 		return EXIT_FAILURE;
 	} catch (...) {
-		cerr << "Error, caught an unknown exception" << endl;
+		log(BCTBX_LOG_ERROR, "Error, caught an unknown exception");
 		return EXIT_FAILURE;
 	}
 }

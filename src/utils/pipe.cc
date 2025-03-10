@@ -68,26 +68,29 @@ variant<string, TimeOut, SysErr> ReadOnly::readUntilDataReceptionOrTimeout(size_
 	FD_SET(mDesc, &fileDescriptorSet);
 
 	const auto timeoutS = chrono::duration_cast<chrono::seconds>(timeoutMs);
-	struct timeval timeout;
+	struct timeval timeout {};
 	timeout.tv_sec = timeoutS.count();
 	timeout.tv_usec = (timeoutMs - timeoutS).count();
 
-	int ret = select(mDesc + 1, &fileDescriptorSet, NULL, NULL, &timeout);
+	int ret = select(mDesc + 1, &fileDescriptorSet, nullptr, nullptr, &timeout);
 	if (ret == 0) return TimeOut{timeoutMs};
 	if (ret < 0) return SysErr();
 
-	string buffer(size, '\0');
-	auto byteCount = ::read(mDesc, buffer.data(), buffer.size());
-	buffer.resize(byteCount);
-	return buffer;
+	const auto output = readUntilDataReception(size);
+	if (holds_alternative<SysErr>(output)) return get<SysErr>(output);
+	return get<string>(output);
 }
 
 variant<string, SysErr> ReadOnly::readUntilDataReception(size_t size) const {
-	string buffer(size, '\0');
-	auto byteCount = ::read(mDesc, buffer.data(), buffer.size());
-	if (byteCount < 0) return SysErr();
-	buffer.resize(byteCount);
-	return buffer;
+	string output{};
+	while (output.size() < size) {
+		string buffer(size, '\0');
+		const auto nbBytes = ::read(mDesc, buffer.data(), buffer.size());
+		if (nbBytes < 0) return SysErr();
+		if (nbBytes == 0) break;
+		output += buffer;
+	}
+	return output;
 }
 
 WriteOnly::WriteOnly(Ready&& pipe) : Descriptor(std::move(pipe.writeEnd)) {

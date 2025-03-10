@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cerrno>
+#include <cstring>
 #include <ostream>
 #include <type_traits>
 
@@ -37,9 +38,14 @@ public:
 	SysErr() : err(errno) {
 	}
 
-	// Returns the captured errno value
+	// Returns the captured errno value.
 	auto number() const {
 		return err;
+	}
+
+	// Returns the error message corresponding to the captured errno value.
+	auto message() const {
+		return std::string{std::strerror(err)};
 	}
 
 private:
