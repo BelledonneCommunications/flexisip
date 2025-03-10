@@ -226,7 +226,7 @@ static rlim_t getSystemFdLimit() {
 }
 
 static void increaseFDLimit() noexcept {
-	struct rlimit lm{};
+	struct rlimit lm {};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
 		LOGE_CTX(kLogPrefix) << "getrlimit(RLIMIT_NOFILE) failed: " << strerror(errno);
 		return;
@@ -283,7 +283,7 @@ static void set_process_name([[maybe_unused]] const string& process_name) {
 
 static void forkAndDetach(ConfigManager& cfg,
                           const string& pidfile,
-                          bool auto_respawn,
+                          bool autoRespawn,
                           bool startMonitor,
                           const string& functionName,
                           optional<pipe::WriteOnly>& flexisipStartupPipe) {
@@ -415,7 +415,7 @@ static void forkAndDetach(ConfigManager& cfg,
 						} else {
 							throw ExitSuccess{"Flexisip exited normally"};
 						}
-					} else if (auto_respawn) {
+					} else if (autoRespawn) {
 						WLOGI << "Flexisip has crashed: restarting now" << endl;
 						sleep(1);
 						goto fork_flexisip;
@@ -605,88 +605,113 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 }
 
 int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe) {
-	// Used by flexisip to notify the watchdog that it has started
-	optional<pipe::WriteOnly> flexisipStartupPipe{};
-	if (startupPipe.has_value()) flexisipStartupPipe = ::move(startupPipe);
-
-	shared_ptr<Agent> a;
-	StunServer* stun = NULL;
-	unique_ptr<CommandLineInterface> proxy_cli;
-#ifdef ENABLE_PRESENCE
-	unique_ptr<CommandLineInterface> presence_cli;
-#endif
-#ifdef ENABLE_SNMP
-	shared_ptr<SnmpAgent> snmpAgent;
-#endif
 	bool debug = false;
 	bool user_errors = false;
 	int errcode = EXIT_SUCCESS;
 
 	string versionString = version();
-	// clang-format off
 	TCLAP::CmdLine cmd("", ' ', versionString);
-	cmd.setExceptionHandling(false); // TCLAP executes exit() when processing ExitException, so deactivate exceptions management.
-	TCLAP::ValueArg<string>     functionName("", "server", 		"Specify the server function to operate: 'proxy',"
+	// TCLAP executes exit() when processing ExitException, so deactivate exceptions management.
+	cmd.setExceptionHandling(false);
+	TCLAP::ValueArg<string> functionName("", "server",
+	                                     "Server to execute: 'proxy',"
 #if ENABLE_PRESENCE
-	" 'presence',"
+	                                     " 'presence',"
 #endif
 #if ENABLE_CONFERENCE
-	" 'regevent', 'conference',"
+	                                     " 'regevent', 'conference',"
 #endif
 #ifdef ENABLE_B2BUA
-	" 'b2bua',"
+	                                     " 'b2bua',"
 #endif
-	" or 'all'.", TCLAP::ValueArgOptional, "", "server function", cmd);
+	                                     " or 'all'.",
+	                                     TCLAP::ValueArgOptional, "", "server function", cmd);
 
 #define DEFAULT_CONFIG_FILE CONFIG_DIR "/flexisip.conf"
-	TCLAP::ValueArg<string>     configFile("c", "config", 			"Specify the location of the configuration file. Default is " DEFAULT_CONFIG_FILE, TCLAP::ValueArgOptional, DEFAULT_CONFIG_FILE, "file", cmd);
 
-	TCLAP::SwitchArg            daemonMode("",  "daemon", 			"Launch in daemon mode.", cmd);
-	TCLAP::SwitchArg              useDebug("d", "debug", 			"Force output of all logs, including debug logs, to the terminal (does not affect the log level applied to log files).", cmd);
-	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 			"PID file location, used when running in daemon mode.", TCLAP::ValueArgOptional, "", "file", cmd);
-	TCLAP::SwitchArg             useSyslog("",  "syslog", 			"Use syslog for logging.", cmd);
+	// clang-format off
 
-	TCLAP::ValueArg<string>  transportsArg("t", "transports", 		"The list of transports to handle (overrides the ones defined in the configuration file).", TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
-
-
-
-	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",		"Dump default config, with specifier for the module to dump. Use 'all' to dump all modules, or 'MODULENAME' to dump "
-										   							"a specific module. For instance, to dump the Router module default config, "
-																	"issue 'flexisip --dump-default module::Router.", TCLAP::ValueArgOptional, "", "all", cmd);
-	TCLAP::SwitchArg               dumpAll("",  "dump-all-default", "Will dump all the configuration. This is equivalent to '--dump-default all'. This option may be combined with "
-																	"'--set global/plugins=<plugin_list>' to also generate the settings of listed plugins.", cmd);
-	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		"Select the format in which the dump-default will print. The default is 'file'. Possible values are: "
-																	"file, tex, doku, media, xwiki.", TCLAP::ValueArgOptional, "file", "file", cmd);
-
-
-	TCLAP::SwitchArg           listModules("",  "list-modules", 	"Will print a list of available modules. This is useful if you want to combine with --dump-default "
-										   							"to have specific documentation for a module.", cmd);
-
-	TCLAP::SwitchArg           listSections("",  "list-sections", 	"Will print a list of available sections. This is useful if you want to combine with --dump-default "
-										   							"to have specific documentation for a section.", cmd);
-	TCLAP::SwitchArg           rewriteConf("",  "rewrite-config",   "Load the configuration file and dump a new one on stdout, adding the new settings and updating documentations. "
-	                                                                "All the existing settings are kept even if they are equal to the default value and the default value has changed.", cmd);
-	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 		"Will dump the MIB files for Flexisip performance counters and other related SNMP items.", cmd);
-	TCLAP::ValueArg<string>     pkcsFile("", "p12-passphrase-file", "Specify the location of the pkcs12 passphrase file.", TCLAP::ValueArgOptional,"", "file", cmd);
-	TCLAP::SwitchArg   displayExperimental("",  "show-experimental","Use in conjunction with --dump-default: will dump the configuration for a module even if it is marked as experiemental.", cmd);
-
-	/* Overriding values */
-	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",	"List the configuration values that you can override. Useful in conjunction with --set. "
-																	"Pass a module to specify the module for which to dump the available values. Use 'all' to get all possible overrides.",
-										   TCLAP::ValueArgOptional, "", "module", cmd);
-
-	TCLAP::MultiArg<string> overrideConfig("s", "set", 				"Allows to override the configuration file setting. Use --list-overrides to get a list of values that you can override.",
-										   TCLAP::ValueArgOptional, "global/debug=true", cmd);
-
-	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",			"Overrides a host address by passing it. You can use this flag multiple times. "
-																	"Also, you can remove an association by providing an empty value: '--hosts myhost='.",
-										   TCLAP::ValueArgOptional, "host=ip", cmd);
-	TCLAP::SwitchArg           trackAllocs("",  "track-allocations", "Tracks allocations of SIP messages, only use with caution.", cmd);
-
+	TCLAP::ValueArg<string>     configFile("c", "config", 			   "Location of the configuration file."
+                                                                       "Default is: " DEFAULT_CONFIG_FILE,
+                                                                       TCLAP::ValueArgOptional, DEFAULT_CONFIG_FILE, "file", cmd);
+	TCLAP::SwitchArg            daemonMode("",  "daemon", 			   "Launch in daemon mode.",
+                                                                       cmd);
+	TCLAP::SwitchArg              useDebug("d", "debug", 			   "Print logs in debug level to the terminal "
+                                                                       "(does not affect the logging level of log files).",
+                                                                       cmd);
+	TCLAP::ValueArg<string>        pidFile("p", "pidfile", 			   "PID file location (when running in daemon mode).",
+                                                                       TCLAP::ValueArgOptional, "", "file", cmd);
+	TCLAP::SwitchArg             useSyslog("",  "syslog", 			   "Enable system logs (syslog).",
+                                                                       cmd);
+	TCLAP::ValueArg<string>  transportsArg("t", "transports", 		   "List of transports to handle (overrides those "
+                                                                       "defined in the configuration file).",
+                                                                       TCLAP::ValueArgOptional, "", "sips:* sip:*", cmd);
+	TCLAP::ValueArg<string>    dumpDefault("",  "dump-default",		   "Dump default configuration in the standard "
+                                                                       "output. Use 'all' to dump the configuration of "
+                                                                       "all modules, or '<module_name>' to dump the "
+                                                                       "configuration of a specific module.",
+                                                                       TCLAP::ValueArgOptional, "", "all", cmd);
+	TCLAP::SwitchArg               dumpAll("",  "dump-all-default",    "Dump all default configurations in the standard "
+                                                                       "output (equivalent to '--dump-default all'). "
+                                                                       "This option may be combined with "
+                                                                       "'--set global/plugins=<plugin_list>' to also "
+                                                                       "generate the settings of listed plugins.",
+                                                                       cmd);
+	TCLAP::ValueArg<string>     dumpFormat("",  "dump-format",		   "Output format of configuration dump "
+                                                                       "(default: 'file'). Possible values: 'file', "
+                                                                       "'tex', 'doku', 'media', 'xwiki'.",
+                                                                       TCLAP::ValueArgOptional, "file", "file", cmd);
+	TCLAP::SwitchArg           listModules("",  "list-modules", 	   "Dump the list of available modules in the "
+                                                                       "standard output. It can be useful to combine "
+                                                                       "with '--dump-default' in order to have specific "
+                                                                       "documentation for a module.",
+                                                                       cmd);
+	TCLAP::SwitchArg           listSections("",  "list-sections", 	   "Dump the list of available sections in the "
+                                                                       "standard output. It can be useful to combine "
+                                                                       "with '--dump-default' in order to have specific "
+                                                                       "documentation for a section.",
+                                                                       cmd);
+	TCLAP::SwitchArg           rewriteConf("",  "rewrite-config",      "Load the configuration file and dump a new one "
+                                                                       "in the standard output adding the new settings "
+                                                                       "and updating documentations. All the existing "
+                                                                       "settings are preserved even if they are equal "
+                                                                       "to the default value and the default value has "
+                                                                       "changed.",
+                                                                       cmd);
+	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 		   "Dump the MIB files for Flexisip performance "
+                                                                       "counters and other related SNMP items in the "
+                                                                       "standard output.",
+                                                                       cmd);
+	TCLAP::ValueArg<string>     pkcsFile("",    "p12-passphrase-file", "Location of the pkcs12 passphrase file.",
+                                                                       TCLAP::ValueArgOptional,"", "file", cmd);
+	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",   "Dump the configuration of a module in the "
+                                                                       "standard output (even if it is marked as "
+                                                                       "experimental). It can be useful to combine "
+                                                                       "with '--dump-default' to have the documentation "
+                                                                       "of experimental modules.",
+                                                                       cmd);
+	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",	   "Dump the list of configuration values that you "
+                                                                       "can override. Use 'all' to get all possible "
+                                                                       "overrides or '<module_name>' to get all "
+                                                                       "possible overrides for a specific module. It "
+                                                                       "can be useful to use with '--set'.",
+                                                                       TCLAP::ValueArgOptional, "", "module", cmd);
+	TCLAP::MultiArg<string> overrideConfig("s", "set", 				   "Allows to override a setting in the "
+                                                                       "configuration file. Use --list-overrides to get "
+                                                                       "the list of all values that you can override.",
+                                                                       TCLAP::ValueArgOptional, "global/debug=true", cmd);
+	TCLAP::MultiArg<string>  hostsOverride("",  "hosts",			   "Overrides a host address. You can use this flag "
+                                                                       "multiple times. Also, you can remove an "
+                                                                       "association by providing an empty "
+                                                                       "value: '--hosts myhost='.",
+										                               TCLAP::ValueArgOptional, "host=ip", cmd);
+	TCLAP::SwitchArg           trackAllocs("",  "track-allocations",   "Track allocations of SIP messages (use with "
+                                                                       "caution).",
+                                                                       cmd);
 	// clang-format on
 
+	// Try parsing command line inputs.
 	try {
-		// Try parsing input
 		cmd.parse(argc, argv);
 		debug = useDebug.getValue();
 	} catch (TCLAP::ArgException& exception) {
@@ -701,54 +726,46 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		}
 	}
 
-	// Instantiate the main loop and set signal callbacks
+	// Instantiate the sofiasip main loop and set signal callbacks.
 	root = make_shared<sofiasip::SuRoot>();
 	signal(SIGPIPE, SIG_IGN);
 	signal(SIGTERM, flexisip_stop);
 	signal(SIGINT, flexisip_stop);
 	signal(SIGHUP, flexisip_reopen_log_files);
 
-	// Instantiate the Generic manager
+	// Instantiate the configuration manager.
 	auto cfg = make_shared<ConfigManager>();
 	cfg->setOverrideMap(oset);
 
-	// list default config and exit
-	string module = dumpDefault.getValue();
-	if (dumpAll) {
-		module = "all";
-	}
-
-	if (module.length() != 0) {
-		dump_config(*cfg, module, displayExperimental, true, dumpFormat.getValue());
-	}
-
-	// list all mibs and exit
+	// List default config and exit.
+	auto* rootCfg = cfg->getRoot();
+	auto module = dumpDefault.getValue();
+	if (dumpAll) module = "all";
+	if (!module.empty()) dump_config(*cfg, module, displayExperimental, true, dumpFormat.getValue());
+	// List all MIBs and exit.
 	if (dumpMibs) {
-		cout << MibDumper(cfg->getRoot());
+		cout << MibDumper(rootCfg);
 		return EXIT_SUCCESS;
 	}
-
-	// list modules and exit
+	// List modules and exit.
 	if (listModules) {
 		list_sections(*cfg, true);
 		return EXIT_SUCCESS;
 	}
-
-	// list sections and exit
+	// List sections and exit.
 	if (listSections) {
 		list_sections(*cfg);
 		return EXIT_SUCCESS;
 	}
-
-	// list the overridable values and exit
-	if (listOverrides.getValue().length() != 0) {
+	// List the overridable values and exit.
+	if (!listOverrides.getValue().empty()) {
 		list<string> allCompletions;
-		allCompletions.push_back("nosnmp");
+		allCompletions.emplace_back("nosnmp");
 
-		string empty;
+		string empty{};
 		string& filter = listOverrides.getValue();
 
-		depthFirstSearch(empty, cfg->getRoot(), allCompletions);
+		depthFirstSearch(empty, rootCfg, allCompletions);
 
 		for (auto it = allCompletions.cbegin(); it != allCompletions.cend(); ++it) {
 			if (filter == "all") {
@@ -761,32 +778,30 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	}
 
 	try {
-		// Try parsing configuration file
+		// Try parsing the configuration file.
 		if (cfg->load(configFile.getValue()) == -1) {
 			fprintf(stderr,
 			        "Flexisip version %s\n"
-			        "No configuration file found at %s.\nPlease specify a valid configuration file.\n"
-			        "A default flexisip.conf.sample configuration file should be installed in " CONFIG_DIR "\n"
-			        "Please edit it and restart flexisip when ready.\n"
-			        "Alternatively a default configuration sample file can be generated at any time using "
+			        "No configuration file found at %s.\n"
+			        "A default 'flexisip.conf' file should be installed in " CONFIG_DIR "\n"
+			        "Please edit it and restart flexisip once ready.\n"
+			        "Alternatively, a default configuration file can be generated at any time using the "
 			        "'--dump-default all' option.\n",
 			        versionString.c_str(), configFile.getValue().c_str());
-			return -1;
+			return EXIT_FAILURE;
 		}
-
-	} catch (std::runtime_error& e) {
-		cerr << e.what() << endl;
-		return -1;
+	} catch (const exception& exception) {
+		cerr << exception.what() << endl;
+		return EXIT_FAILURE;
 	}
 
-	if (rewriteConf) {
-		dump_config(*cfg, "all", displayExperimental, false, "file");
-	}
+	if (rewriteConf) dump_config(*cfg, "all", displayExperimental, false, "file");
 
-	// if --debug is given, enable user-errors logs as well.
+	// If '--debug' is given, enable user-errors logs as well.
 	if (debug) user_errors = true;
 
-	bool dump_cores = cfg->getGlobal()->get<ConfigBoolean>("dump-corefiles")->read();
+	const auto* globalCfg = cfg->getGlobal();
+	bool dump_cores = globalCfg->get<ConfigBoolean>("dump-corefiles")->read();
 
 	bool startProxy = false;
 	bool startPresence = false;
@@ -823,7 +838,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		startRegEvent = true;
 		startB2bua = true;
 	} else if (functionName.getValue().empty()) {
-		const auto* defaultServers = cfg->getGlobal()->get<ConfigStringList>("default-servers");
+		const auto* defaultServers = globalCfg->get<ConfigStringList>("default-servers");
 		if (defaultServers->contains("proxy")) {
 			startProxy = true;
 		}
@@ -843,22 +858,23 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 			throw BadConfiguration{"invalid value for '" + defaultServers->getCompleteName() + "'"};
 		}
 	} else {
-		throw BadConfiguration{"there is no server function '" + functionName.getValue() + "'"};
+		throw BadConfiguration{"unknown server type '" + functionName.getValue() + "'"};
 	}
+
 	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
-	// Initialize
-	string log_level = cfg->getGlobal()->get<ConfigString>("log-level")->read();
-	string syslog_level = cfg->getGlobal()->get<ConfigString>("syslog-level")->read();
-	if (!user_errors) user_errors = cfg->getGlobal()->get<ConfigBoolean>("user-errors-logs")->read();
+	// Initialize.
+	string log_level = globalCfg->get<ConfigString>("log-level")->read();
+	string syslog_level = globalCfg->get<ConfigString>("syslog-level")->read();
+	if (!user_errors) user_errors = globalCfg->get<ConfigBoolean>("user-errors-logs")->read();
 
 	ortp_init();
 	su_init();
-	/*tell parser to support extra headers */
-	sip_update_default_mclass(sip_extend_mclass(NULL));
+	// Tell the parser to support extra headers.
+	sip_update_default_mclass(sip_extend_mclass(nullptr));
 
 	if (dump_cores) {
-		/*enable core dumps*/
-		struct rlimit lm;
+		// Enable core dumps.
+		struct rlimit lm {};
 		lm.rlim_cur = RLIM_INFINITY;
 		lm.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &lm) == -1) {
@@ -866,7 +882,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		}
 	}
 
-	if (hostsOverride.getValue().size() != 0) {
+	if (!hostsOverride.getValue().empty()) {
 		auto hosts = hostsOverride.getValue();
 		auto etcResolver = EtcHostsResolver::get();
 
@@ -878,16 +894,22 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		}
 	}
 
-	su_log_redirect(NULL, sofiaLogHandler, NULL);
+	su_log_redirect(nullptr, sofiaLogHandler, nullptr);
 	if (debug || log_level == "debug") {
-		auto sofiaLevel = cfg->getGlobal()->get<ConfigInt>("sofia-level")->read();
+		const auto* sofiaLevelParameter = globalCfg->get<ConfigInt>("sofia-level");
+		auto sofiaLevel = sofiaLevelParameter->read();
 		if (sofiaLevel < 1 || sofiaLevel > 9) {
-			throw BadConfiguration{"setting 'global/sofia-level' levels range from 1 to 9"};
+			throw BadConfiguration{"setting " + sofiaLevelParameter->getCompleteName() + " levels range from 1 to 9"};
 		}
 		su_log_set_level(nullptr, sofiaLevel);
 	}
-	/*read the pkcs passphrase if any from the fifo, and keep it in memory*/
+
+	// Read the pkcs passphrase if any from the FIFO, and keep it in memory.
 	auto passphrase = getPkcsPassphrase(pkcsFile);
+
+	// Used by the Flexisip process to notify the Watchdog process that it has started.
+	optional<pipe::WriteOnly> flexisipStartupPipe{};
+	if (startupPipe.has_value()) flexisipStartupPipe = std::move(startupPipe);
 
 	/*
 	 * Perform the fork of the watchdog, followed by the fork of the worker daemon, in forkAndDetach().
@@ -905,26 +927,23 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		makePidFile(pidFile.getValue());
 	}
 
-	/*
-	 * Log initialisation.
-	 * This must be done after forking in order the log file be reopen after respawn should Flexisip crash.
-	 * The condition intent to avoid log initialisation should the user have passed command line options that
-	 * doesn't require to start the server e.g. dumping default configuration file.
-	 */
-	if (!dumpDefault.getValue().length() && !listOverrides.getValue().length() && !listModules && !listSections &&
+	// Log initialization after forking to ensure log file reopening on respawn.
+	// Do not initialize logs if the user does not want to start a server (e.g. if a command line option dumps a
+	// configuration).
+	if (dumpDefault.getValue().empty() && listOverrides.getValue().empty() && !listModules && !listSections &&
 	    !dumpMibs && !dumpAll) {
-		const auto* maxLogSize = cfg->getGlobal()->get<ConfigByteSize>("max-log-size");
+		const auto* maxLogSize = globalCfg->get<ConfigByteSize>("max-log-size");
 		if (maxLogSize->read() != static_cast<ConfigByteSize::ValueType>(-1)) {
 			throw BadConfiguration{"setting '" + maxLogSize->getCompleteName() +
 			                       "' is forbidden since log size control was delegated to logrotate (please "
 			                       "edit '/etc/logrotate.d/flexisip-logrotate' for log rotation customization)"};
 		}
 
-		const auto& logFilename = cfg->getGlobal()->get<ConfigString>("log-filename")->read();
+		const auto& logFilename = globalCfg->get<ConfigString>("log-filename")->read();
 
 		LogManager::Parameters logParams{};
 		logParams.root = root;
-		logParams.logDirectory = cfg->getGlobal()->get<ConfigString>("log-directory")->read();
+		logParams.logDirectory = globalCfg->get<ConfigString>("log-directory")->read();
 		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
 		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
@@ -932,102 +951,88 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 		logParams.enableStdout = debug && !daemonMode; // No need to log to stdout in daemon mode.
 		logParams.enableUserErrors = user_errors;
 		LogManager::get().initialize(logParams);
-		LogManager::get().setContextualFilter(cfg->getGlobal()->get<ConfigString>("contextual-log-filter")->read());
+		LogManager::get().setContextualFilter(globalCfg->get<ConfigString>("contextual-log-filter")->read());
 		LogManager::get().setContextualLevel(
-		    LogManager::get().logLevelFromName(cfg->getGlobal()->get<ConfigString>("contextual-log-level")->read()));
+		    LogManager::get().logLevelFromName(globalCfg->get<ConfigString>("contextual-log-level")->read()));
+
+		const auto showBodyForParameter = globalCfg->get<ConfigString>("show-body-for");
 		try {
-			MsgSip::setShowBodyFor(cfg->getGlobal()->get<ConfigString>("show-body-for")->read());
+			MsgSip::setShowBodyFor(showBodyForParameter->read());
 		} catch (const invalid_argument& e) {
 			throw BadConfiguration{
-			    "setting 'global/show-body-for' must only contain sip method names, whitespace separated. "s + e.what(),
+			    "setting " + showBodyForParameter->getCompleteName() +
+			        " must only contain SIP method names, whitespace separated (" + e.what() + ")",
 			};
 		}
 	} else {
 		LogManager::get().disable();
 	}
 
-	/*
-	 * From now on, we are a flexisip daemon, that is a process that will run proxy, presence, regevent or
-	 * conference server.
-	 */
-	LOGN("Starting flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
+	// From now on, we are a Flexisip daemon, that is a process that will run the actual server.
+	LOGN("Starting Flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 
 	increaseFDLimit();
 
 #ifndef __APPLE__
 	auto memoryCheckInterval = chrono::duration_cast<chrono::seconds>(
-	    cfg->getGlobal()->get<ConfigDuration<chrono::seconds>>("memory-usage-log-interval")->read());
-	unique_ptr<process_monitoring::MemoryWatcher> memoryWatcher;
+	    globalCfg->get<ConfigDuration<chrono::seconds>>("memory-usage-log-interval")->read());
+	unique_ptr<process_monitoring::MemoryWatcher> memoryWatcher{};
 	if (memoryCheckInterval != 0s)
 		memoryWatcher = make_unique<process_monitoring::MemoryWatcher>(root, memoryCheckInterval);
 #endif
 
-	/*
-	 * We create an Agent in all cases, because it will declare config items that are necessary for presence server
-	 * to run.
-	 */
-	auto authDb = std::make_shared<AuthDb>(cfg);
-	auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
-	a = make_shared<Agent>(root, cfg, authDb, registrarDb);
+	// Create an Agent in all cases because it will declare configuration items that are necessary for presence server.
+	const auto authDb = std::make_shared<AuthDb>(cfg);
+	const auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
+	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb);
 	setOpenSSLThreadSafe();
 
-	if (startProxy) {
-		a->start(transportsArg.getValue(), passphrase);
 #ifdef ENABLE_SNMP
-		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
-		if (snmpEnabled) {
+	shared_ptr<SnmpAgent> snmpAgent{};
+#endif
+#if ENABLE_SERVICE_SERVERS
+	vector<shared_ptr<ServiceServer>> serviceServers{};
+#endif
+	unique_ptr<StunServer> stunServer{};
+	unique_ptr<CommandLineInterface> proxyCli{};
+	if (startProxy) {
+		agent->start(transportsArg.getValue(), passphrase);
+#ifdef ENABLE_SNMP
+		if (globalCfg->get<ConfigBoolean>("enable-snmp")->read()) {
 			snmpAgent = make_shared<SnmpAgent>(*cfg, oset);
 			snmpAgent->sendNotification("Flexisip " + fName + "-server starting");
-			a->setNotifier(snmpAgent);
+			agent->setNotifier(snmpAgent);
 		}
 #endif
 
-		cfg->applyOverrides(true); // using default + overrides
+		// Using default + overrides.
+		cfg->applyOverrides(true);
 
-		// Create cached test accounts for the Flexisip monitor if necessary
-		if (monitorEnabled) {
-			try {
-				Monitor::createAccounts(authDb, *cfg->getRoot());
-			} catch (const FlexisipException& e) {
-				LOGE_CTX(kLogPrefix) << "Could not create test accounts for the monitor: " << e.str();
-			}
+		const auto* stunServerConfig = rootCfg->get<GenericStruct>("stun-server");
+		if (stunServerConfig->get<ConfigBoolean>("enabled")->read()) {
+			stunServer = make_unique<StunServer>(stunServerConfig->get<ConfigInt>("port")->read());
+			stunServer->start(stunServerConfig->get<ConfigString>("bind-address")->read());
 		}
 
-		if (cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigBoolean>("enabled")->read()) {
-			stun = new StunServer(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigInt>("port")->read());
-			stun->start(cfg->getRoot()->get<GenericStruct>("stun-server")->get<ConfigString>("bind-address")->read());
-		}
-
-		proxy_cli = unique_ptr<CommandLineInterface>(new ProxyCommandLineInterface(cfg, a));
-		proxy_cli->start();
+		proxyCli = make_unique<ProxyCommandLineInterface>(cfg, agent);
+		proxyCli->start();
 
 		if (trackAllocs) msg_set_callbacks(flexisip_msg_create, flexisip_msg_destroy);
 	}
 
-#if ENABLE_SERVICE_SERVERS
-	auto serviceServers = vector<shared_ptr<ServiceServer>>();
+#ifdef ENABLE_PRESENCE
+	unique_ptr<CommandLineInterface> presenceCli{};
 #endif
-
 	if (startPresence) {
 #ifdef ENABLE_PRESENCE
-		bool enableLongTermPresence =
-		    (cfg->getRoot()->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read());
 		auto presenceServer = make_shared<PresenceServer>(root, cfg);
-		if (enableLongTermPresence) {
+		if (rootCfg->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled")->read()) {
 			presenceServer->enableLongTermPresence(authDb, registrarDb);
 		}
+		presenceServer->init();
 
-		try {
-			presenceServer->init();
-		} catch (const FlexisipException& e) {
-			/* Catch the presence server exception, which is generally caused by a failure while binding the SIP
-			 * listening points.
-			 * Since it prevents from starting, and it is not a crash, it shall be notified to the user */
-			throw ExitFailure{-1, "failed to start flexisip presence server"};
-		}
-
-		presence_cli = make_unique<CommandLineInterface>("presence", cfg, root);
-		presence_cli->start();
+		presenceCli = make_unique<CommandLineInterface>("presence", cfg, root);
+		presenceCli->start();
 
 		serviceServers.emplace_back(std::move(presenceServer));
 #endif
@@ -1035,17 +1040,8 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 
 	if (startConference) {
 #ifdef ENABLE_CONFERENCE
-		auto conferenceServer = make_shared<ConferenceServer>(a->getPreferredRoute(), root, cfg, registrarDb);
-
-		try {
-			conferenceServer->init();
-		} catch (const FlexisipException& e) {
-			/* Catch the conference server exception, which is generally caused by a failure while binding the SIP
-			 * listening points.
-			 * Since it prevents from starting, and it is not a crash, it shall be notified to the user */
-			throw ExitFailure{-1, "failed to start flexisip conference server"};
-		}
-
+		auto conferenceServer = make_shared<ConferenceServer>(agent->getPreferredRoute(), root, cfg, registrarDb);
+		conferenceServer->init();
 		serviceServers.emplace_back(std::move(conferenceServer));
 #endif // ENABLE_CONFERENCE
 	}
@@ -1053,13 +1049,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	if (startRegEvent) {
 #ifdef ENABLE_CONFERENCE
 		auto regEventServer = make_unique<RegistrationEvent::Server>(root, cfg, registrarDb);
-
-		try {
-			regEventServer->init();
-		} catch (const FlexisipException& e) {
-			throw ExitFailure{-1, "failed to start flexisip registration event server"};
-		}
-
+		regEventServer->init();
 		serviceServers.emplace_back(std::move(regEventServer));
 #endif // ENABLE_CONFERENCE
 	}
@@ -1067,13 +1057,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	if (startB2bua) {
 #if ENABLE_B2BUA
 		auto b2buaServer = make_shared<B2buaServer>(root, cfg);
-
-		try {
-			b2buaServer->init();
-		} catch (const FlexisipException& e) {
-			throw ExitFailure{-1, "failed to start flexisip back to back user agent server"};
-		}
-
+		b2buaServer->init();
 		serviceServers.emplace_back(std::move(b2buaServer));
 #endif // ENABLE_B2BUA
 	}
@@ -1081,10 +1065,10 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	if (flexisipStartupPipe.has_value()) sendStartedNotification(flexisipStartupPipe);
 	if (run) root->run();
 
-	a->unloadConfig();
-	a.reset();
+	agent->unloadConfig();
+	agent.reset();
 #ifdef ENABLE_PRESENCE
-	presence_cli = nullptr;
+	presenceCli.reset();
 #endif // ENABLE_PRESENCE
 
 #if ENABLE_SERVICE_SERVERS
@@ -1114,19 +1098,13 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 	}
 #endif
 
-	if (stun) {
-		stun->stop();
-		delete stun;
-	}
-	proxy_cli = nullptr;
-
 	LOGN("Flexisip %s-server exiting normally", fName.c_str());
+
+	if (stunServer) stunServer->stop();
 	if (trackAllocs) dump_remaining_msgs();
 #ifdef ENABLE_SNMP
-	bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
-	if (snmpEnabled) {
+	if (globalCfg->get<ConfigBoolean>("enable-snmp")->read())
 		snmpAgent->sendNotification("Flexisip " + fName + "-server exiting normally");
-	}
 #endif
 
 	bctbx_uninit_logger();
