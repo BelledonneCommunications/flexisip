@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -33,7 +33,7 @@ namespace flexisip {
 
 using namespace pushnotification;
 
-void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
+void PNContextCall::init(std::chrono::seconds aCallPushInterval, std::chrono::seconds aContextTtl) {
 	const auto& root = mModule->getAgent()->getRoot();
 	const auto& dests = mPInfo->mDestinations;
 	if (dests.find(PushType::VoIP) != dests.cend()) {
@@ -44,7 +44,9 @@ void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
 		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else if (dests.find(PushType::Message) != dests.cend()) {
 		auto remoteStrategy = MessagePushStrategy::make(shared_from_this(), root, mModule->getService(), mBranchInfo);
+		(void)aCallPushInterval;
 		remoteStrategy->setCallPushInterval(aCallPushInterval);
+		remoteStrategy->setCallRingingTimeout(aContextTtl + 15s);
 		mStrategy = std::move(remoteStrategy);
 	} else {
 		throw InvalidPushParameters{"invalid push type for PNContextCall"};

@@ -41,7 +41,7 @@ public:
 		// The call context must expire after the forkCall which lasts for "call-fork-timeout" seconds.
 		auto obj = std::shared_ptr<PNContextCall>{
 		    new PNContextCall{transaction, _module, pInfo, pnKey, pInfo->mTtl + std::chrono::seconds{1}}};
-		obj->init(callPushInterval);
+		obj->init(callPushInterval, pInfo->mTtl);
 		return obj;
 	}
 
@@ -53,7 +53,7 @@ private:
 	/**
 	 * Post construction initializations.
 	 */
-	void init(std::chrono::seconds aCallPushInterval);
+	void init(std::chrono::seconds aCallPushInterval, std::chrono::seconds contextTtl);
 };
 
 class PNContextMessage : public PushNotificationContext {
