@@ -42,6 +42,12 @@ public:
 		mCallPushInterval = interval;
 	}
 
+	// Set the duration for which push notifications will be sent when this strategy is used for call invite
+	// notification.
+	void setCallRingingTimeout(const std::chrono::seconds timeout) noexcept {
+		mCallRingingTimeout = timeout;
+	}
+
 	bool pushRepetitionEnabled() const noexcept {
 		return mCallPushInterval.count() > 0;
 	}

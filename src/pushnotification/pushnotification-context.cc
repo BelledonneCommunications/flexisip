@@ -33,7 +33,7 @@ namespace flexisip {
 
 using namespace pushnotification;
 
-void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
+void PNContextCall::init(std::chrono::seconds aCallPushInterval, std::chrono::seconds aContextTtl) {
 	const auto& root = mModule->getAgent()->getRoot();
 	const auto& dests = mPInfo->mDestinations;
 	if (dests.find(PushType::VoIP) != dests.cend()) {
@@ -44,7 +44,9 @@ void PNContextCall::init(std::chrono::seconds aCallPushInterval) {
 		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else if (dests.find(PushType::Message) != dests.cend()) {
 		auto remoteStrategy = MessagePushStrategy::make(shared_from_this(), root, mModule->getService(), mBranchInfo);
+		(void)aCallPushInterval;
 		remoteStrategy->setCallPushInterval(aCallPushInterval);
+		remoteStrategy->setCallRingingTimeout(aContextTtl + 15s);
 		mStrategy = std::move(remoteStrategy);
 	} else {
 		throw InvalidPushParameters{"invalid push type for PNContextCall"};
