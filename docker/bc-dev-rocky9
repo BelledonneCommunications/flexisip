@@ -70,6 +70,7 @@ RUN dnf makecache --refresh \
         jsoncpp-devel \
       # Dependencies of the tester
         mariadb-server \
+        rsync \
  && dnf -y clean all
 
 # Install CMake 3.22.6

@@ -1,5 +1,9 @@
 #!/bin/bash
 
+set -o errexit   # abort on nonzero exitstatus
+set -o nounset   # abort on unbound variable
+set -o pipefail  # don't hide errors within pipes
+
 function print_usage {
 	prog=$(basename $0)
 	echo "syntax: $prog <dist>" 1>&2
@@ -17,7 +21,7 @@ fi
 dist="$1"
 
 
-id=$(cat /dev/urandom | env LC_ALL=C tr -dc 'a-zA-Z0-9' | fold -w 10 | head -n 1) || exit $?
+id=$(head --bytes 100 /dev/urandom | env LC_ALL=C tr -dc 'a-zA-Z0-9' | fold --width 10 | head --lines 1) || exit $?
 tmpdir="$MAKE_REPO_TMP/tmp-$id"
 rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 

@@ -85,7 +85,9 @@ job-rocky8-rpm-check-features:
     - !reference [job-rocky9-rpm-check-features, script]
 
 job-rocky8-rpm-deploy:
-  extends: .job-rpm-deploy
+  extends:
+    - .job-rpm-deploy
+    - .rocky8-image-variables
   dependencies:
     - job-rocky8-rpm
   variables:

@@ -14,6 +14,15 @@
     esac
     echo "CMAKE_BUILD_PARALLEL_LEVEL='$CMAKE_BUILD_PARALLEL_LEVEL'"
 
+.add_deploy_keys: &add-deploy-keys
+  - |
+    ##
+    ## If SSH keys are defined then start ssh-agent and add the keys
+    ##
+    if ! [ -z ${DEPLOY_USER_KEY+x} ] && ! [ -z ${DEPLOY_SERVER_HOST_KEYS+x} ]; then eval $(ssh-agent -s); fi
+    if ! [ -z ${DEPLOY_USER_KEY+x} ]; then echo "$DEPLOY_USER_KEY" | tr -d '\r' | ssh-add - > /dev/null; fi
+    if ! [ -z ${DEPLOY_SERVER_HOST_KEYS+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
+    if ! [ -z ${DEPLOY_SERVER_HOST_KEYS+x} ]; then echo "$DEPLOY_SERVER_HOST_KEYS" >> ~/.ssh/known_hosts; fi
 
 .linux-ccache:
   cache:
@@ -82,11 +91,13 @@
 
 .job-rpm-deploy:
   stage: deploy 🚀
-  tags: [ "deploy" ]
+  tags: [ "docker-deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
     GIT_STRATEGY: fetch
+  before_script:
+    - *add-deploy-keys
   script: ./.gitlab-ci-files/deploy.sh ${DISTRIB}
 
 #################################################
@@ -115,11 +126,13 @@
 
 .job-debian-deb-deploy:
   stage: deploy 🚀
-  tags: [ "deploy" ]
+  tags: [ "docker-deploy" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
     GIT_STRATEGY: fetch
+  before_script:
+    - *add-deploy-keys
   script: ./.gitlab-ci-files/deploy.sh debian
 
 #################################################
