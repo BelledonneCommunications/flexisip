@@ -225,7 +225,7 @@ static rlim_t getSystemFdLimit() {
 }
 
 static void increaseFDLimit() noexcept {
-	struct rlimit lm{};
+	struct rlimit lm {};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
 		LOGE("getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
 		return;
@@ -317,7 +317,7 @@ static void forkAndDetach(ConfigManager& cfg,
 		if (holds_alternative<SysErr>(newPipe)) {
 			throw ExitFailure{"unable to create start pipe "s + strerror(get<SysErr>(newPipe).number())};
 		}
-		auto rPipe = ::move(get<pipe::Ready>(newPipe));
+		pipe::Pipe rPipe{std::move(get<pipe::Ready>(newPipe))};
 
 		flexisip_pid = fork();
 		if (flexisip_pid > 0) WLOGI << "Flexisip PID: " << flexisip_pid << endl;
@@ -327,7 +327,8 @@ static void forkAndDetach(ConfigManager& cfg,
 		}
 		if (flexisip_pid == 0) {
 			// This is the real flexisip process now: we can proceed with real start.
-			flexisipStartupPipe = pipe::WriteOnly(std::move(rPipe));
+			flexisipStartupPipe = pipe::WriteOnly(std::move(get<pipe::Ready>(rPipe)));
+			rPipe = pipe::Closed();
 			set_process_name("flexisip-" + functionName);
 			makePidFile(pidfile);
 			return;
@@ -337,7 +338,9 @@ static void forkAndDetach(ConfigManager& cfg,
 		 * We are in the watch-dog process again
 		 * Waiting for successful initialisation of the flexisip process
 		 */
-		auto res = pipe::ReadOnly(::move(rPipe)).readUntilDataReception(kStartupMessage.size());
+		auto roPipe = pipe::ReadOnly(std::move(get<pipe::Ready>(rPipe)));
+		rPipe = pipe::Closed();
+		auto res = roPipe.readUntilDataReception(kStartupMessage.size());
 		if (holds_alternative<SysErr>(res)) {
 			throw ExitFailure{"read error from flexisip, "s + strerror(get<SysErr>(res).number())};
 		}
