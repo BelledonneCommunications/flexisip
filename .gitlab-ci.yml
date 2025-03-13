@@ -17,8 +17,8 @@ variables:
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20250127_update_clang
-  ROCKY_8_IMAGE_VERSION: 20240911_remove_protobuf
-  ROCKY_9_IMAGE_VERSION: 20240911_remove_protobuf
+  ROCKY_8_IMAGE_VERSION: 20250324_add_rsync
+  ROCKY_9_IMAGE_VERSION: 20250324_add_rsync
   DEBIAN_10_IMAGE_VERSION: 220240911_remove_protobuf
   DEBIAN_11_IMAGE_VERSION: 20240911_remove_protobuf
   DEBIAN_12_IMAGE_VERSION: 20240911_remove_protobuf

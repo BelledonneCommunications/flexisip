@@ -121,7 +121,9 @@ job-rocky9-rpm-check-features:
     - !reference [.script-check-features, script]
 
 job-rocky9-rpm-deploy:
-  extends: .job-rpm-deploy
+  extends:
+    - .job-rpm-deploy
+    - .rocky9-image-variables
   dependencies:
     - job-rocky9-rpm
   variables:

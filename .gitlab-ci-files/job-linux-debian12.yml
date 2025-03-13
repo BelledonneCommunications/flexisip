@@ -88,7 +88,9 @@ job-debian12-deb-check-features:
     - !reference [.script-check-features, script]
 
 job-debian12-deb-deploy:
-  extends: .job-debian-deb-deploy
+  extends:
+    - .job-debian-deb-deploy
+    - .debian12-image
   variables:
     RELEASE: bookworm
     FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
