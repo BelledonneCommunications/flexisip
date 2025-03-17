@@ -295,7 +295,8 @@ void updateTlsCertificate() {
 	const auto policy = SSL_VERIFY_NONE;
 
 	Server proxy{{
-	    {"global/transports", "sips:127.0.0.1:0"},
+	    {"global/transports",
+	     "sips:sip.example.org:0;maddr=127.0.0.1 sip:sip.example.org:0;transport=tcp;maddr=127.0.0.1"},
 	    {"module::DoSProtection/enabled", "false"},
 	    {"global/tls-certificates-check-interval", "1min"},
 	    {"global/tls-certificates-file", certPath},
@@ -304,7 +305,7 @@ void updateTlsCertificate() {
 	}};
 	proxy.start();
 
-	const auto proxyUri = "sips:127.0.0.1:"s + proxy.getFirstPort();
+	const auto proxyUri = "sips:sip.example.org:"s + proxy.getFirstPort() + ";maddr=127.0.0.1";
 	Url url{proxyUri};
 
 	// No changes

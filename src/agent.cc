@@ -1361,7 +1361,7 @@ void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
 		        TPTAG_TLS_VERIFY_POLICY(tlsTpInfo.policy), TAG_END())) {
 			LOGE << "Error while updating the TLS transport: " << tlsTpInfo.url.str()
 			     << " cert: " << tlsTpInfo.tlsConfigInfo.certifFile
-			     << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey << " (" << strerror(errno) << ")";
+			     << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey << " (See sofia-sip logs for more information.)";
 		}
 
 		tlsTpInfo.lastModificationTime = lastModificationTime;
