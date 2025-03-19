@@ -26,7 +26,6 @@
 #include <flexisip/configmanager.hh>
 #include <flexisip/flexisip-version.h>
 
-#include "conference-address-generator.hh"
 #include "exceptions/bad-configuration.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
@@ -309,7 +308,7 @@ void ConferenceServer::onChatRoomStateChanged([[maybe_unused]] const shared_ptr<
 	}
 }
 
-void ConferenceServer::onConferenceAddressGeneration([[maybe_unused]] const shared_ptr<ChatRoom>& cr) {
+void ConferenceServer::onConferenceAddressGeneration(const shared_ptr<ChatRoom>&) {
 	// Not required anymore by the SDK 5.4
 	// A faster way of verifying that the id is not taken is to look into the database
 }

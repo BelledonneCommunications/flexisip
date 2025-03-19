@@ -277,8 +277,6 @@ if(ENABLE_PRESENCE)
 endif()
 if(ENABLE_CONFERENCE)
 	target_sources(flexisip PRIVATE
-		conference/conference-address-generator.cc
-		conference/conference-address-generator.hh
 		conference/conference-server.cc
 		conference/conference-server.hh
 		conference/registration-subscription.cc
