@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,7 @@
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
@@ -505,6 +506,52 @@ void requestIsRoutedToXTargetUrisAndStaticTargets() {
 	}
 }
 
+/*
+ * Test that a CANCEL whithout an associated ForkCtx but managed by us is replied.
+ * The ForkCtx is destroyed when the dialog is established, CANCELs are not normally received thereafter.
+ * But there is a race condition in INVITE transactions: a proxy can received 200 OK from the callee,
+ * destroy the ForkCtx, then receive a CANCEL from the caller, who has not yet received the 200 OK.
+ * (RFC 3261 without updated version introduced by https://datatracker.ietf.org/doc/html/rfc6026)
+ */
+void statelessCancel() {
+	Server proxy{{
+	    {"global/aliases", "test.flexisip.org"}, // ensure isUS will be true
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Registrar/reg-domains", "test.flexisip.org"},
+	}};
+	proxy.start();
+
+	const auto callee = Contact{"sip:callee@test.flexisip.org", "sip:callee@127.0.0.1:0"};
+	ContactInserter inserter(proxy.getAgent()->getRegistrarDb());
+	inserter.setAor(callee.aor).setExpire(1min).insert({callee.uri});
+
+	CoreAssert asserter{proxy.getRoot()};
+	asserter.wait([&inserter] { return inserter.finished(); }).hard_assert_passed();
+
+	// clang-format off
+	string request(
+	    "CANCEL "s + callee.aor + " SIP/2.0\r\n"
+		"Max-Forwards: 5\r\n"
+		"To: user <" + callee.aor + ">\r\n"
+		"From: caller <sip:caller@test.flexisip.org>;tag=465687829\r\n"
+		"Call-ID: 1053183492\r\n"
+		"CSeq: 10 CANCEL\r\n"
+		"Contact: <sip:caller@test.flexisip.org;transport=tcp>\r\n"
+		"Supported: gruu\r\n"
+		"Content-Type: application/sdp\r\n"
+		"Content-Length: 0\r\n");
+	// clang-format on
+	sofiasip::NtaAgent client{proxy.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction = client.createOutgoingTransaction(request, "sip:127.0.0.1:"s + proxy.getFirstPort());
+	asserter
+	    .wait([&transaction] {
+		    FAIL_IF(!transaction->isCompleted());
+		    FAIL_IF(transaction->getStatus() != 481);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+}
+
 TestSuite _("RouterModule",
             {
                 CLASSY_TEST(fallbackRouteFilter),
@@ -514,6 +561,7 @@ TestSuite _("RouterModule",
                 CLASSY_TEST(messageExpires<DbImplementation::Redis>),
                 CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
                 CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
+                CLASSY_TEST(statelessCancel),
             });
 
 } // namespace
