@@ -1048,23 +1048,9 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		ev->writeLog(make_shared<CallEndedEventLog>(*sip));
 	}
 
-	// Handle SipEvent associated with a Stateful transaction
-	if (sip->sip_request->rq_method == sip_method_cancel) {
-		ForkContext::processCancel(*ev);
-		return std::move(ev);
-	}
 	if ((next_hop = ModuleToolbox::getNextHop(getAgent(), sip, &isRoute)) != NULL && isRoute) {
 		LOGD << "Route header found [" << url_as_string(ms->getHome(), next_hop) << "] but not us, skipping";
 		return std::move(ev);
-	}
-
-	/*unless in a specific case, REGISTER don't go into the router logic*/
-	if (sip->sip_request->rq_method == sip_method_register) {
-		if (sip->sip_from->a_url->url_user == NULL ||
-		    !getAgent()->getDRM()->haveToRelayRegToDomain(sip->sip_request->rq_url->url_host)) {
-			return std::move(ev);
-		}
-		LOGD << "Router: routing REGISTER to domain controller";
 	}
 
 	if (mResolveRoutes) {
@@ -1094,42 +1080,59 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		return std::move(ev);
 	}
 
-	/*see if we can route other requests */
-	/*
-	 * 	ACKs shall not have their request uri rewritten:
-	    - these can be for us (in response to a 407 for invite)
-	    - these can be for a remote peer, in which case they will have the correct contact address in the request uri
-	*/
-	/* When we accept * as domain we need to test ip4/ipv6 */
-	if (sip->sip_request->rq_method != sip_method_ack && sip->sip_to != NULL && sip->sip_to->a_tag == NULL) {
-		try {
-			SipUri requestUri(sip->sip_request->rq_url);
+	try {
+		SipUri requestUri(sip->sip_request->rq_url);
 
-			if (isManagedDomain(requestUri.get())) {
-				LOGD << "Fetch for url " << requestUri.str();
+		if (!isManagedDomain(requestUri.get())) return std::move(ev);
 
-				// Go stateful to stop retransmissions
-				ev->createIncomingTransaction();
-				sendReply(*ev, SIP_100_TRYING);
-
-				// The non-standard "X-Target-Uris" header gives us a list of SIP uri. The request has to be forked to
-				// all of them.
-				const auto* targetUrisHeader = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
-				const auto listener =
-				    make_shared<OnFetchForRoutingListener>(this, std::move(ev), requestUri, mStaticTargets);
-
-				if (!targetUrisHeader) {
-					mAgent->getRegistrarDb().fetch(requestUri, listener, mAllowDomainRegistrations, true);
-				} else {
-					const auto fetcher =
-					    make_shared<TargetUriListFetcher>(this, listener->getEvent(), listener, targetUrisHeader);
-					fetcher->fetch(mAllowDomainRegistrations, true);
-				}
-			}
-		} catch (const InvalidUrlError& e) {
-			LOGD << "The request URI [" << e.getUrl()
-			     << "] is not valid (skipping fetching from registrar database): " << e.getReason();
+		if (sip->sip_request->rq_method == sip_method_cancel) {
+			// Handle SipEvent associated with a Stateful transaction
+			ForkContext::processCancel(*ev);
+			if (!ev->isTerminated()) sendReply(*ev, SIP_481_NO_TRANSACTION);
+			return std::move(ev);
 		}
+
+		/*unless in a specific case, REGISTER don't go into the router logic*/
+		if (sip->sip_request->rq_method == sip_method_register) {
+			if (sip->sip_from->a_url->url_user == NULL ||
+			    !getAgent()->getDRM()->haveToRelayRegToDomain(sip->sip_request->rq_url->url_host)) {
+				return std::move(ev);
+			}
+			LOGD << "Router: routing REGISTER to domain controller";
+		}
+
+		/*see if we can route other requests */
+		/*
+		 * 	ACKs shall not have their request uri rewritten:
+		    - these can be for us (in response to a 407 for invite)
+		    - these can be for a remote peer, in which case they will have the correct contact address in the
+		 request uri
+		*/
+		/* When we accept * as domain we need to test ip4/ipv6 */
+		if (sip->sip_request->rq_method == sip_method_ack || sip->sip_to == NULL || sip->sip_to->a_tag != NULL)
+			return std::move(ev);
+
+		LOGD << "Fetch for url " << requestUri.str();
+
+		// Go stateful to stop retransmissions
+		ev->createIncomingTransaction();
+		sendReply(*ev, SIP_100_TRYING);
+
+		// The non-standard "X-Target-Uris" header gives us a list of SIP uri. The request has to be forked to
+		// all of them.
+		const auto* targetUrisHeader = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
+		const auto listener = make_shared<OnFetchForRoutingListener>(this, std::move(ev), requestUri, mStaticTargets);
+
+		if (!targetUrisHeader) {
+			mAgent->getRegistrarDb().fetch(requestUri, listener, mAllowDomainRegistrations, true);
+		} else {
+			const auto fetcher =
+			    make_shared<TargetUriListFetcher>(this, listener->getEvent(), listener, targetUrisHeader);
+			fetcher->fetch(mAllowDomainRegistrations, true);
+		}
+	} catch (const InvalidUrlError& e) {
+		LOGD << "The request URI [" << e.getUrl()
+		     << "] is not valid (skipping fetching from registrar database): " << e.getReason();
 	}
 	return std::move(ev);
 }

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -62,7 +62,7 @@ public:
 	static void setFork(const std::shared_ptr<IncomingTransaction>& tr, const std::shared_ptr<ForkContext>& fork);
 
 	// Called by the router module to notify a cancellation.
-	static void processCancel(const RequestSipEvent& ev);
+	static void processCancel(RequestSipEvent& ev);
 	// called by the router module to notify the arrival of a response.
 	static bool processResponse(ResponseSipEvent& ev);
 
