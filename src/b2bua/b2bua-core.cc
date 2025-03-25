@@ -69,9 +69,14 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	core->enableConferenceServer(true);
 	// Disable DB storage to avoid memory accumulation
 	core->enableDatabase(false);
-	// Maximum number of calls (all call legs combined) the B2BUA server can handle.
-	// Thus, it can bridge half of this amount of calls.
-	core->setMaxCalls(1000);
+	// Maximum number of calls the server can bridge concurrently.
+	// Since there are two legs per call, the core should be configured with twice the number of maximum calls.
+	const auto* maxCallsParameter = config.get<ConfigInt>("max-calls");
+	const auto maxCalls = maxCallsParameter->read();
+	if (maxCalls <= 0) {
+		throw BadConfiguration{maxCallsParameter->getCompleteName() + " must be strictly positive"};
+	}
+	core->setMaxCalls(maxCalls * 2);
 	// Share media resources in the local conference (that is how media is transmitted to the other call leg).
 	core->setMediaResourceMode(linphone::MediaResourceMode::SharedMediaResources);
 	// No sound card shall be used in calls.

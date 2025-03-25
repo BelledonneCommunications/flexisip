@@ -785,6 +785,12 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "This can be used to work around DoS protection and rate-limiting systems on external proxies.",
 	        "false",
 	    },
+	    {
+	        Integer,
+	        "max-calls",
+	        "Maximum number of calls the server can bridge concurrently.",
+	        "500",
+	    },
 	    config_item_end};
 
 	root.addChild(make_unique<GenericStruct>(b2bua::configSection,
