@@ -151,7 +151,7 @@ protected:
 private:
 	static int numberOfContactHeaders(const sip_contact_t* rootHeader);
 
-	std::unique_ptr<RequestSipEvent> createUpstreamRequestEvent(std::unique_ptr<RequestSipEvent>&& ev, int globalDelta);
+	std::unique_ptr<RequestSipEvent> createUpstreamRequest(std::unique_ptr<RequestSipEvent>&& ev, int globalDelta);
 	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
 	void updateLocalRegExpire();

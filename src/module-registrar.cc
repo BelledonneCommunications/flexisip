@@ -635,15 +635,6 @@ void ModuleRegistrar::idle() {
 	}
 }
 
-std::unique_ptr<RequestSipEvent> ModuleRegistrar::createUpstreamRequestEvent(unique_ptr<RequestSipEvent>&& ev,
-                                                                             int globalDelta) {
-	auto upstreamEv = make_unique<RequestSipEvent>(*ev);
-	auto otr = upstreamEv->createOutgoingTransaction();
-	auto context = make_shared<ResponseContext>(std::move(ev), globalDelta);
-	otr->setProperty(getModuleName(), context);
-	return upstreamEv;
-}
-
 void ModuleRegistrar::deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx) {
 	auto otr = ctx->mRequestSipEvent->getOutgoingTransaction();
 	if (otr) otr->removeProperty(getModuleName());
@@ -814,8 +805,8 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Reject malformed registrations
 	const auto* expires = sip->sip_expires;
-	const auto maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
-	if (!checkHaveExpire(sip->sip_contact, maindelta)) {
+	const auto mainDelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
+	if (!checkHaveExpire(sip->sip_contact, mainDelta)) {
 		LOGD << "No global or local expire found in at least one contact";
 		reply(*ev, 400, "Invalid request");
 		return {};
@@ -826,7 +817,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			return {};
 		}
 	}
-	if (!checkStarUse(sip->sip_contact, maindelta)) {
+	if (!checkStarUse(sip->sip_contact, mainDelta)) {
 		LOGD << "The star rules are not respected";
 		reply(*ev, 400, "Invalid request");
 		return {};
@@ -891,7 +882,6 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			LOGD << "Clearing bindings";
 			listener->addStatCounter(mStats.mCountClear->finish);
 			mAgent->getRegistrarDb().clear(*ms, listener);
-			return {};
 		} else {
 			if (sipurl.getUser().empty() && mAssumeUniqueDomains) {
 				/*first clear to make sure that there is only one record*/
@@ -904,42 +894,50 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			LOGD << "Updating binding";
 			listener->addStatCounter(mStats.mCountBind->finish);
 			parameter.alias = false;
-			parameter.globalExpire = maindelta;
+			parameter.globalExpire = mainDelta;
 			parameter.version = 0;
 			parameter.isAliasFunction = [this, ms](const url_t* ct) -> bool {
 				return isAdjacentRegistration(ms->getSip()) && isManagedDomain(ct);
 			};
 			mAgent->getRegistrarDb().bind(*ms, parameter, listener);
-			return {};
 		}
-	} else {
-		/* Case where the module let the REGISTER being forwared upstream.
-		 * The final response is generated upon receiving the response from the upstream server
-		 * in onResponse(). */
-		ev->createIncomingTransaction();
-		ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-
-		ev = createUpstreamRequestEvent(std::move(ev), maindelta);
-
-		su_home_t* home = ev->getMsgSip()->getHome();
-		url_t* gruuAddress;
-		if (mAgent->getRegistrarDb().gruuEnabled() &&
-		    (gruuAddress = mAgent->getRegistrarDb().synthesizePubGruu(home, *ev->getMsgSip()))) {
-			/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are
-			 * going to create for the contact.*/
-			msg_header_remove_all(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(),
-			                      (msg_header_t*)ev->getSip()->sip_contact);
-			msg_header_insert(ev->getMsgSip()->getMsg(), (msg_pub_t*)ev->getSip(),
-			                  (msg_header_t*)sip_contact_create(home, (url_string_t*)gruuAddress, NULL));
-		} else {
-			// Legacy code: just cleaner contacts
-			ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
-			ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
-			LOGD << "Removed instance and push params:\n" << sip->sip_contact;
-		}
-		// Let the modified initial event flow (will not be forked).
+		return {};
 	}
-	return std::move(ev);
+	/* Case where the module let the REGISTER being forwarded upstream.
+	 * The final response is generated upon receiving the response from the upstream server
+	 * in onResponse(). */
+	ev->createIncomingTransaction();
+	ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+
+	// Let the modified initial event flow (will not be forked).
+	return createUpstreamRequest(std::move(ev), mainDelta);
+}
+
+unique_ptr<RequestSipEvent> ModuleRegistrar::createUpstreamRequest(unique_ptr<RequestSipEvent>&& ev,
+                                                                   const int globalDelta) {
+	auto upstreamEv = make_unique<RequestSipEvent>(*ev);
+	auto otr = upstreamEv->createOutgoingTransaction();
+	auto context = make_shared<ResponseContext>(std::move(ev), globalDelta);
+	otr->setProperty(getModuleName(), context);
+
+	const auto* sip = upstreamEv->getSip();
+	auto* home = upstreamEv->getMsgSip()->getHome();
+	url_t* gruuAddress;
+	if (mAgent->getRegistrarDb().gruuEnabled() &&
+	    (gruuAddress = mAgent->getRegistrarDb().synthesizePubGruu(home, *upstreamEv->getMsgSip()))) {
+		/* A gruu address can be assigned to this contact. Replace the contact with the GRUU address we are going to
+		 * create for the contact.*/
+		msg_header_remove_all(upstreamEv->getMsgSip()->getMsg(), (msg_pub_t*)sip, (msg_header_t*)sip->sip_contact);
+		msg_header_insert(upstreamEv->getMsgSip()->getMsg(), (msg_pub_t*)sip,
+		                  (msg_header_t*)sip_contact_create(home, (url_string_t*)gruuAddress, nullptr));
+	} else {
+		// Legacy code: just cleaner contacts
+		ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
+		ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
+		LOGD << "Removed instance and push params:\n" << sip->sip_contact;
+	}
+
+	return upstreamEv;
 }
 
 unique_ptr<ResponseSipEvent> ModuleRegistrar::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
