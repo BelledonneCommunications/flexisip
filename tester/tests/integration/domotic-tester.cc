@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,7 @@ namespace {
  *                       |                                 | ------------------------------> |
  */
 
-// REGISTER a mobile user and check that a doorbell INVITE is corretly sent to the user
+// REGISTER a mobile user and check that a doorbell INVITE is correctly sent to the user
 void localAndPublicProxies() {
 	RedisServer redis{};
 	const string domain = "sip.example.org";
@@ -70,15 +70,19 @@ void localAndPublicProxies() {
 	cloudProxy.start();
 
 	TempFile domainFile(domain + " <sip:127.0.0.1:"s + cloudProxy.getFirstPort() + ">\n");
-	Server homeProxy({
-	    {"inter-domain-connections/domain-registrations", domainFile.getFilename()},
-	    {"module::Registrar/reg-domains", domain},
-	    {"module::Registrar/enable-gruu", "true"},
-	    {"module::Registrar/db-implementation", "redis"},
-	    {"module::Registrar/redis-server-domain", "localhost"},
-	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
-	    {"module::DoSProtection/enabled", "false"},
-	});
+	Server homeProxy{
+	    {
+	        {"inter-domain-connections/domain-registrations", domainFile.getFilename()},
+	        {"module::Registrar/reg-domains", domain},
+	        {"module::Registrar/enable-gruu", "true"},
+	        {"module::Registrar/db-implementation", "redis"},
+	        {"module::Registrar/redis-server-domain", "localhost"},
+	        {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	        {"module::DoSProtection/enabled", "false"},
+	    },
+	    // Use same root in order to iterate both proxies when un-registering
+	    cloudProxy.getRoot(),
+	};
 	homeProxy.start();
 
 	CoreAssert asserter{cloudProxy, homeProxy};
@@ -94,7 +98,7 @@ void localAndPublicProxies() {
 			"To: <" + sipUri + ">\r\n"
 			"Call-ID: 1053183492" + "\r\n"
 			"CSeq: 20 REGISTER\r\n"
-			"Contact: <sip:user@127.0.0.1;>;+sip.instance=\"<" + gruu + ">\"\r\n"
+			"Contact: <sip:user@127.0.0.1>;+sip.instance=\"<" + gruu + ">\"\r\n"
 			"Supported: gruu\r\n"
 			"Expires: 600\r\n"
 			"Content-Length: 0\r\n\r\n");
@@ -104,8 +108,7 @@ void localAndPublicProxies() {
 		auto transaction =
 		    client.createOutgoingTransaction(registerRequest, "sip:127.0.0.1:"s + cloudProxy.getFirstPort());
 
-		BC_ASSERT_TRUE(asserter.iterateUpTo(
-		    5, [&transaction] { return transaction->isCompleted(); }, 2s));
+		BC_ASSERT_TRUE(asserter.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 2s));
 
 		auto response = transaction->getResponse();
 		BC_HARD_ASSERT(response != nullptr);
@@ -133,8 +136,7 @@ void localAndPublicProxies() {
 		// clang-format on
 		sofiasip::NtaAgent client{homeProxy.getRoot(), "sip:127.0.0.1:0"};
 		auto transaction = client.createOutgoingTransaction(request, "sip:127.0.0.1:"s + homeProxy.getFirstPort());
-		BC_ASSERT_TRUE(asserter.iterateUpTo(
-		    5, [&transaction] { return transaction->isCompleted(); }, 2s));
+		BC_ASSERT_TRUE(asserter.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 2s));
 
 		auto response = transaction->getResponse();
 		BC_HARD_ASSERT(response != nullptr);
@@ -144,6 +146,7 @@ void localAndPublicProxies() {
 		BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 503);
 	}
 }
+
 TestSuite _("Domotic",
             {
                 CLASSY_TEST(localAndPublicProxies),

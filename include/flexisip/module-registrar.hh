@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -146,7 +146,7 @@ protected:
 private:
 	static int numberOfContactHeaders(const sip_contact_t* rootHeader);
 
-	std::shared_ptr<RequestSipEvent> createUpstreamRequestEvent(std::shared_ptr<RequestSipEvent>&& ev, int globalDelta);
+	std::shared_ptr<RequestSipEvent> createUpstreamRequest(std::shared_ptr<RequestSipEvent>&& ev, int globalDelta);
 	void deleteResponseContext(const std::shared_ptr<ResponseContext>& ctx);
 
 	void updateLocalRegExpire();
