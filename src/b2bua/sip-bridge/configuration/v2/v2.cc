@@ -36,18 +36,18 @@ Root fromV1(v1::Root&& v1) {
 		auto staticLoader = StaticLoader{};
 		staticLoader.reserve(provider.accounts.size());
 		for (auto& account : provider.accounts) {
-			staticLoader.push_back({
+			staticLoader.push_back(Account{{
 			    .uri = std::move(account.uri),
-			    .userid = std::move(account.userid),
+			    .userId = std::move(account.userid),
 			    .secretType = SecretType::Cleartext,
 			    .secret = std::move(account.password),
-			});
+			}});
 		}
 		AccountPool accountPool{
-		    .outboundProxy = std::move(provider.outboundProxy),
 		    .registrationRequired = provider.registrationRequired,
 		    .maxCallsPerLine = provider.maxCallsPerLine,
 		    .loader = std::move(staticLoader),
+		    .outboundProxy = std::move(provider.outboundProxy),
 		    .mwiServerUri = "",
 		};
 		accountPools.try_emplace(std::move(poolName), std::move(accountPool));

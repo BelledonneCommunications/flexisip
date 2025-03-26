@@ -31,32 +31,85 @@ using namespace flexisip::b2bua::bridge::config::v2;
 
 void nominalInitialLoadTest() {
 	// Static loader only move parsed config, this is a trivial test.
-
 	auto loaderConfig = R"([
-			{
-				"uri": "sip:account1@some.provider.example.com",
-				"alias": "sip:expected-from@sip.example.org"
-			},
-			{
-				"uri": "sip:account2@some.provider.example.com",
-				"userid": "userID",
-				"secretType": "clrtxt",
-				"secret": "p@$sword",
-				"outboundProxy": "sip.linphone.org"
-			}
-		]
-	)"_json.get<config::v2::StaticLoader>();
+            {
+                "uri": "sip:account1@first.provider.example.com",
+                "realm": "some.provider.example.com",
+                "alias": "sip:expected-from@sip.example.org"
+            },
+            {
+                "uri": "sip:account2@second.provider.example.com",
+                "userid": "userId",
+                "secretType": "sha-256",
+                "secret": "p@$sw0rd",
+                "realm": "some.provider.example.com",
+                "outboundProxy": "sip.example.org"
+            },
+            {
+                "uri": "sip:account3@third.provider.example.org",
+                "userid": "anotherId",
+                "secretType": "md5",
+                "secret": "hash",
+                "realm": "aNewRealm",
+                "outboundProxy": "sip.example.org",
+                "registrar": "<sip:sip.another-example.org;transport=tcp>",
+                "protocol": "TCP"
+            },
+            {
+                "uri": "sip:account4@fourth.provider.example.org",
+                "userid": "anotherId",
+                "secretType": "SHA256",
+                "secret": "hash",
+                "realm": "aNewRealm",
+                "registrar": "<sips:sip.another-example.org>"
+            }
+        ]
+    )"_json.get<config::v2::StaticLoader>();
 
 	auto expectedAccounts = loaderConfig;
 
 	StaticAccountLoader loader{std::move(loaderConfig)};
 
 	auto actualAccounts = loader.loadAll();
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
 
-	BC_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
+	BC_ASSERT_CPP_EQUAL(actualAccounts[0].getOutboundProxyUri(), "sip:first.provider.example.com");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[0].getRegistrarUri(), "sip:first.provider.example.com");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[1].getOutboundProxyUri(), "sip:sip.example.org");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[1].getRegistrarUri(), "sip:second.provider.example.com");
+	BC_ASSERT_ENUM_EQUAL(actualAccounts[1].getSecretType(), SecretType::SHA256);
+	BC_ASSERT_CPP_EQUAL(actualAccounts[2].getOutboundProxyUri(), "sip:sip.example.org;transport=tcp");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[2].getRegistrarUri(), "<sip:sip.another-example.org;transport=tcp>");
+	BC_ASSERT_ENUM_EQUAL(actualAccounts[2].getSecretType(), SecretType::MD5);
+	// Testing both lower and upper case for the protocol parameter.
+	BC_ASSERT_CPP_EQUAL(actualAccounts[2].getProtocol(), "TCP");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getOutboundProxyUri(), "sip:fourth.provider.example.org");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getRegistrarUri(), "<sips:sip.another-example.org>");
+	// If the secret type does not match what is expected ("sha256"), the loader will fall back to the default value.
+	BC_ASSERT_ENUM_EQUAL(actualAccounts[3].getSecretType(), SecretType::MD5);
+	// Testing both lower and upper case for the protocol parameter.
+	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getProtocol(), "udp");
 
-	// Can be called any number of times
-	BC_ASSERT_CPP_EQUAL(loader.loadAll(), expectedAccounts);
+	// Can be called any number of times.
+	actualAccounts = loader.loadAll();
+	BC_HARD_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
+
+	BC_ASSERT_CPP_EQUAL(actualAccounts[0].getOutboundProxyUri(), "sip:first.provider.example.com");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[0].getRegistrarUri(), "sip:first.provider.example.com");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[1].getOutboundProxyUri(), "sip:sip.example.org");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[1].getRegistrarUri(), "sip:second.provider.example.com");
+	BC_ASSERT_ENUM_EQUAL(actualAccounts[1].getSecretType(), SecretType::SHA256);
+	BC_ASSERT_CPP_EQUAL(actualAccounts[2].getOutboundProxyUri(), "sip:sip.example.org;transport=tcp");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[2].getRegistrarUri(), "<sip:sip.another-example.org;transport=tcp>");
+	BC_ASSERT_ENUM_EQUAL(actualAccounts[2].getSecretType(), SecretType::MD5);
+	// Testing both lower and upper case for the protocol parameter.
+	BC_ASSERT_CPP_EQUAL(actualAccounts[2].getProtocol(), "TCP");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getOutboundProxyUri(), "sip:fourth.provider.example.org");
+	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getRegistrarUri(), "<sips:sip.another-example.org>");
+	// If the secret type does not match what is expected ("sha256"), the loader will fall back to the default value.
+	BC_ASSERT_ENUM_EQUAL(actualAccounts[3].getSecretType(), SecretType::MD5);
+	// Testing both lower and upper case for the protocol parameter.
+	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getProtocol(), "udp");
 }
 
 const TestSuite _{

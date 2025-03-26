@@ -419,9 +419,9 @@ void accountCreation() {
 	// empty uri
 	accounts.emplace_back();
 	// invalid uri
-	accounts.push_back({.uri = "invalid-sip-uri"});
+	accounts.emplace_back(config::v2::Account::Parameters{.uri = "invalid-sip-uri"});
 	// valid uri
-	accounts.push_back({.uri = "sip:valid-uri@example.org"});
+	accounts.emplace_back(config::v2::Account::Parameters{.uri = "sip:valid-uri@example.org"});
 
 	ProxyServer servers{};
 	const auto proxy = servers.proxy;
@@ -429,10 +429,10 @@ void accountCreation() {
 	auto asserter = CoreAssert(proxy, b2bua);
 
 	auto poolConfig = config::v2::AccountPool{
-	    .outboundProxy = "<sip:127.0.0.1:" + std::string(proxy.getFirstPort()) + ";transport=tcp>",
 	    .registrationRequired = true,
 	    .maxCallsPerLine = 682,
 	    .loader = {},
+	    .outboundProxy = "<sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp>",
 	    .registrationThrottlingRateMs = 0,
 	};
 	auto pool = make_optional<AccountPool>(proxy.getRoot(), b2bua, "createAccountTest", poolConfig,
@@ -443,6 +443,56 @@ void accountCreation() {
 	        3, [&]() { return LOOP_ASSERTION(servers.registers.size() == 1); }, 200ms)
 	    .assert_passed();
 	BC_ASSERT_CPP_EQUAL(servers.registers.size(), 1);
+}
+
+/**
+ * Verify that an account with the 'registrar' field set actually registers to the correct registrar.
+ */
+void accountCreationDifferentRegistrarAddresses() {
+	ProxyServer serversOne{};
+	const auto proxyOne = serversOne.proxy;
+	const auto b2buaOne = serversOne.makeB2buaCoreFromConfig();
+	ProxyServer serversTwo{};
+	const auto proxyTwo = serversTwo.proxy;
+
+	vector<config::v2::Account> accounts{};
+	// First user will register to the first proxy (using the registrar specified in the 'registrar' field).
+	accounts.emplace_back(config::v2::Account::Parameters{
+	    .uri = "sip:userOne@sip.example.org",
+	    .outboundProxy = "unreachable.proxy.org", // Intentionally set to an unreachable address
+	    .registrar = "127.0.0.1:"s + proxyOne.getFirstPort(),
+	});
+	// Second user will register to the second proxy (using the default registrar set in the account pool).
+	accounts.emplace_back(config::v2::Account::Parameters{
+	    .uri = "sip:userTwo@sip.example.org",
+	    .outboundProxy = "unreachable.proxy.org", // Intentionally set to an unreachable address
+	});
+
+	auto poolConfig = config::v2::AccountPool{
+	    .registrationRequired = true,
+	    .maxCallsPerLine = 1,
+	    .loader = {},
+	    .outboundProxy = "sip:unreachable.proxy.org", // Intentionally set to an unreachable address
+	    .registrar = "sip:127.0.0.1:"s + proxyTwo.getFirstPort() + ";transport=tcp",
+	    .registrationThrottlingRateMs = 0,
+	};
+	auto pool = make_optional<AccountPool>(proxyOne.getRoot(), b2buaOne, "createAccountTest", poolConfig,
+	                                       make_unique<StaticAccountLoader>(std::move(accounts)));
+	BC_HARD_ASSERT(pool->allAccountsLoaded());
+
+	auto asserter = CoreAssert(proxyOne, b2buaOne, proxyTwo);
+	asserter
+	    .iterateUpTo(
+	        3,
+	        [&]() {
+		        FAIL_IF(serversOne.registers.size() != 1);
+		        FAIL_IF(serversTwo.registers.size() != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        200ms)
+	    .assert_passed();
+	BC_ASSERT_CPP_EQUAL(serversOne.registers.size(), 1);
+	BC_ASSERT_CPP_EQUAL(serversTwo.registers.size(), 1);
 }
 
 /**
@@ -466,7 +516,7 @@ void accountRegistrationThrottling() {
 	Random random{tester::random::seed()};
 	auto stringGenerator = random.string();
 	for (auto& account : accounts) {
-		account.uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org";
+		account.update({.uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org"});
 	}
 	auto proxyServer = ProxyServer();
 	const auto& proxy = proxyServer.proxy;
@@ -478,10 +528,10 @@ void accountRegistrationThrottling() {
 	/// Rate to 0ms (synchronous)
 	/////////
 	auto poolConfig = config::v2::AccountPool{
-	    .outboundProxy = "<sip:127.0.0.1:" + std::string(proxy.getFirstPort()) + ";transport=tcp>",
 	    .registrationRequired = true,
 	    .maxCallsPerLine = 682,
 	    .loader = {},
+	    .outboundProxy = "<sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp>",
 	    .registrationThrottlingRateMs = 0,
 	};
 	auto pool = make_optional<AccountPool>(suRoot, core, "perfTestAccountPool", poolConfig,
@@ -536,7 +586,7 @@ public:
 		void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& callback) override {
 			const auto uri = redisAccountPub.uri.str();
 			auto accountIt = find_if(mAccounts.cbegin(), mAccounts.cend(),
-			                         [&uri](const auto& account) { return account.uri == uri; });
+			                         [&uri](const auto& account) { return account.getUri() == uri; });
 			optional<config::v2::Account> account;
 			if (accountIt != mAccounts.cend()) account = *accountIt;
 			callback(redisAccountPub.uri.str(), account);
@@ -550,18 +600,18 @@ public:
 	AccountCollection dbAccounts = [] {
 		auto dbAccounts = vector{
 		    accountCount,
-		    config::v2::Account{
-		        .secretType = config::v2::SecretType::Cleartext,
-		    },
+		    config::v2::Account{{.secretType = config::v2::SecretType::Cleartext}},
 		};
 		Random random{tester::random::seed()};
 		auto stringGenerator = random.string();
 		for (auto& account : dbAccounts) {
-			account.uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org";
-			account.alias = "sip:alias-" + stringGenerator.generate(10) + "@example.org";
-			account.secret = "secret-" + stringGenerator.generate(10);
-			account.userid = "userid-" + stringGenerator.generate(10);
-			account.realm = "realm-" + stringGenerator.generate(10);
+			account.update({
+			    .uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org",
+			    .userId = "userid-" + stringGenerator.generate(10),
+			    .secret = "secret-" + stringGenerator.generate(10),
+			    .realm = "realm-" + stringGenerator.generate(10),
+			    .alias = "sip:alias-" + stringGenerator.generate(10) + "@example.org",
+			});
 		}
 		return dbAccounts;
 	}();
@@ -570,10 +620,10 @@ public:
 	    core,
 	    "Test account pool",
 	    config::v2::AccountPool{
-	        .outboundProxy = "<sip:127.0.0.1:" + std::string(proxy.proxy.getFirstPort()) + ";transport=tcp>",
 	        .registrationRequired = true,
 	        .maxCallsPerLine = 3125,
 	        .loader = {},
+	        .outboundProxy = "<sip:127.0.0.1:"s + proxy.proxy.getFirstPort() + ";transport=tcp>",
 	        .registrationThrottlingRateMs = registerIntervalMs,
 	    },
 	    std::make_unique<MockAccountLoader>(dbAccounts),
@@ -630,17 +680,13 @@ void accountsUpdatedOnRedisResubscribe() {
 
 	// Change values in the database
 	BC_HARD_ASSERT(4 < accountCount);
-	dbAccounts[0].alias = "sip:changed-alias@example.org";
-	dbAccounts[2].realm = "changed-realm";
-	dbAccounts[2].userid = "changed-userid";
-	const auto& unexpectedUris = array{
-	    dbAccounts[3].uri,
-	    dbAccounts.back().uri,
-	};
+	dbAccounts[0].update({.alias = "sip:changed-alias@example.org"});
+	dbAccounts[2].update({.userId = "changed-userId", .realm = "changed-realm"});
+	const auto& unexpectedUris = array{dbAccounts[3].getUri(), dbAccounts.back().getUri()};
 	// Changing the URI is equivalent to deleting an account and creating a new one
-	dbAccounts[3].uri = "sip:changed-uri@example.org";
+	dbAccounts[3].update({.uri = "sip:changed-uri@example.org"});
 	dbAccounts.pop_back();
-	dbAccounts.emplace_back(config::v2::Account{
+	dbAccounts.emplace_back(config::v2::Account::Parameters{
 	    .uri = "sip:added@example.org",
 	    .alias = "sip:added-alias@example.org",
 	});
@@ -686,13 +732,13 @@ void accountsUpdatedOnRedisResubscribe() {
 		BC_ASSERT(account->isAvailable());
 	}
 	const auto& defaultView = pool.getDefaultView().view;
-	BC_ASSERT_CPP_EQUAL(defaultView.at(dbAccounts[0].uri)->getAlias().getUser(), "changed-alias");
-	const auto& uri = SipUri(dbAccounts[2].uri);
+	BC_ASSERT_CPP_EQUAL(defaultView.at(dbAccounts[0].getUri())->getAlias().getUser(), "changed-alias");
+	const auto& uri = SipUri(dbAccounts[2].getUri());
 	const auto& authInfo = core->findAuthInfo("", uri.getUser(), uri.getHost());
 	BC_HARD_ASSERT(authInfo != nullptr);
 	BC_ASSERT_CPP_EQUAL(authInfo->getRealm(), "changed-realm");
-	BC_ASSERT_CPP_EQUAL(authInfo->getUserid(), "changed-userid");
-	BC_ASSERT_CPP_EQUAL(defaultView.at("sip:changed-uri@example.org")->getAlias().str(), dbAccounts[3].alias);
+	BC_ASSERT_CPP_EQUAL(authInfo->getUserid(), "changed-userId");
+	BC_ASSERT_CPP_EQUAL(defaultView.at("sip:changed-uri@example.org")->getAlias().str(), dbAccounts[3].getAlias());
 	BC_ASSERT_CPP_EQUAL(defaultView.at("sip:added@example.org")->getAlias().getUser(), "added-alias");
 	BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded + accountsUpdated);
 	BC_ASSERT_CPP_EQUAL(unregisters.size(), accountsDeleted);
@@ -740,8 +786,8 @@ void accountsUpdatePartiallyAbortedOnRapidReload() {
 
 	// Change values in the database
 	auto& dbAccounts = accountPool.dbAccounts;
-	dbAccounts[dbAccounts.size() / 3].uri = "sip:flag@example.org";
-	dbAccounts.back().uri = "sip:cancelled-before-reached@example.org";
+	dbAccounts[dbAccounts.size() / 3].update({.uri = "sip:flag@example.org"});
+	dbAccounts.back().update({.uri = "sip:cancelled-before-reached@example.org"});
 
 	// Pool detects the broken connection
 	const auto& pool = accountPool.pool;
@@ -759,7 +805,7 @@ void accountsUpdatePartiallyAbortedOnRapidReload() {
 	    .assert_passed();
 	// Trigger another reload before accounts are finished loading
 	redisServer.restart();
-	dbAccounts.back().uri = "sip:latest-value@example.org";
+	dbAccounts.back().update({.uri = "sip:latest-value@example.org"});
 	// Pause processing until redis is up again
 	std::ignore = redisServer.port();
 	// Resume iterating
@@ -783,12 +829,13 @@ void accountsUpdatePartiallyAbortedOnRapidReload() {
 void accountRegistrationOnAuthInfoUpdate() {
 	constexpr auto accountCount = 2;
 	auto accountPool = AccountPoolConnectedToRedis<accountCount, 0>();
-	// choose a simple uri and id for the account we want to update
 	auto& account = accountPool.dbAccounts[0];
-	account.uri = "sip:user@example.org";
-	account.userid = "userID";
-	account.secretType = config::v2::SecretType::Cleartext;
-	account.secret = "";
+	// choose a simple uri and id for the account we want to update
+	account = config::v2::Account{{
+	    .uri = "sip:user@example.org",
+	    .userId = "userId",
+	    .secretType = config::v2::SecretType::Cleartext,
+	}};
 	auto& registers = accountPool.proxy.registers;
 	auto& unregisters = accountPool.proxy.unregisters;
 	CoreAssert asserter{accountPool.proxy.proxy, accountPool.core};
@@ -800,13 +847,13 @@ void accountRegistrationOnAuthInfoUpdate() {
 		msg << "REGISTERs received: " << registers;
 		BC_HARD_FAIL(msg.str().c_str());
 	}
-	const auto uri = SipUri(account.uri);
+	const auto uri = SipUri(account.getUri());
 	Session commandsSession{};
 	auto& ready = std::get<Session::Ready>(
 	    commandsSession.connect(accountPool.proxy.proxy.getRoot()->getCPtr(), "localhost", sRedisServer->redis.port()));
 
 	// add a password to an account, expect to receive 1 register
-	account.secret = "password";
+	account.update({.secret = "password"});
 	registers.clear();
 	unregisters.clear();
 
@@ -821,12 +868,12 @@ void accountRegistrationOnAuthInfoUpdate() {
 
 		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
 		BC_HARD_ASSERT(authInfo != nullptr);
-		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.secret);
+		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.getSecret());
 		BC_ASSERT_CPP_EQUAL(unregisters.size(), 0);
 	}
 
 	// change one account password, expect to receive 1 register
-	account.secret = "another-password";
+	account.update({.secret = "another-password"});
 	registers.clear();
 
 	{
@@ -839,7 +886,7 @@ void accountRegistrationOnAuthInfoUpdate() {
 		    .assert_passed();
 		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
 		BC_HARD_ASSERT(authInfo != nullptr);
-		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.secret);
+		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.getSecret());
 		BC_ASSERT_CPP_EQUAL(unregisters.size(), 0);
 	}
 }
@@ -848,6 +895,7 @@ const TestSuite _{
     "b2bua::sip-bridge::account::AccountPool",
     {
         CLASSY_TEST(accountCreation),
+        CLASSY_TEST(accountCreationDifferentRegistrarAddresses),
         CLASSY_TEST(accountRegistrationThrottling),
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 0>)),
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 1>)),

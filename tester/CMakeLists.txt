@@ -152,6 +152,7 @@ add_executable(flexisip_tester
 	utils/nat-test-helper.cc utils/nat-test-helper.hh
 	utils/posix-process-tester.cc
 	utils/proxy-server-process.cc utils/proxy-server-process.hh
+	utils/server/injected-module-info.cc utils/server/injected-module-info.hh
 	utils/server/mysql-server.cc utils/server/mysql-server.hh
 	utils/server/proxy-server.cc utils/server/proxy-server.hh
 	utils/server/redis-server.cc utils/server/redis-server.hh

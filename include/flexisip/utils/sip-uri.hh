@@ -23,13 +23,9 @@
 #include <string_view>
 #include <unordered_map>
 
-#include <bctoolbox/ownership.hh>
-
-#include <sofia-sip/sip.h>
-#include <sofia-sip/url.h>
-
 #include "flexisip/flexisip-exception.hh"
 #include "flexisip/sofia-wrapper/home.hh"
+#include "sofia-sip/url.h"
 
 namespace sofiasip {
 
@@ -225,19 +221,29 @@ inline std::ostream& operator<<(std::ostream& os, const sofiasip::Url& url) {
 namespace flexisip {
 
 /**
- * A specialisation of sofiasip::Url which ensures that the URL is a
- * SIP or SIPS URI.
+ * A specialisation of sofiasip::Url which ensures that the URL is a SIP or SIPS URI.
  */
 class SipUri : public sofiasip::Url {
 public:
 	class Params {
 	public:
-		explicit Params(const char* c);
+		explicit Params(const char* parameters);
 
 		bool operator==(const Params& other) const;
 		bool operator!=(const Params& other) const {
 			return !(*this == other);
 		}
+
+		std::string getParameter(const std::string& name) const;
+
+		bool removeParameter(const std::string& name);
+
+		/**
+		 * @return parameters list as a string (example: ";param=value;other-parm=other-value")
+		 */
+		std::string toString() const;
+
+		bool empty() const;
 
 	private:
 		std::unordered_map<std::string, std::string> mParams{};
@@ -271,9 +277,17 @@ public:
 	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
 	 */
 	explicit SipUri(const sofiasip::Url& src);
+
 	/**
-	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
+	 * @note if 'transport=tls' is present, the URI will be considered as a SIPS URI.
+	 * @note if 'transport=udp' is present, the URI will be considered as a SIP URI (and parameter is removed).
+	 *
+	 * @param userInfo user information (without '@')
+	 * @param hostport domain or IP address (and optionally port)
+	 * @param parameters URI parameters (example: "param=value;other-parm=other-value")
 	 */
+	SipUri(std::string_view userInfo, std::string_view hostport, Params params = Params{""});
+
 	explicit SipUri(sofiasip::Url&& src);
 	SipUri(const SipUri& src) noexcept = default;
 	SipUri(SipUri&& src) noexcept = default;

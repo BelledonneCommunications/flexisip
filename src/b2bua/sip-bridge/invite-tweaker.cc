@@ -52,14 +52,16 @@ InviteTweaker::InviteTweaker(const config::v2::OutgoingInvite& config, linphone:
 
 	      const auto& accountParams = core.createAccountParams();
 	      accountParams->enableRegister(false);
-	      const auto& route = core.createAddress(*config.outboundProxy);
+	      const auto& route = linphone::Factory::get()->createAddress(*config.outboundProxy);
 	      if (!route) {
 		      SLOGE << "InviteTweaker::InviteTweaker : bad outbound proxy format [" << *config.outboundProxy << "]";
 	      } else {
 		      accountParams->setServerAddress(route);
 		      accountParams->setRoutesAddresses({route});
 	      }
-	      accountParams->setIdentityAddress(core.createAddress("sip:flexisip-b2bua-sip-bridge-placeholder@localhost"));
+
+	      accountParams->setIdentityAddress(
+	          linphone::Factory::get()->createAddress("sip:flexisip-b2bua-invite-tweaker@localhost"));
 	      const auto account = core.createAccount(accountParams);
 	      core.addAccount(account);
 	      return account;
@@ -80,13 +82,12 @@ std::shared_ptr<linphone::Address> InviteTweaker::tweakInvite(const linphone::Ca
 	}
 
 	const auto fromAddress = mFromHeader.format(incomingCall, account);
-	auto& core = *incomingCall.getCore();
-	if (!core.createAddress(fromAddress)) throw InvalidAddress("From", fromAddress);
+	if (!linphone::Factory::get()->createAddress(fromAddress)) throw InvalidAddress("From", fromAddress);
 
 	outgoingCallParams.setFromHeader(fromAddress);
 
 	const auto toAddressStr = mToHeader.format(incomingCall, account);
-	const auto toAddress = core.createAddress(toAddressStr);
+	const auto toAddress = linphone::Factory::get()->createAddress(toAddressStr);
 	if (!toAddress) throw InvalidAddress("To", toAddressStr);
 
 	return toAddress;

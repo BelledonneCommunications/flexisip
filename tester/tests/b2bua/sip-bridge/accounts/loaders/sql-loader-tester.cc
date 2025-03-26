@@ -20,9 +20,9 @@
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
-#include "utils/soci-helper.hh"
 #include "utils/core-assert.hh"
 #include "utils/lazy.hh"
+#include "utils/soci-helper.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -44,17 +44,22 @@ struct SqlScope {
 		soci::session sql{sqlite3, tmpDbFileName};
 		try {
 			sql << R"sql(CREATE TABLE users (
-						usernameInDb TEXT PRIMARY KEY,
+						username TEXT PRIMARY KEY,
 						domain TEXT,
-						userid TEXT,
-						passwordInDb TEXT,
+						user_id TEXT,
+                        realm TEXT NULL,
+						secret TEXT,
+                        secret_type TEXT DEFAULT 'MD5',
 						alias_username TEXT,
 						alias_domain TEXT,
-						outboundProxyInDb TEXT))sql";
-			sql << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", "", "expected-from", "sip.example.org", ""))sql";
-			sql << R"sql(INSERT INTO users VALUES ("account2", "some.provider.example.com", "userID", "p@$sword", "", "", "sip.linphone.org"))sql";
+						outbound_proxy TEXT NULL,
+                        registrar TEXT NULL,
+                        protocol TEXT DEFAULT 'UDP'))sql";
+			sql << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", NULL, "", NULL, "expected-from", "sip.example.org", NULL, NULL, NULL))sql";
+			sql << R"sql(INSERT INTO users VALUES ("account2", "some.provider.example.com", "userId", NULL, "p@$sw0rd", "clrtxt", "", "", "<sip:sip.another.example.org;transport=udp>", NULL, NULL))sql";
+			sql << R"sql(INSERT INTO users VALUES ("account3", "other.provider.example.org", "anotherId", "aNewRealm", "hash", "MD5", "", "", "sips:sip.outbound.proxy.example.org", "sip.registrar.example.org", "TCP"))sql";
 		} catch (const soci_error& e) {
-			auto msg = "Error initializing DB : "s + e.what();
+			auto msg = "Error initializing DB: "s + e.what();
 			BC_HARD_FAIL(msg.c_str());
 		}
 	}
@@ -65,16 +70,26 @@ void nominalInitialSqlLoadTest() {
 	auto expectedAccounts = R"([
 			{
 				"uri": "sip:account1@some.provider.example.com",
-				"alias": "sip:expected-from@sip.example.org",
-				"secretType": "clrtxt",
-				"secret": ""
+                "realm": "some.provider.example.com",
+				"alias": "sip:expected-from@sip.example.org"
 			},
 			{
 				"uri": "sip:account2@some.provider.example.com",
-				"userid": "userID",
+				"userid": "userId",
 				"secretType": "clrtxt",
-				"secret": "p@$sword",
-				"outboundProxy": "sip.linphone.org"
+				"secret": "p@$sw0rd",
+                "realm": "some.provider.example.com",
+				"outboundProxy": "<sip:sip.another.example.org;transport=udp>"
+			},
+			{
+				"uri": "sip:account3@other.provider.example.org",
+				"userid": "anotherId",
+				"secretType": "md5",
+				"secret": "hash",
+                "realm": "aNewRealm",
+				"outboundProxy": "sips:sip.outbound.proxy.example.org",
+                "registrar": "sip.registrar.example.org",
+                "protocol": "tcp"
 			}
 		]
 	)"_json.get<std::vector<Account>>();
@@ -83,7 +98,7 @@ void nominalInitialSqlLoadTest() {
 	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
 		R"({
 			"dbBackend": "sqlite3",
-			"initQuery": "SELECT usernameInDb as username, domain as hostport, \"\" as realm, userid as user_id, \"clrtxt\" as secret_type, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users",
+			"initQuery": "SELECT * from users",
 			"updateQuery": "not tested here",
 			"connection": "@database_filename@"
 		}
@@ -102,14 +117,18 @@ void initialSqlLoadTestWithEmptyFields() {
 	auto expectedAccounts = R"([
 			{
 				"uri": "sip:account1@some.provider.example.com",
-				"alias": "sip:expected-from@sip.example.org",
-				"secretType": "md5",
-				"secret": ""
+                "realm": "some.provider.example.com",
+				"alias": "sip:expected-from@sip.example.org"
 			},
 			{
 				"uri": "sip:account2@some.provider.example.com",
-				"secretType": "md5",
-				"secret": ""
+                "realm": "some.provider.example.com"
+			},
+			{
+				"uri": "sip:account3@other.provider.example.org",
+                "realm": "other.provider.example.org",
+                "registrar": "sip.registrar.example.org",
+                "protocol": "tcp"
 			}
 		]
 	)"_json.get<std::vector<Account>>();
@@ -118,7 +137,7 @@ void initialSqlLoadTestWithEmptyFields() {
 	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
 	    R"({
 			"dbBackend": "sqlite3",
-			"initQuery": "SELECT usernameInDb as username, domain as hostport,\"\" as user_id, \"\" as realm, \"unknown\" as secret_type, \"\" as secret, alias_username, alias_domain as alias_hostport, NULL as outbound_proxy from users",
+			"initQuery": "SELECT username, domain, \"\" as user_id, NULL as realm, \"unknown\" as secret_type, \"\" as secret, alias_username, alias_domain, NULL as outbound_proxy, registrar, protocol from users",
 			"updateQuery": "not tested here",
 			"connection": "@database_filename@"
 		}
@@ -128,7 +147,6 @@ void initialSqlLoadTestWithEmptyFields() {
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
-
 	auto actualAccounts = loader.loadAll();
 
 	BC_ASSERT_CPP_EQUAL(expectedAccounts, actualAccounts);
@@ -139,7 +157,7 @@ void initialSqlLoadTestUriCantBeNull() {
 	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
 	    R"({
 			"dbBackend": "sqlite3",
-			"initQuery": "SELECT NULL as username, \"\" as hostport,  \"\" as user_id, \"clrtxt\" as secret_type, \"\" as secret, alias_username, alias_domain as alias_hostport, NULL as outbound_proxy from users",
+			"initQuery": "SELECT NULL as username, domain from users",
 			"updateQuery": "not tested here",
 			"connection": "@database_filename@"
 		}
@@ -159,7 +177,7 @@ void nominalUpdateSqlTest() {
 	    R"({
 			"dbBackend": "sqlite3",
 			"initQuery": "not tested here",
-			"updateQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, \"clrtxt\" as secret_type, \"\" as realm, passwordInDb as secret, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users where user_id = :identifier",
+            "updateQuery": "SELECT username, domain, user_id, \"newRealm\" as realm, \"sha-256\" as secret_type, secret, alias_username, alias_domain, outbound_proxy, registrar, protocol from users where user_id = :identifier",
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
@@ -172,7 +190,7 @@ void nominalUpdateSqlTest() {
 	optional<Account> actualAccount;
 	string actualUri;
 
-	RedisAccountPub fakePub{SipUri{"sip:account2@some.provider.example.com"}, "userID"};
+	RedisAccountPub fakePub{SipUri{"sip:account2@some.provider.example.com"}, "userId"};
 	loader.accountUpdateNeeded(
 	    fakePub, [&actualAccount, &actualUri](const string& uri, const optional<Account>& actualAccountCb) {
 		    actualAccount = actualAccountCb;
@@ -182,10 +200,11 @@ void nominalUpdateSqlTest() {
 	auto expectedAccount = R"(
 				{
 					"uri": "sip:account2@some.provider.example.com",
-					"userid": "userID",
-					"secretType": "clrtxt",
-					"secret": "p@$sword",
-					"outboundProxy": "sip.linphone.org"
+					"userid": "userId",
+                    "realm": "newRealm",
+					"secretType": "sha-256",
+					"secret": "p@$sw0rd",
+					"outboundProxy": "<sip:sip.another.example.org;transport=udp>"
 				}
 		)"_json.get<Account>();
 
@@ -200,6 +219,8 @@ void nominalUpdateSqlTest() {
 		BC_HARD_FAIL("No account found");
 	}
 	BC_HARD_ASSERT_CPP_EQUAL(*actualAccount, expectedAccount);
+	BC_ASSERT_ENUM_EQUAL(expectedAccount.getSecretType(), SecretType::SHA256);
+	BC_ASSERT_ENUM_EQUAL(actualAccount->getSecretType(), SecretType::SHA256);
 	BC_HARD_ASSERT_CPP_EQUAL(actualUri, "sip:account2@some.provider.example.com");
 }
 
@@ -210,7 +231,7 @@ void updateSqlTestDeletion() {
 	    R"({
 			"dbBackend": "sqlite3",
 			"initQuery": "not tested here",
-			"updateQuery": "SELECT usernameInDb as username, domain as hostport, userid as user_id, passwordInDb as password, alias_username, alias_domain as alias_hostport, outboundProxyInDb as outbound_proxy from users where user_id = :identifier",
+			"updateQuery": "SELECT username, domain, user_id, secret, alias_username, alias_domain, outbound_proxy from users where user_id = :identifier",
 			"connection": "@database_filename@"
 		}
 	)",'@', '@'}
@@ -244,7 +265,7 @@ void updateSqlTestDeletion() {
 }
 
 const TestSuite _{
-    "b2bua::sip-bridge::account::SQLAccountLoader",
+    "b2bua::sip-bridge::account::SqlAccountLoader",
     {
         CLASSY_TEST(nominalInitialSqlLoadTest),
         CLASSY_TEST(initialSqlLoadTestWithEmptyFields),

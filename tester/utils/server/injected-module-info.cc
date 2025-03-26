@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,22 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "injected-module-info.hh"
+#include "tester.hh"
 
-#include <linphone++/account.hh>
+namespace flexisip::tester {
 
-#include "b2bua/sip-bridge/configuration/v2/v2.hh"
+Random InjectedModuleInfo::mRandom = random::random();
+Random::StringGenerator InjectedModuleInfo::mRsg = mRandom.string(kAlphabet);
 
-namespace flexisip::b2bua::bridge {
-
-class NotifyTweaker {
-public:
-	explicit NotifyTweaker(const config::v2::OutgoingNotify&, linphone::Core&);
-
-	std::shared_ptr<linphone::Account> getAccountForNotifySending(const SipUri& uri) const;
-
-private:
-	std::shared_ptr<linphone::Account> mOutboundProxyOverride;
-};
-
-} // namespace flexisip::b2bua::bridge
+} // namespace flexisip::tester

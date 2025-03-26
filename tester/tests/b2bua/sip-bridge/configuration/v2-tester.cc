@@ -82,16 +82,16 @@ void v1ConfigExpressedAsEquivalentV2Config() {
 	BC_ASSERT_CPP_EQUAL(accountPool.maxCallsPerLine, 500);
 	const auto& staticLoader = std::get<v2::StaticLoader>(accountPool.loader);
 	BC_HARD_ASSERT_CPP_EQUAL(staticLoader.size(), 2);
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].uri, "sip:account1@some.provider.example.com");
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].userid, "userid1");
-	BC_ASSERT_ENUM_EQUAL(staticLoader[0].secretType, v2::SecretType::Cleartext);
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].secret, "correct horse battery staple");
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].alias, "sip:alias@internal.domain.example.com");
-	BC_ASSERT_CPP_EQUAL(staticLoader[1].uri, "sip:account2@some.provider.example.com");
-	BC_ASSERT_ENUM_EQUAL(staticLoader[1].secretType, v2::SecretType::MD5);
-	BC_ASSERT_CPP_EQUAL(staticLoader[1].secret, "e465a46b6d674197fdef9691c85597f6");
-	BC_ASSERT_CPP_EQUAL(staticLoader[1].userid, "");
-	BC_ASSERT_CPP_EQUAL(staticLoader[1].alias, "");
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getUri(), "sip:account1@some.provider.example.com");
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getUserId(), "userid1");
+	BC_ASSERT_ENUM_EQUAL(staticLoader[0].getSecretType(), v2::SecretType::Cleartext);
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getSecret(), "correct horse battery staple");
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getAlias(), "sip:alias@internal.domain.example.com");
+	BC_ASSERT_CPP_EQUAL(staticLoader[1].getUri(), "sip:account2@some.provider.example.com");
+	BC_ASSERT_ENUM_EQUAL(staticLoader[1].getSecretType(), v2::SecretType::MD5);
+	BC_ASSERT_CPP_EQUAL(staticLoader[1].getSecret(), "e465a46b6d674197fdef9691c85597f6");
+	BC_ASSERT_CPP_EQUAL(staticLoader[1].getUserId(), "");
+	BC_ASSERT_CPP_EQUAL(staticLoader[1].getAlias(), "");
 	BC_HARD_ASSERT_CPP_EQUAL(deserialized.providers.size(), 1);
 	BC_ASSERT_CPP_EQUAL(deserialized.providers[0].name, "Pattern matching (legacy) provider, new style");
 	const auto& matchRegex = std::get<v2::trigger_cond::MatchRegex>(deserialized.providers[0].triggerCondition);
@@ -133,11 +133,11 @@ void v1ConfigToV2() {
 	BC_ASSERT_CPP_EQUAL(accountPool.maxCallsPerLine, 2);
 	const auto& staticLoader = std::get<v2::StaticLoader>(accountPool.loader);
 	BC_HARD_ASSERT_CPP_EQUAL(staticLoader.size(), 1);
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].uri, "sip:bridge@sip.provider1.com");
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].userid, "");
-	BC_ASSERT_ENUM_EQUAL(staticLoader[0].secretType, v2::SecretType::Cleartext);
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].secret, "wow such password");
-	BC_ASSERT_CPP_EQUAL(staticLoader[0].alias, "");
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getUri(), "sip:bridge@sip.provider1.com");
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getUserId(), "");
+	BC_ASSERT_ENUM_EQUAL(staticLoader[0].getSecretType(), v2::SecretType::Cleartext);
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getSecret(), "wow such password");
+	BC_ASSERT_CPP_EQUAL(staticLoader[0].getAlias(), "");
 	BC_HARD_ASSERT_CPP_EQUAL(v2.providers.size(), 1);
 	BC_ASSERT_CPP_EQUAL(v2.providers[0].name, "provider1");
 	const auto& matchRegex = std::get<v2::trigger_cond::MatchRegex>(v2.providers[0].triggerCondition);
@@ -190,7 +190,6 @@ void requiredFields() {
 		],
 		"accountPools": {
 			"stub value 6": {
-				"outboundProxy": "stub value 7",
 				"registrationRequired": true,
 				"maxCallsPerLine": 8,
 				"loader": [
@@ -220,7 +219,6 @@ void requiredFields() {
 	    std::pair{"/providers/1/accountToUse", "source"},
 	    std::pair{"/providers/1/accountToUse", "by"},
 	    std::pair{"", "accountPools"},
-	    std::pair{"/accountPools/stub value 6", "outboundProxy"},
 	    std::pair{"/accountPools/stub value 6", "registrationRequired"},
 	    std::pair{"/accountPools/stub value 6", "maxCallsPerLine"},
 	    std::pair{"/accountPools/stub value 6", "loader"},

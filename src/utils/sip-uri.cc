@@ -27,6 +27,7 @@
 
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 
@@ -213,6 +214,20 @@ SipUri::SipUri(const url_t* src) : sofiasip::Url(src) {
 SipUri::SipUri(const sofiasip::Url& src) : SipUri(src.get()) {
 }
 
+SipUri::SipUri(std::string_view userInfo, std::string_view hostport, Params params)
+    : SipUri([&]() {
+	      const string userInformation{userInfo.empty() ? "" : userInfo.data() + "@"s};
+
+	      if (string_utils::toLower(params.getParameter("transport")) == "tls") {
+		      params.removeParameter("transport");
+		      return "sips:" + userInformation + hostport.data() + params.toString();
+	      }
+
+	      if (string_utils::toLower(params.getParameter("transport")) == "udp") params.removeParameter("transport");
+	      return "sip:" + userInformation + hostport.data() + params.toString();
+      }()) {
+}
+
 SipUri::SipUri(sofiasip::Url&& src) {
 	checkUrl(src);
 	static_cast<sofiasip::Url*>(this)->operator=(std::move(src));
@@ -235,8 +250,8 @@ void SipUri::checkUrl(const sofiasip::Url& url) {
 	if (!ok) throw sofiasip::InvalidUrlError(url.str(), msg);
 }
 
-SipUri::Params::Params(const char* c) {
-	if (!c) return;
+SipUri::Params::Params(const char* parameters) {
+	if (parameters == nullptr) return;
 
 	auto value = std::string();
 	auto name = std::string();
@@ -248,8 +263,8 @@ SipUri::Params::Params(const char* c) {
 		}
 		params.emplace(std::move(name), std::move(value));
 	};
-	for (; *c; c++) {
-		switch (*c) {
+	for (; *parameters; parameters++) {
+		switch (*parameters) {
 			case ';':
 				store();
 				current = &name;
@@ -258,7 +273,7 @@ SipUri::Params::Params(const char* c) {
 				current = &value;
 				break;
 			default:
-				current->push_back(std::tolower(*c));
+				current->push_back(std::tolower(*parameters));
 				break;
 		}
 	}
@@ -287,6 +302,26 @@ bool SipUri::Params::operator==(const SipUri::Params& other) const {
 		if (other.mParams.count(name) && !mParams.count(name)) return false;
 	}
 	return true;
+}
+
+std::string SipUri::Params::getParameter(const std::string& name) const {
+	if (const auto iterator = mParams.find(name); iterator != mParams.end()) return iterator->second;
+	return {};
+}
+
+bool SipUri::Params::removeParameter(const std::string& name) {
+	return mParams.erase(name) > 0;
+}
+
+std::string SipUri::Params::toString() const {
+	std::string result{};
+	for (const auto& [name, value] : mParams)
+		result.append(";").append(name).append("=").append(value);
+	return result;
+}
+
+bool SipUri::Params::empty() const {
+	return mParams.empty();
 }
 
 SipUri::Headers::Headers(const char* c) {

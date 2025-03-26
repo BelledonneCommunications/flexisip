@@ -128,9 +128,6 @@ Here is a template of what should be in this file:
 AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolConfigMap& accountPoolConfigMap) {
 	auto accountPoolMap = AccountPoolImplMap();
 	for (auto& [poolName, pool] : accountPoolConfigMap) {
-		if (pool.outboundProxy.empty()) {
-			throw BadConfiguration{"please provide an `outboundProxy` for AccountPool " + poolName};
-		}
 		if (pool.maxCallsPerLine == 0) {
 			LOGD << "AccountPool '" << poolName
 			     << "' has `maxCallsPerLine` set to 0 and will not be used to bridge calls";

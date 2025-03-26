@@ -20,9 +20,9 @@
 
 #include <cassert>
 
-#include "flexisip/logmanager.hh"
-
 #include "b2bua/sip-bridge/string-format-fields.hh"
+#include "exceptions/bad-configuration.hh"
+#include "flexisip/logmanager.hh"
 
 #define FUNC_LOG_PREFIX "AccountPool::" << __func__ << "() - "
 
@@ -49,18 +49,6 @@ void removeAccount(linphone::Core& core, const std::shared_ptr<linphone::Account
 	core.removeAccount(account);
 }
 
-void handleOutboundProxy(const shared_ptr<linphone::AccountParams>& accountParams, const string& outboundProxy) {
-	if (outboundProxy.empty()) return;
-
-	const auto route = linphone::Factory::get()->createAddress(outboundProxy);
-	if (!route) {
-		SLOGE << FUNC_LOG_PREFIX << "Bad outbound proxy format: '" << outboundProxy << "'";
-	} else {
-		accountParams->setServerAddress(route);
-		accountParams->setRoutesAddresses({route});
-	}
-}
-
 } // namespace
 
 AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
@@ -70,24 +58,33 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                          std::unique_ptr<Loader>&& loader,
                          RedisParameters const* redisConf)
     : mSuRoot{suRoot}, mCore{core}, mLoader{std::move(loader)}, mAccountParams{mCore->createAccountParams()},
-      mMaxCallsPerLine(pool.maxCallsPerLine), mPoolName{poolName},
-      mDefaultView(mViews
+      mMaxCallsPerLine{pool.maxCallsPerLine}, mPoolName{poolName},
+      mDefaultView{mViews
                        .emplace(kDefaultTemplateString,
-                                IndexedView{
-                                    .formatter = Formatter(kDefaultTemplateString, kAccountFields),
-                                })
-                       .first->second),
-      mAccountOpsQueue(mSuRoot, chrono::milliseconds{pool.registrationThrottlingRateMs}, [this](const auto& variant) {
-	      std::visit([this](const auto& operation) { this->applyOperation(operation); }, variant);
-      }) {
+                                IndexedView{.formatter = Formatter(kDefaultTemplateString, kAccountFields)})
+                       .first->second},
+      mAccountOpsQueue{mSuRoot, chrono::milliseconds{pool.registrationThrottlingRateMs},
+                       [this](const auto& variant) {
+	                       std::visit([this](const auto& operation) { this->applyOperation(operation); }, variant);
+                       }},
+      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "AccountPool(" + poolName + ")")} {
 
-	handleOutboundProxy(mAccountParams, pool.outboundProxy);
+	if (!pool.outboundProxy.empty()) {
+		mOutboundProxy = linphone::Factory::get()->createAddress(pool.outboundProxy);
+		if (mOutboundProxy == nullptr)
+			throw BadConfiguration{"invalid outbound proxy SIP URI set in " + mLogPrefix + ": " + pool.outboundProxy};
+	}
+	if (!pool.registrar.empty()) {
+		mRegistrar = linphone::Factory::get()->createAddress(pool.registrar);
+		if (mRegistrar == nullptr)
+			throw BadConfiguration{"invalid registrar SIP URI set in " + mLogPrefix + ": " + pool.registrar};
+	}
+
 	mAccountParams->enableRegister(pool.registrationRequired);
 	// The only way to disable account unregistration on linphone::Core shutdown is by allowing push notifications.
 	mAccountParams->setPushNotificationAllowed(!pool.unregisterOnServerShutdown);
 	if (!pool.mwiServerUri.empty()) {
-		auto mwiServerAddress = linphone::Factory::get()->createAddress(pool.mwiServerUri);
-		if (mwiServerAddress) {
+		if (const auto mwiServerAddress = linphone::Factory::get()->createAddress(pool.mwiServerUri)) {
 			mAccountParams->setMwiServerAddress(mwiServerAddress);
 		} else {
 			SLOGE << "AccountPool constructor - Invalid MWI server uri: '" << pool.mwiServerUri << "'";
@@ -105,32 +102,32 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 }
 
 void AccountPool::loadAll() {
-	// Abort on-going update process (if any)
+	// Abort ongoing update process (if any)
 	mAccountOpsQueue.clear();
 
 	auto& defaultView = mDefaultView.view;
 	auto loadedUris = unordered_set<string>();
-	auto newAccounts = mLoader->loadAll();
-	reserve(newAccounts.size());
-	for (auto&& accountDesc : newAccounts) {
-		if (accountDesc.uri.empty()) {
-			SLOGW << FUNC_LOG_PREFIX << "Skipping account of pool " << mPoolName << ": `uri` field missing";
+	auto accountDescriptions = mLoader->loadAll();
+	reserve(accountDescriptions.size());
+
+	for (auto&& desc : accountDescriptions) {
+		if (desc.getUri().empty()) {
+			SLOGW << FUNC_LOG_PREFIX << "Skipping account of pool " << mPoolName << ": `uri` field is missing";
 			continue;
 		}
 
-		loadedUris.emplace(accountDesc.uri);
+		loadedUris.emplace(desc.getUri());
 
-		if (auto existingAccountIt = defaultView.find(accountDesc.uri);
-		    existingAccountIt != defaultView.end()) /* Update */ {
+		if (auto existingAccountIt = defaultView.find(desc.getUri()); existingAccountIt != defaultView.end()) {
 			mAccountOpsQueue.enqueue(UpdateAccount{
 			    .existingAccount = existingAccountIt->second,
-			    .newDesc = std::move(accountDesc),
+			    .newDesc = std::move(desc),
 			});
 			continue;
 		}
 
 		/* Create */
-		mAccountOpsQueue.enqueue(CreateAccount{.accountDesc = std::move(accountDesc)});
+		mAccountOpsQueue.enqueue(CreateAccount{.accountDesc = std::move(desc)});
 	}
 	auto deleteOps = vector<DeleteAccount>();
 	for (const auto& [existingUri, existingAccount] : defaultView) {
@@ -146,27 +143,47 @@ void AccountPool::loadAll() {
 	mAccountsQueuedForRegistration = true;
 }
 
+void AccountPool::setOutboundProxyAndRegistrar(const std::shared_ptr<linphone::AccountParams>& params,
+                                               const config::v2::Account& desc) const {
+	std::shared_ptr<linphone::Address> outboundProxy{mOutboundProxy}, registrar{mRegistrar};
+
+	if (desc.outboundProxyIsSet() or outboundProxy == nullptr) {
+		outboundProxy = linphone::Factory::get()->createAddress(desc.getOutboundProxyUri());
+		if (outboundProxy == nullptr)
+			LOGE << "Invalid outbound proxy SIP URI set for '" << desc.getUri() << "': " << desc.getOutboundProxyUri();
+	}
+
+	if (desc.registrarIsSet()) {
+		registrar = linphone::Factory::get()->createAddress(desc.getRegistrarUri());
+		if (registrar == nullptr)
+			LOGE << "Invalid registrar SIP URI set for '" << desc.getUri() << "': " << desc.getRegistrarUri();
+	} else if (registrar == nullptr) registrar = outboundProxy;
+
+	if (outboundProxy) params->setRoutesAddresses({outboundProxy});
+	if (registrar) params->setServerAddress(registrar);
+}
+
 void AccountPool::applyOperation(const CreateAccount& op) {
 	const auto& accountDesc = op.accountDesc;
-	const auto address = linphone::Factory::get()->createAddress(accountDesc.uri);
+	const auto address = linphone::Factory::get()->createAddress(accountDesc.getUri());
 	if (!address) {
-		SLOGW << "AccountPool::CreateAccount - Creating address failed for uri '" << accountDesc.uri << "'";
+		SLOGW << "AccountPool::CreateAccount - Creating address failed for uri '" << accountDesc.getUri() << "'";
 		return;
 	}
 
 	const auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(address);
 
-	handleOutboundProxy(accountParams, accountDesc.outboundProxy);
+	setOutboundProxyAndRegistrar(accountParams, accountDesc);
 	handleAuthInfo(accountDesc, address);
 
 	const auto newAccount =
-	    make_shared<Account>(mCore->createAccount(accountParams), mMaxCallsPerLine, accountDesc.alias);
+	    make_shared<Account>(mCore->createAccount(accountParams), mMaxCallsPerLine, accountDesc.getAlias());
 	const auto& linphoneAccount = newAccount->getLinphoneAccount();
 
 	if (mCore->addAccount(linphoneAccount) != 0) {
 		const auto uri = linphoneAccount->getParams()->getIdentityAddress();
-		SLOGW << "AccountPool::CreateAccount - Adding new Account to core failed for uri '" << uri << "'";
+		SLOGW << "AccountPool::CreateAccount - Adding new Account to core failed for uri '" << uri->asString() << "'";
 		removeAccount(*mCore, linphoneAccount);
 		return;
 	}
@@ -210,17 +227,17 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 
 	// Update account
 	const auto& newParams = op.newDesc;
-	accountToUpdate->setAlias(newParams.alias);
+	accountToUpdate->setAlias(newParams.getAlias());
 
 	auto& linphoneAccountToUpdate = *accountToUpdate->getLinphoneAccount();
 	// Keep current account identity before overriding it (needed to retrieve the current authentication information)
 	const auto oldIdentityAddress = linphoneAccountToUpdate.getParams()->getIdentityAddress();
 
 	const auto newLinphoneParams = mAccountParams->clone();
-	const auto newIdentityAddress = linphone::Factory::get()->createAddress(newParams.uri);
+	const auto newIdentityAddress = linphone::Factory::get()->createAddress(newParams.getUri());
 	newLinphoneParams->setIdentityAddress(newIdentityAddress);
 
-	handleOutboundProxy(newLinphoneParams, newParams.outboundProxy);
+	setOutboundProxyAndRegistrar(newLinphoneParams, newParams);
 	linphoneAccountToUpdate.setParams(newLinphoneParams);
 	updateAuthInfo(newParams, newIdentityAddress, oldIdentityAddress, linphoneAccountToUpdate);
 
@@ -243,32 +260,32 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 void AccountPool::updateAuthInfo(const config::v2::Account& newParams,
                                  const std::shared_ptr<const linphone::Address>& newAddress,
                                  const std::shared_ptr<const linphone::Address>& currentAddress,
-                                 linphone::Account& linphoneAccountToUpdate) {
+                                 linphone::Account& linphoneAccountToUpdate) const {
 
 	const auto currentAuthInfo = mCore->findAuthInfo("", currentAddress->getUsername(), currentAddress->getDomain());
 
 	auto hasChange = [&]() {
 		if (currentAuthInfo->getUsername() != newAddress->getUsername()) return true;
 
-		if (currentAuthInfo->getUserid() != newParams.userid) return true;
+		if (currentAuthInfo->getUserid() != newParams.getUserId()) return true;
 
 		if (currentAuthInfo->getDomain() != newAddress->getDomain()) return true;
 
-		if (newParams.realm.empty() && (currentAuthInfo->getRealm() != newAddress->getDomain())) return true;
-		else if (currentAuthInfo->getRealm() != newParams.realm) return true;
+		if (newParams.getRealm().empty() && (currentAuthInfo->getRealm() != newAddress->getDomain())) return true;
+		else if (currentAuthInfo->getRealm() != newParams.getRealm()) return true;
 
 		const auto algo = currentAuthInfo->getAlgorithm();
-		switch (newParams.secretType) {
+		switch (newParams.getSecretType()) {
 			case config::v2::SecretType::MD5: {
-				if (algo != "MD5" || currentAuthInfo->getHa1() != newParams.secret) return true;
+				if (algo != "MD5" || currentAuthInfo->getHa1() != newParams.getSecret()) return true;
 				break;
 			}
 			case config::v2::SecretType::SHA256: {
-				if (algo != "SHA-256" || currentAuthInfo->getHa1() != newParams.secret) return true;
+				if (algo != "SHA-256" || currentAuthInfo->getHa1() != newParams.getSecret()) return true;
 				break;
 			}
 			default: {
-				if (algo != "" || currentAuthInfo->getPassword() != newParams.secret) return true;
+				if (algo != "" || currentAuthInfo->getPassword() != newParams.getSecret()) return true;
 				break;
 			}
 		}
@@ -280,7 +297,7 @@ void AccountPool::updateAuthInfo(const config::v2::Account& newParams,
 		if (!hasChange()) return;
 		mCore->removeAuthInfo(currentAuthInfo);
 	}
-	if (newParams.secret.empty()) return;
+	if (newParams.getSecret().empty()) return;
 
 	handleAuthInfo(newParams, newAddress);
 	// Ensure a new register will be sent
@@ -289,25 +306,25 @@ void AccountPool::updateAuthInfo(const config::v2::Account& newParams,
 
 void AccountPool::handleAuthInfo(const config::v2::Account& account,
                                  const std::shared_ptr<const linphone::Address>& address) const {
-	if (!account.secret.empty()) {
+	if (!account.getSecret().empty()) {
 		const auto domain = address->getDomain();
 		const auto authInfo =
-		    linphone::Factory::get()->createAuthInfo(address->getUsername(), account.userid, "", "", "", domain);
+		    linphone::Factory::get()->createAuthInfo(address->getUsername(), account.getUserId(), "", "", "", domain);
 
-		switch (account.secretType) {
+		switch (account.getSecretType()) {
 			case config::v2::SecretType::MD5: {
 				authInfo->setAlgorithm("MD5");
-				authInfo->setHa1(account.secret);
+				authInfo->setHa1(account.getSecret());
 			} break;
 			case config::v2::SecretType::SHA256: {
 				authInfo->setAlgorithm("SHA-256");
-				authInfo->setHa1(account.secret);
+				authInfo->setHa1(account.getSecret());
 			} break;
 			case config::v2::SecretType::Cleartext: {
-				authInfo->setPassword(account.secret);
+				authInfo->setPassword(account.getSecret());
 			} break;
 		}
-		const auto& realm = account.realm.empty() ? domain : account.realm;
+		const auto& realm = account.getRealm().empty() ? domain : account.getRealm();
 		authInfo->setRealm(realm);
 
 		mCore->addAuthInfo(authInfo);
@@ -435,9 +452,9 @@ void AccountPool::onAccountUpdate(const string& uri, const optional<config::v2::
 		return;
 	}
 
-	if (uri != newDescription->uri) {
+	if (uri != newDescription->getUri()) {
 		SLOGE << FUNC_LOG_PREFIX << "Aborting update: Inconsistent URIs between notification ('" << uri
-		      << "') and what was fetched in DB ('" << newDescription->uri << "')";
+		      << "') and what was fetched in DB ('" << newDescription->getUri() << "')";
 		return;
 	}
 

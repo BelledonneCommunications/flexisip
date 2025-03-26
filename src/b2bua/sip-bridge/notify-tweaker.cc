@@ -18,26 +18,29 @@
 
 #include "notify-tweaker.hh"
 
+#include <linphone++/account_params.hh>
 #include <linphone++/address.hh>
 #include <linphone++/core.hh>
+#include <linphone++/factory.hh>
 
 #include "flexisip/logmanager.hh"
 
 namespace flexisip::b2bua::bridge {
 
 NotifyTweaker::NotifyTweaker(const config::v2::OutgoingNotify& config, linphone::Core& core)
-    : mCore(core), mOutboundProxyOverride([&]() -> decltype(mOutboundProxyOverride) {
+    : mOutboundProxyOverride([&]() -> decltype(mOutboundProxyOverride) {
 	      if (config.outboundProxy.empty()) return nullptr;
 
 	      const auto& accountParams = core.createAccountParams();
 	      accountParams->enableRegister(false);
-	      const auto& route = core.createAddress(config.outboundProxy);
+	      const auto& route = linphone::Factory::get()->createAddress(config.outboundProxy);
 	      if (!route) {
 		      SLOGE << "NotifyTweaker::NotifyTweaker : bad outbound proxy format [" << config.outboundProxy << "]";
 	      } else {
 		      accountParams->setServerAddress(route);
 		      accountParams->setRoutesAddresses({route});
 	      }
+
 	      const auto account = core.createAccount(accountParams);
 	      core.addAccount(account);
 	      return account;
@@ -48,7 +51,7 @@ std::shared_ptr<linphone::Account> NotifyTweaker::getAccountForNotifySending(con
 	if (!mOutboundProxyOverride) return nullptr;
 
 	auto newAccountParams = mOutboundProxyOverride->getParams()->clone();
-	newAccountParams->setIdentityAddress(mCore.createAddress(uri.str()));
+	newAccountParams->setIdentityAddress(linphone::Factory::get()->createAddress(uri.str()));
 	mOutboundProxyOverride->setParams(newAccountParams);
 
 	return mOutboundProxyOverride;

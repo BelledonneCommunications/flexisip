@@ -73,7 +73,7 @@ void SQLAccountLoader::accountUpdateNeeded(const RedisAccountPub& redisAccountPu
 
 			mSuRoot->addToMainLoop([cb, account, redisAccountPub]() {
 				// Uri cannot be empty unless no account was found in DB.
-				cb(redisAccountPub.uri.str(), (account.uri.empty() ? nullopt : optional<config::v2::Account>{account}));
+				cb(redisAccountPub.uri.str(), (account.getUri().empty() ? nullopt : optional{account}));
 			});
 		} catch (const exception& exception) {
 			SLOGE << "SQLAccountLoader - An error occurred during SQL query execution: " << exception.what();

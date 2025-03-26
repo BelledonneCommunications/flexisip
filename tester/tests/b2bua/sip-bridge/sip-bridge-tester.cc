@@ -383,6 +383,174 @@ void bidirectionalBridging() {
 	std::ignore = b2buaServer->stop();
 }
 
+void externalAccountUsingCustomRegistrarAndOutboundProxy() {
+	TmpDir directory{"b2bua::sip-bridge::"s + __func__};
+	const auto providersConfigPath = directory.path() / "providers.json";
+
+	StringFormatter jsonConfig{
+	    R"json({
+		"schemaVersion": 2,
+		"providers": [
+			{
+				"name": "Internal --> External",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{from}",
+					"by": "{alias}"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+					"from": "{account.uri}"
+				},
+				"accountPool": "ExternalAccounts"
+			},
+			{
+				"name": "External --> Internal",
+				"triggerCondition": {
+					"strategy": "Always"
+				},
+				"accountToUse": {
+					"strategy": "FindInPool",
+					"source": "{to}",
+					"by": "{uri}"
+				},
+				"onAccountNotFound": "nextProvider",
+				"outgoingInvite": {
+					"to": "{account.alias}",
+					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+					"outboundProxy": "<sip:127.0.0.4:#internalProxyPort#;transport=tcp>"
+				},
+				"accountPool": "ExternalAccounts"
+			}
+		],
+		"accountPools": {
+			"ExternalAccounts": {
+				"outboundProxy": "<sip:unreachable.example.org:5060>",
+                "registrar": "<sip:another.unreachable.example.org:5060>",
+				"registrationRequired": true,
+				"maxCallsPerLine": 1,
+				"loader": [
+					{
+						"uri": "#uriOnExternalDomain#",
+						"alias": "#uriOnInternalDomain#",
+                        "outboundProxy": "#outboundProxyHostport#",
+                        "registrar": "#registrarHostPort#",
+                        "encrypted": false,
+                        "protocol": "tcp"
+					}
+				]
+			}
+		}
+	})json",
+	    '#',
+	    '#',
+	};
+
+	Server externalProxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.external.example.org"},
+	    {"module::MediaRelay/enabled", "false"},
+	}};
+	externalProxy.start();
+
+	string toUri{};
+	string fromUri{};
+	InjectedHooks hooks{
+	    .onRequest =
+	        [&toUri, &fromUri](std::unique_ptr<RequestSipEvent>&& requestEvent) {
+		        const auto* sip = requestEvent->getSip();
+		        if (!sip or !sip->sip_request or sip->sip_request->rq_method != sip_method_invite or !sip->sip_cseq or
+		            sip->sip_cseq->cs_seq != 20)
+			        return std::move(requestEvent);
+		        if (!BC_ASSERT(sip->sip_from and sip->sip_to and sip->sip_request)) return std::move(requestEvent);
+		        auto to = SipUri{sip->sip_to->a_url};
+		        to.removeParam("gr");
+		        toUri = to.str();
+		        fromUri = SipUri{sip->sip_from->a_url}.str();
+		        return std::move(requestEvent);
+	        },
+	};
+
+	Server outboundProxyServer{
+	    {
+	        {"global/transports", "sip:127.0.0.2:0;transport=tcp"},
+	        {"module::Registrar/enabled", "false"},
+	        {"module::MediaRelay/enabled", "false"},
+	    },
+	    &hooks,
+	};
+	outboundProxyServer.start();
+
+	B2buaAndProxyServer b2buaAndProxy{
+	    {
+	        {"global/transports", "sip:127.0.0.3:0;transport=tcp"},
+	        {"b2bua-server/application", "sip-bridge"},
+	        {"b2bua-server/transport", "sip:127.0.0.4:0;transport=tcp"},
+	        {"b2bua-server/enable-ice", "false"},
+	        {"b2bua-server/one-connection-per-account", "true"},
+	        {"b2bua-server::sip-bridge/providers", providersConfigPath.string()},
+	        {"module::B2bua/enabled", "true"},
+	        {"module::MediaRelay/enabled", "false"},
+	        {"module::Registrar/enabled", "true"},
+	        {"module::Registrar/reg-domains", "sip.internal.example.org"},
+	    },
+	    false,
+	};
+	b2buaAndProxy.startProxy();
+
+	// Instantiate clients.
+	const string internalUserUri{"sip:internal-user@sip.internal.example.org"};
+	const string internalUserUriOnExternal{"sip:internal-user@sip.external.example.org"};
+	auto internalUser = ClientBuilder{*b2buaAndProxy.getAgent()}.build(internalUserUri);
+	const string externalUserUri{"sip:external-user@sip.external.example.org"};
+	const string externalUserUriOnInternal{"sip:external-user@sip.internal.example.org"};
+	auto externalUser = ClientBuilder{*externalProxy.getAgent()}.build(externalUserUri);
+
+	ofstream{providersConfigPath} << jsonConfig.format({
+	    {"internalProxyPort", b2buaAndProxy.getFirstPort()},
+	    {"uriOnExternalDomain", internalUserUriOnExternal},
+	    {"uriOnInternalDomain", internalUserUri},
+	    {"outboundProxyHostport", "127.0.0.2:"s + outboundProxyServer.getFirstPort()},
+	    {"registrarHostPort", "127.0.0.1:"s + externalProxy.getFirstPort()},
+	});
+
+	b2buaAndProxy.startB2bua();
+
+	// Verify B2BUA accounts are registered on Jabiru proxy.
+	CoreAssert asserter{b2buaAndProxy, outboundProxyServer, externalProxy, internalUser, externalUser};
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&sipProviders = dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaAndProxy.getModule()).getProviders()] {
+		        for (const auto& provider : sipProviders) {
+			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				        FAIL_IF(!account->isAvailable());
+			        }
+		        }
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Assert that the outbound proxy received the INVITE request.
+	std::ignore = internalUser.invite(externalUser);
+	asserter
+	    .iterateUpTo(
+	        128,
+	        [&] {
+		        FAIL_IF(fromUri != internalUserUriOnExternal);
+		        FAIL_IF(toUri != externalUserUri);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
 void loadAccountsFromSQL() {
 	TmpDir sqliteDbDir{"b2bua::bridge::loadAccountsFromSQL"};
 	const auto& sqliteDbFilePath = sqliteDbDir.path() / "db.sqlite";
@@ -418,9 +586,9 @@ void loadAccountsFromSQL() {
 		],
 		"accountPools": {
 			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
 				"registrationRequired": true,
 				"maxCallsPerLine": 3125,
+                "registrar": "<sip:127.0.0.1:port;transport=tcp>",
 				"loader": {
 					"dbBackend": "sqlite3",
 					"initQuery": "SELECT username, hostport, userid as user_id, \"clrtxt\" as secret_type, \"\" as realm, passwordInDb as secret, alias_username, alias_hostport, outboundProxyInDb as outbound_proxy from users",
@@ -1632,9 +1800,10 @@ void maxCallDuration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-    asserter.iterateUpTo(
-                    10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
-            .assert_passed();
+	asserter
+	    .iterateUpTo(
+	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	    .assert_passed();
 }
 
 /**
@@ -2778,6 +2947,7 @@ TestSuite _{
         CLASSY_TEST((bidirectionalBridging<UDP, UDP>)),
         CLASSY_TEST((bidirectionalBridging<TCP, UDP>)),
         CLASSY_TEST((bidirectionalBridging<UDP, TCP>)),
+        CLASSY_TEST(externalAccountUsingCustomRegistrarAndOutboundProxy),
         CLASSY_TEST(loadAccountsFromSQL),
         CLASSY_TEST(invalidSQLLoaderThreadPoolSize),
         CLASSY_TEST(invalidUriTriggersDecline),

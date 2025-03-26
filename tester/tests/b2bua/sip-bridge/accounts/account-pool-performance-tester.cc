@@ -49,21 +49,23 @@ void loadManyAccounts() {
 	const auto& b2buaCore =
 	    B2buaCore::create(*linphone::Factory::get(), *b2buaConfMan.getRoot()->get<GenericStruct>(b2bua::configSection));
 	const auto& poolConfig = config::v2::AccountPool{
-	    .outboundProxy = "<sip:stub.example.org;transport=tls>",
 	    .registrationRequired = false,
 	    .maxCallsPerLine = 682,
 	    .loader = {},
+	    .outboundProxy = "<sip:stub.example.org;transport=tls>",
 	};
 	b2buaCore->start();
 	auto accounts = vector<config::v2::Account>(accountCount, config::v2::Account{});
 	Random random{tester::random::seed()};
 	auto stringGenerator = random.string();
 	for (auto& account : accounts) {
-		account.uri = "sip:uri-" + stringGenerator.generate(10) + "@stub.example.org";
-		account.secretType = config::v2::SecretType::Cleartext;
-		account.secret = stringGenerator.generate(10);
-		account.alias = "sip:alias-" + stringGenerator.generate(10) + "@stub.example.org";
-		account.outboundProxy = "<sip:" + stringGenerator.generate(10) + ".example.org;transport=tls>";
+		account.update({
+		    .uri = "sip:uri-" + stringGenerator.generate(10) + "@stub.example.org",
+		    .secretType = config::v2::SecretType::Cleartext,
+		    .secret = stringGenerator.generate(10),
+		    .alias = "sip:alias-" + stringGenerator.generate(10) + "@stub.example.org",
+		    .outboundProxy = "<sip:" + stringGenerator.generate(10) + ".example.org;transport=tls>",
+		});
 	}
 
 	const auto& before = chrono::steady_clock::now();
@@ -139,10 +141,10 @@ void reRegisterManyAccounts() {
 	auto expectedUserNames = decltype(registeredUserNames)();
 	auto accounts = vector{
 	    accountCount,
-	    config::v2::Account{
+	    config::v2::Account{{
 	        .secretType = config::v2::SecretType::Cleartext,
 	        .secret = "stub",
-	    },
+	    }},
 	};
 	auto externalProxyFut = externalProxyPromise.get_future();
 	const auto& externalProxy = externalProxyFut.get();
@@ -156,7 +158,7 @@ void reRegisterManyAccounts() {
 	for (auto& account : accounts) {
 		auto username = usernameGenerator.generate(10);
 		SLOGD << __FUNCTION__ << " - " << username << " is account no. " << expectedUserNames.size();
-		account.uri = "sip:" + username + "@example.org";
+		account.update({.uri = "sip:" + username + "@example.org"});
 		if constexpr (authEnabled) {
 			externalAuthDb->createAccount(username, "example.org", username, "stub", numeric_limits<int>::max());
 		}
@@ -166,10 +168,10 @@ void reRegisterManyAccounts() {
 	}
 	auto asserter = CoreAssert<kNoSleep>(b2buaSofiaLoop, b2buaCore);
 	auto poolConfig = config::v2::AccountPool{
-	    .outboundProxy = "<sip:127.0.0.1:" + string(externalProxy.getFirstPort()) + ";transport=udp>",
 	    .registrationRequired = true,
 	    .maxCallsPerLine = 914,
 	    .loader = {},
+	    .outboundProxy = "<sip:127.0.0.1:"s + externalProxy.getFirstPort() + ";transport=udp>",
 	    .registrationThrottlingRateMs = registrationIntervalMs,
 	    .unregisterOnServerShutdown = false,
 	};

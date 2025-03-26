@@ -179,20 +179,22 @@ inline void from_json(const nlohmann ::json& nlohmann_json_j, AccountPoolLoader&
 }
 
 struct AccountPool {
-	std::string outboundProxy = "";            // required
 	bool registrationRequired = false;         // required
 	uint32_t maxCallsPerLine = 0;              // required
 	AccountPoolLoader loader = {};             // required
+	std::string outboundProxy = "";            // optional
+	std::string registrar = "";                // optional
 	uint32_t registrationThrottlingRateMs = 0; // optional
 	std::string mwiServerUri = "";             // optional
 	bool unregisterOnServerShutdown = true;    // optional
 };
 inline void from_json(const nlohmann ::json& nlohmann_json_j, AccountPool& nlohmann_json_t) {
 	AccountPool nlohmann_json_default_obj;
-	NLOHMANN_JSON_FROM(outboundProxy)
 	NLOHMANN_JSON_FROM(registrationRequired)
 	NLOHMANN_JSON_FROM(maxCallsPerLine)
 	NLOHMANN_JSON_FROM(loader)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(outboundProxy)
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(registrar)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(registrationThrottlingRateMs)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(mwiServerUri)
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(unregisterOnServerShutdown)

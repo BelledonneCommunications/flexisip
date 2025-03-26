@@ -96,6 +96,8 @@ private:
 	using AccountOperation = std::variant<CreateAccount, UpdateAccount, DeleteAccount>;
 
 	void loadAll();
+	void setOutboundProxyAndRegistrar(const std::shared_ptr<linphone::AccountParams>& params,
+	                                  const config::v2::Account& desc) const;
 
 	void reserve(size_t sizeToReserve);
 	bool tryEmplace(const std::shared_ptr<Account>& account);
@@ -109,7 +111,7 @@ private:
 	void updateAuthInfo(const config::v2::Account& newDesc,
 	                    const std::shared_ptr<const linphone::Address>& newAddress,
 	                    const std::shared_ptr<const linphone::Address>& currentAddress,
-	                    linphone::Account& linphoneAccountToUpdate);
+	                    linphone::Account& linphoneAccountToUpdate) const;
 	void handleAuthInfo(const config::v2::Account& account,
 	                    const std::shared_ptr<const linphone::Address>& address) const;
 
@@ -123,6 +125,8 @@ private:
 
 	std::unique_ptr<Loader> mLoader;
 	std::shared_ptr<linphone::AccountParams> mAccountParams;
+	std::shared_ptr<linphone::Address> mOutboundProxy;
+	std::shared_ptr<linphone::Address> mRegistrar;
 	uint32_t mMaxCallsPerLine = 0;
 	bool mAccountsQueuedForRegistration = false;
 	config::v2::AccountPoolName mPoolName;
@@ -132,6 +136,7 @@ private:
 	// If the external provider domain features DoS protection/rate-limiting, then all operations susceptible to send
 	// (un)REGISTERs must be rate-limited. This queue schedules such operations.
 	ConstantRateTaskQueue<AccountOperation> mAccountOpsQueue;
+	std::string mLogPrefix;
 
 	std::unique_ptr<redis::async::RedisClient> mRedisClient{nullptr};
 };
