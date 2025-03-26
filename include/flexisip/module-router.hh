@@ -35,6 +35,7 @@ struct RouterStats {
 	std::shared_ptr<StatPair> mCountCallForks;
 	std::shared_ptr<StatPair> mCountMessageForks;
 	std::shared_ptr<StatPair> mCountMessageProxyForks;
+	std::shared_ptr<StatPair> mCountMessageConferenceForks;
 };
 
 class OnContactRegisteredListener;

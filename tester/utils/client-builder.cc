@@ -21,9 +21,7 @@
 #include <memory>
 #include <stdexcept>
 
-#include <linphone/core.h>
-
-#include "flexisip/flexisip-version.h"
+#include "linphone/core.h"
 #include "pushnotification/rfc8599-push-params.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
@@ -56,7 +54,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	auto core = minimalCore(*mFactory);
 	core->setLabel(me);
 	core->setPrimaryContact(me);
-	core->setUserAgent("LinphoneSDK for Flexisip regression tests", FLEXISIP_GIT_VERSION);
+	core->setUserAgent(mUserAgentName, mUserAgentVersion);
 
 	auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(myAddress);
@@ -330,4 +328,11 @@ ClientBuilder& ClientBuilder::setMessageExpires(std::chrono::seconds delay) {
 	mAccountParams->setContactParameters(paramName + "=" + std::to_string(delay.count()));
 	return *this;
 }
+
+ClientBuilder& ClientBuilder::setUserAgent(const std::string& name, const std::string& version) {
+	if (!name.empty()) mUserAgentName = name;
+	if (!version.empty()) mUserAgentVersion = version;
+	return *this;
+}
+
 } // namespace flexisip::tester

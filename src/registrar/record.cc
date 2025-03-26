@@ -155,7 +155,7 @@ Record::Config::Config(const ConfigManager& cfg) {
 }
 
 ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener) {
-	LOGI << "Updating record with contact " << *ec;
+	LOGI << "Updating record with contact: " << *ec;
 	ChangeSet changeSet{};
 
 	if (mConfig.assumeUniqueDomains() && mIsDomain) {

@@ -24,9 +24,9 @@
 #include <string>
 #include <variant>
 
-#include <linphone++/linphone.hh>
-
 #include "agent.hh"
+#include "flexisip/flexisip-version.h"
+#include "linphone++/linphone.hh"
 #include "tester.hh"
 
 namespace flexisip {
@@ -118,6 +118,7 @@ public:
 	 * were expired.
 	 */
 	ClientBuilder& setMessageExpires(std::chrono::seconds delay);
+	ClientBuilder& setUserAgent(const std::string& userAgent, const std::string& version = FLEXISIP_GIT_VERSION);
 
 	CoreClient build(const std::string&) const;
 	std::shared_ptr<CoreClient> make(const std::string&) const;
@@ -143,6 +144,8 @@ private:
 	// Final checks on call successfully established is based on bandwidth usage.
 	// Use this file as input to make sure there is always some traffic.
 	std::string mPlayFilePath{bcTesterRes("sounds/hello8000.wav")};
+	std::string mUserAgentName{"Linphone (Flexisip tester)"};
+	std::string mUserAgentVersion{FLEXISIP_GIT_VERSION};
 };
 
 } // namespace tester

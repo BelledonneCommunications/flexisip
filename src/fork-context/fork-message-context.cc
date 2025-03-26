@@ -48,8 +48,14 @@ using namespace flexisip;
 shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter>& router,
                                                         const std::weak_ptr<ForkContextListener>& listener,
                                                         std::unique_ptr<RequestSipEvent>&& event,
-                                                        sofiasip::MsgSipPriority priority) {
-	return std::shared_ptr<ForkMessageContext>(new ForkMessageContext(router, listener, std::move(event), priority));
+                                                        sofiasip::MsgSipPriority priority,
+                                                        bool isIntendedForConfServer) {
+	const auto& stats = router->mStats;
+	const auto config = isIntendedForConfServer ? make_shared<ForkContextConfig>() : router->getMessageForkCfg();
+	const auto counter = isIntendedForConfServer ? stats.mCountMessageConferenceForks : stats.mCountMessageForks;
+	return shared_ptr<ForkMessageContext>{
+	    new ForkMessageContext(router, config, listener, std::move(event), counter, priority),
+	};
 }
 
 shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter>& router,
@@ -62,7 +68,9 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<Mo
 
 	// Using 'new' because std::make_shared requires a public constructor.
 	shared_ptr<ForkMessageContext> context{
-	    new ForkMessageContext(router, listener, std::move(requestSipEventFromDb), forkFromDb.msgPriority, true)};
+	    new ForkMessageContext(router, router->getMessageForkCfg(), listener, std::move(requestSipEventFromDb),
+	                           router->mStats.mCountMessageForks, forkFromDb.msgPriority, true),
+	};
 
 	context->mFinished = forkFromDb.isFinished;
 	context->mDeliveredCount = forkFromDb.deliveredCount;
@@ -87,18 +95,13 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<Mo
 }
 
 ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
+                                       const std::shared_ptr<ForkContextConfig>& config,
                                        const std::weak_ptr<ForkContextListener>& listener,
                                        std::unique_ptr<RequestSipEvent>&& event,
+                                       const std::shared_ptr<StatPair>& counter,
                                        sofiasip::MsgSipPriority msgPriority,
                                        bool isRestored)
-    : ForkContextBase(router,
-                      router->getAgent(),
-                      router->getMessageForkCfg(),
-                      listener,
-                      std::move(event),
-                      router->mStats.mCountMessageForks,
-                      msgPriority,
-                      isRestored),
+    : ForkContextBase(router, router->getAgent(), config, listener, std::move(event), counter, msgPriority, isRestored),
       mKind(*ForkContextBase::getEvent().getMsgSip()->getSip(), msgPriority),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkMessageContext")) {
 	LOGD << "New instance";

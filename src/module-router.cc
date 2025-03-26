@@ -20,14 +20,11 @@
 
 #include <memory>
 
-#include "sofia-sip/sip.h"
-#include <sofia-sip/sip_status.h>
-
-#include "flexisip/logmanager.hh"
-
+#include "conference/chatroom-prefix.hh"
 #include "domain-registrations.hh"
 #include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/logmanager.hh"
 #include "fork-context/fork-basic-context.hh"
 #include "fork-context/fork-call-context.hh"
 #include "fork-context/fork-message-context.hh"
@@ -37,6 +34,9 @@
 #include "router/agent-injector.hh"
 #include "router/inject-context.hh"
 #include "router/schedule-injector.hh"
+#include "sofia-sip/sip.h"
+#include "sofia-sip/sip_status.h"
+#include "utils/uri-utils.hh"
 
 #if ENABLE_SOCI
 #include "fork-context/fork-message-context-db-proxy.hh"
@@ -55,6 +55,7 @@ ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module
 	mStats.mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
 	mStats.mCountMessageForks = mModuleConfig->getStatPairPtr("count-message-forks");
 	mStats.mCountMessageProxyForks = mModuleConfig->getStatPairPtr("count-message-proxy-forks");
+	mStats.mCountMessageConferenceForks = mModuleConfig->getStatPairPtr("count-message-conference-forks");
 }
 
 ModuleRouter::~ModuleRouter() {
@@ -314,6 +315,7 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	moduleConfig.createStatPair("count-call-forks", "Number of call forks");
 	moduleConfig.createStatPair("count-message-forks", "Number of message forks");
 	moduleConfig.createStatPair("count-message-proxy-forks", "Number of proxy message forks");
+	moduleConfig.createStatPair("count-message-conference-forks", "Number of conference message forks");
 }
 
 MsgSipPriority ModuleRouter::sMaxPriorityHandled = MsgSipPriority::Normal;
@@ -676,8 +678,7 @@ private:
 void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_ptr<Record>& aor, const url_t* sipUri) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
-	Record::Contacts contacts{};
-	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>> usable_contacts;
+	list<pair<sip_contact_t*, shared_ptr<ExtendedContact>>> usableContacts;
 	bool isInvite = false;
 
 	if (!aor) {
@@ -688,7 +689,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 	}
 
 	// _Copy_ list of extended contacts
-	if (aor) contacts = aor->getExtendedContacts();
+	Record::Contacts contacts{aor->getExtendedContacts()};
 
 	auto now = getCurrentTime();
 
@@ -713,9 +714,9 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 			     << " because the message is coming from here already";
 			continue;
 		}
-		usable_contacts.push_back(make_pair(ct, ec));
+		usableContacts.emplace_back(ct, ec);
 	}
-	if (usable_contacts.size() == 0) {
+	if (usableContacts.empty()) {
 		if (nonSipsFound) {
 			/*rfc5630 5.3*/
 			LOGUE << "Not dispatching request because SIPS not allowed for " << url_as_string(ms->getHome(), sipUri);
@@ -733,38 +734,36 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 
 	// Init context
 	shared_ptr<ForkContext> context;
-	auto msgPriority = ms->getPriority();
-	msgPriority = msgPriority <= sMaxPriorityHandled ? msgPriority : sMaxPriorityHandled;
-	if (sip->sip_request->rq_method == sip_method_invite) {
+	const auto method = sip->sip_request->rq_method;
+	const auto msgPriority = ms->getPriority() <= sMaxPriorityHandled ? ms->getPriority() : sMaxPriorityHandled;
+
+	const auto makeForkMessageContext = [&, shared = shared_from_this()](bool isIntendedForConfServer =
+	                                                                         false) -> shared_ptr<ForkContext> {
+#if ENABLE_SOCI
+		if (mMessageForkCfg->mSaveForkMessageEnabled)
+			return ForkMessageContextDbProxy::make(shared, std::move(ev), msgPriority);
+#endif
+		return ForkMessageContext::make(shared, shared, std::move(ev), msgPriority, isIntendedForConfServer);
+	};
+
+	const auto imIsComposingXml =
+	    sip->sip_content_type && strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0;
+	const auto sipExDeltaIsZero = sip->sip_expires && sip->sip_expires->ex_delta == 0;
+	const auto referRequestIsText = sip->sip_refer_to && msg_params_find(sip->sip_refer_to->r_params, "text");
+
+	if (method == sip_method_invite) {
 		context = ForkCallContext::make(shared_from_this(), std::move(ev), MsgSipPriority::Urgent);
 		isInvite = true;
-	} else if ((sip->sip_request->rq_method == sip_method_message) &&
-	           !(sip->sip_content_type &&
-	             strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0) &&
-	           !(sip->sip_expires && sip->sip_expires->ex_delta == 0)) {
-// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages
-#if ENABLE_SOCI
-		if (mMessageForkCfg->mSaveForkMessageEnabled) {
-			context = ForkMessageContextDbProxy::make(shared_from_this(), std::move(ev), msgPriority);
-		} else
-#endif
-		{
-			context = ForkMessageContext::make(shared_from_this(), shared_from_this(), std::move(ev), msgPriority);
-		}
-	} else if (sip->sip_request->rq_method == sip_method_refer &&
-	           (sip->sip_refer_to != nullptr && msg_params_find(sip->sip_refer_to->r_params, "text") != nullptr)) {
-// Use the message fork context only for refers that are text to prevent storing useless refers
-#if ENABLE_SOCI
-		if (mMessageForkCfg->mSaveForkMessageEnabled) {
-			context = ForkMessageContextDbProxy::make(shared_from_this(), std::move(ev), msgPriority);
-		} else
-#endif
-		{
-			context = ForkMessageContext::make(shared_from_this(), shared_from_this(), std::move(ev), msgPriority);
-		}
+	} else if (method == sip_method_message && !imIsComposingXml && !sipExDeltaIsZero) {
+		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages.
+		context = makeForkMessageContext(url_has_param(sip->sip_to->a_url, conference::CONFERENCE_ID));
+	} else if (method == sip_method_refer && referRequestIsText) {
+		// Use the message fork context only for REFER requests that are text to prevent storing useless REFER requests.
+		context = makeForkMessageContext();
 	} else {
 		context = ForkBasicContext::make(shared_from_this(), std::move(ev), msgPriority);
 	}
+
 	auto key = routingKey<Record::Key>(sipUri);
 	context->addKey(key.asString());
 	mForks.emplace(key.asString(), context);
@@ -775,7 +774,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 	}
 
 	// now sort usable_contacts to form groups, if grouping is allowed
-	ForkGroupSorter sorter(usable_contacts);
+	ForkGroupSorter sorter(usableContacts);
 	if (isInvite && mAllowTargetFactorization) {
 		sorter.makeGroups();
 	} else {
@@ -1044,7 +1043,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 	const url_t* next_hop = nullptr;
 	bool isRoute = false;
 
-	bool iAmTheEdgeProxy = !sip->sip_via || !sip->sip_via->v_next;
+	const bool iAmTheEdgeProxy = !sip->sip_via || !sip->sip_via->v_next;
 	if (sip->sip_request->rq_method == sip_method_bye && iAmTheEdgeProxy) {
 		ev->writeLog(make_shared<CallEndedEventLog>(*sip));
 	}

@@ -24,7 +24,6 @@
 
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
-
 #include "registrar/change-set.hh"
 #include "registrar/exceptions.hh"
 #include "registrar/extended-contact.hh"
@@ -57,7 +56,7 @@ void RegistrarDbInternal::doBind(const MsgSip& msg,
 	if (it == mRecords.end()) {
 		r = make_shared<Record>(std::move(fromUri), mRecordConfig);
 		it = mRecords.insert(make_pair(key, r)).first;
-		LOGI << "Creating AoR association" << key;
+		LOGI << "Creating AoR association '" << key << "'";
 	} else {
 		LOGI << "AOR " << key << " found";
 		r = it->second;

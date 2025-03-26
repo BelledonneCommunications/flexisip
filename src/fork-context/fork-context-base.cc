@@ -315,7 +315,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 	auto oldBr = findBranchByUid(br->mUid);
 	if (oldBr) {
 		if (oldBr->getStatus() >= 200) {
-			LOGD << "New fork branch [" << br.get() << "] clears out old branch [" << oldBr.get() << "]";
+			LOGD << "New fork " << br.get() << " clears out old " << oldBr.get();
 			removeBranch(oldBr);
 		}
 		/*
@@ -347,7 +347,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 		}
 	}
 
-	LOGD << "New fork branch [" << br.get() << "]";
+	LOGD << "New fork branch " << br.get();
 
 	return br;
 }

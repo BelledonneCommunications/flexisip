@@ -22,13 +22,13 @@
 #include <unistd.h>
 
 #include "belle-sip/types.h"
-
+#include "conference/chatroom-prefix.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 #include "sofia-wrapper/nta-agent.hh"
-
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/string-utils.hh"
@@ -553,17 +553,116 @@ void statelessCancel() {
 	    .assert_passed();
 }
 
-TestSuite _("RouterModule",
-            {
-                CLASSY_TEST(fallbackRouteFilter),
-                CLASSY_TEST(selfRouteHeaderRemoving),
-                CLASSY_TEST(otherRouteHeaderNotRemoved),
-                CLASSY_TEST(messageExpires<DbImplementation::Internal>),
-                CLASSY_TEST(messageExpires<DbImplementation::Redis>),
-                CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
-                CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
-                CLASSY_TEST(statelessCancel),
-            });
+void sipMessageRequestIntendedForChatroom() {
+	Server proxy{{
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Router/message-fork-late", "true"},
+	}};
+	proxy.start();
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+
+	auto isRequestReceived = false;
+	BellesipUtils senderClient{
+	    "127.0.0.1",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    [&isRequestReceived](int status) {
+		    if (status != 100) {
+			    BC_HARD_ASSERT_CPP_EQUAL(status, 200);
+			    isRequestReceived = true;
+		    }
+	    },
+	};
+
+	ClientBuilder builder{*proxy.getAgent()};
+	auto oldSdkReceiver = builder.build("sip:chatroom-old-sdk@sip.example.org");
+	auto newSdkReceiver = builder.build("sip:chatroom-new-sdk@sip.example.org");
+	CoreAssert asserter{proxy, senderClient, oldSdkReceiver, newSdkReceiver};
+
+	// Test for Flexisip-conference with SDK < 5.4
+	{
+		stringstream request{};
+		string body{"This is a test message.\r\n\r\n"};
+		const auto gr = "urn:uuid:"s + oldSdkReceiver.getUuid();
+		request << "MESSAGE sip:chatroom-old-sdk@sip.example.org;gr=" << gr << " SIP/2.0\r\n"
+		        << "Via: SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+		        << "From: <sip:sender@sip.example.org>;tag=stub-from-tag\r\n"
+		        << "To: <sip:chatroom-old-sdk@sip.example.org;gr=" << gr << ">\r\n"
+		        << "CSeq: 20 MESSAGE\r\n"
+		        << "Call-ID: stub-call-id" << "\r\n"
+		        << "Max-Forwards: 70\r\n"
+		        << "Route: <sip:127.0.0.1:" << proxy.getFirstPort() << ";transport=tcp;lr>\r\n"
+		        << "Supported: replaces, outbound, gruu\r\n"
+		        << "Content-Type: text/plain\r\n"
+		        << "Content-Length: " << body.size() << "\r\n\r\n";
+		senderClient.sendRawRequest(request.str(), body);
+
+		asserter.iterateUpTo(
+		            128, [&isRequestReceived]() { return LOOP_ASSERTION(isRequestReceived == true); }, 2s)
+		    .hard_assert_passed();
+
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->finish->read(), 0);
+	}
+
+	isRequestReceived = false;
+
+	// Test for Flexisip-conference with SDK >= 5.4
+	{
+		stringstream request{};
+		string body{"This is a test message.\r\n\r\n"};
+		request << "MESSAGE sip:chatroom-new-sdk@sip.example.org;" << conference::CONFERENCE_ID << "=stubid SIP/2.0\r\n"
+		        << "Via: SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+		        << "From: <sip:sender@sip.example.org>;tag=stub-from-tag\r\n"
+		        << "To: <sip:chatroom-new-sdk@sip.example.org;" << conference::CONFERENCE_ID << "=stubid>\r\n"
+		        << "CSeq: 20 MESSAGE\r\n"
+		        << "Call-ID: stub-call-id" << "\r\n"
+		        << "Max-Forwards: 70\r\n"
+		        << "Route: <sip:127.0.0.1:" << proxy.getFirstPort() << ";transport=tcp;lr>\r\n"
+		        << "Supported: replaces, outbound, gruu\r\n"
+		        << "Content-Type: text/plain\r\n"
+		        << "Content-Length: " << body.size() << "\r\n\r\n";
+		senderClient.sendRawRequest(request.str(), body);
+
+		asserter.iterateUpTo(
+		            128, [&isRequestReceived]() { return LOOP_ASSERTION(isRequestReceived == true); }, 2s)
+		    .hard_assert_passed();
+
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 2);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 2);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->finish->read(), 1);
+	}
+}
+
+TestSuite _{
+    "RouterModule",
+    {
+        CLASSY_TEST(fallbackRouteFilter),
+        CLASSY_TEST(selfRouteHeaderRemoving),
+        CLASSY_TEST(otherRouteHeaderNotRemoved),
+        CLASSY_TEST(messageExpires<DbImplementation::Internal>),
+        CLASSY_TEST(messageExpires<DbImplementation::Redis>),
+        CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
+        CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
+        CLASSY_TEST(statelessCancel),
+        CLASSY_TEST(sipMessageRequestIntendedForChatroom),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester

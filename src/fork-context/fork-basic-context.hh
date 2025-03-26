@@ -18,9 +18,6 @@
 
 #pragma once
 
-#include <list>
-#include <map>
-
 #include "flexisip/event.hh"
 #include "flexisip/module-router.hh"
 

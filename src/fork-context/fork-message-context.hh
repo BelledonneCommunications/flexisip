@@ -39,7 +39,8 @@ public:
 	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
 	                                                std::unique_ptr<RequestSipEvent>&& event,
-	                                                sofiasip::MsgSipPriority priority);
+	                                                sofiasip::MsgSipPriority priority,
+	                                                bool isIntendedForConfServer = false);
 
 	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
@@ -77,8 +78,10 @@ protected:
 
 private:
 	ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
+	                   const std::shared_ptr<ForkContextConfig>& config,
 	                   const std::weak_ptr<ForkContextListener>& listener,
 	                   std::unique_ptr<RequestSipEvent>&& event,
+	                   const std::shared_ptr<StatPair>& counter,
 	                   sofiasip::MsgSipPriority msgPriority,
 	                   bool isRestored = false);
 
