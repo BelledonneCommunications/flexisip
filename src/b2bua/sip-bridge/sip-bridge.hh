@@ -27,13 +27,12 @@
 
 #include <unordered_map>
 
-#include "linphone++/linphone.hh"
-
 #include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/accounts/account.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
 #include "b2bua/sip-bridge/sip-provider.hh"
 #include "cli.hh"
+#include "linphone++/linphone.hh"
 
 namespace flexisip::b2bua::bridge {
 

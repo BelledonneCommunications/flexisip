@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -15,12 +15,11 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
+
 #pragma once
 
 #include <optional>
 #include <unordered_map>
-
-#include "linphone++/linphone.hh"
 
 #include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/accounts/account.hh"
@@ -30,6 +29,7 @@
 #include "b2bua/sip-bridge/notify-tweaker.hh"
 #include "b2bua/sip-bridge/refer-tweaker.hh"
 #include "b2bua/sip-bridge/trigger-strategy.hh"
+#include "linphone++/linphone.hh"
 
 namespace flexisip::b2bua::bridge {
 
@@ -67,6 +67,7 @@ private:
 	ReferTweaker mReferTweaker;
 	NotifyTweaker mNotifyTweaker;
 	std::string name;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip::b2bua::bridge

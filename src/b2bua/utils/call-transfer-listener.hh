@@ -18,9 +18,8 @@
 
 #pragma once
 
-#include <linphone++/call_listener.hh>
-
 #include "b2bua/b2bua-server.hh"
+#include "linphone++/call_listener.hh"
 
 namespace flexisip::b2bua {
 
@@ -34,15 +33,16 @@ public:
 	void onTransferStateChanged(const std::shared_ptr<linphone::Call>& call, linphone::Call::State state) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"CallTransferListener"};
+
 	/**
 	 * @brief Send NOTIFY request to peer call.
 	 *
-	 * @param[in] request body, example: "SIP/2.0 100 Trying\\r\\n"
+	 * @param[in] body request body, example: "SIP/2.0 100 Trying\\r\\n"
 	 */
 	void sendNotify(const std::string& body);
 
-	std::weak_ptr<linphone::Call> mPeerCall{};
-	const std::string_view mLogPrefix{"CallTransferListener"};
+	std::weak_ptr<linphone::Call> mPeerCall;
 };
 
 } // namespace flexisip::b2bua

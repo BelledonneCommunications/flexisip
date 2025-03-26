@@ -22,7 +22,7 @@
 #include <optional>
 #include <string>
 
-#include <linphone++/call.hh>
+#include "linphone++/call.hh"
 
 namespace flexisip::b2bua {
 
@@ -48,7 +48,7 @@ public:
 	friend std::ostream& operator<<(std::ostream& strm, const ReplacesHeader& header);
 
 private:
-    static constexpr std::string_view kLogPrefix{"ReplacesHeader"};
+	static constexpr std::string_view mLogPrefix{"ReplacesHeader"};
 
 	ReplacesHeader(std::string_view callId, std::string_view fromTag, std::string_view toTag);
 

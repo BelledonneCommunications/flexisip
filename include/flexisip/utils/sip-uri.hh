@@ -177,7 +177,7 @@ public:
 	 *
 	 * @throw UrlModificationError if the Url is empty
 	 */
-	Url replace(const char* url_t::* attribute, std::string_view value) const;
+	Url replace(const char* url_t::*attribute, std::string_view value) const;
 
 	/**
 	 * Test whether the URL has a given param by its name.
@@ -239,7 +239,7 @@ public:
 		bool removeParameter(const std::string& name);
 
 		/**
-		 * @return parameters list as a string (example: ";param=value;other-parm=other-value")
+		 * @return parameters list as a string (example: ";param=value;other-param=other-value")
 		 */
 		std::string toString() const;
 
@@ -299,20 +299,17 @@ public:
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
-	[[nodiscard]]
-	SipUri replaceUser(std::string_view newUser) const;
+	[[nodiscard]] SipUri replaceUser(std::string_view newUser) const;
 
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
-	[[nodiscard]]
-	SipUri replaceHost(std::string_view newHost) const;
+	[[nodiscard]] SipUri replaceHost(std::string_view newHost) const;
 
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
-	[[nodiscard]]
-	SipUri replacePort(std::string_view newPort) const;
+	[[nodiscard]] SipUri replacePort(std::string_view newPort) const;
 
 	/**
 	 * True if this URI is the same as the other according to RFC 3261.

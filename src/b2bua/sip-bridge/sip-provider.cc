@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -31,7 +31,8 @@ SipProvider::SipProvider(decltype(SipProvider::mTriggerStrat)&& triggerStrat,
                          string&& name)
     : mTriggerStrat(std::move(triggerStrat)), mAccountStrat(std::move(accountStrat)),
       mOnAccountNotFound(onAccountNotFound), mInviteTweaker(std::move(inviteTweaker)), mReferTweaker(referTweaker),
-      mNotifyTweaker(std::move(notifyTweaker)), name(std::move(name)) {
+      mNotifyTweaker(std::move(notifyTweaker)), name(std::move(name)),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SipProvider(" + this->name + ")")) {
 }
 
 std::optional<b2bua::Application::ActionToTake>
@@ -49,16 +50,16 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 				case config::v2::OnAccountNotFound::NextProvider:
 					return std::nullopt;
 				case config::v2::OnAccountNotFound::Decline: {
-					SLOGW << "No external accounts available to bridge the call to "
-					      << incomingCall.getRequestAddress()->asStringUriOnly();
+					LOGD << "No external accounts available to bridge the call to "
+					     << incomingCall.getRequestAddress()->asStringUriOnly();
 					return linphone::Reason::NotAcceptable;
 				}
 			}
 		}
 		if (!account->isAvailable()) {
-			SLOGW << "Account " << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asString()
-			      << " is not available to bridge the call to " << incomingCall.getRequestAddress()->asStringUriOnly()
-			      << ". Declining legA.";
+			LOGD << "Account " << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asString()
+			     << " is not available to bridge the call to " << incomingCall.getRequestAddress()->asStringUriOnly()
+			     << ": declining legA";
 			return linphone::Reason::NotAcceptable;
 		}
 
@@ -67,9 +68,8 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 
 		return mInviteTweaker.tweakInvite(incomingCall, *account, outgoingCallParams);
 	} catch (const std::exception& err) {
-		SLOGE << "Exception occurred while trying to bridge a call to " << incomingCall.getToAddress()->asString()
-		      << ". Declining legA. Exception:\n"
-		      << err.what();
+		LOGE << "Exception occurred while trying to bridge a call to " << incomingCall.getToAddress()->asString()
+		     << ": declining legA (exception: " << err.what() << ")";
 		return linphone::Reason::NotAcceptable;
 	}
 }
@@ -85,9 +85,8 @@ std::shared_ptr<linphone::Address> SipProvider::onTransfer(const linphone::Call&
 
 		return mReferTweaker.tweakRefer(call, *account);
 	} catch (const std::exception& err) {
-		SLOGE << "Exception occurred while trying to bridge a REFER request to " << call.getReferTo()
-		      << ". Exception:\n"
-		      << err.what();
+		LOGE << "Exception occurred while trying to bridge a REFER request to " << call.getReferTo()
+		     << " (exception: " << err.what() << ")";
 		return nullptr;
 	}
 }
@@ -105,24 +104,23 @@ std::optional<b2bua::Application::ActionToTake> SipProvider::onSubscribeCreate(c
 				case config::v2::OnAccountNotFound::NextProvider:
 					return std::nullopt;
 				case config::v2::OnAccountNotFound::Decline: {
-					SLOGW << "No external accounts available to bridge the " << subscribeEvent << " SUBSCRIBE to "
-					      << incomingEvent.getResource()->asStringUriOnly();
+					LOGD << "No external accounts available to bridge the " << subscribeEvent
+					     << " SUBSCRIBE request to " << incomingEvent.getResource()->asStringUriOnly();
 					return linphone::Reason::NotAcceptable;
 				}
 			}
 		}
 		if (!account->isAvailable()) {
-			SLOGW << "Account " << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asString()
-			      << " is not available to bridge the " << subscribeEvent << " SUBSCRIBE to "
-			      << incomingEvent.getResource()->asStringUriOnly() << ". Declining legA.";
+			LOGD << "Account " << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asString()
+			     << " is not available to bridge the " << subscribeEvent << " SUBSCRIBE request to "
+			     << incomingEvent.getResource()->asStringUriOnly() << ": declining legA";
 			return linphone::Reason::NotAcceptable;
 		}
 
 		return account->getLinphoneAccount()->getParams()->getIdentityAddress();
 	} catch (const std::exception& err) {
-		SLOGE << "Exception occured while trying to bridge a " << subscribeEvent << " SUBSCRIBE to "
-		      << incomingEvent.getToAddress()->asString() << ". Declining legA. Exception:\n"
-		      << err.what();
+		LOGE << "Exception occurred while trying to bridge a " << subscribeEvent << " SUBSCRIBE request to "
+		     << incomingEvent.getToAddress()->asString() << ": declining legA (exception: " << err.what() << ")";
 		return linphone::Reason::NotAcceptable;
 	}
 }
@@ -140,8 +138,8 @@ SipProvider::onNotifyToBeSent(const linphone::Event& incomingEvent) {
 				case config::v2::OnAccountNotFound::NextProvider:
 					return nullopt;
 				case config::v2::OnAccountNotFound::Decline: {
-					SLOGW << "No external accounts available to bridge the NOTIFY to "
-					      << incomingEvent.getResource()->asStringUriOnly() << ".";
+					LOGD << "No external account available to bridge the NOTIFY request to "
+					     << incomingEvent.getResource()->asStringUriOnly();
 					return nullopt;
 				}
 			}
@@ -155,9 +153,8 @@ SipProvider::onNotifyToBeSent(const linphone::Event& incomingEvent) {
 			return nullopt;
 		}
 	} catch (const std::exception& err) {
-		SLOGE << "Exception occured while trying to bridge a NOTIFY to " << incomingEvent.getToAddress()->asString()
-		      << ". Exception:\n"
-		      << err.what();
+		LOGE << "Exception occurred while trying to bridge a NOTIFY request to "
+		     << incomingEvent.getToAddress()->asString() << " (exception: " << err.what() << ")";
 		return nullopt;
 	}
 }

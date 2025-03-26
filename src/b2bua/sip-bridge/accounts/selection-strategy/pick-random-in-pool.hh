@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -30,13 +30,16 @@ public:
 	std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const override {
 		return getAccountPool().getAccountRandomly();
 	}
-	std::shared_ptr<Account> chooseAccountForThisTransfer(const linphone::Call &) const override {
-		SLOGW << "PickRandomInPool strategy is not implemented for call transfers yet: undefined behavior";
+	std::shared_ptr<Account> chooseAccountForThisTransfer(const linphone::Call&) const override {
+		LOGW << "Strategy is not implemented for call transfers yet: undefined behavior";
 		return getAccountPool().getAccountRandomly();
 	}
 	std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const override {
 		return getAccountPool().getAccountRandomly();
 	}
+
+private:
+	static constexpr std::string_view mLogPrefix{"PickRandomInPool"};
 };
 
 } // namespace flexisip::b2bua::bridge::account_strat

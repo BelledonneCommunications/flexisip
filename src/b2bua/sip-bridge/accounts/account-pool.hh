@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,13 +22,12 @@
 #include <string>
 #include <unordered_map>
 
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "b2bua/b2bua-core.hh"
 #include "b2bua/sip-bridge/accounts/account.hh"
 #include "b2bua/sip-bridge/accounts/loaders/loader.hh"
 #include "b2bua/sip-bridge/accounts/redis-account-pub.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 #include "libhiredis-wrapper/replication/redis-client.hh"
 #include "utils/constant-rate-task-queue.hh"
 #include "utils/string-interpolation/template-formatter.hh"

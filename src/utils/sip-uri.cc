@@ -89,7 +89,7 @@ const std::string& Url::str() const noexcept {
 	return _urlAsStr;
 }
 
-Url Url::replace(const char* url_t::* attribute, std::string_view value) const {
+Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
 	if (empty()) throw UrlModificationError{"url is empty, cannot replace attribute"};
 	auto url = *_url;
 	url.*attribute = value.empty() ? nullptr : value.data();

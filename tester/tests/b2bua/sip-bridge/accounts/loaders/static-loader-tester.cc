@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -70,8 +70,8 @@ void nominalInitialLoadTest() {
 
 	StaticAccountLoader loader{std::move(loaderConfig)};
 
-	auto actualAccounts = loader.loadAll();
-	BC_HARD_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
+    auto actualAccounts = loader.loadAll();
+    BC_HARD_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
 
 	BC_ASSERT_CPP_EQUAL(actualAccounts[0].getOutboundProxyUri(), "sip:first.provider.example.com");
 	BC_ASSERT_CPP_EQUAL(actualAccounts[0].getRegistrarUri(), "sip:first.provider.example.com");
@@ -90,7 +90,7 @@ void nominalInitialLoadTest() {
 	// Testing both lower and upper case for the protocol parameter.
 	BC_ASSERT_CPP_EQUAL(actualAccounts[3].getProtocol(), "udp");
 
-	// Can be called any number of times.
+    // Can be called any number of times.
 	actualAccounts = loader.loadAll();
 	BC_HARD_ASSERT_CPP_EQUAL(actualAccounts, expectedAccounts);
 

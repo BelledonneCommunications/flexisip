@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,12 +20,9 @@
 
 #include <vector>
 
-#include <soci/connection-pool.h>
-
-#include "flexisip/logmanager.hh"
-
 #include "b2bua/sip-bridge/accounts/loaders/loader.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
+#include "flexisip/logmanager.hh"
 
 namespace flexisip::b2bua::bridge {
 class StaticAccountLoader : public Loader {
@@ -37,12 +34,12 @@ public:
 	};
 
 	void accountUpdateNeeded(const RedisAccountPub&, const OnAccountUpdateCB&) override {
-		/*With a static this feature is not yet implemented*/
-		SLOGE << "StaticAccountLoader::accountUpdateNeeded: The static loader does not support account updates. This "
-		         "error suggests a potential misconfiguration.";
+		LOGE << "No support for account updates (this error suggests a potential misconfiguration)";
 	};
 
 private:
+	static constexpr std::string_view mLogPrefix{"StaticAccountLoader"};
+
 	config::v2::StaticLoader mLoaderConf;
 };
 

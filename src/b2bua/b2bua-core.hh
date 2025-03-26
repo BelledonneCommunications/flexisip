@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,13 +18,13 @@
 
 #pragma once
 
-#include "linphone++/linphone.hh"
-
 #include "flexisip/configmanager.hh"
+#include "linphone++/linphone.hh"
 
 namespace flexisip::b2bua {
 
-/** Refinement subtype of linphone::Core to help functions and classes express that they specifically expect a core
+/**
+ * Refinement subtype of linphone::Core to help functions and classes express that they specifically expect a core
  * configured for use in a B2BUA.
  * This should help ensure that unit tests exercise components against a core that behaves as close as possible to that
  * of a real B2buaServer
@@ -35,8 +35,11 @@ public:
 	// Only references will be obtained via `reinterpret_cast`ing
 	B2buaCore() = delete;
 
-	// Instanciate and configure a linphone::Core for use in a B2BUA
+	// Instantiate and configure a linphone::Core for use in a B2BUA
 	static std::shared_ptr<B2buaCore> create(linphone::Factory&, const GenericStruct&);
+
+private:
+	static constexpr std::string_view mLogPrefix{"B2buaCore"};
 };
 
 /**

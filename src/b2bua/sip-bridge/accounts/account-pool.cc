@@ -24,8 +24,6 @@
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
 
-#define FUNC_LOG_PREFIX "AccountPool::" << __func__ << "() - "
-
 namespace flexisip::b2bua::bridge {
 using namespace std;
 using namespace nlohmann;
@@ -81,14 +79,13 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 	}
 
 	mAccountParams->enableRegister(pool.registrationRequired);
-	// The only way to disable account unregistration on linphone::Core shutdown is by allowing push notifications.
+	// The only way to disable account un-registration on linphone::Core shutdown is by allowing push notifications.
 	mAccountParams->setPushNotificationAllowed(!pool.unregisterOnServerShutdown);
 	if (!pool.mwiServerUri.empty()) {
-		if (const auto mwiServerAddress = linphone::Factory::get()->createAddress(pool.mwiServerUri)) {
-			mAccountParams->setMwiServerAddress(mwiServerAddress);
-		} else {
-			SLOGE << "AccountPool constructor - Invalid MWI server uri: '" << pool.mwiServerUri << "'";
-		}
+		const auto mwiServerAddress = linphone::Factory::get()->createAddress(pool.mwiServerUri);
+		if (mwiServerAddress == nullptr)
+			throw BadConfiguration{"invalid MWI server URI set in " + mLogPrefix + ": " + pool.mwiServerUri};
+		mAccountParams->setMwiServerAddress(mwiServerAddress);
 	}
 
 	if (redisConf) {
@@ -102,7 +99,7 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 }
 
 void AccountPool::loadAll() {
-	// Abort ongoing update process (if any)
+	// Abort ongoing update process (if any).
 	mAccountOpsQueue.clear();
 
 	auto& defaultView = mDefaultView.view;
@@ -112,7 +109,7 @@ void AccountPool::loadAll() {
 
 	for (auto&& desc : accountDescriptions) {
 		if (desc.getUri().empty()) {
-			SLOGW << FUNC_LOG_PREFIX << "Skipping account of pool " << mPoolName << ": `uri` field is missing";
+			LOGW << "Skipping account: `uri` field is missing";
 			continue;
 		}
 
@@ -167,7 +164,7 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 	const auto& accountDesc = op.accountDesc;
 	const auto address = linphone::Factory::get()->createAddress(accountDesc.getUri());
 	if (!address) {
-		SLOGW << "AccountPool::CreateAccount - Creating address failed for uri '" << accountDesc.getUri() << "'";
+		LOGW << "(Create) Creating address failed for URI '" << accountDesc.getUri() << "'";
 		return;
 	}
 
@@ -183,7 +180,7 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 
 	if (mCore->addAccount(linphoneAccount) != 0) {
 		const auto uri = linphoneAccount->getParams()->getIdentityAddress();
-		SLOGW << "AccountPool::CreateAccount - Adding new Account to core failed for uri '" << uri->asString() << "'";
+		LOGW << "(Create) Adding new account to core failed for URI '" << uri->asString() << "'";
 		removeAccount(*mCore, linphoneAccount);
 		return;
 	}
@@ -196,7 +193,7 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 void AccountPool::applyOperation(const DeleteAccount& op) {
 	const auto accountToDelete = op.oldAccount.lock();
 	if (!accountToDelete) {
-		SLOGD << "AccountPool::DeleteAccount - Account already freed, noop";
+		LOGD << "(Delete) Account already freed, noop";
 		return;
 	}
 
@@ -213,7 +210,7 @@ void AccountPool::applyOperation(const DeleteAccount& op) {
 void AccountPool::applyOperation(const UpdateAccount& op) {
 	const auto accountToUpdate = op.existingAccount.lock();
 	if (!accountToUpdate) {
-		SLOGD << "AccountPool::UpdateAccount - Account freed, nothing to update";
+		LOGD << "(Update) Account freed, nothing to update";
 		return;
 	}
 
@@ -251,8 +248,8 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 		std::ignore = erased;
 		const auto [slot, inserted] = map.emplace(std::move(newKey), accountToUpdate);
 		if (!inserted) {
-			SLOGW << "AccountPool::UpdateAccount - Previous key '" << previousKey << "' is now collisioning with '"
-			      << slot->first << "' and was discarded";
+			LOGW << "(Update) Previous key '" << previousKey << "' collides with '" << slot->first
+			     << "' and was discarded";
 		}
 	}
 }
@@ -356,10 +353,10 @@ std::shared_ptr<Account> AccountPool::getAccountRandomly() const {
 }
 
 const AccountPool::IndexedView& AccountPool::getOrCreateView(std::string lookupTemplate) {
-	const auto [iterator, inserted] =
+	const auto [iterator, insertedInViews] =
 	    mViews.emplace(lookupTemplate, IndexedView{.formatter = Formatter(lookupTemplate, kAccountFields)});
 	auto& [_key, view] = *iterator;
-	if (!inserted) {
+	if (!insertedInViews) {
 		// Already created
 		return view;
 	}
@@ -369,14 +366,14 @@ const AccountPool::IndexedView& AccountPool::getOrCreateView(std::string lookupT
 	const auto& defaultView = mDefaultView.view;
 	map.reserve(defaultView.size());
 	for (const auto& [_, account] : defaultView) {
-		const auto [slot, inserted] = map.emplace(formatter.format(*account), account);
-		if (!inserted) {
-			SLOGW << FUNC_LOG_PREFIX << "Collision: Template '" << formatter.getTemplate() << "' produced key '"
-			      << slot->first << "' for account '"
-			      << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
-			      << "' which is the same as that of previously inserted account '"
-			      << slot->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
-			      << "'. The new binding was discarded and the existing binding left untouched";
+		const auto [slot, insertedInMap] = map.emplace(formatter.format(*account), account);
+		if (!insertedInMap) {
+			LOGW << "Collision: template '" << formatter.getTemplate() << "' produced key '" << slot->first
+			     << "' for account '"
+			     << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
+			     << "' which is the same as that of previously inserted account '"
+			     << slot->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
+			     << "', the new binding was discarded and the existing binding left untouched";
 		}
 	}
 
@@ -397,13 +394,13 @@ bool AccountPool::tryEmplace(const shared_ptr<Account>& account) {
 	auto& [formatter, view] = mDefaultView;
 	const auto uri = formatter.format(*account);
 	if (uri.empty()) {
-		SLOGW << FUNC_LOG_PREFIX << "called with empty uri, nothing happened";
+		LOGW << "Called with empty URI, nothing happened";
 		return false;
 	}
 
 	auto [_, isInsertedUri] = view.try_emplace(uri, account);
 	if (!isInsertedUri) {
-		SLOGW << FUNC_LOG_PREFIX << "URI '" << uri << "' already present, nothing happened";
+		LOGW << "The URI '" << uri << "' is already present, nothing happened";
 		return false;
 	}
 
@@ -420,12 +417,12 @@ void AccountPool::tryEmplaceInViews(const shared_ptr<Account>& account) {
 		auto& [formatter, map] = view;
 		const auto [slot, inserted] = map.try_emplace(formatter.format(*account), account);
 		if (!inserted) {
-			SLOGW << FUNC_LOG_PREFIX << "Collision: Template '" << formatter.getTemplate() << "' produced key '"
-			      << slot->first << "' for account '"
-			      << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
-			      << "' which is the same as that of previously inserted account '"
-			      << slot->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
-			      << "'. The new binding was discarded and the existing binding left untouched";
+			LOGW << "Collision: template '" << formatter.getTemplate() << "' produced key '" << slot->first
+			     << "' for account '"
+			     << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
+			     << "' which is the same as that of previously inserted account '"
+			     << slot->second->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly()
+			     << "', the new binding was discarded and the existing binding left untouched";
 		}
 	}
 }
@@ -444,7 +441,7 @@ void AccountPool::onAccountUpdate(const string& uri, const optional<config::v2::
 	if (!newDescription) {
 		const auto accountToDelete = defaultView.find(uri);
 		if (accountToDelete == defaultView.end()) {
-			SLOGW << FUNC_LOG_PREFIX << "No account found to delete for uri '" << uri << "'";
+			LOGW << "No account found to delete for uri '" << uri << "'";
 			return;
 		}
 
@@ -453,8 +450,8 @@ void AccountPool::onAccountUpdate(const string& uri, const optional<config::v2::
 	}
 
 	if (uri != newDescription->getUri()) {
-		SLOGE << FUNC_LOG_PREFIX << "Aborting update: Inconsistent URIs between notification ('" << uri
-		      << "') and what was fetched in DB ('" << newDescription->getUri() << "')";
+		LOGE << "Inconsistent URIs between notification ('" << uri << "') and what was fetched in DB ('"
+		     << newDescription->getUri() << "'): aborting update";
 		return;
 	}
 
@@ -480,16 +477,18 @@ void AccountPool::subscribeToAccountUpdate() {
 		return;
 	}
 
-	auto subscription = ready->subscriptions()["flexisip/B2BUA/account"];
+	static constexpr std::string_view kAccountUpdateTopic = "flexisip/B2BUA/account";
+
+	auto subscription = ready->subscriptions()[kAccountUpdateTopic];
 	if (subscription.subscribed()) return;
 
-	SLOGD << FUNC_LOG_PREFIX << "Subscribing to account update ";
+	LOGD << "Subscribing to '" << kAccountUpdateTopic << "'";
 	subscription.subscribe([this](auto topic, Reply reply) { this->handleAccountUpdatePublish(topic, reply); });
 }
 
 void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::async::Reply reply) {
 	if (reply == reply::Disconnected()) {
-		SLOGD << FUNC_LOG_PREFIX << "Subscription to '" << topic << "' disconnected.";
+		LOGD << "Subscription to '" << topic << "' disconnected";
 		mAccountsQueuedForRegistration = false;
 		return;
 	}
@@ -499,7 +498,7 @@ void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::asyn
 		const auto messageType = std::get<reply::String>(array[0]);
 		if (messageType == "message") {
 			replyAsString = std::get<reply::String>(array[2]);
-			SLOGD << FUNC_LOG_PREFIX << "'message' received, " << replyAsString;
+			LOGD << "Received 'message', " << replyAsString;
 			auto redisPub = json::parse(replyAsString).get<RedisAccountPub>();
 			accountUpdateNeeded(redisPub);
 			return;
@@ -508,38 +507,35 @@ void AccountPool::handleAccountUpdatePublish(std::string_view topic, redis::asyn
 		assert(channel == topic);
 		if (messageType == "subscribe") {
 			const auto subscriptionCount = std::get<reply::Integer>(array[2]);
-			SLOGD << FUNC_LOG_PREFIX << "'subscribe' request on channel " << channel
-			      << " succeeded (this session now has " << subscriptionCount << " subscriptions)";
+			LOGD << "The 'subscribe' request on channel " << channel << " succeeded (this session now has "
+			     << subscriptionCount << " subscriptions)";
 			loadAll();
 			return;
 		}
 		if (messageType == "unsubscribe") {
-			SLOGW << FUNC_LOG_PREFIX << "Channel '" << channel
-			      << "' unexpectedly unsubscribed."
-			         "This should never happen, if you see this in your log, please open a ticket";
+			LOGW << "Channel '" << channel
+			     << "' unexpectedly unsubscribed, this should never happen, if you see this, please open an issue";
 			return;
 		}
 
-		SLOGW << FUNC_LOG_PREFIX << "Unexpected message type '" << messageType
-		      << "' received with payload: " << StreamableVariant(array[2])
-		      << "\nThis should never happen, if you see this in your log, please open a ticket";
+		LOGW << "Received an unexpected message type '" << messageType
+		     << "' with payload: " << StreamableVariant(array[2])
+		     << "\nThis should never happen, if you see this, please open an issue";
 
 	} catch (const std::bad_variant_access&) {
-		SLOGE << FUNC_LOG_PREFIX << "Received a message from Redis that does not match the doc for a Publish: "
-		      << StreamableVariant(reply);
+		LOGE << "Received a message from Redis that does not match the doc for a Publish: " << StreamableVariant(reply);
 	} catch (const json::parse_error& e) {
-		SLOGE << FUNC_LOG_PREFIX << "JSON parsing error : " << e.what() << "\nWith JSON :" << replyAsString;
+		LOGE << "JSON parsing error: " << e.what() << "\nWith JSON :" << replyAsString;
 	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << FUNC_LOG_PREFIX << "SIP URI parsing error : " << e.what() << "\nWith JSON :" << replyAsString;
+		LOGE << "SIP URI parsing error: " << e.what() << "\nWith JSON :" << replyAsString;
 	} catch (const std::exception& e) {
-		SLOGE << FUNC_LOG_PREFIX << "Caught an unexpected exception: " << e.what() << "\nWith JSON :" << replyAsString;
+		LOGE << "Caught an unexpected exception: " << e.what() << "\nWith JSON :" << replyAsString;
 	}
 }
 
 void AccountPool::onDisconnect(int status) {
 	if (status != REDIS_OK) {
-		SLOGE << FUNC_LOG_PREFIX << "Reconnecting to Redis after being unexpectedly disconnected (status " << status
-		      << ") ...";
+		LOGE << "Reconnecting to Redis after being unexpectedly disconnected (status " << status << ") ...";
 	}
 }
 

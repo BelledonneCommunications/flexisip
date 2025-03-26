@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -54,18 +54,20 @@ std::shared_ptr<Account> FindInPool::chooseAccountForThisEvent(const linphone::E
 
 std::shared_ptr<Account> FindInPool::findAccountMatching(const std::string& source, std::string_view event) const {
 	const auto& [formatter, view] = mAccountView;
-	auto log = SLOGD;
-	log << "FindInPool strategy attempted to find an account matching " << formatter.getTemplate() << " == '" << source
-	    << "' for " << event << ": ";
+	stringstream log{};
+	log << "Attempted to find an account matching " << formatter.getTemplate() << " == '" << source << "' for " << event
+	    << ": ";
 
 	const auto maybeAccount = view.find(source);
 	if (maybeAccount == view.end()) {
 		log << "not found";
+		LOGD << log.str();
 		return {};
 	}
 
 	const auto& account = maybeAccount->second;
 	log << "found '" << account->getLinphoneAccount()->getParams()->getIdentityAddress()->asString() << "'";
+	LOGD << log.str();
 	return account;
 }
 

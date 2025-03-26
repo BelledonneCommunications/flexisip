@@ -44,15 +44,15 @@ struct SqlScope {
 		soci::session sql{sqlite3, tmpDbFileName};
 		try {
 			sql << R"sql(CREATE TABLE users (
-						username TEXT PRIMARY KEY,
-						domain TEXT,
-						user_id TEXT,
+                        username TEXT PRIMARY KEY,
+                        domain TEXT,
+                        user_id TEXT,
                         realm TEXT NULL,
-						secret TEXT,
+                        secret TEXT,
                         secret_type TEXT DEFAULT 'MD5',
-						alias_username TEXT,
-						alias_domain TEXT,
-						outbound_proxy TEXT NULL,
+                        alias_username TEXT,
+                        alias_domain TEXT,
+                        outbound_proxy TEXT NULL,
                         registrar TEXT NULL,
                         protocol TEXT DEFAULT 'UDP'))sql";
 			sql << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", NULL, "", NULL, "expected-from", "sip.example.org", NULL, NULL, NULL))sql";
@@ -68,43 +68,43 @@ auto sSuiteScope = Lazy<SqlScope>();
 
 void nominalInitialSqlLoadTest() {
 	auto expectedAccounts = R"([
-			{
-				"uri": "sip:account1@some.provider.example.com",
+            {
+                "uri": "sip:account1@some.provider.example.com",
                 "realm": "some.provider.example.com",
-				"alias": "sip:expected-from@sip.example.org"
-			},
-			{
-				"uri": "sip:account2@some.provider.example.com",
-				"userid": "userId",
-				"secretType": "clrtxt",
-				"secret": "p@$sw0rd",
+                "alias": "sip:expected-from@sip.example.org"
+            },
+            {
+                "uri": "sip:account2@some.provider.example.com",
+                "userid": "userId",
+                "secretType": "clrtxt",
+                "secret": "p@$sw0rd",
                 "realm": "some.provider.example.com",
-				"outboundProxy": "<sip:sip.another.example.org;transport=udp>"
-			},
-			{
-				"uri": "sip:account3@other.provider.example.org",
-				"userid": "anotherId",
-				"secretType": "md5",
-				"secret": "hash",
+                "outboundProxy": "<sip:sip.another.example.org;transport=udp>"
+            },
+            {
+                "uri": "sip:account3@other.provider.example.org",
+                "userid": "anotherId",
+                "secretType": "md5",
+                "secret": "hash",
                 "realm": "aNewRealm",
-				"outboundProxy": "sips:sip.outbound.proxy.example.org",
+                "outboundProxy": "sips:sip.outbound.proxy.example.org",
                 "registrar": "sip.registrar.example.org",
                 "protocol": "tcp"
-			}
-		]
-	)"_json.get<std::vector<Account>>();
+            }
+        ]
+    )"_json.get<std::vector<Account>>();
 
 	// clang-format off
-	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
-		R"({
-			"dbBackend": "sqlite3",
-			"initQuery": "SELECT * from users",
-			"updateQuery": "not tested here",
-			"connection": "@database_filename@"
-		}
-	)",'@', '@'}
-	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
-	.get<SQLLoader>();
+    auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
+        R"({
+            "dbBackend": "sqlite3",
+            "initQuery": "SELECT * from users",
+            "updateQuery": "not tested here",
+            "connection": "@database_filename@"
+        }
+    )",'@', '@'}
+    .format({{"database_filename", sSuiteScope->tmpDbFileName}}))
+    .get<SQLLoader>();
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
@@ -115,35 +115,35 @@ void nominalInitialSqlLoadTest() {
 
 void initialSqlLoadTestWithEmptyFields() {
 	auto expectedAccounts = R"([
-			{
-				"uri": "sip:account1@some.provider.example.com",
+            {
+                "uri": "sip:account1@some.provider.example.com",
                 "realm": "some.provider.example.com",
-				"alias": "sip:expected-from@sip.example.org"
-			},
-			{
-				"uri": "sip:account2@some.provider.example.com",
+                "alias": "sip:expected-from@sip.example.org"
+            },
+            {
+                "uri": "sip:account2@some.provider.example.com",
                 "realm": "some.provider.example.com"
-			},
-			{
-				"uri": "sip:account3@other.provider.example.org",
+            },
+            {
+                "uri": "sip:account3@other.provider.example.org",
                 "realm": "other.provider.example.org",
                 "registrar": "sip.registrar.example.org",
                 "protocol": "tcp"
-			}
-		]
-	)"_json.get<std::vector<Account>>();
+            }
+        ]
+    )"_json.get<std::vector<Account>>();
 
 	// clang-format off
-	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
-	    R"({
-			"dbBackend": "sqlite3",
-			"initQuery": "SELECT username, domain, \"\" as user_id, NULL as realm, \"unknown\" as secret_type, \"\" as secret, alias_username, alias_domain, NULL as outbound_proxy, registrar, protocol from users",
-			"updateQuery": "not tested here",
-			"connection": "@database_filename@"
-		}
-	)",'@', '@'}
-	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
-	.get<SQLLoader>();
+    auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
+        R"({
+            "dbBackend": "sqlite3",
+            "initQuery": "SELECT username, domain, \"\" as user_id, NULL as realm, \"unknown\" as secret_type, \"\" as secret, alias_username, alias_domain, NULL as outbound_proxy, registrar, protocol from users",
+            "updateQuery": "not tested here",
+            "connection": "@database_filename@"
+        }
+    )",'@', '@'}
+    .format({{"database_filename", sSuiteScope->tmpDbFileName}}))
+    .get<SQLLoader>();
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
@@ -154,16 +154,16 @@ void initialSqlLoadTestWithEmptyFields() {
 
 void initialSqlLoadTestUriCantBeNull() {
 	// clang-format off
-	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
-	    R"({
-			"dbBackend": "sqlite3",
-			"initQuery": "SELECT NULL as username, domain from users",
-			"updateQuery": "not tested here",
-			"connection": "@database_filename@"
-		}
-	)",'@', '@'}
-	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
-	.get<SQLLoader>();
+    auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
+        R"({
+            "dbBackend": "sqlite3",
+            "initQuery": "SELECT NULL as username, domain from users",
+            "updateQuery": "not tested here",
+            "connection": "@database_filename@"
+        }
+    )",'@', '@'}
+    .format({{"database_filename", sSuiteScope->tmpDbFileName}}))
+    .get<SQLLoader>();
 	// clang-format on
 
 	SQLAccountLoader loader{make_shared<sofiasip::SuRoot>(), sqlLoaderConf};
@@ -173,16 +173,16 @@ void initialSqlLoadTestUriCantBeNull() {
 void nominalUpdateSqlTest() {
 	auto suRoot = make_shared<sofiasip::SuRoot>();
 	// clang-format off
-	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
-	    R"({
-			"dbBackend": "sqlite3",
-			"initQuery": "not tested here",
+    auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
+        R"({
+            "dbBackend": "sqlite3",
+            "initQuery": "not tested here",
             "updateQuery": "SELECT username, domain, user_id, \"newRealm\" as realm, \"sha-256\" as secret_type, secret, alias_username, alias_domain, outbound_proxy, registrar, protocol from users where user_id = :identifier",
-			"connection": "@database_filename@"
-		}
-	)",'@', '@'}
-	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
-	.get<SQLLoader>();
+            "connection": "@database_filename@"
+        }
+    )",'@', '@'}
+    .format({{"database_filename", sSuiteScope->tmpDbFileName}}))
+    .get<SQLLoader>();
 	// clang-format on
 
 	SQLAccountLoader loader{suRoot, sqlLoaderConf};
@@ -198,15 +198,15 @@ void nominalUpdateSqlTest() {
 	    });
 
 	auto expectedAccount = R"(
-				{
-					"uri": "sip:account2@some.provider.example.com",
-					"userid": "userId",
+                {
+                    "uri": "sip:account2@some.provider.example.com",
+                    "userid": "userId",
                     "realm": "newRealm",
-					"secretType": "sha-256",
-					"secret": "p@$sw0rd",
-					"outboundProxy": "<sip:sip.another.example.org;transport=udp>"
-				}
-		)"_json.get<Account>();
+                    "secretType": "sha-256",
+                    "secret": "p@$sw0rd",
+                    "outboundProxy": "<sip:sip.another.example.org;transport=udp>"
+                }
+        )"_json.get<Account>();
 
 	CoreAssert asserter{suRoot};
 	asserter
@@ -227,16 +227,16 @@ void nominalUpdateSqlTest() {
 void updateSqlTestDeletion() {
 	auto suRoot = make_shared<sofiasip::SuRoot>();
 	// clang-format off
-	auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
-	    R"({
-			"dbBackend": "sqlite3",
-			"initQuery": "not tested here",
-			"updateQuery": "SELECT username, domain, user_id, secret, alias_username, alias_domain, outbound_proxy from users where user_id = :identifier",
-			"connection": "@database_filename@"
-		}
-	)",'@', '@'}
-	.format({{"database_filename", sSuiteScope->tmpDbFileName}}))
-	.get<SQLLoader>();
+    auto sqlLoaderConf = nlohmann::json::parse(StringFormatter{
+        R"({
+            "dbBackend": "sqlite3",
+            "initQuery": "not tested here",
+            "updateQuery": "SELECT username, domain, user_id, secret, alias_username, alias_domain, outbound_proxy from users where user_id = :identifier",
+            "connection": "@database_filename@"
+        }
+    )",'@', '@'}
+    .format({{"database_filename", sSuiteScope->tmpDbFileName}}))
+    .get<SQLLoader>();
 	// clang-format on
 
 	SQLAccountLoader loader{suRoot, sqlLoaderConf};

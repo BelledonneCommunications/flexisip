@@ -18,8 +18,8 @@
 
 #include "sql-account-loader.hh"
 
-#include <soci/session.h>
-
+#include "exceptions/bad-configuration.hh"
+#include "soci/session.h"
 #include "utils/soci-helper.hh"
 
 namespace flexisip::b2bua::bridge {
@@ -29,9 +29,10 @@ using namespace soci;
 namespace {
 
 unsigned int readThreadPoolSizeFromConfig(const config::v2::SQLLoader& loaderConf) {
-	if (loaderConf.threadPoolSize <= 0) {
-		throw FlexisipException{"invalid thread pool size (" + to_string(loaderConf.threadPoolSize) + ")"};
-	}
+	if (loaderConf.threadPoolSize <= 0)
+		throw BadConfiguration{"invalid thread pool size (" + to_string(loaderConf.threadPoolSize) +
+		                       ") set in SQL Account loader"};
+
 	return static_cast<unsigned int>(loaderConf.threadPoolSize);
 }
 
@@ -76,9 +77,10 @@ void SQLAccountLoader::accountUpdateNeeded(const RedisAccountPub& redisAccountPu
 				cb(redisAccountPub.uri.str(), (account.getUri().empty() ? nullopt : optional{account}));
 			});
 		} catch (const exception& exception) {
-			SLOGE << "SQLAccountLoader - An error occurred during SQL query execution: " << exception.what();
+			LOGE_CTX(mLogPrefix, "accountUpdateNeeded")
+			    << "An error occurred during SQL query execution: " << exception.what();
 		} catch (...) {
-			SLOGE << "SQLAccountLoader - Caught an unknown exception";
+			LOGE_CTX(mLogPrefix, "accountUpdateNeeded") << "Caught an unknown exception";
 		}
 	});
 }

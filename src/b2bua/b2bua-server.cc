@@ -20,13 +20,11 @@
 
 #include <memory>
 
-#include <mediastreamer2/ms_srtp.h>
-
-#include "flexisip/logmanager.hh"
-
 #include "b2bua/utils/async-stop-core.hh"
 #include "b2bua/utils/call-transfer-listener.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/logmanager.hh"
+#include "mediastreamer2/ms_srtp.h"
 #include "sip-bridge/sip-bridge.hh"
 #include "trenscrypter/trenscrypter.hh"
 #include "utils/string-utils.hh"

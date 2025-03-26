@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,7 +19,6 @@
 #pragma once
 
 #include "account-selection-strategy.hh"
-
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
 #include "utils/string-interpolation/template-formatter.hh"
 
@@ -34,6 +33,8 @@ public:
 	std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"FindInPool"};
+
 	std::shared_ptr<Account> findAccountMatching(const std::string& source, std::string_view event) const;
 
 	const AccountPool::IndexedView& mAccountView;

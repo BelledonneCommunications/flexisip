@@ -19,19 +19,17 @@
 #include "sip-bridge.hh"
 
 #include <fstream>
-#include <iostream>
 
-#include "lib/nlohmann-json-3-11-2/json.hpp"
 #include <json/json.h>
-
-#include "linphone++/enums.hh"
-#include "linphone/misc.h"
 
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
 #include "b2bua/sip-bridge/accounts/selection-strategy/find-in-pool.hh"
 #include "b2bua/sip-bridge/accounts/selection-strategy/pick-random-in-pool.hh"
 #include "exceptions/bad-configuration.hh"
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "linphone++/enums.hh"
+#include "linphone/misc.h"
 #include "utils/variant-utils.hh"
 
 using namespace std;

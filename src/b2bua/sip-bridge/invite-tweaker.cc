@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,12 +18,11 @@
 
 #include "invite-tweaker.hh"
 
-#include <linphone++/address.hh>
-#include <linphone++/call_params.hh>
-#include <linphone++/core.hh>
-
+#include "exceptions/bad-configuration.hh"
 #include "exceptions/invalid-address.hh"
-#include "flexisip/logmanager.hh"
+#include "linphone++/address.hh"
+#include "linphone++/call_params.hh"
+#include "linphone++/core.hh"
 #include "string-format-fields.hh"
 
 namespace flexisip::b2bua::bridge {
@@ -53,12 +52,13 @@ InviteTweaker::InviteTweaker(const config::v2::OutgoingInvite& config, linphone:
 	      const auto& accountParams = core.createAccountParams();
 	      accountParams->enableRegister(false);
 	      const auto& route = linphone::Factory::get()->createAddress(*config.outboundProxy);
-	      if (!route) {
-		      SLOGE << "InviteTweaker::InviteTweaker : bad outbound proxy format [" << *config.outboundProxy << "]";
-	      } else {
-		      accountParams->setServerAddress(route);
-		      accountParams->setRoutesAddresses({route});
-	      }
+	      if (!route)
+		      throw BadConfiguration{
+		          "invalid outbound proxy SIP URI set in provider configuration for outgoing INVITE requests: " +
+		          *config.outboundProxy};
+
+	      accountParams->setServerAddress(route);
+	      accountParams->setRoutesAddresses({route});
 
 	      accountParams->setIdentityAddress(
 	          linphone::Factory::get()->createAddress("sip:flexisip-b2bua-invite-tweaker@localhost"));

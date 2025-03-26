@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,12 +21,9 @@
 #include <regex>
 
 #include "bctoolbox/logging.h"
-#include "linphone/misc.h"
-#include "mediastreamer2/msconference.h"
-
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/flexisip-version.h"
-#include "flexisip/utils/sip-uri.hh"
+#include "mediastreamer2/msconference.h"
 #include "utils/configuration/media.hh"
 #include "utils/configuration/transport.hh"
 #include "utils/string-utils.hh"
@@ -153,7 +150,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 				enabled = true;
 			} else { // disable all other codecs
 				payloadType->enable(false);
-				SLOGD << "Disabling " << payloadType->getDescription() << " to force " << configDesc;
+				LOGD << "Disabling " << payloadType->getDescription() << " to force " << configDesc;
 			}
 		}
 		if (!enabled) {

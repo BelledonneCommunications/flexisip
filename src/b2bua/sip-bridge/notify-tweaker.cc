@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,12 +18,12 @@
 
 #include "notify-tweaker.hh"
 
-#include <linphone++/account_params.hh>
-#include <linphone++/address.hh>
-#include <linphone++/core.hh>
-#include <linphone++/factory.hh>
-
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
+#include "linphone++/account_params.hh"
+#include "linphone++/address.hh"
+#include "linphone++/core.hh"
+#include "linphone++/factory.hh"
 
 namespace flexisip::b2bua::bridge {
 
@@ -34,12 +34,13 @@ NotifyTweaker::NotifyTweaker(const config::v2::OutgoingNotify& config, linphone:
 	      const auto& accountParams = core.createAccountParams();
 	      accountParams->enableRegister(false);
 	      const auto& route = linphone::Factory::get()->createAddress(config.outboundProxy);
-	      if (!route) {
-		      SLOGE << "NotifyTweaker::NotifyTweaker : bad outbound proxy format [" << config.outboundProxy << "]";
-	      } else {
-		      accountParams->setServerAddress(route);
-		      accountParams->setRoutesAddresses({route});
-	      }
+	      if (!route)
+		      throw BadConfiguration{
+		          "invalid outbound proxy SIP URI set in provider configuration for outgoing NOTIFY requests: " +
+		          config.outboundProxy};
+
+	      accountParams->setServerAddress(route);
+	      accountParams->setRoutesAddresses({route});
 
 	      const auto account = core.createAccount(accountParams);
 	      core.addAccount(account);

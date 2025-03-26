@@ -438,10 +438,7 @@ void accountCreation() {
 	auto pool = make_optional<AccountPool>(proxy.getRoot(), b2bua, "createAccountTest", poolConfig,
 	                                       make_unique<StaticAccountLoader>(std::move(accounts)));
 	BC_HARD_ASSERT(pool->allAccountsLoaded());
-	asserter
-	    .iterateUpTo(
-	        3, [&]() { return LOOP_ASSERTION(servers.registers.size() == 1); }, 200ms)
-	    .assert_passed();
+	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(servers.registers.size() == 1); }, 200ms).assert_passed();
 	BC_ASSERT_CPP_EQUAL(servers.registers.size(), 1);
 }
 
@@ -540,10 +537,7 @@ void accountRegistrationThrottling() {
 	auto& registers = proxyServer.registers;
 	registers.clear();
 	// Let the Proxy receive the REGISTER requests
-	asserter
-	    .iterateUpTo(
-	        3, [&]() { return LOOP_ASSERTION(registers.size() == accountCount); }, 200ms)
-	    .assert_passed();
+	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(registers.size() == accountCount); }, 200ms).assert_passed();
 	BC_HARD_ASSERT_CPP_EQUAL(registers.size(), accountCount);
 	registers.clear();
 
@@ -703,10 +697,7 @@ void accountsUpdatedOnRedisResubscribe() {
 	        sRedisServer->params.mSubSessionKeepAliveTimeout)
 	    .hard_assert_passed();
 
-	asserter
-	    .iterateUpTo(
-	        3, [&]() { return LOOP_ASSERTION(!registers.empty()); }, 1s)
-	    .assert_passed();
+	asserter.iterateUpTo(3, [&]() { return LOOP_ASSERTION(!registers.empty()); }, 1s).assert_passed();
 	if constexpr (registerIntervalMs == 0) {
 		// All operations are generated in the same loop iteration, and are received in one iteration
 		BC_ASSERT_CPP_EQUAL(registers.size(), accountsAdded + accountsUpdated);
@@ -810,10 +801,7 @@ void accountsUpdatePartiallyAbortedOnRapidReload() {
 	std::ignore = redisServer.port();
 	// Resume iterating
 	ASSERT_PASSED(accountPool.allAccountsAvailable(asserter));
-	asserter
-	    .iterateUpTo(
-	        10, [&]() { return LOOP_ASSERTION(unregisters.size() == 2); }, 1s)
-	    .assert_passed();
+	asserter.iterateUpTo(10, [&]() { return LOOP_ASSERTION(unregisters.size() == 2); }, 1s).assert_passed();
 	BC_ASSERT_CPP_EQUAL(registers.size(), 2);
 	BC_ASSERT_CPP_EQUAL(unregisters.size(), 2);
 	BC_ASSERT_CPP_EQUAL(defaultView.count("sip:latest-value@example.org"), 1);
@@ -861,10 +849,7 @@ void accountRegistrationOnAuthInfoUpdate() {
 		ready.command({"PUBLISH", "flexisip/B2BUA/account",
 		               R"({"username":"user","domain":"example.org","identifier":"userID"})"},
 		              {});
-		asserter
-		    .iterateUpTo(
-		        10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s)
-		    .assert_passed();
+		asserter.iterateUpTo(10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s).assert_passed();
 
 		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
 		BC_HARD_ASSERT(authInfo != nullptr);
@@ -880,10 +865,7 @@ void accountRegistrationOnAuthInfoUpdate() {
 		ready.command({"PUBLISH", "flexisip/B2BUA/account",
 		               R"({"username":"user","domain":"example.org","identifier":"userID"})"},
 		              {});
-		asserter
-		    .iterateUpTo(
-		        10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s)
-		    .assert_passed();
+		asserter.iterateUpTo(10, [&registers]() { return LOOP_ASSERTION(registers.size() == 1); }, 1s).assert_passed();
 		const auto& authInfo = accountPool.core->findAuthInfo("", uri.getUser(), uri.getHost());
 		BC_HARD_ASSERT(authInfo != nullptr);
 		BC_ASSERT_CPP_EQUAL(authInfo->getPassword(), account.getSecret());

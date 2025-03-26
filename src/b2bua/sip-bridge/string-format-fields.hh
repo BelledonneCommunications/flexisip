@@ -20,12 +20,10 @@
 
 #include <string>
 
-#include <linphone++/address.hh>
-#include <linphone++/call.hh>
-
-#include "flexisip/utils/sip-uri.hh"
-
 #include "b2bua/sip-bridge/accounts/account.hh"
+#include "flexisip/utils/sip-uri.hh"
+#include "linphone++/address.hh"
+#include "linphone++/call.hh"
 #include "utils/string-interpolation/variable-substitution.hh"
 #include "utils/uri-utils.hh"
 

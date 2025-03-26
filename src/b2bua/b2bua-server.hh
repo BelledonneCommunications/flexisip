@@ -22,13 +22,11 @@
 #include <unordered_map>
 #include <variant>
 
-#include <linphone++/linphone.hh>
-
 #include "application.hh"
 #include "b2bua-core.hh"
 #include "cli.hh"
 #include "flexisip/configmanager.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "linphone++/linphone.hh"
 #include "service-server/service-server.hh"
 #include "utils/replaces-header.hh"
 

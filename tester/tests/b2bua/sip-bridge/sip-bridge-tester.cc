@@ -19,18 +19,18 @@
 #include "b2bua/sip-bridge/sip-bridge.hh"
 
 #include <chrono>
+
 #include <json/reader.h>
 
+#include "b2bua/b2bua-server.hh"
+#include "belle-sip/auth-helper.h"
+#include "exceptions/bad-configuration.hh"
+#include "flexisip/module-router.hh"
+#include "linphone++/linphone.hh"
+#include "listeners/mwi-listener.hh"
+#include "registrardb-internal.hh"
 #include "soci/session.h"
 #include "soci/sqlite3/soci-sqlite3.h"
-#include <flexisip/module-router.hh>
-
-#include "belle-sip/auth-helper.h"
-
-#include <linphone++/linphone.hh>
-
-#include "b2bua/b2bua-server.hh"
-#include "registrardb-internal.hh"
 #include "tester.hh"
 #include "utils/call-listeners.hh"
 #include "utils/client-builder.hh"
@@ -45,8 +45,6 @@
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/tmp-dir.hh"
-
-#include "listeners/mwi-listener.hh"
 
 using namespace linphone;
 
@@ -182,62 +180,62 @@ template <const std::string& flexisipTransport, const std::string& jabiruTranspo
 void bidirectionalBridging() {
 	StringFormatter jsonConfig{
 	    R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Flexisip -> Jabiru (Outbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{from}",
-					"by": "alias"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
-					"from": "{account.uri}"
-				},
-				"accountPool": "FlockOfJabirus"
-			},
-			{
-				"name": "Jabiru -> Flexisip (Inbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{to}",
-					"by": "uri"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "{account.alias}",
-					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=#flexisipTransport#>"
-				},
-				"accountPool": "FlockOfJabirus"
-			}
-		],
-		"accountPools": {
-			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.3:#jabiruPort#;transport=#jabiruTransport#>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 3125,
-				"loader": [
-					{
-						"uri": "#felixUriOnJabiru#",
-						"alias": "#felixUriOnFlexisip#"
-					},
-					{
-						"uri": "#emilieUriOnJabiru#",
-						"alias": "#emilieUriOnFlexisip#"
-					}
-				]
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Flexisip -> Jabiru (Outbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{from}",
+                    "by": "alias"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+                    "from": "{account.uri}"
+                },
+                "accountPool": "FlockOfJabirus"
+            },
+            {
+                "name": "Jabiru -> Flexisip (Inbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{to}",
+                    "by": "uri"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "{account.alias}",
+                    "from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+                    "outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=#flexisipTransport#>"
+                },
+                "accountPool": "FlockOfJabirus"
+            }
+        ],
+        "accountPools": {
+            "FlockOfJabirus": {
+                "outboundProxy": "<sip:127.0.0.3:#jabiruPort#;transport=#jabiruTransport#>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 3125,
+                "loader": [
+                    {
+                        "uri": "#felixUriOnJabiru#",
+                        "alias": "#felixUriOnFlexisip#"
+                    },
+                    {
+                        "uri": "#emilieUriOnJabiru#",
+                        "alias": "#emilieUriOnFlexisip#"
+                    }
+                ]
+            }
+        }
+    })json",
 	    '#',
 	    '#',
 	};
@@ -389,63 +387,63 @@ void externalAccountUsingCustomRegistrarAndOutboundProxy() {
 
 	StringFormatter jsonConfig{
 	    R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Internal --> External",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{from}",
-					"by": "{alias}"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
-					"from": "{account.uri}"
-				},
-				"accountPool": "ExternalAccounts"
-			},
-			{
-				"name": "External --> Internal",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{to}",
-					"by": "{uri}"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "{account.alias}",
-					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.4:#internalProxyPort#;transport=tcp>"
-				},
-				"accountPool": "ExternalAccounts"
-			}
-		],
-		"accountPools": {
-			"ExternalAccounts": {
-				"outboundProxy": "<sip:unreachable.example.org:5060>",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Internal --> External",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{from}",
+                    "by": "{alias}"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+                    "from": "{account.uri}"
+                },
+                "accountPool": "ExternalAccounts"
+            },
+            {
+                "name": "External --> Internal",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{to}",
+                    "by": "{uri}"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "{account.alias}",
+                    "from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+                    "outboundProxy": "<sip:127.0.0.4:#internalProxyPort#;transport=tcp>"
+                },
+                "accountPool": "ExternalAccounts"
+            }
+        ],
+        "accountPools": {
+            "ExternalAccounts": {
+                "outboundProxy": "<sip:unreachable.example.org:5060>",
                 "registrar": "<sip:another.unreachable.example.org:5060>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 1,
-				"loader": [
-					{
-						"uri": "#uriOnExternalDomain#",
-						"alias": "#uriOnInternalDomain#",
+                "registrationRequired": true,
+                "maxCallsPerLine": 1,
+                "loader": [
+                    {
+                        "uri": "#uriOnExternalDomain#",
+                        "alias": "#uriOnInternalDomain#",
                         "outboundProxy": "#outboundProxyHostport#",
                         "registrar": "#registrarHostPort#",
                         "encrypted": false,
                         "protocol": "tcp"
-					}
-				]
-			}
-		}
-	})json",
+                    }
+                ]
+            }
+        }
+    })json",
 	    '#',
 	    '#',
 	};
@@ -558,13 +556,13 @@ void loadAccountsFromSQL() {
 	try {
 		soci::session sql(soci::sqlite3, sqliteDbFilePath);
 		sql << R"sql(CREATE TABLE users (
-						username TEXT PRIMARY KEY,
-						hostport TEXT,
-						userid TEXT,
-						passwordInDb TEXT,
-						alias_username TEXT,
-						alias_hostport TEXT,
-						outboundProxyInDb TEXT))sql";
+                        username TEXT PRIMARY KEY,
+                        hostport TEXT,
+                        userid TEXT,
+                        passwordInDb TEXT,
+                        alias_username TEXT,
+                        alias_hostport TEXT,
+                        outboundProxyInDb TEXT))sql";
 		sql << R"sql(INSERT INTO users VALUES ("account1", "some.provider.example.com", "", "", "alias", "sip.example.org", ""))sql";
 		sql << R"sql(INSERT INTO users VALUES ("account2", "some.provider.example.com", "test-userID", "clear text passphrase", "", "", "sip.linphone.org"))sql";
 		sql << R"sql(INSERT INTO users VALUES ("account3", "some.provider.example.com", "", "", "", "", ""))sql";
@@ -573,31 +571,31 @@ void loadAccountsFromSQL() {
 		BC_HARD_FAIL(msg.c_str());
 	}
 	StringFormatter jsonConfig{R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Stub Provider",
-				"triggerCondition": { "strategy": "Always" },
-				"accountToUse": { "strategy": "Random" },
-				"onAccountNotFound": "decline",
-				"outgoingInvite": { "to": "{incoming.to}" },
-				"accountPool": "FlockOfJabirus"
-			}
-		],
-		"accountPools": {
-			"FlockOfJabirus": {
-				"registrationRequired": true,
-				"maxCallsPerLine": 3125,
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Stub Provider",
+                "triggerCondition": { "strategy": "Always" },
+                "accountToUse": { "strategy": "Random" },
+                "onAccountNotFound": "decline",
+                "outgoingInvite": { "to": "{incoming.to}" },
+                "accountPool": "FlockOfJabirus"
+            }
+        ],
+        "accountPools": {
+            "FlockOfJabirus": {
+                "registrationRequired": true,
+                "maxCallsPerLine": 3125,
                 "registrar": "<sip:127.0.0.1:port;transport=tcp>",
-				"loader": {
-					"dbBackend": "sqlite3",
-					"initQuery": "SELECT username, hostport, userid as user_id, \"clrtxt\" as secret_type, \"\" as realm, passwordInDb as secret, alias_username, alias_hostport, outboundProxyInDb as outbound_proxy from users",
-					"updateQuery": "not yet implemented",
-					"connection": "db-file-path"
-				}
-			}
-		}
-	})json",
+                "loader": {
+                    "dbBackend": "sqlite3",
+                    "initQuery": "SELECT username, hostport, userid as user_id, \"clrtxt\" as secret_type, \"\" as realm, passwordInDb as secret, alias_username, alias_hostport, outboundProxyInDb as outbound_proxy from users",
+                    "updateQuery": "not yet implemented",
+                    "connection": "db-file-path"
+                }
+            }
+        }
+    })json",
 	                           '', ''};
 	auto redis = RedisServer();
 	Server proxy{{
@@ -671,23 +669,23 @@ void invalidSQLLoaderThreadPoolSize() {
 	const auto& configDir = TmpDir{__FUNCTION__};
 	const auto& sipBridgeConfig = configDir.path() / "providers.json";
 	const auto& providers = R"json({
-		"schemaVersion": 2,
-		"providers": [ ],
-		"accountPools": {
-			"Pool": {
-				"outboundProxy": "<sip:127.0.0.1:0;transport=udp>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 55,
-				"loader": {
-					"dbBackend": "sqlite3",
-					"initQuery": "stub-request",
-					"updateQuery": "stub-request",
-					"connection": "",
-					"threadPoolSize": -1
-				}
-			}
-		}
-	})json"s;
+        "schemaVersion": 2,
+        "providers": [ ],
+        "accountPools": {
+            "Pool": {
+                "outboundProxy": "<sip:127.0.0.1:0;transport=udp>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 55,
+                "loader": {
+                    "dbBackend": "sqlite3",
+                    "initQuery": "stub-request",
+                    "updateQuery": "stub-request",
+                    "connection": "",
+                    "threadPoolSize": -1
+                }
+            }
+        }
+    })json"s;
 	ofstream{sipBridgeConfig} << providers;
 
 	const auto& configManager = make_shared<ConfigManager>();
@@ -699,7 +697,7 @@ void invalidSQLLoaderThreadPoolSize() {
 	configManager->applyOverrides(true);
 	const auto& b2buaServer = make_shared<flexisip::B2buaServer>(make_shared<sofiasip::SuRoot>(), configManager);
 
-	BC_ASSERT_THROWN(b2buaServer->init(), FlexisipException);
+	BC_ASSERT_THROWN(b2buaServer->init(), BadConfiguration);
 
 	std::ignore = b2buaServer->stop();
 }
@@ -709,34 +707,34 @@ void invalidSQLLoaderThreadPoolSize() {
 */
 void invalidUriTriggersDecline() {
 	TempFile providersJson{R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Stub Provider Name",
-				"triggerCondition": { "strategy": "Always" },
-				"accountToUse": { "strategy": "Random" },
-				"onAccountNotFound": "decline",
-				"outgoingInvite": {
-					"to": "{account.alias}",
-					"from": "{account.alias.user};woops=invalid-uri"
-				},
-				"accountPool": "ExamplePoolName"
-			}
-		],
-		"accountPools": {
-			"ExamplePoolName": {
-				"outboundProxy": "<sip:stub@example.org>",
-				"registrationRequired": false,
-				"maxCallsPerLine": 55,
-				"loader": [
-					{
-						"uri": "sip:b2bua-account@example.org",
-						"alias": "sip:valid@example.org"
-					}
-				]
-			}
-		}
-	})json"};
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Stub Provider Name",
+                "triggerCondition": { "strategy": "Always" },
+                "accountToUse": { "strategy": "Random" },
+                "onAccountNotFound": "decline",
+                "outgoingInvite": {
+                    "to": "{account.alias}",
+                    "from": "{account.alias.user};woops=invalid-uri"
+                },
+                "accountPool": "ExamplePoolName"
+            }
+        ],
+        "accountPools": {
+            "ExamplePoolName": {
+                "outboundProxy": "<sip:stub@example.org>",
+                "registrationRequired": false,
+                "maxCallsPerLine": 55,
+                "loader": [
+                    {
+                        "uri": "sip:b2bua-account@example.org",
+                        "alias": "sip:valid@example.org"
+                    }
+                ]
+            }
+        }
+    })json"};
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -799,49 +797,49 @@ void authenticatedAccounts() {
 	belle_sip_auth_helper_compute_ha1("another-ha1-md5", realm, password, anotherHa1);
 
 	StringFormatter jsonConfig{R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Authenticate accounts",
-				"triggerCondition": { "strategy": "Always" },
-				"accountToUse": { "strategy": "Random" },
-				"onAccountNotFound": "decline",
-				"outgoingInvite": { "to": "{incoming.to}" },
-				"accountPool": "RegisteredAccounts"
-			}
-		],
-		"accountPools": {
-			"RegisteredAccounts": {
-				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 1,
-				"loader": [
-					{
-						"uri": "sip:cleartext@domain1",
-						"secretType": "clrtxt",
-						"secret": "password"
-					},
-					{
-						"uri": "sip:ha1-md5@domain1",
-						"secretType": "md5",
-						"secret": "md5"
-					},
-					{
-						"uri": "sip:another-cleartext@domain2",
-						"secretType": "clrtxt",
-						"secret": "password",
-						"realm": "realm"
-					},
-					{
-						"uri": "sip:another-ha1-md5@domain2",
-						"secretType": "md5",
-						"secret": "anotherMd5",
-						"realm": "realm"
-					}
-				]
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Authenticate accounts",
+                "triggerCondition": { "strategy": "Always" },
+                "accountToUse": { "strategy": "Random" },
+                "onAccountNotFound": "decline",
+                "outgoingInvite": { "to": "{incoming.to}" },
+                "accountPool": "RegisteredAccounts"
+            }
+        ],
+        "accountPools": {
+            "RegisteredAccounts": {
+                "outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 1,
+                "loader": [
+                    {
+                        "uri": "sip:cleartext@domain1",
+                        "secretType": "clrtxt",
+                        "secret": "password"
+                    },
+                    {
+                        "uri": "sip:ha1-md5@domain1",
+                        "secretType": "md5",
+                        "secret": "md5"
+                    },
+                    {
+                        "uri": "sip:another-cleartext@domain2",
+                        "secretType": "clrtxt",
+                        "secret": "password",
+                        "realm": "realm"
+                    },
+                    {
+                        "uri": "sip:another-ha1-md5@domain2",
+                        "secretType": "md5",
+                        "secret": "anotherMd5",
+                        "realm": "realm"
+                    }
+                ]
+            }
+        }
+    })json",
 	                           '', ''};
 	TempFile providersJson{};
 
@@ -850,12 +848,12 @@ void authenticatedAccounts() {
 	belle_sip_auth_helper_compute_ha1("another-cleartext", realm, password, anotherClrTxtHa1);
 
 	// clang-format off
-	TempFile authDb{"version:1\n\n"s +
-		"cleartext@" + domain1 + " clrtxt:" + password + " ;\n"
-		"ha1-md5@" + domain1 + " clrtxt:" + password + " ;\n"
-		"another-cleartext@" + domain2 + " md5:" + anotherClrTxtHa1 + " ;\n"
-		"another-ha1-md5@" + domain2 + " md5:" + anotherHa1 + " ;\n"
-	};
+    TempFile authDb{"version:1\n\n"s +
+        "cleartext@" + domain1 + " clrtxt:" + password + " ;\n"
+        "ha1-md5@" + domain1 + " clrtxt:" + password + " ;\n"
+        "another-cleartext@" + domain2 + " md5:" + anotherClrTxtHa1 + " ;\n"
+        "another-ha1-md5@" + domain2 + " md5:" + anotherHa1 + " ;\n"
+    };
 	// clang-format on
 
 	const auto serverDomains = std::string(domain1) + " " + domain2;
@@ -944,30 +942,30 @@ void authenticatedAccounts() {
 void disableAccountsUnregistrationOnServerShutdown() {
 	const auto domain = "example.org";
 	StringFormatter jsonConfig{R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Accounts",
-				"triggerCondition": { "strategy": "Always" },
-				"accountToUse": { "strategy": "Random" },
-				"onAccountNotFound": "decline",
-				"outgoingInvite": { "to": "{incoming.to}" },
-				"accountPool": "RegisteredAccounts"
-			}
-		],
-		"accountPools": {
-			"RegisteredAccounts": {
-				"outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
-				"registrationRequired": true,
-				"unregisterOnServerShutdown": false,
-				"maxCallsPerLine": 1,
-				"loader": [
-					{"uri": "sip:user-1@domain"},
-					{"uri": "sip:user-2@domain"}
-				]
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Accounts",
+                "triggerCondition": { "strategy": "Always" },
+                "accountToUse": { "strategy": "Random" },
+                "onAccountNotFound": "decline",
+                "outgoingInvite": { "to": "{incoming.to}" },
+                "accountPool": "RegisteredAccounts"
+            }
+        ],
+        "accountPools": {
+            "RegisteredAccounts": {
+                "outboundProxy": "<sip:127.0.0.1:port;transport=tcp>",
+                "registrationRequired": true,
+                "unregisterOnServerShutdown": false,
+                "maxCallsPerLine": 1,
+                "loader": [
+                    {"uri": "sip:user-1@domain"},
+                    {"uri": "sip:user-2@domain"}
+                ]
+            }
+        }
+    })json",
 	                           '', ''};
 	TempFile providersJson{};
 	Server proxy{{
@@ -1019,61 +1017,61 @@ void disableAccountsUnregistrationOnServerShutdown() {
 
 void mwiBridging() {
 	StringFormatter jsonConfig{R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Flexisip -> Jabiru (Outbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{from}",
-					"by": "alias"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
-					"from": "{account.uri}"
-				},
-				"accountPool": "FlockOfJabirus"
-			},
-			{
-				"name": "Jabiru -> Flexisip (Inbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{to}",
-					"by": "uri"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "{account.alias}",
-					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:#port#;transport=tcp>"
-				},
-				"accountPool": "FlockOfJabirus"
-			}
-		],
-		"accountPools": {
-			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:#port#;transport=tcp>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 3125,
-				"loader": [
-					{
-						"uri": "sip:subscriber@jabiru.example.org",
-						"alias": "sip:subscriber@flexisip.example.org"
-					}
-				]
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Flexisip -> Jabiru (Outbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{from}",
+                    "by": "alias"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+                    "from": "{account.uri}"
+                },
+                "accountPool": "FlockOfJabirus"
+            },
+            {
+                "name": "Jabiru -> Flexisip (Inbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{to}",
+                    "by": "uri"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "{account.alias}",
+                    "from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+                    "outboundProxy": "<sip:127.0.0.1:#port#;transport=tcp>"
+                },
+                "accountPool": "FlockOfJabirus"
+            }
+        ],
+        "accountPools": {
+            "FlockOfJabirus": {
+                "outboundProxy": "<sip:127.0.0.1:#port#;transport=tcp>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 3125,
+                "loader": [
+                    {
+                        "uri": "sip:subscriber@jabiru.example.org",
+                        "alias": "sip:subscriber@flexisip.example.org"
+                    }
+                ]
+            }
+        }
+    })json",
 	                           '#', '#'};
 	StringFormatter flexisipRoutesConfig{
-	    R"str(<sip:127.0.0.1:%port%;transport=tcp>	request.uri.domain == 'jabiru.example.org')str", '%', '%'};
+	    R"str(<sip:127.0.0.1:%port%;transport=tcp>    request.uri.domain == 'jabiru.example.org')str", '%', '%'};
 
 	Server jabiruProxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
@@ -1510,31 +1508,31 @@ void parseRegisterAuthenticate() {
 	accounts.clear();
 
 	BC_ASSERT_CPP_EQUAL(parsed, R"({
-		"providers" : 
-		[
-			{
-				"accounts" : [ ],
-				"name" : "provider1"
-			}
-		]
-	})"_json);
+        "providers" :
+        [
+            {
+                "accounts" : [ ],
+                "name" : "provider1"
+            }
+        ]
+    })"_json);
 
 	const auto expectedAccounts = R"([
-		{
-			"address" : "sip:registered@auth.provider1.com",
-			"freeSlots" : 0,
-			"registerEnabled" : true,
-			"status" : "OK"
-		},
-		{
-			"address" : "sip:unregistered@auth.provider1.com",
-			"status" : "Registration failed: Bad credentials"
-		},
-		{
-			"address" : "sip:wrongpassword@auth.provider1.com",
-			"status" : "Registration failed: Bad credentials"
-		}
-	])"_json;
+        {
+            "address" : "sip:registered@auth.provider1.com",
+            "freeSlots" : 0,
+            "registerEnabled" : true,
+            "status" : "OK"
+        },
+        {
+            "address" : "sip:unregistered@auth.provider1.com",
+            "status" : "Registration failed: Bad credentials"
+        },
+        {
+            "address" : "sip:wrongpassword@auth.provider1.com",
+            "status" : "Registration failed: Bad credentials"
+        }
+    ])"_json;
 	decltype(parsedAccountSet) expectedAccountSet{expectedAccounts.begin(), expectedAccounts.end()};
 	BC_ASSERT_CPP_EQUAL(parsedAccountSet, expectedAccountSet);
 
@@ -1694,17 +1692,17 @@ void dtmfForwarding() {
 
 void overrideSpecialOptions() {
 	TempFile providersJson(R"([
-		{"mediaEncryption": "none",
-		 "enableAvpf": false,
-		 "name": "Test Provider",
-		 "pattern": "sip:unique-pattern.*",
-		 "outboundProxy": "<sip:127.0.0.1:3125;transport=scp>",
-		 "maxCallsPerLine": 173,
-		 "accounts": [
-			{"uri": "sip:bridge@sip.provider1.com"}
-		 ]
-		}
-	])");
+        {"mediaEncryption": "none",
+         "enableAvpf": false,
+         "name": "Test Provider",
+         "pattern": "sip:unique-pattern.*",
+         "outboundProxy": "<sip:127.0.0.1:3125;transport=scp>",
+         "maxCallsPerLine": 173,
+         "accounts": [
+            {"uri": "sip:bridge@sip.provider1.com"}
+         ]
+        }
+    ])");
 	b2bua::bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>()};
 	Server proxy{{
 	    // Requesting bind on port 0 to let the kernel find any available port
@@ -1761,18 +1759,18 @@ void maxCallDuration() {
 	}};
 	proxy.start();
 	providersJson.writeStream() << R"([
-		{"mediaEncryption": "none",
-		 "enableAvpf": false,
-		 "name": "Max call duration test provider",
-		 "pattern": "sip:.*",
-		 "outboundProxy": "<sip:127.0.0.1:)"
+        {"mediaEncryption": "none",
+         "enableAvpf": false,
+         "name": "Max call duration test provider",
+         "pattern": "sip:.*",
+         "outboundProxy": "<sip:127.0.0.1:)"
 	                            << proxy.getFirstPort() << R"(;transport=tcp>",
-		 "maxCallsPerLine": 682,
-		 "accounts": [
-			{"uri": "sip:max-call-duration@sip.provider1.com"}
-		 ]
-		}
-	])";
+         "maxCallsPerLine": 682,
+         "accounts": [
+            {"uri": "sip:max-call-duration@sip.provider1.com"}
+         ]
+        }
+    ])";
 	const auto b2bua = make_shared<flexisip::B2buaServer>(proxy.getRoot(), proxy.getConfigManager());
 	b2bua->init();
 	proxy.getConfigManager()
@@ -1800,9 +1798,8 @@ void maxCallDuration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	asserter
-	    .iterateUpTo(
-	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	asserter.iterateUpTo(
+	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
 	    .assert_passed();
 }
 
@@ -1833,65 +1830,65 @@ void maxCallDuration() {
  */
 void mwiB2buaSubscription() {
 	StringFormatter providersJsonConfig{R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Flexisip -> Jabiru (Outbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{from}",
-					"by": "alias"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
-					"from": "{account.uri}"
-				},
-				"accountPool": "FlockOfJabirus"
-			},
-			{
-				"name": "Jabiru -> Flexisip (Inbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "{to}",
-					"by": "uri"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "{account.alias}",
-					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:flexisipport;transport=tcp>"
-				},
-				"outgoingNotify": {
-					"outboundProxy": "<sip:127.0.0.1:flexisipport;transport=tcp>"
-				},
-				"accountPool": "FlockOfJabirus"
-			}
-		],
-		"accountPools": {
-			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:jabiruport;transport=tcp>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 3125,
-				"loader": [
-					{
-						"uri": "sip:subscriber@jabiru.example.org",
-						"alias": "sip:subscriber@flexisip.example.org"
-					}
-				],
-				"mwiServerUri": "sip:subscribee@jabiru.example.org"
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Flexisip -> Jabiru (Outbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{from}",
+                    "by": "alias"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+                    "from": "{account.uri}"
+                },
+                "accountPool": "FlockOfJabirus"
+            },
+            {
+                "name": "Jabiru -> Flexisip (Inbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "{to}",
+                    "by": "uri"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "{account.alias}",
+                    "from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+                    "outboundProxy": "<sip:127.0.0.1:flexisipport;transport=tcp>"
+                },
+                "outgoingNotify": {
+                    "outboundProxy": "<sip:127.0.0.1:flexisipport;transport=tcp>"
+                },
+                "accountPool": "FlockOfJabirus"
+            }
+        ],
+        "accountPools": {
+            "FlockOfJabirus": {
+                "outboundProxy": "<sip:127.0.0.1:jabiruport;transport=tcp>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 3125,
+                "loader": [
+                    {
+                        "uri": "sip:subscriber@jabiru.example.org",
+                        "alias": "sip:subscriber@flexisip.example.org"
+                    }
+                ],
+                "mwiServerUri": "sip:subscribee@jabiru.example.org"
+            }
+        }
+    })json",
 	                                    '', ''};
 	StringFormatter flexisipRoutesConfig{
-	    R"str(<sip:127.0.0.1:%port%;transport=tcp>	request.uri.domain == 'jabiru.example.org')str", '%', '%'};
+	    R"str(<sip:127.0.0.1:%port%;transport=tcp>    request.uri.domain == 'jabiru.example.org')str", '%', '%'};
 
 	Server jabiruProxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
@@ -2012,20 +2009,20 @@ void mwiB2buaSubscription() {
 template <bool separateConnections>
 void oneConnectionPerAccount() {
 	StringFormatter jsonConfig{R"json({
-		"schemaVersion": 2,
-		"providers": [ ],
-		"accountPools": {
-			"twoAccountsTwoConnections": {
-				"outboundProxy": "<sip:127.0.0.1:proxyPort;transport=udp>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 55,
-				"loader": [
-					{ "uri": "sip:account-1@sip.example.org" },
-					{ "uri": "sip:account-2@sip.example.org" }
-				]
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [ ],
+        "accountPools": {
+            "twoAccountsTwoConnections": {
+                "outboundProxy": "<sip:127.0.0.1:proxyPort;transport=udp>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 55,
+                "loader": [
+                    { "uri": "sip:account-1@sip.example.org" },
+                    { "uri": "sip:account-2@sip.example.org" }
+                ]
+            }
+        }
+    })json",
 	                           '', ''};
 	const auto& configDir = TmpDir(__FUNCTION__);
 	const auto& sipBridgeConfig = configDir.path() / "providers.json";
@@ -2081,53 +2078,53 @@ void oneConnectionPerAccount() {
  */
 const StringFormatter callTransferSipBridgeProvidersConfiguration{
     R"json({
-		"schemaVersion": 2,
-		"providers": [
-			{
-				"name": "Flexisip -> Jabiru (Outbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "sip:{from.user}@{from.hostport}",
-					"by": "alias"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
-					"from": "{account.uri}"
-				},
-				"accountPool": "FlockOfJabirus"
-			},
-			{
-				"name": "Jabiru -> Flexisip (Inbound)",
-				"triggerCondition": {
-					"strategy": "Always"
-				},
-				"accountToUse": {
-					"strategy": "FindInPool",
-					"source": "sip:{to.user}@{to.hostport}",
-					"by": "uri"
-				},
-				"onAccountNotFound": "nextProvider",
-				"outgoingInvite": {
-					"to": "{account.alias}",
-					"from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
-					"outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=tcp>"
-				},
-				"accountPool": "FlockOfJabirus"
-			}
-		],
-		"accountPools": {
-			"FlockOfJabirus": {
-				"outboundProxy": "<sip:127.0.0.1:#jabiruPort#;transport=tcp>",
-				"registrationRequired": true,
-				"maxCallsPerLine": 10,
-				"loader": [#b2buaAccounts#]
-			}
-		}
-	})json",
+        "schemaVersion": 2,
+        "providers": [
+            {
+                "name": "Flexisip -> Jabiru (Outbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "sip:{from.user}@{from.hostport}",
+                    "by": "alias"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
+                    "from": "{account.uri}"
+                },
+                "accountPool": "FlockOfJabirus"
+            },
+            {
+                "name": "Jabiru -> Flexisip (Inbound)",
+                "triggerCondition": {
+                    "strategy": "Always"
+                },
+                "accountToUse": {
+                    "strategy": "FindInPool",
+                    "source": "sip:{to.user}@{to.hostport}",
+                    "by": "uri"
+                },
+                "onAccountNotFound": "nextProvider",
+                "outgoingInvite": {
+                    "to": "{account.alias}",
+                    "from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+                    "outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=tcp>"
+                },
+                "accountPool": "FlockOfJabirus"
+            }
+        ],
+        "accountPools": {
+            "FlockOfJabirus": {
+                "outboundProxy": "<sip:127.0.0.1:#jabiruPort#;transport=tcp>",
+                "registrationRequired": true,
+                "maxCallsPerLine": 10,
+                "loader": [#b2buaAccounts#]
+            }
+        }
+    })json",
     '#',
     '#',
 };
@@ -2135,8 +2132,8 @@ const StringFormatter callTransferSipBridgeProvidersConfiguration{
 const StringFormatter b2buaSipBridgeProviderAccountConfiguration{
     R"json(
 {
-	"uri": "sip:#userName#@#externalDomain#",
-	"alias": "sip:#userName#@#internalDomain#"
+    "uri": "sip:#userName#@#externalDomain#",
+    "alias": "sip:#userName#@#internalDomain#"
 })json",
     '#',
     '#',

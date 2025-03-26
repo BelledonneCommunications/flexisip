@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,13 +20,11 @@
 
 #include <vector>
 
-#include <soci/connection-pool.h>
-
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "b2bua/sip-bridge/accounts/loaders/loader.hh"
 #include "b2bua/sip-bridge/accounts/redis-account-pub.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "soci/connection-pool.h"
 #include "utils/thread/auto-thread-pool.hh"
 
 namespace flexisip::b2bua::bridge {
@@ -39,6 +37,8 @@ public:
 	void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& cb) override;
 
 private:
+	static constexpr std::string_view mLogPrefix{"SqlAccountLoader"};
+
 	std::shared_ptr<sofiasip::SuRoot> mSuRoot;
 	AutoThreadPool mThreadPool;
 	soci::connection_pool mSociConnectionPool{50};
