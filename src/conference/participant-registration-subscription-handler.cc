@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,6 @@
 
 #include "participant-registration-subscription-handler.hh"
 #include "conference/conference-server.hh"
-#include "utils/string-utils.hh"
 
 using namespace flexisip;
 using namespace std;
@@ -53,10 +52,10 @@ void ParticipantRegistrationSubscriptionHandler::subscribe(const shared_ptr<Chat
 		shared_ptr<RegistrationSubscription> subscription;
 
 		if (std::find(domains.begin(), domains.end(), address->getDomain()) != domains.end()) {
-            SLOGD << "Subscribed address is local [" << address->asString() <<"]";
+			LOGD << "Subscribed address is local '" << address->asString() << "'";
 			subscription = make_shared<OwnRegistrationSubscription>(mServer, chatRoom, address, mRegistrarDb);
 		} else {
-            SLOGD << "Subscribed address is external [" << address->asString() << "], subscribe to it";
+			LOGD << "Subscribed address is external '" << address->asString() << "', subscribe to it";
 			subscription = make_shared<ExternalRegistrationSubscription>(mServer, chatRoom, address);
 		}
 		mSubscriptions.insert(make_pair(key, subscription));

@@ -20,17 +20,15 @@
 
 #include <fstream>
 
-#include <belle-sip/utils.h>
-#include <sofia-sip/sip_header.h>
-
-#include <flexisip/configmanager.hh>
-#include <flexisip/flexisip-version.h>
-
+#include "belle-sip/utils.h"
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/configmanager.hh"
+#include "flexisip/flexisip-version.h"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registration-events/client.hh"
+#include "sofia-sip/sip_header.h"
 #include "utils/configuration/media.hh"
 #include "utils/configuration/transport.hh"
 #include "utils/string-utils.hh"
@@ -124,7 +122,7 @@ void ConferenceServer::_init() {
 	// Prevent the default log handler from being reset while LinphoneCore construction.
 	configLinphone->setBool("logging", "disable_stdout", true);
 
-	mCore = linphone::Factory::get()->createCoreWithConfig(configLinphone, nullptr);
+	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 
 	mCore->setInCallTimeout(
 	    chrono::duration_cast<seconds>(config->get<ConfigDuration<chrono::seconds>>("call-timeout")->read()).count());
@@ -142,13 +140,13 @@ void ConferenceServer::_init() {
 
 	const int audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
 	const int audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
-	configuration_utils::setMediaPort(audioPortMin, audioPortMax, *mCore, &linphone::Core::setAudioPort,
-	                                  &linphone::Core::setAudioPortRange);
+	configuration_utils::setMediaPort(audioPortMin, audioPortMax, *mCore, &Core::setAudioPort,
+	                                  &Core::setAudioPortRange);
 
 	const int videoPortMin = config->get<ConfigIntRange>("video-port")->readMin();
 	const int videoPortMax = config->get<ConfigIntRange>("video-port")->readMax();
-	configuration_utils::setMediaPort(videoPortMin, videoPortMax, *mCore, &linphone::Core::setVideoPort,
-	                                  &linphone::Core::setVideoPortRange);
+	configuration_utils::setMediaPort(videoPortMin, videoPortMax, *mCore, &Core::setVideoPort,
+	                                  &Core::setVideoPortRange);
 
 	mCore->setUseFiles(true); // No sound card shall be used in calls.
 
@@ -172,7 +170,7 @@ void ConferenceServer::_init() {
 	mCore->setVideoDisplayFilter("MSExtDisplay");
 
 	// Enable ICE (with host candidates only) so that the relay service of the proxies is bypassed.
-	shared_ptr<linphone::NatPolicy> natPolicy = mCore->createNatPolicy();
+	shared_ptr<NatPolicy> natPolicy = mCore->createNatPolicy();
 	natPolicy->enableIce(true);
 	configuration_utils::configureNatAddresses(natPolicy, config->get<ConfigStringList>("nat-addresses"));
 	mCore->setNatPolicy(natPolicy);
@@ -238,10 +236,10 @@ void ConferenceServer::_init() {
 	if (mRegistrarDb->isWritable()) bindAddresses();
 }
 
-void ConferenceServer::enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs,
-                                            const std::list<std::string>& mimeTypes) {
+void ConferenceServer::enableSelectedCodecs(const list<shared_ptr<linphone::PayloadType>>& codecs,
+                                            const list<string>& mimeTypes) {
 	for (auto codec : codecs) {
-		if (std::find(mimeTypes.begin(), mimeTypes.end(), codec->getMimeType()) != mimeTypes.end()) {
+		if (find(mimeTypes.begin(), mimeTypes.end(), codec->getMimeType()) != mimeTypes.end()) {
 			codec->enable(true);
 		} else {
 			codec->enable(false);
@@ -253,7 +251,7 @@ void ConferenceServer::_run() {
 	mCore->iterate();
 }
 
-std::unique_ptr<AsyncCleanup> ConferenceServer::_stop() {
+unique_ptr<AsyncCleanup> ConferenceServer::_stop() {
 	const auto sharedThis = shared_from_this();
 	mCore->removeListener(sharedThis);
 	mRegistrarDb->removeStateListener(sharedThis);
@@ -276,13 +274,13 @@ void ConferenceServer::loadFactoryUris() {
 
 	if (!conferenceFactoryUri.empty()) conferenceFactoryUris.push_back(conferenceFactoryUri);
 	if (conferenceFactoryUris.empty()) {
-		SLOGI << conferenceFactoryUrisSetting->getCompleteName() << " parameter must be set!";
+		LOGI << conferenceFactoryUrisSetting->getCompleteName() << " parameter must be set!";
 	}
 	auto focus_it = conferenceFocusUris.begin();
 	for (auto factoryUri : conferenceFactoryUris) {
-		SLOGI << " Trying to match conference factory URI " << factoryUri << " with a conference focus URI";
+		LOGI << "Trying to match conference factory URI " << factoryUri << " with a conference focus URI";
 		if (focus_it != conferenceFocusUris.end()) {
-			SLOGI << "Matched conference factory URI " << factoryUri << " with a conference focus URI " << (*focus_it);
+			LOGI << "Matched conference factory URI " << factoryUri << " with a conference focus URI " << (*focus_it);
 			mConfServerUris.push_back({factoryUri, *focus_it++});
 		} else {
 			throw BadConfiguration{"number of factory SIP URIs (" + to_string(conferenceFactoryUris.size()) +
@@ -337,8 +335,8 @@ void ConferenceServer::bindAddresses() {
 		for (const auto& chatRoom : mCore->getChatRooms()) {
 			const auto& peerAddress = chatRoom->getPeerAddress();
 			// If the peer address is not one of the focus uris
-			if (std::find_if(mConfServerUris.cbegin(), mConfServerUris.cend(), [&peerAddress](const auto& p) {
-				    return peerAddress->weakEqual(linphone::Factory::get()->createAddress(p.second));
+			if (find_if(mConfServerUris.cbegin(), mConfServerUris.cend(), [&peerAddress](const auto& p) {
+				    return peerAddress->weakEqual(Factory::get()->createAddress(p.second));
 			    }) == mConfServerUris.cend()) {
 				bindChatRoom(peerAddress->asStringUriOnly(), mTransport.str(), nullptr);
 			}
@@ -356,7 +354,7 @@ void ConferenceServer::bindFactoryUris() {
 		void onInvalid(const SipStatus&) override {
 		}
 		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
-			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
+			LOGD << "ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 	};
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
@@ -404,9 +402,8 @@ void ConferenceServer::bindFocusUris() {
 			url_t* pub_gruu = r->getPubGruu(ec, mHome.home());
 			if (!pub_gruu) throw FlexisipException{"focus binding does not have public gruu"};
 
-			shared_ptr<linphone::Address> gruuAddr =
-			    linphone::Factory::get()->createAddress(url_as_string(mHome.home(), pub_gruu));
-			SLOGI << "Focus address [" << gruuAddr->asStringUriOnly() << "] is bound";
+			shared_ptr<Address> gruuAddr = Factory::get()->createAddress(url_as_string(mHome.home(), pub_gruu));
+			LOGI << "Focus address [" << gruuAddr->asStringUriOnly() << "] is bound";
 			mAccount->setContactAddress(gruuAddr);
 		}
 		void onError(const SipStatus&) override {
@@ -414,7 +411,7 @@ void ConferenceServer::bindFocusUris() {
 		void onInvalid(const SipStatus&) override {
 		}
 		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
-			SLOGD << "ConferenceServer: ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
+			LOGD << "ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
 
 	private:
@@ -673,14 +670,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 });
 } // namespace
 
-filesystem::path ConferenceServer::getStateDir(const std::string& subdir) const {
+filesystem::path ConferenceServer::getStateDir(const string& subdir) const {
 	return filesystem::path{mStateDir}.append(subdir);
 }
 
 void ConferenceServer::ensureDirectoryCreated(const filesystem::path& directory) {
 	struct stat st;
 	if (stat(directory.c_str(), &st) != 0 && errno == ENOENT) {
-		SLOGD << "Creating flexisip's state directory: " << directory;
+		LOGD << "Creating Flexisip state directory: " << directory;
 		string command("mkdir -p");
 		command += " \"" + directory.string() + "\"";
 		int status = system(command.c_str());
@@ -702,12 +699,12 @@ const string& ConferenceServer::readUuid() {
 	filesystem::path path = getUuidFilePath();
 	fi.open(path);
 	if (!fi.is_open()) {
-		SLOGD << "Cannot open uuid file " << path << ": " << strerror(errno);
+		LOGD << "Cannot open uuid file " << path << ": " << strerror(errno);
 		return mUuid;
 	}
 	fi >> mUuid;
 	fi.close();
-	SLOGD << "Using uuid '" << mUuid << "'";
+	LOGD << "Using uuid '" << mUuid << "'";
 	return mUuid;
 }
 
@@ -721,7 +718,7 @@ void ConferenceServer::writeUuid(const string& uuid) {
 	filesystem::path path = getUuidFilePath();
 	fo.open(path);
 	if (!fo.is_open()) {
-		SLOGE << "Cannot open uuid file " << path << ": " << strerror(errno);
+		LOGE << "Cannot open uuid file " << path << ": " << strerror(errno);
 		return;
 	}
 	fo << uuid;

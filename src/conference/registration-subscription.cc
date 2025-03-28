@@ -20,9 +20,8 @@
 
 #include <memory>
 
-#include "flexisip/registrar/registar-listeners.hh"
-
 #include "conference-server.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
@@ -36,9 +35,9 @@ namespace flexisip {
 RegistrationSubscription::RegistrationSubscription(const ConferenceServer& server,
                                                    const shared_ptr<ChatRoom>& cr,
                                                    const shared_ptr<const Address>& participant)
-    : mServer(server), mChatRoom(cr), mParticipant(participant->clone()) {
-	SLOGD << "RegistrationSubscription [" << this << "] for chatroom [" << cr.get() << "] and participant ["
-	      << participant->asStringUriOnly() << "] initialized.";
+    : mServer(server), mChatRoom(cr), mParticipant(participant->clone()),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RegistrationSubscription")) {
+	LOGD << "Initialized for chatroom [" << cr.get() << "] and participant '" << participant->asStringUriOnly() << "'";
 }
 
 shared_ptr<ChatRoom> RegistrationSubscription::getChatRoom() const {
@@ -46,18 +45,18 @@ shared_ptr<ChatRoom> RegistrationSubscription::getChatRoom() const {
 }
 
 RegistrationSubscription::~RegistrationSubscription() {
-	SLOGD << "RegistrationSubscription [" << this << "] destroyed.";
+	LOGD << "Destroy instance";
 }
 
 void RegistrationSubscription::notify(const list<shared_ptr<ParticipantDeviceIdentity>>& participantDevices) {
-	SLOGD << "RegistrationSubscription: notifying chatroom [" << mChatRoom << "] of participant device list of ["
-	      << participantDevices.size() << "] elements for participant [" << mParticipant->asStringUriOnly() << "].";
+	LOGD << "Notifying chatroom [" << mChatRoom << "] of participant device list of " << participantDevices.size()
+	     << " elements for participant '" << mParticipant->asStringUriOnly() << "'";
 	mChatRoom->setParticipantDevices(mParticipant, participantDevices);
 }
 
 void RegistrationSubscription::notifyRegistration(const shared_ptr<const Address>& participantDevice) {
-	SLOGD << "RegistrationSubscription: notifying chatroom [" << mChatRoom << "] that participant-device ["
-	      << participantDevice->asStringUriOnly() << "] has just registered.";
+	LOGD << "Notifying chatroom [" << mChatRoom << "] that participant device '" << participantDevice->asStringUriOnly()
+	     << "' has just registered";
 	mChatRoom->notifyParticipantDeviceRegistration(participantDevice);
 }
 
@@ -84,12 +83,12 @@ OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer&
                                                          const std::shared_ptr<linphone::ChatRoom>& cr,
                                                          const std::shared_ptr<const linphone::Address>& participant,
                                                          RegistrarDb& registrarDb)
-    : RegistrationSubscription(server, cr, participant), mRegistrarDb{registrarDb} {
+    : RegistrationSubscription{server, cr, participant},
+      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "OwnRegistrationSubscription")}, mRegistrarDb{registrarDb} {
 	try {
 		mParticipantAor = SipUri(participant->asStringUriOnly());
 	} catch (const sofiasip::InvalidUrlError& e) {
-		SLOGE << "RegistrationSubscription(): invalid participant aor " << participant->asStringUriOnly() << ": "
-		      << e.what();
+		LOGE << "Invalid participant aor '" << participant->asStringUriOnly() << "': " << e.what();
 	}
 }
 
@@ -133,11 +132,10 @@ void OwnRegistrationSubscription::processRecord(const shared_ptr<Record>& r) {
 			if (isContactCompatible(ec->getOrgLinphoneSpecs())) {
 				shared_ptr<ParticipantDeviceIdentity> identity =
 				    Factory::get()->createParticipantDeviceIdentity(addr, ec->getDeviceName());
-				identity->setCapabilityDescriptor(StringUtils::unquote(ec->getOrgLinphoneSpecs()));
+				identity->setCapabilityDescriptor(list{string_utils::unquote(ec->getOrgLinphoneSpecs())});
 				compatibleParticipantDevices.push_back(identity);
 			} else {
-				SLOGD << "OwnRegistrationSubscription::processRecord(): " << addr->asStringUriOnly()
-				      << " does not have the required capabilities.";
+				LOGD << "Participant device '" << addr->asStringUriOnly() << "' does not have required capabilities";
 			}
 		}
 	}
@@ -156,8 +154,7 @@ void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record>& 
 
 	shared_ptr<ExtendedContact> ct = r->extractContactByUniqueId(uid);
 	if (!ct) {
-		SLOGI << "OwnRegistrationSubscription::onContactRegistered(): no contact with uuid " << uid
-		      << ", it has unregistered.";
+		LOGI << "No contact with uuid '" << uid << "' (it is not registered)";
 		return;
 	}
 	shared_ptr<Address> pubGruu = getPubGruu(r, ct);

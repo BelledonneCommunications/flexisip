@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,19 +18,16 @@
 
 #pragma once
 
-#include <linphone++/linphone.hh>
-
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-
+#include "linphone++/linphone.hh"
 #include "registrar/registrar-db.hh"
 #include "registration-events/client.hh"
 
 namespace flexisip {
 
 struct virtual_enable_shared_from_this_base : std::enable_shared_from_this<virtual_enable_shared_from_this_base> {
-	virtual ~virtual_enable_shared_from_this_base() {
-	}
+	virtual ~virtual_enable_shared_from_this_base() = default;
 };
 
 template <typename T>
@@ -50,7 +47,7 @@ public:
 	                         const std::shared_ptr<const linphone::Address>& participant);
 	virtual void start() = 0;
 	virtual void stop() = 0;
-	virtual ~RegistrationSubscription();
+	~RegistrationSubscription() override;
 	std::shared_ptr<linphone::ChatRoom> getChatRoom() const;
 
 protected:
@@ -65,19 +62,21 @@ protected:
 
 private:
 	int getMaskFromSpecs(const std::string& specs);
+
+	std::string mLogPrefix{};
 };
 
 class RegistrationSubscriptionFetchListener
     : public virtual_enable_shared_from_this<RegistrationSubscriptionFetchListener>,
       public ContactUpdateListener {
 public:
-	virtual ~RegistrationSubscriptionFetchListener() = default;
+	~RegistrationSubscriptionFetchListener() override = default;
 };
 
 class RegistrationSubscriptionListener : public virtual_enable_shared_from_this<RegistrationSubscriptionListener>,
                                          public ContactRegisteredListener {
 public:
-	virtual ~RegistrationSubscriptionListener() = default;
+	~RegistrationSubscriptionListener() override = default;
 };
 
 /**
@@ -91,24 +90,24 @@ public:
 	                            const std::shared_ptr<linphone::ChatRoom>& cr,
 	                            const std::shared_ptr<const linphone::Address>& participant,
 	                            RegistrarDb& registrarDb);
-	virtual void start() override;
-	virtual void stop() override;
+	void start() override;
+	void stop() override;
 
 private:
 	std::shared_ptr<linphone::Address> getPubGruu(const std::shared_ptr<Record>& r,
 	                                              const std::shared_ptr<ExtendedContact>& ec);
 	void processRecord(const std::shared_ptr<Record>& r);
 	/*ContactUpdateListener virtual functions to override*/
-	virtual void onRecordFound(const std::shared_ptr<Record>& r) override;
-	virtual void onError(const SipStatus&) override{};
-	virtual void onInvalid(const SipStatus&) override{};
-	virtual void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-	}
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
+	void onError(const SipStatus&) override {};
+	void onInvalid(const SipStatus&) override {};
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {};
 	/*ContactRegisteredListener overrides*/
-	virtual void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override;
+	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override;
 
 	SipUri mParticipantAor;
 	bool mActive = false;
+	std::string mLogPrefix;
 
 	RegistrarDb& mRegistrarDb; // keep only a ref as registrarDb is owned by ConferenceServer
 };
@@ -124,13 +123,13 @@ public:
 	ExternalRegistrationSubscription(const ConferenceServer& server,
 	                                 const std::shared_ptr<linphone::ChatRoom>& cr,
 	                                 const std::shared_ptr<const linphone::Address>& participant);
-	virtual void start() override;
-	virtual void stop() override;
+	void start() override;
+	void stop() override;
 
 private:
-	virtual void onNotifyReceived(
+	void onNotifyReceived(
 	    const std::list<std::shared_ptr<linphone::ParticipantDeviceIdentity>>& participantDevices) override;
-	virtual void onRefreshed(const std::shared_ptr<linphone::ParticipantDeviceIdentity>& participantDevice) override;
+	void onRefreshed(const std::shared_ptr<linphone::ParticipantDeviceIdentity>& participantDevice) override;
 };
 
 } // namespace flexisip
