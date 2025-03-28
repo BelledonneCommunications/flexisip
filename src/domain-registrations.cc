@@ -189,8 +189,10 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 		for (const auto& reg : mRegistrations) {
 			reg->stop();
 		}
-		mTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 5s);
-		mTimer->setForEver([root = mAgent->getRoot().get()]() { root->quit(); });
+		mTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 100ms);
+
+		mTimeoutIterationsLeft = 50; // 5 seconds
+		mTimer->set([this] { unregisterTimerCallback(); });
 		mAgent->getRoot()->run(); // Correctly wait for domain un-registration
 	}
 }
@@ -343,6 +345,19 @@ bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string& url_ho
 	LOGD << "REGISTER for domain " << (ret ? "matches" : "does not match") << " -> " << url_host
 	     << " domain relay rule";
 	return ret;
+}
+
+void DomainRegistrationManager::unregisterTimerCallback() {
+	mTimeoutIterationsLeft--;
+	if (mNbRegistration == 0) {
+		LOGD << "Successfully un-registered domains";
+		mAgent->getRoot()->quit();
+	} else if (mTimeoutIterationsLeft <= 0) {
+		LOGD << "Still " << mNbRegistration << " registrations left at timeout, quitting anyway";
+		mAgent->getRoot()->quit();
+	} else {
+		mTimer->set([this] { unregisterTimerCallback(); });
+	}
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,

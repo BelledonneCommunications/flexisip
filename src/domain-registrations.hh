@@ -163,6 +163,8 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"DomainRegistrationManager"};
 
+	void unregisterTimerCallback();
+
 	Agent* mAgent{nullptr};
 	std::list<std::shared_ptr<DomainRegistration>> mRegistrations{};
 	int mNbRegistration{0};
@@ -177,6 +179,7 @@ private:
 	bool mDomainRegistrationsStarted{false};
 	bool mRelayRegsToDomains{false};
 	std::regex mRelayRegsToDomainsRegex{};
+	int mTimeoutIterationsLeft{0};
 };
 
 } // namespace flexisip
