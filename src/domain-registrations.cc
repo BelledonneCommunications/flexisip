@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -152,8 +152,10 @@ DomainRegistrationManager::~DomainRegistrationManager() {
 		for (const auto& reg : mRegistrations) {
 			reg->stop();
 		}
-		mTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 5s);
-		mTimer->setForEver([root = mAgent->getRoot().get()]() { root->quit(); });
+		mTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 100ms);
+
+		mTimeoutIterationsLeft = 50; // 5 seconds
+		mTimer->set([this] { unregisterTimerCallback(); });
 		mAgent->getRoot()->run(); // Correctly wait for domain un-registration
 	}
 }
@@ -304,6 +306,20 @@ bool DomainRegistrationManager::haveToRelayRegToDomain(const std::string& url_ho
 	LOGD("DomainRegistrationManager: REGISTER for domain %s -> %s domain relay rule",
 	     ret ? "matches" : "does not match", url_host.c_str());
 	return ret;
+}
+
+void DomainRegistrationManager::unregisterTimerCallback() {
+	mTimeoutIterationsLeft--;
+	if (mNbRegistration == 0) {
+		SLOGD << "DomainRegistrationManager::unregisterTimerCallback - Successfully un-registered domains";
+		mAgent->getRoot()->quit();
+	} else if (mTimeoutIterationsLeft <= 0) {
+		SLOGD << "DomainRegistrationManager::unregisterTimerCallback - Still " << mNbRegistration
+		      << " registrations left at timeout, quitting anyway";
+		mAgent->getRoot()->quit();
+	} else {
+		mTimer->set([this] { unregisterTimerCallback(); });
+	}
 }
 
 DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
