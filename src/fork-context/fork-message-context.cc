@@ -20,29 +20,26 @@
 
 #include <algorithm>
 #include <chrono>
-
 #include <optional>
-#include <sofia-sip/sip.h>
-#include <sofia-sip/sip_protos.h>
-#include <sofia-sip/sip_status.h>
-
-#if ENABLE_UNIT_TESTS
-#include "bctoolbox/tester.h"
-#endif
 
 #include "eventlogs/events/event-id.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/events/messages/message-response-from-recipient-event-log.hh"
 #include "eventlogs/events/messages/message-sent-event-log.hh"
-#include "flexisip/common.hh"
 #include "flexisip/module.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "fork-context/fork-context-base.hh"
 #include "fork-context/message-kind.hh"
 #include "module-toolbox.hh"
 #include "registrar/extended-contact.hh"
+#include "sofia-sip/sip.h"
+#include "sofia-sip/sip_protos.h"
+#include "sofia-sip/sip_status.h"
 #include "sofia-wrapper/sip-header-private.hh"
-#include "utils/string-utils.hh"
+
+#if ENABLE_UNIT_TESTS
+#include "bctoolbox/tester.h"
+#endif
 
 using namespace std;
 using namespace std::chrono;
@@ -55,40 +52,38 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<Mo
 	return std::shared_ptr<ForkMessageContext>(new ForkMessageContext(router, listener, std::move(event), priority));
 }
 
-shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter> router,
+shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter>& router,
                                                         const std::weak_ptr<ForkContextListener>& listener,
                                                         ForkMessageContextDb& forkFromDb) {
-	auto msgSipFromDB = make_shared<MsgSip>(0, forkFromDb.request);
-	auto requestSipEventFromDb = RequestSipEvent::makeRestored(router->getAgent()->shared_from_this(), msgSipFromDB,
-	                                                           router->getAgent()->findModule("Router"));
+	auto* agent = router->getAgent();
+	const auto msgSipFromDB = make_shared<MsgSip>(0, forkFromDb.request);
+	auto requestSipEventFromDb =
+	    RequestSipEvent::makeRestored(agent->shared_from_this(), msgSipFromDB, agent->findModule("Router"));
 
-	// new because make_shared require a public constructor.
-	shared_ptr<ForkMessageContext> shared{
+	// Using 'new' because std::make_shared requires a public constructor.
+	shared_ptr<ForkMessageContext> context{
 	    new ForkMessageContext(router, listener, std::move(requestSipEventFromDb), forkFromDb.msgPriority, true)};
-	shared->mFinished = forkFromDb.isFinished;
-	shared->mDeliveredCount = forkFromDb.deliveredCount;
-	shared->mCurrentPriority = forkFromDb.currentPriority;
 
-	shared->mExpirationDate = timegm(&forkFromDb.expirationDate);
-	auto diff = system_clock::from_time_t(shared->mExpirationDate) - system_clock::now();
-	if (diff < 0s) diff = 0s;
-	shared->mLateTimer.set(
-	    [weak = weak_ptr<ForkMessageContext>{shared}]() {
-		    if (auto sharedPtr = weak.lock()) {
-			    sharedPtr->processLateTimeout();
-		    }
+	context->mFinished = forkFromDb.isFinished;
+	context->mDeliveredCount = forkFromDb.deliveredCount;
+	context->mCurrentPriority = forkFromDb.currentPriority;
+	context->mExpirationDate = timegm(&forkFromDb.expirationDate);
+
+	auto timeLeftUntilExpiration = system_clock::from_time_t(context->mExpirationDate) - system_clock::now();
+	if (timeLeftUntilExpiration < 0s) timeLeftUntilExpiration = 0s;
+	context->mLateTimer.set(
+	    [weak = weak_ptr{context}]() {
+		    if (const auto sharedPtr = weak.lock()) sharedPtr->processLateTimeout();
 	    },
-	    diff);
+	    timeLeftUntilExpiration);
 
-	for (const auto& dbKey : forkFromDb.dbKeys) {
-		shared->addKey(dbKey);
-	}
+	for (const auto& dbKey : forkFromDb.dbKeys)
+		context->addKey(dbKey);
 
-	for (const auto& dbBranch : forkFromDb.dbBranches) {
-		shared->restoreBranch(dbBranch);
-	}
+	for (const auto& dbBranch : forkFromDb.dbBranches)
+		context->restoreBranch(dbBranch);
 
-	return shared;
+	return context;
 }
 
 ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
@@ -104,14 +99,13 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
                       router->mStats.mCountMessageForks,
                       msgPriority,
                       isRestored),
-      mKind(*getEvent().getMsgSip()->getSip(), msgPriority),
+      mKind(*ForkContextBase::getEvent().getMsgSip()->getSip(), msgPriority),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkMessageContext")) {
 	LOGD << "New instance";
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
 		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
 			mExpirationDate = system_clock::to_time_t(system_clock::now() + chrono::seconds(mCfg->mDeliveryTimeout));
-
 			mAcceptanceTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), mCfg->mUrgentTimeout);
 			mAcceptanceTimer->set([this]() { onAcceptanceTimer(); });
 		}
@@ -124,42 +118,46 @@ ForkMessageContext::~ForkMessageContext() {
 }
 
 bool ForkMessageContext::shouldFinish() {
-	return !mCfg->mForkLate; // the messaging fork context controls its termination in late forking mode.
+	// The messaging fork context controls its termination in late forking mode.
+	return !mCfg->mForkLate;
 }
 
 void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch, ResponseSipEvent& respEv) {
 	if (mKind.getKind() == MessageKind::Kind::Refer) return;
 
-	const sip_t& sipRequest = *branch.mRequestMsg->getSip();
-	const sip_t* sip = respEv.getMsgSip()->getSip();
+	const auto* sip = respEv.getMsgSip()->getSip();
+	const auto& sipRequest = *branch.mRequestMsg->getSip();
 	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader);
 
 	try {
-		auto log = make_shared<MessageResponseFromRecipientEventLog>(
+		const auto log = make_shared<MessageResponseFromRecipientEventLog>(
 		    sipRequest, *branch.mContact, mKind,
 		    forwardedId ? std::optional<EventId>(forwardedId->un_value) : std::nullopt);
+
 		log->setDestination(sipRequest.sip_request->rq_url);
 		log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
-		if (sipRequest.sip_priority && sipRequest.sip_priority->g_string) {
+
+		if (sipRequest.sip_priority && sipRequest.sip_priority->g_string)
 			log->setPriority(sipRequest.sip_priority->g_string);
-		}
+
 		log->setCompleted();
 		respEv.writeLog(log);
 	} catch (const exception& e) {
-		LOGE << "Could not log response from recipient: " << e.what();
+		LOGE << "Failed to write event log response from recipient: " << e.what();
 	}
 }
 
-void ForkMessageContext::logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv) {
+void ForkMessageContext::logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv) const {
 	if (mKind.getKind() == MessageKind::Kind::Refer) return;
 
-	const sip_t* sipRequest = reqEv.getMsgSip()->getSip();
-	const sip_t* sip = respEv.getMsgSip()->getSip();
-	auto log = make_shared<MessageLog>(*sip);
+	const auto* sip = respEv.getMsgSip()->getSip();
+	const auto* sipRequest = reqEv.getMsgSip()->getSip();
+	const auto log = make_shared<MessageLog>(*sip);
+
 	log->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
-	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string) {
+	if (sipRequest->sip_priority && sipRequest->sip_priority->g_string)
 		log->setPriority(sipRequest->sip_priority->g_string);
-	}
+
 	log->setCompleted();
 	respEv.writeLog(log);
 }
@@ -168,14 +166,14 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 	ForkContextBase::onResponse(br, event);
 
 	const auto code = event.getMsgSip()->getSip()->sip_status->st_status;
-	LOGD << "Running " << __func__;
+	LOGD << "Executing " << __func__;
 
 	if (code > 100 && code < 300) {
 		if (code >= 200) {
 			mDeliveredCount++;
 			if (mAcceptanceTimer) {
 				if (mIncoming)
-					// in the sender's log will appear the status code from the receiver
+					// In the sender's log will appear the status code from the receiver.
 					logResponseToSender(getEvent(), event);
 
 				mAcceptanceTimer.reset(nullptr);
@@ -184,7 +182,7 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 		logResponseFromRecipient(*br, event);
 		forwardResponse(br);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)) {
-		/*expedite back any urgent replies if late forking is disabled */
+		// Expedite back any urgent replies if late forking is disabled.
 		logResponseFromRecipient(*br, event);
 		forwardResponse(br);
 	} else {
@@ -198,35 +196,33 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 	}
 }
 
-/*we are called here if no good response has been received from any branch, in fork-late mode only */
 void ForkMessageContext::acceptMessage() {
+	// We are called here if no good response has been received from any branch, in fork-late mode only.
 	if (mIncoming == nullptr) return;
 
-	/*in fork late mode, never answer a service unavailable*/
-	shared_ptr<MsgSip> msgsip(mIncoming->createResponse(SIP_202_ACCEPTED));
-	auto ev = make_unique<ResponseSipEvent>(ResponseSipEvent(mAgent->getOutgoingAgent(), msgsip));
+	// In fork late mode, never answer a service unavailable.
+	shared_ptr<MsgSip> msgSip(mIncoming->createResponse(SIP_202_ACCEPTED));
+	auto ev = make_unique<ResponseSipEvent>(ResponseSipEvent(mAgent->getOutgoingAgent(), msgSip));
 	ev = forwardResponse(std::move(ev));
 
-	// in the sender's log will appear the 202 accepted from Flexisip server
+	// In the sender's log will appear the 202 accepted from Flexisip server.
 	logResponseToSender(getEvent(), *ev);
 }
 
 void ForkMessageContext::onAcceptanceTimer() {
-	LOGD << "Running " << __func__;
+	LOGD << "Executing " << __func__;
 	acceptMessage();
 	mAcceptanceTimer.reset(nullptr);
 }
 
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
-	if (br->mUid.size() > 0) {
-		/*check for a branch already existing with this uid, and eventually clean it*/
-		shared_ptr<BranchInfo> tmp = findBranchByUid(br->mUid);
-		if (tmp) {
-			removeBranch(tmp);
-		}
+	if (!br->mUid.empty()) {
+		// Check for a branch that may already exist with this UID, and eventually clean it up.
+		if (const auto tmp = findBranchByUid(br->mUid)) removeBranch(tmp);
 	} else {
-		LOGD << "Fork error: no unique id found for contact";
+		LOGD << "Fork error: no unique id found for contact '" << br->mContact->urlAsString() << "'";
 	}
+
 	if (mKind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		// Pass event ID to the conference server to get it back when it dispatches the message to the intended
 		// recipients. As of 2023-06-29, we do not expect to have more branches added after the initial context creation
@@ -240,36 +236,32 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 void ForkMessageContext::onNewRegister(const SipUri& dest,
                                        const std::string& uid,
                                        const std::shared_ptr<ExtendedContact>& newContact) {
-	LOGD << "Running " << __func__;
 	const auto& sharedListener = mListener.lock();
 	if (!sharedListener) {
-		LOGE << "Listener missing, this should not happened";
+		LOGE << "ForkContextListener is missing, cannot process new register (this should not happen)";
 		return;
 	}
 
-	const auto dispatchPair = shouldDispatch(dest, uid);
-	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
-		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatchPair.first);
+	if (const auto [status, _] = shouldDispatch(dest, uid); status != DispatchStatus::DispatchNeeded) {
+		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, status);
 		return;
 	}
 
-	if (uid.size() > 0) {
-		shared_ptr<BranchInfo> br = findBranchByUid(uid);
-		if (br == nullptr) {
-			// this is a new client instance. The message needs
-			// to be delivered.
-			LOGD << "This is a new client instance";
+	if (!uid.empty()) {
+		if (const auto br = findBranchByUid(uid); br == nullptr) {
+			LOGD << "This is a new client instance (the message needs to be delivered)";
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		} else if (br->needsDelivery(FinalStatusMode::ForkLate)) {
-			// this is a client for which the message wasn't delivered yet (or failed to be delivered). The message
-			// needs to be delivered.
-			LOGD << "This client is reconnecting but was not delivered before";
+			// This is a client for which the message was not delivered yet (or failed to be delivered).
+			// The message needs to be delivered.
+			LOGD << "This client is reconnecting but message was not delivered before";
 			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		}
 	}
-	// in all other case we can accept a new transaction only if the message hasn't been delivered already.
+
+	// In all other cases we can accept a new transaction only if the message has not been delivered already.
 	LOGD << "Message has been delivered " << mDeliveredCount << " times";
 
 	if (mDeliveredCount == 0) {
@@ -279,7 +271,6 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 
 	sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
 	                                              DispatchStatus::DispatchNotNeeded);
-	return;
 }
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {
@@ -292,9 +283,9 @@ ForkMessageContextDb ForkMessageContext::getDbObject() {
 	dbObject.expirationDate = *gmtime(&mExpirationDate);
 	dbObject.request = getEvent().getMsgSip()->msgAsString();
 	dbObject.dbKeys.insert(dbObject.dbKeys.end(), mKeys.begin(), mKeys.end());
-	for (const auto& waitingBranch : mWaitingBranches) {
+
+	for (const auto& waitingBranch : mWaitingBranches)
 		dbObject.dbBranches.push_back(waitingBranch->getDbObject());
-	}
 
 	return dbObject;
 }
@@ -304,12 +295,12 @@ void ForkMessageContext::restoreBranch(const BranchInfoDb& dbBranch) {
 }
 
 void ForkMessageContext::start() {
-	bool firstStart = mCurrentPriority == -1;
-	if (firstStart && mKind.getKind() != MessageKind::Kind::Refer) {
+	// A priority of -1 means "first start".
+	if (mCurrentPriority == -1 /* first start */ && mKind.getKind() != MessageKind::Kind::Refer) {
 		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that
 		// presumes there are no branches answered yet. We also presume all branches have been added by now.
-		const auto& branches = getBranches();
 		auto& event = getEvent();
+		const auto& branches = getBranches();
 		const auto eventLog = make_shared<MessageSentEventLog>(*event.getMsgSip()->getSip(), branches, mKind);
 		event.writeLog(eventLog);
 	}

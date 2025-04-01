@@ -72,19 +72,20 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        Boolean,
 	        "fork-late",
-	        "Fork invites to late registers.",
+	        "Fork INVITE requests to clients that register late.",
 	        "false",
 	    },
 	    {
 	        Boolean,
 	        "fork-no-global-decline",
-	        "All the forked have to decline in order to decline the caller invite.",
+	        "All the devices of the target (i.e. all fork branches) have to decline in order to decline the caller "
+	        "invite.",
 	        "false",
 	    },
 	    {
 	        Boolean,
 	        "treat-decline-as-urgent",
-	        "Treat 603 Declined answers as urgent. Only relevant if fork-no-global-decline is set to true.",
+	        "Treat '603 Declined' answers as urgent. Only relevant if 'fork-no-global-decline' is set to true.",
 	        "false",
 	    },
 	    {
@@ -102,12 +103,11 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        DurationS,
 	        "call-fork-urgent-timeout",
-	        "Maximum time before delivering urgent responses during a call fork. "
+	        "Maximum time before delivering urgent responses during a call fork.\n"
 	        "The typical fork process requires to wait the best response from all branches before transmitting it to "
-	        "the client. "
-	        "However some error responses are retryable immediately (like 415 unsupported media, 401, 407) thus it is "
-	        "painful for the client to need to wait the end of the transaction time (32 seconds) for these error "
-	        "codes.",
+	        "the client. However some error responses are retryable immediately (like '415 unsupported media', 401, "
+	        "407) thus it is painful for the client to need to wait the end of the transaction time (32 seconds) for "
+	        "these error codes.",
 	        "5",
 	    },
 	    {
@@ -125,95 +125,96 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        Boolean,
 	        "message-fork-late",
-	        "Fork MESSAGE requests to client registering lately.",
+	        "Fork MESSAGE requests to clients that register late.",
 	        "true",
 	    },
 	    {
 	        DurationS,
 	        "message-delivery-timeout",
-	        "Maximum duration for delivering a MESSAGE request. This property applies only if "
-	        "message-fork-late is 'true'; otherwise, the duration can't exceed the normal transaction duration.",
+	        "Maximum duration for delivering a MESSAGE request.\n"
+	        "This property applies only if 'message-fork-late' is 'true'; otherwise, the duration cannot exceed the "
+	        "normal transaction duration.",
 	        "604800",
 	    },
 	    {
 	        DurationS,
 	        "message-accept-timeout",
-	        "Maximum duration for accepting a MESSAGE request if no response is received from any "
-	        "recipients. This property is meaningful when message-fork-late is set to true.",
+	        "Maximum duration for accepting a MESSAGE request if no response is received from any recipients.\n"
+	        "This property is meaningful when 'message-fork-late' is set to 'true'.",
 	        "5",
 	    },
 	    {
 	        Boolean,
 	        "message-database-enabled",
-	        "If 'true', the message that are waiting for delivery will be stored in database instead of memory.",
+	        "Store MESSAGE requests that are waiting for delivery in the database instead of memory.\n",
 	        "false",
 	    },
 	    {
 	        String,
 	        "message-database-backend",
-	        "Choose the type of backend that Soci will use for the connection. Depending on your Soci package and the "
-	        "modules you installed, the supported databases are:`mysql` (and `sqlite3` soon)",
+	        "Type of backend that Soci will use for the connection.\n"
+	        "Depending on your Soci package and the modules you installed, the supported databases are: `mysql` (and "
+	        "`sqlite3` soon)",
 	        "mysql",
 	    },
 	    {
 	        String,
 	        "message-database-connection-string",
-	        "The configuration parameters of the backend. The basic format is \"key=value key2=value2\". For a mysql "
-	        "backend, this is a valid config: \"db=mydb user=user password='pass' host=myhost.com\". Please refer to "
-	        "the Soci documentation of your backend, for instance: "
-	        "http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features",
+	        "Configuration parameters of the backend.\n"
+	        "The basic format is \"key=value key2=value2\". For a mysql backend, this is a valid config: \"db=mydb "
+	        "user=user password='pass' host=myhost.com\". Please refer to the Soci documentation of your backend "
+	        "(http://soci.sourceforge.net/doc/master/backends/#supported-backends-and-features)",
 	        "db='mydb' user='myuser' password='mypass' host='myhost.com'",
 	    },
 	    {
 	        Integer,
 	        "message-database-pool-size",
-	        "Size of the pool of connections that Soci will use for accessing the message database.",
+	        "Size of the connections pool that Soci will use for accessing the database.",
 	        "100",
 	    },
 	    {
 	        String,
 	        "fallback-route",
-	        "Default route to apply when the recipient is unreachable or when when all attempted destination have "
-	        "failed."
-	        "It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding brackets)",
+	        "Default route to apply when the recipient is unreachable or when all attempted destination have "
+	        "failed. It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding "
+	        "brackets)",
 	        "",
 	    },
 	    {
 	        Boolean,
 	        "allow-target-factorization",
-	        "During a call forking, allow several INVITEs going to the same next hop to be grouped into "
-	        "a single one. A proprietary custom header 'X-target-uris' is added to the INVITE to indicate the final "
-	        "targets of the INVITE.",
+	        "During a call fork process, allow several INVITE requests routed to the same next hop to be grouped into "
+	        "a single one.\n"
+	        "A proprietary custom header 'X-target-uris' is added to the INVITE request to indicate the final targets "
+	        "of the request.",
 	        "false",
 	    },
 	    {
 	        Boolean,
 	        "permit-self-generated-provisional-response",
-	        "Whether the proxy is allowed to generate and send provisional responses during a call forking process. "
+	        "Whether the proxy is allowed to generate and send provisional responses during a call fork process.\n"
 	        "A typical example for this is the '110 Push sent' emitted by the proxy when at least one push "
-	        "notification "
-	        "has been sent to a target UA while routing an INVITE. Some old versions of Linphone (below linphone-sdk "
-	        "4.2) "
-	        "suffer from an issue when receiving such kind of provisional responses that don't come from a remote "
-	        "client. "
-	        "This setting is mainly intended to temporarily workaround this situation.",
+	        "notification has been sent to a target UA while routing an INVITE request. Some old versions of Linphone "
+	        "(below linphone-sdk 4.2) suffer from an issue when receiving such kind of provisional responses that "
+	        "do not come from a remote client. This setting is mainly intended to temporarily workaround this "
+	        "situation.",
 	        "true",
 	    },
 	    {
 	        Boolean,
 	        "resolve-routes",
-	        "Whether or not to resolve next hop in route header against registrar database."
-	        " This is an extension to RFC3261, and should not be used unless in some specific deployment cases."
-	        " A next hope in route header is otherwise resolved through standard DNS procedure by the Forward module.",
+	        "Resolve next hop in route header against registrar database.\n"
+	        "This is an extension to RFC3261, and should not be used unless in some specific deployment cases. A next "
+	        "hop in route header is otherwise resolved through standard DNS procedure by the Forward module.",
 	        "false",
 	    },
 	    {
 	        Boolean,
 	        "parent-domain-fallback",
-	        "Whether or not to fallback to the parent domain if there is no fallback route set and the recipient is "
-	        "unreachable. "
-	        "For example, if routing to sip:bob@a.b.com returns no result, route the request to b.com. This is also a "
-	        "non-standard behavior.",
+	        "Fallback to the parent domain if there is no fallback route set and the recipient is "
+	        "unreachable.\n"
+	        "For example, if routing to 'sip:bob@a.b.com' returns no result, route the request to 'b.com'. This is "
+	        "also a non-standard behavior.",
 	        "false",
 	    },
 	    {
@@ -225,7 +226,7 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        DurationS,
 	        "max-request-retention-time",
-	        "Max time the proxy will retain a request in order to maintain order.",
+	        "Maximum duration the proxy will retain a request in order to maintain order.",
 	        "30",
 	    },
 	    {

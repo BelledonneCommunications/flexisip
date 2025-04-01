@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,15 +18,11 @@
 
 #pragma once
 
-#include <list>
-#include <map>
 #include <memory>
 
+#include "agent.hh"
 #include "flexisip/event.hh"
 #include "flexisip/module-router.hh"
-
-#include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context-base.hh"
 #include "fork-context/branch-info.hh"
 #include "fork-context/message-kind.hh"
@@ -38,43 +34,46 @@ class ModuleRouter;
 
 class ForkMessageContext : public ForkContextBase {
 public:
+	~ForkMessageContext() override;
+
 	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
 	                                                std::unique_ptr<RequestSipEvent>&& event,
 	                                                sofiasip::MsgSipPriority priority);
 
-	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter> router,
+	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                const std::weak_ptr<ForkContextListener>& listener,
 	                                                ForkMessageContextDb& forkFromDb);
 
-	virtual ~ForkMessageContext();
+	void start() override;
 
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
+
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) override;
 
 	ForkMessageContextDb getDbObject();
 	void restoreBranch(const BranchInfoDb& dbBranch);
+
 	time_t getExpirationDate() const {
 		return mExpirationDate;
 	}
-	void start() override;
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<ForkMessageContext>& expected);
 #endif
 
-	static constexpr auto kEventIdHeader = "X-fs-event-id";
-
 protected:
+	static constexpr auto kClassName = "ForkMessageContext";
+	static constexpr auto* kEventIdHeader = "X-fs-event-id";
+
 	void onNewBranch(const std::shared_ptr<BranchInfo>& br) override;
 	bool shouldFinish() override;
 
-	static constexpr auto CLASS_NAME = "ForkMessageContext";
 	const char* getClassName() const override {
-		return CLASS_NAME;
-	};
+		return kClassName;
+	}
 
 private:
 	ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
@@ -85,22 +84,20 @@ private:
 
 	void acceptMessage();
 	void onAcceptanceTimer();
-	void logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv);
+	void logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv) const;
 	void logResponseFromRecipient(const BranchInfo& br, ResponseSipEvent& event);
 
-	/**
-	 * Timeout after which an answer must be sent through the incoming transaction even if no success response was
-	 * received on the outgoing transactions.
-	 */
+	// Timeout after which an answer must be sent through the incoming transaction even if no success response was
+	// received on the outgoing transactions.
 	std::unique_ptr<sofiasip::Timer> mAcceptanceTimer{nullptr};
 	int mDeliveredCount;
-	// What kind of SIP MESSAGE is this ForkContext handling?
+
+	// Type of SIP MESSAGE this context is handling.
 	MessageKind mKind;
-	/**
-	 * Is used in fork late mode with message saved in DB to remember message expiration date.
-	 */
+
+	// Used in fork late mode with message saved in DB to remember message expiration date.
 	time_t mExpirationDate;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip
