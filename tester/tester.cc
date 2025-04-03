@@ -173,17 +173,23 @@ int main(int argc, char* argv[]) {
 	flexisip_tester_init();
 
 	for (auto i = 1; i < argc; ++i) {
-		auto ret = bc_tester_parse_args(argc, argv, i);
+		// Parse custom Flexisip command line arguments.
+		if (strcmp(argv[i], "--disable-stdout") == 0) {
+			flexisip::LogManager::get().disableStdOut();
+			continue;
+		}
+
+		// Parse bctoolbox command line arguments.
+		const auto ret = bc_tester_parse_args(argc, argv, i);
 		if (ret > 0) {
 			i += ret - 1;
 			continue;
-		} else if (ret < 0) {
-			bc_tester_helper(argv[0], "");
 		}
+		if (ret < 0) bc_tester_helper(argv[0], "\t\t\t--disable-stdout (disable all logs in the standard output)");
 		return ret;
 	}
 
-	auto ret = bc_tester_start(argv[0]);
+	const auto ret = bc_tester_start(argv[0]);
 	flexisip_tester_uninit();
 	return ret;
 }

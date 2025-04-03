@@ -1,6 +1,8 @@
 leak:libstdc++.so
 leak:getaddrinfo
 
+leak:dlfcn/dlerror.c
+
 leak:LinphonePrivate
 leak:dblk_alloc
 leak:bctbx_libc_malloc

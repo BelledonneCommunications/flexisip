@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -196,11 +196,11 @@ void CommandLineInterface::handleConfigSet(const shared_ptr<SocketHandle>& socke
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/log-level")) {
 		config_value->set(value);
-		LogManager::get().setLogLevel(LogManager::get().logLevelFromName(value));
+		LogManager::get().setLogLevel(LogManager::logLevelFromName(value));
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/syslog-level")) {
 		config_value->set(value);
-		LogManager::get().setSyslogLevel(LogManager::get().logLevelFromName(value));
+		LogManager::setSyslogLevel(LogManager::logLevelFromName(value));
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/sofia-level")) {
 		try {
@@ -217,7 +217,7 @@ void CommandLineInterface::handleConfigSet(const shared_ptr<SocketHandle>& socke
 		}
 	} else if (config_value && (arg == "global/contextual-log-level")) {
 		config_value->set(value);
-		LogManager::get().setContextualLevel(LogManager::get().logLevelFromName(value));
+		LogManager::get().setContextualLevel(LogManager::logLevelFromName(value));
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/contextual-log-filter")) {
 		value = StringUtils::join(args, 1);

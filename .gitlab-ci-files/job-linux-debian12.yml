@@ -51,8 +51,9 @@ job-debian12-unit-test:
   needs:
     - job-debian12-ninja-clang
   artifacts:
+    when: always
     paths:
-      - work/lib/libflexisip.so
+      - ${LOGS_DIR}/*
 
 #################################################
 # DEB

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -92,6 +92,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		config->setString("storage", "uri", ":memory:");
 		config->setBool("rtp", "rtcp_enabled", bool(mSendRtcp));
 		config->setBool("sip", "inactive_audio_on_pause", static_cast<bool>(mSetAudioInactiveOnPause));
+		config->setBool("logging", "disable_stdout", !LogManager::get().standardOutputIsEnabled());
 	}
 
 	Match(mAudioPort)

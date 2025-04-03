@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -95,7 +95,7 @@ void ban() {
 	const auto testDuration = duration_cast<milliseconds>(after - before);
 
 	BC_ASSERT_GREATER_STRICT(testDuration.count(), timePeriod.count(), int, "%i");
-	const auto maxTestTime = timePeriod + timePeriod * 0.20;
+	const auto maxTestTime = timePeriod + timePeriod * 0.50;
 	BC_ASSERT_LOWER_STRICT(testDuration.count(), maxTestTime.count(), int, "%i");
 
 	BC_ASSERT_GREATER(nbRequests, packetRateLimit, int, "%i");

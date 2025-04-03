@@ -53,10 +53,11 @@ job-debian11-unit-test:
     - ls -lah #default.profraw should exist
     - llvm-profdata merge -sparse default.profraw -o default.profdata
   artifacts:
+    when: always
     paths:
+      - ${LOGS_DIR}/*
       - default.profdata
       - work/lib/libflexisip.so
-
 
 debian11-coverage:
   stage: coverage 📑

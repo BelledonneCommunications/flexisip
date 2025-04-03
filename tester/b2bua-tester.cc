@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -703,8 +703,8 @@ static void external_provider_bridge__b2bua_receives_several_forks() {
 
 // Should display no memory leak when run in sanitizier mode
 static void external_provider_bridge__cli() {
-	const auto& stubCore =
-	    reinterpret_pointer_cast<b2bua::B2buaCore>(linphone::Factory::get()->createCore("", "", nullptr));
+	const auto stubCore =
+	    B2buaCore::create(*linphone::Factory::get(), *ConfigManager{}.getRoot()->get<GenericStruct>(configSection));
 	SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), stubCore,
 	                    config::v2::fromV1({
 	                        {
@@ -833,9 +833,8 @@ static void external_provider_bridge__max_call_duration() {
 	    .assert_passed();
 
 	// None of the clients terminated the call, but the B2BUA dropped it on its own
-	asserter
-	    .iterateUpTo(
-	        10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
+	asserter.iterateUpTo(
+	            10, [&callee]() { return LOOP_ASSERTION(callee.getCurrentCall() == nullopt); }, 2100ms)
 	    .assert_passed();
 }
 
@@ -1997,9 +1996,8 @@ void transportAndOneConnectionPerAccount() {
 	CoreAssert asserter{suRoot, externalProxy};
 	const auto& db = dynamic_cast<const RegistrarDbInternal&>(externalProxy.getRegistrarDb()->getRegistrarBackend());
 	const auto& registeredUsers = db.getAllRecords();
-	asserter
-	    .iterateUpTo(
-	        3, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 2); }, 40ms)
+	asserter.iterateUpTo(
+	            3, [&registeredUsers] { return LOOP_ASSERTION(registeredUsers.size() == 2); }, 40ms)
 	    .assert_passed();
 
 	BC_HARD_ASSERT_CPP_EQUAL(registeredUsers.size(), 2);
