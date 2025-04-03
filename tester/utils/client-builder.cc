@@ -37,8 +37,7 @@ struct CodecDescription {
 };
 
 ClientBuilder::ClientBuilder(const Agent& agent)
-    : mCoreTemplate(tester::minimalCore(*mFactory)), mAccountParams(mCoreTemplate->createAccountParams()),
-      mAgent(agent) {
+    : mCoreTemplate(tester::minimalCore()), mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent) {
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
@@ -51,7 +50,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		throw std::invalid_argument{msg.str()};
 	}
 
-	auto core = minimalCore(*mFactory);
+	auto core = minimalCore();
 	core->setLabel(me);
 	core->setPrimaryContact(me);
 	core->setUserAgent(mUserAgentName, mUserAgentVersion);
@@ -95,6 +94,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		config->setBool("rtp", "rtcp_enabled", bool(mSendRtcp));
 		config->setBool("sip", "inactive_audio_on_pause", static_cast<bool>(mSetAudioInactiveOnPause));
 		config->setBool("sip", "auto_answer_replacing_calls", static_cast<bool>(mAutoAnswerReplacingCalls));
+		config->setBool("logging", "disable_stdout", !LogManager::get().standardOutputIsEnabled());
 	}
 
 	Match(mAudioPort)

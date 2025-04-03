@@ -245,7 +245,11 @@ void Server::Application::onSubscriptionStateChanged(const shared_ptr<linphone::
 }
 
 void Server::_init() {
-	mCore = Factory::get()->createCore("", "", nullptr);
+	const auto coreConfig = Factory::get()->createConfig("");
+	// Prevent the default log handler from being reset while LinphoneCore construction.
+	coreConfig->setBool("logging", "disable_stdout", true);
+
+	mCore = Factory::get()->createCoreWithConfig(coreConfig, nullptr);
 	mCore->enableDatabase(false);
 
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");

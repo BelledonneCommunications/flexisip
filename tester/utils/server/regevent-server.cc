@@ -30,7 +30,7 @@ using namespace std;
 namespace flexisip::tester {
 
 RegEventServer::RegEventServer(const std::shared_ptr<RegistrarDb>& registrarDb) {
-	mCore = tester::minimalCore(*linphone::Factory::get());
+	mCore = tester::minimalCore();
 
 	const auto& transports = mCore->getTransports();
 	transports->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);

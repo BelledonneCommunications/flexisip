@@ -19,8 +19,7 @@
 #include <csignal> // For macOS
 #include <sys/wait.h>
 
-#include <flexisip/logmanager.hh>
-
+#include "flexisip/logmanager.hh"
 #include "main/flexisip.hh"
 #include "tester.hh"
 #include "utils/test-patterns/test.hh"
@@ -105,10 +104,12 @@ void callAndStopMain() {
 
 namespace {
 
-TestSuite _("mainTester",
-            {
-                CLASSY_TEST(callAndStopMain),
-            });
+TestSuite _{
+    "mainTester",
+    {
+        CLASSY_TEST(callAndStopMain),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester

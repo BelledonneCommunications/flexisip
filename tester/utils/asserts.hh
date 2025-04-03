@@ -22,13 +22,12 @@
 #include <functional>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <cstdint>
 
 #include "bctoolbox/tester.h"
-
 #include "linphone++/linphone.hh"
-
 #include "utils/test-patterns/test.hh"
 
 namespace flexisip::tester {

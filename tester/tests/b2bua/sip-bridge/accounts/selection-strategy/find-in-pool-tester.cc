@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,8 @@
 
 #include "b2bua/sip-bridge/accounts/selection-strategy/find-in-pool.hh"
 
-#include <linphone/misc.h>
-
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
+#include "linphone/misc.h"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
@@ -123,9 +122,9 @@ void chooseAccountForThisCall() {
 }
 
 auto stubPool() {
-	return make_shared<AccountPool>(
-	    make_shared<sofiasip::SuRoot>(), reinterpret_pointer_cast<B2buaCore>(minimalCore(*linphone::Factory::get())),
-	    "stub pool", config::v2::AccountPool(), make_unique<StaticAccountLoader>(config::v2::StaticLoader()));
+	return make_shared<AccountPool>(make_shared<sofiasip::SuRoot>(), reinterpret_pointer_cast<B2buaCore>(minimalCore()),
+	                                "stub pool", config::v2::AccountPool(),
+	                                make_unique<StaticAccountLoader>(config::v2::StaticLoader()));
 }
 
 void allValidTokensInSourceTemplate() {

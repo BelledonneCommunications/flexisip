@@ -18,13 +18,12 @@
 
 #include "utils/configuration/transport.hh"
 
-#include <flexisip/configmanager.hh>
-
-#include <linphone++/core.hh>
-#include <linphone++/factory.hh>
-#include <linphone/misc.h>
-
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/configmanager.hh"
+#include "linphone++/core.hh"
+#include "linphone++/factory.hh"
+#include "linphone/misc.h"
+#include "utils/client-core.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -172,8 +171,7 @@ void parseInternetAddressWithUnknownNameOrService() {
 }
 
 void configureNatAddresses() {
-	const auto core =
-	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+	const auto core = tester::minimalCore();
 	{
 		const auto policy = core->createNatPolicy();
 		const ConfigStringList parameter{"nat-addresses", "", "", 0};
@@ -204,8 +202,7 @@ void configureNatAddresses() {
 }
 
 void configureNatAddressesWithUnknownNameOrService() {
-	const auto core =
-	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+	const auto core = tester::minimalCore();
 
 	const auto policy = core->createNatPolicy();
 	const ConfigStringList parameter{"nat-addresses", "", "::1 test.example", 0};
@@ -214,8 +211,7 @@ void configureNatAddressesWithUnknownNameOrService() {
 }
 
 void configureNatAddressesWithSeveralIPv4Addresses() {
-	const auto core =
-	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+	const auto core = tester::minimalCore();
 
 	const auto policy = core->createNatPolicy();
 	const ConfigStringList parameter{"nat-addresses", "", "127.0.0.1 127.0.0.2", 0};
@@ -224,8 +220,7 @@ void configureNatAddressesWithSeveralIPv4Addresses() {
 }
 
 void configureNatAddressesWithSeveralIPv6Addresses() {
-	const auto core =
-	    linphone::Factory::get()->createCoreWithConfig(linphone::Factory::get()->createConfig(""), nullptr);
+	const auto core = tester::minimalCore();
 
 	const auto policy = core->createNatPolicy();
 	const ConfigStringList parameter{"nat-addresses", "", "::1 ::2", 0};
@@ -233,21 +228,23 @@ void configureNatAddressesWithSeveralIPv6Addresses() {
 	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfiguration)
 }
 
-TestSuite _("utils::configuration::transport",
-            {
-                CLASSY_TEST(configureTransportWithSipScheme),
-                CLASSY_TEST(configureTransportWithSipsScheme),
-                CLASSY_TEST(configureTransportWithInvalidSipUri),
-                CLASSY_TEST(configureTransportWithMissingPortInUri),
-                CLASSY_TEST(configureTransportWithForbiddenTransportUriParameter),
-                CLASSY_TEST(configureTransportWithForbiddenUriScheme),
-                CLASSY_TEST(parseInternetAddress),
-                CLASSY_TEST(parseInternetAddressWithUnknownNameOrService),
-                CLASSY_TEST(configureNatAddresses),
-                CLASSY_TEST(configureNatAddressesWithUnknownNameOrService),
-                CLASSY_TEST(configureNatAddressesWithSeveralIPv4Addresses),
-                CLASSY_TEST(configureNatAddressesWithSeveralIPv6Addresses),
-            });
+TestSuite _{
+    "utils::configuration::transport",
+    {
+        CLASSY_TEST(configureTransportWithSipScheme),
+        CLASSY_TEST(configureTransportWithSipsScheme),
+        CLASSY_TEST(configureTransportWithInvalidSipUri),
+        CLASSY_TEST(configureTransportWithMissingPortInUri),
+        CLASSY_TEST(configureTransportWithForbiddenTransportUriParameter),
+        CLASSY_TEST(configureTransportWithForbiddenUriScheme),
+        CLASSY_TEST(parseInternetAddress),
+        CLASSY_TEST(parseInternetAddressWithUnknownNameOrService),
+        CLASSY_TEST(configureNatAddresses),
+        CLASSY_TEST(configureNatAddressesWithUnknownNameOrService),
+        CLASSY_TEST(configureNatAddressesWithSeveralIPv4Addresses),
+        CLASSY_TEST(configureNatAddressesWithSeveralIPv6Addresses),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester

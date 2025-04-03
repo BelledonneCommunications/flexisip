@@ -52,9 +52,6 @@ job-debian11-unit-test:
     - .debian11-image
   needs:
     - job-debian11-ninja-clang
-  artifacts:
-    paths:
-      - work/lib/libflexisip.so
   variables:
     LSAN_SUPPRESSIONS_FILE_PATH: "./sanitizer_ignore_debian11.txt"
 

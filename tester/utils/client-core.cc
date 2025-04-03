@@ -20,19 +20,16 @@
 #include <memory>
 #include <optional>
 
-#include <bctoolbox/tester.h>
-#include <linphone++/address.hh>
-#include <linphone++/call.hh>
-#include <linphone++/call_params.hh>
-
-#include "flexisip/module-router.hh"
-
 #include "asserts.hh"
-#include "core-assert.hh"
-#include "tester.hh"
-
+#include "bctoolbox/tester.h"
 #include "client-core.hh"
+#include "core-assert.hh"
+#include "flexisip/module-router.hh"
+#include "linphone++/address.hh"
+#include "linphone++/call.hh"
+#include "linphone++/call_params.hh"
 #include "linphone/misc.h"
+#include "tester.hh"
 #include "utils/call-builder.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-builder.hh"
@@ -76,18 +73,19 @@ auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerC
 
 } // namespace
 
-std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory) {
+std::shared_ptr<linphone::Core> minimalCore() {
+	const auto factory = linphone::Factory::get();
 	const auto dataDir = std::string(bc_tester_get_writable_dir_prefix());
-	auto linphoneConfig = factory.createConfig("");
+	auto linphoneConfig = factory->createConfig("");
 
 	linphoneConfig->setBool("logging", "disable_stdout", true);
 	linphoneConfig->setString("storage", "call_logs_db_uri", dataDir + "/null");
 	linphoneConfig->setString("storage", "zrtp_secrets_db_uri", dataDir + "/null");
 	linphoneConfig->setString("storage", "uri", dataDir + "/null");
 	linphoneConfig->setString("lime", "x3dh_db_path", ":memory:");
-	auto core = factory.createCoreWithConfig(linphoneConfig, nullptr);
-	factory.setDataDir(bcTesterWriteDir() / "");
-	auto clientTransport = factory.createTransports();
+	auto core = factory->createCoreWithConfig(linphoneConfig, nullptr);
+	factory->setDataDir(bcTesterWriteDir() / "");
+	auto clientTransport = factory->createTransports();
 	clientTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
 	clientTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
 	core->setTransports(clientTransport);

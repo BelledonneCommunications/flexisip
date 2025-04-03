@@ -57,14 +57,15 @@ job-debian12-unit-test:
     - .debian12-image
   needs:
     - job-debian12-ninja-clang
-  script:
-    - !reference [.unit-test, script]
+  after_script:
     - ls -lah #default.profraw should exist
     - llvm-profdata merge -sparse default.profraw -o default.profdata
   artifacts:
+    when: always
     paths:
       - default.profdata
       - work/lib/libflexisip.so
+      - ${LOGS_DIR}/*
 
 debian12-coverage:
   stage: coverage 📑

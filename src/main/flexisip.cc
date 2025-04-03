@@ -866,15 +866,15 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		logParams.root = root;
 		logParams.logDirectory = globalCfg->get<ConfigString>("log-directory")->read();
 		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
-		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::get().logLevelFromName(log_level);
+		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::logLevelFromName(log_level);
 		logParams.enableSyslog = useSyslog;
-		logParams.syslogLevel = LogManager::get().logLevelFromName(syslog_level);
+		logParams.syslogLevel = LogManager::logLevelFromName(syslog_level);
 		logParams.enableStdout = debug && !daemonMode; // No need to log to stdout in daemon mode.
 		logParams.enableUserErrors = user_errors;
 		LogManager::get().initialize(logParams);
 		LogManager::get().setContextualFilter(globalCfg->get<ConfigString>("contextual-log-filter")->read());
 		LogManager::get().setContextualLevel(
-		    LogManager::get().logLevelFromName(globalCfg->get<ConfigString>("contextual-log-level")->read()));
+		    LogManager::logLevelFromName(globalCfg->get<ConfigString>("contextual-log-level")->read()));
 
 		const auto showBodyForParameter = globalCfg->get<ConfigString>("show-body-for");
 		try {

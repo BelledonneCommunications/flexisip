@@ -1404,8 +1404,8 @@ void loadBalancing() {
 // Should display no memory leak when run in sanitizier mode
 void cli() {
 	using namespace flexisip::b2bua;
-	const auto& stubCore =
-	    reinterpret_pointer_cast<b2bua::B2buaCore>(linphone::Factory::get()->createCore("", "", nullptr));
+	const auto stubCore =
+	    B2buaCore::create(*linphone::Factory::get(), *ConfigManager{}.getRoot()->get<GenericStruct>(configSection));
 	bridge::SipBridge sipBridge{make_shared<sofiasip::SuRoot>(), stubCore,
 	                            bridge::config::v2::fromV1({
 	                                {

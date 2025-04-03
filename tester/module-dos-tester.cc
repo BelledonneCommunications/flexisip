@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,13 +39,13 @@ namespace {
 
 class TestBanExecutor : public BanExecutor {
 public:
-	void checkConfig() override{};
-	void onLoad(const flexisip::GenericStruct*) override{};
-	void onUnload() override{};
+	void checkConfig() override {};
+	void onLoad(const flexisip::GenericStruct*) override {};
+	void onUnload() override {};
 	void banIP(const std::string&, const std::string&, const std::string&) override {
 		banIPCalls++;
 	};
-	void unbanIP(const std::string&, const std::string&, const std::string&) override{};
+	void unbanIP(const std::string&, const std::string&, const std::string&) override {};
 
 	int banIPCalls = 0;
 };

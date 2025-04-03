@@ -21,15 +21,14 @@
 #include <memory>
 #include <optional>
 
-#include <linphone++/call_params.hh>
-#include <linphone++/linphone.hh>
-
 #include "agent.hh"
 #include "asserts.hh"
+#include "linphone++/call_params.hh"
+#include "linphone++/linphone.hh"
 
 namespace flexisip::tester {
 
-std::shared_ptr<linphone::Core> minimalCore(linphone::Factory& factory);
+std::shared_ptr<linphone::Core> minimalCore();
 
 class Server;
 class CoreClient;
