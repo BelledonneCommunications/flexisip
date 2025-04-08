@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,8 +39,13 @@ public:
 			LOGW("Rejecting request because of %s", error);
 			ev->reply(400, error, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
-		if (sip->sip_request == NULL || sip->sip_request->rq_url->url_host == NULL) {
+		if (sip->sip_request == nullptr || sip->sip_request->rq_url->url_host == nullptr) {
 			ev->reply(400, "Bad request URI", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		}
+		// RFC 6665-3.1.2: https://datatracker.ietf.org/doc/html/rfc6665#section-3.1.2
+		if (sip->sip_request->rq_method == sip_method_subscribe && sip->sip_event == nullptr) {
+			ev->reply(400, "Bad request, no 'Event' header in SUBSCRIBE request",
+			          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		}
 	}
 
@@ -53,16 +58,16 @@ private:
 	}
 
 	const char* checkHeaders(sip_t* sip) {
-		if (sip->sip_via == NULL) return "No via";
-		if (sip->sip_from == NULL || sip->sip_from->a_url->url_host == NULL || sip->sip_from->a_tag == NULL)
+		if (sip->sip_via == nullptr) return "No via";
+		if (sip->sip_from == nullptr || sip->sip_from->a_url->url_host == nullptr || sip->sip_from->a_tag == nullptr)
 			return "Invalid from header";
-		if (sip->sip_to == NULL || sip->sip_to->a_url->url_host == NULL) return "Invalid to header";
+		if (sip->sip_to == nullptr || sip->sip_to->a_url->url_host == nullptr) return "Invalid to header";
 		if (sip->sip_contact) {
-			if (sip->sip_contact->m_url->url_scheme == NULL) return "Invalid scheme in contact header";
-			if (sip->sip_contact->m_url->url_scheme[0] != '*' && sip->sip_contact->m_url->url_host == NULL)
+			if (sip->sip_contact->m_url->url_scheme == nullptr) return "Invalid scheme in contact header";
+			if (sip->sip_contact->m_url->url_scheme[0] != '*' && sip->sip_contact->m_url->url_host == nullptr)
 				return "Invalid contact header";
 		}
-		return NULL;
+		return nullptr;
 	}
 	static ModuleInfo<ModuleSanityChecker> sInfo;
 };
