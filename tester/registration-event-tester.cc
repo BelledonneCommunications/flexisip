@@ -27,6 +27,7 @@
 #include "linphone++/linphone.hh"
 #include "registrar/record.hh"
 #include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/nta-outgoing-transaction.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/chat-room-builder.hh"
@@ -42,6 +43,7 @@
 
 using namespace std;
 using namespace sofiasip;
+using namespace std::string_literals;
 
 namespace flexisip::tester {
 
@@ -56,6 +58,27 @@ public:
 	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
 	}
 };
+
+// Check that a SUBSCRIBE without an Event header leads to Bad request
+void badSubscriptionRequest() {
+	Server proxy{{
+	    {"module::RegEvent/enabled", "true"},
+	}};
+	proxy.start();
+
+	stringstream request{};
+	request << "SUBSCRIBE sip:service@example.org SIP/2.0\r\n"
+	        << "From: <sip:me@example.org>;tag=4687829\r\n"
+	        << "To: <sip:service@example.org>\r\n"
+	        << "Call-ID: stub-id\r\n"
+	        << "CSeq: 20 SUBSCRIBE\r\n";
+
+	NtaAgent client{proxy.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction = client.createOutgoingTransaction(request.str(), "sip:127.0.0.1:"s + proxy.getFirstPort());
+
+	CoreAssert{proxy}.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 1s).assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 400);
+}
 
 void basicSubscription() {
 	// Agent initialisation
@@ -489,6 +512,7 @@ namespace {
 
 TestSuite _("regevent",
             {
+                CLASSY_TEST(badSubscriptionRequest),
                 CLASSY_TEST(basicSubscription),
                 CLASSY_TEST(wrongEventHeaderInSubscribeRequest),
                 CLASSY_TEST(wrongAcceptHeaderInSubscribeRequest),
