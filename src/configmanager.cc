@@ -738,7 +738,7 @@ ConfigManager::ConfigManager()
 	        "The list of installed plugins can be found at <prefix>/lib/flexisip/plugins.\n"
 	        "The name of a plugin can be built from the corresponding library name by removing the extension and the "
 	        "'lib' prefix.\n"
-	        "Example: 'jweauth' will load libjweauth.so at runtime.",
+	        "Example: 'test' will load libtest.so at runtime.",
 	        "",
 	    },
 	    {

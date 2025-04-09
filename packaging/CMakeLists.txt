@@ -25,7 +25,7 @@ set(CPACK_PACKAGE_VERSION "${FLEXISIP_FULL_VERSION}")
 set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite including proxy server, presence server and IM conference server.")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
-set(CPACK_PACKAGE_HOMEPAGE_URL "http://flexisip.org")
+set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.linphone.org/en/flexisip-sip-server/")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)

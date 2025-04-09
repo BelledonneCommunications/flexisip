@@ -4,12 +4,6 @@
 [submodule "submodules/externals/hiredis"]
 	path = submodules/externals/hiredis
 	url = https://gitlab.linphone.org/BC/public/external/hiredis.git
-[submodule "submodules/externals/jansson"]
-	path = submodules/externals/jansson
-	url = https://gitlab.linphone.org/BC/public/external/jansson.git
-[submodule "submodules/externals/jose"]
-	path = submodules/externals/jose
-	url = https://gitlab.linphone.org/BC/public/external/jose.git
 [submodule "linphone-sdk"]
 	path = linphone-sdk
 	url = https://gitlab.linphone.org/BC/public/linphone-sdk.git

@@ -10,7 +10,7 @@ functionalities, including:
 * **Conference Server**: enables group voice and video calls.
 * **Back-to-Back User Agent (B2BUA) Server**: enables caller identity translation, media-level transcoding and SIP
   trunking.
-* **RegEvent Server**: notify tier domains of user registration
+* **RegEvent Server**: notify tier domains of user registration.
 
 ## Deployment and Applications:
 
@@ -48,7 +48,7 @@ Flexisip is dual licensed, and can be licensed and distributed:
 | NetSNMP         | SNMP library, used for SNMP support. (-DENABME\_SNMP=YES)                                                                             |           |         X          |
 | XercesC         | XML parser. (-DENABLE\_PRESENCE=YES)                                                                                                  |           |         X          |
 | jsoncpp         | JSON parsing and writing (-DENABLE\_B2BUA=YES)                                                                                        |           |         X          |
-| cpp-jwt         | JSON Web Token support (-DENABLE\_OPENID\_CONNECT=YES)                                                                                        |           |         X          |
+| cpp-jwt         | JSON Web Token support (-DENABLE\_OPENID\_CONNECT=YES)                                                                                |           |         X          |
 
 # Compilation
 

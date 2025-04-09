@@ -14,6 +14,10 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.0]
+### [Removed]
+- **Plugin:** JweAuth
+
 ## [2.4.2]
 ### [Fixed]
 - **Proxy:** server was not resilient to invalid subscriptions (no Event header)

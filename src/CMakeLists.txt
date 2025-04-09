@@ -347,10 +347,6 @@ if(ENABLE_EXTERNAL_AUTH_PLUGIN)
 	add_subdirectory(plugin/external-auth-plugin)
 endif()
 
-if(ENABLE_JWE_AUTH_PLUGIN)
-	add_subdirectory(plugin/jwe-auth-plugin)
-endif()
-
 #######################################################################################################################
 # Build the executables
 #######################################################################################################################

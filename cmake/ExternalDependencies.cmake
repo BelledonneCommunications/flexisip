@@ -45,11 +45,3 @@ if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
 	endfunction()
 	add_hiredis()
 endif()
-
-# Configure and add Jose
-if(ENABLE_JWE_AUTH_PLUGIN)
-	function(add_jose)
-		add_subdirectory("submodules/externals/jose")
-	endfunction()
-	add_jose()
-endif()
