@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,7 +24,6 @@
 #include <thread>
 
 #include <cstdint>
-#include <sys/types.h>
 
 #include "bctoolbox/tester.h"
 
@@ -162,13 +161,13 @@ public:
 		return result;
 	}
 
-private:
 	void iterateAllOnce() const {
 		for (const auto& iterate : mIterateFuncs) {
 			iterate();
 		}
 	}
 
+private:
 	std::vector<std::function<void()>> mIterateFuncs;
 };
 
