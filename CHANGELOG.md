@@ -15,7 +15,95 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.5.0]
+### [Added]
+- **Proxy:**
+    - Apple push notification certificates can now be updated without restarting the server.
+    - TLS/SSL certificates can now be updated without restarting the server.
+    - **Authorization and authentication:** New path for all authorization and authentication steps:
+        - New module called `AuthTrustedHosts` that identifies SIP requests from trusted hosts.
+          For more information, see the [configuration reference guide].
+        - New module called `AuthOpenIDConnect` that enables authentication using OpenID Connect method.
+          For more information, see the [module::AuthOpenIDConnect documentation].
+    - **PushNotification:**
+        - Send push notifications on NOTIFY requests receipt if the event type is 'message-summary'
+          ([RFC3842](https://datatracker.ietf.org/doc/html/rfc3842)).
+    - **Registrar:**
+        - New parameter `redis-subscription-keep-alive-check-period` to periodically ping active Redis subscription
+          sessions in order to detect and mitigate connection issues (tries to reconnect if connection is closed).
+- **B2BUA server:**
+    - Support for early media.
+    - Support for blind and attended call transfers ([RFC5589](https://datatracker.ietf.org/doc/html/rfc5589)).
+      Limitations: not supported in SIP-bridge mode with the 'Random' strategy.
+    - New parameters `audio-codec` and `video-codec` to force the usage of a specific audio or video codec
+      (disables all other codecs). Using these parameters significantly improve performances of the server (number
+      of concurrent calls). Documentation is available in the [configuration reference guide].
+    - New parameter `enable-ice` to enable ICE negotiation for RTP streams (enabled by default).
+    - New parameter `nat-addresses` to specify public host name or IP addresses of the server. For more information, see
+      the [configuration reference guide].
+    - New parameter `max-calls` to specify the maximum number of concurrent calls an instance of the server can handle.
+    - **SIP-Bridge:**:
+        - Forwarding of SUBSCRIBE and NOTIFY requests.
+        - **AccountPool:**
+            - New parameter `mwiServerUri` to specify the URI of the MWI server.
+            - Parameter `registrar` to indicate the SIP URI of the registrar to which all users should register by
+              default (optional).
+        - **Account:**
+            - Parameter `registrar` to indicate the hostname or full SIP URI of the registrar to which the
+              user should register (optional).
+            - Parameter `protocol` (which is used with `outbound_proxy` and `registrar`) to indicate which transport
+              protocol to use (optional, default: udp).
+
+### [Changed]
+- **Conference:**
+    - Parameter `conference-focus-uris` is now mandatory.
+    - New parameter `media-engine-type` to specify the media engine to use (`mixer` or `sfu`). Documentation is
+      available in the [configuration reference guide].
+- **Proxy:**
+    - TLS/SSL certificates MUST not be expired (or Flexisip will not start).
+    - **Authorization:** New behavior (check if the SIP domain is authorized and reject inter domain requests),
+      available in two modes (more information in the [configuration reference guide]):
+        - `static`: Specify a list of authorized SIP domains in the configuration file (default behavior).
+        - `dynamic`: Set up a connection to the [FlexisipAccountManager] server to dynamically get the list of
+          authorized SIP domains.
+- **B2BUA server:**
+    - **Trenscrypter:** Invalid values in `outgoing-enc-regex` and `outgoing-srtp-regex` parameters are now
+      considered as errors and prevent the server from starting.
+    - **SIP-Bridge:**: For detailed information, see the [SIP-Bridge documentation].
+        - **AccountPool:**
+            - Parameter `outbound_proxy` is now optional.
+        - **Account:**
+            - Parameter `outbound_proxy` can now contain a hostname or a full SIP URI.
+
+### [Fixed]
+- **Proxy:**
+    - **Forward:** Contact paths were not properly processed for mid-dialog requests intended to GRUU addresses. Fetched
+      paths from database were not translated into 'Route' headers before forwarding the request.
+    - **Router:** Performance issues for MESSAGE requests intended for the conference server (linphone-sdk >= 5.4).
+      Avoid creating MESSAGE requests that could be saved in memory or database in case the conference server
+      is not available. Moreover, in such cases this fix allows the UAC to know that the chat message was not delivered
+      properly to the server ('202 Accepted' was previously immediately answered to the UAC).
+- **Conference server:**
+    - Set the default contact address (with identity address of the conference server) to fix issues when connection
+      to the Redis database is slow or broken.
+- **B2BUA server:**
+    - Now properly resumes calls that were paused on both sides.
+    - Performance issues (memory leaks due to linphone::Account accumulations).
+    - The server now checks audio and video media directions to manage call states (video calls were not handled
+      properly).
+    - **SIP Bridge:**
+        - With `one-connection-per-account` enabled, the server now uses the correct port to answer to OPTION requests.
+        - Update accounts smoothly on full (re)load.
+          If the Redis connection was lost, we might have missed a notification of an account being
+          created/updated/deleted. So we fetch all accounts from DB again, then run a diff to intelligently update what
+          we already have (That update process is rate-limited in the same manner as that of loading all accounts on
+          first boot).
+        - Changes made to authentication information where not taken into account when the server was running. Now
+          ensures that a new REGISTER for the involved account is sent.
+- **Build:** Compilation on macOS.
+
 ### [Removed]
+- **Proxy:** Monitor (never released, it was in experimental state). All configuration files MUST not contain any
+  reference to the Monitor module otherwise Flexisip will not start.
 - **Plugin:** JweAuth
 
 ## [2.4.2]
@@ -175,8 +263,6 @@ Group changes to describe their impact on the project, as follows:
 - **RPM:** Rocky 8 may refuse to install the package because it detects a conflict with the SystemD package.
 - **Proxy:** No "Missing call" notification will be sent if a call is cancelled after being unanswered for more than 30
   seconds.
-
-[the SIP Bridge documentation]: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Back-to-back%20User%20Agent%20(b2bua)/SIP%20Bridge
 
 ## [2.3.4] - 2024-07-24
 ### [Added]
@@ -701,3 +787,13 @@ Group changes to describe their impact on the project, as follows:
 
 **Conference**
 - Fix becoming admin again after leaving and reentering a chat room.
+
+[comment]: <> (Usefull links)
+
+[configuration reference guide]: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/
+
+[SIP-Bridge documentation]: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Back-to-back%20User%20Agent%20(b2bua)/SIP%20Bridge/
+
+[module::AuthOpenIDConnect documentation]: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Authentication/Module-OpenIDConnect/
+
+[FlexisipAccountManager]: https://www.linphone.org/en/flexisip-sip-server/#flexisip-software
