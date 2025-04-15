@@ -11,7 +11,7 @@ variables:
   # For build and test on Linux
   DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=Debug'
   # For build on MacOS
-  DEFAULT_MACOS_CMAKE_OPTIONS: ''
+  DEFAULT_MACOS_CMAKE_OPTIONS: '-DPython3_ROOT_DIR=/opt/bc/pip-packages/'
   # For packaging, deb and rpm
   DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/usr/lib/systemd/system'
 
