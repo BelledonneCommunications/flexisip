@@ -174,6 +174,10 @@ Group changes to describe their impact on the project, as follows:
 
 [the SIP Bridge documentation]: https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Back-to-back%20User%20Agent%20(b2bua)/SIP%20Bridge
 
+## [2.3.5] - 2025-04-18
+### [Fixed]
+- **Proxy:** fix a vulnerability in authentification using P-Preferred-Identity header.
+
 ## [2.3.4] - 2024-07-24
 ### [Added]
 - **Proxy/Registrar:** add 'max-contacts-per-registration' to reject REGISTER requests containing more Contact headers

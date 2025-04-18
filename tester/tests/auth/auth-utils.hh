@@ -36,6 +36,7 @@ struct Response {
 };
 
 const Response response_200_ok = {200, ""};
+const Response response_202_Accepted = {202, ""};
 const Response response_401_unauthorized = {401, "WWW-Authenticate"};
 const Response response_403_forbidden = {403, "Domain forbidden"};
 const Response response_407_proxy_auth_required = {407, "Proxy-Authenticate"};

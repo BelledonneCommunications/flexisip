@@ -33,6 +33,16 @@
 using namespace std;
 
 namespace flexisip {
+namespace {
+sip_p_preferred_identity_t* preferredIdentity(MsgSip& msg) {
+	// RFC 3323-4.1.1.3 & RFC 3325-9.2
+	sip_t* sip = msg.getSip();
+	const char* fromDomain = sip->sip_from->a_url[0].url_host;
+	if (fromDomain && (strcmp(fromDomain, "anonymous.invalid") == 0)) return sip_p_preferred_identity(sip);
+
+	return nullptr;
+}
+} // namespace
 
 void ModuleAuthenticationBase::declareConfig(GenericStruct& moduleConfig) {
 	ConfigItemDescriptor items[] = {
@@ -163,13 +173,10 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 	try {
 		validateRequest(ev);
 
-		sip_p_preferred_identity_t* ppi = nullptr;
 		const char* fromDomain = sip->sip_from->a_url[0].url_host;
-		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-			ppi = sip_p_preferred_identity(sip);
-			if (ppi) fromDomain = ppi->ppid_url->url_host;
-			else LOGD("There is no p-preferred-identity");
-		}
+		sip_p_preferred_identity_t* ppi = preferredIdentity(*ev->getMsgSip());
+		if (ppi) fromDomain = ppi->ppid_url->url_host;
+		else LOGD("There is no p-preferred-identity");
 
 		FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
 		if (am == nullptr) {
@@ -193,7 +200,7 @@ FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const std::shared
 void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const std::shared_ptr<RequestSipEvent>& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
-	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
+	const sip_p_preferred_identity_t* ppi = preferredIdentity(*ms);
 	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 	if (userUri->url_host == nullptr) {
 		THROW_LINE(InvalidRequestError, "malformed P-Preferred-Identity");
