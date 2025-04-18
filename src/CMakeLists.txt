@@ -32,6 +32,7 @@ add_library(flexisip SHARED
 	auth/flexisip-auth-module-base.cc
 	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
 	auth/nonce-store.cc
+	auth/preferred-identity.hh
 	auth/realm-extractor.hh
 	callcontext-mediarelay.cc callcontext-mediarelay.hh
 	callstore.cc callstore.hh

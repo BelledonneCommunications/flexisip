@@ -22,6 +22,7 @@
 #include "auth-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -38,6 +39,17 @@ constexpr auto domainB = "b.example.org";
 const auto clientA = "sip:user1@"s + domainA;
 const auto clientA2 = "sip:user2@"s + domainA;
 const auto clientB = "sip:user1@"s + domainB;
+
+struct ChallengerMock : public AuthScheme {
+	std::string schemeType() const {
+		return "ChallengerMock";
+	}
+	void challenge(AuthStatus&, const auth_challenger_t*) {
+	}
+	State check(const msg_auth_t*, std::function<void(ChallengeResult&&)>&&) {
+		return State::Done;
+	}
+};
 
 // Check that a request is rejected with 403 if its domain is not specified
 void rejectUnexpectedDomain() {
@@ -93,16 +105,6 @@ void rejectUnauthUserOfValidDomain() {
 	proxy.start();
 	const auto root = proxy.getRoot();
 
-	struct ChallengerMock : public AuthScheme {
-		std::string schemeType() const {
-			return "ChallengerMock";
-		}
-		void challenge(AuthStatus&, const auth_challenger_t*) {
-		}
-		State check(const msg_auth_t*, std::function<void(ChallengeResult&&)>&&) {
-			return State::Done;
-		}
-	};
 	auto authModule = proxy.getAgent()->findModule("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
 	auth->addAuthModule(make_shared<ChallengerMock>());
@@ -232,6 +234,100 @@ void rejectInterDomainRequest() {
 	}
 }
 
+// Check that an anonymous request with an authenticated prefered identity is accepted
+void acceptAnonymousMessage() {
+	InjectedHooks addValidChallengeResult{
+	    .onRequest =
+	        [](unique_ptr<RequestSipEvent>&& ev) {
+		        RequestSipEvent::AuthResult::ChallengeResult chal(RequestSipEvent::AuthResult::Type::Bearer);
+		        chal.setIdentity(SipUri(clientA));
+		        chal.accept();
+		        ev->addChallengeResult(std::move(chal));
+		        return std::move(ev);
+	        },
+	};
+
+	TempFile regFile("<" + clientA2 + "> <sip:127.0.0.1:5460>");
+	Server proxy(
+	    {
+	        {"module::Registrar/reg-domains", "*.example.org"},
+	        {"module::Registrar/static-records-file", regFile.getFilename()},
+	        {"module::Authorization/enabled", "true"},
+	        {"module::Authorization/auth-domains", domainA},
+	    },
+	    &addValidChallengeResult);
+
+	proxy.start();
+	const auto root = proxy.getRoot();
+
+	// clang-format off
+	string request(
+	    "MESSAGE "s + clientA2 + " SIP/2.0\r\n"
+		"Max-Forwards: 5\r\n"
+		"To: user2 <" + clientA2 + ">\r\n"
+		"From: \"Anonymous\" <sip:anonymous@anonymous.invalid>;tag=4657829\r\n"
+		"Call-ID: 1053182\r\n"
+		"CSeq: 1 MESSAGE\r\n"
+		"Contact: <" + clientA + ";transport=udp>\r\n"
+		"Content-Type: text/plain\r\n"
+		"P-Preferred-Identity: <" + clientA + ">\r\n"
+		"Content-Length: 11\r\n\r\n"
+		"Who am I?\r\n");
+	// clang-format on
+
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+	checkResponse(transaction, response_202_Accepted);
+}
+
+// Check that a request using a P-Preferred-Identity header but with pretending to be another user is rejected
+void rejectIdentityFraudMessage() {
+	InjectedHooks addValidChallengeResult{
+	    .onRequest =
+	        [](unique_ptr<RequestSipEvent>&& ev) {
+		        RequestSipEvent::AuthResult::ChallengeResult chal(RequestSipEvent::AuthResult::Type::Bearer);
+		        chal.setIdentity(SipUri(clientA));
+		        chal.accept();
+		        ev->addChallengeResult(std::move(chal));
+		        return std::move(ev);
+	        },
+	};
+
+	Server proxy(
+	    {
+	        {"module::Registrar/reg-domains", "*.example.org"},
+	        {"module::Authorization/enabled", "true"},
+	        {"module::Authorization/auth-domains", domainA},
+	    },
+	    &addValidChallengeResult);
+
+	proxy.start();
+	const auto root = proxy.getRoot();
+
+	auto authModule = proxy.getAgent()->findModule("Authorization");
+	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
+	auth->addAuthModule(make_shared<ChallengerMock>());
+
+	// clang-format off
+	string request(
+	    "MESSAGE "s + clientA2 + " SIP/2.0\r\n"
+		"Max-Forwards: 5\r\n"
+		"To: user2 <" + clientA2 + ">\r\n"
+		"From: <sip:anotherUser@" + domainA + ">;tag=46529\r\n"
+		"Call-ID: 1053182\r\n"
+		"CSeq: 1 MESSAGE\r\n"
+		"Contact: <" + clientA + ";transport=udp>\r\n"
+		"Content-Type: text/plain\r\n"
+		"P-Preferred-Identity: <" + clientA + ">\r\n"
+		"Content-Length: 11\r\n\r\n"
+		"Who am I?\r\n");
+	// clang-format on
+
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+	checkResponse(transaction, {SIP_407_PROXY_AUTH_REQUIRED});
+}
+
 const TestSuite kSuite{"Authorization",
                        {
                            CLASSY_TEST(rejectUnexpectedDomain),
@@ -239,5 +335,7 @@ const TestSuite kSuite{"Authorization",
                            CLASSY_TEST(rejectUnauthUserOfValidDomain),
                            CLASSY_TEST(acceptAuthUserOfValidDomain),
                            CLASSY_TEST(rejectInterDomainRequest),
+                           CLASSY_TEST(acceptAnonymousMessage),
+                           CLASSY_TEST(rejectIdentityFraudMessage),
                        }};
 } // namespace

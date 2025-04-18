@@ -18,12 +18,12 @@
 
 #include "module-authorization.hh"
 
-#include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include "agent.hh"
+#include "auth/preferred-identity.hh"
 #include "utils/transport/http/http-message-context.hh"
 #include "utils/transport/http/http2client.hh"
 
@@ -211,7 +211,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 
 	const auto msgSip = *ev->getMsgSip();
 	const sip_t* sip = msgSip.getSip();
-	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
+	const sip_p_preferred_identity_t* ppi = preferredIdentity(msgSip);
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
 	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
 

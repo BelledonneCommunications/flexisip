@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -42,6 +42,7 @@ const auto contact = userName + "@" + domain;
 const auto sipUri = "sip:"s + contact;
 const auto md5HA1 = Md5().compute<string>(userName + ":" + domain + ":" + pwd);
 const auto sha256HA1 = Sha256().compute<string>(userName + ":" + domain + ":" + pwd);
+const auto clientA2 = "sip:user2@"s + domain;
 
 string readParamValue(const msg_param_t* msgParams, const char* field) {
 	auto fieldValue = msg_params_find(msgParams, field);
@@ -235,7 +236,6 @@ void digestQopDisable() {
 // Send a MESSAGE request to a user of domain.
 // Expect the proxy to reply 407 proxy_auth_required and then answer the challenge.
 void digestQopProxyAuth() {
-	const auto clientA2 = "sip:user2@"s + domain;
 	// clang-format off
 	const string authDb("version:1\n\n"s
 						+ contact + " clrtxt:"+ pwd + " ;\n");
@@ -254,7 +254,7 @@ void digestQopProxyAuth() {
 	proxy.start();
 	NtaAgent UAClient(root, "sip:127.0.0.1:0");
 
-	auto messageRequest = [&clientA2](const std::string& CSeq, const string& addField = "") {
+	auto messageRequest = [](const std::string& CSeq, const string& addField = "") {
 		// clang-format off
 	return string(
 	    "MESSAGE "s + clientA2 + " SIP/2.0\r\n"
@@ -450,11 +450,156 @@ void digestAlgorithmSelection() {
 	}
 }
 
+string messageRequestWithPPI(const string& fromUri, const string& CSeq, const string& authHdr) {
+	// clang-format off
+	return string(
+	    "MESSAGE "s + clientA2 + " SIP/2.0\r\n"
+		"Max-Forwards: 5\r\n"
+		"To: user2 <" + clientA2 + ">\r\n"
+		"From: <" + fromUri + ">;tag=465687829\r\n"
+		"Call-ID: 1053183492\r\n"
+		"CSeq: " + CSeq + " MESSAGE\r\n"
+		"Contact: <" + sipUri + ";transport=udp>\r\n"
+		+ authHdr +
+		"Content-Type: text/plain\r\n"
+		"P-Preferred-Identity: " + userName + " <" + sipUri + ">\r\n"
+		"Content-Length: 11\r\n\r\n"
+		"Who am I?\r\n");
+	// clang-format on
+}
+
+// Send a MESSAGE request using a P-Preferred-Identity header.
+// Expect the proxy to reply 407 proxy_auth_required for the PPI user and then answer the challenge.
+void acceptAnonymousMessage() {
+	// clang-format off
+	const string authDb("version:1\n\n"s
+						+ contact + " clrtxt:"+ pwd + " ;\n");
+	// clang-format on
+	TempFile authFile(authDb);
+	TempFile regFile("<" + clientA2 + "> <sip:127.0.0.1:5460>");
+
+	Server proxy({{"module::Registrar/reg-domains", "*"},
+	              {"module::Registrar/static-records-file", regFile.getFilename()},
+	              {"module::Authentication/enabled", "true"},
+	              {"module::Authentication/file-path", authFile.getFilename()},
+	              {"module::Authentication/auth-domains", domain},
+	              {"module::Authentication/disable-qop-auth", "true"}});
+
+	const auto& root = proxy.getRoot();
+	proxy.start();
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+
+	const auto anonymousUri = "sip:anonymous@anonymous.invalid"s;
+	string realm{}, nonce{}, opaque{};
+	{
+		// first MESSAGE request is rejected, server reply with authentication parameters
+		const auto request = messageRequestWithPPI(anonymousUri, "22", "");
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_407_proxy_auth_required);
+
+		const auto* sipMsg = transaction->getResponse()->getSip();
+		BC_HARD_ASSERT(sipMsg != nullptr);
+		const auto* authMsg = sipMsg->sip_proxy_authenticate;
+		BC_HARD_ASSERT(authMsg != nullptr);
+		const auto* authParams = authMsg->au_params;
+		BC_HARD_ASSERT(authParams != nullptr);
+		realm = readParamValue(authParams, "realm=");
+		BC_ASSERT_CPP_EQUAL(realm, string(domain));
+		nonce = readParamValue(authParams, "nonce=");
+		BC_ASSERT(!nonce.empty());
+		opaque = readParamValue(authParams, "opaque=");
+		BC_ASSERT(!opaque.empty());
+	}
+
+	const auto HA2 = Md5().compute<string>("MESSAGE:"s + sipUri);
+	const auto response = Md5().compute<string>(md5HA1 + ":" + nonce + ":" + HA2);
+	// clang-format off
+	string authorization(
+		"Proxy-Authorization: Digest username=\""s + userName + "\","
+			" realm=\"" + realm + "\","
+			" nonce=\"" + nonce + "\","
+			" uri="+ sipUri + ","
+			" response=\"" + response + "\","
+			" opaque=\"" + opaque + "\"\r\n");
+	// clang-format on
+
+	{
+		const auto request = messageRequestWithPPI(anonymousUri, "23", authorization);
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_202_Accepted);
+	}
+}
+
+// Send a MESSAGE request using a P-Preferred-Identity header but with trying to be another user.
+// Expect the proxy to reply 407 proxy_auth_required for the From user, PPI user cannot answer the challenge.
+void rejectIdentityFraudMessage() {
+	const auto anotherContact = "anotherUsr"s + "@" + domain;
+	// clang-format off
+	const string authDb("version:1\n\n"s
+						+ contact + " clrtxt:"+ pwd + " ;\n"
+						+ anotherContact + " clrtxt:anotherPassword ;\n");
+	// clang-format on
+	TempFile authFile(authDb);
+	TempFile regFile("<" + clientA2 + "> <sip:127.0.0.1:5460>");
+
+	Server proxy({{"module::Registrar/reg-domains", "*"},
+	              {"module::Registrar/static-records-file", regFile.getFilename()},
+	              {"module::Authentication/enabled", "true"},
+	              {"module::Authentication/file-path", authFile.getFilename()},
+	              {"module::Authentication/auth-domains", domain},
+	              {"module::Authentication/disable-qop-auth", "true"}});
+
+	const auto& root = proxy.getRoot();
+	proxy.start();
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+
+	const auto anotherContactUri = "sip:"s + anotherContact;
+	string realm{}, nonce{}, opaque{};
+	{
+		// first MESSAGE request is rejected, server reply with authentication parameters
+		const auto request = messageRequestWithPPI(anotherContactUri, "22", "");
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_407_proxy_auth_required);
+
+		const auto* sipMsg = transaction->getResponse()->getSip();
+		BC_HARD_ASSERT(sipMsg != nullptr);
+		const auto* authMsg = sipMsg->sip_proxy_authenticate;
+		BC_HARD_ASSERT(authMsg != nullptr);
+		const auto* authParams = authMsg->au_params;
+		BC_HARD_ASSERT(authParams != nullptr);
+		realm = readParamValue(authParams, "realm=");
+		BC_ASSERT_CPP_EQUAL(realm, string(domain));
+		nonce = readParamValue(authParams, "nonce=");
+		BC_ASSERT(!nonce.empty());
+		opaque = readParamValue(authParams, "opaque=");
+		BC_ASSERT(!opaque.empty());
+	}
+
+	const auto HA2 = Md5().compute<string>("MESSAGE:"s + sipUri);
+	const auto response = Md5().compute<string>(md5HA1 + ":" + nonce + ":" + HA2);
+	// clang-format off
+	string authorization(
+		"Proxy-Authorization: Digest username=\""s + userName + "\","
+			" realm=\"" + realm + "\","
+			" nonce=\"" + nonce + "\","
+			" uri="+ sipUri + ","
+			" response=\"" + response + "\","
+			" opaque=\"" + opaque + "\"\r\n");
+	// clang-format on
+
+	{
+		const auto request = messageRequestWithPPI(anotherContactUri, "23", authorization);
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, {403, "Forbidden"});
+	}
+}
 TestSuite _("AuthDigest",
             {
                 CLASSY_TEST(digestQopAuth),
                 CLASSY_TEST(digestQopDisable),
                 CLASSY_TEST(digestQopProxyAuth),
                 CLASSY_TEST(digestAlgorithmSelection),
+                CLASSY_TEST(acceptAnonymousMessage),
+                CLASSY_TEST(rejectIdentityFraudMessage),
             });
 } // namespace

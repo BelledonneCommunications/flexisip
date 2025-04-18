@@ -266,6 +266,10 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:** No "Missing call" notification will be sent if a call is cancelled after being unanswered for more than 30
   seconds.
 
+## [2.3.5] - 2025-04-18
+### [Fixed]
+- **Proxy:** fix a vulnerability in authentification using P-Preferred-Identity header.
+
 ## [2.3.4] - 2024-07-24
 ### [Added]
 - **Proxy/Registrar:** add 'max-contacts-per-registration' to reject REGISTER requests containing more Contact headers
