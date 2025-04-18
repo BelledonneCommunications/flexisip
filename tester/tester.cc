@@ -30,6 +30,7 @@
 #include <belr/grammarbuilder.h>
 #include <linphone++/linphone.hh>
 
+#include <sofia-sip/sip_header.h>
 #include <sofia-sip/su_log.h>
 
 #ifdef HAVE_CONFIG_H
@@ -195,7 +196,11 @@ int main(int argc, char* argv[]) {
 		return ret;
 	}
 
+	/*tell parser to support extra headers */
+	sip_update_default_mclass(sip_extend_mclass(NULL));
+
 	const auto ret = bc_tester_start(argv[0]);
+
 	flexisip_tester_uninit();
 	return ret;
 }

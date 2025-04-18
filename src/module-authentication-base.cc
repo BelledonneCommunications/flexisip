@@ -19,10 +19,10 @@
 #include "flexisip/module-authentication-base.hh"
 
 #include <sofia-sip/msg_addr.h>
-#include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
+#include "auth/preferred-identity.hh"
 #include "auth/realm-extractor.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -196,13 +196,10 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<Reque
 
 	if (!validateRequest(*ev->getMsgSip())) return std::move(ev);
 
-	sip_p_preferred_identity_t* ppi = nullptr;
 	const char* fromDomain = sip->sip_from->a_url[0].url_host;
-	if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-		ppi = sip_p_preferred_identity(sip);
-		if (ppi) fromDomain = ppi->ppid_url->url_host;
-		else LOGD << "There is no p-preferred-identity";
-	}
+	sip_p_preferred_identity_t* ppi = preferredIdentity(*ev->getMsgSip());
+	if (ppi) fromDomain = ppi->ppid_url->url_host;
+	else LOGD << "There is no p-preferred-identity";
 
 	FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
 	if (am == nullptr) {
@@ -228,7 +225,7 @@ void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as) {
 	if (ms == nullptr) return;
 
 	sip_t* sip = ms->getSip();
-	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
+	const sip_p_preferred_identity_t* ppi = preferredIdentity(*ms);
 	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 	if (userUri->url_host == nullptr) {
 		THROW_LINE(InvalidRequestError, "malformed P-Preferred-Identity");
