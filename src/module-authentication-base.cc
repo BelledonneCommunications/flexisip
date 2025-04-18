@@ -1,19 +1,19 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sofia-sip/msg_addr.h>
@@ -21,8 +21,8 @@
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "eventlogs/events/eventlogs.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 
 #include "auth/realm-extractor.hh"
 #include "utils/string-utils.hh"
@@ -32,6 +32,17 @@
 using namespace std;
 
 namespace flexisip {
+
+namespace {
+sip_p_preferred_identity_t* preferredIdentity(MsgSip& msg) {
+	// RFC 3323-4.1.1.3 & RFC 3325-9.2
+	sip_t* sip = msg.getSip();
+	const char* fromDomain = sip->sip_from->a_url[0].url_host;
+	if (fromDomain && (strcmp(fromDomain, "anonymous.invalid") == 0)) return sip_p_preferred_identity(sip);
+
+	return nullptr;
+}
+} // namespace
 
 ModuleAuthenticationBase::ModuleAuthenticationBase(Agent* agent) : Module(agent) {
 	mProxyChallenger.ach_status = 407; /*SIP_407_PROXY_AUTH_REQUIRED*/
@@ -162,13 +173,10 @@ void ModuleAuthenticationBase::onRequest(std::shared_ptr<RequestSipEvent>& ev) {
 	try {
 		validateRequest(ev);
 
-		sip_p_preferred_identity_t* ppi = nullptr;
 		const char* fromDomain = sip->sip_from->a_url[0].url_host;
-		if (fromDomain && strcmp(fromDomain, "anonymous.invalid") == 0) {
-			ppi = sip_p_preferred_identity(sip);
-			if (ppi) fromDomain = ppi->ppid_url->url_host;
-			else LOGD("There is no p-preferred-identity");
-		}
+		sip_p_preferred_identity_t* ppi = preferredIdentity(*ev->getMsgSip());
+		if (ppi) fromDomain = ppi->ppid_url->url_host;
+		else LOGD("There is no p-preferred-identity");
 
 		FlexisipAuthModuleBase* am = findAuthModule(fromDomain);
 		if (am == nullptr) {
@@ -195,7 +203,7 @@ FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const std::shared
 void ModuleAuthenticationBase::configureAuthStatus(FlexisipAuthStatus& as, const std::shared_ptr<RequestSipEvent>& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();
-	const sip_p_preferred_identity_t* ppi = sip_p_preferred_identity(sip);
+	const sip_p_preferred_identity_t* ppi = preferredIdentity(*ms);
 	const url_t* userUri = ppi ? ppi->ppid_url : sip->sip_from->a_url;
 
 	string realm{};
