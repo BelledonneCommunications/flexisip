@@ -23,6 +23,7 @@
 #include <regex>
 
 #include "flexisip/logmanager.hh"
+#include "push-notification-exceptions.hh"
 
 #include "utils/string-utils.hh"
 
@@ -56,7 +57,7 @@ std::string Request::quoteStringIfNeeded(const std::string& str) const noexcept 
 
 std::string Request::getPushTimeStamp() const noexcept {
 	auto t = time(nullptr);
-	struct tm time {};
+	struct tm time{};
 	gmtime_r(&t, &time);
 
 	string date(20, '\0');

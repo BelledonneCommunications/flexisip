@@ -22,7 +22,6 @@
 #include <memory>
 #include <string>
 
-#include "push-notification-exceptions.hh"
 #include "push-type.hh"
 #include "registrar/extended-contact.hh"
 #include "rfc8599-push-params.hh"

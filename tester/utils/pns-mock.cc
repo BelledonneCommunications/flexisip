@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -82,6 +82,7 @@ void PnsMock::onPushRequest(request_cb cb) {
 	mServer.handle("/v1/projects/sample-project/messages:send", cb);
 	mServer.handle("/3/device/", cb);
 	mServer.handle("/generic", cb);
+	mServer.handle("/flexiapi/push_notification", cb);
 }
 
 bool PnsMock::serveAsync(const std::string& port) {

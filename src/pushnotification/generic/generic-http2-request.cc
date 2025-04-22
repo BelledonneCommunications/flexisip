@@ -48,4 +48,29 @@ GenericHttp2Request::GenericHttp2Request(PushType pType,
 	this->setHeaders(headers);
 }
 
+GenericHttp2Request::GenericHttp2Request(const PushType pType,
+                                         const std::shared_ptr<const PushInfo>& pInfo,
+                                         const std::string& host,
+                                         const std::string& port,
+                                         const std::string& path,
+                                         const std::string& apiKey,
+                                         const JsonBodyGenerationFunc& bodyGenerationFunc)
+    : Request(pType, pInfo) {
+	const auto body = bodyGenerationFunc(pType, pInfo);
+
+	this->appendBody(body);
+
+	HttpHeaders headers{};
+	headers.add(":method", "POST");
+	headers.add(":scheme", "https");
+	headers.add(":path", path);
+	headers.add(":authority", host + ":" + port);
+	headers.add("accept", "application/json");
+	headers.add("content-type", "application/json");
+	if (!apiKey.empty()) headers.add("x-api-key", apiKey);
+	headers.add("content-length", std::to_string(body.size()));
+
+	this->setHeaders(headers);
+}
+
 } // namespace flexisip::pushnotification

@@ -33,6 +33,7 @@
 #include "generic/generic-http-client.hh"
 #include "generic/generic-http-request.hh"
 #include "generic/generic-http2-client.hh"
+#include "generic/generic-http2-request.hh"
 #include "push-notification-exceptions.hh"
 #include "utils/transport/tls-connection.hh"
 
@@ -41,8 +42,8 @@ using namespace filesystem;
 
 namespace flexisip::pushnotification {
 
-const std::string Service::sGenericClientName{"generic"};
-const std::string Service::sFallbackClientKey{"fallback"};
+const std::string Service::kExternalClientName{"external"};
+const std::string Service::kFallbackClientKey{"fallback"};
 
 Service::Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize)
     : mRoot{root}, mMaxQueueSize{maxQueueSize} {
@@ -79,13 +80,13 @@ shared_ptr<Client> Service::createAppleClientFromPotentialNewCertificate(const s
 }
 
 std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) {
-	// Create a generic request if the generic client has been set.
-	auto genericClient = mClients.find(sGenericClientName);
-	if (genericClient != mClients.cend() && genericClient->second != nullptr) {
-		return genericClient->second->makeRequest(pType, pInfo);
+	// If an external client exists, use it
+	auto externalClient = mClients.find(kExternalClientName);
+	if (externalClient != mClients.cend() && externalClient->second != nullptr) {
+		return externalClient->second->makeRequest(pType, pInfo);
 	}
 
-	// No generic client set, then create a native request for the target platform.
+	// No external client set, then create a native request for the target platform.
 	auto appId = pInfo->getDestination(pType).getAppIdentifier();
 	auto client = mClients.find(appId);
 	if (client != mClients.cend() && client->second != nullptr) {
@@ -98,7 +99,7 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 			return newClient->makeRequest(pType, pInfo);
 		}
 	}
-	if (client = mClients.find(sFallbackClientKey); client != mClients.cend() && client->second != nullptr) {
+	if (client = mClients.find(kFallbackClientKey); client != mClients.cend() && client->second != nullptr) {
 		return client->second->makeRequest(pType, pInfo);
 	}
 	throw UnavailablePushNotificationClient{pInfo->getDestination(pType)};
@@ -113,7 +114,7 @@ void Service::sendPush(const std::shared_ptr<Request>& pn) {
 		client = createAppleClientFromPotentialNewCertificate(appId);
 	}
 	if (client == nullptr) {
-		it = mClients.find(sFallbackClientKey);
+		it = mClients.find(kFallbackClientKey);
 		client = it != mClients.cend() ? it->second : nullptr;
 	}
 	if (client == nullptr) {
@@ -131,11 +132,19 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protoc
 		throw UnauthorizedHttpMethod{method};
 	}
 	if (protocol == Protocol::Http) {
-		mClients[sGenericClientName] =
-		    GenericHttpClient::makeUnique(url, method, sGenericClientName, mMaxQueueSize, this);
+		mClients[kExternalClientName] =
+		    GenericHttpClient::makeUnique(url, method, kExternalClientName, mMaxQueueSize, this);
 	} else {
-		mClients[sGenericClientName] = make_unique<GenericHttp2Client>(url, method, *mRoot, this);
+		mClients[kExternalClientName] = make_unique<GenericHttp2Client>(url, method, *mRoot, this);
 	}
+}
+
+void Service::setupGenericJsonClient(const sofiasip::Url& url,
+                                     const std::string& apiKey,
+                                     JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
+                                     const std::shared_ptr<Http2Client>& http2Client) {
+	mClients[kExternalClientName] =
+	    make_unique<GenericHttp2Client>(url, apiKey, std::move(jsonBodyGenerationFunc), *mRoot, this, http2Client);
 }
 
 void Service::setupiOSClient(const std::string& certDir, const std::string& caFile) {
@@ -201,7 +210,7 @@ void Service::addFirebaseV1Client(const std::string& appId,
 
 void Service::setFallbackClient(const std::shared_ptr<Client>& fallbackClient) {
 	if (fallbackClient) fallbackClient->mService = this;
-	mClients[sFallbackClientKey] = fallbackClient;
+	mClients[kFallbackClientKey] = fallbackClient;
 }
 
 } // namespace flexisip::pushnotification

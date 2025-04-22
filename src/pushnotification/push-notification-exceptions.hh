@@ -20,9 +20,6 @@
 
 #include <stdexcept>
 #include <string>
-#include <utility>
-
-#include <flexisip/logmanager.hh>
 
 #include "generic/generic-enums.hh"
 #include "rfc8599-push-params.hh"

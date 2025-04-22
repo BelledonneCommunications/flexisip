@@ -18,11 +18,9 @@
 
 #include "pushnotification-context.hh"
 
-#include "flexisip/logmanager.hh"
-
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/fork-call-context.hh"
+#include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/strategy/background-push-strategy.hh"
 #include "pushnotification/strategy/remote-push-strategy.hh"
 #include "pushnotification/strategy/voip-push-strategy.hh"

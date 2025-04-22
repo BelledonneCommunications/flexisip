@@ -204,7 +204,7 @@ void TlsConnection::connect() noexcept {
 	chrono::milliseconds time{0};
 	while (status <= 0) {
 		const auto proto = isSecured() ? "tls://" : "tcp://";
-		const auto errmsg = mLogPrefix + "Error while connecting to " + proto + hostport;
+		const auto errmsg = "Error while connecting to "s + proto + hostport;
 
 		status = isSecured() ? BIO_do_handshake(newBio.get()) : BIO_do_connect(newBio.get());
 		if (status <= 0 && !BIO_should_retry(newBio.get())) {

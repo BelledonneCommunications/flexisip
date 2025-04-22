@@ -210,6 +210,12 @@ public:
 	void setEventLogWriter(std::unique_ptr<EventLogWriter>&& value) {
 		mLogWriter = std::move(value);
 	}
+	std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept override {
+		return mFlexiApiClient;
+	}
+	void setFlexiApiClient(const std::shared_ptr<Http2Client>& flexiApiClient) noexcept {
+		mFlexiApiClient = flexiApiClient;
+	}
 
 	void idle();
 	bool isUs(const url_t* url, bool check_aliases = true) const;
@@ -327,6 +333,7 @@ private:
 	// so they must still be alive when dtor()ing it.
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
 	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
+	std::shared_ptr<Http2Client> mFlexiApiClient = nullptr;
 	std::list<std::string> mAliases;
 	url_t* mPreferredRouteV4 = nullptr;
 	url_t* mPreferredRouteV6 = nullptr;

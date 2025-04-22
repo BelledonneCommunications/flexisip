@@ -27,8 +27,11 @@
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/pushnotification-context.hh"
-#include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
+
+#if ENABLE_FLEXIAPI
+#include "pushnotification/flexiapi/flexiapi-request.hh"
+#endif
 
 using namespace std;
 
@@ -85,20 +88,19 @@ void PushNotificationContext::onTimeout() noexcept {
 
 ModuleInfo<PushNotification> PushNotification::sInfo(
     "PushNotification",
-    "This module performs push notifications to mobile phone notification systems: apple, "
-    "android, as well as a generic http get/post to a custom server to which "
-    "actual sending of the notification is delegated. The push notification is sent when an "
-    "INVITE or MESSAGE request is not answered by the destination of the request "
-    "within a certain period of time, configurable hereunder by 'timeout' parameter. "
-    "The PushNotification has an implicit dependency on the Router module, which is in charge of creating "
-    "the incoming and outgoing transactions and the context associated with the request forking process. "
-    "No push notification can hence be sent if the Router module isn't activated. "
-    "The time-to-live of the push notification depends on event for which the push notification is generated. "
+    "This module sends push notifications to mobile phone notification systems: apple, android.\n"
+    "It is also possible to delegate the actual sending of the notifications to a custom server using generic http "
+    "GET/POST requests or using the FlexiAPI.\n\n"
+    "The push notification is sent when an INVITE or MESSAGE request is not answered by the destination of the request "
+    "within a certain period of time, configurable hereunder by 'timeout' parameter.\n"
+    "The PushNotification has an implicit dependency on the Router module, which is in charge of creating the incoming "
+    "and outgoing transactions and the context associated with the request forking process. No push notification can "
+    "hence be sent if the Router module isn't activated.\n"
+    "The time-to-live of the push notification depends on event for which the push notification is generated.\n"
     " - if it is for a call (INVITE), it will be set equal 'call-fork-timeout' property of the Router module,"
     " which corresponds to the maximum time for a call attempt.\n"
     " - if it is for an IM (MESSAGE or INVITE for a text session), then it will be set equal to the "
-    "'message-time-to-live'"
-    " property.",
+    "'message-time-to-live' property.",
     {"Router"},
     ModuleInfoBase::ModuleOid::PushNotification,
 
@@ -232,6 +234,14 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	            "60",
 	        },
 	        {
+	            Boolean,
+	            "external-push-flexiapi",
+	            "If enabled, use flexiapi for external pusher.\n"
+	            "`global::flexiapi/url` and `global::flexiapi/api-key` MUST be set to use this feature.\n"
+	            "Cannot be used at the same time as `external-push-uri`.",
+	            "false",
+	        },
+	        {
 	            String,
 	            "external-push-uri",
 	            "The 'external-push-uri' parameter in Flexisip SIP proxy server allows you to route push notification "
@@ -268,6 +278,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	            " - $uid: Refers to the UUID present in the '+sip.instance' parameter value when the recipient of the "
 	            "push notification registered to the registrar.\n"
 	            "\n"
+	            "Cannot be used with `external-push-flexiapi` enabled.\n\n"
 	            "Additionally, the text message content is included in the HTTP request body as text/plain if "
 	            "available.\n"
 	            "\n"
@@ -277,13 +288,13 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	        {
 	            String,
 	            "external-push-method",
-	            "Method for reaching external-push-uri, typically GET or POST.\n",
+	            "Method for reaching external-push-uri, typically GET or POST",
 	            "GET",
 	        },
 	        {
 	            String,
 	            "external-push-protocol",
-	            "Protocol used for reaching external-push-uri, http2 or http (deprecated).\n",
+	            "Protocol used for reaching external-push-uri, http2 or http (deprecated)",
 	            "http2",
 	        },
 	        {
@@ -384,13 +395,47 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 		}
 	}
 
-	if (!externalUri.empty()) {
+	auto* externalPushFlexiApiCfg = mc->get<ConfigBoolean>("external-push-flexiapi");
+	if (externalPushFlexiApiCfg->read()) {
+#if ENABLE_FLEXIAPI
+		auto* flexiApiCfg = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("global::flexiapi");
+		auto* flexiApiUrlCfg = flexiApiCfg->get<ConfigString>("url");
+		auto* flexiApiKeyCfg = flexiApiCfg->get<ConfigString>("api-key");
+		auto flexiApiUrl = flexiApiUrlCfg->read();
+		auto flexiApiKey = flexiApiKeyCfg->read();
+
+		auto flexiApiClient = mAgent->getFlexiApiClient();
+
+		if (flexiApiUrl.empty() || flexiApiKey.empty()) {
+			throw BadConfiguration{"`" + flexiApiUrlCfg->getCompleteName() + "` and `" +
+			                       flexiApiKeyCfg->getCompleteName() + "` MUST be configured to use " +
+			                       externalPushFlexiApiCfg->getCompleteName()};
+		}
+		// This should never happen
+		if (flexiApiClient == nullptr)
+			throw ExitFailure{"a FlexiAPI client is mandatory to use `" + externalPushFlexiApiCfg->getCompleteName() +
+			                  "`"};
+		try {
+			auto pnUrl = sofiasip::Url(flexiApiUrl);
+			// Append push notification endpoint to the generic api path
+			pnUrl = pnUrl.replace(&url_t::url_path, pnUrl.getPath() + kFlexiApiPushNotificationPath);
+			mPNS->setupGenericJsonClient(pnUrl, flexiApiKey, FlexiApiBodyGenerationFunc, flexiApiClient);
+		} catch (const sofiasip::InvalidUrlError& e) {
+			throw BadConfiguration{"invalid value for parameter '" + flexiApiUrlCfg->getCompleteName() + "' (" +
+			                       e.what() + +")"};
+		}
+#else
+		throw BadConfiguration{"this version of Flexisip was built without 'ENABLE_FLEXIAPI', value 'true' for '" +
+		                       externalPushFlexiApiCfg->getCompleteName() + "' is not supported"};
+#endif
+	} else if (!externalUri.empty()) {
 		auto const* externalPushMethodCfg = mc->get<ConfigString>("external-push-method");
 		auto const* externalPushProtocolCfg = mc->get<ConfigString>("external-push-protocol");
 		try {
 			auto externalPushUri = static_cast<sofiasip::Url>(externalUri);
 			auto externalPushMethod = stringToGenericPushMethod(externalPushMethodCfg->read());
 			auto externalPushProtocol = stringToGenericPushProtocol(externalPushProtocolCfg->read());
+
 			if (!externalPushUri.empty()) {
 				mPNS->setupGenericClient(externalPushUri, externalPushMethod, externalPushProtocol);
 			}

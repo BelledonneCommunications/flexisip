@@ -29,7 +29,7 @@ using namespace std;
 namespace flexisip::pushnotification {
 
 std::string GenericHttpRequest::getAppIdentifier() const noexcept {
-	return Service::sGenericClientName;
+	return Service::kExternalClientName;
 }
 
 const std::vector<char>& GenericHttpRequest::getData(const sofiasip::Url& url, Method method) {

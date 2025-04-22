@@ -30,6 +30,7 @@ class ResponseSipEvent;
 class RequestSipEvent;
 class OutgoingAgent;
 class IncomingAgent;
+class Http2Client;
 
 /**
  * Interface for the Agent object, this interface is under construction.
@@ -44,6 +45,8 @@ public:
 	virtual std::unique_ptr<ResponseSipEvent> sendResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
 
 	virtual const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept = 0;
+
+	virtual std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept = 0;
 
 	virtual std::shared_ptr<OutgoingAgent> getOutgoingAgent() = 0;
 	virtual std::shared_ptr<IncomingAgent> getIncomingAgent() = 0;

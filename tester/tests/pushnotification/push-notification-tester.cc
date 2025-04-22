@@ -33,6 +33,7 @@
 #include "flexisip/sofia-wrapper/timer.hh"
 #include "flexisip/utils/sip-uri.hh"
 
+#include "push-notification-tester.hh"
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/contact-expiration-notifier.hh"
@@ -58,59 +59,6 @@ namespace server = nghttp2::asio_http2::server;
 static shared_ptr<sofiasip::SuRoot> root = nullptr;
 
 /**
- * Common method to run a push test
- */
-static void startPushTest(Client& client,
-                          const shared_ptr<Request>& request,
-                          const string& reqBodyPattern,
-                          int responseCode,
-                          const string& responseBody,
-                          Request::State expectedFinalState,
-                          bool timeout) {
-	std::promise<bool> barrier{};
-	std::future<bool> barrier_future = barrier.get_future();
-	PnsMock pnsMock;
-
-	// Start of the push notification mock server
-	auto isReqPatternMatched =
-	    async(launch::async, [&pnsMock, responseCode, &responseBody, &reqBodyPattern, &barrier, timeout]() {
-		    return pnsMock.exposeMock(responseCode, responseBody, reqBodyPattern, std::move(barrier), timeout);
-	    });
-
-	// Wait for the server to start
-	barrier_future.wait();
-	if (!barrier_future.get()) {
-		BC_FAIL("Http2 mock server didn't start correctly");
-	}
-
-	if (timeout) client.setRequestTimeout(2s);
-	// Send the push notification and wait until the request state is "Successful" or "Failed"
-	client.sendPush(request);
-	sofiasip::Timer timer{root, 50ms};
-	auto beforePlus2 = system_clock::now() + 2s;
-	timer.setForEver([&request, &beforePlus2, &timeout]() {
-		if (request->getState() == Request::State::Successful || request->getState() == Request::State::Failed) {
-			su_root_break(root->getCPtr());
-		} else if (beforePlus2 < system_clock::now() && !timeout) {
-			SLOGW << "Test without timeout did not update request state";
-			su_root_break(root->getCPtr());
-		}
-	});
-	su_root_run(root->getCPtr());
-
-	// NgHttp2 server normally don't stop until all connections are closed
-	pnsMock.forceCloseServer();
-
-	// Client (Firebase or Apple) onResponse/onError is called and response status is well managed
-	BC_ASSERT_TRUE(request->getState() == expectedFinalState);
-
-	// Mock server received a body matching reqBodyPattern, checked only if it's not a timeout case
-	if (!timeout) {
-		BC_ASSERT_TRUE(isReqPatternMatched.get() == true);
-	}
-}
-
-/**
  * Common method to run a test for the apple client
  */
 static void startApplePushTest(PushType pType,
@@ -127,8 +75,8 @@ static void startApplePushTest(PushType pType,
 
 	auto request = make_shared<AppleRequest>(pType, pushInfo);
 
-	startPushTest(appleClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
-	              timeout);
+	pn_tester::startPushTest(root, appleClient, std::move(request), reqBodyPattern, responseCode, responseBody,
+	                         expectedFinalState, timeout);
 }
 
 /**
@@ -153,37 +101,16 @@ static void startFirebaseV1PushTest(PushType pType,
 
 	auto request = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
 
-	startPushTest(firebaseClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
-	              timeout);
-}
-
-/**
- * Common method to run a test for the generic pusher
- */
-static void startGenericPushTest(PushType pType,
-                                 const std::shared_ptr<PushInfo>& pushInfo,
-                                 const string& reqBodyPattern,
-                                 int responseCode,
-                                 const string& responseBody,
-                                 Request::State expectedFinalState,
-                                 bool timeout = false) {
-
-	GenericHttp2Client genericClient{
-	    sofiasip::Url(
-	        "https://127.0.0.1:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
-	    Method::HttpPost, *root};
-	genericClient.enableInsecureTestMode();
-
-	auto request = genericClient.makeRequest(pType, pushInfo);
-
-	startPushTest(genericClient, request, reqBodyPattern, responseCode, responseBody, expectedFinalState, timeout);
+	pn_tester::startPushTest(root, firebaseClient, std::move(request), reqBodyPattern, responseCode, responseBody,
+	                         expectedFinalState, timeout);
 }
 
 /**
  * Send a push with the generic pusher.
  * Assert that the body is as intended and that the request state is correctly updated.
  */
-static void genericPushTestOk() {
+template <const pn_tester::ExpectedResult expectedResult>
+static void genericPushTest() {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
@@ -194,25 +121,13 @@ static void genericPushTestOk() {
 	pushInfo->mText = "A body";
 	pushInfo->mCallId = "callID";
 
-	startGenericPushTest(PushType::Background, pushInfo, pushInfo->mText, 200, "ok", Request::State::Successful);
-}
+	GenericHttp2Client genericHttp2Client{
+	    sofiasip::Url(
+	        "https://127.0.0.1:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
+	    Method::HttpPost, *root};
 
-/**
- * Send a push with the generic pusher but the mock timeout.
- * Assert that the request state is correctly updated.
- */
-static void genericPushTestTimeout() {
-	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
-	auto pushInfo = make_shared<PushInfo>();
-	pushInfo->addDestination(dest);
-	pushInfo->mFromName = "PushTestOk";
-	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo->mTtl = 42s;
-	pushInfo->mUid = "a-uid-42";
-	pushInfo->mText = "A body";
-	pushInfo->mCallId = "callID";
-
-	startGenericPushTest(PushType::Background, pushInfo, pushInfo->mText, 200, "ok", Request::State::Failed, true);
+	pn_tester::startGenericPushTest<expectedResult>(root, PushType::Background, pushInfo, pushInfo->mText, 200, "ok",
+	                                                genericHttp2Client);
 }
 
 static void firebaseV1PushTestOk() {
@@ -526,7 +441,8 @@ static void applePushTestConnectErrorAndReconnect() {
 
 	// And then using the same AppleClient (so the same Http2Client) we send a second request with mock on this time and
 	// check everything goes fine.
-	startPushTest(appleClient, std::move(request), reqBodyPattern, 200, "Ok", Request::State::Successful, false);
+	pn_tester::startPushTest(root, appleClient, std::move(request), reqBodyPattern, 200, "Ok",
+	                         Request::State::Successful, false);
 }
 
 static void tlsTimeoutTest() {
@@ -810,8 +726,8 @@ TestSuite _("PushNotification",
                 TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
                 TEST_NO_TAG("FirebaseV1 push notification test timeout", firebaseV1PushTestTimeout),
                 TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout),
-                TEST_NO_TAG("Generic test ok", genericPushTestOk),
-                TEST_NO_TAG("Generic test ko, timeout", genericPushTestTimeout),
+                CLASSY_TEST(genericPushTest<pn_tester::Success>),
+                CLASSY_TEST(genericPushTest<pn_tester::Timeout>),
             },
             Hooks()
                 .beforeSuite([] {

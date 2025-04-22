@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "body-utils.hh"
 #include "generic-enums.hh"
 #include "pushnotification/request.hh"
 #include "pushnotification/service.hh"
@@ -27,7 +28,10 @@ namespace flexisip::pushnotification {
 
 class GenericHttp2Request : public Request, public HttpMessage {
 public:
-	GenericHttp2Request(flexisip::pushnotification::PushType pType,
+	/**
+	 * Create a HTTP Request with path and url parameters customized based on the push information
+	 */
+	GenericHttp2Request(PushType pType,
 	                    const std::shared_ptr<const PushInfo>& pInfo,
 	                    Method method,
 	                    const std::string& host,
@@ -36,9 +40,20 @@ public:
 	                    std::string urlParameters // copy needed
 	);
 
+	/**
+	 * Create a HTTP POST Request with a JSON body generated from the push information
+	 */
+	GenericHttp2Request(PushType pType,
+	                    const std::shared_ptr<const PushInfo>& pInfo,
+	                    const std::string& host,
+	                    const std::string& port,
+	                    const std::string& path,
+	                    const std::string& apiKey,
+	                    const JsonBodyGenerationFunc& bodyGenerationFunc);
+
 	std::string getAppIdentifier() const noexcept override {
-		return Service::sGenericClientName;
-	};
+		return Service::kExternalClientName;
+	}
 };
 
 } // namespace flexisip::pushnotification

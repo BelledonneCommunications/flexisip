@@ -18,6 +18,8 @@
 
 #include "remote-push-strategy.hh"
 
+#include "pushnotification/push-notification-exceptions.hh"
+
 using namespace std;
 
 namespace flexisip {

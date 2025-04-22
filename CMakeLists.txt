@@ -84,7 +84,7 @@ option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
 add_ccache_option(ON)
 option(ENABLE_COVERAGE "Enable flexisip clang test coverage reports (add instrumentation)" OFF)
 option(ENABLE_MSGPACK "[Deprecated] Build with support for MessagePack for Record serializing" OFF)
-option(ENABLE_FLEXIAPI "Support for sending usage statistics (messages, calls, conferences) to the Flexisip Account Manager" ON)
+option(ENABLE_FLEXIAPI "Enable support for FlexiAPI. It can be used for sending push notification and usage statistics (messages, calls, conferences)." ON)
 option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodule instead of searching it in system libraries" ON)
 option(INTERNAL_JSONCPP "Build and use vendored Jsoncpp source code instead of searching for it in system libraries" OFF)
 

@@ -67,9 +67,18 @@ void GenericHttp2Client::sendPush(const shared_ptr<Request>& request) {
 	    [this](const auto& req) { this->onError(req); });
 }
 
-std::shared_ptr<Request> GenericHttp2Client::makeRequest(flexisip::pushnotification::PushType pType,
-														 const shared_ptr<const PushInfo>& pInfo) {
-	return make_shared<GenericHttp2Request>(pType, pInfo, mMethod, mHost, mPort, mPath, mUrlParameters);
+std::shared_ptr<Request> GenericHttp2Client::makeRequest(PushType pType,
+                                                         const shared_ptr<const PushInfo>& pInfo) {
+	if (!mJsonBodyGenerationFunc) {
+		return make_shared<GenericHttp2Request>(pType, pInfo, mMethod, mHost, mPort, mPath, mUrlParameters);
+	}
+
+	try {
+		return make_shared<GenericHttp2Request>(pType, pInfo, mHost, mPort, mPath, mApiKey, mJsonBodyGenerationFunc);
+	} catch (const std::exception& e) {
+		LOGE << "Error while creating push notification request: " << e.what();
+		return nullptr;
+	}
 }
 
 void GenericHttp2Client::onResponse(const shared_ptr<HttpMessage>& request, const shared_ptr<HttpResponse>& response) {

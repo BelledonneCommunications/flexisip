@@ -16,15 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "apple-request.hh"
+
 #include <regex>
 #include <string>
 
 #include "flexisip/common.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
-
+#include "pushnotification/push-notification-exceptions.hh"
 #include "utils/string-utils.hh"
-
-#include "apple-request.hh"
 
 using namespace std;
 

@@ -30,6 +30,7 @@ target_sources(flexisip PRIVATE
 	firebase-v1/firebase-v1-access-token-provider.cc firebase-v1/firebase-v1-access-token-provider.hh
 	firebase-v1/firebase-v1-authentication-manager.cc firebase-v1/firebase-v1-authentication-manager.hh
 	firebase-v1/firebase-v1-request.cc firebase-v1/firebase-v1-request.hh
+	generic/body-utils.hh
 	generic/generic-http2-client.cc generic/generic-http2-client.hh
 	generic/generic-http2-request.cc generic/generic-http2-request.hh
 	generic/generic-http-client.cc generic/generic-http-client.hh
@@ -47,3 +48,10 @@ target_sources(flexisip PRIVATE
 	strategy/remote-push-strategy.cc strategy/remote-push-strategy.hh
 	strategy/strategy.cc strategy/strategy.hh
 )
+
+
+if(ENABLE_FLEXIAPI)
+	target_sources(flexisip PRIVATE
+		flexiapi/flexiapi-request.cc flexiapi/flexiapi-request.hh
+	)
+endif()

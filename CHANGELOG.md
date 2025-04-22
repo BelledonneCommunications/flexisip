@@ -15,6 +15,10 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.6.0]
+### [Added]
+- **Proxy:**
+    - Push notification delivery can now be delegated to a FlexiAPI server instance.
+
 ### [Changed]
 - **Pusher:**
     - Default values of the push body are now empty instead of containing placeholders.

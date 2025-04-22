@@ -196,7 +196,7 @@ if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
 		tests/auth/module-authorization-FAM-tester.cc
 		tests/pushnotification/global-push-tester.cc
-		tests/pushnotification/push-notification-tester.cc
+		tests/pushnotification/push-notification-tester.cc tests/pushnotification/push-notification-tester.hh
 		tests/utils/transport/http/rest-client-tester.cc
 		tests/utils/transport/http/http2client-tester.cc
 		utils/http-mock/http-mock.cc utils/http-mock/http-mock.hh
@@ -205,6 +205,7 @@ if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	if(ENABLE_FLEXIAPI)
 		target_sources(flexisip_tester PRIVATE
 			tests/flexiapi/flexi-stats-tester.cc
+			tests/pushnotification/push-notification-flexiapi-tester.cc
 		)
 	endif()
 

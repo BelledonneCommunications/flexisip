@@ -21,16 +21,18 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
-        flexi-stats.cc flexi-stats.hh
-        schemas/api-formatted-uri.hh
-        schemas/call/call.hh
-        schemas/call/call-device-state.hh
-        schemas/call/terminated.hh
-        schemas/conference/conference.hh
-        schemas/conference/participant-device-event.hh
-        schemas/conference/participant-event.hh
-        schemas/iso-8601-date.hh
-        schemas/message/message.hh
-        schemas/message/message-device-response.hh
-        schemas/optional-json.hh
-        )
+	config.cc config.hh
+	flexi-stats.cc flexi-stats.hh
+	schemas/api-formatted-uri.hh
+	schemas/call/call.hh
+	schemas/call/call-device-state.hh
+	schemas/call/terminated.hh
+	schemas/conference/conference.hh
+	schemas/conference/participant-device-event.hh
+	schemas/conference/participant-event.hh
+	schemas/iso-8601-date.hh
+	schemas/message/message.hh
+	schemas/message/message-device-response.hh
+	schemas/optional-json.hh
+	schemas/pushnotification/pushnotification.hh
+)

@@ -30,11 +30,21 @@
 namespace flexisip::pushnotification {
 
 /**
- * PNR (Push Notification Request) client designed to send push notification toa custom push API.
+ * PNR (Push Notification Request) client designed to send push notification to a custom push API.
  */
 class GenericHttp2Client : public Client {
 public:
 	GenericHttp2Client(const sofiasip::Url& url, Method method, sofiasip::SuRoot& root, Service* pushService = nullptr);
+
+	/**
+	 * Create a HTTP client to send push notification through an API that requires a JSON body.
+	 */
+	GenericHttp2Client(const sofiasip::Url& url,
+	                   const std::string& apiKey,
+	                   JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
+	                   sofiasip::SuRoot& root,
+	                   Service* pushService = nullptr,
+	                   const std::shared_ptr<Http2Client>& http2Client = nullptr);
 
 	void sendPush(const std::shared_ptr<Request>& request) override;
 	std::shared_ptr<Request> makeRequest(PushType, const std::shared_ptr<const PushInfo>&) override;
@@ -65,7 +75,9 @@ private:
 	std::string mPort{};
 	std::string mPath{};
 	std::string mUrlParameters{};
+	std::string mApiKey{};
 	Method mMethod;
+	JsonBodyGenerationFunc mJsonBodyGenerationFunc{};
 };
 
 } // namespace flexisip::pushnotification

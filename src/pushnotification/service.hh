@@ -21,17 +21,16 @@
 #include <chrono>
 #include <condition_variable>
 #include <filesystem>
-#include <list>
-#include <mutex>
 #include <string>
-#include <thread>
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 
 #include "client.hh"
+#include "generic/body-utils.hh"
 #include "pushnotification/generic/generic-enums.hh"
 #include "request.hh"
+#include "utils/transport/http/http2client.hh"
 
 namespace flexisip::pushnotification {
 
@@ -60,6 +59,10 @@ public:
 
 	std::shared_ptr<Request> makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
 	void sendPush(const std::shared_ptr<Request>& pn);
+	void setupGenericJsonClient(const sofiasip::Url& url,
+	                            const std::string& apiKey,
+	                            JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
+	                            const std::shared_ptr<Http2Client>& http2Client = nullptr);
 	void setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol);
 	void setupiOSClient(const std::string& certDir, const std::string& caFile);
 	void setupFirebaseClients(const GenericStruct* pushConfig);
@@ -77,10 +80,10 @@ public:
 
 	bool isIdle() const noexcept;
 
-	static const std::string sGenericClientName;
+	static const std::string kExternalClientName;
 
 private:
-	static const std::string sFallbackClientKey;
+	static const std::string kFallbackClientKey;
 	static constexpr std::string_view mLogPrefix{"Service"};
 
 	std::shared_ptr<Client> createAppleClient(const std::filesystem::path& caFile,

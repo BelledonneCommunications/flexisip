@@ -96,9 +96,14 @@
 #include "snmp/snmp-agent.hh"
 #endif
 
+#if ENABLE_FLEXIAPI
+#include "flexiapi/config.hh"
+#endif
+
 #include "flexisip.hh"
 #include "utils/pipe.hh"
 #include "utils/process-monitoring/memory-watcher.hh"
+#include "utils/transport/http/http2client.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -223,7 +228,7 @@ static rlim_t getSystemFdLimit() {
 }
 
 static void increaseFDLimit() noexcept {
-	struct rlimit lm {};
+	struct rlimit lm{};
 	if (getrlimit(RLIMIT_NOFILE, &lm) == -1) {
 		LOGE_CTX(kLogPrefix) << "getrlimit(RLIMIT_NOFILE) failed: " << strerror(errno);
 		return;
@@ -803,7 +808,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 
 	if (dump_cores) {
 		// Enable core dumps.
-		struct rlimit lm {};
+		struct rlimit lm{};
 		lm.rlim_cur = RLIM_INFINITY;
 		lm.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &lm) == -1) {
@@ -917,6 +922,11 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	unique_ptr<StunServer> stunServer{};
 	unique_ptr<CommandLineInterface> proxyCli{};
 	if (startProxy) {
+#if ENABLE_FLEXIAPI
+		// Create the HTTP Client that should be used for the FlexiAPI
+		auto flexiApiClient = flexiapi::createClient(cfg, *agent->getRoot());
+		agent->setFlexiApiClient(flexiApiClient);
+#endif
 		agent->start(transportsArg.getValue(), passphrase);
 #ifdef ENABLE_SNMP
 		if (globalCfg->get<ConfigBoolean>("enable-snmp")->read()) {
