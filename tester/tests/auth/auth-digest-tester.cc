@@ -464,7 +464,7 @@ string messageRequestWithPPI(const string& fromUri, const string& CSeq, const st
 		+ authHdr +
 		"Content-Type: text/plain\r\n"
 		"P-Preferred-Identity: " + userName + " <" + sipUri + ">\r\n"
-        "Content-Length: 11\r\n\r\n"
+		"Content-Length: 11\r\n\r\n"
 		"Who am I?\r\n");
 	// clang-format on
 }
@@ -472,9 +472,6 @@ string messageRequestWithPPI(const string& fromUri, const string& CSeq, const st
 // Send a MESSAGE request using a P-Preferred-Identity header.
 // Expect the proxy to reply 407 proxy_auth_required for the PPI user and then answer the challenge.
 void acceptAnonymousMessage() {
-	/*tell parser to support extra headers */
-	sip_update_default_mclass(sip_extend_mclass(NULL));
-
 	// clang-format off
 	const string authDb("version:1\n\n"s
 						+ contact + " clrtxt:"+ pwd + " ;\n");
@@ -528,7 +525,6 @@ void acceptAnonymousMessage() {
 	// clang-format on
 
 	{
-		// first MESSAGE request is rejected, server reply with authentication parameters
 		const auto request = messageRequestWithPPI(anonymousUri, "23", authorization);
 		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
 		checkResponse(transaction, response_202_Accepted);
@@ -538,9 +534,6 @@ void acceptAnonymousMessage() {
 // Send a MESSAGE request using a P-Preferred-Identity header but with trying to be another user.
 // Expect the proxy to reply 407 proxy_auth_required for the From user, PPI user cannot answer the challenge.
 void rejectIdentityFraudMessage() {
-	/*tell parser to support extra headers */
-	sip_update_default_mclass(sip_extend_mclass(NULL));
-
 	const auto anotherContact = "anotherUsr"s + "@" + domain;
 	// clang-format off
 	const string authDb("version:1\n\n"s
@@ -596,7 +589,6 @@ void rejectIdentityFraudMessage() {
 	// clang-format on
 
 	{
-		// first MESSAGE request is rejected, server reply with authentication parameters
 		const auto request = messageRequestWithPPI(anotherContactUri, "23", authorization);
 		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
 		checkResponse(transaction, {403, "Forbidden"});
