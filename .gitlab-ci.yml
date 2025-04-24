@@ -33,11 +33,19 @@ workflow:
     # Allow scheduled pipelines
     - if: $CI_PIPELINE_SOURCE == "schedule"
 
+.todo_before_script:
+  before_script:
+    - |
+      if [ "$GIT_STRATEGY" != "none" ]; then
+        git submodule foreach --recursive git fetch --tags --force
+      fi
+    - |
+      if [ "$SDK_NIGHTLY" == "1" ]; then
+        git -C linphone-sdk/ checkout "$SDK_BRANCH" && git -C linphone-sdk/ submodule update --recursive
+      fi
+
 before_script:
-  - |
-    if [ "$GIT_STRATEGY" != "none" ]; then
-      git submodule foreach --recursive git fetch --tags --force
-    fi
+    - !reference [".todo_before_script", "before_script"]
 
 #################################################
 # Platforms to test

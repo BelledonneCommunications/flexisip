@@ -30,7 +30,7 @@
     paths:
       - ccache/
   before_script:
-    - git submodule foreach --recursive git fetch --tags --force
+    - !reference [".todo_before_script", "before_script"]
     - "[[ -f /opt/rh/devtoolset-8/enable ]] && source /opt/rh/devtoolset-8/enable"
     - mkdir -p ccache
     - echo "max_size = $CCACHE_SIZE" > ccache/ccache.conf
