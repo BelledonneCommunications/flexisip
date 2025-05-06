@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -49,7 +49,7 @@ struct PusherArgs {
 	/* General options */
 	bool debug{false};
 	string customPayload{};
-	string callID{"fb14b5fe-a9ab-1231-9485-7d582244ba3d"};
+	string callID{};
 
 	/* Android specific options */
 	string apikey{};
@@ -296,12 +296,17 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 	vector<unique_ptr<PushInfo>> pushInfos{};
 	// Parameters in common between legacy and standard push notifications.
 	const auto fillCommonPushParams = [&args](PushInfo& info) {
-		info.mFromName = "Flexisip Pusher";
-		info.mFromUri = "sip:flexisip-pusher@sip.example.org";
+		info.mFromName = "";
+		info.mFromUri = "";
 		info.mCallId = args.callID;
-		info.mTtl = 30 * 24h;
-		info.mAlertMsgId = "Test push notification message (generated with flexisip_pusher)";
-		info.mAlertSound = "msg.caf";
+		if (args.applePushType == PushType::VoIP) {
+			info.mAlertMsgId = "IC_MSG";
+			info.mTtl = 90s; // Default proxy value
+		} else {
+			info.mAlertMsgId = "IM_MSG";
+			info.mTtl = 30 * 24h;
+		}
+		info.mAlertSound = "empty"; // Not used by the app anyway
 		info.mCustomPayload = args.customPayload;
 	};
 

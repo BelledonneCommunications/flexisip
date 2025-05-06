@@ -15,6 +15,9 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.6.0]
+### [Changed]
+- **Pusher:**
+    - Default values of the push body are now empty instead of containing placeholders.
 
 ## [2.5.0]
 ### [Added]
