@@ -114,20 +114,6 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "API authentication key for the FlexiAPI",
 	        "",
 	    },
-
-	    // Deprecated parameters
-	    {
-	        String,
-	        "dir",
-	        "Directory where event logs are written as a filesystem (case when filesystem output is chosen).",
-	        "/var/log/flexisip",
-	    },
-	    {
-	        String,
-	        "flexiapi-token",
-	        "Authentication token for the FlexiAPI",
-	        "",
-	    },
 	    config_item_end,
 	};
 
@@ -140,19 +126,6 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 
 	auto* ev = root.addChild(std::move(uEv));
 	ev->addChildrenValues(items);
-	ev->get<ConfigString>("dir")->setDeprecated({
-	    "2020-02-19",
-	    "2.0.0",
-	    "Replaced by 'filesystem-directory'",
-	});
-
-	auto* flexiapiToken = ev->get<ConfigString>("flexiapi-token");
-	flexiapiToken->setDeprecated({
-	    "2024-03-22",
-	    "2.3.3",
-	    "Replaced by 'flexiapi-api-key'",
-	});
-	ev->get<ConfigString>("flexiapi-api-key")->setFallback(*flexiapiToken);
 });
 
 } // namespace

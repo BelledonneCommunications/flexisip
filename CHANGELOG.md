@@ -19,6 +19,19 @@ Group changes to describe their impact on the project, as follows:
 - **Pusher:**
     - Default values of the push body are now empty instead of containing placeholders.
 
+### [Removed]
+- **Proxy:**
+    - Parameter `module::PushNotification/google` (deprecated in 2.0.0)
+    - Parameter `module::PushNotification/google-project-api-keys` (deprecated in 2.0.0)
+    - Parameter `module::PushNotification/time-to-live` (deprecated in 2.0.0)
+    - Parameter `module::PushNotification/add-to-tag-filter` (deprecated in 2.2.0)
+    - Parameter `module::PushNotification/windowsphone` (deprecated in 2.3.0)
+    - Parameter `module::PushNotification/windowsphone-package-sid` (deprecated in 2.3.0)
+    - Parameter `module::PushNotification/windowsphone-application-secret` (deprecated in 2.3.0)
+- **EventLogs:**
+    - Parameter `event-logs/dir` (deprecated in 2.0.0)
+    - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)
+
 ## [2.5.0]
 ### [Added]
 - **Proxy:**
