@@ -177,8 +177,8 @@ void callStartedAndEndedByCallee() {
 	tony.call(mike);
 
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
-	BC_ASSERT_CPP_EQUAL(callsRung.size(), 1);
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(callsRung.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(invitesEnded.size(), 1);
 	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 0);
 	const auto& startedEvent = callsStarted[0];
 	BC_ASSERT_TRUE(before < startedEvent.getTimestamp());
@@ -207,7 +207,7 @@ void callStartedAndEndedByCallee() {
 
 	mike.endCurrentCall(tony);
 
-	BC_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(callsEnded.size(), 1);
 	const auto& endedEvent = callsEnded[0];
 	BC_ASSERT_CPP_EQUAL(string(endedEvent.getId()), eventId);
 	BC_ASSERT_TRUE(acceptedAt <= chrono::system_clock::to_time_t(endedEvent.getTimestamp()));
