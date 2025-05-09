@@ -633,6 +633,10 @@ vector<string> ModuleRouter::split(const char* data, const char* delim) {
 	return res;
 }
 
+void ModuleRouter::setDispatchFilter(const std::function<bool(const sip_t*)>& filter) {
+	mForkManager->setDispatchFilter(filter);
+}
+
 unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	sip_t* sip = ms->getSip();

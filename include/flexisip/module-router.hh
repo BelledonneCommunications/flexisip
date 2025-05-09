@@ -97,7 +97,12 @@ public:
 protected:
 	ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	std::vector<std::string> split(const char* data, const char* delim);
+	static std::vector<std::string> split(const char* data, const char* delim);
+
+	/**
+	 * Allows executing the 'dispatch' function (creation of a new branch) under specific conditions.
+	 */
+	void setDispatchFilter(const std::function<bool(const sip_t*)>& filter);
 
 	bool mResolveRoutes{};
 	std::string mFallbackRoute{};

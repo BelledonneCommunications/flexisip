@@ -248,6 +248,8 @@ std::shared_ptr<BranchInfo> ForkManager::dispatch(const shared_ptr<ForkContext>&
 	const auto& ev = context->getEvent();
 	const auto& ms = ev.getMsgSip();
 
+	if (mDispatchFilter(ms->getSip()) == false) return nullptr;
+
 	const auto* ct = contact->toSofiaContact(ms->getHome());
 	const auto* dest = ct->m_url;
 
