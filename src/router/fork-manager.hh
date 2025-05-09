@@ -65,6 +65,13 @@ public:
 		return mFactory;
 	}
 
+	/**
+	 * Allows executing the 'dispatch' function (creation of a new branch) under specific conditions.
+	 */
+	void setDispatchFilter(const std::function<bool(const sip_t*)>& filter) {
+		mDispatchFilter = filter;
+	}
+
 #if ENABLE_UNIT_TESTS
 	void setMaxPriorityHandled(sofiasip::MsgSipPriority maxPriority) const {
 		mMaxPriorityHandled = maxPriority;
@@ -127,6 +134,7 @@ private:
 	std::weak_ptr<ForkStats> mStats{};
 	std::unique_ptr<Injector> mInjector{};
 	std::shared_ptr<ForkContextFactory> mFactory{};
+	std::function<bool(const sip_t*)> mDispatchFilter{[](const sip_t*) { return true; }};
 };
 
 } // namespace flexisip
