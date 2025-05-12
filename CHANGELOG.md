@@ -102,6 +102,8 @@ Group changes to describe their impact on the project, as follows:
         - Changes made to authentication information where not taken into account when the server was running. Now
           ensures that a new REGISTER for the involved account is sent.
 - **Build:** Compilation on macOS.
+- **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and is now only added if the target is a domain name (and not an IPv4 or IPv6 address).
+This is more compliant with RFC 6066, and therefore more compatible with stricter HTTPS implementations.
 
 ### [Removed]
 - **Proxy:** Monitor (never released, it was in experimental state). All configuration files MUST not contain any

@@ -26,121 +26,112 @@
 
 #include <sofia-sip/url.h>
 
+namespace flexisip {
+
 /**
- * @brief Defines some utility static methods around URI strings.
+ * @brief Defines some utility functions around URI strings.
  */
-class UriUtils {
-public:
-	/* Constants to use with escape() method */
+namespace uri_utils {
+/* Constants to use with escape() method */
 
-	/**< Default reserved characters for generic URI */
-	static constexpr const char* uriReserved = "!\"#$%&'()*+,/:;<=>?@[\\]^`{|}";
+/**< Default reserved characters for generic URI */
+static constexpr const char* uriReserved = "!\"#$%&'()*+,/:;<=>?@[\\]^`{|}";
 
-	/**< Reserved characters for UserInfo part of generic URI, i.e. the part before '@' character */
-	static constexpr const char* uriUserInfoReserved = "\"#%/<>?@[\\]^`{|}";
+/**< Reserved characters for UserInfo part of generic URI, i.e. the part before '@' character */
+static constexpr const char* uriUserInfoReserved = "\"#%/<>?@[\\]^`{|}";
 
-	/** Reserved characters for the query part of generic URI, i.e. the part between '?' and '#' */
-	static constexpr const char* uriQueryReserved = "\"#%<>[\\]^`{|}";
+/** Reserved characters for the query part of generic URI, i.e. the part between '?' and '#' */
+static constexpr const char* uriQueryReserved = "\"#%<>[\\]^`{|}";
 
-	/**< Default reserved character for HTTP URI */
-	static constexpr const char* httpReserved = uriReserved;
+/**< Default reserved character for HTTP URI */
+static constexpr const char* httpReserved = uriReserved;
 
-	/**< Reserved characters for key or value of query elements in HTTP URI */
-	static constexpr const char* httpQueryKeyValReserved = "\"#%&/<=>?[\\]^`{|}";
+/**< Reserved characters for key or value of query elements in HTTP URI */
+static constexpr const char* httpQueryKeyValReserved = "\"#%&/<=>?[\\]^`{|}";
 
-	/**< Default reserved character for SIP URI */
-	static constexpr const char* sipReserved = "\"#$%&+,/:;<=>?@[\\]^`{|}";
+/**< Default reserved character for SIP URI */
+static constexpr const char* sipReserved = "\"#$%&+,/:;<=>?@[\\]^`{|}";
 
-	/**< Reserved characters for user in SIP URI */
-	static constexpr const char* sipUserReserved = "\"#%:<>@[\\]^`{|}";
+/**< Reserved characters for user in SIP URI */
+static constexpr const char* sipUserReserved = "\"#%:<>@[\\]^`{|}";
 
-	/**< Reserved characters for passwords in SIP URI */
-	static constexpr const char* sipPasswordReserved = "\"#%/:;<>?@[\\]^`{|}";
+/**< Reserved characters for passwords in SIP URI */
+static constexpr const char* sipPasswordReserved = "\"#%/:;<>?@[\\]^`{|}";
 
-	/**< Characters to be escaped for SIP URI param name and value. */
-	static constexpr const char* sipUriParamValueReserved = "\"#&,;<=>@\\^`{|}%";
+/**< Characters to be escaped for SIP URI param name and value. */
+static constexpr const char* sipUriParamValueReserved = "\"#&,;<=>@\\^`{|}%";
 
-	/**
-	 * @brief Escape all the characters in str that match one character of reserved.
-	 *
-	 * Each matching character is replaced by the escapement sequence
-	 * defined in RFC 3986, i.e. a '%' character followed by two hexadecimal
-	 * digits.
-	 *
-	 * @param[in] str The string to process.
-	 * @param[in] reserved The set of characters that will be escaped in str. One
-	 * of constants defined above may be used.
-	 * @return A copy of str with all reserved characters escaped.
-	 */
-	static std::string escape(const char* str, const char* reserved) noexcept;
-	static std::string escape(const std::string& str, const char* reserved) noexcept {
-		return escape(str.c_str(), reserved);
-	}
+/**
+ * @brief Escape all the characters in str that match one character of reserved.
+ *
+ * Each matching character is replaced by the escapement sequence
+ * defined in RFC 3986, i.e. a '%' character followed by two hexadecimal
+ * digits.
+ *
+ * @param[in] str The string to process.
+ * @param[in] reserved The set of characters that will be escaped in str. One
+ * of constants defined above may be used.
+ * @return A copy of str with all reserved characters escaped.
+ */
+std::string escape(const char* str, const char* reserved) noexcept;
+inline std::string escape(const std::string& str, const char* reserved) noexcept {
+	return escape(str.c_str(), reserved);
+}
 
-	/**
-	 * @brief Replace each "% HEXDIG HEXDIG" sequence by the matching ASCII character.
-	 */
-	static std::string unescape(const char* str) noexcept {
-		return unescape(str, strlen(str));
-	}
-	static std::string unescape(const std::string& str) noexcept {
-		return unescape(str.c_str(), str.size());
-	}
+/**
+ * @brief Replace each "% HEXDIG HEXDIG" sequence by the matching ASCII character.
+ */
+std::string unescape(const char* str) noexcept;
+std::string unescape(const std::string& str) noexcept;
 
-	/**
-	 * @brief Return the value of a given param from a string that contains a list
-	 * of 'param=value' elements separated by semi-colon character.
-	 * @param paramList The string containing the list of parameter.
-	 * @param paramName The name of the parameter to seek.
-	 * @param defaultValue The string to return if the parameter doesn't exist or has no value.
-	 */
-	static std::string
-	getParamValue(const char* paramList, const char* paramName, const char* defaultValue = "") noexcept;
+/**
+ * @brief Return the value of a given param from a string that contains a list
+ * of 'param=value' elements separated by semi-colon character.
+ * @param paramList The string containing the list of parameter.
+ * @param paramName The name of the parameter to seek.
+ * @param defaultValue The string to return if the parameter doesn't exist or has no value.
+ */
+std::string getParamValue(const char* paramList, const char* paramName, const char* defaultValue = "") noexcept;
 
-	static std::string getParamValue(const std::string& paramList, const std::string& paramName) noexcept {
-		return getParamValue(paramList.c_str(), paramName.c_str());
-	}
-	static std::string getParamValue(const std::string& paramList,
-	                                 const std::string& paramName,
-	                                 const std::string& defaultValue) noexcept {
-		return getParamValue(paramList.c_str(), paramName.c_str(), defaultValue.c_str());
-	}
+inline std::string getParamValue(const std::string& paramList, const std::string& paramName) noexcept {
+	return getParamValue(paramList.c_str(), paramName.c_str());
+}
+std::string inline getParamValue(const std::string& paramList,
+                                 const std::string& paramName,
+                                 const std::string& defaultValue) noexcept {
+	return getParamValue(paramList.c_str(), paramName.c_str(), defaultValue.c_str());
+}
 
-	std::optional<std::string_view> getParamValueOpt(const char* paramList, const char* paramName) noexcept;
-	/**
-	 * @brief Translate a UUID given by +sip.instance parameter into an
-	 * UUID ready for GRUU generation.
-	 *
-	 * In other words, this function strips the input string from
-	 * double-quotes and then '< >' characters. The return string is
-	 * empty if the input string doesn't match the expected format.
-	 */
-	static std::string uniqueIdToGr(const std::string& uid) noexcept;
+std::optional<std::string_view> getParamValueOpt(const char* paramList, const char* paramName) noexcept;
+/**
+ * @brief Translate a UUID given by +sip.instance parameter into an
+ * UUID ready for GRUU generation.
+ *
+ * In other words, this function strips the input string from
+ * double-quotes and then '< >' characters. The return string is
+ * empty if the input string doesn't match the expected format.
+ */
+std::string uniqueIdToGr(const std::string& uid) noexcept;
 
-	/**
-	 * @brief Format an UUID extracted for a GRUU into
-	 * a string ready to used as vaule of +sip.instance parameter.
-	 */
-	static std::string grToUniqueId(const std::string& gr) noexcept;
+/**
+ * @brief Format an UUID extracted for a GRUU into
+ * a string ready to used as vaule of +sip.instance parameter.
+ */
+std::string grToUniqueId(const std::string& gr) noexcept;
 
-	static bool isIpv4Address(const std::string& str) {
-		struct sockaddr_in sa;
-		return inet_pton(AF_INET, str.c_str(), &(sa.sin_addr)) != 0;
-	}
+bool isIpv4Address(const char* str);
+/**
+ * @warning this function will return false for IP6 references (IP6 addresses inside '[' ']')
+ */
+bool isIpv6Address(const char* str);
+// TODO: bool isIpv6Reference(const char* str);
+bool isIpAddress(const char* str);
 
-	static bool isIpv6Address(const std::string& str) {
-		struct sockaddr_in6 sa;
-		return inet_pton(AF_INET6, str.c_str(), &(sa.sin6_addr)) != 0;
-	}
+std::optional<std::string> getConferenceId(const url_t& url) noexcept;
 
-	static bool isIpAddress(const std::string& str) {
-		return isIpv4Address(str) || isIpv6Address(str);
-	}
+}; // namespace uri_utils
 
-	static std::optional<std::string> getConferenceId(const url_t& url) noexcept;
+// NOLINTNEXTLINE(misc-unused-alias-decls) Deprecated alias to transition existing code smoothly
+namespace UriUtils = uri_utils;
 
-private:
-	static std::string unescape(const char* str, size_t n) noexcept;
-
-	static constexpr size_t _bufferSize = 255;
-};
+} // namespace flexisip
