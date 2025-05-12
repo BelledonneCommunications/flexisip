@@ -25,6 +25,7 @@
 #include "string-formatter.hh"
 
 using namespace std;
+using namespace flexisip;
 
 //=====================================================================================================================
 // StringFormatter class

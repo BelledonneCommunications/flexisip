@@ -792,12 +792,13 @@ string Agent::computeResolvedPublicIp(const string& host, int family) const {
 		} else {
 			LOGE << "getnameinfo error: " << gai_strerror(err) << " for host [" << host << "]";
 		}
+	} else if ((family == AF_INET && !uri_utils::isIpv4Address(dest.c_str())) ||
+	           (family == AF_INET6 && !uri_utils::isIpv6Address(dest.c_str()))) {
+		// Silently ignore IP 4/6 mismatch. This is useful to discover whether the same host string is IP4 or IP6 by
+		// calling this function twice and keeping the non-empty result
 	} else {
-		if (!((UriUtils::isIpv4Address(dest) && family != AF_INET) ||
-		      (UriUtils::isIpv6Address(dest) && family != AF_INET6))) {
-			LOGW << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host << "] and family=[" << family
-			     << "]";
-		}
+		LOGW << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host << "] and family=[" << family
+		     << "]";
 	}
 	return "";
 }
@@ -1361,7 +1362,8 @@ void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
 		        TPTAG_TLS_VERIFY_POLICY(tlsTpInfo.policy), TAG_END())) {
 			LOGE << "Error while updating the TLS transport: " << tlsTpInfo.url.str()
 			     << " cert: " << tlsTpInfo.tlsConfigInfo.certifFile
-			     << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey << " (See sofia-sip logs for more information.)";
+			     << " key: " << tlsTpInfo.tlsConfigInfo.certifPrivateKey
+			     << " (See sofia-sip logs for more information.)";
 		}
 
 		tlsTpInfo.lastModificationTime = lastModificationTime;
