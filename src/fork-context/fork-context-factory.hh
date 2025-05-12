@@ -21,9 +21,9 @@
 #include <memory>
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/fork-context/fork-context.hh"
 #include "fork-basic-context.hh"
 #include "fork-call-context.hh"
+#include "fork-context.hh"
 #include "fork-message-context-db-proxy.hh"
 #include "fork-message-context.hh"
 

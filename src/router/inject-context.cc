@@ -18,7 +18,7 @@
 
 #include "inject-context.hh"
 
-#include "flexisip/fork-context/fork-context.hh"
+#include "fork-context/fork-context.hh"
 
 using namespace std;
 using namespace std::chrono;
