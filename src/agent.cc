@@ -757,11 +757,12 @@ string Agent::computeResolvedPublicIp(const string& host, int family) const {
 		} else {
 			LOGE("getnameinfo error: %s for host [%s]", gai_strerror(err), host.c_str());
 		}
+	} else if ((family == AF_INET && !uri_utils::isIpv4Address(dest.c_str())) ||
+	           (family == AF_INET6 && !uri_utils::isIpv6Address(dest.c_str()))) {
+		// Silently ignore IP 4/6 mismatch. This is useful to discover whether the same host string is IP4 or IP6 by
+		// calling this function twice and keeping the non-empty result
 	} else {
-		if (!((UriUtils::isIpv4Address(dest) && family != AF_INET) ||
-		      (UriUtils::isIpv6Address(dest) && family != AF_INET6))) {
-			LOGW("getaddrinfo error: %s for host [%s] and family=[%i]", gai_strerror(err), host.c_str(), family);
-		}
+		LOGW("getaddrinfo error: %s for host [%s] and family=[%i]", gai_strerror(err), host.c_str(), family);
 	}
 	return "";
 }

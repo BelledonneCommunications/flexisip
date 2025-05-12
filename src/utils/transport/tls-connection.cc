@@ -31,7 +31,7 @@
 #include <openssl/ssl.h>
 
 #include "flexisip/logmanager.hh"
-
+#include "utils/uri-utils.hh"
 #include "tls-connection.hh"
 
 using namespace std;
@@ -112,20 +112,43 @@ void TlsConnection::doConnectAsync(sofiasip::SuRoot& root, const function<void()
 	root.addToMainLoop(onConnectCb);
 }
 
+/* Add a Server Name Indication (SNI) to the SSL context.
+ *
+ * > Currently, the only server names supported are DNS hostnames;
+ * https://www.rfc-editor.org/rfc/rfc6066#section-3
+ *
+ * A DNS hostname must follow the syntax described in https://www.rfc-editor.org/rfc/rfc1034#section-3.5 and therefore
+ * cannot contain e.g. ':' (to append the port)
+ *
+ * @param[in] serverName either an IP address (in which case, no SNI is added) or a DNS hostname (roughly, a subset of
+ * all the strings matching regex [a-z0-9\.-])
+ */
+constexpr auto setSNI = [](const auto& ssl, const auto& serverName) {
+	using namespace uri_utils;
+	const auto* serverNameCStr = serverName.c_str();
+	// Connecting to an IP address cannot be ambiguous so not only is there no need to provide an SNI, but furthermore:
+	// > Literal IPv4 and IPv6 addresses are not permitted in "HostName".
+	// https://www.rfc-editor.org/rfc/rfc6066#section-3
+	if (isIpAddress(serverNameCStr)) return 0L;
+
+	return SSL_set_tlsext_host_name(ssl, serverNameCStr);
+};
+
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
 
 	SLOGD << mLogPrefix << "Connecting...";
 
 	/* Create and set up the connection */
-	auto hostname = mHost + ":" + mPort;
+	auto hostport = mHost + ":" + mPort;
 	SSL* ssl = nullptr;
 
 	BIOUniquePtr newBio{};
 	if (isSecured()) {
 		newBio = BIOUniquePtr{BIO_new_ssl_connect(mCtx.get())};
-		BIO_set_conn_hostname(newBio.get(), hostname.c_str());
+		BIO_set_conn_hostname(newBio.get(), hostport.c_str());
 		BIO_get_ssl(newBio.get(), &ssl);
+		setSNI(ssl, mHost);
 		SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
 		SSL_set_options(ssl, SSL_OP_ALL);
 		if (mMustBeHttp2) {
@@ -135,7 +158,7 @@ void TlsConnection::connect() noexcept {
 		}
 	} else {
 		// keep the const_cast() here because BIO_new_connect() takes a 'char *' in old revision of OpenSSL.
-		newBio = BIOUniquePtr{BIO_new_connect(const_cast<char*>(hostname.c_str()))};
+		newBio = BIOUniquePtr{BIO_new_connect(const_cast<char*>(hostport.c_str()))};
 	}
 	BIO_set_nbio(newBio.get(), 1);
 
@@ -147,7 +170,7 @@ void TlsConnection::connect() noexcept {
 	chrono::milliseconds time{0};
 	while (status <= 0) {
 		const auto proto = isSecured() ? "tls://" : "tcp://";
-		const auto errmsg = mLogPrefix + "Error while connecting to " + proto + hostname;
+		const auto errmsg = mLogPrefix + "Error while connecting to " + proto + hostport;
 
 		status = isSecured() ? BIO_do_handshake(newBio.get()) : BIO_do_connect(newBio.get());
 		if (status <= 0 && !BIO_should_retry(newBio.get())) {

@@ -18,7 +18,7 @@
 
 #include <list>
 
-#include <bctoolbox/tester.h>
+#include "bctoolbox/tester.h"
 
 #include "utils/rand.hh"
 #include "utils/string-utils.hh"
@@ -31,33 +31,46 @@ using namespace std;
 namespace flexisip::tester {
 
 namespace uri_utils {
+using namespace flexisip::uri_utils;
 
 void isIPv4() {
-	BC_ASSERT_TRUE(UriUtils::isIpv4Address("127.0.0.1"));
-	BC_ASSERT_TRUE(UriUtils::isIpv4Address("192.168.3.5"));
-	BC_ASSERT_TRUE(UriUtils::isIpv4Address("10.42.0.55"));
+	BC_ASSERT_TRUE(isIpv4Address("127.0.0.1"));
+	BC_ASSERT_TRUE(isIpv4Address("192.168.3.5"));
+	BC_ASSERT_TRUE(isIpv4Address("10.42.0.55"));
 
-	BC_ASSERT_FALSE(UriUtils::isIpv4Address("::1"));
-	BC_ASSERT_FALSE(UriUtils::isIpv4Address("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
-	BC_ASSERT_FALSE(UriUtils::isIpv4Address("2001:db8:0:85a3:0:0:ac1f:8001"));
-	BC_ASSERT_FALSE(UriUtils::isIpv4Address("2001:db8:0:85a3::ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv4Address("::1"));
+	BC_ASSERT_FALSE(isIpv4Address("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv4Address("2001:db8:0:85a3:0:0:ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv4Address("2001:db8:0:85a3::ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv4Address("[2001:db8:0:85a3::ac1f:8001]"));
 
-	BC_ASSERT_FALSE(UriUtils::isIpv4Address("localhost"));
-	BC_ASSERT_FALSE(UriUtils::isIpv4Address("sip.example.org"));
+	BC_ASSERT_FALSE(isIpv4Address("localhost"));
+	BC_ASSERT_FALSE(isIpv4Address("sip.example.org"));
 }
 
 void isIPv6() {
-	BC_ASSERT_FALSE(UriUtils::isIpv6Address("127.0.0.1"));
-	BC_ASSERT_FALSE(UriUtils::isIpv6Address("192.168.3.5"));
-	BC_ASSERT_FALSE(UriUtils::isIpv6Address("10.42.0.55"));
+	BC_ASSERT_FALSE(isIpv6Address("127.0.0.1"));
+	BC_ASSERT_FALSE(isIpv6Address("192.168.3.5"));
+	BC_ASSERT_FALSE(isIpv6Address("10.42.0.55"));
 
-	BC_ASSERT_TRUE(UriUtils::isIpv6Address("::1"));
-	BC_ASSERT_TRUE(UriUtils::isIpv6Address("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
-	BC_ASSERT_TRUE(UriUtils::isIpv6Address("2001:db8:0:85a3:0:0:ac1f:8001"));
-	BC_ASSERT_TRUE(UriUtils::isIpv6Address("2001:db8:0:85a3::ac1f:8001"));
+	BC_ASSERT_TRUE(isIpv6Address("::1"));
+	BC_ASSERT_TRUE(isIpv6Address("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
+	BC_ASSERT_TRUE(isIpv6Address("2001:db8:0:85a3:0:0:ac1f:8001"));
+	BC_ASSERT_TRUE(isIpv6Address("2001:db8:0:85a3::ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv6Address("[2001:db8:0:85a3::ac1f:8001]"));
 
-	BC_ASSERT_FALSE(UriUtils::isIpv6Address("localhost"));
-	BC_ASSERT_FALSE(UriUtils::isIpv6Address("sip.example.org"));
+	BC_ASSERT_FALSE(isIpv6Address("localhost"));
+	BC_ASSERT_FALSE(isIpv6Address("sip.example.org"));
+}
+
+void isIP() {
+	BC_ASSERT_TRUE(isIpAddress("192.168.3.5"));
+
+	BC_ASSERT_TRUE(isIpAddress("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
+	BC_ASSERT_TRUE(isIpAddress("[2001:db8:0:85a3::ac1f:8001]"));
+
+	BC_ASSERT_FALSE(isIpAddress("localhost"));
+	BC_ASSERT_FALSE(isIpAddress("sip.example.org"));
 }
 
 } // namespace uri_utils
@@ -189,17 +202,20 @@ void string() {
 } // namespace random_utils
 
 namespace {
-TestSuite _("Utils",
-            {
-                CLASSY_TEST(uri_utils::isIPv4),
-                CLASSY_TEST(uri_utils::isIPv6),
-                CLASSY_TEST(string_utils::searchAndReplace),
-                CLASSY_TEST(string_utils::join),
-                CLASSY_TEST(random_utils::integer),
-                CLASSY_TEST(random_utils::timestamp),
-                CLASSY_TEST(random_utils::boolean),
-                CLASSY_TEST(random_utils::real),
-                CLASSY_TEST(random_utils::string),
-            });
+TestSuite _{
+    "Utils",
+    {
+        CLASSY_TEST(uri_utils::isIPv4),
+        CLASSY_TEST(uri_utils::isIPv6),
+        CLASSY_TEST(uri_utils::isIP),
+        CLASSY_TEST(string_utils::searchAndReplace),
+        CLASSY_TEST(string_utils::join),
+        CLASSY_TEST(random_utils::integer),
+        CLASSY_TEST(random_utils::timestamp),
+        CLASSY_TEST(random_utils::boolean),
+        CLASSY_TEST(random_utils::real),
+        CLASSY_TEST(random_utils::string),
+    },
+};
 }
 } // namespace flexisip::tester

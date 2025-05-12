@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -135,7 +135,7 @@ void AuthLog::setOrigin(const sip_via_t* via) {
 	// In VIA you can have a parameter like received=ip.
 	// When ip is an IPv6 address it doesn't have "[]" around.
 	// url_format (see after) need "[]" around IPv6, so we add them if needed.
-	if (!StringUtils::startsWith(ip, "[") && UriUtils::isIpv6Address(ip)) {
+	if (!string_utils::startsWith(ip, "[") && uri_utils::isIpv6Address(ip.c_str())) {
 		ip = "[" + ip + "]";
 	}
 
