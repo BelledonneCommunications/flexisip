@@ -18,8 +18,7 @@
 
 #include "module-pushnotification.hh"
 
-#include "flexisip/fork-context/fork-context.hh"
-
+#include "fork-context/fork-context.hh"
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"

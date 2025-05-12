@@ -22,8 +22,7 @@
 #include <string>
 
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/fork-context.hh"
-#include "flexisip/module-router.hh"
+#include "fork-context/fork-context.hh"
 
 namespace flexisip {
 

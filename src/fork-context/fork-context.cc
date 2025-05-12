@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/fork-context/fork-context.hh"
+#include "fork-context.hh"
 
 #include "agent.hh"
 #include "branch-info.hh"

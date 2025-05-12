@@ -21,8 +21,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "flexisip/fork-context/fork-context.hh"
-
+#include "fork-context/fork-context.hh"
 #include "callcontext-mediarelay.hh"
 #include "module-toolbox.hh"
 #include "sdp-modifier.hh"

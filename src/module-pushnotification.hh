@@ -16,18 +16,17 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include <stdexcept>
 
-#include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module.hh"
 #include "flexisip/pushnotification/pushnotification-context-observer.hh"
-
+#include "fork-context/fork-context.hh"
 #include "pushnotification/contact-expiration-notifier.hh"
 #include "pushnotification/service.hh"
 #include "pushnotification/strategy/strategy.hh"
 #include "utils/observable.hh"
-
-#pragma once
 
 namespace flexisip {
 

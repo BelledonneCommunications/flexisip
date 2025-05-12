@@ -23,8 +23,8 @@
 #include "agent-interface.hh"
 #include "branch-info.hh"
 #include "flexisip/event.hh"
-#include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module-router.hh"
+#include "fork-context.hh"
 #include "router/injector.hh"
 #include "transaction/incoming-transaction.hh"
 
