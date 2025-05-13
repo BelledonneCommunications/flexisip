@@ -49,7 +49,7 @@ void PNContextCall::init(std::chrono::seconds aCallPushInterval, std::chrono::se
 		remoteStrategy->setCallRingingTimeout(aContextTtl + 15s);
 		mStrategy = std::move(remoteStrategy);
 	} else {
-		throw InvalidPushParameters{"invalid push type for PNContextCall"};
+		throw InvalidPushParameters{"no suitable destinations available for PNContextCall"};
 	}
 }
 
@@ -64,7 +64,7 @@ void PNContextMessage::init() {
 	} else if (mPInfo->mDestinations.find(PushType::Background) != mPInfo->mDestinations.cend()) {
 		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else {
-		throw InvalidPushParameters{"invalid push type for PNContextMessage"};
+		throw InvalidPushParameters{"no suitable destinations available for PNContextMessage"};
 	}
 }
 
@@ -79,7 +79,7 @@ void PNContextNotify::init() {
 	} else if (mPInfo->mDestinations.find(PushType::Background) != mPInfo->mDestinations.cend()) {
 		mStrategy = BackgroundPushStrategy::make(shared_from_this(), root, mModule->getService());
 	} else {
-		throw InvalidPushParameters{"invalid push type for PNContextNotify"};
+		throw InvalidPushParameters{"no suitable destinations available for PNContextNotify"};
 	}
 }
 
