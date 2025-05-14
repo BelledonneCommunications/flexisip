@@ -18,11 +18,11 @@
 
 #include "module-pushnotification.hh"
 
-#include "fork-context/fork-context.hh"
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
 #include "fork-context/branch-info.hh"
+#include "fork-context/fork-context.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/pushnotification-context.hh"
@@ -557,8 +557,8 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 	// Extract the unique id if possible.
 	const auto& br = BranchInfo::getBranchInfo(transaction);
 	if (br) {
-		pinfo->mUid = br->mUid;
-		if (br->mClearedCount > 0) {
+		pinfo->mUid = br->getUid();
+		if (br->getClearedCount() > 0) {
 			LOGD << "A push notification was sent to this iOS>=13 ready device already, so we will not resend";
 			return;
 		}
@@ -593,9 +593,7 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		LOGI << "Creating a push notification context PNR " << pinfo << " to send in " << timeout.count() << "s";
 		if (isCall) {
 			context = PNContextCall::make(transaction, this, pinfo, getCallRemotePushInterval(params), pnKey);
-			if (br) {
-				br->pushContext = context;
-			}
+			if (br) br->setPushNotificationContext(context);
 		} else if (sip->sip_request->rq_method == sip_method_notify) {
 			context = PNContextNotify::make(transaction, this, pinfo, pnKey);
 		} else {
@@ -603,9 +601,9 @@ void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
 		}
 		context->setRetransmission(mRetransmissionCount, mRetransmissionInterval);
 		context->enableToTag(mAddToTagFilter && mAddToTagFilter->eval(*sip));
-		if (br) {
-			context->addObserver(br->mForkCtx.lock());
-		}
+
+		if (br) context->addObserver(br->getForkContext());
+
 		context->start(timeout);
 		mPendingNotifications.emplace(pnKey, context);
 	}

@@ -30,7 +30,7 @@ MessageOrCallStarted::MessageOrCallStarted(const sip_t& sip,
     : SipEventLog(sip), Identified(sip) {
 	mDevices.reserve(branchInfoList.size());
 	for (const auto& branchInfo : branchInfoList) {
-		mDevices.emplace_back(*branchInfo->mContact);
+		mDevices.emplace_back(*branchInfo->getContact());
 	}
 }
 

@@ -18,13 +18,52 @@
 
 #include "branch-info.hh"
 
+using namespace std;
+
 namespace flexisip {
 
-std::shared_ptr<BranchInfo> BranchInfo::getBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr) {
+using namespace pushnotification;
+
+CancelInfo::CancelInfo(sip_reason_t* reason) : mReason(reason) {
+	string_view code = reason && reason->re_cause ? reason->re_cause : "";
+	if (code == "200"sv) {
+		mStatus = ForkStatus::AcceptedElsewhere;
+	} else if (code == "600"sv) {
+		mStatus = ForkStatus::DeclinedElsewhere;
+	} else {
+		mStatus = ForkStatus::Standard;
+	}
+}
+
+CancelInfo::CancelInfo(sofiasip::Home& home, const ForkStatus& status) : mStatus{status} {
+	if (status == ForkStatus::AcceptedElsewhere) {
+		mReason = sip_reason_make(home.home(), "SIP;cause=200;text=\"Call completed elsewhere\"");
+	} else if (status == ForkStatus::DeclinedElsewhere) {
+		mReason = sip_reason_make(home.home(), "SIP;cause=600;text=\"Busy Everywhere\"");
+	}
+	// else mReason remains empty
+}
+
+BranchInfo::BranchInfo(unique_ptr<RequestSipEvent>&& ev,
+                       const shared_ptr<ForkContext>& context,
+                       const shared_ptr<ExtendedContact>& contact,
+                       const weak_ptr<BranchInfoListener>& listener,
+                       const weak_ptr<PushNotificationContext>& pushContext,
+                       int clearedCount)
+    : mRequestEvent(std::move(ev)), mForkCtx(context), mContact(contact), mRequestMsg(mRequestEvent->getMsgSip()),
+      mTransaction(mRequestEvent->createOutgoingTransaction()), mUid(mContact->mKey), mPriority(mContact->mQ),
+      mListener(listener), mClearedCount(clearedCount), mPushContext(pushContext),
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "BranchInfo")) {
+	// Unlink the incoming and outgoing transactions that are done by default, since now the fork context is managing
+	// them.
+	mRequestEvent->unlinkTransactions();
+}
+
+shared_ptr<BranchInfo> BranchInfo::getBranchInfo(const shared_ptr<OutgoingTransaction>& tr) {
 	return tr ? tr->getProperty<BranchInfo>("BranchInfo") : nullptr;
 }
 
-void BranchInfo::setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo>& br) {
+void BranchInfo::setBranchInfo(const shared_ptr<OutgoingTransaction>& tr, const weak_ptr<BranchInfo>& br) {
 	if (tr) tr->setProperty("BranchInfo", br);
 }
 
@@ -34,6 +73,27 @@ void BranchInfo::notifyBranchCanceled(ForkStatus cancelReason) noexcept {
 
 void BranchInfo::notifyBranchCompleted() noexcept {
 	if (auto listener = mListener.lock()) listener->onBranchCompleted(shared_from_this());
+}
+
+void BranchInfo::processResponse(ResponseSipEvent& event) {
+	mLastResponseEvent = make_unique<ResponseSipEvent>(event); // make a copy
+	mLastResponse = mLastResponseEvent->getMsgSip();
+
+	mLastResponseEvent->suspendProcessing();
+
+	auto forkCtx = mForkCtx.lock();
+	forkCtx->onResponse(shared_from_this(), *mLastResponseEvent);
+
+	// The event may go through, but it will not be sent.
+	event.setIncomingAgent(nullptr);
+
+	// A response has been submitted, else, it has been retained.
+	if (!mLastResponseEvent || !mLastResponseEvent->isSuspended()) {
+		// mLastResponseEvent has been resubmitted, so stop the original event.
+		event.terminateProcessing();
+	}
+
+	if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) forkCtx->start();
 }
 
 int BranchInfo::getStatus() {
@@ -52,19 +112,100 @@ bool BranchInfo::needsDelivery(FinalStatusMode mode) {
 	}
 }
 
-BranchInfoDb BranchInfo::getDbObject() {
-	std::string request{mRequestMsg->msgAsString()};
-	std::string lastResponse{mLastResponse->msgAsString()};
-	BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount};
-	return branchInfoDb;
+BranchInfoDb BranchInfo::getDbObject() const {
+	const string request{mRequestMsg->msgAsString()};
+	const string lastResponse{mLastResponse->msgAsString()};
+	return {mUid, mPriority, request, lastResponse, mClearedCount};
 }
 
-std::unique_ptr<RequestSipEvent>&& BranchInfo::extractRequest() {
+unique_ptr<RequestSipEvent>&& BranchInfo::extractRequest() {
 	return std::move(mRequestEvent);
 }
 
-void BranchInfo::setRequest(std::unique_ptr<RequestSipEvent>&& req) {
-	mRequestEvent = std::move(req);
+string BranchInfo::getUid() const {
+	return mUid;
+}
+
+optional<SipUri> BranchInfo::getRequestUri() const {
+	if (mRequestMsg == nullptr) return nullopt;
+	if (mRequestMsg->getSip() == nullptr) return nullopt;
+	if (mRequestMsg->getSip()->sip_request == nullptr) return nullopt;
+	try {
+		return SipUri{mRequestMsg->getSip()->sip_request->rq_url};
+	} catch (const exception& exception) {
+		LOGD << "Failed to get request URI: " << exception.what();
+		return nullopt;
+	}
+}
+
+double BranchInfo::getPriority() const {
+	return mPriority;
+}
+
+int BranchInfo::getClearedCount() const {
+	return mClearedCount;
+}
+
+weak_ptr<BranchInfoListener> BranchInfo::getListener() const {
+	return mListener;
+}
+
+shared_ptr<const ExtendedContact> BranchInfo::getContact() const {
+	return mContact;
+}
+
+void BranchInfo::setListener(const weak_ptr<BranchInfoListener>& listener) {
+	mListener = listener;
+}
+
+shared_ptr<ForkContext> BranchInfo::getForkContext() const {
+	return mForkCtx.lock();
+}
+
+const unique_ptr<ResponseSipEvent>& BranchInfo::getLastResponseEvent() const {
+	return mLastResponseEvent;
+}
+
+shared_ptr<PushNotificationContext> BranchInfo::getPushNotificationContext() const {
+	return mPushContext.lock();
+}
+
+shared_ptr<MsgSip> BranchInfo::getRequestMsg() const {
+	return mRequestMsg;
+}
+
+void BranchInfo::setForkContext(const shared_ptr<ForkContext>& forkContext) {
+	mForkCtx = forkContext;
+}
+
+void BranchInfo::setPushNotificationContext(const shared_ptr<PushNotificationContext>& context) {
+	mPushContext = context;
+}
+
+bool BranchInfo::forwardResponse(bool forkContextHasIncomingTransaction) {
+	if (mLastResponseEvent == nullptr) {
+		LOGE << "No response received on this branch";
+		return false;
+	}
+
+	if (!forkContextHasIncomingTransaction) {
+		mLastResponseEvent->setIncomingAgent(nullptr);
+		return false;
+	}
+
+	const int statusCode = mLastResponseEvent->getMsgSip()->getSip()->sip_status->st_status;
+	if (const auto forkContext = mForkCtx.lock())
+		mLastResponseEvent = forkContext->onForwardResponse(std::move(mLastResponseEvent));
+
+	if (statusCode >= 200) mTransaction.reset();
+	return true;
+}
+
+void BranchInfo::cancel(const optional<CancelInfo>& information) {
+	if (!mTransaction || getStatus() >= 200) return;
+
+	if (information && information->mReason) mTransaction->cancelWithReason(information->mReason);
+	else mTransaction->cancel();
 }
 
 } // namespace flexisip

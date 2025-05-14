@@ -23,11 +23,11 @@
 #include <string_view>
 
 #include "agent.hh"
+#include "branch-info.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
 #include "eventlogs/events/calls/call-started-event-log.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "fork-context/branch-info.hh"
 #include "fork-context/fork-status.hh"
 #include "registrar/extended-contact.hh"
 #include "sofia-sip/sip_status.h"
@@ -36,30 +36,8 @@ using namespace std;
 using namespace string_view_literals;
 
 namespace flexisip {
+
 using namespace pushnotification;
-
-template <typename T>
-static bool contains(const list<T>& l, T value) {
-	return find(l.cbegin(), l.cend(), value) != l.cend();
-}
-
-ForkCallContext::CancelInfo::CancelInfo(sofiasip::Home& home, const ForkStatus& status) : mStatus{status} {
-	if (status == ForkStatus::AcceptedElsewhere) {
-		mReason = sip_reason_make(home.home(), "SIP;cause=200;text=\"Call completed elsewhere\"");
-	} else if (status == ForkStatus::DeclinedElsewhere) {
-		mReason = sip_reason_make(home.home(), "SIP;cause=600;text=\"Busy Everywhere\"");
-	}
-	// else mReason remains empty
-}
-
-ForkCallContext::CancelInfo::CancelInfo(sip_reason_t* reason) : mReason(reason) {
-	string_view code = reason && reason->re_cause ? reason->re_cause : "";
-	if (code == "200"sv) {
-		mStatus = ForkStatus::AcceptedElsewhere;
-	} else if (code == "600"sv) {
-		mStatus = ForkStatus::DeclinedElsewhere;
-	} else mStatus = ForkStatus::Standard;
-}
 
 ForkCallContext::ForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
                                  sofiasip::MsgSipPriority priority,
@@ -101,12 +79,12 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 	const auto branches = getBranches();
 	for (const auto& branch : branches) {
 		if (branch != br) {
-			cancelBranch(branch);
+			branch->cancel(mCancel);
 			branch->notifyBranchCanceled(mCancel->mStatus);
 
 			auto& event = getEvent();
 			auto eventLog = make_shared<CallLog>(event.getMsgSip()->getSip());
-			eventLog->setDevice(*branch->mContact);
+			eventLog->setDevice(*branch->getContact());
 			eventLog->setCancelled();
 			eventLog->setForkStatus(mCancel->mStatus);
 			event.writeLog(eventLog);
@@ -127,14 +105,6 @@ void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, F
 		mCancel = make_optional<CancelInfo>(mHome, status);
 	}
 	cancelOthers(br);
-}
-
-void ForkCallContext::cancelBranch(const std::shared_ptr<BranchInfo>& brit) {
-	auto& tr = brit->mTransaction;
-	if (tr && brit->getStatus() < 200) {
-		if (mCancel && mCancel->mReason) tr->cancelWithReason(mCancel->mReason);
-		else tr->cancel();
-	}
 }
 
 const int* ForkCallContext::getUrgentCodes() {
@@ -178,27 +148,22 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 		forwardThenLogResponse(br);
 	}
 
-	if (auto forwardedBr = checkFinished(); forwardedBr) {
-		logResponse(forwardedBr->mLastResponseEvent, forwardedBr.get());
-	}
+	if (auto forwardedBr = checkFinished(); forwardedBr)
+		logResponse(forwardedBr->getLastResponseEvent(), forwardedBr.get());
 }
 
 void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
 	ForkContextBase::onPushSent(aPNCtx, aRingingPush); // Send "110 Push sent"
-	if (aRingingPush && !isRingingSomewhere()) {
-		sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
-	}
+	if (aRingingPush && !isRingingSomewhere()) sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
 }
 
 void ForkCallContext::forwardThenLogResponse(const shared_ptr<BranchInfo>& branch) {
-	if (forwardResponse(branch)) logResponse(branch->mLastResponseEvent, branch.get());
+	if (branch->forwardResponse(mIncoming != nullptr)) logResponse(branch->getLastResponseEvent(), branch.get());
 }
 
 void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) {
 	if (ev) {
-		if (branch) {
-			mLog->setDevice(*branch->mContact);
-		}
+		if (branch) mLog->setDevice(*branch->getContact());
 
 		sip_t* sip = ev->getMsgSip()->getSip();
 		mLog->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
@@ -237,10 +202,10 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 	}
 
 	if (dispatch.branch) {
-		if (auto pushContext = dispatch.branch->pushContext.lock()) {
+		if (auto pushContext = dispatch.branch->getPushNotificationContext()) {
 			if (pushContext->getPushInfo()->isApple() && pushContext->getStrategy()->getPushType() == PushType::VoIP) {
 				const auto& dispatchedBranch = forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
-				cancelBranch(dispatchedBranch);
+				dispatchedBranch->cancel(mCancel);
 				checkFinished();
 				return;
 			}
@@ -320,9 +285,7 @@ std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
 		// If a call is canceled by caller/callee, even if some branches only answered 503 or 408, even in fork-late
 		// mode, we want to directly send a response.
 		auto br = findBestBranch(false);
-		if (br && forwardResponse(br)) {
-			return br;
-		}
+		if (br && br->forwardResponse(mIncoming != nullptr)) return br;
 	}
 
 	return nullptr;

@@ -492,7 +492,7 @@ void cancelStatusOnCancel() {
 		    forkCallCtx->addBranch(std::move(new_ev), make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"},
 		                                                                           "sip:127.0.0.1;transport=udp", ""));
 		auto branchListener = make_shared<BrCancelListener>();
-		branch->mListener = branchListener;
+		branch->setListener(branchListener);
 		forkCallCtx->onCancel(*msg);
 		return branchListener->mCancelStatus;
 	};
@@ -550,7 +550,7 @@ void cancelStatusOnResponse() {
 	                                                                        "sip:127.0.0.1;transport=udp", ""));
 
 	auto branchListener = make_shared<BrCancelListener>();
-	branch->mListener = branchListener;
+	branch->setListener(branchListener);
 
 	// create a response on another branch
 	const string rawSipResponse = "SIP/2.0 200 Ok\r\n"

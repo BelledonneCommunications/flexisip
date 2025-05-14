@@ -82,9 +82,6 @@ public:
 
 	// Called by the router module to notify a cancellation.
 	static void processCancel(RequestSipEvent& ev);
-	// called by the router module to notify the arrival of a response.
-	static bool processResponse(ResponseSipEvent& ev);
-
 	/**
 	 * @param ev the request to fork
 	 * @param contact contact to fork to
@@ -145,6 +142,10 @@ public:
 	 * @param event received response
 	 */
 	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) = 0;
+	/**
+	 * @brief Process the forwarding of the provided response from a branch.
+	 */
+	virtual std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) = 0;
 	/**
 	 * @return 'true' if the fork is terminated
 	 */

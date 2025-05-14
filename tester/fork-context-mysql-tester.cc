@@ -377,7 +377,7 @@ void globalTestMultipleDevices() {
 	const string body{"C'est pas faux \r\n\r\n"};
 	stringstream request{};
 	request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
-	        << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:" << belleSipUtils.getListeningPort() << ";branch=z9hG4bK.PAWTmCZv1\r\n"
 	        << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 	        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 	        << "CSeq: 20 MESSAGE\r\n"

@@ -48,7 +48,7 @@ enum class FinalStatusMode {
  * received its final response).
  *
  * @warning If 'fork-late' mode is enabled, a branch may be removed to be replaced by a new one with the same device
- * UID. Then, the listener is automatically moved in the new branch. So, when you attach a listener to a branch, keep in
+ * UID. Then, the listener is automatically moved to the new branch. So, when you attach a listener to a branch, keep in
  * mind that you subscribe to the event of a given UID instead of a specific branch.
  */
 class BranchInfoListener {
@@ -68,6 +68,14 @@ public:
 	virtual void onBranchCompleted(const std::shared_ptr<BranchInfo>&) noexcept {};
 };
 
+struct CancelInfo {
+	CancelInfo(sip_reason_t* reason);
+	CancelInfo(sofiasip::Home& home, const ForkStatus& status);
+
+	ForkStatus mStatus;
+	sip_reason_t* mReason{};
+};
+
 /**
  * @brief Branch of a fork context.
  */
@@ -75,7 +83,9 @@ class BranchInfo : public std::enable_shared_from_this<BranchInfo> {
 public:
 	template <typename... Args>
 	static std::shared_ptr<BranchInfo> make(Args&&... args) {
-		return std::shared_ptr<BranchInfo>{new BranchInfo{std::forward<Args>(args)...}};
+		const auto branch = std::shared_ptr<BranchInfo>{new BranchInfo{std::forward<Args>(args)...}};
+		setBranchInfo(branch->mTransaction, std::weak_ptr{branch});
+		return branch;
 	}
 
 	virtual ~BranchInfo() = default;
@@ -90,7 +100,7 @@ public:
 	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo>& br);
 	/**
 	 * @brief Notify the listener that this branch has been canceled.
-	 *
+	 * 
 	 * @param cancelReason reason of cancellation
 	 */
 	void notifyBranchCanceled(ForkStatus cancelReason) noexcept;
@@ -98,6 +108,24 @@ public:
 	 * @brief Notify the listener that this branch is now completed.
 	 */
 	void notifyBranchCompleted() noexcept;
+	/**
+	 * @brief Process the response received on this branch and notifies the ForkContext consequently.
+	 * 
+	 * @param event received response to process
+	 */
+	void processResponse(ResponseSipEvent& event);
+	/**
+	 * @brief Forward the last response received on the branch to the ForkContext.
+	 * 
+	 * @return 'true' if a response was sent
+	 */
+	bool forwardResponse(bool forkContextHasIncomingTransaction);
+	/**
+	 * @brief Cancel the branch (send a '487 Request terminated' to the target).
+	 * 
+	 * @param information cancellation reason
+	 */
+	void cancel(const std::optional<CancelInfo>& information);
 	/**
 	 * @return status of the last response
 	 */
@@ -107,10 +135,23 @@ public:
 	 */
 	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC);
 
-	BranchInfoDb getDbObject();
+	std::string getUid() const;
+	std::optional<SipUri> getRequestUri() const;
+	double getPriority() const;
+	int getClearedCount() const;
+	std::weak_ptr<BranchInfoListener> getListener() const;
+	std::shared_ptr<const ExtendedContact> getContact() const;
+	std::shared_ptr<ForkContext> getForkContext() const;
+	const std::unique_ptr<ResponseSipEvent>& getLastResponseEvent() const;
+	std::shared_ptr<PushNotificationContext> getPushNotificationContext() const;
+	std::shared_ptr<MsgSip> getRequestMsg() const;
+	BranchInfoDb getDbObject() const;
 
 	std::unique_ptr<RequestSipEvent>&& extractRequest();
-	void setRequest(std::unique_ptr<RequestSipEvent>&& req);
+
+	void setListener(const std::weak_ptr<BranchInfoListener>& listener);
+	void setForkContext(const std::shared_ptr<ForkContext>& forkContext);
+	void setPushNotificationContext(const std::shared_ptr<PushNotificationContext>& context);
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<BranchInfo>& expected) {
@@ -122,21 +163,6 @@ public:
 	}
 #endif
 
-	std::weak_ptr<ForkContext> mForkCtx{};
-	std::weak_ptr<BranchInfoListener> mListener{};
-	std::string mUid{};
-	std::shared_ptr<MsgSip> mRequestMsg{};
-	std::shared_ptr<OutgoingTransaction> mTransaction{};
-	std::unique_ptr<ResponseSipEvent> mLastResponseEvent{};
-	std::shared_ptr<MsgSip> mLastResponse{};
-	std::shared_ptr<ExtendedContact> mContact{};
-	float mPriority{1.0f};
-	// Count every time a branch with the same Uid is cleared for a given fork context. Can be used to know if a push
-	// notification has already been sent for this branch.
-	int mClearedCount{0};
-	// Only used with Invite/ForkCall.
-	std::weak_ptr<PushNotificationContext> pushContext{};
-
 protected:
 	/**
 	 * @brief Used to create an empty fake branch.
@@ -144,8 +170,14 @@ protected:
 	BranchInfo() = default;
 
 	template <typename T>
-	BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {
-	}
+	BranchInfo(T&& ctx) : mForkCtx{std::forward<T>(ctx)} {};
+
+	BranchInfo(std::unique_ptr<RequestSipEvent>&& ev,
+	           const std::shared_ptr<ForkContext>& context,
+	           const std::shared_ptr<ExtendedContact>& contact,
+	           const std::weak_ptr<BranchInfoListener>& listener,
+	           const std::weak_ptr<PushNotificationContext>& pushContext,
+	           int clearedCount);
 
 	/**
 	 * @brief Create an instance from information stored in the database when 'fork-late' mode is enabled.
@@ -160,19 +192,28 @@ protected:
 		auto lastResponse =
 		    !dbObject.lastResponse.empty() ? std::make_shared<MsgSip>(0, dbObject.lastResponse) : nullptr;
 		mLastResponseEvent = std::make_unique<ResponseSipEvent>(agent->getOutgoingAgent(), lastResponse);
-		mLastResponseEvent->setIncomingAgent(std::shared_ptr<IncomingAgent>());
+		mLastResponseEvent->setIncomingAgent(nullptr);
 		mLastResponse = mLastResponseEvent->getMsgSip();
+		mLogPrefix = LogManager::makeLogPrefixForInstance(this, "BranchInfo");
 	}
 
 private:
 	std::unique_ptr<RequestSipEvent> mRequestEvent{};
+	std::weak_ptr<ForkContext> mForkCtx{};
+	std::shared_ptr<ExtendedContact> mContact{};
+	std::shared_ptr<MsgSip> mRequestMsg{};
+	std::shared_ptr<OutgoingTransaction> mTransaction{};
+	std::string mUid{};
+	double mPriority{1.0};
+	std::weak_ptr<BranchInfoListener> mListener{};
+	std::unique_ptr<ResponseSipEvent> mLastResponseEvent{};
+	std::shared_ptr<MsgSip> mLastResponse{};
+	// Count every time a branch with the same Uid is cleared for a given fork context. Can be used to know if a push
+	// notification has already been sent for this branch.
+	int mClearedCount{};
+	// Only used with Invite/ForkCall.
+	std::weak_ptr<PushNotificationContext> mPushContext{};
+	std::string mLogPrefix{};
 };
-
-inline std::ostream& operator<<(std::ostream& os, const BranchInfo* br) noexcept {
-	return (os << "BranchInfo[" << static_cast<const void*>(br) << "]");
-}
-inline std::ostream& operator<<(std::ostream& os, const std::shared_ptr<BranchInfo>& br) noexcept {
-	return operator<<(os, br.get());
-}
 
 } // namespace flexisip

@@ -119,12 +119,12 @@ void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch, Resp
 	if (mKind.getKind() == MessageKind::Kind::Refer) return;
 
 	const auto* sip = respEv.getMsgSip()->getSip();
-	const auto& sipRequest = *branch.mRequestMsg->getSip();
+	const auto& sipRequest = *branch.getRequestMsg()->getSip();
 	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader.data());
 
 	try {
 		const auto log = make_shared<MessageResponseFromRecipientEventLog>(
-		    sipRequest, *branch.mContact, mKind,
+		    sipRequest, *branch.getContact(), mKind,
 		    forwardedId ? std::optional<EventId>(forwardedId->un_value) : std::nullopt);
 
 		log->setDestination(sipRequest.sip_request->rq_url);
@@ -173,11 +173,11 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 			}
 		}
 		logResponseFromRecipient(*br, event);
-		forwardResponse(br);
+		br->forwardResponse(mIncoming != nullptr);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, kUrgentCodes)) {
 		// Expedite back any urgent replies if late forking is disabled.
 		logResponseFromRecipient(*br, event);
-		forwardResponse(br);
+		br->forwardResponse(mIncoming != nullptr);
 	} else {
 		logResponseFromRecipient(*br, event);
 	}
@@ -196,7 +196,7 @@ void ForkMessageContext::acceptMessage() {
 	// In fork late mode, never answer a service unavailable.
 	shared_ptr<MsgSip> msgSip(mIncoming->createResponse(SIP_202_ACCEPTED));
 	auto ev = make_unique<ResponseSipEvent>(ResponseSipEvent(mAgent->getOutgoingAgent(), msgSip));
-	ev = forwardResponse(std::move(ev));
+	ev = ForkContextBase::onForwardResponse(std::move(ev));
 
 	// In the sender's log will appear the 202 accepted from Flexisip server.
 	logResponseToSender(getEvent(), *ev);
@@ -209,11 +209,11 @@ void ForkMessageContext::onAcceptanceTimer() {
 }
 
 void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
-	if (!br->mUid.empty()) {
+	if (!br->getUid().empty()) {
 		// Check for a branch that may already exist with this UID, and eventually clean it up.
-		if (const auto tmp = findBranchByUid(br->mUid)) removeBranch(tmp);
+		if (const auto tmp = findBranchByUid(br->getUid())) removeBranch(tmp);
 	} else {
-		LOGD << "Fork error: no unique id found for contact '" << br->mContact->urlAsString() << "'";
+		LOGD << "Fork error: no unique id found for contact '" << br->getContact()->urlAsString() << "'";
 	}
 
 	if (mKind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
@@ -221,7 +221,7 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 		// recipients. As of 2023-06-29, we do not expect to have more branches added after the initial context creation
 		// in this particular case, which means we could move adding this header to the ::start() method (and avoid
 		// computing the EventId twice), but we'd better be safe than sorry.
-		const auto sipMsg = br->mRequestMsg;
+		const auto sipMsg = br->getRequestMsg();
 		sipMsg->insertHeader(sofiasip::SipCustomHeader(kEventIdHeader, string(EventId(*sipMsg->getSip()))));
 	}
 }
@@ -324,8 +324,8 @@ void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expec
 	}
 
 	if (mWaitingBranches.size() == expected->mWaitingBranches.size()) {
-		mWaitingBranches.sort([](const auto& a, const auto& b) { return a->mUid < b->mUid; });
-		expected->mWaitingBranches.sort([](const auto& a, const auto& b) { return a->mUid < b->mUid; });
+		mWaitingBranches.sort([](const auto& a, const auto& b) { return a->getUid() < b->getUid(); });
+		expected->mWaitingBranches.sort([](const auto& a, const auto& b) { return a->getUid() < b->getUid(); });
 		std::ignore = equal(mWaitingBranches.begin(), mWaitingBranches.end(), expected->mWaitingBranches.begin(),
 		                    [](const auto& a, const auto& b) {
 			                    a->assertEqual(b);
