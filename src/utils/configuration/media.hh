@@ -20,13 +20,14 @@
 
 #include <functional>
 
+#include "flexisip/configmanager.hh"
 #include "linphone++/linphone.hh"
 #include "linphone/misc.h"
 
 namespace flexisip::configuration_utils {
 
 /**
- * @brief Set media port or port range on the given core.
+ * @brief Set a media port or a port range on the given core.
  *
  * If min == max: use setPort method (special value 0 will set port value to LC_SIP_TRANSPORT_RANDOM).\n
  * Else:          use setPortRange method.
@@ -37,20 +38,23 @@ namespace flexisip::configuration_utils {
  * @param setPort       pointer to the 'setAudioPort' or 'setVideoPort' method of the core
  * @param setPortRange  pointer to the 'setAudioPortRange' or 'setVideoPortRange' method of the core
  */
-static void setMediaPort(const int min,
-                         const int max,
-                         linphone::Core& core,
-                         const std::function<void(linphone::Core&, int)>& setPort,
-                         const std::function<void(linphone::Core&, int, int)>& setPortRange) {
-	if (min == max) {
-		if (min == 0) {
-			setPort(core, LC_SIP_TRANSPORT_RANDOM);
-		} else {
-			setPort(core, min);
-		}
-	} else {
-		setPortRange(core, min, max);
-	}
-}
+void setMediaPort(int min,
+                  int max,
+                  linphone::Core& core,
+                  const std::function<void(linphone::Core&, int)>& setPort,
+                  const std::function<void(linphone::Core&, int, int)>& setPortRange);
+
+enum class MediaEngine { AUDIO, VIDEO };
+
+std::string mediaEngineToStr(MediaEngine media);
+
+/**
+ * @param media media type to configure ("audio" or "video")
+ * @param mode engine mode to set
+ * @param configuration Linphone::Core configuration
+ */
+void configureMediaEngineMode(const std::shared_ptr<linphone::Config>& configuration,
+                              MediaEngine media,
+                              const ConfigString* mode);
 
 } // namespace flexisip::configuration_utils

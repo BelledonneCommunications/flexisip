@@ -101,20 +101,10 @@ void ConferenceServer::_init() {
 	// To make sure contact address is not fixed by belle-sip.
 	configLinphone->setBool("net", "enable_nat_helper", false);
 
-	const auto* mediaEngineParameter = config->get<ConfigString>("media-engine-type");
-	const auto mediaEngine = mediaEngineParameter->read();
-	if (mediaEngine != "mixer" && mediaEngine != "sfu")
-		throw BadConfiguration{mediaEngineParameter->getCompleteName() + " is not correctly set (" + mediaEngine + ")"};
-
-	if (mediaEngine == "mixer") {
-		// In mixer mode we set the audio conference to Mixer mode (0) and video conference to RouterPayload mode (1)
-		configLinphone->setInt("sound", "conference_mode", 0);
-		configLinphone->setInt("video", "conference_mode", 1);
-	} else {
-		// In SFU mode we set the audio and video conferences to RouterFullPacket mode (2)
-		configLinphone->setInt("sound", "conference_mode", 2);
-		configLinphone->setInt("video", "conference_mode", 2);
-	}
+	configuration_utils::configureMediaEngineMode(configLinphone, configuration_utils::MediaEngine::AUDIO,
+	                                              config->get<ConfigString>("audio-engine-mode"));
+	configuration_utils::configureMediaEngineMode(configLinphone, configuration_utils::MediaEngine::VIDEO,
+	                                              config->get<ConfigString>("video-engine-mode"));
 
 	string uuid = readUuid();
 	if (!uuid.empty()) configLinphone->setString("misc", "uuid", uuid);
@@ -580,14 +570,28 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    },
 	    {
 	        String,
-	        "media-engine-type",
-	        "Type of media engine to use.\n"
-	        "In mixer mode, the server will mix audio streams and handle any necessary modification to the streams "
-	        "before sending data.\n"
-	        "In SFU mode, all streams are simply forwarded to destinations without any modification. This is the mode "
-	        "required for end to end encryption.\n"
-	        "Valid values: mixer, sfu.",
+	        "audio-engine-mode",
+	        "Valid values: 'mixer', 'semi-sfu', 'sfu'\n"
+	        "- 'mixer': The server mixes all relevant streams before sending the final computed stream to "
+	        "participants. This mode is quite compute-intensive because it involves several decoding/encoding "
+	        "operations.\n"
+	        "- 'semi-sfu': The server only forwards relevant streams to participants without any decoding/encoding "
+	        "operations. However, RTP headers are re-written by the server.\n"
+	        "- 'sfu': The server only forwards relevant streams to participants without any decoding/encoding "
+	        "operations and with only slight modifications made to RTP headers. This is the mode required for "
+	        "end-to-end encryption.\n",
 	        "mixer",
+	    },
+	    {
+	        String,
+	        "video-engine-mode",
+	        "Valid values: 'semi-sfu', 'sfu'\n"
+	        "- 'semi-sfu': The server only forwards relevant streams to participants without any decoding/encoding "
+	        "operations. However, RTP headers are re-written by the server.\n"
+	        "- 'sfu': The server only forwards relevant streams to participants without any decoding/encoding "
+	        "operations and with only slight modifications made to RTP headers. This is the mode required for "
+	        "end-to-end encryption.\n",
+	        "semi-sfu",
 	    },
 	    {
 	        String,
