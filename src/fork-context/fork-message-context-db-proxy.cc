@@ -383,7 +383,7 @@ std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::addBranch(std::unique_ptr
                                                                  const std::shared_ptr<ExtendedContact>& contact) {
 	checkState(__FUNCTION__, State::IN_MEMORY);
 	auto newBranch = mForkMessage->addBranch(std::move(ev), contact);
-	newBranch->mForkCtx = shared_from_this();
+	newBranch->setForkContext(shared_from_this());
 
 	return newBranch;
 }
@@ -441,6 +441,12 @@ const std::shared_ptr<ForkContextConfig>& ForkMessageContextDbProxy::getConfig()
 
 sofiasip::MsgSipPriority ForkMessageContextDbProxy::getMsgPriority() const {
 	return mSavedMsgPriority;
+}
+
+std::unique_ptr<ResponseSipEvent>
+ForkMessageContextDbProxy::onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) {
+	if (mForkMessage) return mForkMessage->onForwardResponse(std::move(event));
+	return std::move(event);
 }
 
 const char* ForkMessageContextDbProxy::getClassName() const {

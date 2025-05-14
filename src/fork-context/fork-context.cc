@@ -31,8 +31,8 @@ shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<IncomingTransactio
 }
 
 shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<OutgoingTransaction>& transaction) {
-	shared_ptr<BranchInfo> br = BranchInfo::getBranchInfo(transaction);
-	return br ? br->mForkCtx.lock() : nullptr;
+	const auto branch = BranchInfo::getBranchInfo(transaction);
+	return branch ? branch->getForkContext() : nullptr;
 }
 
 void ForkContext::setFork(const shared_ptr<IncomingTransaction>& transaction, const shared_ptr<ForkContext>& context) {
@@ -50,38 +50,4 @@ void ForkContext::processCancel(RequestSipEvent& ev) {
 			ev.terminateProcessing();
 		}
 	}
-}
-
-bool ForkContext::processResponse(ResponseSipEvent& ev) {
-	auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
-	if (transaction) {
-		auto bInfo = BranchInfo::getBranchInfo(transaction);
-		// If not, responses has not been processed.
-		if (bInfo) {
-			bInfo->mLastResponseEvent = make_unique<ResponseSipEvent>(ev); // make a copy
-			bInfo->mLastResponse = bInfo->mLastResponseEvent->getMsgSip();
-
-			bInfo->mLastResponseEvent->suspendProcessing();
-
-			auto forkCtx = bInfo->mForkCtx.lock();
-			forkCtx->onResponse(bInfo, *bInfo->mLastResponseEvent);
-
-			// the event may go through but it will not be sent*/
-			ev.setIncomingAgent(nullptr);
-
-			// A response has been submitted, else, it has been retained.
-			if (!bInfo->mLastResponseEvent || !bInfo->mLastResponseEvent->isSuspended()) {
-				// mLastResponseEvent has been resubmitted, so stop original event.
-				ev.terminateProcessing();
-			}
-
-			if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) {
-				forkCtx->start();
-			}
-
-			return true;
-		}
-	}
-
-	return false;
 }

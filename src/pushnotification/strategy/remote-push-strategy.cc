@@ -40,7 +40,7 @@ void MessagePushStrategy::sendCallNotification(const std::shared_ptr<const PushI
 		throw InvalidSendParameters{"no associated branch found (it may not exist anymore)"};
 	}
 
-	br->mListener = shared_from_this();
+	br->setListener(shared_from_this());
 
 	mCallPushInfo = std::make_shared<PushInfo>(*pInfo);
 	mCallPushInfo->mTtl = 0s;

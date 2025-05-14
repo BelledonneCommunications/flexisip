@@ -66,14 +66,6 @@ protected:
 	const char* getClassName() const override;
 
 private:
-	struct CancelInfo {
-		CancelInfo(sofiasip::Home& home, const ForkStatus& status);
-		CancelInfo(sip_reason_t* reason);
-
-		ForkStatus mStatus;
-		sip_reason_t* mReason{};
-	};
-
 	static constexpr std::string_view kClassName{"ForkCallContext"};
 	static constexpr int kUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 488, 606, 0};
 
@@ -125,10 +117,6 @@ private:
 	 * @brief Forward the response on the provided branch and send an event log for this response.
 	 */
 	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);
-	/**
-	 * @param brit branch to cancel
-	 */
-	void cancelBranch(const std::shared_ptr<BranchInfo>& brit);
 
 	sofiasip::Home mHome{};
 	// Optionally used to send retryable responses.

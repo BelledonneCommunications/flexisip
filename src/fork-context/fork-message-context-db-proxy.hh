@@ -80,6 +80,7 @@ public:
 	RequestSipEvent& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
 	sofiasip::MsgSipPriority getMsgPriority() const override;
+	std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
 
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,

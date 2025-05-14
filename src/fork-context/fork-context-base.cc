@@ -71,43 +71,24 @@ void ForkContextBase::processLateTimeout() {
 	setFinished();
 }
 
-struct dest_finder {
-	dest_finder(const SipUri& ctt) {
-		cttport = ctt.getPort();
-		ctthost = ctt.getHost();
-		// don't care about transport
-	}
-	bool operator()(const shared_ptr<BranchInfo>& br) {
-		SipUri destUri{br->mRequestMsg->getSip()->sip_request->rq_url};
-		return cttport == destUri.getPort() && ctthost == destUri.getHost();
-	}
-	string ctthost;
-	string cttport;
-};
-
-struct uid_finder {
-	uid_finder(const string& uid) : mUid(uid) {
-	}
-	bool operator()(const shared_ptr<BranchInfo>& br) {
-		return mUid == br->mUid;
-	}
-	const string mUid;
-};
-
 shared_ptr<BranchInfo> ForkContextBase::findBranchByUid(const string& uid) {
-	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), uid_finder(uid));
+	auto branchIt = find_if(mWaitingBranches.begin(), mWaitingBranches.end(),
+	                        [&uid](const std::shared_ptr<BranchInfo>& branch) { return uid == branch->getUid(); });
 
-	if (it != mWaitingBranches.end()) return *it;
-
-	return shared_ptr<BranchInfo>();
+	if (branchIt != mWaitingBranches.end()) return *branchIt;
+	return {};
 }
 
 shared_ptr<BranchInfo> ForkContextBase::findBranchByDest(const SipUri& dest) {
-	auto it = find_if(mWaitingBranches.begin(), mWaitingBranches.end(), dest_finder(dest));
+	auto branchIt =
+	    find_if(mWaitingBranches.begin(), mWaitingBranches.end(), [&dest](const std::shared_ptr<BranchInfo>& branch) {
+		    if (const auto branchDest = branch->getRequestUri(); branchDest != nullopt)
+			    return dest.getHost() == branchDest->getHost() && dest.getPort() == branchDest->getPort();
+		    return false;
+	    });
 
-	if (it != mWaitingBranches.end()) return *it;
-
-	return shared_ptr<BranchInfo>();
+	if (branchIt != mWaitingBranches.end()) return *branchIt;
+	return {};
 }
 
 bool ForkContextBase::isUrgent(int code, const int urgentCodes[]) {
@@ -263,7 +244,7 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 
 	auto previousCode = getLastResponseCode();
 	if (previousCode > code || !mIncoming) {
-		/* Don't send a response with status code lesser than last transmitted response. */
+		// Don't send a response with status code lesser than the last transmitted response.
 		return;
 	}
 
@@ -272,81 +253,63 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 
 	auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
 
-	// add a to tag, no set by sofia here.
+	// Add a 'To' tag, no set by sofia here.
 	if (addToTag) {
 		auto totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
 		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
 	}
 
-	forwardResponse(std::move(ev));
-}
-
-bool compareGreaterBranch(const shared_ptr<BranchInfo>& lhs, const shared_ptr<BranchInfo>& rhs) {
-	return lhs->mPriority > rhs->mPriority;
+	onForwardResponse(std::move(ev));
 }
 
 shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
                                                   const std::shared_ptr<ExtendedContact>& contact) {
-	auto ot = ev->createOutgoingTransaction();
-	auto br = createBranchInfo();
+	if (mIncoming && mWaitingBranches.empty()) setFork(mIncoming, shared_from_this());
 
-	if (mIncoming && mWaitingBranches.size() == 0) {
-		/*for some reason shared_from_this() cannot be invoked within the ForkContext constructor, so we do this
-		 * initialization now*/
-		ForkContext::setFork(mIncoming, shared_from_this());
+	int clearedCount{0};
+	std::weak_ptr<BranchInfoListener> listener{};
+	std::weak_ptr<PushNotificationContext> pushContext{};
+
+	const auto oldBranch = findBranchByUid(contact->mKey);
+	if (oldBranch) {
+		// We need to remember how many times branches for a given uid have been cleared. Because in some cases (iOS) we
+		// must absolutely not re-send a push notification, and we send one only if br->mClearedCount == 0 (See
+		// PushNotification::makePushNotification).
+		clearedCount = oldBranch->getClearedCount() + 1;
+		// The listener of the old branch must be moved in the new one to be notified of the last events about the
+		// actual UID.
+		listener = oldBranch->getListener();
+		pushContext = oldBranch->getPushNotificationContext();
 	}
 
-	// unlink the incoming and outgoing transactions which is done by default, since now the forkcontext is managing
-	// them.
-	ev->unlinkTransactions();
-	br->mRequestMsg = ev->getMsgSip();
-	br->mTransaction = ot;
-	br->mUid = contact->mKey;
-	br->mContact = contact;
-	br->mPriority = contact->mQ;
-	br->setRequest(std::move(ev));
+	const auto branch =
+	    BranchInfo::make(std::move(ev), shared_from_this(), contact, listener, pushContext, clearedCount);
 
-	BranchInfo::setBranchInfo(ot, weak_ptr<BranchInfo>{br});
-
-	// Clear answered branches with same uid.
-	auto oldBr = findBranchByUid(br->mUid);
-	if (oldBr) {
-		if (oldBr->getStatus() >= 200) {
-			LOGD << "New fork " << br.get() << " clears out old " << oldBr.get();
-			removeBranch(oldBr);
-		}
-		/*
-		 * We need to remember how many times branches for a given uid have been cleared.
-		 * Because in some cases (iOS) we must absolutely not re-send a push notification, and we send one only if
-		 * br->mClearedCount == 0 (See PushNotification::makePushNotification).
-		 */
-		br->mClearedCount = oldBr->mClearedCount + 1;
-
-		// The listener of the old branch must be moved in the new one
-		// to be notified of the last events about the actual UID.
-		br->mListener = std::move(oldBr->mListener);
-
-		br->pushContext = oldBr->pushContext;
+	// Clear answered branch with the same uid.
+	if (oldBranch && oldBranch->getStatus() >= 200) {
+		LOGD << "New " << branch.get() << " clears out old " << oldBranch.get() << " (UID = " << contact->mKey.str()
+		     << ")";
+		removeBranch(oldBranch);
 	}
 
-	onNewBranch(br);
+	onNewBranch(branch);
 
-	mWaitingBranches.push_back(br);
-	mWaitingBranches.sort(compareGreaterBranch);
+	mWaitingBranches.push_back(branch);
+	mWaitingBranches.sort([](const std::shared_ptr<BranchInfo>& lhs, const std::shared_ptr<BranchInfo>& rhs) {
+		return lhs->getPriority() > rhs->getPriority();
+	});
 
-	// if mCurrentPriority != -1 it means that this fork is already started
-	if (mCurrentPriority != -1 && mCurrentPriority <= br->mPriority) {
-		mCurrentBranches.push_back(br);
+	// If mCurrentPriority != -1 it means that this fork is already started.
+	if (mCurrentPriority != -1 && mCurrentPriority <= branch->getPriority()) {
+		mCurrentBranches.push_back(branch);
 		if (const auto injectorListener = mInjectorListener.lock()) {
-			injectorListener->inject(br->extractRequest(), shared_from_this(), contact->contactId());
+			injectorListener->inject(branch->extractRequest(), shared_from_this(), contact->contactId());
 		} else {
-			mAgent->injectRequestEvent(br->extractRequest());
+			mAgent->injectRequestEvent(branch->extractRequest());
 		}
 	}
 
-	LOGD << "New fork branch " << br.get();
-
-	return br;
+	return branch;
 }
 
 void ForkContextBase::onNextBranches() {
@@ -355,7 +318,7 @@ void ForkContextBase::onNextBranches() {
 
 bool ForkContextBase::hasNextBranches() const {
 	const auto& wBrs = mWaitingBranches;
-	auto findCond = [this](const auto& br) { return br->mPriority < mCurrentPriority; };
+	auto findCond = [this](const auto& br) { return br->getPriority() < mCurrentPriority; };
 	return !mFinished && ((mCurrentPriority == -1 && !mWaitingBranches.empty()) ||
 	                      find_if(wBrs.cbegin(), wBrs.cend(), findCond) != wBrs.cend());
 }
@@ -366,11 +329,11 @@ void ForkContextBase::nextBranches() {
 
 	/* Get next priority value */
 	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
-		mCurrentPriority = mWaitingBranches.front()->mPriority;
+		mCurrentPriority = mWaitingBranches.front()->getPriority();
 	} else {
 		for (const auto& br : mWaitingBranches) {
-			if (br->mPriority < mCurrentPriority) {
-				mCurrentPriority = br->mPriority;
+			if (br->getPriority() < mCurrentPriority) {
+				mCurrentPriority = br->getPriority();
 				break;
 			}
 		}
@@ -378,7 +341,7 @@ void ForkContextBase::nextBranches() {
 
 	/* Stock all wanted branches */
 	for (const auto& br : mWaitingBranches) {
-		if (br->mPriority == mCurrentPriority) mCurrentBranches.push_back(br);
+		if (br->getPriority() == mCurrentPriority) mCurrentBranches.push_back(br);
 	}
 }
 
@@ -399,7 +362,7 @@ void ForkContextBase::start() {
 	/* Start the processing */
 	for (const auto& br : mCurrentBranches) {
 		if (const auto injectorListener = mInjectorListener.lock()) {
-			injectorListener->inject(br->extractRequest(), shared_from_this(), br->mContact->contactId());
+			injectorListener->inject(br->extractRequest(), shared_from_this(), br->getContact()->contactId());
 		} else {
 			mAgent->injectRequestEvent(br->extractRequest());
 		}
@@ -457,6 +420,27 @@ bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
+std::unique_ptr<ResponseSipEvent> ForkContextBase::onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) {
+	if (mIncoming == nullptr) return {};
+
+	const int code = event->getMsgSip()->getSip()->sip_status->st_status;
+	event->setIncomingAgent(mIncoming);
+	mLastResponseSent = event->getMsgSip();
+
+	if (event->isSuspended()) {
+		event = mAgent->injectResponseEvent(std::move(event));
+	} else {
+		event = mAgent->sendResponseEvent(std::move(event));
+	}
+
+	if (code >= 200) {
+		mIncoming.reset();
+		if (shouldFinish()) setFinished();
+	}
+
+	return std::move(event);
+}
+
 void ForkContextBase::onCancel(const MsgSip&) {
 	if (shouldFinish()) {
 		setFinished();
@@ -486,56 +470,6 @@ const vector<string>& ForkContextBase::getKeys() const {
 	return mKeys;
 }
 
-shared_ptr<BranchInfo> ForkContextBase::createBranchInfo() {
-	return BranchInfo::make(shared_from_this());
-}
-
-// called by implementers to request the forwarding of a response from this branch, regardless of whether it was
-// retained previously or not*/
-bool ForkContextBase::forwardResponse(const shared_ptr<BranchInfo>& br) {
-	if (br->mLastResponseEvent) {
-		if (mIncoming) {
-			int code = br->mLastResponseEvent->getMsgSip()->getSip()->sip_status->st_status;
-			br->mLastResponseEvent = forwardResponse(std::move(br->mLastResponseEvent));
-
-			if (code >= 200) {
-				br->mTransaction.reset();
-			}
-			return true;
-
-		} else br->mLastResponseEvent->setIncomingAgent(shared_ptr<IncomingAgent>());
-
-	} else {
-		LOGE << "Fork error: no response received on this branch";
-	}
-
-	return false;
-}
-
-unique_ptr<ResponseSipEvent> ForkContextBase::forwardResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	if (mIncoming) {
-		int code = ev->getMsgSip()->getSip()->sip_status->st_status;
-		ev->setIncomingAgent(mIncoming);
-		mLastResponseSent = ev->getMsgSip();
-
-		if (ev->isSuspended()) {
-			ev = mAgent->injectResponseEvent(std::move(ev));
-		} else {
-			ev = mAgent->sendResponseEvent(std::move(ev));
-		}
-
-		if (code >= 200) {
-			mIncoming.reset();
-
-			if (shouldFinish()) setFinished();
-		}
-
-		return std::move(ev);
-	}
-
-	return {};
-}
-
 int ForkContextBase::getLastResponseCode() const {
 	if (mLastResponseSent) return mLastResponseSent->getSip()->sip_status->st_status;
 
@@ -550,7 +484,7 @@ unique_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, 
 	auto msgsip = mIncoming->createResponse(status, phrase);
 	if (msgsip) {
 		auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
-		return forwardResponse(std::move(ev));
+		return onForwardResponse(std::move(ev));
 	} else { // Should never happen
 		LOGE << "Fork error: MsgSip cannot be created, fork is completed without forwarding any response";
 		setFinished();
@@ -577,9 +511,7 @@ std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
 			setFinished();
 		}
 
-		if (br && forwardResponse(br)) {
-			return br;
-		}
+		if (br && br->forwardResponse(mIncoming != nullptr)) return br;
 	}
 
 	return nullptr;

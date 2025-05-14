@@ -49,7 +49,7 @@ void ForkBasicContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipE
 	int code = br->getStatus();
 	if (code >= 200) {
 		if (code < 300) {
-			forwardResponse(br);
+			br->forwardResponse(mIncoming != nullptr);
 			mDecisionTimer.reset(nullptr);
 		} else {
 			if (allBranchesAnswered(FinalStatusMode::RFC)) {
@@ -68,7 +68,7 @@ void ForkBasicContext::finishIncomingTransaction() {
 		if (best == nullptr) {
 			forwardCustomResponse(SIP_408_REQUEST_TIMEOUT);
 		} else {
-			forwardResponse(best);
+			best->forwardResponse(mIncoming != nullptr);
 		}
 	}
 }

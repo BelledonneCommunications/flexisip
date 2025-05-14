@@ -67,6 +67,8 @@ public:
 	 */
 	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
 
+	std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
+
 protected:
 	struct ShouldDispatchType {
 		// Tell if we should dispatch a new branch/transaction to the device targeted by dest/uid.
@@ -89,10 +91,6 @@ protected:
 
 	const ForkContext* getPtrForEquality() const override;
 
-	/**
-	 * @return new branch for this ForkContext
-	 */
-	virtual std::shared_ptr<BranchInfo> createBranchInfo();
 	/**
 	 * @brief Notify the creation of a new branch for this ForkContext.
 	 */
@@ -120,22 +118,8 @@ protected:
 	 */
 	void onFinished();
 	/**
-	 * @brief Forward the last response received on the branch.
-	 *
-	 * @param br the branch containing the response to send
-	 * @return 'true' if a response was sent
-	 */
-	bool forwardResponse(const std::shared_ptr<BranchInfo>& br);
-	/**
-	 * @brief Forward a response.
-	 *
-	 * @param ev response to be forwarded
-	 * @return the response sent, or nullptr if the response was not sent
-	 */
-	std::unique_ptr<ResponseSipEvent> forwardResponse(std::unique_ptr<ResponseSipEvent>&& ev);
-	/**
 	 * @brief Forward a custom response.
-	 *
+	 * 
 	 * @param status the status of the custom response to send
 	 * @param phrase the content of the custom response to send
 	 * @return the response sent, or nullptr if the response was not sent
