@@ -25,6 +25,8 @@ Group changes to describe their impact on the project, as follows:
     - **Forward:** The 'Contact' header is now cleaned properly in the REGISTER request transferred to another server (
       with `reg-on-response` enabled).
     - **SanityChecker:** Server was not resilient to invalid subscriptions (no Event header).
+    - **Statistics**: Counters in `module::Authentication` called `count-password-found` and `count-password-not-found`
+      were not correctly incremented.
 
 ## [2.4.1] - 2025-03-31
 ### [Added]

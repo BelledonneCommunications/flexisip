@@ -594,13 +594,115 @@ void rejectIdentityFraudMessage() {
 		checkResponse(transaction, {403, "Forbidden"});
 	}
 }
-TestSuite _("AuthDigest",
-            {
-                CLASSY_TEST(digestQopAuth),
-                CLASSY_TEST(digestQopDisable),
-                CLASSY_TEST(digestQopProxyAuth),
-                CLASSY_TEST(digestAlgorithmSelection),
-                CLASSY_TEST(acceptAnonymousMessage),
-                CLASSY_TEST(rejectIdentityFraudMessage),
-            });
+
+// Verify that 'count-password-found' and 'count-password-not-found' are correctly incremented.
+void passwordCounters() {
+	const string authDb("version:1\n\n"s + contact + " clrtxt:" + pwd + " ;\n");
+	TempFile authFile(authDb);
+
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::Authentication/enabled", "true"},
+	    {"module::Authentication/file-path", authFile.getFilename()},
+	    {"module::Authentication/auth-domains", domain},
+	    {"module::Authentication/disable-qop-auth", "false"},
+	});
+
+	const auto& root = proxy.getRoot();
+	proxy.start();
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+
+	// Send a REGISTER request to the proxy and try to answer to the challenge.
+	const auto tryToRegister = [&](const std::string& uri, const Response& expected) {
+		string realm{}, qop{}, nonce{}, opaque{};
+
+		{
+			const auto request = registerRequest(uri, "1");
+			const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+			if (expected.msg == response_403_forbidden.msg) {
+				checkResponse(transaction, response_403_forbidden);
+				return;
+			}
+			checkResponse(transaction, response_401_unauthorized);
+
+			const auto* sipMsg = transaction->getResponse()->getSip();
+			BC_HARD_ASSERT(sipMsg != nullptr);
+			const auto* authMsg = sipMsg->sip_www_authenticate;
+			BC_HARD_ASSERT(authMsg != nullptr);
+			const auto* authParams = authMsg->au_params;
+			BC_HARD_ASSERT(authParams != nullptr);
+			realm = readParamValue(authParams, "realm=");
+			BC_ASSERT_CPP_EQUAL(realm, string(domain));
+
+			qop = readParamValue(authParams, "qop=");
+			BC_ASSERT(!qop.empty()); // optional for backward compatibility but require by RFC 2617, RFC 3261 22.4
+			BC_ASSERT_CPP_EQUAL(qop,
+			                    string("auth")); // a valid qop is "auth,auth-int" but server only supports "auth"
+
+			nonce = readParamValue(authParams, "nonce=");
+			BC_ASSERT(!nonce.empty());
+
+			opaque = readParamValue(authParams, "opaque=");
+			BC_ASSERT(!opaque.empty());
+		}
+
+		{
+			auto generateAuthorization = [&](const char* nc, const char* cnonce) {
+				const auto HA2 = Md5().compute<string>("REGISTER:"s + uri);
+				const auto response =
+				    Md5().compute<string>(md5HA1 + ":" + nonce + ":" + nc + ":" + cnonce + ":" + qop + ":" + HA2);
+				// clang-format off
+				return string(
+						"Authorization: Digest username=\""s + userName + "\","
+							" realm=\"" + realm + "\","
+							" nonce=\"" + nonce + "\","
+							" uri="+ uri + ","
+							" qop=\"" + qop + "\","
+							" nc=\"" + nc + "\","
+							" cnonce=\"" + cnonce + "\","
+							" response=\"" + response + "\","
+							" opaque=\"" + opaque + "\"\r\n");
+				// clang-format on
+			};
+
+			const auto nc = "00000001";
+			const auto cnonce = "0a4f222a";
+			const auto request = registerRequest(uri, "2", generateAuthorization(nc, cnonce));
+			const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+			checkResponse(transaction, expected);
+		}
+	};
+
+	// Successful registration should increment 'count-password-found' by 1.
+	tryToRegister(sipUri, response_200_ok);
+
+	const auto* moduleConfig = proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Authentication");
+	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-found")->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-not-found")->read(), 0);
+
+	// Failed registration should increment 'count-password-not-found' by 1.
+	tryToRegister("sip:unkown@"s + domain, {403, "Forbidden"});
+
+	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-found")->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-not-found")->read(), 1);
+
+	// Failed registration (wrong domain) should not increase any of the counters.
+	tryToRegister("sip:unkown@sip.wrong.test.org", response_403_forbidden);
+
+	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-found")->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-not-found")->read(), 1);
+}
+
+TestSuite _{
+    "AuthDigest",
+    {
+        CLASSY_TEST(digestQopAuth),
+        CLASSY_TEST(digestQopDisable),
+        CLASSY_TEST(digestQopProxyAuth),
+        CLASSY_TEST(digestAlgorithmSelection),
+        CLASSY_TEST(acceptAnonymousMessage),
+        CLASSY_TEST(rejectIdentityFraudMessage),
+        CLASSY_TEST(passwordCounters),
+    },
+};
 } // namespace

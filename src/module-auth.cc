@@ -273,8 +273,15 @@ bool Authentication::doOnConfigStateChanged(const ConfigValue& conf, ConfigState
 FlexisipAuthModuleBase* Authentication::createAuthModule(const std::string& domain, int nonceExpire, bool qopAuth) {
 	FlexisipAuthModule* authModule =
 	    new FlexisipAuthModule(mAuthDb.db(), getAgent()->getRoot()->getCPtr(), domain, nonceExpire, qopAuth);
-	authModule->setOnPasswordFetchResultCb(
-	    [this](bool passFound) { passFound ? mCountPassFound++ : mCountPassNotFound++; });
+	authModule->setOnPasswordFetchResultCb([this](bool passFound) {
+		if (passFound) {
+			if (mCountPassFound) mCountPassFound->incr();
+			else SLOGE << "Failed to increment 'count-password-found' (pointer is empty)";
+		} else {
+			if (mCountPassNotFound) mCountPassNotFound->incr();
+			else SLOGE << "Failed to increment 'count-password-not-found' (pointer is empty)";
+		}
+	});
 	SLOGI << "Found auth domain: " << domain;
 	return authModule;
 }
