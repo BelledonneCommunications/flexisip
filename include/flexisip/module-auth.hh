@@ -31,8 +31,6 @@ class Authentication : public ModuleAuthenticationBase {
 	friend std::shared_ptr<Module> ModuleInfo<Authentication>::create(Agent*);
 
 public:
-	StatCounter64* mCountAsyncRetrieve = nullptr;
-	StatCounter64* mCountSyncRetrieve = nullptr;
 	StatCounter64* mCountPassFound = nullptr;
 	StatCounter64* mCountPassNotFound = nullptr;
 

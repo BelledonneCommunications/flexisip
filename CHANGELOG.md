@@ -28,6 +28,11 @@ Group changes to describe their impact on the project, as follows:
     - **Statistics**: Counters in `module::Authentication` called `count-password-found` and `count-password-not-found`
       were not correctly incremented.
 
+### [Removed]
+- **Proxy:**
+  - **Statistics:** Counters in `module::Authentication` called `count-async-retrieve` and `count-sync-retrieve` were
+    not implemented (always returned '0').
+
 ## [2.4.1] - 2025-03-31
 ### [Added]
 - **B2BUA, Conference, Presence, Proxy, RegEvent:** periodically log the server memory usage (on Linux and with debug

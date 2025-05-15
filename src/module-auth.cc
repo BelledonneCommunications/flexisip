@@ -35,8 +35,6 @@ using namespace flexisip;
 
 Authentication::Authentication(Agent* ag, const ModuleInfoBase* moduleInfo)
     : ModuleAuthenticationBase(ag, moduleInfo), mAuthDb(ag->getAuthDb()) {
-	mCountAsyncRetrieve = mModuleConfig->getStat("count-async-retrieve");
-	mCountSyncRetrieve = mModuleConfig->getStat("count-sync-retrieve");
 	mCountPassFound = mModuleConfig->getStat("count-password-found");
 	mCountPassNotFound = mModuleConfig->getStat("count-password-not-found");
 }
@@ -105,8 +103,6 @@ void Authentication::declareConfig(GenericStruct& moduleConfig) {
 	// Call declareConfig for backends
 	AuthDbBackend::declareConfig(&moduleConfig);
 
-	moduleConfig.createStat("count-async-retrieve", "Number of asynchronous retrieves.");
-	moduleConfig.createStat("count-sync-retrieve", "Number of synchronous retrieves.");
 	moduleConfig.createStat("count-password-found", "Number of passwords found.");
 	moduleConfig.createStat("count-password-not-found", "Number of passwords not found.");
 }
