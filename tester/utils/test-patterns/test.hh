@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,9 +20,7 @@
 
 #include <functional>
 #include <sstream>
-#include <stdexcept>
 #include <thread>
-#include <type_traits>
 
 #include <bctoolbox/tester.h>
 
@@ -72,14 +70,20 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 /**
  * Base macro for BC_ASSERT_CPP_EQUAL() and BC_HARD_ASSERT_CPP_EQUAL().
  */
-#define BC_ASSERT_CPP_EQUAL_BASE(assertFunction, value, expected)                                                      \
-	do {                                                                                                               \
+#define BC_ASSERT_CPP_EQUAL_BASE(assertFunction, valueExpr, expectedExpr)                                              \
+	[](const auto& value, const auto& expected) {                                                                      \
+		auto equal = false;                                                                                            \
+		if constexpr (std::is_integral_v<std::decay_t<decltype(expected)>>)                                            \
+			equal = value == static_cast<std::decay_t<decltype(value)>>(expected);                                     \
+		else equal = value == expected;                                                                                \
+                                                                                                                       \
 		std::ostringstream os{};                                                                                       \
-		os << "BC_ASSERT_CPP_EQUAL(" #value ", " #expected "), value: \"" << (value) << "\", expected: \""             \
-		   << (expected) << "\"";                                                                                      \
-		assertFunction(__FILE__, __LINE__, (value) == (expected) /* NOLINT(readability-container-size-empty) */,       \
-		               os.str().c_str());                                                                              \
-	} while (0)
+		if (!equal)                                                                                                    \
+			os << "BC_ASSERT_CPP_EQUAL(" #valueExpr ", " #expectedExpr "), value: \"" << value << "\", expected: \""   \
+			   << expected << "\"";                                                                                    \
+		assertFunction(__FILE__, __LINE__, equal, os.str().c_str());                                                   \
+	}((valueExpr), (expectedExpr));
+
 /**
  * Assert the equality of two expressions whatever their types. The '==' and '<<' operators must be declared for
  * the type of the two operands.
@@ -101,14 +105,18 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 /**
  * Base macro for BC_ASSERT_CPP_NOT_EQUAL() and BC_HARD_ASSERT_CPP_NOT_EQUAL().
  */
-#define BC_ASSERT_CPP_NOT_EQUAL_BASE(assertFunction, value, expected)                                                  \
-	do {                                                                                                               \
+#define BC_ASSERT_CPP_NOT_EQUAL_BASE(assertFunction, valueExpr, expectedExpr)                                          \
+	[](const auto& value, const auto& expected) {                                                                      \
+		auto equal = false;                                                                                            \
+		if constexpr (std::is_integral_v<std::decay_t<decltype(expected)>>)                                            \
+			equal = value == static_cast<std::decay_t<decltype(value)>>(expected);                                     \
+		else equal = value == expected;                                                                                \
+                                                                                                                       \
 		std::ostringstream os{};                                                                                       \
-		os << "BC_ASSERT_CPP_NOT_EQUAL(" #value ", " #expected "), value: " << (value)                                 \
-		   << ", expected: " << (expected);                                                                            \
-		assertFunction(__FILE__, __LINE__, (value) != (expected) /* NOLINT(readability-container-size-empty) */,       \
-		               os.str().c_str());                                                                              \
-	} while (0)
+		if (equal) os << "BC_ASSERT_CPP_NOT_EQUAL(" #valueExpr ", " #expectedExpr "), value: " << value;               \
+		assertFunction(__FILE__, __LINE__, !equal, os.str().c_str());                                                  \
+	}((valueExpr), (expectedExpr));
+
 /**
  * Same as BC_ASSERT_CPP_EQUAL() but test that the two expressions aren't equal.
  */
