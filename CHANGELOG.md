@@ -22,6 +22,8 @@ Group changes to describe their impact on the project, as follows:
 ### [Changed]
 - **Pusher:**
     - Default values of the push body are now empty instead of containing placeholders.
+- **EventLogs (`flexistats` backend):** Call event data sent to [`/statistics/calls`](https://subscribe.linphone.org/api#post-statisticscalls)
+      now also include a `sip_call_id` field with the value of the Call-ID header.
 
 ### [Removed]
 - **Proxy:**

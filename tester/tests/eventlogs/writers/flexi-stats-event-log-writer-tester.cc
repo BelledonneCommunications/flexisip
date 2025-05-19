@@ -67,7 +67,7 @@ void callStartedAndEnded() {
 	auto mike = builder.build(expectedTo);
 	const auto expectedDeviceId = mike.getGruu();
 
-	tony.call(mike);
+	const auto expectedCallId = tony.call(mike)->getCallLog()->getCallId();
 	// expect to received 3 event logs: INVITE, 180 Ringing, 200 OK
 
 	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
@@ -91,6 +91,7 @@ void callStartedAndEnded() {
 	json expectedJson = {
 	    {"from", expectedFrom},
 	    {"to", expectedTo},
+	    {"sip_call_id", expectedCallId},
 	    {"conference_id", nullptr},
 	    {"devices",
 	     {
@@ -331,7 +332,7 @@ void messageDeviceUnavailable() {
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 	BC_ASSERT_TRUE(before <= sentAt);
 	unordered_map<string, shared_ptr<Request>> deliveredEvents{};
-	auto emplaceDeliveredEvent = [&deliveredEvents](auto&& event) {
+	auto emplaceDeliveredEvent = [&deliveredEvents](auto event) {
 		BC_ASSERT(event != nullptr);
 		deliveredEvents.emplace(event->path, std::move(event));
 	};

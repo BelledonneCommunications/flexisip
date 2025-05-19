@@ -23,6 +23,7 @@
 namespace flexisip {
 
 SipEventLog::SipEventLog(const sip_t& sip)
-    : mFrom(::sip_from_dup(mHome.home(), sip.sip_from)), mTo(::sip_to_dup(mHome.home(), sip.sip_to)){};
+    : mFrom(::sip_from_dup(mHome.home(), sip.sip_from)), mTo(::sip_to_dup(mHome.home(), sip.sip_to)),
+      mCallId(::sip_call_id_dup(mHome.home(), sip.sip_call_id)) {};
 
 } // namespace flexisip

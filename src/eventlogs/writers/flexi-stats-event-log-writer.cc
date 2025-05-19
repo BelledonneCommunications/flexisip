@@ -20,7 +20,6 @@
 
 #include <optional>
 #include <string>
-#include <string_view>
 
 #include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
@@ -29,7 +28,6 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/events/messages/message-response-from-recipient-event-log.hh"
 #include "eventlogs/events/messages/message-sent-event-log.hh"
-#include "eventlogs/events/messages/with-message-kind.hh"
 #include "flexiapi/schemas/call/terminated.hh"
 #include "flexiapi/schemas/message/message.hh"
 #include "flexisip/logmanager.hh"
@@ -57,7 +55,15 @@ void FlexiStatsEventLogWriter::write(const CallStartedEventLog& call) {
 	}
 	const auto& to = *call.getTo()->a_url;
 	auto conferenceId = UriUtils::getConferenceId(to);
-	mRestClient.postCall({call.getId(), *call.getFrom()->a_url, to, devices, call.getTimestamp(), conferenceId});
+	mRestClient.postCall({
+	    call.getId(),
+	    call.getCallId()->i_id,
+	    *call.getFrom()->a_url,
+	    to,
+	    devices,
+	    call.getTimestamp(),
+	    conferenceId,
+	});
 }
 
 void FlexiStatsEventLogWriter::write(const CallRingingEventLog& call) {

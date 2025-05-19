@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -34,27 +34,29 @@ using namespace flexiapi;
 namespace tester::http_mock {
 
 time_t getTestDate() {
-	struct tm tm;
-	tm.tm_year = 2017 - 1900;
-	tm.tm_mon = 7 - 1;
-	tm.tm_mday = 21;
-	tm.tm_hour = 17;
-	tm.tm_min = 32;
-	tm.tm_sec = 28;
-	tm.tm_isdst = 0;
+	struct tm tm{
+	    .tm_sec = 28,
+	    .tm_min = 32,
+	    .tm_hour = 17,
+	    .tm_mday = 21,
+	    .tm_mon = 7 - 1,
+	    .tm_year = 2017 - 1900,
+	    .tm_isdst = 0,
+	};
 	return timegm(&tm);
 	/* return time_t for 2017-07-21T17:32:28Z */
 }
 
 time_t getTestDateAfter() {
-	struct tm tm;
-	tm.tm_year = 2017 - 1900;
-	tm.tm_mon = 7 - 1;
-	tm.tm_mday = 21;
-	tm.tm_hour = 18;
-	tm.tm_min = 32;
-	tm.tm_sec = 28;
-	tm.tm_isdst = 0;
+	struct tm tm{
+	    .tm_sec = 28,
+	    .tm_min = 32,
+	    .tm_hour = 18,
+	    .tm_mday = 21,
+	    .tm_mon = 7 - 1,
+	    .tm_year = 2017 - 1900,
+	    .tm_isdst = 0,
+	};
 	return timegm(&tm);
 	/* return time_t for 2017-07-21T18:32:28Z */
 }
@@ -75,8 +77,7 @@ public:
 		sendRequest(flexiStats);
 
 		BcAssert asserter{[this] { mRoot.step(1ms); }};
-		ASSERT_PASSED(asserter.iterateUpTo(
-		    10, [this] { return LOOP_ASSERTION(mRequestReceivedCount == 1); }, 70ms));
+		asserter.iterateUpTo(10, [this] { return LOOP_ASSERTION(mRequestReceivedCount == 1); }, 70ms).assert_passed();
 		BC_HARD_ASSERT_CPP_EQUAL(mRequestReceivedCount, 1);
 
 		httpMock.forceCloseServer();
@@ -262,6 +263,7 @@ protected:
 		};
 
 		Call call{"4722b0233fd8cafad3cdcafe5510fe57",
+		          "stub-call-id",
 		          *SipUri("sip:user@sip.linphone.org").get(),
 		          *SipUri("sip:user@sip.linphone.org").get(),
 		          callDevices,
@@ -284,6 +286,7 @@ protected:
 		auto expectedJson = R"(
 		{
 		  "id": "4722b0233fd8cafad3cdcafe5510fe57",
+		  "sip_call_id": "stub-call-id",
 		  "from": "user@sip.linphone.org",
 		  "to": "user@sip.linphone.org",
 		  "devices": {
@@ -316,6 +319,7 @@ class PostCallMinimalTest : public FlexiStatsTest {
 protected:
 	void sendRequest(FlexiStats& flexiStats) override {
 		Call call{"4722b0233fd8cafad3cdcafe5510fe57",
+		          "stub-call-id",
 		          *SipUri("sip:user@sip.linphone.org").get(),
 		          *SipUri("sip:user@sip.linphone.org").get(),
 		          CallDevices{},
@@ -338,6 +342,7 @@ protected:
 		auto expectedJson = R"(
 		{
 		  "id": "4722b0233fd8cafad3cdcafe5510fe57",
+		  "sip_call_id": "stub-call-id",
 		  "from": "user@sip.linphone.org",
 		  "to": "user@sip.linphone.org",
 		  "devices": {},

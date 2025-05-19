@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -25,12 +27,10 @@
 #include "flexiapi/schemas/iso-8601-date.hh"
 #include "flexiapi/schemas/optional-json.hh"
 #include "lib/nlohmann-json-3-11-2/json.hpp"
-#include "terminated.hh"
 
-#pragma once
+#undef sip_call_id
 
-namespace flexisip {
-namespace flexiapi {
+namespace flexisip::flexiapi {
 
 using CallDevices = std::unordered_map<std::string, std::optional<CallDeviceState>>;
 
@@ -39,20 +39,22 @@ class Call {
 
 public:
 	Call(const std::string& id,
+	     const std::string& sipCallId,
 	     const ApiFormattedUri& from,
 	     const ApiFormattedUri& to,
 	     const CallDevices& devices,
 	     const ISO8601Date& initiatedAt,
 	     const std::optional<std::string>& conferenceId = std::nullopt,
 	     const std::optional<ISO8601Date> endedAt = std::nullopt)
-	    : id(id), from(from), to(to), devices(devices), initiated_at(initiatedAt), ended_at(endedAt),
-	      conference_id(conferenceId) {
+	    : id(id), sip_call_id(sipCallId), from(from), to(to), devices(devices), initiated_at(initiatedAt),
+	      ended_at(endedAt), conference_id(conferenceId) {
 	}
 
-	NLOHMANN_DEFINE_TYPE_INTRUSIVE(Call, id, from, to, devices, initiated_at, ended_at, conference_id);
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(Call, id, sip_call_id, from, to, devices, initiated_at, ended_at, conference_id);
 
 private:
 	std::string id;
+	std::string sip_call_id;
 	ApiFormattedUri from;
 	ApiFormattedUri to;
 	CallDevices devices;
@@ -61,5 +63,4 @@ private:
 	std::optional<std::string> conference_id;
 };
 
-} // namespace flexiapi
-} // namespace flexisip
+} // namespace flexisip::flexiapi

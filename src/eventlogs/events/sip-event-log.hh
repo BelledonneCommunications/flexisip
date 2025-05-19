@@ -35,6 +35,9 @@ public:
 	const sip_to_t* getTo() const {
 		return mTo;
 	}
+	const sip_call_id_t* getCallId() const {
+		return mCallId;
+	}
 
 protected:
 	sofiasip::Home mHome{};
@@ -42,6 +45,7 @@ protected:
 private:
 	const sip_from_t* const mFrom;
 	const sip_to_t* const mTo;
+	const sip_call_id_t* const mCallId;
 };
 
 } // namespace flexisip
