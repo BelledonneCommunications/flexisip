@@ -18,8 +18,6 @@
 
 #include "eventlogs/events/event-id.hh"
 
-#include <algorithm>
-#include <functional>
 #include <string>
 
 #include "utils/digest.hh"
@@ -30,14 +28,20 @@ using namespace std;
 
 EventId::EventId(const sip_t& sip)
     : mHash([&sip] {
-	      const auto toUrl = sip.sip_to->a_url;
-	      const auto fromUrl = sip.sip_from->a_url;
-	      const auto toIdentity{toUrl->url_user ? toUrl->url_user : "" + "@"s + toUrl->url_host};
-	      const auto fromIdentity{fromUrl->url_user ? fromUrl->url_user : "" + "@"s + fromUrl->url_host};
+	      const auto* fromUrl = sip.sip_from->a_url;
+	      auto first = string(fromUrl->url_user);
+	      first.append(fromUrl->url_host);
 
-	      const auto sortedIdentities = minmax(toIdentity, fromIdentity);
+	      const auto* toUrl = sip.sip_to->a_url;
+	      auto second = string(toUrl->url_user);
+	      second.append(toUrl->url_host);
 
-	      return Sha256{}.compute<string>(sip.sip_call_id->i_id + sortedIdentities.first + sortedIdentities.second);
+	      if (second < first) first.swap(second);
+
+	      first.append(second);
+	      first.append(sip.sip_call_id->i_id);
+
+	      return Sha256{}.compute<string>(first);
       }()) {
 }
 
