@@ -20,6 +20,7 @@
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
+#include "utils/digest.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -32,6 +33,8 @@ namespace {
 
 /*
  * Test: event ID calculation is not sensitive to inversion of "From" and "To" header values for the same "Call-ID".
+ *
+ * This happens in BYE messages, which must still be linked to the same event
  */
 void eventIdCreatedFromByeComingFromCallerOrCallee() {
 	string callId{"stub-call-id"};
@@ -84,10 +87,107 @@ void eventIdCreatedUsingUrisWithEmptyUserParts() {
 	BC_ASSERT(!string{EventId{*msg.getSip()}}.empty());
 }
 
+struct MockEvent {
+	struct Url {
+		const char* user;
+		const char* host;
+	};
+
+	Url from;
+	Url to;
+	const char* callId;
+
+	string id() const {
+		auto fromStruct = sip_from_t{
+		    .a_url = {url_t{
+		        .url_user = from.user,
+		        .url_host = from.host,
+		    }},
+		};
+		auto toStruct = sip_to_t{
+		    .a_url = {url_t{
+		        .url_user = to.user,
+		        .url_host = to.host,
+		    }},
+		};
+		auto callIdStruct = sip_call_id_t{.i_id = callId};
+
+		return EventId(sip_t{
+		    .sip_from = &fromStruct,
+		    .sip_to = &toStruct,
+		    .sip_call_id = &callIdStruct,
+		});
+	}
+};
+
+/** Example of how the hash is constructed. Update it when needed
+ */
+void hashInputConstruction() {
+	const auto expected = Sha256().compute<string>("A-from-userB-from-hostC-to-userD-to-hostE-call-id"s);
+
+	BC_ASSERT_CPP_EQUAL((MockEvent{.from =
+	                                   {
+	                                       .user = "A-from-user",
+	                                       .host = "B-from-host",
+	                                   },
+	                               .to =
+	                                   {
+	                                       .user = "C-to-user",
+	                                       .host = "D-to-host",
+	                                   },
+	                               .callId = "E-call-id"}
+	                         .id()),
+	                    expected);
+	BC_ASSERT_CPP_EQUAL((MockEvent{.from =
+	                                   {
+	                                       .user = "C-to-user",
+	                                       .host = "D-to-host",
+	                                   },
+	                               .to =
+	                                   {
+	                                       .user = "A-from-user",
+	                                       .host = "B-from-host",
+	                                   },
+	                               .callId = "E-call-id"}
+	                         .id()),
+	                    expected);
+}
+
+/** Quirks in previous implementations
+ */
+void collisions() {
+	BC_ASSERT_CPP_NOT_EQUAL((MockEvent{.from =
+	                                       {
+	                                           .user = "A-from-user",
+	                                           .host = "B-from-host",
+	                                       },
+	                                   .to =
+	                                       {
+	                                           .user = "C-to-user",
+	                                           .host = "D-to-host",
+	                                       },
+	                                   .callId = "E-call-id"}
+	                             .id()),
+	                        (MockEvent{.from =
+	                                       {
+	                                           .user = "C-to-user",
+	                                           .host = "F-different-host",
+	                                       },
+	                                   .to =
+	                                       {
+	                                           .user = "A-from-user",
+	                                           .host = "G-different-host",
+	                                       },
+	                                   .callId = "E-call-id"}
+	                             .id()));
+}
+
 TestSuite _("EventId",
             {
                 CLASSY_TEST(eventIdCreatedFromByeComingFromCallerOrCallee),
                 CLASSY_TEST(eventIdCreatedUsingUrisWithEmptyUserParts),
+                CLASSY_TEST(hashInputConstruction),
+                CLASSY_TEST(collisions),
             });
 
 } // namespace
