@@ -54,7 +54,7 @@ public:
 		mCountSent = countSent;
 	}
 
-	const std::map<std::string, std::shared_ptr<Client>> getClients() {
+	const std::map<std::string, std::shared_ptr<Client>>& getClients() {
 		return mClients;
 	}
 
@@ -63,8 +63,8 @@ public:
 	void setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol);
 	void setupiOSClient(const std::string& certDir, const std::string& caFile);
 	void setupFirebaseClients(const GenericStruct* pushConfig);
-	void addFirebaseClient(const std::string& appId, const std::string& apiKey = "");
 	void addFirebaseV1Client(const std::string& appId,
+	                         const std::filesystem::path& tokenScriptPath,
 	                         const std::filesystem::path& serviceAccountFilePath,
 	                         const std::chrono::milliseconds& defaultRefreshInterval,
 	                         const std::chrono::milliseconds& tokenExpirationAnticipationTime);

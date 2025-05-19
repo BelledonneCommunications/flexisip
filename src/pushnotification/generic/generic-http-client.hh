@@ -43,9 +43,7 @@ public:
 	                  unsigned maxQueueSize,
 	                  const Service* service);
 
-	std::shared_ptr<Request> makeRequest(PushType,
-	                                     const std::shared_ptr<const PushInfo>&,
-	                                     const std::map<std::string, std::shared_ptr<Client>>&) override;
+	std::shared_ptr<Request> makeRequest(PushType, const std::shared_ptr<const PushInfo>&) override;
 };
 } // namespace pushnotification
 } // namespace flexisip

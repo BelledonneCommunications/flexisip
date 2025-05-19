@@ -40,9 +40,7 @@ FirebaseV1Client::FirebaseV1Client(sofiasip::SuRoot& root,
 	mHttp2Client = Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT, std::move(authenticationManager));
 }
 
-std::shared_ptr<Request> FirebaseV1Client::makeRequest(PushType pType,
-                                                       const shared_ptr<const PushInfo>& pInfo,
-                                                       const map<std::string, std::shared_ptr<Client>>&) {
+std::shared_ptr<Request> FirebaseV1Client::makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) {
 	return make_shared<FirebaseV1Request>(pType, pInfo, mProjectId);
 }
 

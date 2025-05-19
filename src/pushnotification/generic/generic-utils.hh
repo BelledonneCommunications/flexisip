@@ -32,10 +32,8 @@ public:
 	/**
 	 * Replace args in the input string with values contained in pushInfo, pushType and authKey.
 	 */
-	static void substituteArgs(std::string& input,
-	                           const std::shared_ptr<const PushInfo>& pushInfo,
-	                           PushType pushType,
-	                           const std::string& authKey) noexcept;
+	static void
+	substituteArgs(std::string& input, const std::shared_ptr<const PushInfo>& pushInfo, PushType pushType) noexcept;
 
 	/**
 	 * If the push notification is a Firebase one, get the Firebase AuthKey from the right FirebaseClient, if it exist.

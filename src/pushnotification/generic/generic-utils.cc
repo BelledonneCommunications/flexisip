@@ -18,7 +18,6 @@
 
 #include "generic-utils.hh"
 
-#include "pushnotification/firebase/firebase-client.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -57,8 +56,7 @@ GenericUtils::getLegacyParams(const std::shared_ptr<const PushInfo> pushInfo, Pu
 
 void GenericUtils::substituteArgs(std::string& input,
                                   const std::shared_ptr<const PushInfo>& pushInfo,
-                                  PushType pushType,
-                                  const std::string& authKey) noexcept {
+                                  PushType pushType) noexcept {
 	auto [pnType, appID, pnTok] = getLegacyParams(pushInfo, pushType);
 	map<string, string, std::less<>> keyValues{{"$type", pnType},
 	                                           {"$token", pnTok},
@@ -71,8 +69,7 @@ void GenericUtils::substituteArgs(std::string& input,
 	                                           {"$event", pushInfo->mEvent},
 	                                           {"$uid", pushInfo->mUid},
 	                                           {"$msgid", pushInfo->mAlertMsgId},
-	                                           {"$sound", pushInfo->mAlertSound},
-	                                           {"$api-key", authKey}};
+	                                           {"$sound", pushInfo->mAlertSound}};
 
 	for (const auto& [key, value] : keyValues) {
 		auto pos = input.find(key);
@@ -81,24 +78,6 @@ void GenericUtils::substituteArgs(std::string& input,
 			input.replace(pos, key.size(), valueEscaped);
 		}
 	}
-}
-
-std::string GenericUtils::getFirebaseAuthKey(flexisip::pushnotification::PushType pType,
-                                             const shared_ptr<const PushInfo>& pInfo,
-                                             const map<std::string, std::shared_ptr<Client>>& allClients) {
-	const auto& destination = pInfo->getDestination(pType);
-	if (destination.getProvider() == "fcm") {
-		const auto& projectID = destination.getParam();
-		auto it = allClients.find(projectID);
-		// The client may not exist if 'module::PushNotification/firebase' parameter is 'false', which isn't
-		// unusual in GenericPush use case.
-		if (it != allClients.end()) {
-			const auto& client = dynamic_pointer_cast<FirebaseClient>(it->second);
-			return client->getApiKey();
-		}
-	}
-
-	return "";
 }
 
 } // namespace flexisip::pushnotification

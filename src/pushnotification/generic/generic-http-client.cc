@@ -50,16 +50,8 @@ std::unique_ptr<GenericHttpClient> GenericHttpClient::makeUnique(
 	                                      service);
 }
 
-std::shared_ptr<Request>
-GenericHttpClient::makeRequest(PushType pType,
-                               const std::shared_ptr<const PushInfo>& pInfo,
-                               const std::map<std::string, std::shared_ptr<Client>>& allClients) {
-	auto request = make_shared<GenericHttpRequest>(pType, pInfo);
-
-	// Set the authentication key in case the native PNR is for the Firebase service.
-	request->setFirebaseAuthKey(GenericUtils::getFirebaseAuthKey(pType, pInfo, allClients));
-
-	return request;
+std::shared_ptr<Request> GenericHttpClient::makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) {
+	return make_shared<GenericHttpRequest>(pType, pInfo);
 }
 
 } // namespace flexisip::pushnotification

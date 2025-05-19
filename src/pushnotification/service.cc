@@ -30,10 +30,10 @@
 
 #include "apple/apple-client.hh"
 #include "firebase-v1/firebase-v1-client.hh"
-#include "firebase/firebase-client.hh"
 #include "generic/generic-http-client.hh"
 #include "generic/generic-http-request.hh"
 #include "generic/generic-http2-client.hh"
+#include "push-notification-exceptions.hh"
 #include "utils/transport/tls-connection.hh"
 
 using namespace std;
@@ -82,7 +82,7 @@ std::shared_ptr<Request> Service::makeRequest(PushType pType, const std::shared_
 	// Create a generic request if the generic client has been set.
 	auto genericClient = mClients.find(sGenericClientName);
 	if (genericClient != mClients.cend() && genericClient->second != nullptr) {
-		return genericClient->second->makeRequest(pType, pInfo, mClients);
+		return genericClient->second->makeRequest(pType, pInfo);
 	}
 
 	// No generic client set, then create a native request for the target platform.
@@ -160,14 +160,7 @@ void Service::setupiOSClient(const std::string& certDir, const std::string& caFi
 
 void Service::setupFirebaseClients(const GenericStruct* pushConfig) {
 
-	const auto firebaseKeys = pushConfig->get<ConfigStringList>("firebase-projects-api-keys")->read();
 	const auto firebaseServiceAccounts = pushConfig->get<ConfigStringList>("firebase-service-accounts")->read();
-
-	// First, add firebase clients indicated in firebase-projects-api-keys.
-	for (const auto& keyval : firebaseKeys) {
-		size_t sep = keyval.find(":");
-		addFirebaseClient(keyval.substr(0, sep), keyval.substr(sep + 1));
-	}
 
 	const auto defaultRefreshInterval = chrono::duration_cast<chrono::milliseconds>(
 	    chrono::seconds(pushConfig->get<ConfigInt>("firebase-default-refresh-interval")->read()));
@@ -187,26 +180,22 @@ void Service::setupFirebaseClients(const GenericStruct* pushConfig) {
 			                    "for the same appId.");
 		}
 
-		addFirebaseV1Client(appId, filePath, defaultRefreshInterval, tokenExpirationAnticipationTime);
+		addFirebaseV1Client(appId, FIREBASE_GET_ACCESS_TOKEN_SCRIPT_PATH, filePath, defaultRefreshInterval,
+		                    tokenExpirationAnticipationTime);
 	}
 }
 
-void Service::addFirebaseClient(const std::string& appId, const std::string& apiKey) {
-	mClients[appId] = make_unique<FirebaseClient>(*mRoot, apiKey, this);
-	LOGI << "Added firebase push notification client [" << appId << "]";
-}
-
 void Service::addFirebaseV1Client(const std::string& appId,
+                                  const std::filesystem::path& tokenScriptPath,
                                   const std::filesystem::path& serviceAccountFilePath,
                                   const std::chrono::milliseconds& defaultRefreshInterval,
                                   const std::chrono::milliseconds& tokenExpirationAnticipationTime) {
 
-	mClients[appId] =
-	    make_unique<FirebaseV1Client>(*mRoot,
-	                                  make_shared<FirebaseV1AuthenticationManager>(
-	                                      mRoot, FIREBASE_GET_ACCESS_TOKEN_SCRIPT_PATH, serviceAccountFilePath,
-	                                      defaultRefreshInterval, tokenExpirationAnticipationTime),
-	                                  this);
+	mClients[appId] = make_unique<FirebaseV1Client>(
+	    *mRoot,
+	    make_shared<FirebaseV1AuthenticationManager>(mRoot, tokenScriptPath, serviceAccountFilePath,
+	                                                 defaultRefreshInterval, tokenExpirationAnticipationTime),
+	    this);
 	LOGI << "Added firebase v1 push notification client [" << appId << "]";
 }
 

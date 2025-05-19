@@ -212,13 +212,6 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	        },
 	        {
 	            StringList,
-	            "firebase-projects-api-keys",
-	            "List of pairs of <Firebase Project Number>:<Firebase Cloud Messaging API (Legacy) Server Key> for "
-	            "each Android project that supports push notifications.",
-	            "",
-	        },
-	        {
-	            StringList,
 	            "firebase-service-accounts",
 	            "List of pairs of <Firebase Project Number>:<Path to service account json file> for each Android "
 	            "project that supports push notifications.",
@@ -251,8 +244,6 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	            " - $token: Corresponds to the value of the 'pn-prid' push parameter. For Apple devices, 'pn-prid' may "
 	            "contain multiple tokens depending on the notification type ('remote' or 'voip'). In such cases, "
 	            "$token is replaced by the relevant token matching the notification type.\n"
-	            " - $api-key: Deprecated placeholder for the Firebase API key. It's advised that the designated server "
-	            "manages the authentication credentials.\n"
 	            " - $app-id: An identifier for the application. On Android, it matches the value of 'pn-param'. On "
 	            "Apple, it matches the string between the first and last dot ('.') of 'pn-param'. For example, if "
 	            "'pn-param' is 'ABCD1234.org.my-app.remote&voip', $app-id becomes 'org.my-app'.\n"
@@ -309,9 +300,23 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	            "lifetime.",
 	            "50",
 	        },
+	        // Deprecated parameters
+	        {
+	            StringList,
+	            "firebase-projects-api-keys",
+	            "List of pairs of <Firebase Project Number>:<Firebase Cloud Messaging API (Legacy) Server Key> for "
+	            "each Android project that supports push notifications.\n"
+	            "Not used anymore.",
+	            "",
+	        },
 	        config_item_end,
 	    };
 	    moduleConfig.addChildrenValues(items);
+
+	    moduleConfig.get<ConfigStringList>("firebase-projects-api-keys")
+	        ->setDeprecated({"2025-05-19", "2.6.0",
+	                         "firebase-projects-api-keys parameter isn't supported anymore as it was only used for "
+	                         "Firebase. Use FirebaseV1 instead."});
 
 	    moduleConfig.createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	    moduleConfig.createStat("count-pn-sent", "Number of push notifications successfully sent");

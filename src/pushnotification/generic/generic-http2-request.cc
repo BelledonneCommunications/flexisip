@@ -27,12 +27,11 @@ GenericHttp2Request::GenericHttp2Request(PushType pType,
                                          Method method,
                                          const std::string& host,
                                          const std::string& port,
-                                         const std::string& authKey,
                                          std::string path,
                                          std::string urlParameters)
     : Request(pType, pInfo) {
-	GenericUtils::substituteArgs(path, mPInfo, mPType, authKey);
-	GenericUtils::substituteArgs(urlParameters, mPInfo, mPType, authKey);
+	GenericUtils::substituteArgs(path, mPInfo, mPType);
+	GenericUtils::substituteArgs(urlParameters, mPInfo, mPType);
 
 	HttpHeaders headers{};
 	headers.add(":method", method == Method::HttpPost ? "POST" : "GET");

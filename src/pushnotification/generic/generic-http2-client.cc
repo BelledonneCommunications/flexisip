@@ -20,7 +20,6 @@
 
 #include "generic-http2-request.hh"
 #include "generic-utils.hh"
-#include "pushnotification/firebase/firebase-client.hh"
 
 using namespace std;
 
@@ -38,6 +37,27 @@ GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
 	mHttp2Client = Http2Client::make(root, mHost, mPort);
 }
 
+GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
+                                       const std::string& apiKey,
+                                       JsonBodyGenerationFunc&& jsonBodyGeneratorFunc,
+                                       sofiasip::SuRoot& root,
+                                       Service* pushService,
+                                       const std::shared_ptr<Http2Client>& http2Client)
+    : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")},
+      mHost{url.getHost()}, mPort{url.getPort(true)}, mUrlParameters{url.getHeaders()}, mApiKey(apiKey),
+      mMethod{Method::HttpPost}, mJsonBodyGenerationFunc(std::move(jsonBodyGeneratorFunc)) {
+	const auto urlPath = url.getPath();
+	mPath = !urlPath.empty() ? "/" + urlPath : "";
+
+	if (http2Client != nullptr) {
+		mHttp2Client = http2Client;
+	} else {
+		LOGD << "Constructing client";
+
+		mHttp2Client = Http2Client::make(root, mHost, mPort);
+	}
+}
+
 void GenericHttp2Client::sendPush(const shared_ptr<Request>& request) {
 	auto genericReq = dynamic_pointer_cast<GenericHttp2Request>(request);
 	genericReq->setState(Request::State::InProgress);
@@ -48,12 +68,8 @@ void GenericHttp2Client::sendPush(const shared_ptr<Request>& request) {
 }
 
 std::shared_ptr<Request> GenericHttp2Client::makeRequest(flexisip::pushnotification::PushType pType,
-                                                         const shared_ptr<const PushInfo>& pInfo,
-                                                         const map<std::string, std::shared_ptr<Client>>& allClients) {
-	// Get the authentication key in case the native PNR is for the Firebase service.
-	std::string authKey = GenericUtils::getFirebaseAuthKey(pType, pInfo, allClients);
-
-	return make_shared<GenericHttp2Request>(pType, pInfo, mMethod, mHost, mPort, authKey, mPath, mUrlParameters);
+														 const shared_ptr<const PushInfo>& pInfo) {
+	return make_shared<GenericHttp2Request>(pType, pInfo, mMethod, mHost, mPort, mPath, mUrlParameters);
 }
 
 void GenericHttp2Client::onResponse(const shared_ptr<HttpMessage>& request, const shared_ptr<HttpResponse>& response) {

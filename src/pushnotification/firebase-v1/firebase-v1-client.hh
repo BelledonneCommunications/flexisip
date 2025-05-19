@@ -47,9 +47,7 @@ public:
 	 * @param req The request to send, this MUST be of FirebaseV1Request type.
 	 */
 	void sendPush(const std::shared_ptr<Request>& req) override;
-	std::shared_ptr<Request> makeRequest(PushType,
-	                                     const std::shared_ptr<const PushInfo>&,
-	                                     const std::map<std::string, std::shared_ptr<Client>>& = {}) override;
+	std::shared_ptr<Request> makeRequest(PushType, const std::shared_ptr<const PushInfo>&) override;
 
 	[[nodiscard]] bool isIdle() const noexcept override {
 		return mHttp2Client->isIdle();

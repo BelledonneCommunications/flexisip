@@ -222,9 +222,7 @@ public:
 		});
 	}
 
-	std::shared_ptr<Request> makeRequest(PushType pType,
-	                                     const shared_ptr<const PushInfo>& pInfo,
-	                                     const map<std::string, std::shared_ptr<Client>>& = {}) override {
+	std::shared_ptr<Request> makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) override {
 		return make_shared<Request>(pType, pInfo);
 	}
 
@@ -719,9 +717,7 @@ private:
 			}
 		}
 
-		std::shared_ptr<Request> makeRequest(PushType pType,
-		                                     const shared_ptr<const PushInfo>& pInfo,
-		                                     const map<std::string, std::shared_ptr<Client>>& = {}) override {
+		std::shared_ptr<Request> makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) override {
 			return make_shared<Request>(pType, pInfo);
 		}
 
@@ -919,21 +915,23 @@ constexpr test_t makeTest(const char* aName) {
 }
 
 namespace {
-TestSuite _("Module push-notification", {
-	TEST_NO_TAG("PushNotification::needsPush full covering test", needsPushTests),
-	    makeTest<PushIsNotSentOnInviteWithReplacesHeader>("Push is not sent on Invite with Replaces Header"),
-	    makeTest<CallInviteOnOfflineDevice<Android>>("Call invite on offline device (Android)"),
-	    makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
-	    makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
-	    makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
-	        "Call invite on offline device (iOS, Remote only)"),
+TestSuite
+    _("Module push-notification",
+      {
+          TEST_NO_TAG("PushNotification::needsPush full covering test", needsPushTests),
+          makeTest<PushIsNotSentOnInviteWithReplacesHeader>("Push is not sent on Invite with Replaces Header"),
+          makeTest<CallInviteOnOfflineDevice<Android>>("Call invite on offline device (Android)"),
+          makeTest<CallInviteOnOfflineDevice<IOS>>("Call invite on offline device (iOS)"),
+          makeTest<CallInviteOnOfflineDevice<IOSVoIPOnly>>("Call invite on offline device (iOS, VoIP only)"),
+          makeTest<CallInviteOnOfflineDevice<IOSRemoteOnly, RingingRemotePNHandler>>(
+              "Call invite on offline device (iOS, Remote only)"),
 #if !__APPLE__
-	    makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
+          makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
 #endif
-	    makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
-	    makeTest<OnPushSentToTagParameterAdded>("To tag parameter added when OnPushSent is triggered"),
-	    makeTest<OnPushSentToTagParameterNotAdded>("To tag parameter not added when OnPushSent is triggered"),
-});
+          makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
+          makeTest<OnPushSentToTagParameterAdded>("To tag parameter added when OnPushSent is triggered"),
+          makeTest<OnPushSentToTagParameterNotAdded>("To tag parameter not added when OnPushSent is triggered"),
+      });
 } // namespace
 } // namespace tester
 } // namespace flexisip

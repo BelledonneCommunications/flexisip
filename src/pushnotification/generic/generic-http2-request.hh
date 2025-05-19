@@ -32,7 +32,6 @@ public:
 	                    Method method,
 	                    const std::string& host,
 	                    const std::string& port,
-	                    const std::string& authKey,
 	                    std::string path,         // copy needed
 	                    std::string urlParameters // copy needed
 	);

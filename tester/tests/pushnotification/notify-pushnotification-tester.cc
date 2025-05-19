@@ -89,8 +89,7 @@ public:
 
 	std::shared_ptr<pushnotification::Request>
 	makeRequest(pushnotification::PushType pType,
-	            const std::shared_ptr<const pushnotification::PushInfo>& pInfo,
-	            const std::map<std::string, std::shared_ptr<Client>>& = {}) override {
+	            const std::shared_ptr<const pushnotification::PushInfo>& pInfo) override {
 		return std::make_shared<pushnotification::Request>(pType, pInfo);
 	}
 

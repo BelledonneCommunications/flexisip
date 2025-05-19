@@ -34,18 +34,13 @@ public:
 	const std::vector<char>& getData(const sofiasip::Url& url, Method method) override;
 	std::string isValidResponse(const std::string& str) override;
 
-	void setFirebaseAuthKey(std::string_view aAuthKey) noexcept {
-		mFirebaseAuthKey = aAuthKey;
-	}
-
 	bool isServerAlwaysResponding() override {
 		return true;
 	}
 
 private:
 	// Private attributes
-	std::vector<char> mBuffer{};    /**< Buffer returned by getData(). */
-	std::string mFirebaseAuthKey{}; /**< Authentication key required by Firebase service. */
+	std::vector<char> mBuffer{}; /**< Buffer returned by getData(). */
 	std::string mLogPrefix;
 };
 

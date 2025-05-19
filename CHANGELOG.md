@@ -21,6 +21,9 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Removed]
 - **Proxy:**
+    - Old Firebase API as it is not supported anymore to send push notifications.
+    - `$api-key` is not supported anymore in `module::PushNotification/external-push-uri`. Old Firebase is thus not 
+      supported anymore in the external pusher. 
     - Parameter `module::PushNotification/google` (deprecated in 2.0.0)
     - Parameter `module::PushNotification/google-project-api-keys` (deprecated in 2.0.0)
     - Parameter `module::PushNotification/time-to-live` (deprecated in 2.0.0)

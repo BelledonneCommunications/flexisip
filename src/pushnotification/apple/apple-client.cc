@@ -43,9 +43,7 @@ AppleClient::AppleClient(sofiasip::SuRoot& root,
 	mHttp2Client = Http2Client::make(root, apn_server, APN_PORT, trustStorePath, certPath);
 }
 
-std::shared_ptr<Request> AppleClient::makeRequest(PushType pType,
-                                                  const shared_ptr<const PushInfo>& pInfo,
-                                                  const map<std::string, std::shared_ptr<Client>>&) {
+std::shared_ptr<Request> AppleClient::makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) {
 	return make_shared<AppleRequest>(pType, pInfo);
 }
 

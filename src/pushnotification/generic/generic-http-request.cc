@@ -40,8 +40,8 @@ const std::vector<char>& GenericHttpRequest::getData(const sofiasip::Url& url, M
 	auto path = url.getPath();
 	auto headers = url.getHeaders();
 
-	GenericUtils::substituteArgs(path, mPInfo, mPType, mFirebaseAuthKey);
-	GenericUtils::substituteArgs(headers, mPInfo, mPType, mFirebaseAuthKey);
+	GenericUtils::substituteArgs(path, mPInfo, mPType);
+	GenericUtils::substituteArgs(headers, mPInfo, mPType);
 
 	ostringstream httpMessage{};
 	httpMessage << methodStr << " /" << path;

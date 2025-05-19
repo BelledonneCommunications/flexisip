@@ -37,9 +37,7 @@ public:
 	GenericHttp2Client(const sofiasip::Url& url, Method method, sofiasip::SuRoot& root, Service* pushService = nullptr);
 
 	void sendPush(const std::shared_ptr<Request>& request) override;
-	std::shared_ptr<Request> makeRequest(flexisip::pushnotification::PushType,
-	                                     const std::shared_ptr<const PushInfo>&,
-	                                     const std::map<std::string, std::shared_ptr<Client>>& = {}) override;
+	std::shared_ptr<Request> makeRequest(PushType, const std::shared_ptr<const PushInfo>&) override;
 
 	bool isIdle() const noexcept override {
 		return mHttp2Client->isIdle();

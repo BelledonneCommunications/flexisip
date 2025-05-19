@@ -38,9 +38,8 @@
 #include "pushnotification/contact-expiration-notifier.hh"
 #include "pushnotification/firebase-v1/firebase-v1-client.hh"
 #include "pushnotification/firebase-v1/firebase-v1-request.hh"
-#include "pushnotification/firebase/firebase-client.hh"
-#include "pushnotification/firebase/firebase-request.hh"
 #include "pushnotification/generic/generic-http2-client.hh"
+#include "pushnotification/push-notification-exceptions.hh"
 #include "tester.hh"
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
@@ -133,27 +132,6 @@ static void startApplePushTest(PushType pType,
 }
 
 /**
- * Common method to run a test for the firebase client
- */
-static void startFirebasePushTest(PushType pType,
-                                  const std::shared_ptr<PushInfo>& pushInfo,
-                                  const string& reqBodyPattern,
-                                  int responseCode,
-                                  const string& responseBody,
-                                  Request::State expectedFinalState,
-                                  bool timeout = false) {
-	FirebaseClient::FIREBASE_ADDRESS = "127.0.0.1";
-	FirebaseClient::FIREBASE_PORT = "3000";
-	FirebaseClient firebaseClient{*root, ""};
-	firebaseClient.enableInsecureTestMode();
-
-	auto request = make_shared<FirebaseRequest>(pType, pushInfo);
-
-	startPushTest(firebaseClient, std::move(request), reqBodyPattern, responseCode, responseBody, expectedFinalState,
-	              timeout);
-}
-
-/**
  * Common method to run a test for the firebase v1 client
  */
 static void startFirebaseV1PushTest(PushType pType,
@@ -235,76 +213,6 @@ static void genericPushTestTimeout() {
 	pushInfo->mCallId = "callID";
 
 	startGenericPushTest(PushType::Background, pushInfo, pushInfo->mText, 200, "ok", Request::State::Failed, true);
-}
-
-static void firebasePushTestOk() {
-	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
-	auto pushInfo = make_shared<PushInfo>();
-	pushInfo->addDestination(dest);
-	pushInfo->mFromName = "PushTestOk";
-	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo->mTtl = 42s;
-	pushInfo->mUid = "a-uid-42";
-
-	string reqBodyPattern{R"json(\{
-	"to":"",
-	"time_to_live": 42,
-	"priority":"high",
-	"data":\{
-		"uuid":"a-uid-42",
-		"from-uri":"sip:kijou@sip.linphone.org",
-		"display-name":"PushTestOk",
-		"call-id":"",
-		"sip-from":"PushTestOk",
-		"loc-key":"",
-		"loc-args":"PushTestOk",
-		"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"
-		"custom-payload":\{\}
-	\}
-\})json"};
-
-	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 200, "ok", Request::State::Successful);
-}
-
-static void firebasePushTestKo() {
-	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
-	auto pushInfo = make_shared<PushInfo>();
-	pushInfo->addDestination(dest);
-	pushInfo->mAlertMsgId = "MessID";
-	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
-	pushInfo->mCallId = "CallID";
-	pushInfo->mTtl = (4 * 7 * 24h) + 1s; // intentionally set more than the allowed 4 weeks
-
-	string reqBodyPattern{R"json(\{
-	"to":"",
-	"time_to_live": 2419200,
-	"priority":"high",
-	"data":\{
-		"uuid":"",
-		"from-uri":"sip:kijou@sip.linphone.org",
-		"display-name":"",
-		"call-id":"CallID",
-		"sip-from":"sip:kijou@sip.linphone.org",
-		"loc-key":"MessID",
-		"loc-args":"sip:kijou@sip.linphone.org",
-		"send-time":"[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}"
-		"custom-payload":\{\}
-	\}
-\})json"};
-
-	startFirebasePushTest(PushType::Background, pushInfo, reqBodyPattern, 500, "Internal error",
-	                      Request::State::Failed);
-}
-
-static void firebasePushTestTimeout() {
-	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
-	auto pushInfo = make_shared<PushInfo>();
-	pushInfo->addDestination(dest);
-	pushInfo->mFromName = "PushTest";
-	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
-
-	// Request body pattern not checked during timeout test.
-	startFirebasePushTest(PushType::Background, pushInfo, "", 200, "Ok", Request::State::Failed, true);
 }
 
 static void firebaseV1PushTestOk() {
@@ -622,9 +530,12 @@ static void applePushTestConnectErrorAndReconnect() {
 }
 
 static void tlsTimeoutTest() {
-	FirebaseClient::FIREBASE_ADDRESS = "127.0.0.1";
-	FirebaseClient::FIREBASE_PORT = "3000";
-	FirebaseClient firebaseClient{*root, ""};
+	FirebaseV1Client::FIREBASE_ADDRESS = "127.0.0.1";
+	FirebaseV1Client::FIREBASE_PORT = "3000";
+	FirebaseV1Client firebaseClient{
+	    *root, make_shared<FirebaseV1AuthenticationManager>(
+	               root, FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
+	               FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json", 15s, 30s)};
 	firebaseClient.enableInsecureTestMode();
 	firebaseClient.getHttp2Client()->getConnection()->setTimeout(500ms);
 
@@ -634,10 +545,10 @@ static void tlsTimeoutTest() {
 	pushInfo->addDestination(dest);
 
 	constexpr auto pType = PushType::Background;
-	auto request = make_shared<FirebaseRequest>(pType, pushInfo);
-	auto request2 = make_shared<FirebaseRequest>(pType, pushInfo);
-	auto request3 = make_shared<FirebaseRequest>(pType, pushInfo);
-	auto request4 = make_shared<FirebaseRequest>(pType, pushInfo);
+	auto request = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
+	auto request2 = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
+	auto request3 = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
+	auto request4 = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
 
 	std::promise<void> barrier{};
 	// Start listening on port 3000 with no response to simulate tls timeout
@@ -697,8 +608,8 @@ public:
 class TestNotifyExpiringContact : public RegistrarDbTest<DbImplementation::Internal> {
 public:
 	TestNotifyExpiringContact() {
-		FirebaseClient::FIREBASE_ADDRESS = "127.0.0.1";
-		FirebaseClient::FIREBASE_PORT = suitePort;
+		FirebaseV1Client::FIREBASE_ADDRESS = "127.0.0.1";
+		FirebaseV1Client::FIREBASE_PORT = suitePort;
 	}
 
 protected:
@@ -723,7 +634,9 @@ protected:
 		ContactExpirationNotifier notifier(interval, threshold, mRoot, service, regDb);
 
 		auto appId = "fakeAppId";
-		service->addFirebaseClient(appId);
+		service->addFirebaseV1Client(
+		    appId, FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
+		    FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json", 15s, 30s);
 		ContactInserter inserter{regDb};
 		inserter.setExpire(maxExpiration)
 		    .setAor(Contact("sip:expected2@example.org").withFirebasePushParams(appId))
@@ -880,24 +793,21 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 	BC_ASSERT_EQUAL(respondedCount, sentCount, uint32_t, "%i");
 }
 
-TestSuite _("Push notification",
+TestSuite _("PushNotification",
             {
                 TEST_NO_TAG("TestNotifyExpiringContact", run<TestNotifyExpiringContact>),
                 TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
-                TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
                 TEST_NO_TAG("FirebaseV1 push notification test OK", firebaseV1PushTestOk),
                 TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
                 TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),
                 TEST_NO_TAG("Apple push notification test OK RemoteWithMutableContent",
                             applePushTestOkRemoteWithMutableContent),
-                TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
                 TEST_NO_TAG("FirebaseV1 push notification test KO", firebaseV1PushTestKo),
                 TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
                 TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
                 TEST_NO_TAG("Apple push notification test with a first connection failed and a reconnection (fix)",
                             applePushTestConnectErrorAndReconnect),
                 TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
-                TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
                 TEST_NO_TAG("FirebaseV1 push notification test timeout", firebaseV1PushTestTimeout),
                 TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout),
                 TEST_NO_TAG("Generic test ok", genericPushTestOk),

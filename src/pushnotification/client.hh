@@ -27,17 +27,16 @@ class Service;
 
 class Client {
 public:
-	explicit Client(const Service* service = nullptr) : mService{service} {};
+	explicit Client(const Service* service = nullptr) : mService{service} {
+	}
 	virtual ~Client() = default;
 	virtual void sendPush(const std::shared_ptr<Request>& req) = 0;
-	virtual std::shared_ptr<Request> makeRequest(PushType,
-	                                             const std::shared_ptr<const PushInfo>&,
-	                                             const std::map<std::string, std::shared_ptr<Client>>& = {}) = 0;
+	virtual std::shared_ptr<Request> makeRequest(PushType, const std::shared_ptr<const PushInfo>&) = 0;
 	virtual bool isIdle() const noexcept = 0;
 
-	virtual void setRequestTimeout(std::chrono::seconds){
-	    // Not used by legacy clients
-	};
+	virtual void setRequestTimeout(std::chrono::seconds) {
+		// Not used by legacy clients
+	}
 
 protected:
 	void incrSentCounter();

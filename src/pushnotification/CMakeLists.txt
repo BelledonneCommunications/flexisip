@@ -26,9 +26,7 @@ target_sources(flexisip PRIVATE
 	apple/apple-request.cc apple/apple-request.hh
 	client.cc client.hh
 	contact-expiration-notifier.cc contact-expiration-notifier.hh
-	firebase/firebase-client.cc firebase/firebase-client.hh
 	firebase-v1/firebase-v1-client.cc firebase-v1/firebase-v1-client.hh
-	firebase/firebase-request.cc firebase/firebase-request.hh
 	firebase-v1/firebase-v1-access-token-provider.cc firebase-v1/firebase-v1-access-token-provider.hh
 	firebase-v1/firebase-v1-authentication-manager.cc firebase-v1/firebase-v1-authentication-manager.hh
 	firebase-v1/firebase-v1-request.cc firebase-v1/firebase-v1-request.hh

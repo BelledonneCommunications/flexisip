@@ -362,12 +362,11 @@ int _main(int argc, const char* argv[]) {
 		service.setupiOSClient(args.prefix + "/apn", "");
 	} else if (provider == "fcm") {
 		const auto& apiKey = args.apikey;
-		if (apiKey.empty()) throw ExitFailure{"missing Firebase API key or service account file, use '--key'"};
+		if (apiKey.empty()) throw ExitFailure{"missing Firebase service account file, use '--key'"};
 
 		if (filesystem::exists(apiKey)) {
-			service.addFirebaseV1Client(pushParams->getParam(), apiKey, 1min, 5min);
-		} else {
-			service.addFirebaseClient(pushParams->getParam(), apiKey);
+			service.addFirebaseV1Client(pushParams->getParam(), FIREBASE_GET_ACCESS_TOKEN_SCRIPT_PATH, apiKey, 1min,
+			                            5min);
 		}
 	}
 
