@@ -102,10 +102,13 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
     - **Forward:** Contact paths were not properly processed for mid-dialog requests intended to GRUU addresses. Fetched
       paths from database were not translated into 'Route' headers before forwarding the request.
-    - **Router:** Performance issues for MESSAGE requests intended for the conference server (linphone-sdk >= 5.4).
-      Avoid creating MESSAGE requests that could be saved in memory or database in case the conference server
-      is not available. Moreover, in such cases this fix allows the UAC to know that the chat message was not delivered
-      properly to the server ('202 Accepted' was previously immediately answered to the UAC).
+    - **Router:** 
+      - Performance issues for MESSAGE requests intended for the conference server (linphone-sdk >= 5.4).
+        Avoid creating MESSAGE requests that could be saved in memory or database in case the conference server
+        is not available. Moreover, in such cases this fix allows the UAC to know that the chat message was not delivered
+        properly to the server ('202 Accepted' was previously immediately answered to the UAC).
+      - Invite/Cancel (iOS devices) feature was not working properly when no response (503 or 408 to INVITE request) was
+        received before CANCEL request receipt.
 - **Conference server:**
     - Set the default contact address (with identity address of the conference server) to fix issues when connection
       to the Redis database is slow or broken.

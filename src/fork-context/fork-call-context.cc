@@ -79,7 +79,8 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 	const auto branches = getBranches();
 	for (const auto& branch : branches) {
 		if (branch != br) {
-			branch->cancel(mCancel);
+			branch->cancel(mCancel, true);
+			// Always notify here, even if the branch is not canceled (due to status or iOS devices specific reasons).
 			branch->notifyBranchCanceled(mCancel->mStatus);
 
 			auto& event = getEvent();
@@ -201,15 +202,11 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		return;
 	}
 
-	if (dispatch.branch) {
-		if (auto pushContext = dispatch.branch->getPushNotificationContext()) {
-			if (pushContext->getPushInfo()->isApple() && pushContext->getStrategy()->getPushType() == PushType::VoIP) {
-				const auto& dispatchedBranch = forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
-				dispatchedBranch->cancel(mCancel);
-				checkFinished();
-				return;
-			}
-		}
+	if (dispatch.branch && dispatch.branch->pushContextIsAppleVoIp()) {
+		const auto& dispatchedBranch = forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
+		dispatchedBranch->cancel(mCancel);
+		checkFinished();
+		return;
 	}
 
 	forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,

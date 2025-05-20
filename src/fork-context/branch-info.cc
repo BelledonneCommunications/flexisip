@@ -201,11 +201,28 @@ bool BranchInfo::forwardResponse(bool forkContextHasIncomingTransaction) {
 	return true;
 }
 
-void BranchInfo::cancel(const optional<CancelInfo>& information) {
+bool BranchInfo::pushContextIsAppleVoIp() const {
+	if (const auto pushContext = getPushNotificationContext())
+		return pushContext->getPushInfo()->isApple() && pushContext->getStrategy()->getPushType() == PushType::VoIP;
+
+	return false;
+}
+
+void BranchInfo::cancel(const std::optional<CancelInfo>& information, bool keepAppleVoIpAlive) {
 	if (!mTransaction || getStatus() >= 200) return;
 
-	if (information && information->mReason) mTransaction->cancelWithReason(information->mReason);
-	else mTransaction->cancel();
+	if (keepAppleVoIpAlive && !mWaitingAppleClientResponse && getStatus() == 0 && pushContextIsAppleVoIp()) {
+		mWaitingAppleClientResponse = true;
+		LOGD << "Cancel requested but this branch (iOS client) did not receive any response for the moment (status = "
+		     << getStatus() << "): waiting for a response or 'call-fork-timeout'";
+		return;
+	}
+
+	if (information && information->mReason) {
+		mTransaction->cancelWithReason(information->mReason);
+	} else {
+		mTransaction->cancel();
+	}
 }
 
 } // namespace flexisip

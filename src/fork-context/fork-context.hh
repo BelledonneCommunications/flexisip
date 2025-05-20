@@ -80,8 +80,6 @@ public:
 	 */
 	static std::shared_ptr<ForkContext> getFork(const std::shared_ptr<OutgoingTransaction>& transaction);
 
-	// Called by the router module to notify a cancellation.
-	static void processCancel(RequestSipEvent& ev);
 	/**
 	 * @param ev the request to fork
 	 * @param contact contact to fork to

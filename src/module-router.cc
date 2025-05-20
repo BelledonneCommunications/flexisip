@@ -687,8 +687,14 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 
 		if (sip->sip_request->rq_method == sip_method_cancel) {
 			// Handle SipEvent associated with a Stateful transaction
-			ForkContext::processCancel(*ev);
-			if (!ev->isTerminated()) sendReply(*ev, SIP_481_NO_TRANSACTION);
+			if (const auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent())) {
+				if (const auto forkContext = ForkContext::getFork(transaction)) {
+					forkContext->onCancel(*ev->getMsgSip());
+					ev->terminateProcessing();
+					return std::move(ev);
+				}
+			}
+			sendReply(*ev, SIP_481_NO_TRANSACTION);
 			return std::move(ev);
 		}
 
