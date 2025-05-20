@@ -38,16 +38,3 @@ shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<OutgoingTransactio
 void ForkContext::setFork(const shared_ptr<IncomingTransaction>& transaction, const shared_ptr<ForkContext>& context) {
 	transaction->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{context});
 }
-
-void ForkContext::processCancel(RequestSipEvent& ev) {
-	auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev.getIncomingAgent());
-
-	if (transaction && ev.getMsgSip()->getSip()->sip_request->rq_method == sip_method_cancel) {
-		auto ctx = ForkContext::getFork(transaction);
-
-		if (ctx) {
-			ctx->onCancel(*ev.getMsgSip());
-			ev.terminateProcessing();
-		}
-	}
-}

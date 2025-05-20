@@ -123,9 +123,13 @@ public:
 	/**
 	 * @brief Cancel the branch (send a '487 Request terminated' to the target).
 	 * 
+	 * @warning Does not send the request if the branch has already sent or received a terminal response. Same behavior
+	 * if it did not receive a response yet and that keepAppleVoIpAlive is set to 'true' (for iOS devices only,
+	 * Invite/Cancel feature).
 	 * @param information cancellation reason
+	 * @param keepAppleVoIpAlive prevent cancellation for the Invite/Cancel feature
 	 */
-	void cancel(const std::optional<CancelInfo>& information);
+	void cancel(const std::optional<CancelInfo>& information, bool keepAppleVoIpAlive = false);
 	/**
 	 * @return status of the last response
 	 */
@@ -134,6 +138,10 @@ public:
 	 * @return 'true' if the SIP message needs to be sent to the targe of this branch.
 	 */
 	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC);
+	/**
+	 * @return 'true' if the push context of this branch is Apple::VoIP.
+	 */
+	bool pushContextIsAppleVoIp() const;
 
 	std::string getUid() const;
 	std::optional<SipUri> getRequestUri() const;
@@ -213,6 +221,7 @@ private:
 	int mClearedCount{};
 	// Only used with Invite/ForkCall.
 	std::weak_ptr<PushNotificationContext> mPushContext{};
+	bool mWaitingAppleClientResponse{};
 	std::string mLogPrefix{};
 };
 
