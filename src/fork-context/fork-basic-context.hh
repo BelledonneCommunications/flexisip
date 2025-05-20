@@ -41,10 +41,9 @@ protected:
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override {
-		if (auto listener = mListener.lock()) {
-			listener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
-			                                        DispatchStatus::DispatchNotNeeded);
-		}
+		if (const auto forkContextListener = mForkContextListener.lock())
+			forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+			                                                   DispatchStatus::DispatchNotNeeded);
 	}
 
 	static constexpr auto CLASS_NAME = "ForkBasicContext";
@@ -53,9 +52,13 @@ protected:
 	};
 
 private:
-	ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
-	                 std::unique_ptr<RequestSipEvent>&& event,
-	                 sofiasip::MsgSipPriority priority);
+	ForkBasicContext(std::unique_ptr<RequestSipEvent>&& event,
+	                 sofiasip::MsgSipPriority priority,
+	                 const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                 const std::weak_ptr<InjectorListener>& injectorListener,
+	                 AgentInterface* agent,
+	                 const std::shared_ptr<ForkContextConfig>& config,
+	                 const std::weak_ptr<StatPair>& counter);
 
 	void finishIncomingTransaction();
 	void onDecisionTimer();

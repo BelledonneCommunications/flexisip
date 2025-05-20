@@ -40,15 +40,17 @@ class ForkMessageContext : public ForkContextBase {
 public:
 	~ForkMessageContext() override;
 
-	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
-	                                                const std::weak_ptr<ForkContextListener>& listener,
-	                                                std::unique_ptr<RequestSipEvent>&& event,
-	                                                sofiasip::MsgSipPriority priority,
-	                                                bool isIntendedForConfServer = false);
+	template <typename... Args>
+	static std::shared_ptr<ForkMessageContext> make(Args&&... args) {
+		return std::shared_ptr<ForkMessageContext>{new ForkMessageContext{std::forward<Args>(args)...}};
+	}
 
-	static std::shared_ptr<ForkMessageContext> make(const std::shared_ptr<ModuleRouter>& router,
-	                                                const std::weak_ptr<ForkContextListener>& listener,
-	                                                ForkMessageContextDb& forkFromDb);
+	static std::shared_ptr<ForkMessageContext> restore(ForkMessageContextDb& forkContextFromDb,
+	                                                   const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                                                   const std::weak_ptr<InjectorListener>& injectorListener,
+	                                                   Agent* agent,
+	                                                   const std::shared_ptr<ForkContextConfig>& config,
+	                                                   const std::weak_ptr<StatPair>& counter);
 
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
@@ -78,13 +80,14 @@ protected:
 	bool shouldFinish() override;
 
 private:
-	ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
+	ForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
+	                   sofiasip::MsgSipPriority priority,
+	                   bool isRestored,
+	                   const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                   const std::weak_ptr<InjectorListener>& injectorListener,
+	                   AgentInterface* agent,
 	                   const std::shared_ptr<ForkContextConfig>& config,
-	                   const std::weak_ptr<ForkContextListener>& listener,
-	                   std::unique_ptr<RequestSipEvent>&& event,
-	                   const std::shared_ptr<StatPair>& counter,
-	                   sofiasip::MsgSipPriority msgPriority,
-	                   bool isRestored = false);
+	                   const std::weak_ptr<StatPair>& counter);
 
 	/**
 	 * @brief Accept the MESSAGE request (send '202 Accepted') if no good response has been received on any branch.

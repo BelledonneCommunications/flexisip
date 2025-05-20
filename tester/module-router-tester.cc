@@ -356,7 +356,7 @@ void messageExpires() {
 
 	const auto& routerModule = static_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_HARD_ASSERT(routerModule != nullptr);
-	auto* forks = routerModule->mStats.mCountForks->start;
+	auto* forks = routerModule->mStats.mForkStats->mCountForks->start;
 	BC_ASSERT_CPP_EQUAL(forks->read(), 0);
 
 	stringstream rawRequest{};
@@ -601,16 +601,16 @@ void sipMessageRequestIntendedForChatroom() {
 		            128, [&isRequestReceived]() { return LOOP_ASSERTION(isRequestReceived == true); }, 2s)
 		    .hard_assert_passed();
 
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountBasicForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountBasicForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageConferenceForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageConferenceForks->finish->read(), 0);
 	}
 
 	isRequestReceived = false;
@@ -636,16 +636,16 @@ void sipMessageRequestIntendedForChatroom() {
 		            128, [&isRequestReceived]() { return LOOP_ASSERTION(isRequestReceived == true); }, 2s)
 		    .hard_assert_passed();
 
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 2);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 2);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageConferenceForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->start->read(), 2);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->finish->read(), 2);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountBasicForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountBasicForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageConferenceForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageConferenceForks->finish->read(), 1);
 	}
 }
 

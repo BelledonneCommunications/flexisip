@@ -16,7 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "fork-context/fork-context-factory.hh"
 #include "fork-context/fork-message-context-db-proxy.hh"
+#include "router/fork-manager.hh"
 #include "router/inject-context.hh"
 #include "router/schedule-injector.hh"
 #include "utils/test-patterns/agent-test.hh"
@@ -127,7 +129,8 @@ Proxy-Authorization:  Digest realm="sip.linphone.org", nonce="1tMH5QAAAABVHBjkAA
 		std::time_t t = system_clock::to_time_t(system_clock::now());
 		ForkMessageContextDb fakeDbObject{1, 3, true, *gmtime(&t), rawRequest, priority};
 		fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
-		auto fork = ForkMessageContext::make(mRouterModule, shared_ptr<ForkContextListener>{}, fakeDbObject);
+		const auto forkFactory = mRouterModule->getForkManager()->getFactory();
+		auto fork = forkFactory->restoreForkMessageContext(fakeDbObject, weak_ptr<ForkContextListener>{});
 
 		mInjector->addContext(fork, mUuid);
 
@@ -355,8 +358,9 @@ auto _ = [] {
 	    TEST_NO_TAG("Test borderline cases (bad contactID, double remove...)", run<BorderLineCasesTest>),
 	    TEST_NO_TAG("Test that expired InjectContext are ignored", run<InjectContextExpiredTest>),
 	};
-	static test_suite_t scheduleInjectorSuite = {"Schedule injector suite",        nullptr, nullptr, nullptr, nullptr,
-	                                             sizeof(tests) / sizeof(tests[0]), tests};
+	static test_suite_t scheduleInjectorSuite = {
+	    "ScheduleInjector", nullptr, nullptr, nullptr, nullptr, sizeof(tests) / sizeof(tests[0]), tests,
+	};
 	bc_tester_add_suite(&scheduleInjectorSuite);
 	return nullptr;
 }();

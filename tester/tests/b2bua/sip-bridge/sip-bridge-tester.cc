@@ -348,8 +348,8 @@ void bidirectionalBridging() {
 	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
 	BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->asStringUriOnly(), felixUriOnJabiru);
 	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->finish->read(), 1);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 1);
 	BC_ASSERT(jasper.endCurrentCall(felix));
 	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
 
@@ -361,8 +361,8 @@ void bidirectionalBridging() {
 	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, jasperUriOnJabiru);
 	BC_ASSERT_CPP_EQUAL(felixCall->getRemoteAddress()->asStringUriOnly(), jasperUriOnFlexisip);
 	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->start->read(), 2);
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->finish->read(), 2);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 2);
 	BC_ASSERT(felix.endCurrentCall(jasper));
 	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
 
@@ -374,8 +374,8 @@ void bidirectionalBridging() {
 	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
 	BC_ASSERT_CPP_EQUAL(emilieCall->getRemoteAddress()->asStringUriOnly(), felixUriOnFlexisip);
 	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->start->read(), 3);
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mCountCallForks->finish->read(), 3);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 3);
+	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 3);
 	BC_ASSERT(felix.endCurrentCall(emilie, jabiruProxy));
 
 	std::ignore = b2buaServer->stop();

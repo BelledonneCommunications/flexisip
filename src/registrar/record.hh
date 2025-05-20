@@ -62,7 +62,7 @@ public:
 
 	class Key {
 	public:
-		friend class ModuleRouter;
+		friend class ForkManager;
 		friend class RegistrarDbRedisAsync;
 
 		// A null pointer or an empty AOR leads to an empty key.

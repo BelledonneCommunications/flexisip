@@ -49,17 +49,26 @@ public:
 	                                const std::string& contactId) = 0;
 
 	virtual void addContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork,
-	                        [[maybe_unused]] const std::string& contactId){};
+	                        [[maybe_unused]] const std::string& contactId) {};
 	virtual void addContext([[maybe_unused]] const std::vector<std::shared_ptr<ForkContext>>& forks,
-	                        [[maybe_unused]] const std::string& contactId){};
+	                        [[maybe_unused]] const std::string& contactId) {};
 
 	virtual void removeContext([[maybe_unused]] const std::shared_ptr<ForkContext>& fork,
-	                           [[maybe_unused]] const std::string& contactId){};
+	                           [[maybe_unused]] const std::string& contactId) {};
 
 protected:
 	explicit Injector(Module* aModule) : mModule(aModule){};
 
 	Module* mModule;
+};
+
+class InjectorListener {
+public:
+	virtual ~InjectorListener() = default;
+
+	virtual void inject(std::unique_ptr<RequestSipEvent>&& event,
+	                    const std::shared_ptr<ForkContext>& forkContext,
+	                    const std::string& contactId) = 0;
 };
 
 } // namespace flexisip

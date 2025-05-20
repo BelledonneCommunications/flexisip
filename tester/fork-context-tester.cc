@@ -95,10 +95,10 @@ void nullMaxForwardAndForkBasicContext() {
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountBasicForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountBasicForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountBasicForks->finish->read(), 1);
 	}
 }
 
@@ -173,10 +173,10 @@ void notRtpPortAndForkCallContext() {
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountForks->finish->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 1);
 	}
 }
 
@@ -215,7 +215,7 @@ void globalOrderTestNoSql() {
 		stringstream rawRequest{};
 		rawRequest << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 		           << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-		           << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		           << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 		           << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 		           << "CSeq: 20 MESSAGE\r\n"
 		           << "Call-ID: Tvw6USHXYv" << i << "\r\n"
@@ -239,13 +239,13 @@ void globalOrderTestNoSql() {
 	asserter
 	    .wait([&agent = server.getAgent(), &nbOfMessages] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() != nbOfMessages);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read() != nbOfMessages);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 0);
 
 	SLOGD << "Step 4: Client REGISTER, then receive message";
 	receiverClient.reconnect();
@@ -272,14 +272,14 @@ void globalOrderTestNoSql() {
 	asserter
 	    .wait([&agent = server.getAgent(), &nbOfMessages] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() != nbOfMessages);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() != nbOfMessages);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), nbOfMessages);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), nbOfMessages);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), nbOfMessages);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), nbOfMessages);
 }
 
 /**
@@ -319,14 +319,14 @@ void messageDeliveryTimeoutTest() {
 	    .wait([&agent = server.getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
-		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read() < 1);
 		    // All ForkMessageContexts must be destroyed, since they should only live for one second.
-		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() !=
-		            moduleRouter->mStats.mCountMessageForks->start->read());
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() !=
+		            moduleRouter->mStats.mForkStats->mCountMessageForks->start->read());
 
 		    // ForkCallContext must still be present, waiting for delivery (one created, zero finished).
-		    FAIL_IF(moduleRouter->mStats.mCountCallForks->start->read() != 1);
-		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 0);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 0);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
@@ -375,14 +375,14 @@ void callForkTimeoutTest() {
 	    .wait([&agent = server.getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
 		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
-		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read() < 1);
 		    // At least 1 message must be still present.
-		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() ==
-		            moduleRouter->mStats.mCountMessageForks->start->read());
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() ==
+		            moduleRouter->mStats.mForkStats->mCountMessageForks->start->read());
 
 		    // ForkCallContext must be destroyed, since they should only live for one second.
-		    FAIL_IF(moduleRouter->mStats.mCountCallForks->start->read() != 1);
-		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
@@ -439,9 +439,9 @@ private:
 class ForkContextForTest : public ForkContextBase {
 public:
 	explicit ForkContextForTest(AgentInterface* agentMock)
-	    : ForkContextBase(nullptr,
-	                      agentMock,
+	    : ForkContextBase(agentMock,
 	                      nullptr,
+	                      std::weak_ptr<InjectorListener>(),
 	                      std::weak_ptr<ForkContextListener>(),
 	                      nullptr,
 	                      std::weak_ptr<StatPair>(),

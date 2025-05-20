@@ -45,64 +45,17 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter>& router,
-                                                        const std::weak_ptr<ForkContextListener>& listener,
-                                                        std::unique_ptr<RequestSipEvent>&& event,
-                                                        sofiasip::MsgSipPriority priority,
-                                                        bool isIntendedForConfServer) {
-	const auto& stats = router->mStats;
-	const auto config = isIntendedForConfServer ? make_shared<ForkContextConfig>() : router->getMessageForkCfg();
-	const auto counter = isIntendedForConfServer ? stats.mCountMessageConferenceForks : stats.mCountMessageForks;
-	return shared_ptr<ForkMessageContext>{
-	    new ForkMessageContext(router, config, listener, std::move(event), counter, priority),
-	};
-}
-
-shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<ModuleRouter>& router,
-                                                        const std::weak_ptr<ForkContextListener>& listener,
-                                                        ForkMessageContextDb& forkFromDb) {
-	auto* agent = router->getAgent();
-	const auto msgSipFromDB = make_shared<MsgSip>(0, forkFromDb.request);
-	auto requestSipEventFromDb =
-	    RequestSipEvent::makeRestored(agent->shared_from_this(), msgSipFromDB, agent->findModule("Router"));
-
-	// Using 'new' because std::make_shared requires a public constructor.
-	shared_ptr<ForkMessageContext> context{
-	    new ForkMessageContext(router, router->getMessageForkCfg(), listener, std::move(requestSipEventFromDb),
-	                           router->mStats.mCountMessageForks, forkFromDb.msgPriority, true),
-	};
-
-	context->mFinished = forkFromDb.isFinished;
-	context->mDeliveredCount = forkFromDb.deliveredCount;
-	context->mCurrentPriority = forkFromDb.currentPriority;
-	context->mExpirationDate = timegm(&forkFromDb.expirationDate);
-
-	auto timeLeftUntilExpiration = system_clock::from_time_t(context->mExpirationDate) - system_clock::now();
-	if (timeLeftUntilExpiration < 0s) timeLeftUntilExpiration = 0s;
-	context->mLateTimer.set(
-	    [weak = weak_ptr{context}]() {
-		    if (const auto sharedPtr = weak.lock()) sharedPtr->processLateTimeout();
-	    },
-	    timeLeftUntilExpiration);
-
-	for (const auto& dbKey : forkFromDb.dbKeys)
-		context->addKey(dbKey);
-
-	for (const auto& dbBranch : forkFromDb.dbBranches)
-		context->restoreBranch(dbBranch);
-
-	return context;
-}
-
-ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
+ForkMessageContext::ForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
+                                       sofiasip::MsgSipPriority priority,
+                                       bool isRestored,
+                                       const std::weak_ptr<ForkContextListener>& forkContextListener,
+                                       const std::weak_ptr<InjectorListener>& injectorListener,
+                                       AgentInterface* agent,
                                        const std::shared_ptr<ForkContextConfig>& config,
-                                       const std::weak_ptr<ForkContextListener>& listener,
-                                       std::unique_ptr<RequestSipEvent>&& event,
-                                       const std::shared_ptr<StatPair>& counter,
-                                       sofiasip::MsgSipPriority msgPriority,
-                                       bool isRestored)
-    : ForkContextBase(router, router->getAgent(), config, listener, std::move(event), counter, msgPriority, isRestored),
-      mKind(*ForkContextBase::getEvent().getMsgSip()->getSip(), msgPriority),
+                                       const std::weak_ptr<StatPair>& counter)
+    : ForkContextBase{agent,   config,   injectorListener, forkContextListener, std::move(event),
+                      counter, priority, isRestored},
+      mKind(*ForkContextBase::getEvent().getMsgSip()->getSip(), priority),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkMessageContext")) {
 	LOGD << "New instance";
 	if (!isRestored) {
@@ -114,6 +67,43 @@ ForkMessageContext::ForkMessageContext(const std::shared_ptr<ModuleRouter>& rout
 		}
 		mDeliveredCount = 0;
 	}
+}
+
+std::shared_ptr<ForkMessageContext>
+ForkMessageContext::restore(ForkMessageContextDb& forkContextFromDb,
+                            const std::weak_ptr<ForkContextListener>& forkContextListener,
+                            const std::weak_ptr<InjectorListener>& injectorListener,
+                            Agent* agent,
+                            const std::shared_ptr<ForkContextConfig>& config,
+                            const std::weak_ptr<StatPair>& counter) {
+	const auto context = make(
+	    [&agent, &forkContextFromDb] {
+		    const auto router = agent->findModule("Router");
+		    const auto msg = make_shared<MsgSip>(0, forkContextFromDb.request);
+		    return RequestSipEvent::makeRestored(agent->getIncomingAgent(), msg, router);
+	    }(),
+	    forkContextFromDb.msgPriority, true, forkContextListener, injectorListener, agent, config, counter);
+
+	context->mFinished = forkContextFromDb.isFinished;
+	context->mDeliveredCount = forkContextFromDb.deliveredCount;
+	context->mCurrentPriority = forkContextFromDb.currentPriority;
+	context->mExpirationDate = timegm(&forkContextFromDb.expirationDate);
+
+	auto timeLeftUntilExpiration = system_clock::from_time_t(context->mExpirationDate) - system_clock::now();
+	if (timeLeftUntilExpiration < 0s) timeLeftUntilExpiration = 0s;
+	context->mLateTimer.set(
+	    [forkMessageContext = weak_ptr<ForkMessageContext>{context}]() {
+		    if (const auto context = forkMessageContext.lock()) context->processLateTimeout();
+	    },
+	    timeLeftUntilExpiration);
+
+	for (const auto& dbKey : forkContextFromDb.dbKeys)
+		context->addKey(dbKey);
+
+	for (const auto& dbBranch : forkContextFromDb.dbBranches)
+		context->restoreBranch(dbBranch);
+
+	return context;
 }
 
 ForkMessageContext::~ForkMessageContext() {
@@ -239,27 +229,27 @@ void ForkMessageContext::onNewBranch(const shared_ptr<BranchInfo>& br) {
 void ForkMessageContext::onNewRegister(const SipUri& dest,
                                        const std::string& uid,
                                        const std::shared_ptr<ExtendedContact>& newContact) {
-	const auto& sharedListener = mListener.lock();
-	if (!sharedListener) {
+	const auto forkContextListener = mForkContextListener.lock();
+	if (!forkContextListener) {
 		LOGE << "ForkContextListener is missing, cannot process new register (this should not happen)";
 		return;
 	}
 
 	if (const auto [status, _] = shouldDispatch(dest, uid); status != DispatchStatus::DispatchNeeded) {
-		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, status);
+		forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, status);
 		return;
 	}
 
 	if (!uid.empty()) {
 		if (const auto br = findBranchByUid(uid); br == nullptr) {
 			LOGD << "This is a new client instance (the message needs to be delivered)";
-			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+			forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		} else if (br->needsDelivery(FinalStatusMode::ForkLate)) {
 			// This is a client for which the message was not delivered yet (or failed to be delivered).
 			// The message needs to be delivered.
 			LOGD << "This client is reconnecting but message was not delivered before";
-			sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+			forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 			return;
 		}
 	}
@@ -268,12 +258,12 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 	LOGD << "Message has been delivered " << mDeliveredCount << " times";
 
 	if (mDeliveredCount == 0) {
-		sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+		forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 		return;
 	}
 
-	sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
-	                                              DispatchStatus::DispatchNotNeeded);
+	forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+	                                                   DispatchStatus::DispatchNotNeeded);
 }
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {

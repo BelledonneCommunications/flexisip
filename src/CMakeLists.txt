@@ -72,6 +72,7 @@ add_library(flexisip SHARED
 	fork-context/fork-basic-context.cc fork-context/fork-basic-context.hh
 	fork-context/fork-call-context.cc fork-context/fork-call-context.hh
 	fork-context/fork-context-base.cc fork-context/fork-context-base.hh
+	fork-context/fork-context-factory.cc fork-context/fork-context-factory.hh
 	fork-context/fork-message-context-db.hh
 	fork-context/fork-message-context.cc fork-context/fork-message-context.hh
 	fork-context/message-kind.cc fork-context/message-kind.hh

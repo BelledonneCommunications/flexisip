@@ -21,24 +21,22 @@
 #include <sstream>
 #include <utility>
 
-#include <sofia-sip/msg_types.h>
-#include <sofia-sip/sip_status.h>
-#include <sofia-sip/su_md5.h>
-#include <sofia-sip/tport.h>
-
-#include "flexisip/module-router.hh"
-#include "flexisip/module.hh"
-
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/fork-context/fork-context.hh"
+#include "flexisip/module-router.hh"
+#include "flexisip/module.hh"
 #include "module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
-#include "transaction/incoming-agent.hh"
+#include "sofia-sip/msg_types.h"
+#include "sofia-sip/sip_status.h"
+#include "sofia-sip/su_md5.h"
+#include "sofia-sip/tport.h"
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/uri-utils.hh"
@@ -279,7 +277,7 @@ public:
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
 
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override{};
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {};
 
 private:
 	static constexpr std::string_view mLogPrefix{"RegistrarListener"};
