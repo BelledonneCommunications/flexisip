@@ -54,12 +54,11 @@ Group changes to describe their impact on the project, as follows:
               user should register (optional).
             - Parameter `protocol` (which is used with `outbound_proxy` and `registrar`) to indicate which transport
               protocol to use (optional, default: udp).
+- **Conference:** new parameters `audio-engine-mode` and `video-engine-mode` to specify the media engine to use (
+  `mixer`, `semi-sfu` and `sfu`). Documentation is available in the [configuration reference guide].
 
 ### [Changed]
-- **Conference:**
-    - Parameter `conference-focus-uris` is now mandatory.
-    - New parameter `media-engine-type` to specify the media engine to use (`mixer` or `sfu`). Documentation is
-      available in the [configuration reference guide].
+- **Conference:** Parameter `conference-focus-uris` is now mandatory.
 - **Proxy:**
     - TLS/SSL certificates MUST not be expired (or Flexisip will not start).
     - **Authorization:** New behavior (check if the SIP domain is authorized and reject inter domain requests),

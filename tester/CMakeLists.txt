@@ -168,6 +168,7 @@ add_executable(flexisip_tester
 
 if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
+		tests/utils/configuration/media.cc
 		tests/utils/configuration/transport.cc
 	)
 endif()

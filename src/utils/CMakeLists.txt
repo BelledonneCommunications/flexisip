@@ -60,7 +60,7 @@ target_sources(flexisip PRIVATE
 
 if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
 	target_sources(flexisip PRIVATE
-		configuration/media.hh
+		configuration/media.cc configuration/media.hh
 		configuration/transport.cc configuration/transport.hh
 	)
 endif()
