@@ -20,24 +20,23 @@
 
 #include "agent.hh"
 #include "branch-info.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"
 
 using namespace std;
 using namespace flexisip;
 
-shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<IncomingTransaction>& tr) {
-	return tr->getProperty<ForkContext>("ForkContext");
+shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<IncomingTransaction>& transaction) {
+	return transaction->getProperty<ForkContext>("ForkContext");
 }
 
-shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<OutgoingTransaction>& tr) {
-	shared_ptr<BranchInfo> br = BranchInfo::getBranchInfo(tr);
+shared_ptr<ForkContext> ForkContext::getFork(const shared_ptr<OutgoingTransaction>& transaction) {
+	shared_ptr<BranchInfo> br = BranchInfo::getBranchInfo(transaction);
 	return br ? br->mForkCtx.lock() : nullptr;
 }
 
-void ForkContext::setFork(const shared_ptr<IncomingTransaction>& tr, const shared_ptr<ForkContext>& fork) {
-	tr->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{fork});
+void ForkContext::setFork(const shared_ptr<IncomingTransaction>& transaction, const shared_ptr<ForkContext>& context) {
+	transaction->setProperty<ForkContext>("ForkContext", weak_ptr<ForkContext>{context});
 }
 
 void ForkContext::processCancel(RequestSipEvent& ev) {

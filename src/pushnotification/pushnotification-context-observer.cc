@@ -16,20 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "flexisip/pushnotification/pushnotification-context-observer.hh"
 
 namespace flexisip {
 
-/**
- * @brief Reason for call cancellation. Used to clarify the scenario that lead to the cancellation.
- */
-enum class ForkStatus {
-	// Branch canceled because the call has been accepted in another branch of the ForkContext.
-	AcceptedElsewhere,
-	// Branch canceled because the call has been declined in another branch.
-	DeclinedElsewhere,
-	// Branch canceled because the caller has canceled the call.
-	Standard
-};
+PushNotificationContextObserver::~PushNotificationContextObserver() = default;
 
-} // namespace flexisip
+}

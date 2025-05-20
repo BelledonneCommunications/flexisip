@@ -20,14 +20,16 @@
 
 #include <cstdint>
 #include <optional>
-#include <string_view>
-
-#include "sofia-sip/sip.h"
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
+#include "sofia-sip/sip.h"
 
 namespace flexisip {
 
+/**
+ * @brief Technical information on a SIP MESSAGE request. Indicates the type of message (MESSAGE or REFER) and the
+ * cardinality of the message (direct or 'going through' the conference server).
+ */
 class MessageKind {
 public:
 	enum class Kind : std::uint8_t {
@@ -35,7 +37,7 @@ public:
 		Message,
 	};
 
-	// Is this a One-to-One message or is it going through the conference server?
+	// Is this a One-to-One message, or is it going through the conference server?
 	enum class Cardinality : std::uint8_t {
 		Direct,
 		ToConferenceServer,

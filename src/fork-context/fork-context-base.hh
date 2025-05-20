@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,72 +21,59 @@
 #include <memory>
 
 #include "agent-interface.hh"
+#include "branch-info.hh"
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module-router.hh"
-
-#include "branch-info.hh"
 #include "transaction/incoming-transaction.hh"
 
 namespace flexisip {
 
 class OnContactRegisteredListener;
 
+/**
+ * @brief Base class for all ForkContext implementations. It provides the basic functionality to manage the fork process
+ * and the branches.
+ */
 class ForkContextBase : public ForkContext, public std::enable_shared_from_this<ForkContextBase> {
 public:
-	virtual ~ForkContextBase();
+	static constexpr int kUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
+	static constexpr int kAllCodesUrgent[] = {-1, 0};
 
-	using ShouldDispatchType = std::pair<DispatchStatus, std::shared_ptr<BranchInfo>>;
+	~ForkContextBase() override;
 
-	/**
-	 * Called by the Router module to create a new branch.
-	 */
+	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
+
 	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override;
 	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override;
-	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
-	/**
-	 * Request if the fork has other branches with lower priorities to try
-	 */
 	bool hasNextBranches() const override;
-	/**
-	 * Called when a fatal internal error is thrown in Flexisip. Send a custom response and cancel all branches if
-	 * necessary.
-	 * @param status The status of the custom response to send.
-	 * @param phrase The content of the custom response to send.
-	 */
 	void processInternalError(int status, const char* phrase) override;
-	// Start the processing of the highest priority branches that are not completed yet
 	void start() override;
-
 	void addKey(const std::string& key) override;
 	const std::vector<std::string>& getKeys() const override;
-
-	/**
-	 * Notifies the cancellation of the fork process.
-	 */
 	void onCancel(const sofiasip::MsgSip& ms) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) override;
-	/**
-	 * See PushNotificationContextObserver::onPushSent().
-	 */
-	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
-	RequestSipEvent& getEvent() override;
-	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
-		return mCfg;
-	}
-	bool isFinished() const override {
-		return mFinished;
-	};
+	bool isFinished() const override;
 	std::shared_ptr<BranchInfo> checkFinished() override;
-	sofiasip::MsgSipPriority getMsgPriority() const override {
-		return mMsgPriority;
-	};
+	RequestSipEvent& getEvent() override;
+	sofiasip::MsgSipPriority getMsgPriority() const override;
+	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
 
-	static const int sUrgentCodes[];
-	static const int sAllCodesUrgent[];
+	/**
+	 * @param finalStatusMode fork mode to consider for the final status answer of a branch
+	 * @return 'true' if all waiting branches have been answered (see @FinalStatusMode for more information)
+	 */
+	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
 
 protected:
+	struct ShouldDispatchType {
+		// Tell if we should dispatch a new branch/transaction to the device targeted by dest/uid.
+		DispatchStatus status;
+		// The failed/unfinished branch/transaction you will replace if it exists.
+		std::shared_ptr<BranchInfo> branch;
+	};
+
 	ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
 	                AgentInterface* agent,
 	                const std::shared_ptr<ForkContextConfig>& cfg,
@@ -96,73 +83,101 @@ protected:
 	                sofiasip::MsgSipPriority priority,
 	                bool isRestored = false);
 
-	// Mark the fork process as terminated. The real destruction is performed asynchronously, in next main loop
-	// iteration.
-	void setFinished();
-	// Used by derived class to allocate a derived type of BranchInfo if necessary.
+	static bool isUseful4xx(int statusCode);
+	static bool isUrgent(int code, const int urgentCodes[]);
+
+	const ForkContext* getPtrForEquality() const override;
+
+	/**
+	 * @return new branch for this ForkContext
+	 */
 	virtual std::shared_ptr<BranchInfo> createBranchInfo();
-	// Notifies derived class of the creation of a new branch
-	virtual void onNewBranch(const std::shared_ptr<BranchInfo>& br);
-	// Notifies the expiry of the final fork timeout.
+	/**
+	 * @brief Notify the creation of a new branch for this ForkContext.
+	 */
+	virtual void onNewBranch(const std::shared_ptr<BranchInfo>&) {};
+	/**
+	 * @brief Notify the expiry of the final fork timeout.
+	 */
 	virtual void onLateTimeout() {};
-	// Requests the derived class if the fork context should finish now.
+	/**
+	 * @return 'true' if the fork process should be terminated.
+	 */
 	virtual bool shouldFinish();
-	// Notifies the destruction of the fork context. Implementers should use it to perform their initialization, but
-	// shall never forget to upcall to the parent class !*/
+
+	/**
+	 * @brief Mark the fork process as terminated.
+	 *
+	 * @note the real destruction is performed asynchronously, in the next main loop iteration.
+	 */
+	void setFinished();
+	/**
+	 * @breif Notify the destruction of the fork context.
+	 *
+	 * @warning implementers should use it to perform their initialization but shall never forget to call the parent
+	 * class!
+	 */
 	void onFinished();
 	/**
-	 * Request the forwarding of the last response from a given branch
-	 * @param br The branch containing the response to send.
-	 * @return true if a ResponseSipEvent is sent.
+	 * @brief Forward the last response received on the branch.
+	 *
+	 * @param br the branch containing the response to send
+	 * @return 'true' if a response was sent
 	 */
 	bool forwardResponse(const std::shared_ptr<BranchInfo>& br);
-	// Request the forwarding of a response supplied in argument.
+	/**
+	 * @brief Forward a response.
+	 *
+	 * @param ev response to be forwarded
+	 * @return the response sent, or nullptr if the response was not sent
+	 */
 	std::unique_ptr<ResponseSipEvent> forwardResponse(std::unique_ptr<ResponseSipEvent>&& ev);
 	/**
-	 * Request the forwarding of a custom response created from parameters.
-	 * @param status The status of the custom response to send.
-	 * @param phrase The content of the custom response to send.
-	 * @return A unique_ptr containing the ResponseSipEvent sent, can be empty.
+	 * @brief Forward a custom response.
+	 *
+	 * @param status the status of the custom response to send
+	 * @param phrase the content of the custom response to send
+	 * @return the response sent, or nullptr if the response was not sent
 	 */
 	std::unique_ptr<ResponseSipEvent> forwardCustomResponse(int status, const char* phrase);
-
-	// Get a branch by specifying its unique id
-	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);
-	// Get a branch by specifying its request URI destination.
-	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
-	// Get the best candidate among all branches for forwarding its responses.
-	std::shared_ptr<BranchInfo> findBestBranch(bool ignore503And408 = false);
-	int getLastResponseCode() const;
-	void removeBranch(const std::shared_ptr<BranchInfo>& br);
-	const std::list<std::shared_ptr<BranchInfo>>& getBranches() const;
-	static bool isUrgent(int code, const int urgentCodes[]);
-	static bool isUseful4xx(int statusCode);
-	void processLateTimeout();
-
 	/**
-	 * This implementation looks for already pending or failed transactions.
+	 * @brief Remove a branch from the list of branches (both current and waiting branches lists).
 	 *
-	 * @return Return a pair with :
-	 *  - DispatchStatus : tell if you should dispatch a new branch/transaction to the device targeted by dest/uid.
-	 *  - std::shared_ptr<BranchInfo> : the failed/unfinished branch/transaction you will replace if it exist or
-	 * nullptr.
+	 * @param br branch to remove
+	 */
+	void removeBranch(const std::shared_ptr<BranchInfo>& br);
+	/**
+	 * @brief Look for already pending or failed transactions.
 	 */
 	ShouldDispatchType shouldDispatch(const SipUri& dest, const std::string& uid);
 	/**
-	 * Send a response in the incoming transaction associated to this ForkContext.
-	 * @param status SIP response status.
+	 * @brief Send a response in the incoming transaction associated with this ForkContext.
+	 *
+	 * @param status SIP response status code.
 	 * @param phrase SIP response phrase.
-	 * @param addToTag If true, add a generated 'tag' parameter to the To-URI.
+	 * @param addToTag if 'true', add a generated 'tag' parameter to the 'To' header of the response
 	 */
 	void sendResponse(int status, char const* phrase, bool addToTag = false);
+	void processLateTimeout();
 
-	const ForkContext* getPtrForEquality() const override {
-		return this;
-	}
+	/**
+	 * @brief Find the best branch to take the response from and forward it to all the other branches.
+	 */
+	std::shared_ptr<BranchInfo> findBestBranch(bool ignore503And408 = false);
+	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);
+	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
+	/**
+	 * @return the list of waiting branches
+	 */
+	const std::list<std::shared_ptr<BranchInfo>>& getBranches() const;
+	/**
+	 * @return last response code or 0 if no response was sent
+	 */
+	int getLastResponseCode() const;
 
-	// Protected attributes
-	bool m110Sent = false; /**< Whether a "110 Push sent" response has already been sent in the incoming transaction. */
-	bool mFinished = false;
+	// Whether a "110 Push sent" response has already been sent in the incoming transaction or not.
+	bool m110Sent;
+	bool mFinished;
 	float mCurrentPriority;
 	AgentInterface* mAgent;
 	std::weak_ptr<ModuleRouterInterface> mRouter;
@@ -178,14 +193,21 @@ protected:
 	std::weak_ptr<ForkContextListener> mListener;
 
 private:
-	// Set the next branches to try and process them
+	/**
+	 * @brief Build the list of next branches to try.
+	 *
+	 * @note the result is stored in the list of current branches.
+	 */
 	void nextBranches();
+	/**
+	 * @brief Start the next branches if there are any.
+	 */
 	void onNextBranches();
 
 	std::unique_ptr<RequestSipEvent> mEvent;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;
 	std::weak_ptr<StatPair> mStatCounter;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

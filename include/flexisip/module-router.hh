@@ -51,7 +51,7 @@ class ModuleRouter : public Module,
 	friend std::shared_ptr<Module> ModuleInfo<ModuleRouter>::create(Agent*);
 
 public:
-	~ModuleRouter();
+	~ModuleRouter() override;
 
 	void onLoad(const GenericStruct* mc) override;
 
@@ -188,14 +188,10 @@ public:
 
 	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override;
 
-	void onRecordFound([[maybe_unused]] const std::shared_ptr<Record>& r) override {
-	}
-	void onError(const SipStatus&) override {
-	}
-	void onInvalid(const SipStatus&) override {
-	}
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-	}
+	void onRecordFound([[maybe_unused]] const std::shared_ptr<Record>& r) override {};
+	void onError(const SipStatus&) override {};
+	void onInvalid(const SipStatus&) override {};
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {};
 };
 
 } // namespace flexisip

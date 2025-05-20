@@ -23,13 +23,7 @@
 namespace flexisip {
 
 /**
- * This class is the object model for the branch_info database table.<br>
- *<br>
- * You can get one BranchInfoDb object from BranchInfo::getDbObject().<br>
- * You can create one BranchInfo object from BranchInfoDb using BranchInfo(T&& ctx, const BranchInfoDb& dbObject, const
- *std::shared_ptr<Agent>& agent).
- *
- * @see BranchInfo
+ * @brief Object model for the 'branch_info' database table.
  */
 class BranchInfoDb {
 public:
@@ -43,12 +37,11 @@ public:
 	      clearedCount(clearedCount) {
 	}
 
-public:
 	std::string contactUid{};
-	double priority = 0;
+	double priority{};
 	std::string request{};
 	std::string lastResponse{};
-	int clearedCount = 0;
+	int clearedCount{};
 };
 
 } // namespace flexisip
@@ -61,14 +54,13 @@ public:
 namespace soci {
 
 /**
- * Used by Soci to transform database result to BranchInfoDb and vice-versa.
+ * @brief Used by Soci to transform a database result into a BranchInfoDb instance and vice versa.
  */
 template <>
-class type_conversion<flexisip::BranchInfoDb> {
-public:
+struct type_conversion<flexisip::BranchInfoDb> {
 	typedef values base_type;
 
-	static void from_base(values const& v, indicator /* ind */, flexisip::BranchInfoDb& bi) {
+	static void from_base(values const& v, indicator, flexisip::BranchInfoDb& bi) {
 		bi.contactUid = v.get<std::string>("contact_uid");
 		bi.priority = v.get<double>("priority");
 		bi.request = v.get<std::string>("request");
