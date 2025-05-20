@@ -585,6 +585,10 @@ public:
 		return unitIterator->second * value;
 	}
 
+	DurationType readAndCast() const {
+		return std::chrono::duration_cast<DurationType>(read());
+	}
+
 	void acceptVisit(ConfigManagerVisitor& visitor) override;
 
 private:

@@ -77,9 +77,13 @@ private:
 	static constexpr std::string_view kClassName{"ForkCallContext"};
 	static constexpr int kUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 488, 606, 0};
 
-	ForkCallContext(const std::shared_ptr<ModuleRouter>& router,
-	                std::unique_ptr<RequestSipEvent>&& event,
-	                sofiasip::MsgSipPriority priority);
+	ForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
+	                sofiasip::MsgSipPriority priority,
+	                const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                const std::weak_ptr<InjectorListener>& injectorListener,
+	                AgentInterface* agent,
+	                const std::shared_ptr<ForkContextConfig>& config,
+	                const std::weak_ptr<StatPair>& counter);
 
 	void onLateTimeout() override;
 	bool shouldFinish() override;

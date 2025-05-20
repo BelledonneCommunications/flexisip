@@ -20,15 +20,14 @@
 #include <memory>
 #include <optional>
 #include <random>
-
-#include <soci/session.h>
 #include <utility>
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
-
+#include "fork-context/fork-context-factory.hh"
 #include "fork-context/fork-message-context-db-proxy.hh"
 #include "fork-context/fork-message-context-soci-repository.hh"
+#include "router/fork-manager.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
@@ -50,11 +49,12 @@ namespace {
 using days = duration<int, ratio_multiply<ratio<24>, hours::period>>;
 
 optional<MysqlServer> mysqlServer = nullopt;
+const weak_ptr<ForkContextListener> nullListener{};
 
-string rawRequest{R"sip(MESSAGE sip:francois.grisez@sip.linphone.org SIP/2.0
+string rawRequest{R"sip(MESSAGE sip:francois.grisez@sip.test.org SIP/2.0
 Via: SIP/2.0/TLS [2a01:e0a:278:9f60:7a23:c334:1651:2503]:36676;branch=z9hG4bK.ChN0lTDpQ
-From: <sip:anthony.gauchy@sip.linphone.org>;tag=iXiKd6FuX
-To: sip:francois.grisez@sip.linphone.org
+From: <sip:anthony.gauchy@sip.test.org>;tag=iXiKd6FuX
+To: sip:francois.grisez@sip.test.org
 CSeq: 20 MESSAGE
 Call-ID: NISmf-QTgo
 Max-Forwards: 70
@@ -68,8 +68,8 @@ Content-Length: 4
 
 string rawResponse{R"sip(SIP/2.0 200 Ok
 Via: SIP/2.0/TLS [2a01:e0a:278:9f60:7a23:c334:1651:2503]:36676;branch=z9hG4bK.ChN0lTDpQ
-From: <sip:anthony.gauchy@sip.linphone.org>;tag=iXiKd6FuX
-To: <sip:francois.grisez@sip.linphone.org>;tag=B2cE8pa
+From: <sip:anthony.gauchy@sip.test.org>;tag=iXiKd6FuX
+To: <sip:francois.grisez@sip.test.org>;tag=B2cE8pa
 CSeq: 20 MESSAGE
 Call-ID: NISmf-QTgo
 Content-Length: 0
@@ -98,7 +98,10 @@ void forceSociRepositoryInstantiation() {
 
 void forkMessageContextSociRepositoryMysql() {
 	Server server{configuration};
+	forceSociRepositoryInstantiation();
+	server.start();
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 	Random random{tester::random::seed()};
 	auto timestampGenerator = random.timestamp();
 
@@ -109,12 +112,12 @@ void forkMessageContextSociRepositoryMysql() {
 
 	ForkMessageContextDb fakeDbObject{1, 3, true, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
-	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+	auto expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 	mysqlServer->waitReady();
 	const auto insertedUuid =
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	auto actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
+	auto actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
 	BC_ASSERT_CPP_EQUAL(string{asctime(&dbFork.expirationDate)}, string{asctime(&fakeDbObject.expirationDate)});
 	actualFork->assertEqual(expectedFork);
 
@@ -123,17 +126,20 @@ void forkMessageContextSociRepositoryMysql() {
 	fakeDbObject = ForkMessageContextDb{2, 10, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::Urgent};
 	// We keep the same keys because they are not updated.
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
-	expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+	expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
 	                                                                          insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
+	actualFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 	actualFork->assertEqual(expectedFork);
 }
 
 void forkMessageContextWithBranchesSociRepositoryMysql() {
 	Server server{configuration};
+	forceSociRepositoryInstantiation();
+	server.start();
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 	Random random{tester::random::seed()};
 	Random::TimestampGenerator timestampGenerator = random.timestamp();
 
@@ -145,13 +151,13 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 	BranchInfoDb branchInfoDb2{"contactUid2", 1.0, rawRequest, rawResponse, false};
 	BranchInfoDb branchInfoDb3{"contactUid3", 2.42, rawRequest, rawResponse, true};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-	auto expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+	auto expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 
 	mysqlServer->waitReady();
 	const auto insertedUuid =
 	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	auto actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
+	auto actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
 	actualFork->assertEqual(expectedFork);
 
 	// Update and find with branch info test
@@ -162,17 +168,20 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 	branchInfoDb2 = BranchInfoDb{"contactUid2", 3.0, rawRequest, rawResponse, true};
 	branchInfoDb3 = BranchInfoDb{"contactUid3", 3.42, rawRequest, rawResponse, false};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
-	expectedFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeDbObject);
+	expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
 	                                                                          insertedUuid);
 	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
-	actualFork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, dbFork);
+	actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
 	actualFork->assertEqual(expectedFork);
 }
 
 void forkMessageContextSociRepositoryFullLoadMysql() {
 	Server server{configuration};
+	forceSociRepositoryInstantiation();
+	server.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 	Random random{tester::random::seed()};
 	auto timestampGenerator = random.timestamp();
 
@@ -195,7 +204,7 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 			fakeFork.dbBranches.emplace_back("contactUID-" + to_string(branchInfoId), priorityGenerator.generate(),
 			                                 rawRequest, rawResponse, random.boolean().generate());
 
-		const auto fork = ForkMessageContext::make(moduleRouter, shared_ptr<ForkContextListener>{}, fakeFork);
+		const auto fork = forkFactory->restoreForkMessageContext(fakeFork, nullListener);
 		mysqlServer->waitReady();
 		const auto uuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(fork->getDbObject());
 		expectedForks.insert({uuid, fork});
@@ -220,7 +229,7 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 			continue;
 		}
 
-		auto actualKeys = ForkMessageContextDbProxy::make(moduleRouter, actualFork)->getKeys();
+		auto actualKeys = forkFactory->restoreForkMessageContextDbProxy(actualFork, nullListener)->getKeys();
 		auto expectedKeys = expectedForkIt->second->getKeys();
 		BC_HARD_ASSERT_CPP_EQUAL(actualKeys.size(), expectedKeys.size());
 
@@ -267,7 +276,7 @@ void globalTest() {
 	stringstream request{};
 	request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 	        << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1\r\n"
-	        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	        << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 	        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 	        << "CSeq: 20 MESSAGE\r\n"
 	        << "Call-ID: Tvw6USHXYv\r\n"
@@ -288,11 +297,13 @@ void globalTest() {
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 1); })
+	    .wait([&moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 1);
+	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Check that request in DB is the same that request sent";
 	const auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
@@ -315,12 +326,12 @@ void globalTest() {
 	SLOGD << "Step 6: Client REGISTER, then receive message";
 	asserter
 	    .wait([&moduleRouter] {
-		    return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1);
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == 1);
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 2);
 }
 
 void globalTestMultipleDevices() {
@@ -367,7 +378,7 @@ void globalTestMultipleDevices() {
 	stringstream request{};
 	request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 	        << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1\r\n"
-	        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	        << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 	        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 	        << "CSeq: 20 MESSAGE\r\n"
 	        << "Call-ID: Tvw6USHXYv\r\n"
@@ -398,11 +409,13 @@ void globalTestMultipleDevices() {
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 1); })
+	    .wait([&moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 1);
+	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Check that request in DB is the same that request sent";
 	const auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
@@ -431,11 +444,17 @@ void globalTestMultipleDevices() {
 	SLOGD << "Step 7: Assert that db fork is still present because some devices are offline, message fork is destroyed "
 	         "because message is saved";
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 2); })
+	    .iterateUpTo(
+	        128,
+	        [&moduleRouter] {
+		        return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 2);
+	        },
+	        3s)
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
 
 	SLOGD << "Step 8: Re-REGISTER initial group, ForkMessage is retrieve from DB, but no message is sent";
 	for_each(clientOnDevices.begin(), clientOnDevices.end(), [](const auto& core) { core->reconnect(); });
@@ -463,15 +482,15 @@ void globalTestMultipleDevices() {
 	asserter
 	    .wait([&moduleRouter] {
 		    const auto& allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
-		    return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1 &&
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == 1 &&
 		                          allMessages.empty());
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_GREATER(moduleRouter->mStats.mCountMessageForks->start->read(), 3, int, "%i");
-	BC_ASSERT_GREATER(moduleRouter->mStats.mCountMessageForks->finish->read(), 3, int, "%i");
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(),
-	                    moduleRouter->mStats.mCountMessageForks->finish->read());
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_GREATER(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 3, int, "%i");
+	BC_ASSERT_GREATER(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 3, int, "%i");
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(),
+	                    moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read());
 }
 
 void testDBAccessOptimization() {
@@ -505,7 +524,7 @@ void testDBAccessOptimization() {
 	stringstream request{};
 	request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 	        << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1\r\n"
-	        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	        << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 	        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 	        << "CSeq: 20 MESSAGE\r\n"
 	        << "Call-ID: Tvw6USHXYv\r\n"
@@ -532,11 +551,13 @@ void testDBAccessOptimization() {
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 1); })
+	    .wait([&moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 1);
+	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Force a second register, fork is re-created from DB";
 	clientOnDevice.disconnect();
@@ -548,11 +569,13 @@ void testDBAccessOptimization() {
 	    })
 	    .assert_passed();
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 2); })
+	    .wait([&moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 2);
+	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2);
 
 	SLOGD << "Step 5: Force a third register, fork is NOT re-created from DB";
 	clientOnDevice.disconnect();
@@ -564,11 +587,13 @@ void testDBAccessOptimization() {
 	    })
 	    .assert_passed();
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 2); })
+	    .wait([&moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 2);
+	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2);
 
 	SLOGD << "Step 6: Register second devices, check fork destruction";
 	clientOffDevice.reconnect();
@@ -581,13 +606,13 @@ void testDBAccessOptimization() {
 	asserter
 	    .wait([&moduleRouter] {
 		    const auto& allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
-		    return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1 &&
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == 1 &&
 		                          allMessages.empty());
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 3);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 3);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 3);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 3);
 }
 
 /**
@@ -624,7 +649,7 @@ static void globalTestMultipleMessages() {
 		ostringstream rawHeaders;
 		rawHeaders << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 		              "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-		              "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		              "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 		              "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 		              "CSeq: 20 MESSAGE\r\n"
 		              "Call-ID: Tvw6USHXYv"
@@ -652,13 +677,13 @@ static void globalTestMultipleMessages() {
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	if (!CoreAssert(receiverClient, server.getAgent()).wait([&moduleRouter, i] {
-		    return moduleRouter->mStats.mCountMessageForks->finish->read() == i;
+		    return moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == i;
 	    })) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), i, int, "%i");
+		BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), i, int, "%i");
 	}
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), i, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0, int, "%i");
-	BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), i, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), i, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0, int, "%i");
+	BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), i, int, "%i");
 
 	// Client REGISTER and receive message
 	receiverClient->getCore()->setNetworkReachable(true);
@@ -671,14 +696,14 @@ static void globalTestMultipleMessages() {
 
 	// Assert Fork is destroyed after being delivered
 	if (!CoreAssert(receiverClient, server.getAgent()).waitUntil(10s, [&moduleRouter, i] {
-		    return moduleRouter->mStats.mCountMessageProxyForks->finish->read() == i;
+		    return moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == i;
 	    })) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), i, int, "%i");
+		BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), i, int, "%i");
 	}
 	if (moduleRouter) {
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), i, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2 * i, int, "%i");
-		BC_ASSERT_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 2 * i, int, "%i");
+		BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), i, int, "%i");
+		BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2 * i, int, "%i");
+		BC_ASSERT_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 2 * i, int, "%i");
 	}
 
 	// MANDATORY, see first line of this test
@@ -721,7 +746,7 @@ void globalTestDatabaseDeleted() {
 	stringstream request{};
 	request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 	        << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1\r\n"
-	        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+	        << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 	        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 	        << "CSeq: 20 MESSAGE\r\n"
 	        << "Call-ID: Tvw6USHXYv\r\n"
@@ -742,11 +767,13 @@ void globalTestDatabaseDeleted() {
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
-	    .wait([&moduleRouter] { return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == 1); })
+	    .wait([&moduleRouter] {
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == 1);
+	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Clear database to simulate DB errors on Client REGISTER.";
 	ForkMessageContextSociRepository::getInstance()->deleteAll();
@@ -763,12 +790,12 @@ void globalTestDatabaseDeleted() {
 	SLOGD << "Step 5: Assert Fork is destroyed even if the ForkMessage can't be rebuilt because of an empty database.";
 	asserter
 	    .wait([&moduleRouter] {
-		    return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageProxyForks->finish->read() == 1);
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == 1);
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 1);
 }
 
 /**
@@ -781,7 +808,9 @@ void globalOrderTest() {
 	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
-	ModuleRouter::setMaxPriorityHandled(sofiasip::MsgSipPriority::Emergency);
+
+	const auto router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	router->getForkManager()->setMaxPriorityHandled(MsgSipPriority::Emergency);
 
 	ClientBuilder builder{*server.getAgent()};
 	auto receiverClient = builder.build("sip:provencal_le_gaulois@sip.test.org");
@@ -814,7 +843,7 @@ void globalOrderTest() {
 		stringstream request{};
 		request << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
 		        << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1\r\n"
-		        << "From: <sip:kijou@sip.linphone.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		        << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
 		        << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
 		        << "CSeq: 20 MESSAGE\r\n"
 		        << "Priority: " << priority << "\r\n"
@@ -849,12 +878,12 @@ void globalOrderTest() {
 
 	asserter
 	    .wait([&moduleRouter, &messageSent] {
-		    return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageForks->finish->read() == messageSent);
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == messageSent);
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), messageSent);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->finish->read(), 0);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), messageSent);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), messageSent);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), messageSent);
 
 	SLOGD << "Step 4: Client REGISTER, then receive message";
 	receiverClient.reconnect();
@@ -876,37 +905,39 @@ void globalOrderTest() {
 	SLOGD << "Step 6: Check fork stats";
 	asserter
 	    .wait([&moduleRouter, &messageSent] {
-		    return LOOP_ASSERTION(moduleRouter->mStats.mCountMessageProxyForks->finish->read() == messageSent);
+		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() ==
+		                          messageSent);
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageProxyForks->start->read(), messageSent);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->start->read(), 2 * messageSent);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountMessageForks->finish->read(), 2 * messageSent);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), messageSent);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2 * messageSent);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 2 * messageSent);
 }
 
-TestSuite _("ForkContext::mysql",
-            {
-                CLASSY_TEST(forkMessageContextSociRepositoryMysql),
-                CLASSY_TEST(forkMessageContextWithBranchesSociRepositoryMysql),
-                CLASSY_TEST(forkMessageContextSociRepositoryFullLoadMysql),
-                CLASSY_TEST(globalTest),
-                CLASSY_TEST(globalTestMultipleDevices),
-                CLASSY_TEST(testDBAccessOptimization),
-                CLASSY_TEST(globalTestDatabaseDeleted),
-                CLASSY_TEST(globalOrderTest),
-            },
-            Hooks()
-                .beforeSuite([] {
-	                mysqlServer.emplace();
-	                ForkMessageContextSociRepository::prepareConfiguration("mysql", mysqlServer->connectionString(),
-	                                                                       10);
-	                return 0;
-                })
-                .afterEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
-                .afterSuite([] {
-	                mysqlServer.reset();
-	                return 0;
-                }));
+TestSuite _{
+    "ForkContext::mysql",
+    {
+        CLASSY_TEST(forkMessageContextSociRepositoryMysql),
+        CLASSY_TEST(forkMessageContextWithBranchesSociRepositoryMysql),
+        CLASSY_TEST(forkMessageContextSociRepositoryFullLoadMysql),
+        CLASSY_TEST(globalTest),
+        CLASSY_TEST(globalTestMultipleDevices),
+        CLASSY_TEST(testDBAccessOptimization),
+        CLASSY_TEST(globalTestDatabaseDeleted),
+        CLASSY_TEST(globalOrderTest),
+    },
+    Hooks()
+        .beforeSuite([] {
+	        mysqlServer.emplace();
+	        ForkMessageContextSociRepository::prepareConfiguration("mysql", mysqlServer->connectionString(), 10);
+	        return 0;
+        })
+        .afterEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
+        .afterSuite([] {
+	        mysqlServer.reset();
+	        return 0;
+        }),
+};
 
 } // namespace
 } // namespace flexisip::tester

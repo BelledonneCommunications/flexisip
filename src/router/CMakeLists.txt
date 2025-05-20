@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -22,6 +22,8 @@
 
 target_sources(flexisip PRIVATE
     agent-injector.hh
+    fork-manager.cc fork-manager.hh
+    fork-group-sorter.cc fork-group-sorter.hh
     inject-context.cc inject-context.hh
     injector.hh
     schedule-injector.cc schedule-injector.hh

@@ -25,6 +25,7 @@
 #include "flexisip/event.hh"
 #include "flexisip/fork-context/fork-context.hh"
 #include "flexisip/module-router.hh"
+#include "router/injector.hh"
 #include "transaction/incoming-transaction.hh"
 
 namespace flexisip {
@@ -74,10 +75,10 @@ protected:
 		std::shared_ptr<BranchInfo> branch;
 	};
 
-	ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
-	                AgentInterface* agent,
+	ForkContextBase(AgentInterface* agent,
 	                const std::shared_ptr<ForkContextConfig>& cfg,
-	                const std::weak_ptr<ForkContextListener>& listener,
+	                const std::weak_ptr<InjectorListener>& injectorListener,
+	                const std::weak_ptr<ForkContextListener>& forkContextListener,
 	                std::unique_ptr<RequestSipEvent>&& event,
 	                const std::weak_ptr<StatPair>& counter,
 	                sofiasip::MsgSipPriority priority,
@@ -180,7 +181,6 @@ protected:
 	bool mFinished;
 	float mCurrentPriority;
 	AgentInterface* mAgent;
-	std::weak_ptr<ModuleRouterInterface> mRouter;
 	std::shared_ptr<MsgSip> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
@@ -190,7 +190,8 @@ protected:
 	std::list<std::shared_ptr<BranchInfo>> mWaitingBranches;
 	sofiasip::Timer mNextBranchesTimer;
 	sofiasip::MsgSipPriority mMsgPriority = sofiasip::MsgSipPriority::Normal;
-	std::weak_ptr<ForkContextListener> mListener;
+	std::weak_ptr<InjectorListener> mInjectorListener;
+	std::weak_ptr<ForkContextListener> mForkContextListener;
 
 private:
 	/**

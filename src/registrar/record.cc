@@ -129,8 +129,7 @@ Record::Key::Key(const url_t* url, bool useGlobalDomain) : mWrapped() {
 		if (!useGlobalDomain) {
 			ostr << user << "@" << url->url_host;
 		} else {
-			ostr << user << "@"
-			     << "merged";
+			ostr << user << "@merged";
 		}
 	} else {
 		ostr << url->url_host;

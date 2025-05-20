@@ -61,26 +61,22 @@ ForkCallContext::CancelInfo::CancelInfo(sip_reason_t* reason) : mReason(reason) 
 	} else mStatus = ForkStatus::Standard;
 }
 
-ForkCallContext::ForkCallContext(const shared_ptr<ModuleRouter>& router,
-                                 std::unique_ptr<RequestSipEvent>&& event,
-                                 sofiasip::MsgSipPriority priority)
-    : ForkContextBase(router,
-                      router->getAgent(),
-                      router->getCallForkCfg(),
-                      router,
-                      std::move(event),
-                      router->mStats.mCountCallForks,
-                      priority),
-      mLog{getEvent().getEventLog<CallLog>()},
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkCallContext")) {
+ForkCallContext::ForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
+                                 sofiasip::MsgSipPriority priority,
+                                 const std::weak_ptr<ForkContextListener>& forkContextListener,
+                                 const std::weak_ptr<InjectorListener>& injectorListener,
+                                 AgentInterface* agent,
+                                 const std::shared_ptr<ForkContextConfig>& config,
+                                 const std::weak_ptr<StatPair>& counter)
+    : ForkContextBase{agent, config, injectorListener, forkContextListener, std::move(event), counter, priority},
+      mLog{ForkContextBase::getEvent().getEventLog<CallLog>()},
+      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "ForkCallContext")} {
 	LOGD << "New instance";
 }
 
 ForkCallContext::~ForkCallContext() {
 	LOGD << "Destroy instance";
-	if (mIncoming) {
-		getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
-	}
+	if (mIncoming) ForkContextBase::getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
 }
 
 void ForkCallContext::onCancel(const MsgSip& ms) {
@@ -148,7 +144,7 @@ const int* ForkCallContext::getUrgentCodes() {
 }
 
 void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
-	LOGD << "Running" << __func__;
+	LOGD << "Running " << __func__;
 
 	ForkContextBase::onResponse(br, event);
 
@@ -217,27 +213,25 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
                                     const std::string& uid,
                                     const std::shared_ptr<ExtendedContact>& newContact) {
 
-	LOGD << "Running" << __func__;
-	const auto& sharedListener = mListener.lock();
-	if (!sharedListener) {
-		return;
-	}
+	LOGD << "Running " << __func__;
+	const auto forkContextListener = mForkContextListener.lock();
+	if (!forkContextListener) return;
 
 	if (isCompleted() && !mCfg->mForkLate) {
-		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
-		                                              DispatchStatus::DispatchNotNeeded);
+		forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+		                                                   DispatchStatus::DispatchNotNeeded);
 		return;
 	}
 
 	const auto dispatch = shouldDispatch(dest, uid);
 
 	if (dispatch.status != DispatchStatus::DispatchNeeded) {
-		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatch.status);
+		forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatch.status);
 		return;
 	}
 
 	if (!isCompleted()) {
-		sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+		forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 		checkFinished();
 		return;
 	}
@@ -245,7 +239,7 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 	if (dispatch.branch) {
 		if (auto pushContext = dispatch.branch->pushContext.lock()) {
 			if (pushContext->getPushInfo()->isApple() && pushContext->getStrategy()->getPushType() == PushType::VoIP) {
-				const auto& dispatchedBranch = sharedListener->onDispatchNeeded(shared_from_this(), newContact);
+				const auto& dispatchedBranch = forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 				cancelBranch(dispatchedBranch);
 				checkFinished();
 				return;
@@ -253,8 +247,8 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		}
 	}
 
-	sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
-	                                              DispatchStatus::DispatchNotNeeded);
+	forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid,
+	                                                   DispatchStatus::DispatchNotNeeded);
 }
 
 bool ForkCallContext::isCompleted() const {

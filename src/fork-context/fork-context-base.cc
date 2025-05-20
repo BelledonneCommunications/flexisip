@@ -22,27 +22,28 @@
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
 #include "registrar/registrar-db.hh"
+#include "router/injector.hh"
 
 using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
-                                 AgentInterface* agent,
+ForkContextBase::ForkContextBase(AgentInterface* agent,
                                  const std::shared_ptr<ForkContextConfig>& cfg,
-                                 const std::weak_ptr<ForkContextListener>& listener,
+                                 const std::weak_ptr<InjectorListener>& injectorListener,
+                                 const std::weak_ptr<ForkContextListener>& forkContextListener,
                                  std::unique_ptr<RequestSipEvent>&& event,
                                  const std::weak_ptr<StatPair>& counter,
                                  sofiasip::MsgSipPriority priority,
                                  bool isRestored)
-    : mCurrentPriority(-1), mAgent(agent), mRouter(router), mCfg(cfg), mLateTimer(mAgent->getRoot()),
-      mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority),
-      mListener(listener), mEvent(std::move(event)), mStatCounter(counter),
+    : mCurrentPriority(-1), mAgent(agent), mCfg(cfg), mLateTimer(mAgent->getRoot()), mFinishTimer(mAgent->getRoot()),
+      mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority), mInjectorListener(injectorListener),
+      mForkContextListener(forkContextListener), mEvent(std::move(event)), mStatCounter(counter),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkContextBase")) {
-	if (auto sharedCounter = mStatCounter.lock()) {
-		sharedCounter->incrStart();
+	if (const auto statCounter = mStatCounter.lock()) {
+		statCounter->incrStart();
 	} else {
-		LOGE << "Fork error: weak_ptr mStatCounter should be present here";
+		LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 	}
 
 	if (!isRestored) {
@@ -57,10 +58,10 @@ ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& r
 }
 
 ForkContextBase::~ForkContextBase() {
-	if (auto sharedCounter = mStatCounter.lock()) {
-		sharedCounter->incrFinish();
+	if (const auto statCounter = mStatCounter.lock()) {
+		statCounter->incrFinish();
 	} else {
-		LOGE << "Fork error: weak_ptr mStatCounter should be present here";
+		LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 	}
 }
 
@@ -336,8 +337,8 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 	// if mCurrentPriority != -1 it means that this fork is already started
 	if (mCurrentPriority != -1 && mCurrentPriority <= br->mPriority) {
 		mCurrentBranches.push_back(br);
-		if (auto router = mRouter.lock()) {
-			router->sendToInjector(br->extractRequest(), shared_from_this(), contact->contactId());
+		if (const auto injectorListener = mInjectorListener.lock()) {
+			injectorListener->inject(br->extractRequest(), shared_from_this(), contact->contactId());
 		} else {
 			mAgent->injectRequestEvent(br->extractRequest());
 		}
@@ -397,22 +398,20 @@ void ForkContextBase::start() {
 
 	/* Start the processing */
 	for (const auto& br : mCurrentBranches) {
-		if (auto router = mRouter.lock()) {
-			router->sendToInjector(br->extractRequest(), shared_from_this(), br->mContact->contactId());
+		if (const auto injectorListener = mInjectorListener.lock()) {
+			injectorListener->inject(br->extractRequest(), shared_from_this(), br->mContact->contactId());
 		} else {
 			mAgent->injectRequestEvent(br->extractRequest());
 		}
-		if (mCurrentBranches.empty()) {
-			// Can only occur if an internal error append
-			break;
-		}
+
+		// Can only occur if an internal error append
+		if (mCurrentBranches.empty()) break;
 	}
 
-	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches()) {
-		/* Start the timer for next branches */
+	// Start the timer for the next branches.
+	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches())
 		mNextBranchesTimer.set([this]() { onNextBranches(); },
 		                       static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
-	}
 }
 
 RequestSipEvent& ForkContextBase::getEvent() {
@@ -428,10 +427,10 @@ const std::shared_ptr<ForkContextConfig>& ForkContextBase::getConfig() const {
 }
 
 void ForkContextBase::onFinished() {
-	if (auto listener = mListener.lock()) {
-		listener->onForkContextFinished(shared_from_this());
+	if (const auto forkContextListener = mForkContextListener.lock()) {
+		forkContextListener->onForkContextFinished(shared_from_this());
 	} else {
-		LOGE << "Fork error: weak_ptr mListener should be present here";
+		LOGE << "Failed to notify ForkContextListener that fork is finished (std::weak_ptr of listener is empty)";
 	}
 }
 

@@ -20,7 +20,8 @@
 
 #include "flexisip/module-router.hh"
 #include "fork-context/fork-call-context.hh"
-
+#include "fork-context/fork-context-factory.hh"
+#include "router/fork-manager.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
@@ -50,8 +51,8 @@ void basicCall() {
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	if (moduleRouter) {
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 1);
 	}
 }
 
@@ -70,8 +71,8 @@ void callWithEarlyCancel() {
 	// Assert Fork is destroyed
 	CoreAssert(server, callerClient, calleeClient)
 	    .wait([&moduleRouter = *moduleRouter] {
-		    FAIL_IF(moduleRouter.mStats.mCountCallForks->start->read() != 1);
-		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() != 1);
+		    FAIL_IF(moduleRouter.mStats.mForkStats->mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter.mStats.mForkStats->mCountCallForks->finish->read() != 1);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
@@ -101,8 +102,8 @@ void callWithEarlyCancelCalleeOffline() {
 	// Assert that fork is still present because callee has one device offline.
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
 
 	// Callee idle device came back online, sending a new Register.
 	calleeIdleClient.reconnect();
@@ -127,13 +128,13 @@ void callWithEarlyCancelCalleeOffline() {
 	// Assert Fork is destroyed.
 	asserter
 	    .wait([&moduleRouter = *moduleRouter] {
-		    FAIL_IF(moduleRouter.mStats.mCountCallForks->finish->read() < 1);
-		    FAIL_IF(1 < moduleRouter.mStats.mCountCallForks->finish->read());
+		    FAIL_IF(moduleRouter.mStats.mForkStats->mCountCallForks->finish->read() < 1);
+		    FAIL_IF(1 < moduleRouter.mStats.mForkStats->mCountCallForks->finish->read());
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
 
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 }
 
 /**
@@ -223,8 +224,8 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	// Assert that fork is still present because callee has only offline devices.
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
 
 	// Callee idle device came back online, sending a new Register.
 	calleeIdleClient.reconnect();
@@ -249,11 +250,11 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	// Assert Fork is destroyed.
 	asserter
 	    .wait([&moduleRouter = *moduleRouter] {
-		    return LOOP_ASSERTION(moduleRouter.mStats.mCountCallForks->finish->read() == 1);
+		    return LOOP_ASSERTION(moduleRouter.mStats.mForkStats->mCountCallForks->finish->read() == 1);
 	    })
 	    .assert_passed();
 
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 }
 
 /**
@@ -286,8 +287,8 @@ void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
 	// Assert that fork is still present because callee has two devices offline.
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
 
 	// Callee idle devices came back online, sending a new Register.
 	calleeIdleClientVoip.reconnect();
@@ -340,8 +341,8 @@ void calleeOfflineWithOneDevice() {
 	// Assert that fork is still present because not all devices where online.
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
 
 	// Offline device came back online, sending a new Register.
 	calleeClientOfflineDevice.reconnect();
@@ -368,11 +369,11 @@ void calleeOfflineWithOneDevice() {
 	asserter
 	    .wait([agent = server.getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 }
 
 void calleeOfflineWithOneDeviceEarlyDecline() {
@@ -392,8 +393,8 @@ void calleeOfflineWithOneDeviceEarlyDecline() {
 	// Assert that fork is still present because not all devices where online.
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
 
 	// Offline device came back online, sending a new Register.
 	calleeClientOfflineDevice.reconnect();
@@ -420,12 +421,12 @@ void calleeOfflineWithOneDeviceEarlyDecline() {
 	asserter
 	    .wait([agent = server.getAgent()] {
 		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-		    FAIL_IF(moduleRouter->mStats.mCountCallForks->finish->read() != 1);
+		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
 
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 }
 
 void calleeMultipleOnlineDevices() {
@@ -446,8 +447,8 @@ void calleeMultipleOnlineDevices() {
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mCountCallForks->finish->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 1);
 }
 
 struct BrCancelListener : public BranchInfoListener {
@@ -469,8 +470,9 @@ void cancelStatusOnCancel() {
 	}};
 	proxy.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 
-	const auto cancel = [&proxy, &moduleRouter](const string& reason) {
+	const auto cancel = [&proxy, &forkFactory](const string& reason) {
 		ostringstream rawSipCancel{};
 		rawSipCancel << "CANCEL sip:callee1@127.0.0.1:5360 SIP/2.0 \r\n"
 		             << "Via: SIP/2.0/TLS 127.0.0.1;rport=5360\r\n"
@@ -484,7 +486,8 @@ void cancelStatusOnCancel() {
 		auto new_ev = make_unique<RequestSipEvent>(*ev);
 		auto msg = ev->getMsgSip();
 		ev->setEventLog(make_shared<CallLog>(msg->getSip()));
-		auto forkCallCtx = ForkCallContext::make(moduleRouter, std::move(ev), sofiasip::MsgSipPriority::Urgent);
+		auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent);
+
 		auto branch =
 		    forkCallCtx->addBranch(std::move(new_ev), make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"},
 		                                                                           "sip:127.0.0.1;transport=udp", ""));
@@ -524,6 +527,7 @@ void cancelStatusOnResponse() {
 	}};
 	proxy.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 
 	const string rawSipInvite =
 	    "INVITE sip:callee@127.0.0.1:5360;pn-prid=EA88:remote;pn-provider=apns.dev;pn-param=XX.example.org SIP/2.0\r\n"
@@ -539,7 +543,7 @@ void cancelStatusOnResponse() {
 	auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipInvite));
 	auto ev2 = make_unique<RequestSipEvent>(*ev);
 	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
-	auto forkCallCtx = ForkCallContext::make(moduleRouter, std::move(ev), sofiasip::MsgSipPriority::Urgent);
+	auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent);
 	// add a branch to ForkCallCtx
 	auto branch =
 	    forkCallCtx->addBranch(std::move(ev2), make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5360"},
@@ -567,19 +571,21 @@ void cancelStatusOnResponse() {
 	BC_ASSERT(branchListener->mCancelStatus.value() == ForkStatus::AcceptedElsewhere);
 }
 
-TestSuite _("ForkCallContext",
-            {
-                CLASSY_TEST(basicCall),
-                CLASSY_TEST(callWithEarlyCancel),
-                CLASSY_TEST(calleeOfflineWithOneDeviceEarlyDecline),
-                CLASSY_TEST(callWithEarlyCancelCalleeOffline),
-                CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline),
-                CLASSY_TEST(calleeOfflineWithOneDevice),
-                CLASSY_TEST(calleeMultipleOnlineDevices),
-                CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
-                CLASSY_TEST(cancelStatusOnCancel),
-                CLASSY_TEST(cancelStatusOnResponse),
-            });
+TestSuite _{
+    "ForkCallContext",
+    {
+        CLASSY_TEST(basicCall),
+        CLASSY_TEST(callWithEarlyCancel),
+        CLASSY_TEST(calleeOfflineWithOneDeviceEarlyDecline),
+        CLASSY_TEST(callWithEarlyCancelCalleeOffline),
+        CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline),
+        CLASSY_TEST(calleeOfflineWithOneDevice),
+        CLASSY_TEST(calleeMultipleOnlineDevices),
+        CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
+        CLASSY_TEST(cancelStatusOnCancel),
+        CLASSY_TEST(cancelStatusOnResponse),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester

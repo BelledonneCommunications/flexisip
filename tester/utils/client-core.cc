@@ -310,7 +310,7 @@ CoreClient::callWithEarlyCancel(const CoreClient& callee,
 		                    [&callerCall, agent = &mAgent] {
 			                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingProgress);
 			                    const auto& module = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
-			                    FAIL_IF(module->mStats.mCountCallForks->start->read() == 1);
+			                    FAIL_IF(module->mStats.mForkStats->mCountCallForks->start->read() == 1);
 			                    return ASSERTION_PASSED();
 		                    })
 		         .assert_passed()) {

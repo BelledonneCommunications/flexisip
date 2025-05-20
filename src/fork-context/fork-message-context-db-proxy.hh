@@ -44,19 +44,21 @@ public:
 	 */
 	enum class State : uint8_t { IN_DATABASE, IN_MEMORY };
 
-	~ForkMessageContextDbProxy() override;
+	template <typename... Args>
+	static std::shared_ptr<ForkMessageContextDbProxy> make(Args&&... args) {
+		return std::shared_ptr<ForkMessageContextDbProxy>{new ForkMessageContextDbProxy{std::forward<Args>(args)...}};
+	}
 
-	/**
-	 * @brief Create an instance from an existing instance stored in the database.
-	 */
-	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
-	                                                       ForkMessageContextDb& forkFromDb);
-	/**
-	 * @brief Create a new instance from a request.
-	 */
-	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
-	                                                       std::unique_ptr<RequestSipEvent>&& event,
-	                                                       sofiasip::MsgSipPriority priority);
+	static std::shared_ptr<ForkMessageContextDbProxy>
+	restore(ForkMessageContextDb& forkContextFromDb,
+	        const std::weak_ptr<ForkContextListener>& forkContextListener,
+	        const std::weak_ptr<InjectorListener>& injectorListener,
+	        Agent* agent,
+	        const std::shared_ptr<ForkContextConfig>& config,
+	        const std::weak_ptr<StatPair>& forkMessageCounter,
+	        const std::weak_ptr<StatPair>& counter);
+
+	~ForkMessageContextDbProxy() override;
 
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
@@ -102,8 +104,18 @@ protected:
 	const char* getClassName() const override;
 
 private:
-	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter>& router, sofiasip::MsgSipPriority priority);
-	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter>& router, ForkMessageContextDb& forkFromDb);
+	/**
+	 * @brief Create a new instance from a request.
+	 */
+	ForkMessageContextDbProxy(std::unique_ptr<RequestSipEvent>&& event,
+	                          sofiasip::MsgSipPriority priority,
+	                          bool isRestored,
+	                          const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                          const std::weak_ptr<InjectorListener>& injectorListener,
+	                          Agent* agent,
+	                          const std::shared_ptr<ForkContextConfig>& config,
+	                          const std::weak_ptr<StatPair>& forkMessageCounter,
+	                          const std::weak_ptr<StatPair>& counter);
 
 	/**
 	 * @brief Load the ForkMessageContext instance from the database.
@@ -150,6 +162,7 @@ private:
 	State getState() const;
 	void setState(State mState);
 
+	Agent* mAgent;
 	// Attributes are indicated as mutable because they are used in const methods from ForkContext API, but they need to
 	// be modified because we are in the proxy object.
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
@@ -166,7 +179,7 @@ private:
 	std::weak_ptr<StatPair> mCounter;
 	std::string mForkUuidInDb;
 	bool mIsFinished;
-	std::weak_ptr<ModuleRouter> mSavedRouter;
+	std::weak_ptr<ForkContextListener> mForkContextListener;
 	std::shared_ptr<ForkContextConfig> mSavedConfig;
 	std::vector<std::string> mSavedKeys;
 	sofiasip::MsgSipPriority mSavedMsgPriority;

@@ -24,16 +24,14 @@
 using namespace std;
 using namespace flexisip;
 
-ForkBasicContext::ForkBasicContext(const std::shared_ptr<ModuleRouter>& router,
-                                   std::unique_ptr<RequestSipEvent>&& event,
-                                   sofiasip::MsgSipPriority priority)
-    : ForkContextBase(router,
-                      router->getAgent(),
-                      router->getOtherForkCfg(),
-                      router,
-                      std::move(event),
-                      router->mStats.mCountBasicForks,
-                      priority) {
+ForkBasicContext::ForkBasicContext(std::unique_ptr<RequestSipEvent>&& event,
+                                   sofiasip::MsgSipPriority priority,
+                                   const std::weak_ptr<ForkContextListener>& forkContextListener,
+                                   const std::weak_ptr<InjectorListener>& injectorListener,
+                                   AgentInterface* agent,
+                                   const std::shared_ptr<ForkContextConfig>& config,
+                                   const std::weak_ptr<StatPair>& counter)
+    : ForkContextBase{agent, config, injectorListener, forkContextListener, std::move(event), counter, priority} {
 	mDecisionTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), 20s);
 	// start the acceptance timer immediately
 	mDecisionTimer->set([this]() { onDecisionTimer(); });
