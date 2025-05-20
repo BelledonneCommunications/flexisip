@@ -119,6 +119,14 @@ void ConferenceServer::_init() {
 	mCore->enableRtpBundle(true);
 	mCore->enableEchoCancellation(false);
 
+	const auto* noRTPTimeoutParameter = config->get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
+	const auto noRTPTimeout = noRTPTimeoutParameter->read();
+	if (noRTPTimeout <= 0ms) {
+		const auto parameterName = noRTPTimeoutParameter->getCompleteName();
+		throw BadConfiguration{"invalid value for '" + parameterName + "', duration must be strictly positive"};
+	}
+	mCore->setNortpTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPTimeout).count()));
+
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
 	mCore->addListener(shared_from_this());
 	mCore->enableConferenceServer(true);
@@ -633,6 +641,13 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Server will kill all incoming calls that last longer than the defined value.\n"
 	        "Special value 0 disables this feature.",
 	        "0",
+	    },
+	    {
+	        DurationS,
+	        "no-rtp-timeout",
+	        "Duration after which the server will terminate a call if no RTP packets are received from the other call "
+	        "participant. For performance reasons, this parameter cannot be disabled.",
+	        "30",
 	    },
 
 	    // Deprecated parameters:

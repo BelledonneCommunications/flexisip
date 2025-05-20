@@ -18,6 +18,8 @@ Group changes to describe their impact on the project, as follows:
 ### [Added]
 - **Proxy:**
     - Push notification delivery can now be delegated to a FlexiAPI server instance.
+- **Conference server:** add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically
+  hung up because no RTP data is received.
 
 ### [Changed]
 - **Pusher:**
