@@ -20,45 +20,33 @@
 
 #include <string>
 
-#include <soci/connection-pool.h>
-#include <soci/mysql/soci-mysql.h>
-#include <soci/session.h>
-#include <soci/sqlite3/soci-sqlite3.h>
-
 #include "fork-message-context.hh"
+#include "soci/connection-pool.h"
+#include "soci/sqlite3/soci-sqlite3.h"
 
 namespace flexisip {
 
 /**
- * Singleton class used to gather all access to fork message context database.<br>
- * <br>
- * Instantiating the singleton connect to the database and create/update the schema if it doesn't already exist.
+ * @brief Gather all access to the database that stores ForkMessageContext instances.
  */
 class ForkMessageContextSociRepository {
 public:
-	/**
-	 * ForkMessageContextSociRepository should not be cloneable.
-	 */
-	ForkMessageContextSociRepository(ForkMessageContextSociRepository& other) = delete;
-	/**
-	 * ForkMessageContextSociRepository should not be assignable.
-	 */
 	void operator=(const ForkMessageContextSociRepository&) = delete;
+	ForkMessageContextSociRepository(ForkMessageContextSociRepository& other) = delete;
 
 	static const std::unique_ptr<ForkMessageContextSociRepository>& getInstance();
 
 	static void prepareConfiguration(const std::string& backendString,
 	                                 const std::string& connectionString,
-	                                 unsigned int nbThreadsMax) {
-		sBackendString = backendString;
-		sConnectionString = connectionString;
-		sNbThreadsMax = nbThreadsMax;
-	}
+	                                 unsigned int nbThreadsMax);
 
 	ForkMessageContextDb findForkMessageByUuid(const std::string& uuid);
 
 	/**
-	 * Load minimal information about all fork_message_context to re-create proxy objects in Database state.
+	 * @brief Fetch all ForkMessageContextDb instances from the database.
+	 *
+	 * @note load minimal information to create ForkMessageContextDbProxy instances with IN_DATABASE state
+	 * @warning the list must be ordered by expiration date
 	 */
 	std::vector<ForkMessageContextDb> findAllForkMessage();
 
@@ -80,14 +68,14 @@ private:
 	static void findAndPushBackKeys(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
 	static void findAndPushBackBranches(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
 
-	soci::connection_pool mConnectionPool;
-	std::vector<std::string> mUuidsToDelete{};
-	std::mutex mMutex{};
-
 	static std::string sBackendString;
 	static std::string sConnectionString;
 	static unsigned int sNbThreadsMax;
 	static std::unique_ptr<ForkMessageContextSociRepository> singleton;
+
+	soci::connection_pool mConnectionPool;
+	std::vector<std::string> mUuidsToDelete;
+	std::mutex mMutex;
 	std::string mLogPrefix;
 };
 

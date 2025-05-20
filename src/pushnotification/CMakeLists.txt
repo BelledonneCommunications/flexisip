@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -39,6 +39,7 @@ target_sources(flexisip PRIVATE
 	generic/generic-utils.cc generic/generic-utils.hh
 	legacy/legacy-client.cc legacy/legacy-client.hh
 	pushnotification-context.cc pushnotification-context.hh
+	pushnotification-context-observer.cc
 	push-info.cc push-info.hh
 	push-param.cc push-param.hh
 	push-notification-exceptions.hh

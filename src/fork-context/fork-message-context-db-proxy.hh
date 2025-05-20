@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,112 +38,46 @@ class ForkMessageContextDbProxy : public ForkContext,
                                   public std::enable_shared_from_this<ForkMessageContextDbProxy> {
 public:
 	/**
-	 * IN_DATABASE : means that ForkMessageContext is not present in memory and should be restored from DB before
-	 * accessing it.
-	 * IN_MEMORY : means that ForkMessageContext is present in memory, no restoration needed.
+	 * @brief State of a ForkMessageContextDbProxy object.
+	 * - IN_DATABASE : means the instance is not present in memory and should be restored from DB before accessing it.
+	 * - IN_MEMORY : means the instance is present in memory, no restoration needed.
 	 */
 	enum class State : uint8_t { IN_DATABASE, IN_MEMORY };
 
+	~ForkMessageContextDbProxy() override;
+
 	/**
-	 * Used to create a ForkMessageContextDbProxy object for a ForkMessage that already exist in database at server
-	 * restart.
+	 * @brief Create an instance from an existing instance stored in the database.
 	 */
 	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                       ForkMessageContextDb& forkFromDb);
-
 	/**
-	 * Used to create a ForkMessageContextDbProxy and its inner ForkMessageContext when needed at runtime.
+	 * @brief Create a new instance from a request.
 	 */
 	static std::shared_ptr<ForkMessageContextDbProxy> make(const std::shared_ptr<ModuleRouter>& router,
 	                                                       std::unique_ptr<RequestSipEvent>&& event,
 	                                                       sofiasip::MsgSipPriority priority);
 
-	~ForkMessageContextDbProxy() override;
-
-	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
-	/**
-	 * See PushNotificationContextObserver::onPushSent().
-	 */
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
+	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
+	                                      const std::shared_ptr<ExtendedContact>& contact) override;
+	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override;
+	bool hasNextBranches() const override;
+	void processInternalError(int status, const char* phrase) override;
+	void start() override;
+	void addKey(const std::string& key) override;
+	const std::vector<std::string>& getKeys() const override;
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
-
-	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
-	                                      const std::shared_ptr<ExtendedContact>& contact) override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		auto newBranch = mForkMessage->addBranch(std::move(ev), contact);
-		newBranch->mForkCtx = shared_from_this();
-
-		return newBranch;
-	}
-
-	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override {
-		if (getState() != State::IN_MEMORY) return true;
-		return mForkMessage->allCurrentBranchesAnswered(finalStatusMode);
-	}
-
-	bool hasNextBranches() const override {
-		if (getState() != State::IN_MEMORY) return false;
-		return mForkMessage->hasNextBranches();
-	}
-
-	void processInternalError(int status, const char* phrase) override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		mForkMessage->processInternalError(status, phrase);
-	}
-
-	void start() override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		mForkMessage->start();
-	}
-
-	void addKey(const std::string& key) override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		mForkMessage->addKey(key);
-	}
-
-	const std::vector<std::string>& getKeys() const override {
-		if (getState() == State::IN_MEMORY) {
-			return mForkMessage->getKeys();
-		} else {
-			return mSavedKeys;
-		}
-	}
-
-	bool isFinished() const override {
-		return mIsFinished;
-	}
-
-	std::shared_ptr<BranchInfo> checkFinished() override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		return mForkMessage->checkFinished();
-	}
-
-	RequestSipEvent& getEvent() override {
-		checkState(__FUNCTION__, State::IN_MEMORY);
-		return mForkMessage->getEvent();
-	}
-
-	const std::shared_ptr<ForkContextConfig>& getConfig() const override {
-		return mSavedConfig;
-	}
-
-	void onCancel(const sofiasip::MsgSip&) override {
-		// Does nothing for fork late ForkMessageContext
-	}
-
-	sofiasip::MsgSipPriority getMsgPriority() const override {
-		return mSavedMsgPriority;
-	};
-
-#ifdef ENABLE_UNIT_TESTS
-	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) {
-		BC_ASSERT_STRING_EQUAL(mForkUuidInDb.c_str(), expected->mForkUuidInDb.c_str());
-		mForkMessage->assertEqual(expected->mForkMessage);
-	}
-#endif
+	void onCancel(const sofiasip::MsgSip&) override {};
+	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
+	bool isFinished() const override;
+	std::shared_ptr<BranchInfo> checkFinished() override;
+	RequestSipEvent& getEvent() override;
+	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
+	sofiasip::MsgSipPriority getMsgPriority() const override;
 
 	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
@@ -154,75 +88,92 @@ public:
 	                                   const std::string& uid,
 	                                   const DispatchStatus reason) override;
 
-protected:
-	static constexpr auto CLASS_NAME = "ForkMessageContextDbProxy";
-	const char* getClassName() const override {
-		return CLASS_NAME;
-	};
-
-	const ForkContext* getPtrForEquality() const override {
-		if (mForkMessage) {
-			return mForkMessage.get();
-		}
-		return this;
+#ifdef ENABLE_UNIT_TESTS
+	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) {
+		BC_ASSERT_STRING_EQUAL(mForkUuidInDb.c_str(), expected->mForkUuidInDb.c_str());
+		mForkMessage->assertEqual(expected->mForkMessage);
 	}
+#endif
+
+protected:
+	static constexpr std::string_view kClassName{"ForkMessageContextDbProxy"};
+
+	const ForkContext* getPtrForEquality() const override;
+	const char* getClassName() const override;
 
 private:
-	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router, sofiasip::MsgSipPriority priority);
-	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router, ForkMessageContextDb& forkFromDb);
+	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter>& router, sofiasip::MsgSipPriority priority);
+	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter>& router, ForkMessageContextDb& forkFromDb);
 
 	/**
-	 * Be careful, blocking I/O with DB, should be called in a thread.
+	 * @brief Load the ForkMessageContext instance from the database.
+	 *
+	 * @warning blocking I/O operation with the database, MUST be called in a thread.
 	 */
 	void loadFromDb() const;
-
 	/**
-	 * Be careful, blocking I/O with DB, should be called in a thread.
+	 * @brief Save the ForkMessageContext instance (and all corresponding branches) into the database.
+	 *
+	 * @warning blocking I/O operation with the database, MUST be called in a thread.
 	 */
 	bool saveToDb(const ForkMessageContextDb& dbFork);
-
+	/**
+	 * @brief Compare the provided state to the current state.
+	 */
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
+	/**
+	 * @return 'true' if this instance can be saved into the database.
+	 */
 	bool canBeSaved() const;
+	/**
+	 * @brief Clear the ForkMessageContext instance from memory if possible.
+	 */
 	void clearMemoryIfPossible();
 	void startTimerAndResetFork(time_t expirationDate, const std::vector<std::string>& keys);
 	void startTimerAndResetFork();
-	bool isAlreadyDelivered(const SipUri& uri, const std::string& uid);
-
 	/**
-	 * Restore mForkMessage from mDbFork if mDbFork != nullptr
-	 * @return true if the restoration succeed or wasn't needed. false in case of error.
+	 * @param uri destination SIP URI
+	 * @param uid destination unique id
+	 * @return 'true' if the destination has already been delivered
+	 */
+	bool isAlreadyDelivered(const SipUri& uri, const std::string& uid);
+	/**
+	 * @brief Restore ForkMessageContext instance from mDbFork.
+	 * @return 'true' if the operation succeeded or was not necessary.
 	 */
 	bool restoreForkIfNeeded();
+	/**
+	 * @brief Executes saveToDb in a separate thread.
+	 */
 	void runSavingThread();
 
 	State getState() const;
 	void setState(State mState);
 
-	// All those attributes are mark as mutable because they are used in const methods from ForkContext API, but they
-	// need to be modified because we are in the proxy object.
+	// Attributes are indicated as mutable because they are used in const methods from ForkContext API, but they need to
+	// be modified because we are in the proxy object.
 	mutable std::shared_ptr<ForkMessageContext> mForkMessage;
-	mutable std::unique_ptr<ForkMessageContextDb> mDbFork{nullptr};
-	mutable std::recursive_mutex mStateMutex{};
-	mutable std::mutex mDbAccessMutex{};
-	mutable State mState; // never access mState without mStateMutex locked, you can use locked getter and setter
+	mutable std::unique_ptr<ForkMessageContextDb> mDbFork;
+	mutable std::recursive_mutex mStateMutex;
+	mutable std::mutex mDbAccessMutex;
+	// Never access mState without mStateMutex locked, you can use locked getter and setter.
+	mutable State mState;
 	mutable std::atomic_uint mCurrentVersion{1};
 	mutable std::atomic_uint mLastSavedVersion{0};
 	mutable sofiasip::Timer mProxyLateTimer;
 	// tuple<host, port, uid>
 	mutable std::set<std::tuple<std::string, std::string, std::string>> mAlreadyDelivered;
-
 	std::weak_ptr<StatPair> mCounter;
-	std::string mForkUuidInDb{};
-	bool mIsFinished = false;
-
+	std::string mForkUuidInDb;
+	bool mIsFinished;
 	std::weak_ptr<ModuleRouter> mSavedRouter;
 	std::shared_ptr<ForkContextConfig> mSavedConfig;
-	std::vector<std::string> mSavedKeys{};
+	std::vector<std::string> mSavedKeys;
 	sofiasip::MsgSipPriority mSavedMsgPriority;
 	const unsigned int mMaxThreadNumber;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
-std::ostream& operator<<(std::ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept;
+std::ostream& operator<<(std::ostream& os, ForkMessageContextDbProxy::State state) noexcept;
 
 } // namespace flexisip

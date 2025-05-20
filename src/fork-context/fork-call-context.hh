@@ -18,85 +18,54 @@
 
 #pragma once
 
-#include <list>
 #include <optional>
 
+#include "eventlogs/events/eventlogs.hh"
 #include "flexisip/event.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
-
-#include "eventlogs/events/eventlogs.hh"
-#include "fork-status.hh"
-
 #include "fork-context-base.hh"
+#include "fork-status.hh"
 
 namespace flexisip {
 
+/**
+ * @brief Handle the forking of SIP calls (INVITE requests). It manages the branches of the call and processes responses
+ * from them.
+ */
 class ForkCallContext : public ForkContextBase {
 public:
-	// Call the matching private ctor and instantiate as a shared_ptr.
 	template <typename... Args>
 	static std::shared_ptr<ForkCallContext> make(Args&&... args) {
 		return std::shared_ptr<ForkCallContext>{new ForkCallContext{std::forward<Args>(args)...}};
 	}
 
-	~ForkCallContext();
-
-	// Public methods
-	bool isCompleted() const;
-	bool isRingingSomewhere() const;
-
-	void onCancel(const MsgSip& ms) override;
+	~ForkCallContext() override;
 
 	void processInternalError(int status, const char* phrase) override;
-
+	void onCancel(const MsgSip& ms) override;
 	std::shared_ptr<BranchInfo> checkFinished() override;
 
-protected:
-	// Protected methods
-	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
-
 	/**
-	 * See PushNotificationContextObserver::onPushSent()
+	 * @return 'true' if the fork process is terminated
 	 */
+	bool isCompleted() const;
+	/**
+	 * @return 'true' if one of the branches received a response in the [180;200[ range
+	 */
+	bool isRingingSomewhere() const;
+
+protected:
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
+	void start() override;
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
-
-	void start() override;
-
-	const char* getClassName() const override {
-		return CLASS_NAME;
-	};
+	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
+	const char* getClassName() const override;
 
 private:
-	// Private ctors
-	ForkCallContext(const std::shared_ptr<ModuleRouter>& router,
-	                std::unique_ptr<RequestSipEvent>&& event,
-	                sofiasip::MsgSipPriority priority);
-
-	// Private methods
-	const int* getUrgentCodes();
-	void onShortTimer();
-	void onLateTimeout() override;
-	void cancelOthers(const std::shared_ptr<BranchInfo>& br);
-	void cancelAll(const sip_t* received_cancel);
-	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo>& br, ForkStatus status);
-	void logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo*);
-	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);
-	void cancelBranch(const std::shared_ptr<BranchInfo>& brit);
-	bool shouldFinish() override {
-		return !mCfg->mForkLate;
-	}
-
-	// Private attributes
-	sofiasip::Home mHome{};
-	std::unique_ptr<sofiasip::Timer> mShortTimer{}; // optionally used to send retryable responses
-	std::shared_ptr<CallLog> mLog{};
-	bool mCancelled = false;
-
 	struct CancelInfo {
 		CancelInfo(sofiasip::Home& home, const ForkStatus& status);
 		CancelInfo(sip_reason_t* reason);
@@ -105,10 +74,65 @@ private:
 		sip_reason_t* mReason{};
 	};
 
-	std::optional<CancelInfo> mCancel;
-	static const int sUrgentCodesWithout603[];
-	static constexpr auto CLASS_NAME = "ForkCallContext";
-	std::string mLogPrefix;
+	static constexpr std::string_view kClassName{"ForkCallContext"};
+	static constexpr int kUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 488, 606, 0};
+
+	ForkCallContext(const std::shared_ptr<ModuleRouter>& router,
+	                std::unique_ptr<RequestSipEvent>&& event,
+	                sofiasip::MsgSipPriority priority);
+
+	void onLateTimeout() override;
+	bool shouldFinish() override;
+
+	/**
+	 * @return the list of SIP status codes that are considered as urgent regarding the configuration of this fork
+	 */
+	const int* getUrgentCodes();
+	/**
+	 * @brief Send urgent responses to branches if no branch is ringing.
+	 */
+	void onShortTimer();
+	/**
+	 * @brief Cancel all branches when at least one branch has been answered with a final response.
+	 *
+	 * @param br the branch that received the CANCEL request
+	 */
+	void cancelOthers(const std::shared_ptr<BranchInfo>& br);
+	/**
+	 * @brief Cancel all branches.
+	 *
+	 * @param received_cancel CANCEL request received
+	 */
+	void cancelAll(const sip_t* received_cancel);
+	/**
+	 * @brief Cancel all branches with a specific status.
+	 *
+	 * @param br the branch that received the CANCEL request
+	 * @param status the status
+	 */
+	void cancelOthersWithStatus(const std::shared_ptr<BranchInfo>& br, ForkStatus status);
+	/**
+	 * @brief Send the event log for this response.
+	 *
+	 * @param ev received response
+	 */
+	void logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo*);
+	/**
+	 * @brief Forward the response on the provided branch and send an event log for this response.
+	 */
+	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);
+	/**
+	 * @param brit branch to cancel
+	 */
+	void cancelBranch(const std::shared_ptr<BranchInfo>& brit);
+
+	sofiasip::Home mHome{};
+	// Optionally used to send retryable responses.
+	std::unique_ptr<sofiasip::Timer> mShortTimer{};
+	std::shared_ptr<CallLog> mLog{};
+	bool mCancelled{};
+	std::optional<CancelInfo> mCancel{};
+	std::string mLogPrefix{};
 };
 
 } // namespace flexisip

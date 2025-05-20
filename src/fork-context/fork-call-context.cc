@@ -22,8 +22,6 @@
 #include <memory>
 #include <string_view>
 
-#include <sofia-sip/sip_status.h>
-
 #include "agent.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
 #include "eventlogs/events/calls/call-started-event-log.hh"
@@ -32,6 +30,7 @@
 #include "fork-context/branch-info.hh"
 #include "fork-context/fork-status.hh"
 #include "registrar/extended-contact.hh"
+#include "sofia-sip/sip_status.h"
 
 using namespace std;
 using namespace string_view_literals;
@@ -102,15 +101,16 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 		mCancel = make_optional<CancelInfo>(mHome, ForkStatus::Standard);
 	}
 
-	const auto branches = getBranches(); // work on a copy of the list of branches
-	for (const auto& brit : branches) {
-		if (brit != br) {
-			cancelBranch(brit);
-			brit->notifyBranchCanceled(mCancel->mStatus);
+	// Work on a copy of the list.
+	const auto branches = getBranches();
+	for (const auto& branch : branches) {
+		if (branch != br) {
+			cancelBranch(branch);
+			branch->notifyBranchCanceled(mCancel->mStatus);
 
 			auto& event = getEvent();
 			auto eventLog = make_shared<CallLog>(event.getMsgSip()->getSip());
-			eventLog->setDevice(*brit->mContact);
+			eventLog->setDevice(*branch->mContact);
 			eventLog->setCancelled();
 			eventLog->setForkStatus(mCancel->mStatus);
 			event.writeLog(eventLog);
@@ -141,14 +141,10 @@ void ForkCallContext::cancelBranch(const std::shared_ptr<BranchInfo>& brit) {
 	}
 }
 
-const int ForkCallContext::sUrgentCodesWithout603[] = {401, 407, 415, 420, 484, 488, 606, 0};
-
 const int* ForkCallContext::getUrgentCodes() {
-	if (mCfg->mTreatAllErrorsAsUrgent) return ForkContextBase::sAllCodesUrgent;
-
-	if (mCfg->mTreatDeclineAsUrgent) return ForkContextBase::sUrgentCodes;
-
-	return sUrgentCodesWithout603;
+	if (mCfg->mTreatAllErrorsAsUrgent) return kAllCodesUrgent;
+	if (mCfg->mTreatDeclineAsUrgent) return kUrgentCodes;
+	return kUrgentCodesWithout603;
 }
 
 void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEvent& event) {
@@ -233,10 +229,10 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		return;
 	}
 
-	const auto dispatchPair = shouldDispatch(dest, uid);
+	const auto dispatch = shouldDispatch(dest, uid);
 
-	if (dispatchPair.first != DispatchStatus::DispatchNeeded) {
-		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatchPair.first);
+	if (dispatch.status != DispatchStatus::DispatchNeeded) {
+		sharedListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatch.status);
 		return;
 	}
 
@@ -244,8 +240,10 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 		checkFinished();
 		return;
-	} else if (dispatchPair.second) {
-		if (auto pushContext = dispatchPair.second->pushContext.lock()) {
+	}
+
+	if (dispatch.branch) {
+		if (auto pushContext = dispatch.branch->pushContext.lock()) {
 			if (pushContext->getPushInfo()->isApple() && pushContext->getStrategy()->getPushType() == PushType::VoIP) {
 				const auto& dispatchedBranch = sharedListener->onDispatchNeeded(shared_from_this(), newContact);
 				cancelBranch(dispatchedBranch);
@@ -325,7 +323,7 @@ std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
 	}
 
 	if (mCancelled) {
-		// If a call is cancelled by caller/callee, even if some branches only answered 503 or 408, even in fork-late
+		// If a call is canceled by caller/callee, even if some branches only answered 503 or 408, even in fork-late
 		// mode, we want to directly send a response.
 		auto br = findBestBranch(false);
 		if (br && forwardResponse(br)) {
@@ -334,6 +332,14 @@ std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
 	}
 
 	return nullptr;
+}
+
+const char* ForkCallContext::getClassName() const {
+	return kClassName.data();
+}
+
+bool ForkCallContext::shouldFinish() {
+	return !mCfg->mForkLate;
 }
 
 } // namespace flexisip

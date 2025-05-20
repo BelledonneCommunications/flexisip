@@ -20,20 +20,18 @@
 
 #include "flexisip/event.hh"
 #include "flexisip/module-router.hh"
-
 #include "fork-context-base.hh"
 
 namespace flexisip {
 
 class ForkBasicContext : public ForkContextBase {
 public:
-	// Call the matching private ctor and instantiate as a shared_ptr.
 	template <typename... Args>
 	static std::shared_ptr<ForkBasicContext> make(Args&&... args) {
 		return std::shared_ptr<ForkBasicContext>{new ForkBasicContext{std::forward<Args>(args)...}};
 	}
 
-	virtual ~ForkBasicContext();
+	~ForkBasicContext() override;
 
 	void processInternalError(int status, const char* phrase) override;
 
@@ -62,11 +60,9 @@ private:
 	void finishIncomingTransaction();
 	void onDecisionTimer();
 
-	/**
-	 * Timeout after which an answer must be sent through the incoming transaction even if no success response was
-	 * received on the outgoing transactions
-	 */
-	std::unique_ptr<sofiasip::Timer> mDecisionTimer{nullptr};
+	// Timeout after which an answer must be sent through the incoming transaction even if no success response was
+	// received on the outgoing transactions.
+	std::unique_ptr<sofiasip::Timer> mDecisionTimer;
 	std::string mLogPrefix;
 };
 

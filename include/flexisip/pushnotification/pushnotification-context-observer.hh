@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,16 +23,18 @@ namespace flexisip {
 class PushNotificationContext;
 
 /**
- * Interface for PushNotificationContext observers.
+ * @brief Be notified when a push notification is sent by an instance of PushNotificationContext.
  */
 class PushNotificationContextObserver {
 public:
-	virtual ~PushNotificationContextObserver() = default;
+	virtual ~PushNotificationContextObserver();
+
 	/**
-	 * Notify the observer that a push notification has been sent by the PushNotificationContext.
-	 * @param aPNCtx The PushNotificationContext that has sent the PN.
-	 * @param aRingingPush Tells whether the sent PN makes the callee's device to ring without
-	 * waking the user agent up.
+	 * @brief Notify the observer that a push notification has been sent by the provided context.
+	 *
+	 * @param aPNCtx the context that has sent the push notification
+	 * @param aRingingPush indicates whether the push notification sent made the callee's device to ring without waking
+	 * the user agent up
 	 */
 	virtual void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept = 0;
 };

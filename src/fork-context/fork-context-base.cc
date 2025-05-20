@@ -27,10 +27,6 @@ using namespace std;
 using namespace std::chrono;
 using namespace flexisip;
 
-const int ForkContextBase::sUrgentCodes[] = {401, 407, 415, 420, 484, 488, 606, 603, 0};
-
-const int ForkContextBase::sAllCodesUrgent[] = {-1, 0};
-
 ForkContextBase::ForkContextBase(const std::shared_ptr<ModuleRouterInterface>& router,
                                  AgentInterface* agent,
                                  const std::shared_ptr<ForkContextConfig>& cfg,
@@ -217,7 +213,7 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 	if (!targetGr.empty()) {
 		if (uid.find(targetGr) == string::npos) { // to compare regardless of < >
 			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
-			return make_pair(DispatchStatus::DispatchNotNeeded, nullptr);
+			return {.status = DispatchStatus::DispatchNotNeeded, .branch = nullptr};
 		}
 	}
 
@@ -227,14 +223,14 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 		int code = br->getStatus();
 		if (code == 503 || code == 408) {
 			LOGD << "Instance failed to receive the request previously";
-			return make_pair(DispatchStatus::DispatchNeeded, br);
+			return {.status = DispatchStatus::DispatchNeeded, .branch = br};
 		} else if (code >= 200) {
 			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
 			LOGD << "Instance has already answered the request";
-			return make_pair(DispatchStatus::DispatchNotNeeded, nullptr);
+			return {.status = DispatchStatus::DispatchNotNeeded, .branch = nullptr};
 		} else {
 			/*
 			 * No response, or a provisional response is received. We can cannot conclude on what to do.
@@ -244,16 +240,16 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 			 */
 			if (br_by_url == nullptr) {
 				LOGD << "Instance reconnected";
-				return make_pair(DispatchStatus::DispatchNeeded, br);
+				return {.status = DispatchStatus::DispatchNeeded, .branch = br};
 			}
 		}
 	}
 	if (br_by_url) {
 		LOGD << "Pending transaction for this destination";
-		return make_pair(DispatchStatus::PendingTransaction, nullptr);
+		return {.status = DispatchStatus::PendingTransaction, .branch = nullptr};
 	}
 
-	return make_pair(DispatchStatus::DispatchNeeded, nullptr);
+	return {.status = DispatchStatus::DispatchNeeded, .branch = nullptr};
 }
 
 // This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the
@@ -423,6 +419,14 @@ RequestSipEvent& ForkContextBase::getEvent() {
 	return *mEvent;
 }
 
+sofiasip::MsgSipPriority ForkContextBase::getMsgPriority() const {
+	return mMsgPriority;
+}
+
+const std::shared_ptr<ForkContextConfig>& ForkContextBase::getConfig() const {
+	return mCfg;
+}
+
 void ForkContextBase::onFinished() {
 	if (auto listener = mListener.lock()) {
 		listener->onForkContextFinished(shared_from_this());
@@ -454,9 +458,6 @@ bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
-void ForkContextBase::onNewBranch(const std::shared_ptr<BranchInfo>&) {
-}
-
 void ForkContextBase::onCancel(const MsgSip&) {
 	if (shouldFinish()) {
 		setFinished();
@@ -465,6 +466,10 @@ void ForkContextBase::onCancel(const MsgSip&) {
 
 void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent&) {
 	if (br->getStatus() >= 200) br->notifyBranchCompleted();
+}
+
+bool ForkContextBase::isFinished() const {
+	return mFinished;
 }
 
 void ForkContextBase::onPushSent(PushNotificationContext& aPNCtx, bool) noexcept {
@@ -579,4 +584,8 @@ std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
 	}
 
 	return nullptr;
+}
+
+const ForkContext* ForkContextBase::getPtrForEquality() const {
+	return this;
 }

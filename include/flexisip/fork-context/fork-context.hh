@@ -28,6 +28,7 @@
 namespace flexisip {
 
 enum class FinalStatusMode;
+
 class BranchInfo;
 class IncomingTransaction;
 class OutgoingTransaction;
@@ -38,83 +39,140 @@ class SipUri;
 struct ExtendedContact;
 
 struct ForkContextConfig {
-	int mDeliveryTimeout = 0;               /* in seconds, used for "late" forking*/
-	std::chrono::seconds mUrgentTimeout{5}; /*timeout for sending buffered urgent or retryable responses (like 415).*/
-	std::chrono::seconds mPushResponseTimeout{0}; /*timeout for receiving response to push */
-	int mCurrentBranchesTimeout = 0;              /*timeout for receiving response on current branches*/
-	bool mForkLate = false;
-	bool mSaveForkMessageEnabled = false;
-	bool mTreatAllErrorsAsUrgent = false; /*treat all SIP response code as urgent replies in the fork mechanism.*/
-	bool mForkNoGlobalDecline = false;
-	bool mTreatDeclineAsUrgent =
-	    false; /*treat 603 declined as a urgent response, only useful is mForkNoGlobalDecline==true*/
-	bool mPermitSelfGeneratedProvisionalResponse = true; /* Self explicit. Ex: 110 Push sent, 180 Ringing*/
+	// In seconds, used for "late" forking.
+	int mDeliveryTimeout{0};
+	// Timeout for sending buffered urgent or retryable responses (like '415').
+	std::chrono::seconds mUrgentTimeout{5};
+	// Timeout for receiving response to push.
+	std::chrono::seconds mPushResponseTimeout{0};
+	// Timeout for receiving response on current branches.
+	int mCurrentBranchesTimeout{0};
+
+	bool mForkLate{false};
+	bool mForkNoGlobalDecline{false};
+	// Treat '603 Declined' as an urgent response, only useful if mForkNoGlobalDecline is 'true'.
+	bool mTreatDeclineAsUrgent{false};
+	bool mSaveForkMessageEnabled{false};
+	// Treat all SIP response codes as urgent replies in the fork mechanism.
+	bool mTreatAllErrorsAsUrgent{false};
+	// Self-explanatory (example: 110 Push sent, 180 Ringing).
+	bool mPermitSelfGeneratedProvisionalResponse{true};
 };
 
 class ForkContext : public PushNotificationContextObserver {
 public:
-	virtual ~ForkContext() = default;
+	~ForkContext() override = default;
 
-	// Obtain the ForkContext that manages a transaction.
-	static std::shared_ptr<ForkContext> getFork(const std::shared_ptr<IncomingTransaction>& tr);
-	static std::shared_ptr<ForkContext> getFork(const std::shared_ptr<OutgoingTransaction>& tr);
-	// Set the ForkContext managed by an incoming transaction.
-	static void setFork(const std::shared_ptr<IncomingTransaction>& tr, const std::shared_ptr<ForkContext>& fork);
+	/**
+	 * @param transaction incoming transaction
+	 * @param context ForkContext instance to be associated with the transaction
+	 */
+	static void setFork(const std::shared_ptr<IncomingTransaction>& transaction,
+	                    const std::shared_ptr<ForkContext>& context);
+	/**
+	 * @param transaction incoming transaction
+	 * @return ForkContext instance associated with the transaction
+	 */
+	static std::shared_ptr<ForkContext> getFork(const std::shared_ptr<IncomingTransaction>& transaction);
+	/**
+	 * @param transaction outgoing transaction
+	 * @return ForkContext instance associated with the transaction
+	 */
+	static std::shared_ptr<ForkContext> getFork(const std::shared_ptr<OutgoingTransaction>& transaction);
 
 	// Called by the router module to notify a cancellation.
 	static void processCancel(RequestSipEvent& ev);
 	// called by the router module to notify the arrival of a response.
 	static bool processResponse(ResponseSipEvent& ev);
 
+	/**
+	 * @param ev the request to fork
+	 * @param contact contact to fork to
+	 * @return the created branch
+	 */
+	virtual std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
+	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
+	/**
+	 * @param finalStatusMode fork mode to consider for the final status answer
+	 * @return 'true' if all current branches have been answered (see @FinalStatusMode for more information)
+	 */
+	virtual bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const = 0;
+	/**
+	 * @return 'true' if there are other branches with lower priorities to try
+	 */
+	virtual bool hasNextBranches() const = 0;
+	/**
+	 * @brief Send a custom response and cancel all branches if necessary.
+	 *
+	 * @note MUST be called in case of a fatal error at runtime
+	 * @param status status of the custom response to send
+	 * @param phrase content of the custom response to send
+	 */
+	virtual void processInternalError(int status, const char* phrase) = 0;
+	/**
+	 * @brief Start the processing of the highest priority branches that are not completed yet.
+	 */
+	virtual void start() = 0;
+	/**
+	 * @param key record key associated with the ForkContext (see @Record::Key for more information)
+	 */
+	virtual void addKey(const std::string& key) = 0;
+	/**
+	 * @return the list of record keys associated with the ForkContext (see @Record::Key for more information)
+	 */
+	virtual const std::vector<std::string>& getKeys() const = 0;
+	/**
+	 * @brief Notify the ForkContext that a new register from a potential destination of the fork has just arrived.
+	 *
+	 * @warning you may not need to process it if another transaction already exists or existed for this contact
+	 * @note to use in conjunction with @ForkContextListener
+	 * @param dest potential destination of the fork
+	 * @param uid unique id of the contact
+	 * @param newContact contact that just registered
+	 */
+	virtual void
+	onNewRegister(const SipUri& dest, const std::string& uid, const std::shared_ptr<ExtendedContact>& newContact) = 0;
+	/**
+	 * @brief Notify branches that a CANCEL request has been received.
+	 *
+	 * @param ms received CANCEL request
+	 */
+	virtual void onCancel(const sofiasip::MsgSip& ms) = 0;
+	/**
+	 * @brief Notify the provided branch that a response has been received.
+	 *
+	 * @param br branch that received the response
+	 * @param event received response
+	 */
+	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) = 0;
+	/**
+	 * @return 'true' if the fork is terminated
+	 */
+	virtual bool isFinished() const = 0;
+	/**
+	 * @brief Verify if the ForkContext should be considered as finished. A final answer is sent if needed.
+	 *
+	 * @return the branch that was answered with a final response or nullptr if no branch was answered
+	 */
+	virtual std::shared_ptr<BranchInfo> checkFinished() = 0;
+
+	/**
+	 * @return the event that created the ForkContext
+	 */
+	virtual RequestSipEvent& getEvent() = 0;
+	virtual const ForkContext* getPtrForEquality() const = 0;
+	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
+	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
+
+	/**
+	 * @param other other ForkContext to compare with
+	 * @return 'true' if the ForkContext pointers are equal (uses ForkContext::getPtrForEquality())
+	 */
 	bool isEqual(const std::shared_ptr<ForkContext>& other) const {
 		return getPtrForEquality() == other->getPtrForEquality();
 	}
 
-	// Called by the Router module to create a new branch.
-	virtual std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
-	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
-	virtual bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const = 0;
-	// Request if the fork has other branches with lower priorities to try
-	virtual bool hasNextBranches() const = 0;
-	/**
-	 * Called when a fatal internal error is thrown in Flexisip. Send a custom response and cancel all branches if
-	 * necessary.
-	 * @param status The status of the custom response to send.
-	 * @param phrase The content of the custom response to send.
-	 */
-	virtual void processInternalError(int status, const char* phrase) = 0;
-	// Start the processing of the highest priority branches that are not completed yet
-	virtual void start() = 0;
-
-	virtual void addKey(const std::string& key) = 0;
-	virtual const std::vector<std::string>& getKeys() const = 0;
-
-	/**
-	 * Informs the forked call context that a new register from a potential destination of the fork just arrived.
-	 * If the fork context is interested in handling this new destination he can call
-	 * ForkContextListener::onDispatchNeeded, call ForkContextListener::onUselessRegisterNotification otherwise.
-	 *
-	 * Typical case for refusing it is when another transaction already exists or existed for this contact.
-	 */
-	virtual void
-	onNewRegister(const SipUri& dest, const std::string& uid, const std::shared_ptr<ExtendedContact>& newContact) = 0;
-	// Notifies the cancellation of the fork process.
-	virtual void onCancel(const sofiasip::MsgSip& ms) = 0;
-	// Notifies the arrival of a new response on a given branch
-	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) = 0;
-	virtual RequestSipEvent& getEvent() = 0;
-	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
-	virtual bool isFinished() const = 0;
-	/**
-	 * Check if the fork context should be considered as finished. A final answer is sent if needed.
-	 * If a final answer is sent and correspond to a branch, this branch is returned.
-	 */
-	virtual std::shared_ptr<BranchInfo> checkFinished() = 0;
-	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
-	virtual const ForkContext* getPtrForEquality() const = 0;
-
 protected:
-	// Protected methods
 	virtual const char* getClassName() const = 0;
 };
 
@@ -124,26 +182,42 @@ enum class DispatchStatus {
 	PendingTransaction,
 };
 
+/**
+ * @brief Be notified of major events in the ForkContext lifecycle.
+ */
 class ForkContextListener {
 public:
 	virtual ~ForkContextListener() = default;
 
-	virtual void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) = 0;
-
 	/**
-	 * Called when a fork context need a dispatch for specific contact.
+	 * @brief Notify the ForkContext is finished.
+	 *
+	 * @param ctx ForkContext that is finished
+	 */
+	virtual void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) = 0;
+	/**
+	 * @brief Notify a new register and a dispatch is needed for it.
+	 *
+	 * @param ctx ForkContext that needs a dispatch (add a new branch)
+	 * @param newContact contact that just registered
+	 * @return the created branch
 	 */
 	virtual std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
 	                                                     const std::shared_ptr<ExtendedContact>& newContact) = 0;
-
 	/**
-	 * Called when onNewRegister was called on a fork and that no dispatch was needed for this contact.
+	 * @brief Notify a new register, but no dispatch is needed for it.
+	 *
+	 * @param ctx ForkContext that is concerned
+	 * @param newContact contact that just registered
+	 * @param dest destination of the fork
+	 * @param uid unique id of the contact
+	 * @param reason why the register is useless (and that no dispatch is needed)
 	 */
 	virtual void onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
 	                                           const std::shared_ptr<ExtendedContact>& newContact,
 	                                           const SipUri& dest,
 	                                           const std::string& uid,
-	                                           const DispatchStatus reason) = 0;
+	                                           DispatchStatus reason) = 0;
 };
 
 } // namespace flexisip

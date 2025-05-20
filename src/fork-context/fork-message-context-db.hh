@@ -25,15 +25,7 @@
 namespace flexisip {
 
 /**
- * This class is the object model for the fork_message_context database table.<br>
- *<br>
- * You can get one ForkMessageContextDb object from ForkMessageContext::getDbObject().<br>
- * You can create one ForkMessageContext object from ForkMessageContextDb using ForkMessageContext::make(Agent* agent,
- * std::unique_ptr<RequestSipEvent>&& event, const std::shared_ptr<ForkContextConfig>& cfg, const
- * std::weak_ptr<ForkContextListener>& listener, const std::weak_ptr<StatPair>& counter, ForkMessageContextDb&
- * forkFromDb).
- *
- * @see ForkMessageContext
+ * @brief Object model for the 'fork_message_context' database table.
  */
 class ForkMessageContextDb {
 public:
@@ -44,11 +36,11 @@ public:
 	                     const tm& expirationDate,
 	                     const std::string& request,
 	                     sofiasip::MsgSipPriority priority)
-	    : currentPriority(currentPriority), deliveredCount(deliveredCount), isFinished(isFinished), isMessage(true),
-	      expirationDate(expirationDate), request(request), msgPriority(priority) {
+	    : currentPriority(currentPriority), deliveredCount(deliveredCount), isFinished(isFinished),
+	      isMessage(true), expirationDate(expirationDate), request(request), msgPriority(priority) {
 	}
 
-	std::string uuid{};
+	std::string uuid;
 	double currentPriority;
 	int deliveredCount;
 	bool isFinished;
@@ -69,10 +61,10 @@ public:
 namespace soci {
 
 /**
- * Used by soci to transform database result to ForkMessageContextDb and vice-versa.
+ * @brief Transform a database result into an instance of ForkMessageContextDb and vice versa.
  */
 template <>
-class type_conversion<flexisip::ForkMessageContextDb> {
+struct type_conversion<flexisip::ForkMessageContextDb> {
 public:
 	typedef values base_type;
 

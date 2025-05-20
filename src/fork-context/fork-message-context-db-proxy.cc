@@ -35,7 +35,6 @@ unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
 std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
                                                                            unique_ptr<RequestSipEvent>&& event,
                                                                            sofiasip::MsgSipPriority priority) {
-	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, priority)};
 
 	shared->mForkMessage = ForkMessageContext::make(router, shared, std::move(event), priority);
@@ -45,7 +44,6 @@ std::shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const
 
 shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shared_ptr<ModuleRouter>& router,
                                                                       ForkMessageContextDb& forkFromDb) {
-	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContextDbProxy> shared{new ForkMessageContextDbProxy(router, forkFromDb)};
 
 	shared->startTimerAndResetFork(timegm(&forkFromDb.expirationDate), forkFromDb.dbKeys);
@@ -53,7 +51,7 @@ shared_ptr<ForkMessageContextDbProxy> ForkMessageContextDbProxy::make(const shar
 	return shared;
 }
 
-ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router,
+ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter>& router,
                                                      sofiasip::MsgSipPriority priority)
     : mForkMessage{}, mState{State::IN_MEMORY}, mProxyLateTimer{router->getAgent()->getRoot()},
       mCounter{router->mStats.mCountMessageProxyForks}, mSavedRouter{router}, mSavedConfig{router->getMessageForkCfg()},
@@ -67,7 +65,7 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<Modul
 	}
 }
 
-ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router,
+ForkMessageContextDbProxy::ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter>& router,
                                                      ForkMessageContextDb& forkFromDb)
     : ForkMessageContextDbProxy(router, forkFromDb.msgPriority) {
 
@@ -366,14 +364,89 @@ void ForkMessageContextDbProxy::setState(ForkMessageContextDbProxy::State state)
 	mState = state;
 }
 
-ostream& operator<<(ostream& os, flexisip::ForkMessageContextDbProxy::State state) noexcept {
+ostream& operator<<(ostream& os, ForkMessageContextDbProxy::State state) noexcept {
 	switch (state) {
-		case flexisip::ForkMessageContextDbProxy::State::IN_DATABASE:
+		case ForkMessageContextDbProxy::State::IN_DATABASE:
 			return os << "IN_DATABASE";
-		case flexisip::ForkMessageContextDbProxy::State::IN_MEMORY:
+		case ForkMessageContextDbProxy::State::IN_MEMORY:
 			return os << "IN_MEMORY";
 	}
 	return os << "Unknown";
+}
+
+std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
+                                                                 const std::shared_ptr<ExtendedContact>& contact) {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	auto newBranch = mForkMessage->addBranch(std::move(ev), contact);
+	newBranch->mForkCtx = shared_from_this();
+
+	return newBranch;
+}
+
+bool ForkMessageContextDbProxy::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const {
+	if (getState() != State::IN_MEMORY) return true;
+	return mForkMessage->allCurrentBranchesAnswered(finalStatusMode);
+}
+
+bool ForkMessageContextDbProxy::hasNextBranches() const {
+	if (getState() != State::IN_MEMORY) return false;
+	return mForkMessage->hasNextBranches();
+}
+
+void ForkMessageContextDbProxy::processInternalError(int status, const char* phrase) {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	mForkMessage->processInternalError(status, phrase);
+}
+
+void ForkMessageContextDbProxy::start() {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	mForkMessage->start();
+}
+
+void ForkMessageContextDbProxy::addKey(const string& key) {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	mForkMessage->addKey(key);
+}
+
+const vector<string>& ForkMessageContextDbProxy::getKeys() const {
+	if (getState() == State::IN_MEMORY) {
+		return mForkMessage->getKeys();
+	} else {
+		return mSavedKeys;
+	}
+}
+
+bool ForkMessageContextDbProxy::isFinished() const {
+	return mIsFinished;
+}
+
+std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::checkFinished() {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	return mForkMessage->checkFinished();
+}
+
+RequestSipEvent& ForkMessageContextDbProxy::getEvent() {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	return mForkMessage->getEvent();
+}
+
+const std::shared_ptr<ForkContextConfig>& ForkMessageContextDbProxy::getConfig() const {
+	return mSavedConfig;
+}
+
+sofiasip::MsgSipPriority ForkMessageContextDbProxy::getMsgPriority() const {
+	return mSavedMsgPriority;
+}
+
+const char* ForkMessageContextDbProxy::getClassName() const {
+	return kClassName.data();
+}
+
+const ForkContext* ForkMessageContextDbProxy::getPtrForEquality() const {
+	if (mForkMessage) {
+		return mForkMessage.get();
+	}
+	return this;
 }
 
 } // namespace flexisip

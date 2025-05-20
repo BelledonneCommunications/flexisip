@@ -130,7 +130,7 @@ void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch, Resp
 
 	const auto* sip = respEv.getMsgSip()->getSip();
 	const auto& sipRequest = *branch.mRequestMsg->getSip();
-	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader);
+	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader.data());
 
 	try {
 		const auto log = make_shared<MessageResponseFromRecipientEventLog>(
@@ -184,7 +184,7 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 		}
 		logResponseFromRecipient(*br, event);
 		forwardResponse(br);
-	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, sUrgentCodes)) {
+	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, kUrgentCodes)) {
 		// Expedite back any urgent replies if late forking is disabled.
 		logResponseFromRecipient(*br, event);
 		forwardResponse(br);
@@ -309,6 +309,10 @@ void ForkMessageContext::start() {
 	}
 
 	ForkContextBase::start();
+}
+
+const char* ForkMessageContext::getClassName() const {
+	return kClassName.data();
 }
 
 #ifdef ENABLE_UNIT_TESTS

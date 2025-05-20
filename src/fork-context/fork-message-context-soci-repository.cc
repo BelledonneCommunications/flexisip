@@ -40,6 +40,14 @@ const std::unique_ptr<ForkMessageContextSociRepository>& ForkMessageContextSociR
 	return singleton;
 }
 
+void ForkMessageContextSociRepository::prepareConfiguration(const std::string& backendString,
+                                                            const std::string& connectionString,
+                                                            unsigned int nbThreadsMax) {
+	sBackendString = backendString;
+	sConnectionString = connectionString;
+	sNbThreadsMax = nbThreadsMax;
+}
+
 ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string& backendString,
                                                                    const string& connectionString,
                                                                    unsigned int nbThreadsMax)

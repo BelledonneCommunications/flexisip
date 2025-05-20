@@ -32,6 +32,10 @@
 namespace flexisip {
 class ModuleRouter;
 
+/**
+ * @brief Handle the forking of SIP chat messages (MESSAGE requests). It manages the branches of the call and processes
+ * responses from them.
+ */
 class ForkMessageContext : public ForkContextBase {
 public:
 	~ForkMessageContext() override;
@@ -46,12 +50,11 @@ public:
 	                                                const std::weak_ptr<ForkContextListener>& listener,
 	                                                ForkMessageContextDb& forkFromDb);
 
-	void start() override;
-
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 
+	void start() override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) override;
 
 	ForkMessageContextDb getDbObject();
@@ -66,15 +69,13 @@ public:
 #endif
 
 protected:
-	static constexpr auto kClassName = "ForkMessageContext";
-	static constexpr auto* kEventIdHeader = "X-fs-event-id";
+	static constexpr std::string_view kClassName{"ForkMessageContext"};
+	static constexpr std::string_view kEventIdHeader{"X-fs-event-id"};
+
+	const char* getClassName() const override;
 
 	void onNewBranch(const std::shared_ptr<BranchInfo>& br) override;
 	bool shouldFinish() override;
-
-	const char* getClassName() const override {
-		return kClassName;
-	}
 
 private:
 	ForkMessageContext(const std::shared_ptr<ModuleRouter>& router,
@@ -85,20 +86,36 @@ private:
 	                   sofiasip::MsgSipPriority msgPriority,
 	                   bool isRestored = false);
 
+	/**
+	 * @brief Accept the MESSAGE request (send '202 Accepted') if no good response has been received on any branch.
+	 */
 	void acceptMessage();
+	/**
+	 * @brief Accept the MESSAGE request when the acceptance timer expires (see @ForkMessageContext::acceptMessage).
+	 */
 	void onAcceptanceTimer();
+	/**
+	 * @brief Send the event log for this response to the sender.
+	 *
+	 * @param reqEv initial request
+	 * @param respEv received response
+	 */
 	void logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv) const;
-	void logResponseFromRecipient(const BranchInfo& br, ResponseSipEvent& event);
+	/**
+	 * @brief Send the event log for this response to the recipient.
+	 *
+	 * @param br branch that received the response
+	 * @param respEv received response
+	 */
+	void logResponseFromRecipient(const BranchInfo& br, ResponseSipEvent& respEv);
 
 	// Timeout after which an answer must be sent through the incoming transaction even if no success response was
 	// received on the outgoing transactions.
 	std::unique_ptr<sofiasip::Timer> mAcceptanceTimer{nullptr};
 	int mDeliveredCount;
-
 	// Type of SIP MESSAGE this context is handling.
 	MessageKind mKind;
-
-	// Used in fork late mode with message saved in DB to remember message expiration date.
+	// Used in fork late mode with a message saved in DB to remember the message expiration date.
 	time_t mExpirationDate;
 	std::string mLogPrefix;
 };

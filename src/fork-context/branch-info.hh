@@ -20,10 +20,9 @@
 
 #include <memory>
 
-#include "flexisip/fork-context/fork-context.hh"
-
 #include "agent-interface.hh"
 #include "branch-info-db.hh"
+#include "flexisip/fork-context/fork-context.hh"
 #include "fork-status.hh"
 #include "module-pushnotification.hh"
 #include "transaction/outgoing-transaction.hh"
@@ -37,97 +36,81 @@ namespace flexisip {
 class ForkContext;
 struct ExtendedContact;
 
+enum class FinalStatusMode {
+	// Every status >= 200 is considered as a final status.
+	RFC,
+	// Every status >= 200 is considered as a final status EXCEPT 408 and 503.
+	ForkLate,
+};
+
 /**
- * Interface for BranchInfo listener.
+ * @brief Allow to be notified when a branch is canceled by the ForkContext or when a branch is completed (i.e.,
+ * received its final response).
  *
- * BranchInfo listeners allow to be notified when a branch is canceled by
- * the ForkContext and when a branch is completed (i.e. received its final response).
- *
- * @warning Should fork-late mode be enabled, a branch may be removed to be replaced
- * by a new one with the same device UID. Then, the listener is automatically moved
- * in the new branch. So, when you attach a listener to a branch, keep in mind that
- * you subscribe to the event of a given UID instead of a specific branch.
+ * @warning If 'fork-late' mode is enabled, a branch may be removed to be replaced by a new one with the same device
+ * UID. Then, the listener is automatically moved in the new branch. So, when you attach a listener to a branch, keep in
+ * mind that you subscribe to the event of a given UID instead of a specific branch.
  */
 class BranchInfoListener {
 public:
 	virtual ~BranchInfoListener() noexcept = default;
 
 	/**
-	 * Called when the branch is canceled by the ForkContext.
-	 * @param[in] br The branch which has been canceled.
-	 * @param[in] cancelReason Give information about the scenario which caused the cancellation.
+	 * @brief Notify cancellation by the ForkContext.
+	 *
+	 * @param branch the branch which has been canceled
+	 * @param reason information about the scenario which caused the cancellation
 	 */
-	virtual void onBranchCanceled([[maybe_unused]] const std::shared_ptr<BranchInfo>& br,
-	                              [[maybe_unused]] ForkStatus cancelReason) noexcept {
-	}
+	virtual void onBranchCanceled(const std::shared_ptr<BranchInfo>&, ForkStatus) noexcept {};
 	/**
-	 * Called when a branch receives a final response (statusCode >= 200).
+	 * @brief Notify receipt of a final response by the ForkContext (see @FinalStatusMode for more information).
 	 */
-	virtual void onBranchCompleted([[maybe_unused]] const std::shared_ptr<BranchInfo>& br) noexcept {
-	}
+	virtual void onBranchCompleted(const std::shared_ptr<BranchInfo>&) noexcept {};
 };
 
-enum class FinalStatusMode {
-	RFC, /*Every status >= 200 is considered as a final status*/
-	ForkLate /*Every status >= 200 is considered as a final status EXCEPT 408 and 503*/,
-};
-
+/**
+ * @brief Branch of a fork context.
+ */
 class BranchInfo : public std::enable_shared_from_this<BranchInfo> {
 public:
-	virtual ~BranchInfo() = default;
-
-	// Call the matching private ctor and instantiate as a shared_ptr.
 	template <typename... Args>
 	static std::shared_ptr<BranchInfo> make(Args&&... args) {
 		return std::shared_ptr<BranchInfo>{new BranchInfo{std::forward<Args>(args)...}};
 	}
 
-	void notifyBranchCanceled(ForkStatus cancelReason) noexcept {
-		if (auto listener = mListener.lock()) listener->onBranchCanceled(shared_from_this(), cancelReason);
-	}
-	void notifyBranchCompleted() noexcept {
-		if (auto listener = mListener.lock()) listener->onBranchCompleted(shared_from_this());
-	}
+	virtual ~BranchInfo() = default;
 
-	virtual int getStatus() {
-		return mLastResponse ? mLastResponse->getSip()->sip_status->st_status : 0;
-	}
+	/**
+	 * @return the BranchInfo instance corresponding to the provided transaction or nullptr if none were found.
+	 */
+	static std::shared_ptr<BranchInfo> getBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr);
+	/**
+	 * @brief Associate a BranchInfo instance with the provided outgoing transaction.
+	 */
+	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo>& br);
+	/**
+	 * @brief Notify the listener that this branch has been canceled.
+	 *
+	 * @param cancelReason reason of cancellation
+	 */
+	void notifyBranchCanceled(ForkStatus cancelReason) noexcept;
+	/**
+	 * @brief Notify the listener that this branch is now completed.
+	 */
+	void notifyBranchCompleted() noexcept;
+	/**
+	 * @return status of the last response
+	 */
+	virtual int getStatus();
+	/**
+	 * @return 'true' if the SIP message needs to be sent to the targe of this branch.
+	 */
+	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC);
 
-	// Obtain the BranchInfo corresponding to an outgoing transaction
-	static std::shared_ptr<BranchInfo> getBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr) {
-		return tr ? tr->getProperty<BranchInfo>("BranchInfo") : nullptr;
-	}
+	BranchInfoDb getDbObject();
 
-	// Set the BranchInfo managed by an outoing transaction
-	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo> br) {
-		if (tr) tr->setProperty("BranchInfo", br);
-	}
-
-	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC) {
-		auto currentStatus = getStatus();
-
-		switch (mode) {
-			case FinalStatusMode::ForkLate:
-				return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
-			case FinalStatusMode::RFC:
-			default:
-				return currentStatus < 200;
-		}
-	}
-
-	BranchInfoDb getDbObject() {
-		std::string request{mRequestMsg->msgAsString()};
-		std::string lastResponse{mLastResponse->msgAsString()};
-		BranchInfoDb branchInfoDb{mUid, mPriority, request, lastResponse, mClearedCount};
-		return branchInfoDb;
-	}
-
-	std::unique_ptr<RequestSipEvent>&& extractRequest() {
-		return std::move(mRequestEvent);
-	}
-	void setRequest(std::unique_ptr<RequestSipEvent>&& req) {
-		mRequestEvent = std::move(req);
-	}
+	std::unique_ptr<RequestSipEvent>&& extractRequest();
+	void setRequest(std::unique_ptr<RequestSipEvent>&& req);
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<BranchInfo>& expected) {
@@ -148,21 +131,15 @@ public:
 	std::shared_ptr<MsgSip> mLastResponse{};
 	std::shared_ptr<ExtendedContact> mContact{};
 	float mPriority{1.0f};
-
-	/*
-	 * Count every time a branch with the same Uid is cleared for a given fork context.
-	 * Can be used to know if a push notification has already been sent for this branch.
-	 */
+	// Count every time a branch with the same Uid is cleared for a given fork context. Can be used to know if a push
+	// notification has already been sent for this branch.
 	int mClearedCount{0};
-
-	/**
-	 * Only used with Invite/ForkCall
-	 */
+	// Only used with Invite/ForkCall.
 	std::weak_ptr<PushNotificationContext> pushContext{};
 
 protected:
 	/**
-	 * Used to create an empty fake branch
+	 * @brief Used to create an empty fake branch.
 	 */
 	BranchInfo() = default;
 
@@ -171,7 +148,7 @@ protected:
 	}
 
 	/**
-	 * Used when restoring BranchInfo from database in fork-late mode.
+	 * @brief Create an instance from information stored in the database when 'fork-late' mode is enabled.
 	 */
 	template <typename T>
 	BranchInfo(T&& ctx, const BranchInfoDb& dbObject, AgentInterface* agent) : mForkCtx{std::forward<T>(ctx)} {
