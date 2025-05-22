@@ -32,12 +32,15 @@ namespace {
 using namespace flexisip::b2bua::bridge;
 using namespace std::chrono_literals;
 
+// Create an INVITE with a different username for the TO header and the request URI to test diffent INVITE modifiers
 void test() {
 	const SipUri expectedToAddress{"sip:*%23expected-to@to.example.org:666;custom-param=%26$To"};
 	InjectedHooks hooks{
 	    .onRequest =
 	        [&expectedToAddress](std::unique_ptr<RequestSipEvent>&& requestEvent) {
 		        const auto* sip = requestEvent->getSip();
+		        if (sip->sip_request->rq_method != sip_method_invite) return std::move(requestEvent);
+
 		        // Mangle To header
 		        sip->sip_to->a_url[0] = *expectedToAddress.get();
 		        return std::move(requestEvent);
@@ -53,12 +56,16 @@ void test() {
 	    &hooks,
 	};
 	proxy.start();
-	const auto& builder = ClientBuilder(*proxy.getAgent());
-	const auto& caller = builder.build("sip:expected-from@sip.example.org;custom-param=%40/From");
-	const auto& b2bua = builder.build("sip:expected-request-uri@sip.example.org;custom-param=RequestUri");
-	caller.invite(b2bua);
+	auto builder = ClientBuilder(*proxy.getAgent());
+	builder.setRegistration(OnOff::Off);
+	const auto caller = builder.build("sip:expected-from@sip.example.org;custom-param=%40/From");
+	const auto b2bua = builder.build(expectedToAddress.str());
+	SipUri expectedRequestUri = SipUri("sip:expected-request-uri@127.0.0.1:" + std::to_string(b2bua.getTcpPort()) +
+	                                   ";custom-param=RequestUri;transport=tcp");
+	caller.invite(expectedRequestUri.str());
 	BC_HARD_ASSERT_TRUE(b2bua.hasReceivedCallFrom(caller, CoreAssert{proxy, caller, b2bua}));
 	const auto forgedCall = ClientCall::getLinphoneCall(*b2bua.getCurrentCall());
+	// Ensure initial INVITE has been correctly created
 	{
 		const auto& requestUri = forgedCall->getRequestAddress();
 		BC_HARD_ASSERT(requestUri != nullptr);
