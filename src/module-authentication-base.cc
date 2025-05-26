@@ -208,9 +208,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::onRequest(unique_ptr<Reque
 		return {};
 	}
 
-	processAuthentication(std::move(ev), *am);
-
-	return std::move(ev);
+	return processAuthentication(std::move(ev), *am);
 }
 
 FlexisipAuthStatus* ModuleAuthenticationBase::createAuthStatus(const shared_ptr<MsgSip>& msgSip) {
