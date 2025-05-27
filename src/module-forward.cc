@@ -34,6 +34,7 @@
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "sofia-sip/msg_types.h"
+#include "sofia-sip/sip_extra.h"
 #include "sofia-sip/sip_status.h"
 #include "sofia-sip/su_md5.h"
 #include "sofia-sip/tport.h"
@@ -319,6 +320,11 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	while (sip->sip_route != nullptr && isUs(getAgent(), sip->sip_route)) {
 		LOGD << "Removed top route '" << url_as_string(ms->getHome(), sip->sip_route->r_url) << "'";
 		lastRoute = sip_route_remove(msg, sip);
+	}
+
+	// Remove P-Preferred-Identity header if present
+	if (auto ppi = sip_p_preferred_identity(sip)) {
+		msg_header_remove_all(msg, (msg_pub_t*)sip, (msg_header_t*)ppi);
 	}
 
 	auto dest = sip->sip_request->rq_url;
