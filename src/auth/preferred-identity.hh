@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include <sofia-sip/sip_extra.h>
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"

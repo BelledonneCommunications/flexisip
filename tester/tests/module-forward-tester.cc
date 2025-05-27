@@ -25,9 +25,12 @@
 
 #include "flexisip/event.hh"
 
+#include "sofia-sip/sip_extra.h"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
+#include "utils/client-builder.hh"
 #include "utils/contact-inserter.hh"
+#include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -53,6 +56,8 @@ struct Helper {
 		void send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t, tag_value_t, ...) override {
 			auto* home = msg->getHome();
 
+			mMsgAsString = msg->msgAsString();
+
 			mRequestSent = true;
 			mRequestUri = u ? url_as_string(home, u->us_url) : "";
 			if (const auto* sip = msg->getSip(); sip != nullptr) {
@@ -74,6 +79,7 @@ struct Helper {
 		string mRequestUri{};
 		bool mRequestSent{false};
 		sip_method_t mRequestMethod{};
+		string mMsgAsString{};
 	};
 
 	struct Contact {
@@ -177,8 +183,7 @@ void forwardMidDialogRequestPathIsNextHop() {
 	    .withGruu(true)
 	    .setPath(callee.path)
 	    .insert({.contact = callee.uri, .uniqueId = callee.uid});
-	BC_HARD_ASSERT(asserter.iterateUpTo(
-	    5, [&inserter]() { return inserter.finished(); }, 2s));
+	BC_HARD_ASSERT(asserter.iterateUpTo(5, [&inserter]() { return inserter.finished(); }, 2s));
 
 	stringstream request;
 	request << "BYE " << callee.aor << ";gr=" << callee.uid << " SIP/2.0\r\n"
@@ -237,8 +242,7 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	    .withGruu(true)
 	    .setPath(callee.path)
 	    .insert({.contact = callee.uri, .uniqueId = callee.uid});
-	BC_HARD_ASSERT(asserter.iterateUpTo(
-	    5, [&inserter]() { return inserter.finished(); }, 2s));
+	BC_HARD_ASSERT(asserter.iterateUpTo(5, [&inserter]() { return inserter.finished(); }, 2s));
 
 	stringstream request;
 	request << "BYE " << callee.aor << ";gr=" << callee.uid << " SIP/2.0\r\n"
@@ -263,11 +267,71 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	BC_ASSERT(transaction->mRoutes.empty());
 }
 
+/**
+ * Check if all P-Preferred-Identity headers are removed by the Forward module
+ * (RFC 3325)
+ */
+void ppiHeaderRemoval() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Forward/enabled", "true"},
+	}};
+
+	proxy.start();
+
+	Helper::Contact receiver{
+	    .aor = "sip:receiver@sip.example.org",
+	    .uri = "sip:receiver@unreachable-domain:0",
+	    .uid = "receiver-uid",
+	    .path = {"<sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp>"},
+	};
+
+	BcAssert asserter{};
+	ContactInserter inserter{proxy.getAgent()->getRegistrarDb()};
+	inserter.setAor(receiver.aor)
+	    .setExpire(1min)
+	    .withGruu(true)
+	    .setPath(receiver.path)
+	    .insert({.contact = receiver.uri, .uniqueId = receiver.uid});
+
+	stringstream request{};
+	string body{"This is a test message.\r\n\r\n"};
+
+	request << "MESSAGE " << receiver.aor << ";gr=" << receiver.uid << " SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+	        << "From: <sip:sender@sip.example.org>;tag=stub-from-tag\r\n"
+	        << "To: " << receiver.aor << ";gr=" << receiver.uid << ">\r\n"
+	        << "CSeq: 20 MESSAGE\r\n"
+	        << "Call-ID: stub-call-id" << "\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Route: <sip:127.0.0.1:" << proxy.getFirstPort() << ";transport=tcp;lr>\r\n"
+	        << "Supported: replaces, outbound, gruu\r\n"
+	        << "P-Preferred-Identity: <sip:test@test.domain.com>, <tel:+358708008000>\r\n"
+	        << "P-Preferred-Identity: <sip:test1@test1.domain.com>, <tel:+358708008001>\r\n"
+	        << "Content-Type: text/plain\r\n"
+	        << "Content-Length: " << body.size() << "\r\n\r\n";
+
+	BC_ASSERT_CPP_NOT_EQUAL(request.str().find("P-Preferred-Identity"), string::npos);
+
+	auto transaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
+	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
+	event->setOutgoingAgent(transaction);
+
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	module->onRequest(std::move(event));
+
+	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
+	BC_ASSERT_CPP_EQUAL(transaction->mRequestMethod, sip_method_message);
+	BC_ASSERT_CPP_EQUAL(transaction->mMsgAsString.find("P-Preferred-Identity"), string::npos);
+}
+
 TestSuite _("ForwardModule",
             {
                 CLASSY_TEST(forwardMidDialogRequestRouteIsNotUs),
                 CLASSY_TEST(forwardMidDialogRequestPathIsNextHop),
                 CLASSY_TEST(forwardMidDialogRequestPathIsUsSoUseContactUrl),
+                CLASSY_TEST(ppiHeaderRemoval),
             });
 
 } // namespace
