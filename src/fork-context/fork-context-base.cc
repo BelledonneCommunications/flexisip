@@ -36,7 +36,7 @@ ForkContextBase::ForkContextBase(AgentInterface* agent,
                                  const std::weak_ptr<StatPair>& counter,
                                  sofiasip::MsgSipPriority priority,
                                  bool isRestored)
-    : mCurrentPriority(-1), mAgent(agent), mCfg(cfg), mLateTimer(mAgent->getRoot()), mFinishTimer(mAgent->getRoot()),
+    : mAgent(agent), mCfg(cfg), mLateTimer(mAgent->getRoot()), mFinishTimer(mAgent->getRoot()),
       mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority), mInjectorListener(injectorListener),
       mForkContextListener(forkContextListener), mEvent(std::move(event)), mStatCounter(counter),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkContextBase")) {
