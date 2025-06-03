@@ -82,6 +82,20 @@ public:
 	void onDisconnect(int status) override;
 
 private:
+	class AuthInfoDeleter : public linphone::AccountListener {
+	public:
+		explicit AuthInfoDeleter(const std::weak_ptr<B2buaCore>& core, const std::string& accountPoolLogPrefix)
+		    : mCore{core}, mLogPrefix{accountPoolLogPrefix + "::AuthInfoDeleter"} {};
+
+	private:
+		void onRegistrationStateChanged(const std::shared_ptr<linphone::Account>& account,
+		                                linphone::RegistrationState state,
+		                                const std::string& message) override;
+
+		std::weak_ptr<B2buaCore> mCore;
+		std::string mLogPrefix{};
+	};
+
 	struct CreateAccount {
 		config::v2::Account accountDesc;
 	};
@@ -113,6 +127,8 @@ private:
 	                    linphone::Account& linphoneAccountToUpdate) const;
 	void handleAuthInfo(const config::v2::Account& account,
 	                    const std::shared_ptr<const linphone::Address>& address) const;
+
+	void removeAccount(const std::shared_ptr<linphone::Account>& account);
 
 	void subscribeToAccountUpdate();
 	void handleAccountUpdatePublish(std::string_view topic, redis::async::Reply reply);
