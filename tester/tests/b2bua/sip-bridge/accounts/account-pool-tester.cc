@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <fstream>
+
 #include "b2bua/sip-bridge/accounts/account-pool.hh"
 
 #include <soci/session.h>
@@ -79,7 +81,9 @@ struct ProxyServer {
 	    &hooks,
 	};
 
-	ProxyServer() {
+	explicit ProxyServer(const vector<std::pair<std::string, std::string>>& extraParameters = {}) {
+		for (const auto& parameter : extraParameters)
+			proxy.setConfigParameter(parameter);
 		proxy.start();
 	}
 
@@ -589,45 +593,46 @@ public:
 		AccountCollection& mAccounts;
 	};
 
-	ProxyServer proxy = {};
-	std::shared_ptr<B2buaCore> core = proxy.makeB2buaCoreFromConfig();
-	AccountCollection dbAccounts = [] {
-		auto dbAccounts = vector{
-		    accountCount,
-		    config::v2::Account{{.secretType = config::v2::SecretType::Cleartext}},
-		};
-		Random random{tester::random::seed()};
-		auto stringGenerator = random.string();
-		for (auto& account : dbAccounts) {
-			account.update({
-			    .uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org",
-			    .userId = "userid-" + stringGenerator.generate(10),
-			    .secret = "secret-" + stringGenerator.generate(10),
-			    .realm = "realm-" + stringGenerator.generate(10),
-			    .alias = "sip:alias-" + stringGenerator.generate(10) + "@example.org",
-			});
-		}
-		return dbAccounts;
-	}();
-	AccountPool pool = {
-	    proxy.proxy.getRoot(),
-	    core,
-	    "Test account pool",
-	    config::v2::AccountPool{
-	        .registrationRequired = true,
-	        .maxCallsPerLine = 3125,
-	        .loader = {},
-	        .outboundProxy = "<sip:127.0.0.1:"s + proxy.proxy.getFirstPort() + ";transport=tcp>",
-	        .registrationThrottlingRateMs = registerIntervalMs,
-	    },
-	    std::make_unique<MockAccountLoader>(dbAccounts),
-	    &sRedisServer->params,
-	};
+	AccountPoolConnectedToRedis()
+	    : AccountPoolConnectedToRedis([] {
+		      auto dbAccounts = vector{
+		          accountCount,
+		          config::v2::Account{{.secretType = config::v2::SecretType::Cleartext}},
+		      };
+		      Random random{random::seed()};
+		      auto stringGenerator = random.string();
+		      for (auto& account : dbAccounts) {
+			      account.update(config::v2::Account::Parameters{
+			          .uri = "sip:uri-" + stringGenerator.generate(10) + "@example.org",
+			          .userId = "userid-" + stringGenerator.generate(10),
+			          .secret = "secret-" + stringGenerator.generate(10),
+			          .realm = "realm-" + stringGenerator.generate(10),
+			          .alias = "sip:alias-" + stringGenerator.generate(10) + "@example.org",
+			      });
+		      }
+		      return dbAccounts;
+	      }()){};
+
+	explicit AccountPoolConnectedToRedis(AccountCollection&& accounts,
+	                                     const vector<std::pair<std::string, std::string>>& parameters = {})
+	    : proxy(parameters), core(proxy.makeB2buaCoreFromConfig()), dbAccounts(accounts),
+	      pool(proxy.proxy.getRoot(),
+	           core,
+	           "TestAccountPool",
+	           config::v2::AccountPool{
+	               .registrationRequired = true,
+	               .maxCallsPerLine = 100,
+	               .loader = {},
+	               .outboundProxy = "<sip:127.0.0.1:" + std::string(proxy.proxy.getFirstPort()) + ";transport=tcp>",
+	               .registrationThrottlingRateMs = registerIntervalMs,
+	           },
+	           std::make_unique<MockAccountLoader>(dbAccounts),
+	           &sRedisServer->params){};
 
 	auto allAccountsAvailable(BcAssert<>& asserter) {
 		auto result = asserter.iterateUpTo(
 		    dbAccounts.size() + 5,
-		    [this]() {
+		    [this] {
 			    FAIL_IF(!pool.allAccountsLoaded());
 			    for (const auto& [_, account] : pool) {
 				    FAIL_IF(!account->isAvailable());
@@ -637,7 +642,12 @@ public:
 		    chrono::milliseconds(dbAccounts.size() * registerIntervalMs) + 1s);
 		BC_HARD_ASSERT_CPP_EQUAL(pool.size(), accountCount);
 		return result;
-	};
+	}
+
+	ProxyServer proxy{};
+	std::shared_ptr<B2buaCore> core{};
+	AccountCollection dbAccounts{};
+	AccountPool pool;
 };
 
 /**
@@ -659,6 +669,10 @@ void accountsUpdatedOnRedisResubscribe() {
 	auto asserter = CoreAssert(accountPool.proxy.proxy, core);
 	auto& dbAccounts = accountPool.dbAccounts;
 	ASSERT_PASSED(accountPool.allAccountsAvailable(asserter));
+	// (+1 because of server's default account)
+	BC_HARD_ASSERT_CPP_EQUAL(core->getAccountList().size(), accountCount + 1);
+	// Not '+1' because the default account does not have authentication information.
+	BC_HARD_ASSERT_CPP_EQUAL(core->getAuthInfoList().size(), accountCount);
 	BC_ASSERT_CPP_EQUAL(registers.size(), accountCount);
 	BC_ASSERT_CPP_EQUAL(unregisters.size(), 0);
 	if (registers.size() != accountCount) {
@@ -673,7 +687,7 @@ void accountsUpdatedOnRedisResubscribe() {
 	sRedisServer->redis.restart();
 
 	// Change values in the database
-	BC_HARD_ASSERT(4 < accountCount);
+	BC_HARD_ASSERT(5 < accountCount);
 	dbAccounts[0].update({.alias = "sip:changed-alias@example.org"});
 	dbAccounts[2].update({.userId = "changed-userId", .realm = "changed-realm"});
 	const auto& unexpectedUris = array{dbAccounts[3].getUri(), dbAccounts.back().getUri()};
@@ -719,6 +733,8 @@ void accountsUpdatedOnRedisResubscribe() {
 	    .assert_passed();
 	// Accounts have *not* been duplicated (+1 because of server's default account)
 	BC_HARD_ASSERT_CPP_EQUAL(core->getAccountList().size(), accountCount + 1);
+	// '-1' because the account 'sip:added@example.org' did not provide authentication information.
+	BC_HARD_ASSERT_CPP_EQUAL(core->getAuthInfoList().size(), accountCount - 1);
 	for (const auto& [_, account] : pool) {
 		BC_ASSERT(account->isAvailable());
 	}
@@ -873,6 +889,115 @@ void accountRegistrationOnAuthInfoUpdate() {
 	}
 }
 
+/**
+ * Verify that auth info is correctly removed on an account deletion.
+ * @tparam authenticationEnabled whether authentication is enabled on the outbound proxy or not.
+ */
+template <const bool authenticationEnabled>
+void authInfoDeletionOnAccountRemoval() {
+	TmpDir authDbDirectory{"auth"};
+	constexpr int nbAccounts{10};
+	const string domain{"example.org"};
+
+	// Create our own accounts database instead of using the one proposed by AccountPoolConnectedToRedis.
+	// Warning: realm == domain.
+	auto accounts = vector{
+	    nbAccounts,
+	    config::v2::Account{{.secretType = config::v2::SecretType::Cleartext, .realm = domain}},
+	};
+	Random random{random::seed()};
+	auto stringGenerator = random.string();
+	for (auto& account : accounts) {
+		const auto username = "uri-" + stringGenerator.generate(10);
+		account.update(config::v2::Account::Parameters{
+		    .uri = "sip:" + username + "@" + domain,
+		    .userId = username,
+		    .secret = "secret-" + stringGenerator.generate(10),
+		    .alias = "sip:alias-" + stringGenerator.generate(10) + "@" + domain,
+		});
+	}
+
+	vector<std::pair<std::string, std::string>> extraParameters{};
+	if (authenticationEnabled) {
+		const auto authDbFilePath = authDbDirectory.path() / "auth-db.txt";
+		std::ofstream authDb{authDbFilePath};
+		authDb << "version:1\n\n";
+		for (const auto& account : accounts)
+			authDb << account.getUserId() << "@" << domain << " clrtxt:" + account.getSecret() + " ;\n";
+
+		extraParameters.emplace_back("module::Authentication/enabled", "true");
+		extraParameters.emplace_back("module::Authentication/auth-domains", domain);
+		extraParameters.emplace_back("module::Authentication/file-path", authDbFilePath);
+	}
+
+	AccountPoolConnectedToRedis<nbAccounts, 0> helper{std::move(accounts), extraParameters};
+	auto& proxy = helper.proxy;
+	auto& pool = helper.pool;
+	auto& b2bua = helper.core;
+	auto& dbAccounts = helper.dbAccounts;
+
+	CoreAssert asserter{proxy.proxy, b2bua};
+	helper.allAccountsAvailable(asserter).hard_assert_passed();
+	BC_HARD_ASSERT_CPP_EQUAL(pool.size(), nbAccounts);
+
+	// (+1 because of server's default account)
+	BC_HARD_ASSERT_CPP_EQUAL(b2bua->getAccountList().size(), nbAccounts + 1);
+	// Not '+1' because the default account does not have authentication information.
+	BC_HARD_ASSERT_CPP_EQUAL(b2bua->getAuthInfoList().size(), nbAccounts);
+	BC_ASSERT_CPP_EQUAL(proxy.registers.size(), (authenticationEnabled ? 2 : 1) * nbAccounts);
+	BC_ASSERT_CPP_EQUAL(proxy.unregisters.size(), 0);
+	proxy.registers.clear();
+	proxy.unregisters.clear();
+
+	// Trigger reload by breaking the connection with redis.
+	sRedisServer->redis.restart();
+
+	constexpr int nbAccountsDeleted{3};
+	vector<shared_ptr<linphone::Account>> deletedLinphoneAccounts{};
+	vector<shared_ptr<linphone::Account>> stillAliveLinphoneAccounts{};
+	auto accountsViewIt = pool.getDefaultView().view.begin();
+	for (auto id = 0; id < nbAccounts - nbAccountsDeleted; ++id, ++accountsViewIt)
+		stillAliveLinphoneAccounts.emplace_back(accountsViewIt->second->getLinphoneAccount());
+	for (auto id = 0; id < nbAccountsDeleted; ++id, ++accountsViewIt)
+		deletedLinphoneAccounts.emplace_back(accountsViewIt->second->getLinphoneAccount());
+
+	// As 'accounts' and 'accountsView' are not sorted the same way, find accounts from 'deletedLinphoneAccounts'
+	// matching accounts in 'accounts'.
+	const auto predicate = [&deletedLinphoneAccounts](const config::v2::Account& account) {
+		return any_of(deletedLinphoneAccounts.begin(), deletedLinphoneAccounts.end(),
+		              [&account](const shared_ptr<linphone::Account>& deletedAccount) {
+			              return deletedAccount->getParams()->getIdentityAddress()->getUsername() ==
+			                     account.getUserId();
+		              });
+	};
+	// Remove accounts from the database.
+	for (auto id = 0; id < nbAccountsDeleted; ++id)
+		dbAccounts.erase(find_if(dbAccounts.begin(), dbAccounts.end(), predicate));
+
+	// Pool detects the broken connection.
+	asserter
+	    .iterateUpTo(
+	        3, [&] { return LOOP_ASSERTION(!pool.allAccountsLoaded()); },
+	        sRedisServer->params.mSubSessionKeepAliveTimeout)
+	    .hard_assert_passed();
+
+	// Make sure we received at least nbAccountsDeleted unREGISTER requests.
+	asserter.iterateUpTo(
+	            10, [&] { return LOOP_ASSERTION(proxy.unregisters.size() >= nbAccountsDeleted); }, 1s)
+	    .assert_passed();
+
+	BC_HARD_ASSERT_CPP_EQUAL(b2bua->getAccountList().size(), nbAccounts + 1 - nbAccountsDeleted);
+	// Verify that the B2BUA server correctly removed auth info.
+	BC_HARD_ASSERT_CPP_EQUAL(b2bua->getAuthInfoList().size(), nbAccounts - nbAccountsDeleted);
+	for (const auto& [_, account] : pool)
+		BC_ASSERT(account->isAvailable());
+
+	for (const auto& account : deletedLinphoneAccounts)
+		BC_ASSERT_ENUM_EQUAL(account->getState(), linphone::RegistrationState::Cleared);
+	for (const auto& account : stillAliveLinphoneAccounts)
+		BC_ASSERT_ENUM_EQUAL(account->getState(), linphone::RegistrationState::Ok);
+}
+
 const TestSuite _{
     "b2bua::sip-bridge::account::AccountPool",
     {
@@ -883,6 +1008,8 @@ const TestSuite _{
         CLASSY_TEST((accountsUpdatedOnRedisResubscribe<10, 1>)),
         CLASSY_TEST((accountsUpdatePartiallyAbortedOnRapidReload<10, 15>)),
         CLASSY_TEST(accountRegistrationOnAuthInfoUpdate),
+        CLASSY_TEST(authInfoDeletionOnAccountRemoval<false>),
+        CLASSY_TEST(authInfoDeletionOnAccountRemoval<true>),
     },
 };
 

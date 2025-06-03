@@ -126,6 +126,8 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     - **Statistics**: Counters in `module::Authentication` called `count-password-found` and `count-password-not-found`
       were not correctly incremented.
     - **Sofia-SIP:** Rare race condition when resolving a domain name (leading to a crash of the server).
+- **B2bua/SIP Bridge**: authentication information for deleted accounts was removed too early, preventing accounts from
+  properly unregistering to the registrar.
 - **EventLogs (`flexiapi` logger only):** Two events (INVITE, MESSAGE, etc.) sharing the same Call-ID, the same user
   names (From & To), but different domain names, no longer have the same event id.
   (E.g. eventIdOf("user-A@domain-B", "user-C@domain-D", "call-id-E") ≠ eventIdOf("user-A@domain-F", "user-C@domain-G", "call-id-E"))
