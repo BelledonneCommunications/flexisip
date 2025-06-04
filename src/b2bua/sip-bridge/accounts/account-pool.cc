@@ -20,9 +20,8 @@
 
 #include <cassert>
 
-#include "flexisip/logmanager.hh"
-
 #include "b2bua/sip-bridge/string-format-fields.hh"
+#include "flexisip/logmanager.hh"
 
 #define FUNC_LOG_PREFIX "AccountPool::" << __func__ << "() - "
 
@@ -36,17 +35,12 @@ const auto& kDefaultTemplateString = "{uri}"s;
 
 namespace {
 
-void removeAssociatedAuthInfo(linphone::Core& core, const linphone::Account& account) {
+void removeAuthInfo(linphone::Core& core, const linphone::Account& account) {
 	const auto identityAddress = account.getParams()->getIdentityAddress();
 	const auto accountAuthInfo = core.findAuthInfo("", identityAddress->getUsername(), identityAddress->getDomain());
 	if (!accountAuthInfo) return;
 
 	core.removeAuthInfo(accountAuthInfo);
-}
-
-void removeAccount(linphone::Core& core, const std::shared_ptr<linphone::Account>& account) {
-	removeAssociatedAuthInfo(core, *account);
-	core.removeAccount(account);
 }
 
 void handleOutboundProxy(const shared_ptr<linphone::AccountParams>& accountParams, const string& outboundProxy) {
@@ -97,7 +91,7 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 }
 
 void AccountPool::loadAll() {
-	// Abort on-going update process (if any)
+	// Abort the ongoing update process (if any)
 	mAccountOpsQueue.clear();
 
 	auto& defaultView = mDefaultView.view;
@@ -146,6 +140,9 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 		return;
 	}
 
+	SLOGD << "AccountPool::CreateAccount - Creating account '" << accountDesc.uri << "' (alias='" << accountDesc.alias
+	      << "')";
+
 	const auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(address);
 
@@ -158,14 +155,17 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 
 	if (mCore->addAccount(linphoneAccount) != 0) {
 		const auto uri = linphoneAccount->getParams()->getIdentityAddress();
-		SLOGW << "AccountPool::CreateAccount - Adding new Account to core failed for uri '" << uri << "'";
-		removeAccount(*mCore, linphoneAccount);
+		SLOGW << "AccountPool::CreateAccount - Adding new account to core failed for uri '" << uri << "'";
+		removeAccount(linphoneAccount);
 		return;
 	}
 
 	if (!tryEmplace(newAccount)) {
-		removeAccount(*mCore, linphoneAccount);
+		removeAccount(linphoneAccount);
+		return;
 	}
+
+	SLOGD << "AccountPool::CreateAccount - Account successfully created";
 }
 
 void AccountPool::applyOperation(const DeleteAccount& op) {
@@ -177,7 +177,11 @@ void AccountPool::applyOperation(const DeleteAccount& op) {
 
 	const auto& linphoneAccount = accountToDelete->getLinphoneAccount();
 
-	removeAccount(*mCore, linphoneAccount);
+	SLOGD << "AccountPool::DeleteAccount - Deleting account '"
+	      << linphoneAccount->getParams()->getIdentityAddress()->asStringUriOnly() << "' (alias='"
+	      << accountToDelete->getAlias().str() << "')";
+
+	removeAccount(linphoneAccount);
 
 	for (auto& [_, view] : mViews) {
 		auto& [formatter, map] = view;
@@ -192,6 +196,13 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 		return;
 	}
 
+	auto& linphoneAccountToUpdate = *accountToUpdate->getLinphoneAccount();
+	// Keep the current account identity before overriding it (needed to retrieve the current auth info)
+	const auto oldIdentityAddress = linphoneAccountToUpdate.getParams()->getIdentityAddress();
+
+	SLOGD << "AccountPool::UpdateAccount - Updating account '" << oldIdentityAddress->asStringUriOnly() << "' (alias='"
+	      << accountToUpdate->getAlias().str() << "')";
+
 	// Find all current bindings to the old account to update them later
 	auto previousBindings = vector<tuple<string, const Formatter&, AccountMap&>>();
 	previousBindings.reserve(mViews.size());
@@ -203,10 +214,6 @@ void AccountPool::applyOperation(const UpdateAccount& op) {
 	// Update account
 	const auto& newParams = op.newDesc;
 	accountToUpdate->setAlias(newParams.alias);
-
-	auto& linphoneAccountToUpdate = *accountToUpdate->getLinphoneAccount();
-	// Keep current account identity before overriding it (needed to retrieve the current authentication information)
-	const auto oldIdentityAddress = linphoneAccountToUpdate.getParams()->getIdentityAddress();
 
 	const auto newLinphoneParams = mAccountParams->clone();
 	const auto newIdentityAddress = linphone::Factory::get()->createAddress(newParams.uri);
@@ -304,6 +311,11 @@ void AccountPool::handleAuthInfo(const config::v2::Account& account,
 
 		mCore->addAuthInfo(authInfo);
 	}
+}
+
+void AccountPool::removeAccount(const std::shared_ptr<linphone::Account>& account) {
+	account->addListener(make_shared<AuthInfoDeleter>(mCore));
+	mCore->removeAccount(account);
 }
 
 std::shared_ptr<Account> AccountPool::getAccountRandomly() const {
@@ -516,6 +528,46 @@ void AccountPool::onDisconnect(int status) {
 		SLOGE << FUNC_LOG_PREFIX << "Reconnecting to Redis after being unexpectedly disconnected (status " << status
 		      << ") ...";
 	}
+}
+
+void AccountPool::AuthInfoDeleter::onRegistrationStateChanged(const std::shared_ptr<linphone::Account>& account,
+                                                              linphone::RegistrationState state,
+                                                              const std::string& message) {
+	if (account == nullptr) {
+		SLOGE << FUNC_LOG_PREFIX << "Received notification of registration state change (" << static_cast<int>(state)
+		      << ") on empty account with message '" << message << "': abort";
+		return;
+	}
+	const auto core = mCore.lock();
+	if (core == nullptr) {
+		SLOGD << FUNC_LOG_PREFIX
+		      << "Cannot remove auth info, the Linphone::Core is not available anymore (std::weak_ptr is empty)";
+		return;
+	}
+
+	const auto identity = account->getParams()->getIdentityAddress()->asStringUriOnly();
+
+	switch (state) {
+		case linphone::RegistrationState::None:
+		case linphone::RegistrationState::Progress:
+		case linphone::RegistrationState::Ok:
+		case linphone::RegistrationState::Refreshing:
+			return;
+		case linphone::RegistrationState::Cleared: {
+			SLOGD << FUNC_LOG_PREFIX << "Account '" << identity << "' unregistered with message '" << message
+			      << "': removing auth info";
+		} break;
+		case linphone::RegistrationState::Failed: {
+			SLOGD << FUNC_LOG_PREFIX << "Account '" << identity
+			      << "' failed to update registration state with message '" << message << "': removing auth info";
+		} break;
+		default: {
+			SLOGE << FUNC_LOG_PREFIX << "Unknown registration state '" << static_cast<int>(state) << "' for account '"
+			      << identity << "' with message '" << message << "': removing auth info";
+		}
+	}
+
+	removeAuthInfo(*core, *account);
 }
 
 } // namespace flexisip::b2bua::bridge
