@@ -324,7 +324,7 @@ void ForkManager::restoreForkMessageContextsFromDatabase() {
 			LOGE << "Failed to increment counter 'count-forks' (std::weak_ptr is empty)";
 		}
 
-		auto restoredForkMessage = mFactory->restoreForkMessageContext(dbMessage, shared_from_this());
+		auto restoredForkMessage = mFactory->restoreForkMessageContextDbProxy(dbMessage, shared_from_this());
 		for (const auto& key : dbMessage.dbKeys) {
 			mForks.emplace(key, restoredForkMessage);
 			mAgent->getRegistrarDb().subscribe(Record::Key{key}, shared_from_this());

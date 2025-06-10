@@ -179,7 +179,7 @@ private:
 	mutable std::set<std::tuple<std::string, std::string, std::string>> mAlreadyDelivered;
 	std::weak_ptr<StatPair> mCounter;
 	std::string mForkUuidInDb;
-	bool mIsFinished;
+	bool mIsFinished{};
 	std::weak_ptr<ForkContextListener> mForkContextListener;
 	std::shared_ptr<ForkContextConfig> mSavedConfig;
 	std::vector<std::string> mSavedKeys;
