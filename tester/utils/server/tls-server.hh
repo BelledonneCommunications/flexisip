@@ -46,7 +46,7 @@ public:
 	void resetSocket();
 
 private:
-	boost::asio::io_service mIoService;
+	boost::asio::io_context mIoContext;
 	boost::asio::ip::tcp::acceptor mAcceptor;
 	boost::asio::ssl::context mContext;
 	std::unique_ptr<boost::asio::ssl::stream<boost::asio::ip::tcp::socket>> mSocket{nullptr};
