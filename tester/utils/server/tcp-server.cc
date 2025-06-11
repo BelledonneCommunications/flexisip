@@ -28,7 +28,7 @@ using ip::tcp;
 using ssl::context;
 
 TcpServer::TcpServer(int port)
-    : mIoService{}, mAcceptor{mIoService, tcp::endpoint(tcp::v4(), port)}, mSocket{mIoService} {
+    : mIoContext{}, mAcceptor{mIoContext, tcp::endpoint(tcp::v4(), port)}, mSocket{mIoContext} {
 }
 
 void TcpServer::accept() {

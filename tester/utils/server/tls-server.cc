@@ -33,7 +33,7 @@ using ip::tcp;
 using ssl::context;
 
 TlsServer::TlsServer(int port)
-    : mIoService{}, mAcceptor{mIoService, tcp::endpoint(tcp::v4(), port)},
+    : mIoContext{}, mAcceptor{mIoContext, tcp::endpoint(tcp::v4(), port)},
 #if BOOST_VERSION > 105300
       mContext{ssl::context::tls_server}
 #else
@@ -44,7 +44,7 @@ TlsServer::TlsServer(int port)
 	                     ssl::context::no_sslv3);
 	mContext.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
 	mContext.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), boost::asio::ssl::context::pem);
-	mSocket = make_unique<ssl::stream<ip::tcp::socket>>(mIoService, mContext);
+	mSocket = make_unique<ssl::stream<ip::tcp::socket>>(mIoContext, mContext);
 }
 
 void TlsServer::accept() {
@@ -104,5 +104,5 @@ bool TlsServer::runServerForTest(const std::string& expectedRequest,
 }
 
 void TlsServer::resetSocket() {
-	mSocket = std::make_unique<ssl::stream<ip::tcp::socket>>(mIoService, mContext);
+	mSocket = std::make_unique<ssl::stream<ip::tcp::socket>>(mIoContext, mContext);
 }

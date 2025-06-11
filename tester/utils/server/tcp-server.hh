@@ -44,7 +44,7 @@ public:
 	}
 
 private:
-	boost::asio::io_service mIoService;
+	boost::asio::io_context mIoContext;
 	boost::asio::ip::tcp::acceptor mAcceptor;
 	boost::asio::ip::tcp::socket mSocket;
 };
