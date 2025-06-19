@@ -25,6 +25,13 @@
 
 namespace flexisip::tester {
 
+#define TEST_NO_TAG_AUTO_NAMED(func)                                                                                   \
+	{                                                                                                                  \
+		#func, func, {                                                                                                 \
+			NULL, NULL                                                                                                 \
+		}                                                                                                              \
+	}
+
 // Setup and teardown hooks to be called before tests
 class Hooks {
 	friend class TestSuite;

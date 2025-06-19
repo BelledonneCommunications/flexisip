@@ -9,8 +9,7 @@
 
 #include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
-#include "tester.hh"
+#include "utils/test-suite.hh"
 
 using namespace std::chrono_literals;
 
@@ -20,34 +19,31 @@ namespace tester {
 
 void test_sofia_driven_signal_handler() {
 	sofiasip::SuRoot root{};
-	SofiaDrivenSignalHandler shadowed(root.getCPtr(), std::vector<SigNum>{SIGCHLD},
-	                                  []([[maybe_unused]] auto _signal) { BC_FAIL("Shadowed handler should never be called"); });
+	SofiaDrivenSignalHandler shadowed(root.getCPtr(), std::vector<SigNum>{SIGCHLD}, []([[maybe_unused]] auto _signal) {
+		BC_FAIL("Shadowed handler should never be called");
+	});
 	auto pid = getpid();
 
 	{
-		#ifdef SIGRTMIN
+#ifdef SIGRTMIN
 		auto test0 = SIGRTMIN + 0;
 		auto test1 = SIGRTMIN + 1;
 		auto test2 = SIGRTMIN + 2;
 		auto test3 = SIGRTMIN + 3;
 		auto test4 = SIGRTMIN + 4;
-		#else
+#else
 		auto test0 = SIGUSR1 + 0;
 		auto test1 = SIGUSR1 + 1;
 		auto test2 = SIGUSR1 + 2;
 		auto test3 = SIGUSR1 + 3;
 		auto test4 = SIGUSR1 + 4;
-		#endif
+#endif
 		SigNum received1;
 		SofiaDrivenSignalHandler handler1(root.getCPtr(), std::vector<SigNum>{SIGCHLD, test0, test1, test2},
-		                                 [&received1](auto signal) {
-			                                 received1 = signal;
-		                                 });
+		                                  [&received1](auto signal) { received1 = signal; });
 		SigNum received2;
 		SofiaDrivenSignalHandler handler2(root.getCPtr(), std::vector<SigNum>{test2, test3, test4},
-		                                 [&received2](auto signal) {
-			                                 received2 = signal;
-		                                 });
+		                                  [&received2](auto signal) { received2 = signal; });
 
 		kill(pid, SIGCHLD);
 		root.step(1ms);
