@@ -101,17 +101,17 @@ optional<string> getConferenceId(const url_t& url) noexcept {
 	// Before Flexisip 2.5, chatroom uris all started with the conference::CHATROOM_PREFIX prefix followed by a random
 	// sequence of characters. From Flexisip 2.5 onward, chatrooms can be identified from each other by the
 	// conference::CONFERENCE_ID uri parameter that must be unique.
-	optional<string> conferenceId;
-	auto chatRoomId{string_utils::removePrefix(url.url_user, conference::CHATROOM_PREFIX)};
-	if (chatRoomId) {
-		conferenceId = chatRoomId;
-	} else if (url.url_params) {
-		auto value = UriUtils::getParamValue(url.url_params, conference::CONFERENCE_ID, "");
-		if (!value.empty()) {
-			conferenceId = value;
+	if (url.url_user) {
+		if (const auto value = string_utils::removePrefix(url.url_user, conference::CHATROOM_PREFIX)) {
+			if (!value->empty()) return string{*value};
 		}
 	}
-	return conferenceId;
+	if (url.url_params) {
+		if (auto value = getParamValue(url.url_params, conference::CONFERENCE_ID, ""); !value.empty()) {
+			return value;
+		}
+	}
+	return nullopt;
 }
 
 } // namespace flexisip::uri_utils
