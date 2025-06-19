@@ -163,13 +163,13 @@ void collectAndParseDataFromSocket() {
 
 	// Send requests to UAS.
 	vector<shared_ptr<NtaOutgoingTransaction>> transactions{};
-	for (int requestId = 10; requestId < nbRequests; ++requestId) {
+	for (int requestId = 0; requestId < nbRequests; ++requestId) {
 		auto request = make_unique<MsgSip>();
 		request->makeAndInsert<SipHeaderRequest>(sip_method_subscribe, stubIdentity);
 		request->makeAndInsert<SipHeaderFrom>(stubIdentity, "stub-from-tag");
 		request->makeAndInsert<SipHeaderTo>(stubIdentity);
 		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_subscribe);
-		request->makeAndInsert<SipHeaderCallID>("stub-call-id-" + to_string(requestId));
+		request->makeAndInsert<SipHeaderCallID>("stub-call-id-" + to_string(10 + requestId));
 		request->makeAndInsert<SipHeaderMaxForwards>(70u);
 		request->makeAndInsert<SipHeaderRoute>("<sip:127.0.0.1:"s + client.getFirstPort() + ";" + transport + ";lr>");
 		request->makeAndInsert<SipHeaderEvent>("reg");
