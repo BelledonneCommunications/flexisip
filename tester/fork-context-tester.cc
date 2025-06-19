@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 
 #include "agent.hh"
 #include "fork-context/fork-context-base.hh"
+#include "fork-context/message-kind.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
@@ -449,7 +450,7 @@ public:
 	}
 	void onNewRegister([[maybe_unused]] const SipUri& dest,
 	                   [[maybe_unused]] const std::string& uid,
-	                   [[maybe_unused]] const std::shared_ptr<ExtendedContact>& newContact) override{};
+	                   [[maybe_unused]] const std::shared_ptr<ExtendedContact>& newContact) override {};
 
 	const char* getClassName() const override {
 		return "ForkContextForTest";
@@ -543,24 +544,39 @@ public:
 	}
 };
 
-TestSuite _("ForkContext",
-            {
-                CLASSY_TEST(nullMaxForwardAndForkBasicContext),
-                CLASSY_TEST(notRtpPortAndForkCallContext),
-                CLASSY_TEST(globalOrderTestNoSql),
-                CLASSY_TEST(run<FindBestBranch6xxTest>),
-                CLASSY_TEST(run<FindBestBranch4xxTest>),
-                CLASSY_TEST(run<FindBestBranch3xxTest>),
-                CLASSY_TEST(run<FindBestBranch2xxTest>),
-                CLASSY_TEST(run<FindBestBranchAvoid503Test>),
-                CLASSY_TEST(run<FindBestBranchAvoid408Test>),
-                CLASSY_TEST(run<FindBestBranchDontAvoid503Test>),
-                CLASSY_TEST(run<FindBestBranchDontAvoid408Test>),
-                CLASSY_TEST(run<FindBestBranchNoBranchConsidered>),
-                CLASSY_TEST(messageDeliveryTimeoutTest),
-                CLASSY_TEST(callForkTimeoutTest),
-            },
-            Hooks().beforeEach([] { responseReceived = false; }));
+void missingUserInfoInFromOrToHeaderWhenCreatingMessageKindInstance() {
+	sip_to_t to = {.a_url = {url_t{.url_user = "chatroom-id-of-the-chatroom"}}};
+	sip_from_t from = {.a_url = {url_t{.url_user = nullptr}}};
+	sip_request_t request = {.rq_method = sip_method_message};
+	sip_t sip{.sip_request = &request, .sip_from = &from, .sip_to = &to};
+	MessageKind kind{sip, sofiasip::MsgSipPriority::Normal};
+	BC_ASSERT_ENUM_EQUAL(kind.getKind(), MessageKind::Kind::Message);
+	BC_ASSERT_ENUM_EQUAL(kind.getCardinality(), MessageKind::Cardinality::ToConferenceServer);
+	BC_ASSERT_ENUM_EQUAL(kind.getPriority(), sofiasip::MsgSipPriority::Normal);
+	BC_ASSERT_CPP_EQUAL(kind.getConferenceId().value_or(""), "id-of-the-chatroom");
+}
+
+TestSuite _{
+    "ForkContext",
+    {
+        CLASSY_TEST(nullMaxForwardAndForkBasicContext),
+        CLASSY_TEST(notRtpPortAndForkCallContext),
+        CLASSY_TEST(globalOrderTestNoSql),
+        CLASSY_TEST(run<FindBestBranch6xxTest>),
+        CLASSY_TEST(run<FindBestBranch4xxTest>),
+        CLASSY_TEST(run<FindBestBranch3xxTest>),
+        CLASSY_TEST(run<FindBestBranch2xxTest>),
+        CLASSY_TEST(run<FindBestBranchAvoid503Test>),
+        CLASSY_TEST(run<FindBestBranchAvoid408Test>),
+        CLASSY_TEST(run<FindBestBranchDontAvoid503Test>),
+        CLASSY_TEST(run<FindBestBranchDontAvoid408Test>),
+        CLASSY_TEST(run<FindBestBranchNoBranchConsidered>),
+        CLASSY_TEST(messageDeliveryTimeoutTest),
+        CLASSY_TEST(callForkTimeoutTest),
+        CLASSY_TEST(missingUserInfoInFromOrToHeaderWhenCreatingMessageKindInstance),
+    },
+    Hooks().beforeEach([] { responseReceived = false; }),
+};
 
 } // namespace
 } // namespace flexisip::tester

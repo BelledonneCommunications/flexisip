@@ -28,6 +28,7 @@ Group changes to describe their impact on the project, as follows:
     - **Statistics**: Counters in `module::Authentication` called `count-password-found` and `count-password-not-found`
       were not correctly incremented.
     - **Sofia-SIP:** Rare race condition when resolving a domain name (leading to a crash of the server).
+    - **Router**: Missing userinfo in 'From' or 'To' header was leading to a crash for MESSAGE requests.
 - **B2bua/SIP Bridge**: authentication information for deleted accounts was removed too early, preventing accounts from
   properly unregistering to the registrar.
 - **EventLogs (`flexiapi` logger only):** Two events (INVITE, MESSAGE, etc.) sharing the same Call-ID, the same user
