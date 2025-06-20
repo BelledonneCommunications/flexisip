@@ -498,24 +498,9 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	        "Timeout of the Redis connection.",
 	        "1500",
 	    },
-	    {
-	        String,
-	        "name-message-expires",
-	        "Name of the custom Contact header parameter which is to indicate the expire "
-	        "time for chat message delivery.",
-	        "message-expires",
-	    },
 	    config_item_end,
 	};
 	moduleConfig.addChildrenValues(configs);
-
-	auto* oldMessageExpiresParamName = moduleConfig.get<ConfigString>("name-message-expires");
-	oldMessageExpiresParamName->setDeprecated({
-	    "2020-03-25",
-	    "2.0.0",
-	    "This parameter has been renamed into 'message-expires-param-name'",
-	});
-	moduleConfig.get<ConfigString>("message-expires-param-name")->setFallback(*oldMessageExpiresParamName);
 
 	moduleConfig.get<ConfigDuration<chrono::milliseconds>>("redis-server-timeout")
 	    ->setDeprecated({

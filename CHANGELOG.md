@@ -136,9 +136,11 @@ Group changes to describe their impact on the project, as follows:
 This is more compliant with RFC 6066, and therefore more compatible with stricter HTTPS implementations.
 
 ### [Removed]
-- **Proxy:** Monitor (never released, it was in experimental state). All configuration files MUST not contain any
-  reference to the Monitor module otherwise Flexisip will not start.
-- **Plugin:** JweAuth
+- **Proxy:**
+  - Monitor (never released, it was in experimental state). All configuration files MUST not contain any reference to
+    the Monitor module, otherwise Flexisip will not start.
+  - **Registrar:** Parameter `name-message-expires` (deprecated in 2.0.0).
+- **Plugin:** JweAuth.
 
 ## [2.4.2]
 ### [Fixed]
