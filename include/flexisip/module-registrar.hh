@@ -169,6 +169,7 @@ private:
 	static std::list<std::string> mPushNotifParams;
 	std::string mRoutingParam;
 	unsigned int mMaxExpires, mMinExpires;
+	std::chrono::milliseconds mDefaultExpires;
 	std::string mStaticRecordsFile;
 	su_timer_t* mStaticRecordsTimer;
 	int mStaticRecordsTimeout;

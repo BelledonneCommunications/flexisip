@@ -398,23 +398,29 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        DurationS,
 	        "max-expires",
-	        "Maximum expire time for a REGISTER.",
+	        "Maximum expiry value for a REGISTER.",
 	        "86400",
 	    },
 	    {
 	        DurationS,
 	        "min-expires",
-	        "Minimum expire time for a REGISTER.",
+	        "Minimum expiry value for a REGISTER.",
 	        "60",
 	    },
 	    {
-	        Integer,
+	        DurationMS,
+	        "default-expires",
+	        "Default expiry value to be used if no value has been found in the request headers or in 'Contact' header "
+	        "parameters.",
+	        "10min",
+	    },
+	    {
+	        DurationS,
 	        "force-expires",
-	        "Set a value that will override expire times given by the "
-	        "REGISTER requests. A null or negative value disables "
-	        "that feature. If it is enabled, max-expires and min-expires "
-	        "will not have any effect.",
-	        "-1",
+	        "Set a value that will override expiry values indicated in a 'REGISTER' request. A null or negative value "
+	        "disables this feature. If enabled, 'max-expires', 'min-expires' and 'default-expires' will not have any "
+	        "effect.",
+	        "0",
 	    },
 	    {
 	        String,
@@ -441,7 +447,6 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	        "The redis backend is recommended, the internal being more adapted to very small deployments.",
 	        "internal",
 	    },
-
 	    // Redis config support
 	    {
 	        String,
@@ -554,18 +559,21 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	// replace space-separated to comma-separated since sofia-sip is expecting this way
 	std::replace(mServiceRoute.begin(), mServiceRoute.end(), ' ', ',');
 
-	int forcedExpires = mc->get<ConfigInt>("force-expires")->read();
-	if (forcedExpires <= 0) {
+	const auto forcedExpires =
+	    chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("force-expires")->read());
+	if (forcedExpires <= 0s) {
 		const auto maxExpires = mc->get<ConfigDuration<chrono::seconds>>("max-expires");
-		const auto minExpires = mc->get<ConfigDuration<chrono::seconds>>("min-expires");
 		mMaxExpires = chrono::duration_cast<chrono::seconds>(maxExpires->read()).count();
+		const auto minExpires = mc->get<ConfigDuration<chrono::seconds>>("min-expires");
 		mMinExpires = chrono::duration_cast<chrono::seconds>(minExpires->read()).count();
 		if (mMaxExpires < mMinExpires)
-			throw runtime_error{maxExpires->getCompleteName() + " must be equal to or greater than " +
-			                    minExpires->getCompleteName()};
+			throw BadConfiguration{maxExpires->getCompleteName() + " must be equal or greater than " +
+			                       minExpires->getCompleteName()};
+		mDefaultExpires = mc->get<ConfigDuration<chrono::milliseconds>>("default-expires")->read();
 	} else {
-		mMaxExpires = forcedExpires;
-		mMinExpires = forcedExpires;
+		mMaxExpires = forcedExpires.count();
+		mMinExpires = forcedExpires.count();
+		mDefaultExpires = forcedExpires;
 	}
 
 	mStaticRecordsFile = mc->get<ConfigString>("static-records-file")->read();
@@ -825,12 +833,6 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 		return {};
 	}
 	const auto* expires = sip->sip_expires;
-	const auto mainDelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
-	if (!checkHaveExpire(sip->sip_contact, mainDelta)) {
-		LOGD << "No global or local expire found in at least one contact";
-		reply(*ev, 400, "Invalid request");
-		return {};
-	}
 	if (!usageOfWildcardContactIsCorrect(sip->sip_contact, expires)) {
 		reply(*ev, 400, "Invalid usage of wildcard '*' in Contact header field");
 		return {};
@@ -838,6 +840,13 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	if (numberOfContactHeaders(sip->sip_contact) > mMaxContactsPerRegistration) {
 		reply(*ev, 403, "Too many contacts in REGISTER");
 		return {};
+	}
+
+	auto mainDelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
+	if (!checkHaveExpire(sip->sip_contact, mainDelta)) {
+		const auto defaultExpires = chrono::duration_cast<chrono::seconds>(mDefaultExpires).count();
+		LOGD << "No expiry value found in request, using default expiry value: " << defaultExpires << "s";
+		mainDelta = defaultExpires;
 	}
 
 	// Use path as a contact route in all cases
