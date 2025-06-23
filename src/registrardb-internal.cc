@@ -160,11 +160,11 @@ void RegistrarDbInternal::doClear(const MsgSip& msg, const shared_ptr<ContactUpd
 	}
 
 	LOGD("AOR %s found", key.c_str());
-	shared_ptr<Record> r = (*it).second;
+	const auto record = it->second;
 
 	mRecords.erase(it);
 	mLocalRegExpire.remove(key);
-	listener->onRecordFound(nullptr);
+	listener->onRecordFound(record);
 }
 
 void RegistrarDbInternal::clearAll() {

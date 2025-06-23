@@ -253,24 +253,51 @@ static int normalizeMainDelta(const sip_expires_t* expires, const uint min, cons
 	return delta;
 }
 
-// Check star rules.
-// If *, it must be the only contact.
-// If *, associated expire must be 0.
-static bool checkStarUse(const sip_contact_t* contact, int expires) {
-	bool starFound = false;
-	int count = 0;
-	do {
-		if (starFound) {
-			return false;
-		}
+/**
+ *
+ * @param contact header to verify
+ * @return true, if only the url scheme is set to '*' and all other URI fields are empty
+ */
+static bool isValidWildcardContact(const sip_contact_t* contact) {
+	if (contact == nullptr) return false;
+	const auto* url = contact->m_url;
+	if (url->url_scheme == nullptr || (url->url_scheme[0] != '*' && url->url_scheme[1] != '\0')) return false;
+	if (url->url_user != nullptr) return false;
+	if (url->url_password != nullptr) return false;
+	if (url->url_host != nullptr) return false;
+	if (url->url_port != nullptr) return false;
+	if (url->url_path != nullptr) return false;
+	if (url->url_params != nullptr) return false;
+	if (url->url_headers != nullptr) return false;
+	if (url->url_fragment != nullptr) return false;
+	return true;
+}
 
-		++count;
-		const char* scheme = contact->m_url[0].url_scheme;
-		if (scheme && '*' == scheme[0]) {
-			if (count > 1 || 0 != expires) return false;
-			starFound = true;
-		}
-	} while (nullptr != (contact = contact->m_next));
+/**
+ * Verify the correct usage of the '*' 'Contact' header.
+ *
+ *  RFC3261 10.2.2
+ *  The REGISTER-specific Contact header field value of "*" applies to
+ *  all registrations, but it MUST NOT be used unless the Expires header
+ *  field is present with a value of "0".
+ *
+ *  Use of the "*" Contact header field value allows a registering UA
+ *  to remove all bindings associated with an address-of-record
+ *  without knowing their precise values.
+ *
+ * @param contacts list of 'Contact' headers
+ * @param expires value of the 'Expires' header
+ * @return true, in case no wildcard contact was found or valid usage of the wildcard 'Contact' header.
+ */
+static bool usageOfWildcardContactIsCorrect(const sip_contact_t* contacts, const sip_expires_t* expires) {
+	int nbContacts = 0;
+	bool wildcardContactFound = false;
+	for (auto* contact = contacts; contact != nullptr; contact = contact->m_next) {
+		if (isValidWildcardContact(contact)) wildcardContactFound = true;
+		nbContacts++;
+	}
+
+	if (wildcardContactFound) return expires != nullptr && expires->ex_delta == 0 && nbContacts == 1;
 	return true;
 }
 
@@ -801,6 +828,14 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 	}
 
 	// Reject malformed registrations
+	for (auto* contact = sip->sip_contact; contact != nullptr; contact = contact->m_next) {
+		if (isValidSipUri(contact->m_url) || isValidWildcardContact(contact)) continue;
+
+		SLOGD << "Request rejected, invalid 'Contact' header: '"
+		      << sip_header_as_string(ms->getHome(), reinterpret_cast<sip_header_t const*>(contact)) << "'";
+		reply(ev, 400, "Invalid contact");
+		return;
+	}
 	const auto* expires = sip->sip_expires;
 	const auto mainDelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
 	if (!checkHaveExpire(sip->sip_contact, mainDelta)) {
@@ -814,9 +849,8 @@ void ModuleRegistrar::onRequest(shared_ptr<RequestSipEvent>& ev) {
 			return;
 		}
 	}
-	if (!checkStarUse(sip->sip_contact, mainDelta)) {
-		LOGD("The star rules are not respected.");
-		reply(ev, 400, "Invalid request");
+	if (!usageOfWildcardContactIsCorrect(sip->sip_contact, expires)) {
+		reply(ev, 400, "Invalid usage of wildcard '*' in Contact header field");
 		return;
 	}
 	if (numberOfContactHeaders(sip->sip_contact) > mMaxContactsPerRegistration) {
