@@ -1,6 +1,11 @@
+variables:
+  UBUNTU24_CMAKE_OPTIONS: -DENABLE_EKT_SERVER=ON
+
 .ubuntu-24-04-image:
   image:
     name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:$UBUNTU_24_04_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: ${UBUNTU24_CMAKE_OPTIONS}
 
 #################################################
 # Makefile
@@ -35,7 +40,7 @@ job-ubuntu-24-04-ninja-clang:
     - .ubuntu-24-04-image
     - .tester-artifacts
   variables:
-    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
+    CMAKE_OPTIONS: ${UBUNTU24_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON
 
 #################################################
 # UNIT TESTS

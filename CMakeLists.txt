@@ -94,6 +94,7 @@ cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre s
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio" ON "ENABLE_UNIT_TESTS" ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
+cmake_dependent_option(ENABLE_EKT_SERVER "Enable Encrypted Key Transport server. For customers under a proprietary license, this functionality is under a specific license." OFF "ENABLE_CONFERENCE" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING

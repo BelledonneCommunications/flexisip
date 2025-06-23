@@ -114,13 +114,19 @@ set(CONFIG_FILES
 
 if("RPM" IN_LIST CPACK_GENERATOR)
 
+	set(CPACK_RPM_COMPONENT_INSTALL ON)
+	# CPACK_RPM_PACKAGE_NAME must be redefined because its default value is "${CPACK_PACKAGE_NAME}-<component>"
+	# when component mode is on.
+	set(CPACK_RPM_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 	set(CPACK_RPM_PACKAGE_EPOCH "1")
 	set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
 	set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
 	set(CPACK_RPM_PACKAGE_VERSION "${version}")
 	set(CPACK_RPM_PACKAGE_RELEASE "${release}")
-	set(CPACK_RPM_PACKAGE_REQUIRES "${extra_dependencies_str}")
-	set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
+	set(CPACK_RPM_UNSPECIFIED_PACKAGE_REQUIRES "${extra_dependencies_str}")
+	set(CPACK_RPM_UNSPECIFIED_PACKAGE_OBSOLETES "${obsolete_packets_str}")
+	# EKT-server is a plugin of flexisip-conference server
+	set(CPACK_RPM_PLUGIN-EKTSERVER_PACKAGE_REQUIRES "${CPACK_PACKAGE_NAME}")
 	set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
 	cmake_path(GET FLEXISIP_SYSTEMD_INSTALL_DIR PARENT_PATH SYSTEMD_DIR)
@@ -173,7 +179,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 
 	## Declare config files
 	foreach (conffile ${CONFIG_FILES})
-		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${conffile}")
+		list(APPEND CPACK_RPM_UNSPECIFIED_USER_FILELIST "%config(noreplace) ${conffile}")
 	endforeach ()
 
 endif()
@@ -185,23 +191,24 @@ endif()
 
 if("DEB" IN_LIST CPACK_GENERATOR)
 
-	# CPackDEB bug: component mode must be on for debsym pacage generation
 	set(CPACK_DEB_COMPONENT_INSTALL ON)
 
 	# CPACK_DEBIAN_PACKAGE_NAME must be redefined because its default value is "${CPACK_PACKAGE_NAME}-<component>"
 	# when component mode is on.
-	set(CPACK_DEBIAN_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 	set(CPACK_DEBIAN_PACKAGE_VERSION "${version}-${release}")
 	set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications.com")
 	set(CPACK_DEBIAN_PACKAGE_SECTION "net")
-	set(CPACK_DEBIAN_PACKAGE_DEPENDS "${extra_dependencies_str}")
-	set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
-	set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
-	set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_DEPENDS "${extra_dependencies_str}")
+	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_PROVIDES "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_CONFLICTS "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_REPLACES "${obsolete_packets_str}")
+	# EKT-server is a plugin of flexisip-conference server
+	set(CPACK_DEBIAN_PLUGIN-EKTSERVER_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME}")
+	set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
 	set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+	set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../lib")
 	set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
-	set(CPACK_COMPONENTS_ALL "Unspecified")
 
 	# Use Debian convention for package naming
 	set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")

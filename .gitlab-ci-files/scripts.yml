@@ -3,7 +3,8 @@
 # Check available features of an installed flexisip binary
 .script-check-features:
   script:
-    - FLEXISIP_BIN=/opt/belledonne-communications/bin/flexisip
+    - FLEXISIP_INSTALL_DIR=/opt/belledonne-communications/
+    - FLEXISIP_BIN=${FLEXISIP_INSTALL_DIR}/bin/flexisip
     - VERSION_STRING=$($FLEXISIP_BIN --version)
     - echo $VERSION_STRING | grep B2BUA
     - echo $VERSION_STRING | grep Conference
@@ -12,5 +13,6 @@
     - echo $VERSION_STRING | grep RegEvent
     - echo $VERSION_STRING | grep Transcoder
     - echo $VERSION_STRING | grep Soci
+    - find $FLEXISIP_INSTALL_DIR -type d -name "liblinphone" -exec ls {}/plugins \; | grep "ektserver.so"
     # No graphical dependencies
     - "! ldd $FLEXISIP_BIN | grep --extended-regexp 'X|GL'"
