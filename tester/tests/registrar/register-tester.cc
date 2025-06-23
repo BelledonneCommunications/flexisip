@@ -831,6 +831,54 @@ void correctWildcardContactHeaderUsage() {
 	BC_ASSERT_CPP_EQUAL(records.size(), 0);
 }
 
+/*
+ * Test the processing of REGISTER requests when no expiry value is provided.
+ *
+ * RFC3261 10.2.1.1
+ * If neither mechanism for expressing a suggested expiration time is
+ * present in a REGISTER, the client is indicating its desire for the
+ * server to choose.
+ */
+void registerWithoutExpiryValueInRequest() {
+	const auto defaultExpires = 20min;
+	auto proxy = Server({
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/default-expires", to_string(defaultExpires.count()) + "min"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "internal"},
+	});
+	proxy.start();
+	auto asserter = CoreAssert(proxy);
+	const auto clientSipIdentity = "sip:user@localhost"s;
+	const auto proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
+	const auto clientSipUri = "sip:user@127.0.0.1:"s + client.getFirstPort();
+
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+	request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderContact>("<" + clientSipUri + ";transport=tcp>");
+
+	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+	asserter.iterateUpTo(16, [&transaction]() { return transaction->isCompleted(); }).assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
+
+	const auto& regDb = proxy.getAgent()->getRegistrarDb();
+	const auto& records = dynamic_cast<const RegistrarDbInternal&>(regDb.getRegistrarBackend()).getAllRecords();
+
+	BC_ASSERT_CPP_EQUAL(records.size(), 1);
+	const auto& contacts = records.begin()->second->getExtendedContacts();
+	BC_ASSERT_CPP_EQUAL(contacts.size(), 1);
+	const auto contact = contacts.begin()->get();
+	BC_ASSERT(string_utils::startsWith(contact->urlAsString(), clientSipUri));
+	BC_ASSERT(contact->getSipExpires() == defaultExpires);
+}
+
 TestSuite _{
     "Register",
     {
@@ -844,6 +892,7 @@ TestSuite _{
         CLASSY_TEST(registerSeveralContactsAtOnce),
         CLASSY_TEST(missingExpiresHeaderWithWildcardContactHeader),
         CLASSY_TEST(correctWildcardContactHeaderUsage),
+        CLASSY_TEST(registerWithoutExpiryValueInRequest),
     },
     Hooks().beforeEach([] {
 	    responseReceived = 0;

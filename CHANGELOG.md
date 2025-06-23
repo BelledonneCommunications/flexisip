@@ -15,6 +15,10 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.4.2]
+### [Added]
+- **Proxy/Registrar:** New parameter `default-expires` to set a default expiry value to contacts when no expiry value 
+  was found in the 'REGISTER' request.
+
 ### [Fixed]
 - **Proxy:**
     - Now replies 481 to CANCEL requests that are not related to any transaction (stateless CANCEL requests).
@@ -31,6 +35,8 @@ Group changes to describe their impact on the project, as follows:
     - **Router**: Missing userinfo in 'From' or 'To' header was leading to a crash for MESSAGE requests.
     - **Registrar:**
       - Usage of the wildcard '*' 'Contact' header field was not correctly handled (considered as a bad request).
+      - Requests of type 'REGISTER' were rejected if they did not contain an expiry value (it is now compliant with
+        RFC3261).
 - **B2bua/SIP Bridge**: authentication information for deleted accounts was removed too early, preventing accounts from
   properly unregistering to the registrar.
 - **EventLogs (`flexiapi` logger only):** Two events (INVITE, MESSAGE, etc.) sharing the same Call-ID, the same user
