@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,6 +24,13 @@
 #include "bctoolbox/tester.h"
 
 namespace flexisip::tester {
+
+#define TEST_NO_TAG_AUTO_NAMED(func)                                                                                   \
+	{                                                                                                                  \
+		#func, func, {                                                                                                 \
+			NULL, NULL                                                                                                 \
+		}                                                                                                              \
+	}
 
 // Setup and teardown hooks to be called before tests
 class Hooks {

@@ -112,7 +112,6 @@ unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>
 #ifdef ENABLE_TRANSCODER
 static list<PayloadType*> makeSupportedAudioPayloadList() {
 	/* in mediastreamer2, we use normal_bitrate as an IP bitrate, not codec bitrate*/
-	payload_type_silk_nb.normal_bitrate = 29000;
 	payload_type_speex_nb.normal_bitrate = 32000;
 	payload_type_speex_wb.normal_bitrate = 42000;
 	payload_type_speex_nb.recv_fmtp = ms_strdup("vbr=on");
@@ -126,10 +125,6 @@ static list<PayloadType*> makeSupportedAudioPayloadList() {
 	payload_type_set_number(&payload_type_amr, -1);
 	payload_type_set_number(&payload_type_amrwb, -1);
 	payload_type_set_number(&payload_type_ilbc, -1);
-	payload_type_set_number(&payload_type_silk_nb, -1);
-	payload_type_set_number(&payload_type_silk_mb, -1);
-	payload_type_set_number(&payload_type_silk_wb, -1);
-	payload_type_set_number(&payload_type_silk_swb, -1);
 	payload_type_set_number(&payload_type_telephone_event, -1);
 
 	list<PayloadType*> l;
@@ -141,10 +136,6 @@ static list<PayloadType*> makeSupportedAudioPayloadList() {
 	l.push_back(&payload_type_pcmu8000);
 	l.push_back(&payload_type_pcma8000);
 	l.push_back(&payload_type_telephone_event);
-	l.push_back(&payload_type_silk_nb);
-	l.push_back(&payload_type_silk_mb);
-	l.push_back(&payload_type_silk_wb);
-	l.push_back(&payload_type_silk_swb);
 
 	return l;
 }

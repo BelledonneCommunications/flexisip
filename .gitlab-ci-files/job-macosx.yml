@@ -1,6 +1,6 @@
 .job-macosx:
   stage: build 🏗
-  tags: [ "macosx-min-xcode12.2" ]
+  tags: [ "macosx-min-xcode12.2-flat" ]
 
   script:
     - ccache -s

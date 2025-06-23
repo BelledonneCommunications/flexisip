@@ -71,7 +71,7 @@ job-rocky9-unit-test-nosoci:
 
 job-rocky9-xwiki-doc-deploy:
   stage: deploy 🚀
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   extends:
     - .rules-deploy  # ⚠ See `rules.yml`
     - .rocky9-image-variables
@@ -110,7 +110,7 @@ job-rocky9-rpm:
 # Test installation of the RPM package and check its feature list
 job-rocky9-rpm-check-features:
   stage: check-package 📤
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   extends:
     - .rocky9-image-variables
   rules:

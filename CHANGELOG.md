@@ -37,6 +37,7 @@ Group changes to describe their impact on the project, as follows:
     - Parameter `module::PushNotification/windowsphone` (deprecated in 2.3.0)
     - Parameter `module::PushNotification/windowsphone-package-sid` (deprecated in 2.3.0)
     - Parameter `module::PushNotification/windowsphone-application-secret` (deprecated in 2.3.0)
+    - Silk audio encoder/decoder is not supported anymore.
 - **EventLogs:**
     - Parameter `event-logs/dir` (deprecated in 2.0.0)
     - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)

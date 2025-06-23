@@ -69,7 +69,7 @@ job-debian12-unit-test:
 
 debian12-coverage:
   stage: coverage 📑
-  tags: [ "docker-test-flexisip" ]
+  tags: [ "docker-test-flexisip-flat" ]
   extends:
     - .rules-dev
     - .debian12-image
@@ -135,7 +135,7 @@ job-debian12-deb:
 # Test installation of the DEB package and check its feature list
 job-debian12-deb-check-features:
   stage: check-package 📤
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   image: debian:12
   rules:
     - !reference [job-debian12-deb, rules]

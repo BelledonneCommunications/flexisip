@@ -72,7 +72,7 @@ job-rocky8-rpm:
 # Test installation of the RPM package and check its feature list
 job-rocky8-rpm-check-features:
   stage: check-package 📤
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   extends:
     - .rocky8-image-variables
   rules:

@@ -44,7 +44,7 @@
 
 .job-linux-build:
   stage: build 🏗
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   extends: .linux-ccache
   script:
     - *set-max-jobs
@@ -72,7 +72,7 @@
 
 .job-linux-rpm:
   stage: package 📦
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   extends:
     - .rules-default  # ⚠ See `rules.yml`
   variables:
@@ -92,7 +92,7 @@
 
 .job-rpm-deploy:
   stage: deploy 🚀
-  tags: [ "docker-deploy" ]
+  tags: [ "docker-deploy-flat" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
@@ -107,7 +107,7 @@
 
 .job-linux-deb:
   stage: package 📦
-  tags: [ "docker" ]
+  tags: [ "docker-flat" ]
   extends:
     - .rules-default  # ⚠ See `rules.yml`
   variables:
@@ -127,7 +127,7 @@
 
 .job-debian-deb-deploy:
   stage: deploy 🚀
-  tags: [ "docker-deploy" ]
+  tags: [ "docker-deploy-flat" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
@@ -142,7 +142,7 @@
 
 .job-flexisip-image-deploy:
   stage: image
-  tags: [ "linux-deploy" ]
+  tags: [ "linux-deploy-flat" ]
   extends: .rules-deploy  # ⚠ See `rules.yml`
   script:
     - mkdir -p docker/DEBS && mv build/*.{deb,ddeb} docker/DEBS
@@ -220,7 +220,7 @@
 
 .unit-test:
   stage: test 🧪
-  tags: [ "docker-test-flexisip" ]
+  tags: [ "docker-test-flexisip-flat" ]
   extends: .rules-dev  # ⚠ See `rules.yml`
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
