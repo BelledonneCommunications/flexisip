@@ -730,6 +730,108 @@ void registerSeveralContactsAtOnce() {
 	BC_ASSERT_CPP_EQUAL(contact3InDb->getSipExpires().count(), expiryContact3);
 }
 
+/*
+ * Test the usage of the wildcard '*' 'Contact' header field in case no 'Expires' header field is present in the
+ * request.
+ *
+ *  RFC3261 10.2.2
+ *  The REGISTER-specific Contact header field value of "*" applies to
+ *  all registrations, but it MUST NOT be used unless the Expires header
+ *  field is present with a value of "0".
+ */
+void missingExpiresHeaderWithWildcardContactHeader() {
+	auto proxy = Server({
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "internal"},
+	});
+	proxy.start();
+	auto asserter = CoreAssert(proxy);
+	const auto clientSipIdentity = "sip:user@localhost"s;
+	const auto proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+
+	auto& regDb = proxy.getAgent()->getRegistrarDb();
+	ContactInserter(regDb)
+	    .setAor(clientSipIdentity)
+	    .setExpire(10s)
+	    .insert({"sip:127.0.0.1:1234;transport=tcp"})
+	    .insert({"sip:127.0.0.1:5678;transport=tcp"});
+	const auto& records = dynamic_cast<const RegistrarDbInternal&>(regDb.getRegistrarBackend()).getAllRecords();
+	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 1);
+
+	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
+	const auto clientSipUri = "sip:user@127.0.0.1:"s + client.getFirstPort();
+
+	// Invalid usage: missing 'Expires' header.
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+	request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderContact>("*");
+
+	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+	asserter.iterateUpTo(16, [&transaction]() { return transaction->isCompleted(); }).assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 400);
+
+	BC_ASSERT_CPP_EQUAL(records.size(), 1);
+	const auto& contacts = records.begin()->second->getExtendedContacts();
+	BC_ASSERT_CPP_EQUAL(contacts.size(), 2);
+}
+
+/*
+ * Test correct usage of the wildcard '*' 'Contact' header field.
+ *
+ *  RFC3261 10.2.2
+ *  The REGISTER-specific Contact header field value of "*" applies to
+ *  all registrations, but it MUST NOT be used unless the Expires header
+ *  field is present with a value of "0".
+ */
+void correctWildcardContactHeaderUsage() {
+	auto proxy = Server({
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "internal"},
+	});
+	proxy.start();
+	auto asserter = CoreAssert(proxy);
+	const auto clientSipIdentity = "sip:user@localhost"s;
+	const auto proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+
+	auto& regDb = proxy.getAgent()->getRegistrarDb();
+	ContactInserter(regDb)
+	    .setAor(clientSipIdentity)
+	    .setExpire(10s)
+	    .insert({"sip:127.0.0.1:1234;transport=tcp"})
+	    .insert({"sip:127.0.0.1:5678;transport=tcp"});
+	const auto& records = dynamic_cast<const RegistrarDbInternal&>(regDb.getRegistrarBackend()).getAllRecords();
+	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 1);
+
+	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
+	const auto clientSipUri = "sip:user@127.0.0.1:"s + client.getFirstPort();
+
+	// Invalid usage: 'Contact' header field does not only contain '*'.
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+	request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderExpires>(0);
+	request->makeAndInsert<SipHeaderContact>("*");
+
+	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+	asserter.iterateUpTo(16, [&transaction]() { return transaction->isCompleted(); }).assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 200);
+
+	BC_ASSERT_CPP_EQUAL(records.size(), 0);
+}
+
 TestSuite _{
     "Register",
     {
@@ -741,6 +843,8 @@ TestSuite _{
         CLASSY_TEST(registerUserWithTooManyContactHeaders),
         CLASSY_TEST(clientCanDeleteExistingBindingWhenRegistering),
         CLASSY_TEST(registerSeveralContactsAtOnce),
+        CLASSY_TEST(missingExpiresHeaderWithWildcardContactHeader),
+        CLASSY_TEST(correctWildcardContactHeaderUsage),
     },
     Hooks().beforeEach([] {
 	    responseReceived = 0;

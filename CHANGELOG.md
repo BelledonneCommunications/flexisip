@@ -157,6 +157,8 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
       were not correctly incremented.
     - **Sofia-SIP:** Rare race condition when resolving a domain name (leading to a crash of the server).
     - **Router**: Missing userinfo in 'From' or 'To' header was leading to a crash for MESSAGE requests.
+    - **Registrar:**
+      - Usage of the wildcard '*' 'Contact' header field was not correctly handled (considered as a bad request).
 - **B2bua/SIP Bridge**: authentication information for deleted accounts was removed too early, preventing accounts from
   properly unregistering to the registrar.
 - **EventLogs (`flexiapi` logger only):** Two events (INVITE, MESSAGE, etc.) sharing the same Call-ID, the same user
