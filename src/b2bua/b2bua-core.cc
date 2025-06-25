@@ -60,6 +60,8 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	configLinphone->setBool("sip", "terminate_call_upon_transfer_completion", false);
 	// Do not automatically accept replacing calls (INVITE requests with "Replaces" header).
 	configLinphone->setBool("sip", "auto_answer_replacing_calls", false);
+	// Do not try to change call parameters if a message seems malformed.
+	configLinphone->setBool("sip", "account_strict_matching", true);
 
 	const auto core = factory.createCoreWithConfig(configLinphone, nullptr);
 	core->setLabel("Flexisip B2BUA");
