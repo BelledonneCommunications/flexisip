@@ -686,6 +686,12 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "sip:127.0.0.1:6067;transport=tcp",
 	    },
 	    {
+	        Boolean,
+	        "enable-keepalive",
+	        "Enables signaling keep alive (small udp packet sent periodically to keep udp NAT association)",
+	        "true",
+	    },
+	    {
 	        IntegerRange,
 	        "audio-port",
 	        "Audio port to use for RTP and RTCP traffic. You can set a specific port, a range of ports or let the "
