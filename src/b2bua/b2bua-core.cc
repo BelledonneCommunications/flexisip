@@ -101,6 +101,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	// Give enough time to the outgoing call (legB) to establish while we leave the incoming one (legA) ringing.
 	// See RFC 3261 §16.6 step 11 for the duration.
 	core->setIncTimeout(4 * 60);
+	core->enableKeepAlive(config.get<ConfigBoolean>("enable-keepalive")->read());
 
 	const auto userAgent = parseUserAgentFromConfig(config.get<ConfigString>("user-agent")->read());
 	core->setUserAgent(userAgent.first, userAgent.second);

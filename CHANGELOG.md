@@ -41,6 +41,7 @@ Group changes to describe their impact on the project, as follows:
     - New parameter `nat-addresses` to specify public host name or IP addresses of the server. For more information, see
       the [configuration reference guide].
     - New parameter `max-calls` to specify the maximum number of concurrent calls an instance of the server can handle.
+    - New parameter `enable-keepalive` (sends 'keepalive' packets to keep udp NAT association).
     - **SIP-Bridge:**:
         - Forwarding of SUBSCRIBE and NOTIFY requests.
         - **AccountPool:**
