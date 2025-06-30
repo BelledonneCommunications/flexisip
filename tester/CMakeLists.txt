@@ -122,6 +122,7 @@ add_executable(flexisip_tester
 	tests/sofia-api/nta-reply.cc
 	tests/sofia-api/nth.cc
 	tests/sofia-wrapper/home-tester.cc
+	tests/sofia-wrapper/su/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc
 	tests/transaction/outgoing-transaction-tester.cc
 	tests/transaction/transaction-tester.cc
