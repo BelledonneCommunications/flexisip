@@ -128,3 +128,4 @@ job-rocky9-rpm-deploy:
     - job-rocky9-rpm
   variables:
     DISTRIB: rockylinux
+    ROCKYLINUX_VERSION: 9
