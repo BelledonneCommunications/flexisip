@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -11,7 +11,7 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -25,6 +25,7 @@ target_sources(flexisip PRIVATE
 	msg-sip.cc
 	nta-agent.hh
 	nta-outgoing-transaction.hh
+	su/home.cc su/home.hh
 	sdp-parser.cc
 	sip-header-private.hh
 	su-root.cc
