@@ -164,7 +164,9 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     - **SanityChecker:** Server was not resilient to invalid subscriptions (no Event header).
     - **Statistics**: Counters in `module::Authentication` called `count-password-found` and `count-password-not-found`
       were not correctly incremented.
-    - **Sofia-SIP:** Rare race condition when resolving a domain name (leading to a crash of the server).
+    - **Sofia-SIP:**
+      - Rare race condition when resolving a domain name (leading to a crash of the server).
+      - A crash of the server could happen in the outgoing transport selection algorithm when sending a SIP message.
     - **Router**: Missing userinfo in 'From' or 'To' header was leading to a crash for MESSAGE requests.
     - **Registrar:**
       - Usage of the wildcard '*' 'Contact' header field was not correctly handled (considered as a bad request).
