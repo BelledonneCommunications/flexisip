@@ -373,7 +373,7 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
 		LOGD << "Stop request to us (" << url_as_string(ms->getHome(), dest) << ")";
-		ev->terminateProcessing();
+		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
