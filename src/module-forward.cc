@@ -52,7 +52,6 @@ static char const* compute_branch(nta_agent_t* sa,
                                   char const* string_server,
                                   const shared_ptr<OutgoingTransaction>& outTr);
 
-
 ModuleInfo<ForwardModule> ForwardModule::sInfo(
     "Forward",
     "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
@@ -345,7 +344,7 @@ void ForwardModule::sendRequest(shared_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// Check self-forwarding
 	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
 		SLOGD << "Stopping request to us (" << url_as_string(ms->getHome(), dest) << ")";
-		ev->terminateProcessing();
+		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 

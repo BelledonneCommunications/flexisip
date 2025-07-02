@@ -26,8 +26,10 @@ Group changes to describe their impact on the project, as follows:
       ForkCtx.
     - **PushNotifications:** Now continues to send push notifications of type `message` after 45s for calls (only for
       iOS devices when `voip` push types are not allowed).
-    - **Forward:** The 'Contact' header is now cleaned properly in the REGISTER request transferred to another server (
-      with `reg-on-response` enabled).
+    - **Forward:**
+      - The 'Contact' header is now cleaned properly in the REGISTER request transferred to another server (with
+        `reg-on-response` enabled).
+      - Some incoming transactions were not answered, causing a memory leak.
     - **SanityChecker:** Server was not resilient to invalid subscriptions (no Event header).
     - **Statistics**: Counters in `module::Authentication` called `count-password-found` and `count-password-not-found`
       were not correctly incremented.
