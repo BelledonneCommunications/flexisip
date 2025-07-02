@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <iostream>
 
 #include "linphone++/linphone.hh"
@@ -48,8 +49,10 @@ class ClientFactory : public std::enable_shared_from_this<ClientFactory>, public
 	friend class Client;
 
 public:
-	ClientFactory(const std::shared_ptr<linphone::Core>& core);
+	ClientFactory(const std::shared_ptr<linphone::Core>& core, const std::chrono::seconds& subscriptionRefreshDelay);
 	std::shared_ptr<Client> create(const std::shared_ptr<const linphone::Address>& to);
+
+	std::chrono::seconds getSubscriptionRefreshDelay() const;
 
 private:
 	static constexpr std::string_view mLogPrefix{"ClientFactory"};
@@ -72,6 +75,7 @@ private:
 	}
 
 	std::shared_ptr<linphone::Core> mCore;
+	std::chrono::seconds mSubscriptionRefreshDelay;
 	int mUseCount;
 };
 
