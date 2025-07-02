@@ -83,8 +83,10 @@ Group changes to describe their impact on the project, as follows:
               user should register (optional).
             - Parameter `protocol` (which is used with `outbound_proxy` and `registrar`) to indicate which transport
               protocol to use (optional, default: udp).
-- **Conference:** new parameters `audio-engine-mode` and `video-engine-mode` to specify the media engine to use (
-  `mixer`, `semi-sfu` and `sfu`). Documentation is available in the [configuration reference guide].
+- **Conference:**
+    - New parameters `audio-engine-mode` and `video-engine-mode` to specify the media engine to use (`mixer`, `semi-sfu`
+      and `sfu`). Documentation is available in the [configuration reference guide].
+    - New parameter `subscription-refresh-delay` to change the delay before refreshing external subscriptions.
 
 ### [Changed]
 - **Conference:** Parameter `conference-focus-uris` is now mandatory.

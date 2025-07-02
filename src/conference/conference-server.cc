@@ -220,7 +220,8 @@ void ConferenceServer::_init() {
 	mLocalDomains.sort();
 	mLocalDomains.unique();
 
-	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore);
+	auto refreshDelay = config->get<ConfigDuration<seconds>>("subscription-refresh-delay")->readAndCast();
+	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore, refreshDelay);
 
 	Status err = mCore->start();
 	if (err == -2) throw ExitFailure{"the Linphone core could not start because the connection to the database failed"};
@@ -634,6 +635,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "state-directory",
 	        "Directory where the server state files are stored.\n",
 	        DEFAULT_LIB_DIR,
+	    },
+	    {
+	        DurationS,
+	        "subscription-refresh-delay",
+	        "Delay before refreshing external subscriptions to the regevent-server.\n"
+	        "It is not recommended to reduce this parameter below 1 minute as refreshing all subscriptions generates "
+	        "a significant traffic.",
+	        "10min",
 	    },
 	    {
 	        DurationS,

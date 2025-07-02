@@ -44,7 +44,7 @@ void Client::subscribe() {
 		LOGE << "Already subscribed";
 		return;
 	}
-	mSubscribeEvent = mFactory->getCore()->createSubscribe(mTo, "reg", 600);
+	mSubscribeEvent = mFactory->getCore()->createSubscribe(mTo, "reg", mFactory->getSubscriptionRefreshDelay().count());
 	mSubscribeEvent->addCustomHeader("Accept", "application/reginfo+xml");
 	mSubscribeEvent->setData(kEventKey, *this);
 	mSubscribeEvent->sendSubscribe(nullptr);
@@ -175,11 +175,16 @@ void ClientFactory::unregisterClient(Client&) {
 	}
 }
 
-ClientFactory::ClientFactory(const shared_ptr<linphone::Core>& core) : mCore(core), mUseCount(0) {
+ClientFactory::ClientFactory(const shared_ptr<linphone::Core>& core, const chrono::seconds& subscriptionRefreshDelay)
+    : mCore(core), mSubscriptionRefreshDelay(subscriptionRefreshDelay), mUseCount(0) {
 }
 
 shared_ptr<Client> ClientFactory::create(const shared_ptr<const linphone::Address>& to) {
 	return shared_ptr<Client>(new Client{shared_from_this(), to});
+}
+
+chrono::seconds ClientFactory::getSubscriptionRefreshDelay() const {
+	return mSubscriptionRefreshDelay;
 }
 
 } // namespace flexisip::RegistrationEvent
