@@ -6,7 +6,9 @@ set -o pipefail  # don't hide errors within pipes
 
 function print_usage {
 	prog=$(basename $0)
-	echo "syntax: $prog <dist>" 1>&2
+	echo "syntax:"
+	echo "	$prog debian"
+	echo "	$prog [centos|rockylinux] <version>"
 	exit 2
 }
 
@@ -14,32 +16,32 @@ if [ -z "$1" ] || [ "${1:0:1}" = '-' ]; then
 	print_usage $0
 fi
 
-if [ $# -ne 1 ]; then
+if [ $# -lt 1 ]; then
 	print_usage $0
 fi
 
 dist="$1"
-
+version="$2"
 
 id=$(head --bytes 100 /dev/urandom | env LC_ALL=C tr -dc 'a-zA-Z0-9' | fold --width 10 | head --lines 1) || exit $?
 tmpdir="$MAKE_REPO_TMP/tmp-$id"
 rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 
 case "$dist" in
-	'centos')
-		make_repo_args="rpm $tmpdir $CENTOS_REPOSITORY"
+  'centos')
+		make_repo_args="rpm $tmpdir $CENTOS_REPOSITORY $version"
 		rsync_src='build/*.rpm'
 		;;
   'rockylinux')
-		make_repo_args="rpm $tmpdir $ROCKYLINUX_REPOSITORY"
+		make_repo_args="rpm $tmpdir $ROCKYLINUX_REPOSITORY $version"
 		rsync_src='build/*.rpm'
 		;;
-	'debian')
+  'debian')
 		make_repo_args="deb $tmpdir $FREIGHT_PATH $RELEASE"
 		echo "make_repo_args=$make_repo_args"
 		rsync_src='build/*.deb build/*.ddeb'
 		;;
-	       *)
+  *)
 		echo "invalid distribution type: '$dist'. Only 'centos', 'rockylinux' and 'debian' are valid" 1>&2
 		exit 2
 		;;
@@ -56,4 +58,3 @@ ssh $DEPLOY_SERVER "
 	echo \">>>> Removing '$tmpdir'\"
 	rm -r $tmpdir
 "
-

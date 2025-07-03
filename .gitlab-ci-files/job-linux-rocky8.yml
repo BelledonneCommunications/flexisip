@@ -92,3 +92,4 @@ job-rocky8-rpm-deploy:
     - job-rocky8-rpm
   variables:
     DISTRIB: rockylinux
+    ROCKYLINUX_VERSION: 8
