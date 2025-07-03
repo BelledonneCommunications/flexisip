@@ -538,4 +538,12 @@ url_t* sipUrlMake(su_home_t* home, const char* value) {
 	return ret;
 }
 
+bool isPrivateAddress(const char* host) {
+	if (host == nullptr) return false;
+
+	static const auto privateIpRegex =
+	    regex{R"((^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^192\.168\.))"};
+	return regex_search(host, privateIpRegex);
+}
+
 } // namespace flexisip::module_toolbox

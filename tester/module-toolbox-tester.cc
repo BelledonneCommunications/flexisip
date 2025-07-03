@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,8 +20,8 @@
 
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "module-toolbox.hh"
+#include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
@@ -35,9 +35,8 @@ using namespace std::chrono;
 using namespace flexisip;
 using namespace flexisip::tester;
 
-namespace flexisip {
-namespace tester {
-namespace module_toolbox_suite {
+namespace flexisip::tester {
+namespace {
 
 ////////////////// START OF ModuleToolbox::addRecordRoute TESTS /////////////////////////
 
@@ -130,17 +129,32 @@ public:
 
 ////////////////// END OF ModuleToolbox::addRecordRoute TESTS /////////////////////////
 
-namespace {
-TestSuite _("Module toolbox",
-            {
-                TEST_NO_TAG("ModuleToolbox::addRecordRoute sip", run<SipAddRecordRouteTest>),
-                TEST_NO_TAG("ModuleToolbox::addRecordRoute sip with 'use-rfc2543-record-route=true'",
-                            run<SipRfc2543AddRecordRouteTest>),
-                TEST_NO_TAG("ModuleToolbox::addRecordRoute sips", run<SipsAddRecordRouteTest>),
-                TEST_NO_TAG("ModuleToolbox::addRecordRoute sips with 'use-rfc2543-record-route=true'",
-                            run<SipsRfc2543AddRecordRouteTest>),
-            });
+void isPrivateAddress() {
+	BC_ASSERT(module_toolbox::isPrivateAddress("10.0.0.1") == true);
+	BC_ASSERT(module_toolbox::isPrivateAddress("10.255.255.255") == true);
+	BC_ASSERT(module_toolbox::isPrivateAddress("172.16.132.12") == true);
+	BC_ASSERT(module_toolbox::isPrivateAddress("172.25.46.55") == true);
+	BC_ASSERT(module_toolbox::isPrivateAddress("172.31.224.188") == true);
+	BC_ASSERT(module_toolbox::isPrivateAddress("192.168.0.2") == true);
+	BC_ASSERT(module_toolbox::isPrivateAddress("192.168.100.42") == true);
+
+	BC_ASSERT(module_toolbox::isPrivateAddress("0.0.0.0") == false);
+	BC_ASSERT(module_toolbox::isPrivateAddress("1.2.3.4") == false);
+	BC_ASSERT(module_toolbox::isPrivateAddress("127.0.0.1") == false);
+	BC_ASSERT(module_toolbox::isPrivateAddress("172.15.0.1") == false);
+	BC_ASSERT(module_toolbox::isPrivateAddress("172.32.0.1") == false);
+	BC_ASSERT(module_toolbox::isPrivateAddress("255.255.255.255") == false);
 }
-} // namespace module_toolbox_suite
-} // namespace tester
-} // namespace flexisip
+
+TestSuite _{
+    "module_toolbox",
+    {
+        CLASSY_TEST(SipAddRecordRouteTest),
+        CLASSY_TEST(SipRfc2543AddRecordRouteTest),
+        CLASSY_TEST(SipsAddRecordRouteTest),
+        CLASSY_TEST(SipsRfc2543AddRecordRouteTest),
+        CLASSY_TEST(isPrivateAddress),
+    },
+};
+} // namespace
+} // namespace flexisip::tester
