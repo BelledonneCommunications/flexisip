@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,20 +20,18 @@
 
 #include <memory>
 
-#include <sofia-sip/auth_digest.h>
-#include <sofia-sip/msg_header.h>
-#include <sofia-sip/nta_tport.h>
-#include <sofia-sip/tport.h>
-
 #include "agent.hh"
 #include "domain-registrations.hh"
+#include "sofia-sip/auth_digest.h"
+#include "sofia-sip/msg_header.h"
+#include "sofia-sip/tport.h"
 #include "utils/flow.hh"
 
 using namespace std;
 
-namespace flexisip {
+namespace flexisip::module_toolbox {
 
-msg_auth_t* ModuleToolbox::findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm) {
+msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm) {
 	while (au) {
 		auth_response_t r;
 		memset(&r, 0, sizeof(r));
@@ -50,7 +48,7 @@ msg_auth_t* ModuleToolbox::findAuthorizationForRealm(su_home_t* home, msg_auth_t
 	return nullptr;
 }
 
-bool ModuleToolbox::sipPortEquals(const char* p1, const char* p2, const char* transport) {
+bool sipPortEquals(const char* p1, const char* p2, const char* transport) {
 	int n1, n2;
 	if (transport == NULL || strcasecmp(transport, "TLS") == 0) n1 = n2 = 5060;
 	else n1 = n2 = 5061;
@@ -60,12 +58,12 @@ bool ModuleToolbox::sipPortEquals(const char* p1, const char* p2, const char* tr
 	return n1 == n2;
 }
 
-int ModuleToolbox::sipPortToInt(const char* port) {
+int sipPortToInt(const char* port) {
 	if (port == NULL || port[0] == '\0') return 5060;
 	else return atoi(port);
 }
 
-void ModuleToolbox::cleanAndPrependRoute(Agent* ag, msg_t* msg, sip_t* sip, sip_route_t* r) {
+void cleanAndPrependRoute(Agent* ag, msg_t* msg, sip_t* sip, sip_route_t* r) {
 	// removes top route headers if they matches us
 	while (sip->sip_route != NULL && ag->isUs(sip->sip_route->r_url)) {
 		sip_route_remove(msg, sip);
@@ -74,10 +72,7 @@ void ModuleToolbox::cleanAndPrependRoute(Agent* ag, msg_t* msg, sip_t* sip, sip_
 	if (r) prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-void ModuleToolbox::addRecordRoute(Agent* ag,
-                                   const shared_ptr<RequestSipEvent>& ev,
-                                   const tport_t* tport,
-                                   const Flow::Token& token) {
+void addRecordRoute(Agent* ag, const shared_ptr<RequestSipEvent>& ev, const tport_t* tport, const Flow::Token& token) {
 	msg_t* msg = ev->getMsgSip()->getMsg();
 	sip_t* sip = ev->getMsgSip()->getSip();
 	su_home_t* home = ev->getMsgSip()->getHome();
@@ -139,7 +134,7 @@ void ModuleToolbox::addRecordRoute(Agent* ag,
 	ev->mRecordRouteAdded = true;
 }
 
-void ModuleToolbox::addRecordRouteIncoming(Agent* ag, const shared_ptr<RequestSipEvent>& ev, const Flow::Token& token) {
+void addRecordRouteIncoming(Agent* ag, const shared_ptr<RequestSipEvent>& ev, const Flow::Token& token) {
 	if (ev->mRecordRouteAdded) return;
 
 	const auto tport = ev->getIncomingTport();
@@ -156,7 +151,7 @@ void ModuleToolbox::addRecordRouteIncoming(Agent* ag, const shared_ptr<RequestSi
 	addRecordRoute(ag, ev, tport.get(), token);
 }
 
-bool ModuleToolbox::fromMatch(const sip_from_t* from1, const sip_from_t* from2) {
+bool fromMatch(const sip_from_t* from1, const sip_from_t* from2) {
 	if (url_cmp(from1->a_url, from2->a_url) == 0) {
 		if (from1->a_tag && from2->a_tag && strcmp(from1->a_tag, from2->a_tag) == 0) return true;
 		if (from1->a_tag == NULL && from2->a_tag == NULL) return true;
@@ -164,7 +159,7 @@ bool ModuleToolbox::fromMatch(const sip_from_t* from1, const sip_from_t* from2) 
 	return false;
 }
 
-bool ModuleToolbox::matchesOneOf(const string& item, const list<string>& set) {
+bool matchesOneOf(const string& item, const list<string>& set) {
 	list<string>::const_iterator it;
 	for (it = set.begin(); it != set.end(); ++it) {
 		const string& value = (*it);
@@ -188,7 +183,7 @@ bool ModuleToolbox::matchesOneOf(const string& item, const list<string>& set) {
 	return false;
 }
 
-bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t* home, [[maybe_unused]] msg_t* msg, sip_t* sip) {
+bool fixAuthChallengeForSDP(su_home_t* home, [[maybe_unused]] msg_t* msg, sip_t* sip) {
 	sip_auth_t* auth;
 	msg_param_t* par;
 	auth = sip->sip_www_authenticate;
@@ -206,28 +201,28 @@ bool ModuleToolbox::fixAuthChallengeForSDP(su_home_t* home, [[maybe_unused]] msg
 	return true;
 }
 
-void ModuleToolbox::urlSetHost(su_home_t* home, url_t* url, const char* host) {
+void urlSetHost(su_home_t* home, url_t* url, const char* host) {
 	if (strchr(host, ':') && host[0] != '[') {
 		url->url_host = su_sprintf(home, "[%s]", host);
 	} else url->url_host = su_strdup(home, host);
 }
 
-bool ModuleToolbox::urlIsResolved(url_t* uri) {
+bool urlIsResolved(url_t* uri) {
 	return isNumeric(uri->url_host) || (uri->url_port && uri->url_port[0] != '\0');
 }
 
-string ModuleToolbox::getHost(const char* host) {
+string getHost(const char* host) {
 	if (host[0] == '[') {
 		return string(host, 1, strlen(host) - 2);
 	}
 	return string(host);
 }
 
-string ModuleToolbox::urlGetHost(url_t* url) {
+string urlGetHost(url_t* url) {
 	return getHost(url->url_host);
 }
 
-bool ModuleToolbox::urlHostMatch(const char* host1, const char* host2) {
+bool urlHostMatch(const char* host1, const char* host2) {
 	size_t len1, len2;
 	int ipv6 = 0;
 	len1 = strlen(host1);
@@ -256,21 +251,21 @@ bool ModuleToolbox::urlHostMatch(const char* host1, const char* host2) {
 	return strncasecmp(host1, host2, MAX(len1, len2)) == 0;
 }
 
-bool ModuleToolbox::urlHostMatch(const url_t* url, const char* host) {
+bool urlHostMatch(const url_t* url, const char* host) {
 	return urlHostMatch(url->url_host, host);
 }
 
-bool ModuleToolbox::urlHostMatch(const std::string& host1, const std::string& host2) {
+bool urlHostMatch(const std::string& host1, const std::string& host2) {
 	return urlHostMatch(host1.c_str(), host2.c_str());
 }
 
-bool ModuleToolbox::transportEquals(const char* tr1, const char* tr2) {
+bool transportEquals(const char* tr1, const char* tr2) {
 	if (tr1 == NULL || tr1[0] == 0) tr1 = "UDP";
 	if (tr2 == NULL || tr2[0] == 0) tr2 = "UDP";
 	return strcasecmp(tr1, tr2) == 0;
 }
 
-bool ModuleToolbox::urlViaMatch(const url_t* url, const sip_via_t* via, bool use_received_rport) {
+bool urlViaMatch(const url_t* url, const sip_via_t* via, bool use_received_rport) {
 	const char* via_host = NULL;
 	const char* via_port = NULL;
 	const char* via_transport = sip_via_transport(via);
@@ -303,7 +298,7 @@ bool ModuleToolbox::urlViaMatch(const url_t* url, const sip_via_t* via, bool use
 	return urlHostMatch(via_host, url_host) && strcmp(via_port, url_pt) == 0;
 }
 
-bool ModuleToolbox::viaContainsUrl(const sip_via_t* vias, const url_t* url) {
+bool viaContainsUrl(const sip_via_t* vias, const url_t* url) {
 	const sip_via_t* via;
 	for (via = vias; via != NULL; via = via->v_next) {
 		if (urlViaMatch(url, via, true)) return true;
@@ -311,7 +306,7 @@ bool ModuleToolbox::viaContainsUrl(const sip_via_t* vias, const url_t* url) {
 	return false;
 }
 
-bool ModuleToolbox::viaContainsUrlHost(const sip_via_t* vias, const url_t* url) {
+bool viaContainsUrlHost(const sip_via_t* vias, const url_t* url) {
 	const sip_via_t* via;
 	for (via = vias; via != NULL; via = via->v_next) {
 		if (strcasecmp(via->v_host, url->url_host) == 0 && strcasecmp(via->v_port, url->url_port) == 0) return true;
@@ -354,11 +349,11 @@ static const char* url_get_transport(const url_t* url) {
 	return ret;
 }
 
-string ModuleToolbox::urlGetTransport(const url_t* url) {
+string urlGetTransport(const url_t* url) {
 	return url_get_transport(url);
 }
 
-bool ModuleToolbox::urlTransportMatch(const url_t* url1, const url_t* url2) {
+bool urlTransportMatch(const url_t* url1, const url_t* url2) {
 	if (strcasecmp(url_get_transport(url1), url_get_transport(url2)) != 0) return false;
 	if (!urlHostMatch(url1->url_host, url2->url_host)) return false;
 	if (strcmp(url_port(url1), url_port(url2)) != 0) return false;
@@ -366,26 +361,26 @@ bool ModuleToolbox::urlTransportMatch(const url_t* url1, const url_t* url2) {
 	return true;
 }
 
-bool ModuleToolbox::isNumeric(const char* host) {
+bool isNumeric(const char* host) {
 	if (host[0] == '[') return true; // ipv6
 	struct in_addr addr;
 	return !!inet_aton(host, &addr); // inet_aton returns non zero if ipv4 address is valid.
 }
 
-bool ModuleToolbox::isManagedDomain(const Agent* agent, const list<string>& domains, const url_t* url) {
-	bool check = ModuleToolbox::matchesOneOf(url->url_host, domains);
+bool isManagedDomain(const Agent* agent, const list<string>& domains, const url_t* url) {
+	bool check = matchesOneOf(url->url_host, domains);
 	if (check) {
 		// additional check: if the domain is an ip address that is not this proxy, then it is not considered as a
 		// managed domain for the registrar.
 		// we need this to distinguish requests that needs registrar routing from already routed requests.
-		if (ModuleToolbox::isNumeric(url->url_host) && !agent->isUs(url, true)) {
+		if (isNumeric(url->url_host) && !agent->isUs(url, true)) {
 			check = false;
 		}
 	}
 	return check;
 }
 
-void ModuleToolbox::addRoutingParam(su_home_t* home, sip_contact_t* c, const string& routingParam, const char* domain) {
+void addRoutingParam(su_home_t* home, sip_contact_t* c, const string& routingParam, const char* domain) {
 	ostringstream oss;
 	oss << routingParam << "=" << domain;
 	string routing_param(oss.str());
@@ -395,7 +390,7 @@ void ModuleToolbox::addRoutingParam(su_home_t* home, sip_contact_t* c, const str
 	}
 }
 
-sip_route_t* ModuleToolbox::prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value) {
+sip_route_t* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value) {
 	if (sipr == NULL) {
 		sipr = value;
 		return value;
@@ -411,7 +406,7 @@ sip_route_t* ModuleToolbox::prependNewRoutable(msg_t* msg, sip_t* sip, sip_route
 	return value;
 }
 
-void ModuleToolbox::addPathHeader(
+void addPathHeader(
     Agent* ag, const shared_ptr<RequestSipEvent>& ev, tport_t* tport, const char* uniq, const Flow::Token& token) {
 	su_home_t* home = ev->getMsgSip()->getHome();
 	msg_t* msg = ev->getMsgSip()->getMsg();
@@ -465,7 +460,7 @@ void ModuleToolbox::addPathHeader(
 	}
 }
 
-const url_t* ModuleToolbox::getNextHop(Agent* ag, const sip_t* sip, bool* isRoute) {
+const url_t* getNextHop(Agent* ag, const sip_t* sip, bool* isRoute) {
 	const sip_route_t* route = sip->sip_route;
 	while (route) {
 		if (!ag->isUs(route->r_url)) {
@@ -478,14 +473,14 @@ const url_t* ModuleToolbox::getNextHop(Agent* ag, const sip_t* sip, bool* isRout
 	return sip->sip_request->rq_url;
 }
 
-void ModuleToolbox::removeParamsFromContacts(su_home_t* home, sip_contact_t* c, list<string>& params) {
+void removeParamsFromContacts(su_home_t* home, sip_contact_t* c, list<string>& params) {
 	while (c) {
 		removeParamsFromUrl(home, c->m_url, params);
 		c = c->m_next;
 	}
 }
 
-void ModuleToolbox::removeParamsFromUrl(su_home_t* home, url_t* u, list<string>& params) {
+void removeParamsFromUrl(su_home_t* home, url_t* u, list<string>& params) {
 	for (auto it = params.begin(); it != params.end(); ++it) {
 		const char* tag = it->c_str();
 		if (!url_has_param(u, tag)) continue;
@@ -494,7 +489,7 @@ void ModuleToolbox::removeParamsFromUrl(su_home_t* home, url_t* u, list<string>&
 	}
 }
 
-sip_unknown_t* ModuleToolbox::getCustomHeaderByName(const sip_t* sip, const char* name) {
+sip_unknown_t* getCustomHeaderByName(const sip_t* sip, const char* name) {
 	sip_unknown_t* it;
 	for (it = sip->sip_unknown; it != NULL; it = it->un_next) {
 		if (strcasecmp(it->un_name, name) == 0) {
@@ -504,7 +499,7 @@ sip_unknown_t* ModuleToolbox::getCustomHeaderByName(const sip_t* sip, const char
 	return NULL;
 }
 
-int ModuleToolbox::getCpuCount() {
+int getCpuCount() {
 	int count = 0;
 	char line[256] = {0};
 
@@ -522,7 +517,7 @@ int ModuleToolbox::getCpuCount() {
 	return count;
 }
 
-sip_via_t* ModuleToolbox::getLastVia(sip_t* sip) {
+sip_via_t* getLastVia(sip_t* sip) {
 	sip_via_t* ret;
 	ret = sip->sip_via;
 	while (ret->v_next) {
@@ -531,7 +526,7 @@ sip_via_t* ModuleToolbox::getLastVia(sip_t* sip) {
 	return ret;
 }
 
-url_t* ModuleToolbox::sipUrlMake(su_home_t* home, const char* value) {
+url_t* sipUrlMake(su_home_t* home, const char* value) {
 	url_t* ret = url_make(home, value);
 	if (ret) {
 		if (ret->url_type != url_sip && ret->url_type != url_sips) {
@@ -542,4 +537,4 @@ url_t* ModuleToolbox::sipUrlMake(su_home_t* home, const char* value) {
 	return ret;
 }
 
-} // namespace flexisip
+} // namespace flexisip::module_toolbox
