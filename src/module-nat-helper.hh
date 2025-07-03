@@ -46,7 +46,6 @@ protected:
 private:
 	NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	static bool isPrivateAddress(const char* host);
 	void fixRecordRouteInRequest(const std::shared_ptr<MsgSip>& ms);
 
 	static ModuleInfo<NatHelper> sInfo;

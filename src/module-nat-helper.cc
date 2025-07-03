@@ -90,10 +90,6 @@ void NatHelper::onLoad(const GenericStruct* sec) {
 	mContactCorrectionParameter = sec->get<ConfigString>("contact-correction-param")->read();
 }
 
-bool NatHelper::isPrivateAddress(const char* host) {
-	return strstr(host, "10.") == host || strstr(host, "192.168.") == host || strstr(host, "176.12.") == host;
-}
-
 void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 	sip_t* sip = ms->getSip();
 	if (sip->sip_record_route) {
@@ -115,7 +111,7 @@ void NatHelper::fixRecordRouteInRequest(const shared_ptr<MsgSip>& ms) {
 			}
 		} else {
 			const char* host = sip->sip_record_route->r_url->url_host;
-			if (host && isPrivateAddress(host)) {
+			if (host && module_toolbox::isPrivateAddress(host)) {
 				const char* transport = sip_via_transport(sip->sip_via);
 				const char* received = sip->sip_via->v_received ? sip->sip_via->v_received : sip->sip_via->v_host;
 				const char* rport = sip->sip_via->v_rport ? sip->sip_via->v_rport : sip->sip_via->v_port;
