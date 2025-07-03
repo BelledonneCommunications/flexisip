@@ -163,8 +163,7 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
 	            BooleanExpr,
 	            "force-flow-token",
 	            "Boolean expression in order to force the use of flow-token under specific conditions. This expression "
-	            "is "
-	            "only evaluated if the \"flow-token\" strategy is used.\n",
+	            "is only evaluated if the \"flow-token\" strategy is used.\n",
 	            "user-agent contains 'Linphone'",
 	        },
 	        {
@@ -177,8 +176,7 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
 	            String,
 	            "contact-correction-param",
 	            "Internal URI parameter added to response contact by first proxy and cleaned by last one. It indicates "
-	            "if "
-	            "the contact was already verified and corrected.",
+	            "if the contact was already verified and corrected.",
 	            "verified",
 	        },
 	        {
@@ -193,7 +191,21 @@ ModuleInfo<NatHelper> NatHelper::sInfo(
 	            "Policy to recognize NATed record-route and fix them. There are two modes: 'safe' and 'always'",
 	            "safe",
 	        },
+
+	        // Deprecated parameter.
+	        {
+	            String,
+	            "contact-verified-param",
+	            "Internal URI parameter added to response contact by first proxy and cleaned by last one. It indicates "
+	            "if the contact was already verified and corrected.",
+	            "verified",
+	        },
 	        config_item_end,
 	    };
 	    moduleConfig.addChildrenValues(items);
+
+	    auto* contactVerifiedParam = moduleConfig.get<ConfigString>("contact-verified-param");
+	    contactVerifiedParam->setDeprecated("2025-01-30", "2.4.0",
+	                                        "This parameter is renamed to \"contact-correction-param\".");
+	    moduleConfig.get<ConfigString>("contact-correction-param")->setFallback(*contactVerifiedParam);
     });
