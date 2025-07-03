@@ -99,7 +99,7 @@
     GIT_STRATEGY: fetch
   before_script:
     - *add-deploy-keys
-  script: ./.gitlab-ci-files/deploy.sh ${DISTRIB}
+  script: ./.gitlab-ci-files/deploy.sh ${DISTRIB} ${ROCKYLINUX_VERSION}
 
 #################################################
 # DEB
