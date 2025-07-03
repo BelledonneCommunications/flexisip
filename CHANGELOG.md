@@ -177,6 +177,7 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     - **NatHelper:**
       - The `contact-verified-param` parameter has been renamed but not deprecated, causing problems at startup if the
         parameter was defined in the configuration file.
+      - The function that determines whether an IP address is private now complies with RFC1918.
 - **B2bua/SIP Bridge**: authentication information for deleted accounts was removed too early, preventing accounts from
   properly unregistering to the registrar.
 - **EventLogs (`flexiapi` logger only):** Two events (INVITE, MESSAGE, etc.) sharing the same Call-ID, the same user

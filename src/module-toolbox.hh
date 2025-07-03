@@ -109,6 +109,11 @@ sip_via_t* getLastVia(sip_t* sip);
  */
 url_t* sipUrlMake(su_home_t* home, const char* value);
 
+/**
+ * @note this function is compliant with RFC1918
+ */
+bool isPrivateAddress(const char* host);
+
 } // namespace module_toolbox
 
 // NOLINTNEXTLINE(misc-unused-alias-decls) Deprecated alias to transition existing code smoothly.
