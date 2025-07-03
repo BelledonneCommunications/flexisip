@@ -20,80 +20,98 @@
 
 #include <memory>
 
-#include <sofia-sip/msg_header.h>
-#include <sofia-sip/nta_tport.h>
-#include <sofia-sip/tport.h>
-
 #include "agent.hh"
+#include "sofia-sip/msg_header.h"
+#include "sofia-sip/tport.h"
 #include "utils/flow.hh"
 
 namespace flexisip {
-
-/*
- * Some useful routines.
+/**
+ * Set of useful functions used across several modules.
  */
-class ModuleToolbox {
-public:
-	static msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm);
+namespace module_toolbox {
 
-	static void addRecordRouteIncoming(Agent* agent, RequestSipEvent& ev, const Flow::Token& token = "");
-	static void addRecordRoute(Agent* agent, RequestSipEvent& ev, const tport_t* tport, const Flow::Token& token = "");
+msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm);
 
-	static void cleanAndPrependRoute(Agent* agent, msg_t* msg, sip_t* sip, sip_route_t* route);
+void addRecordRouteIncoming(Agent* agent, RequestSipEvent& ev, const Flow::Token& token = "");
+void addRecordRoute(Agent* agent, RequestSipEvent& ev, const tport_t* tport, const Flow::Token& token = "");
 
-	static bool sipPortEquals(const char* p1, const char* p2, const char* transport = nullptr);
-	static int sipPortToInt(const char* port);
+void cleanAndPrependRoute(Agent* agent, msg_t* msg, sip_t* sip, sip_route_t* route);
 
-	static bool fromMatch(const sip_from_t* from1, const sip_from_t* from2);
-	static bool matchesOneOf(const std::string& item, const std::list<std::string>& set);
+bool sipPortEquals(const char* p1, const char* p2, const char* transport = nullptr);
+int sipPortToInt(const char* port);
 
-	static bool fixAuthChallengeForSDP(su_home_t* home, msg_t* msg, sip_t* sip);
-	static bool transportEquals(const char* tr1, const char* tr2);
-	static bool isNumeric(const char* host);
-	static bool isManagedDomain(const Agent* agent, const std::list<std::string>& domains, const url_t* url);
-	static void
-	addRoutingParam(su_home_t* home, sip_contact_t* contacts, const std::string& routingParam, const char* domain);
-	static struct sip_route_s* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value);
-	static void
-	addPathHeader(Agent* agent, MsgSip& ms, tport_t* tport, const char* uniq = nullptr, const Flow::Token& token = "");
+bool fromMatch(const sip_from_t* from1, const sip_from_t* from2);
+bool matchesOneOf(const std::string& item, const std::list<std::string>& set);
 
-	// These methods do host comparison taking into account that each one of argument can be an ipv6 address enclosed in
-	// brakets.
-	static bool urlHostMatch(const char* host1, const char* host2);
-	static bool urlHostMatch(const url_t* url, const char* host);
-	static bool urlHostMatch(const std::string& host1, const std::string& host2);
+bool fixAuthChallengeForSDP(su_home_t* home, msg_t* msg, sip_t* sip);
+bool transportEquals(const char* tr1, const char* tr2);
+bool isNumeric(const char* host);
+bool isManagedDomain(const Agent* agent, const std::list<std::string>& domains, const url_t* url);
+void addRoutingParam(su_home_t* home, sip_contact_t* contacts, const std::string& routingParam, const char* domain);
+sip_route_s* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value);
+void addPathHeader(Agent* agent, MsgSip& ms, tport_t* tport, const char* uniq = nullptr, const Flow::Token& token = "");
 
-	// Returns the host taking into account that if it is an ipv6 address, then brakets are removed.
-	static std::string getHost(const char* host);
+/**
+ * @note takes into account that each argument could be an ipv6 address enclosed in brackets
+ */
+bool urlHostMatch(const char* host1, const char* host2);
+/**
+ * @note takes into account that each argument could be an ipv6 address enclosed in brackets
+ */
+bool urlHostMatch(const url_t* url, const char* host);
+/**
+ * @note takes into account that each argument could be an ipv6 address enclosed in brackets
+ */
+bool urlHostMatch(const std::string& host1, const std::string& host2);
 
-	static std::string urlGetHost(url_t* url);
-	static void urlSetHost(su_home_t* home, url_t* url, const char* host);
-	static bool urlIsResolved(url_t* uri);
+/**
+ * @note takes into account that if it is an ipv6 address, then brackets are removed
+ */
+std::string getHost(const char* host);
 
-	// Returns true if via and url represent the same network address.
-	static bool urlViaMatch(const url_t* url, const sip_via_t* via, bool use_received_rport);
+std::string urlGetHost(url_t* url);
+void urlSetHost(su_home_t* home, url_t* url, const char* host);
+bool urlIsResolved(url_t* uri);
 
-	// Returns true if the destination represented by url is present in the via chain.
-	static bool viaContainsUrl(const sip_via_t* vias, const url_t* url);
-	// Returns true if the destination host contained in 'url' is present in via headers. This helps loop detection.
-	static bool viaContainsUrlHost(const sip_via_t* vias, const url_t* url);
+/**
+ * @return true if via and url represent the same network address
+ */
+bool urlViaMatch(const url_t* url, const sip_via_t* via, bool use_received_rport);
 
-	/* Return the next hop by skipping possible Route headers pointing to this proxy.*/
-	static const url_t* getNextHop(Agent* ag, const sip_t* sip, bool* isRoute);
+/**
+ * @return true if the destination represented by url is present in the via chain
+ */
+bool viaContainsUrl(const sip_via_t* vias, const url_t* url);
 
-	// Returns true if the two url represent the same transport channel (IP, port and protocol).
-	static bool urlTransportMatch(const url_t* url1, const url_t* url2);
-	static std::string urlGetTransport(const url_t* url);
-	static void removeParamsFromContacts(su_home_t* home, sip_contact_t* c, std::list<std::string>& params);
-	static void removeParamsFromUrl(su_home_t* home, url_t* u, std::list<std::string>& params);
-	static sip_unknown_t* getCustomHeaderByName(const sip_t* sip, const char* name);
-	static int getCpuCount();
-	static sip_via_t* getLastVia(sip_t* sip);
-	/* same as url_make() from sofia, but unsure that the url is sip or sips; otherwise return NULL*/
-	static url_t* sipUrlMake(su_home_t* home, const char* value);
+/**
+ * @return true if the destination host contained in 'url' is present in via headers (helps for loop detection)
+ */
+bool viaContainsUrlHost(const sip_via_t* vias, const url_t* url);
 
-private:
-	static constexpr std::string_view mLogPrefix{"ModuleToolbox"};
-};
+/**
+ * @return the next hop by skipping possible Route headers pointing to this proxy
+ */
+const url_t* getNextHop(Agent* ag, const sip_t* sip, bool* isRoute);
+
+/**
+ * @return true if the two url represent the same transport channel (IP, port and protocol)
+ */
+bool urlTransportMatch(const url_t* url1, const url_t* url2);
+std::string urlGetTransport(const url_t* url);
+void removeParamsFromContacts(su_home_t* home, sip_contact_t* c, std::list<std::string>& params);
+void removeParamsFromUrl(su_home_t* home, url_t* u, std::list<std::string>& params);
+sip_unknown_t* getCustomHeaderByName(const sip_t* sip, const char* name);
+int getCpuCount();
+sip_via_t* getLastVia(sip_t* sip);
+/**
+ * @note same as url_make() from sofia, but unsure that the url is sip or sips; otherwise return NULL
+ */
+url_t* sipUrlMake(su_home_t* home, const char* value);
+
+} // namespace module_toolbox
+
+// NOLINTNEXTLINE(misc-unused-alias-decls) Deprecated alias to transition existing code smoothly.
+namespace ModuleToolbox = module_toolbox;
 
 } // namespace flexisip
