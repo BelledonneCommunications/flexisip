@@ -21,7 +21,6 @@ if [ $# -lt 1 ]; then
 fi
 
 dist="$1"
-version="$2"
 
 id=$(head --bytes 100 /dev/urandom | env LC_ALL=C tr -dc 'a-zA-Z0-9' | fold --width 10 | head --lines 1) || exit $?
 tmpdir="$MAKE_REPO_TMP/tmp-$id"
@@ -29,10 +28,12 @@ rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 
 case "$dist" in
 	'centos')
+		version="$2"
 		make_repo_args="rpm $tmpdir $CENTOS_REPOSITORY $version"
 		rsync_src='build/*.rpm'
 		;;
 	'rockylinux')
+		version="$2"
 		make_repo_args="rpm $tmpdir $ROCKYLINUX_REPOSITORY $version"
 		rsync_src='build/*.rpm'
 		;;
