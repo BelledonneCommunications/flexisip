@@ -21,27 +21,28 @@ if [ $# -lt 1 ]; then
 fi
 
 dist="$1"
-version="$2"
 
 id=$(head --bytes 100 /dev/urandom | env LC_ALL=C tr -dc 'a-zA-Z0-9' | fold --width 10 | head --lines 1) || exit $?
 tmpdir="$MAKE_REPO_TMP/tmp-$id"
 rsync_dest="$DEPLOY_SERVER:$tmpdir/"
 
 case "$dist" in
-  'centos')
+	'centos')
+		version="$2"
 		make_repo_args="rpm $tmpdir $CENTOS_REPOSITORY $version"
 		rsync_src='build/*.rpm'
 		;;
-  'rockylinux')
+	'rockylinux')
+		version="$2"
 		make_repo_args="rpm $tmpdir $ROCKYLINUX_REPOSITORY $version"
 		rsync_src='build/*.rpm'
 		;;
-  'debian')
+	'debian')
 		make_repo_args="deb $tmpdir $FREIGHT_PATH $RELEASE"
 		echo "make_repo_args=$make_repo_args"
 		rsync_src='build/*.deb build/*.ddeb'
 		;;
-  *)
+	*)
 		echo "invalid distribution type: '$dist'. Only 'centos', 'rockylinux' and 'debian' are valid" 1>&2
 		exit 2
 		;;
