@@ -26,7 +26,6 @@
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/pushnotification-context.hh"
-#include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -82,22 +81,19 @@ void PushNotificationContext::onTimeout() noexcept {
 	}
 }
 
-ModuleInfo<PushNotification> PushNotification::sInfo(
+ModuleInfo<PushNotification> PushNotification::sInfo{
     "PushNotification",
-    "This module performs push notifications to mobile phone notification systems: apple, "
-    "android, as well as a generic http get/post to a custom server to which "
-    "actual sending of the notification is delegated. The push notification is sent when an "
-    "INVITE or MESSAGE request is not answered by the destination of the request "
-    "within a certain period of time, configurable hereunder by 'timeout' parameter. "
-    "The PushNotification has an implicit dependency on the Router module, which is in charge of creating "
-    "the incoming and outgoing transactions and the context associated with the request forking process. "
-    "No push notification can hence be sent if the Router module isn't activated. "
-    "The time-to-live of the push notification depends on event for which the push notification is generated. "
-    " - if it is for a call (INVITE), it will be set equal 'call-fork-timeout' property of the Router module,"
-    " which corresponds to the maximum time for a call attempt.\n"
-    " - if it is for an IM (MESSAGE or INVITE for a text session), then it will be set equal to the "
-    "'message-time-to-live'"
-    " property.",
+    "The PushNotification module sends push notifications to mobile phone notification systems: apple, "
+    "firebase (android), as well as generic HTTP GET/POST APIs (custom server to which actual sending of the "
+    "notification is delegated). Push notifications are sent when an INVITE or MESSAGE request is not answered by the"
+    "destination of the request within a certain period of time (configurable hereunder by 'timeout' parameter). "
+    "This module has an implicit dependency on the Router module, which is in charge of creating the incoming and "
+    "outgoing transactions as well as the context associated with the request forking process. No push notification "
+    "can be sent if the Router module is not enabled. The time-to-live (ttl) of the push notification depends on "
+    "the type of event for which the push notification is sent:\n"
+    " - If it is for a call (INVITE), ttl will be set equal to 'module::Router/call-fork-timeout', which corresponds "
+    "to the maximum time for a call attempt.\n"
+    " - If it is for an IM (MESSAGE or INVITE for a text session), ttl will be set equal to 'message-time-to-live'.",
     {"Router"},
     ModuleInfoBase::ModuleOid::PushNotification,
 
@@ -107,54 +103,52 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	        {
 	            DurationS,
 	            "timeout",
-	            "Time to wait before sending a push notification to device. A value lesser or equal to zero will "
-	            "make the push notification to be sent immediately, which is recommended since most of the time "
-	            "devices "
-	            "can't have a permanent connection with the Flexisip server.",
+	            "Time to wait before sending a push notification to a device.\n"
+	            "A negative or zero value will cause the push notification to be sent immediately. This behavior is "
+	            "recommended as mobile devices do not have a permanent connection with Flexisip most of the time.",
 	            "0",
 	        },
 	        {
 	            DurationS,
 	            "message-time-to-live",
-	            "Time to live for the push notifications related to IM messages. The default value '0' "
-	            "is interpreted as using the same value as for message-delivery-timeout of Router module.",
+	            "Time to live for the push notifications related to IM messages.\n"
+	            "The default value zero is interpreted as using the same value as for "
+	            "'module::Router/message-delivery-timeout'.",
 	            "0",
 	        },
 	        {
 	            Integer,
 	            "max-queue-size",
-	            "Maximum number of notifications queued for each push notification service",
+	            "Maximum number of push notifications queued for each push notification service.",
 	            "100",
 	        },
 	        {
 	            Integer,
 	            "retransmission-count",
-	            "Number of push notification request retransmissions sent to a client for a "
-	            "same event (call or message). Retransmissions cease when a response is received from the client. "
-	            "Setting "
-	            "a value of zero disables retransmissions.",
+	            "Number of push notification request retransmissions sent to a client for a same event (call or "
+	            "message).\n"
+	            "Retransmissions cease when a response is received from the client. The value zero disables "
+	            "retransmissions.",
 	            "0",
 	        },
 	        {
 	            DurationS,
 	            "retransmission-interval",
-	            "Retransmission interval for push notification requests, when "
-	            "a retransmission-count has been specified above.",
+	            "Retransmission interval for push notification requests, when a 'retransmission-count' has been "
+	            "specified above.",
 	            "5",
 	        },
 	        {
 	            DurationS,
 	            "call-remote-push-interval",
-	            "Default interval between to subsequent PNs when remote push notifications are used to notify a call "
-	            "invite "
-	            "to "
-	            "a clients that haven't published any token for VoIP and background push notifications. In that case, "
-	            "several PNs are sent subsequently until the call is picked up, declined or canceled. This parameter "
-	            "can "
-	            "be overridden by the client by using the 'pn-call-remote-push-interval' push parameter.\n"
-	            "A value of zero will cause the deactivation of push notification repetitions and the sending of the"
-	            "final notification. Thus, only the first push notification will be sent.\n"
-	            "The value must be in [0;30]",
+	            "Default interval between two subsequent push notifications when remote push notifications are used to "
+	            "notify a call invitation to a client that has not published any token for VoIP and background push "
+	            "notifications.\n"
+	            "In that case, several push notifications are sent subsequently until the call is picked up, declined "
+	            "or canceled. This parameter can be overridden by the client by using the "
+	            "'pn-call-remote-push-interval' push parameter.\n"
+	            "A value of zero deactivates push notification repetitions and the sending of the final notification. "
+	            "Thus, only the first push notification will be sent. The value must be in [0;30].",
 	            "0",
 	        },
 	        {
@@ -165,55 +159,45 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	            " * 'display-name': the display name of the caller or the message sender.\n"
 	            " * 'loc-args': the display name if not empty or the SIP URI instead.\n"
 	            "\n"
-	            "If false, the keys will be set but as empty.",
+	            "If false, the keys will be set empty.",
 	            "false",
 	        },
 	        {
 	            String,
 	            "add-to-tag-filter",
-	            "Expect a boolean expression applied on the incoming request which has triggered the current "
-	            "push notification. If the expression is evaluated to true, a self-generated To-tag will be added "
-	            "to the provisional response which is generated by the proxy to simulate that a recipient is ringing "
-	            "or "
-	            "notify the caller that a push notification has been sent to the recipient. An empty string is "
-	            "evaluated "
-	            "'false'.\n"
-	            "Adding a To-tag to a response from the proxy is wrong according to RFC 3261. Indeed, it would mean "
-	            "that "
-	            "a SIP dialog is created between the client and the proxy. This option has been created to handle some "
-	            "migration scenarios",
+	            "Boolean expression to be applied on the incoming request which has triggered the current push "
+	            "notification.\n"
+	            "If the expression is evaluated to 'true', a self-generated 'To-tag' will be added to the provisional "
+	            "response which is generated by the proxy to simulate that a recipient is ringing or notify the caller "
+	            "that a push notification has been sent to the recipient. An empty string is evaluated 'false'.\n"
+	            "Adding a 'To-tag' to a response from the proxy is wrong according to RFC 3261. Indeed, it would mean "
+	            "that a SIP dialog is created between the client and the proxy. This option has been created to handle "
+	            "some migration scenarios.",
 	            "",
 	        },
 	        {
 	            Boolean,
 	            "apple",
-	            "Enable push notification for apple devices",
+	            "Enable push notification for Apple devices.",
 	            "true",
 	        },
 	        {
 	            String,
 	            "apple-certificate-dir",
-	            "Path to directory where to find Apple Push Notification service certificates. They should bear the "
-	            "appid "
-	            "of "
-	            "the application, suffixed by the release mode and .pem extension. For example: org.linphone.dev.pem "
-	            "org.linphone.prod.pem com.somephone.dev.pem etc... The files should be .pem format, and made of "
-	            "certificate "
-	            "followed by private key.\n"
-	            "This is also the path to the directory where to find Voice Over IP certificates (certicates to use "
-	            "PushKit). "
-	            "They should bear the appid of the application, suffixed by the release mode and .pem extension, and "
-	            "made "
-	            "of "
-	            "certificate followed by private key. For example: org.linphone.voip.dev.pem "
-	            "org.linphone.voip.prod.pem "
-	            "com.somephone.voip.dev.pem etc...",
+	            "Path to directory where Apple Push Notification service certificates are located.\n"
+	            "The file names MUST bear the appid of the application, suffixed by the release mode and '.pem' "
+	            "extension. Examples: org.linphone.dev.pem, org.linphone.prod.pem, com.somephone.dev.pem, etc... The "
+	            "files MUST be '.pem' format, and made of certificates followed by the private key.\n"
+	            "This directory may also contain Voice Over IP certificates (certificates to use PushKit). They MUST "
+	            "bear the appid of the application, suffixed by the release mode and '.pem' extension, and made of "
+	            "certificate followed by the private key. Examples: org.linphone.voip.dev.pem, "
+	            "org.linphone.voip.prod.pem, com.somephone.voip.dev.pem, etc...",
 	            "/etc/flexisip/apn",
 	        },
 	        {
 	            Boolean,
 	            "no-badge",
-	            "Set the badge value to 0 for Apple push",
+	            "Set the badge value to 0 for Apple push notifications.",
 	            "false",
 	        },
 	        {
@@ -226,111 +210,98 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	            StringList,
 	            "firebase-projects-api-keys",
 	            "List of pairs of <Firebase Project Number>:<Firebase Cloud Messaging API (Legacy) Server Key> for "
-	            "each "
-	            "Android project that supports push notifications.",
+	            "each Android project that supports push notifications.",
 	            "",
 	        },
 	        {
 	            StringList,
 	            "firebase-service-accounts",
 	            "List of pairs of <Firebase Project Number>:<Path to service account json file> for each Android "
-	            "project "
-	            "that supports push notifications.",
+	            "project that supports push notifications.",
 	            "",
 	        },
 	        {
-	            Integer,
+	            DurationS,
 	            "firebase-token-expiration-anticipation-time",
-	            "Represents the time in seconds to execute the access token refresh operation just before the current "
-	            "access token expires. This parameter is used to control overlapping access token lifetimes.",
+	            "Time to execute the access token refresh operation just before the current access token expires. This "
+	            "parameter is used to control overlapping access token lifetimes.",
 	            "300",
 	        },
 	        {
-	            Integer,
+	            DurationS,
 	            "firebase-default-refresh-interval",
-	            "Default interval in seconds to execute the access token refresh operation in the event that the "
-	            "access "
-	            "token "
-	            "has not been successfully obtained.",
+	            "Default interval to execute the access token refresh operation in the event that the access token has "
+	            "not been successfully obtained.",
 	            "60",
 	        },
 	        {
 	            String,
 	            "external-push-uri",
-	            "The 'external-push-uri' parameter in Flexisip SIP proxy server allows you to route push notification "
-	            "requests through a designated server instead of directly communicating with Apple and Google servers. "
-	            "With this setup, Flexisip sends an HTTP request to the specified server, embedding all required "
-	            "information within the URL. Various placeholders can be utilized within the HTTP request URI:\n"
+	            "Allows you to route push notification requests through a designated server instead of directly "
+	            "communicating with Apple and Google servers.\n"
+	            "Using this setup, the server sends an HTTP request to the specified server, embedding all required "
+	            "information within the URL. Various placeholders can be used within the HTTP request URI:\n"
 	            "\n"
-	            " - $type: Represents the type of push notification, distinguishing between Apple ('apple') and "
-	            "Android "
-	            "('firebase') notifications.\n"
-	            " - $token: Corresponds to the value of the 'pn-prid' push parameter. For Apple devices, 'pn-prid' may "
-	            "contain multiple tokens depending on the notification type ('remote' or 'voip'). In such cases, "
-	            "$token "
-	            "is replaced by the relevant token matching the notification type.\n"
-	            " - $api-key: Deprecated placeholder for the Firebase API key. It's advised that the designated server "
-	            "manages the authentication credentials.\n"
-	            " - $app-id: An identifier for the application. On Android, it matches the value of 'pn-param'. On "
-	            "Apple, "
-	            "it matches the string between the first and last dot ('.') of 'pn-param'. For example, if 'pn-param' "
-	            "is "
-	            "'ABCD1234.org.my-app.remote&voip', $app-id becomes 'org.my-app'.\n"
-	            " - $from-name: Refers to the display name in the 'From' header of the triggering request for the push "
-	            "notification. Replaced by an empty string if 'display-from-uri' is false.\n"
-	            " - $from-uri: Represents the SIP URI in the 'From' header of the triggering request. Replaced by an "
-	            "empty string if 'display-from-uri' is false.\n"
-	            " - $from-tag: Indicates the tag of the 'From' header in the triggering request.\n"
-	            " - $to-uri: Denotes the SIP URI in the 'To' header.\n"
-	            " - $call-id: Refers to the Call-ID of the INVITE or MESSAGE request.\n"
-	            " - $event: Specifies the type of event that triggered the push notification ('call' for call invites, "
-	            "'message' for message delivery or chatroom invitation).\n"
-	            " - $sound: For iOS only, if $event is 'call', it represents the value of 'pn-call-snd' contact "
-	            "parameter; otherwise, it represents 'pn-msg-snd'. This allows customization of the push notification "
-	            "sound. If 'pn-call-snd' or 'pn-msg-snd' contact parameters were not set during user agent "
-	            "registration, "
-	            "the placeholder is replaced with 'empty'.\n"
+	            " - $type: Type of push notification, distinguishing between Apple ('apple') and Android ('firebase') "
+	            "notifications.\n"
+	            " - $token: Value of the 'pn-prid' push parameter. For Apple devices, 'pn-prid' may contain multiple "
+	            "tokens depending on the notification type ('remote' or 'voip'). In such cases, $token is replaced by "
+	            "the relevant token matching the notification type.\n"
+	            " - $api-key: Deprecated placeholder for the Firebase API key. It is advised that the designated "
+	            "server manages the authentication credentials.\n"
+	            " - $app-id: Application identifier. On Android, it matches the value of 'pn-param'. On Apple, it "
+	            "matches the string between the first and last dot ('.') of 'pn-param'. For example, if 'pn-param' "
+	            "is 'ABCD1234.org.my-app.remote&voip', $app-id becomes 'org.my-app'.\n"
+	            " - $from-name: Display name in the 'From' header of the triggering request for the push notification. "
+	            "Replaced by an empty string if 'display-from-uri' is false.\n"
+	            " - $from-uri: SIP URI in the 'From' header of the triggering request. Replaced by an empty string if "
+	            "'display-from-uri' is false.\n"
+	            " - $from-tag: Tag of the 'From' header in the triggering request.\n"
+	            " - $to-uri: SIP URI in the 'To' header.\n"
+	            " - $call-id: Call-ID of the INVITE or MESSAGE request.\n"
+	            " - $event: Type of event that triggered the push notification ('call' for call invites, 'message' for "
+	            "message delivery or chatroom invitation).\n"
+	            " - $sound: For iOS only, if $event is 'call', it is the value of 'pn-call-snd' contact parameter; "
+	            "otherwise, it represents 'pn-msg-snd'. This allows customization of the push notification sound. If "
+	            "'pn-call-snd' or 'pn-msg-snd' contact parameters were not set during user agent registration, the "
+	            "placeholder is replaced with 'empty'.\n"
 	            " - $msgid: For iOS only, replaced by respective contact parameter values ('pn-call-str', "
-	            "'pn-msg-str', "
-	            "or 'pn-groupchat-str') if the triggering SIP message is a call invite, pending message, or groupchat "
-	            "invitation. If these parameters weren't set during user agent registration, placeholders are replaced "
-	            "by "
-	            "'IC_MSG', 'IM_MSG', or 'IG_MSG'. This allows customization of the push notification title.\n"
-	            " - $uid: Refers to the UUID present in the '+sip.instance' parameter value when the recipient of the "
-	            "push notification registered to the registrar.\n"
+	            "'pn-msg-str', or 'pn-groupchat-str') if the triggering SIP message is a call invite, pending message, "
+	            "or groupchat invitation. If these parameters were not set during user agent registration, "
+	            "placeholders are replaced by 'IC_MSG', 'IM_MSG', or 'IG_MSG'. This allows customization of the push "
+	            "notification title.\n"
+	            " - $uid: UUID present in the '+sip.instance' parameter value when the recipient of the push "
+	            "notification registered to the registrar.\n"
 	            "\n"
 	            "Additionally, the text message content is included in the HTTP request body as text/plain if "
-	            "available.\n"
-	            "\n"
-	            "Example: http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
+	            "available. Example: "
+	            "http://292.168.0.2/$type/$event?from-uri=$from-uri&tag=$from-tag&callid=$callid&to=$to-uri",
 	            "",
 	        },
 	        {
 	            String,
 	            "external-push-method",
-	            "Method for reaching external-push-uri, typically GET or POST",
+	            "Method for reaching external-push-uri (typically GET or POST).",
 	            "GET",
 	        },
 	        {
 	            String,
 	            "external-push-protocol",
-	            "Protocol used for reaching external-push-uri, http2 or http (deprecated)",
+	            "Protocol used for reaching external-push-uri ('http2' or 'http' (deprecated)).",
 	            "http2",
 	        },
 	        {
 	            DurationMIN,
 	            "register-wakeup-interval",
 	            "Send service push notification periodically to all devices that are about to expire and should wake "
-	            "up "
-	            "to "
-	            "REGISTER back. 0 to disable. Recommended value: 30",
+	            "up to REGISTER back. The zero value disables this feature. Recommended value: 30",
 	            "0",
 	        },
 	        {
 	            Integer,
 	            "register-wakeup-threshold",
-	            "Start sending wake-up push notifications to contacts when they pass that percentage of their "
-	            "lifetime.",
+	            "Start sending wake-up push notifications to contacts when they pass the provided percentage of their "
+	            "lifetime. The value MUST be in [0;100].",
 	            "50",
 	        },
 
@@ -428,7 +399,8 @@ ModuleInfo<PushNotification> PushNotification::sInfo(
 	        });
 	    moduleConfig.createStat("count-pn-failed", "Number of push notifications failed to be sent");
 	    moduleConfig.createStat("count-pn-sent", "Number of push notifications successfully sent");
-    });
+    },
+};
 
 PushNotification::PushNotification(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	mCountFailed = mModuleConfig->getStat("count-pn-failed");
