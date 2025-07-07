@@ -151,10 +151,10 @@ void Service::setupFirebaseClients(const GenericStruct* pushConfig) {
 		addFirebaseClient(keyval.substr(0, sep), keyval.substr(sep + 1));
 	}
 
-	const auto defaultRefreshInterval = chrono::duration_cast<chrono::milliseconds>(
-	    chrono::seconds(pushConfig->get<ConfigInt>("firebase-default-refresh-interval")->read()));
-	const auto tokenExpirationAnticipationTime = chrono::duration_cast<chrono::milliseconds>(
-	    chrono::seconds(pushConfig->get<ConfigInt>("firebase-token-expiration-anticipation-time")->read()));
+	const auto defaultRefreshInterval =
+	    pushConfig->get<ConfigDuration<chrono::seconds>>("firebase-default-refresh-interval")->read();
+	const auto tokenExpirationAnticipationTime =
+	    pushConfig->get<ConfigDuration<chrono::seconds>>("firebase-token-expiration-anticipation-time")->read();
 
 	// Then, add firebase v1 clients which are indicated in firebase-service-accounts.
 	for (const auto& keyval : firebaseServiceAccounts) {
