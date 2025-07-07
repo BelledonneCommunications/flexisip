@@ -18,18 +18,16 @@
 
 #include "apple-client.hh"
 
-#include <flexisip/logmanager.hh>
-
+#include "flexisip/logmanager.hh"
 #include "pushnotification/apple/apple-request.hh"
 
 using namespace std;
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
-std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
-std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
 std::string AppleClient::APN_PORT{"443"};
+std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
+std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
 
 AppleClient::AppleClient(sofiasip::SuRoot& root,
                          const std::string& trustStorePath,
@@ -39,8 +37,8 @@ AppleClient::AppleClient(sofiasip::SuRoot& root,
     : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "AppleClient")) {
 	LOGD << "Constructing client";
 
-	const auto apn_server = (certName.find(".dev") != string::npos) ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
-	mHttp2Client = Http2Client::make(root, apn_server, APN_PORT, trustStorePath, certPath);
+	const auto server = string_utils::endsWith(certName, ".dev.pem") ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
+	mHttp2Client = Http2Client::make(root, server, APN_PORT, trustStorePath, certPath);
 }
 
 std::shared_ptr<Request> AppleClient::makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) {
@@ -78,5 +76,4 @@ void AppleClient::onError(const std::shared_ptr<HttpMessage>& request) {
 	incrFailedCounter();
 }
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification
