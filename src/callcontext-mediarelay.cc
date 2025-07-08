@@ -122,6 +122,13 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& sdpModifier,
 			}
 			s = mServer->createSession(tag, rt);
 			mSessions[i] = s;
+		} else if (const auto channel = s->getChannel(tag, "")) {
+			// If the session already exists and the client has undergone a network change, update the preferred IP
+			// family accordingly.
+			if (channel->getRelayTransport().mPreferredFamily != rt.mPreferredFamily) {
+				LOGD << "Detected IP family change on RelayChannel[" << channel << "]: updating preferred IP family";
+				channel->setPreferredIpFamily(rt.mPreferredFamily);
+			}
 		}
 		shared_ptr<RelayChannel> chan = s->getChannel("", trid);
 		if (chan == NULL) {

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -43,13 +43,14 @@ using namespace std;
 namespace flexisip::tester {
 
 namespace {
+
 const std::map<std::string, std::string> CONFIG{
+    {"global/transports", "sip:127.0.0.1:0 sip:[::1]:0"},
     {"module::MediaRelay/enabled", "true"},
     {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
     {"module::Registrar/enabled", "true"},
     {"module::Registrar/reg-domains", "sip.example.org"},
 };
-}
 
 /**
  * Freeswitch has been witnessed to provide ICE candidates in its responses (183 & 200) even when the INVITE did *not*
@@ -197,9 +198,8 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	BC_ASSERT(!anyRelayCandidate.empty());
 	anyRelayCandidate = noCandidateFound;
 
-	asserter
-	    .iterateUpTo(
-	        120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
+	asserter.iterateUpTo(
+	            120, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 4s)
 	    .assert_passed();
 	// Video ICE re-INVITE does not contain relay candidates
 	BC_ASSERT_CPP_EQUAL(anyRelayCandidate, noCandidateFound);
@@ -277,9 +277,8 @@ void address_masquerading_in_sdp_with_call_update() {
 	BC_HARD_ASSERT(call != nullptr);
 	recipient.hasReceivedCallFrom(inviter, asserter).hard_assert_passed();
 	recipient.getCurrentCall()->accept();
-	asserter
-	    .iterateUpTo(
-	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	asserter.iterateUpTo(
+	            0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
 	    .hard_assert_passed();
 	asserter
 	    .iterateUpTo(
@@ -295,9 +294,8 @@ void address_masquerading_in_sdp_with_call_update() {
 	const auto& enableVideo = call->getCore()->createCallParams(call);
 	enableVideo->enableVideo(true);
 	call->update(enableVideo);
-	asserter
-	    .iterateUpTo(
-	        0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
+	asserter.iterateUpTo(
+	            0x20, [&] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::Updating); }, 2s)
 	    .hard_assert_passed();
 	asserter
 	    .iterateUpTo(
@@ -451,16 +449,93 @@ void early_media_bidirectional_video() {
 	    .assert_passed();
 }
 
-namespace {
-TestSuite _("MediaRelay",
-            {
-                CLASSY_TEST(ice_candidates_in_response_only),
-                CLASSY_TEST(ice_candidates_are_not_erased_in_a_valid_context),
-                CLASSY_TEST(relay_candidates_should_not_be_added_to_ice_reinvites),
-                CLASSY_TEST(address_masquerading_in_sdp_with_call_update),
-                CLASSY_TEST(early_media_video_sendrecv_takeover),
-                CLASSY_TEST(early_media_bidirectional_video),
-            });
+/**
+ * Test that module::MediaRelay updates the IP masqueraded in the SDP response on IP family change from the remote
+ * client (example: when a client undergoes a network change).
+ */
+void updateIpFamilyOnReInvite() {
+	constexpr auto getRtpRemoteAddress = [](const optional<ClientCall>& call) {
+		auto remoteAddress = string(64, '\0');
+		auto& gs = call->getMetaRtpTransport().session->rtp.gs;
+		bctbx_sockaddr_to_printable_ip_address(reinterpret_cast<sockaddr*>(&gs.rem_addr), gs.rem_addrlen,
+		                                       remoteAddress.data(), remoteAddress.size());
+		return remoteAddress;
+	};
+	auto hooks = InjectedHooks{
+	    .injectAfterModule = "GarbageIn",
+	    .onRequest =
+	        [&](unique_ptr<RequestSipEvent>&& request) {
+		        // Detect reINVITE.
+		        const auto* sip = request->getSip();
+		        if (sip->sip_request->rq_method != sip_method_invite || sip->sip_cseq->cs_seq <= 20)
+			        return std::move(request);
+
+		        // Tweak address in SDP to simulate a network change.
+		        auto* sipPayload = sip->sip_payload;
+		        auto tweakedPayload = string(sipPayload->pl_data, sipPayload->pl_len);
+		        string_utils::searchAndReplace(tweakedPayload, "IN IP4 127.0.0.1", "IN IP6 ::1");
+		        memcpy(sipPayload->pl_data, tweakedPayload.data(), tweakedPayload.size());
+		        sipPayload->pl_len = tweakedPayload.size();
+
+		        SLOGD << "Tweaked SDP:\n" << tweakedPayload;
+		        return std::move(request);
+	        },
+	};
+	Server server(CONFIG, &hooks);
+	server.start();
+	ClientBuilder builder{*server.getAgent()};
+	builder.setVideoReceive(OnOff::Off).setVideoSend(OnOff::Off);
+	const auto caller = builder.build("sip:caller@sip.example.org");
+	const auto callee = builder.build("sip:callee@sip.example.org");
+	CoreAssert asserter(caller, callee, server);
+
+	auto callerCall = caller.invite(callee);
+	BC_HARD_ASSERT_TRUE(callee.hasReceivedCallFrom(caller, asserter));
+
+	const auto calleeCall = callee.getCurrentCall();
+	std::ignore = calleeCall->accept();
+
+	asserter
+	    .iterateUpTo(
+	        5,
+	        [&] {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+		        // Before reINVITE, the remote address is [::ffff:127.0.0.1] in callee RTP parameters.
+		        FAIL_IF(!string_utils::startsWith(getRtpRemoteAddress(calleeCall), "[::ffff:127.0.0.1]"));
+		        return ASSERTION_PASSED();
+	        },
+	        600ms)
+	    .assert_passed();
+
+	calleeCall->update([](auto&& params) { return std::move(params); });
+
+	asserter
+	    .iterateUpTo(
+	        5,
+	        [&] {
+		        FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
+		        FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
+		        // After reINVITE, the remote address is [::1] in callee RTP parameters.
+		        FAIL_IF(!string_utils::startsWith(getRtpRemoteAddress(calleeCall), "[::1]"));
+		        return ASSERTION_PASSED();
+	        },
+	        600ms)
+	    .assert_passed();
 }
 
+TestSuite _{
+    "MediaRelay",
+    {
+        CLASSY_TEST(ice_candidates_in_response_only),
+        CLASSY_TEST(ice_candidates_are_not_erased_in_a_valid_context),
+        CLASSY_TEST(relay_candidates_should_not_be_added_to_ice_reinvites),
+        CLASSY_TEST(address_masquerading_in_sdp_with_call_update),
+        CLASSY_TEST(early_media_video_sendrecv_takeover),
+        CLASSY_TEST(early_media_bidirectional_video),
+        CLASSY_TEST(updateIpFamilyOnReInvite),
+    },
+};
+
+} // namespace
 } // namespace flexisip::tester
