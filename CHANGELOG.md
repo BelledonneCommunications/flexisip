@@ -117,6 +117,14 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
   - **Registrar:** Parameter `name-message-expires` (deprecated in 2.0.0).
 - **Plugin:** JweAuth.
 
+
+## [2.4.3]
+### [Fixed]
+- **Proxy:**
+  - **MediaRelay:** The server was not updating the IP address inserted in the SDP response when a client's network
+    changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
+
+
 ## [2.4.2]
 ### [Added]
 - **Proxy/Registrar:** New parameter `default-expires` to set a default expiry value to contacts when no expiry value

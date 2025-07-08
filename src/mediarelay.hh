@@ -214,6 +214,9 @@ public:
 	~RelayChannel();
 	bool checkSocketsValid();
 	void setRemoteAddr(const std::string& ip, int port, int rtcp_port, Dir dir);
+	void setPreferredIpFamily(int ipFamily) {
+		mRelayTransport.mPreferredFamily = ipFamily;
+	}
 	const RelayTransport& getRelayTransport() const {
 		return mRelayTransport;
 	}
