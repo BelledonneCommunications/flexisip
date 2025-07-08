@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -121,6 +121,13 @@ void RelayedCall::initChannels(const std::shared_ptr<SdpModifier>& sdpModifier,
 			}
 			s = mServer->createSession(tag, rt);
 			mSessions[i] = s;
+		} else if (const auto channel = s->getChannel(tag, "")) {
+			// If the session already exists and the client has undergone a network change, update the preferred IP
+			// family accordingly.
+			if (channel->getRelayTransport().mPreferredFamily != rt.mPreferredFamily) {
+				SLOGD << "RelayChannel[" << channel << "]: detected IP family change, updating preferred IP family";
+				channel->setPreferredIpFamily(rt.mPreferredFamily);
+			}
 		}
 		shared_ptr<RelayChannel> chan = s->getChannel("", trid);
 		if (chan == NULL) {
