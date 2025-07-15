@@ -131,7 +131,7 @@ class PushNotification : public Module {
 public:
 	~PushNotification() override = default;
 
-	static bool needsPush(const std::shared_ptr<MsgSip>& msgSip);
+	bool needsPush(const std::shared_ptr<MsgSip>& msgSip) const;
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
@@ -183,6 +183,7 @@ private:
 	StatCounter64* mCountSent{nullptr};
 	bool mNoBadgeiOS{false};
 	bool mDisplayFromUri{false};
+	bool mMwiPnEnabled{false};
 
 	std::unique_ptr<ContactExpirationNotifier> mExpirationNotifier = nullptr;
 

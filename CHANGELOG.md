@@ -58,6 +58,7 @@ Group changes to describe their impact on the project, as follows:
     - **PushNotification:**
         - Send push notifications on NOTIFY requests receipt if the event type is 'message-summary'
           ([RFC3842](https://datatracker.ietf.org/doc/html/rfc3842)).
+          It is managed by the new parameter `enable-message-summaries-pn`.
     - **Registrar:**
         - New parameter `redis-subscription-keep-alive-check-period` to periodically ping active Redis subscription
           sessions in order to detect and mitigate connection issues (tries to reconnect if connection is closed).

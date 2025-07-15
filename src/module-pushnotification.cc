@@ -310,6 +310,14 @@ ModuleInfo<PushNotification> PushNotification::sInfo{
 	            "lifetime. The value MUST be in [0;100].",
 	            "50",
 	        },
+	        {
+	            Boolean,
+	            "enable-message-summaries-pn",
+	            "If enabled, push notifications will be sent for NOTIFY requests with 'event-type' set to "
+	            "'message-summary'",
+	            "true",
+	        },
+
 	        // Deprecated parameters
 	        {
 	            StringList,
@@ -357,6 +365,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	auto externalUri = externalUriCfg->read();
 	auto appleEnabled = mc->get<ConfigBoolean>("apple")->read();
 	auto firebaseEnabled = mc->get<ConfigBoolean>("firebase")->read();
+	mMwiPnEnabled = mc->get<ConfigBoolean>("enable-message-summaries-pn")->read();
 
 	// Load the push retransmissions parameters.
 	const auto* retransmissionCountParam = mModuleConfig->get<ConfigInt>("retransmission-count");
@@ -575,7 +584,7 @@ std::chrono::seconds PushNotification::getCallRemotePushInterval(const char* pus
 	return mCallRemotePushInterval;
 }
 
-bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) {
+bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) const {
 	auto* sip = msgSip->getSip();
 	if (sip->sip_to->a_tag) return false;
 
@@ -608,7 +617,7 @@ bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) {
 		return true;
 	}
 
-	if (sip->sip_request->rq_method == sip_method_notify) {
+	if (sip->sip_request->rq_method == sip_method_notify && mMwiPnEnabled) {
 		auto* eventHeader = msgSip->findHeader("Event");
 		const auto* eventHeaderCString =
 		    sip_header_as_string(msgSip->getHome(), reinterpret_cast<const sip_header_t*>(eventHeader));
@@ -628,6 +637,8 @@ unique_ptr<RequestSipEvent> PushNotification::onRequest(unique_ptr<RequestSipEve
 				try {
 					makePushNotification(ms, transaction);
 				} catch (const MissingPushParameters& exception) {
+					LOGD << "Failed to create push notification (skip): " << exception.what();
+				} catch (const InvalidPushParameters& exception) {
 					LOGD << "Failed to create push notification (skip): " << exception.what();
 				} catch (const exception& exception) {
 					LOGE << "Failed to create push notification: " << exception.what();
