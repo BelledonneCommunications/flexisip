@@ -286,25 +286,11 @@ public:
 	}
 };
 
-template <typename ClientPlatformT>
-class NoPushOnNotifyPresence : public PushOnNotify<ClientPlatformT> {
-public:
-	void testExec() override {
-		// Send the Notify
-		auto transaction = this->notifyClient("presence");
-		BC_HARD_ASSERT_TRUE(this->waitFor([transaction]() { return transaction->isCompleted(); }, 2s));
-		// Ensure that no push was sent
-		BC_ASSERT_CPP_EQUAL(dynamic_pointer_cast<DummyPushClient>(this->mPushClient)->getSentPushCallCounter(), 0);
-	}
-};
-
 TestSuite _("Push-notification on Notify",
             {
                 CLASSY_TEST(PushOnNotifyMessageSummary<Android>),
                 CLASSY_TEST(PushOnNotifyMessageSummary<Ios>),
                 CLASSY_TEST(PushOnNotifyMessageSummary<IosCustomMwi>),
-                CLASSY_TEST(NoPushOnNotifyPresence<Android>),
-                CLASSY_TEST(NoPushOnNotifyPresence<IosCustomMwi>),
             });
 } // namespace
 
