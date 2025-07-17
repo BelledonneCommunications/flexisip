@@ -78,10 +78,19 @@ protected:
 	}
 
 	/**
-	 * Will tell if the module should be dumped. If the module is experimental and the dumpExperimental flag is
-	 * not set, this will return false.
+	 * Will tell if the element should be recursively dump.
 	 * @note This function is used internally, but can be used if the \ref dump() method is overriden
-	 * @param moduleName the name of the module
+	 * @param element pointer to GenericStruct
+	 * @return true if the element should be dumped recursively, false otherwise.
+	 */
+
+	bool shouldRecurse(const GenericStruct* element, int level) const;
+	/**
+	 * Will tell if the module should be dumped.
+	 * Returns false if the module is experimental and the dumpExperimental flag is not set, or if the module is
+	 * inactive.
+	 * @note This function is used internally, but can be used if the \ref dump() method is overriden
+	 * @param name the name of the module
 	 * @return true if the module should be dumped, false otherwise.
 	 */
 	bool shouldDumpModule(const std::string& moduleName) const;

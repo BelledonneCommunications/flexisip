@@ -62,7 +62,7 @@ public:
 
 void AuthDb::createAuthDbBackend() {
 	const auto& rootConfig = *mConfigManager->getRoot();
-	GenericStruct* ma = rootConfig.get<GenericStruct>("module::Authentication");
+	const GenericStruct* ma = rootConfig.getModuleSectionByRole("Authentication");
 	const string& impl = ma->get<ConfigString>("db-implementation")->read();
 	if (impl == "fixed") {
 		mBackend = make_unique<FixedAuthDb>(rootConfig);
@@ -76,7 +76,7 @@ void AuthDb::createAuthDbBackend() {
 }
 
 AuthDbBackend::AuthDbBackend(const RootConfigStruct& root) {
-	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
+	const GenericStruct* ma = root.getModuleSectionByRole("Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 	mCacheExpire =
 	    chrono::duration_cast<chrono::seconds>(ma->get<ConfigDuration<chrono::seconds>>("cache-expire")->read())

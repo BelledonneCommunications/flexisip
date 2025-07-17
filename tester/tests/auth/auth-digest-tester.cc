@@ -675,7 +675,7 @@ void passwordCounters() {
 	// Successful registration should increment 'count-password-found' by 1.
 	tryToRegister(sipUri, response_200_ok);
 
-	const auto* moduleConfig = proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Authentication");
+	const auto* moduleConfig = proxy.getConfigManager()->getRoot()->getModuleSectionByRole("Authentication");
 	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-found")->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleConfig->get<StatCounter64>("count-password-not-found")->read(), 0);
 

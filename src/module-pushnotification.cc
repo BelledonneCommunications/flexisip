@@ -347,8 +347,7 @@ PushNotification::PushNotification(Agent* ag, const ModuleInfoBase* moduleInfo) 
 }
 
 void PushNotification::onLoad(const GenericStruct* mc) {
-	const GenericStruct* root = getAgent()->getConfigManager().getRoot();
-	const GenericStruct* mRouter = root->get<GenericStruct>("module::Router");
+	const auto* routerSection = getAgent()->findModuleByRole("Router")->getConfig();
 
 	mNoBadgeiOS = mc->get<ConfigBoolean>("no-badge")->read();
 	mTimeout = chrono::duration_cast<chrono::seconds>(mc->get<ConfigDuration<chrono::seconds>>("timeout")->read());
@@ -356,7 +355,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	    mc->get<ConfigDuration<chrono::seconds>>("message-time-to-live")->read());
 	if (mMessageTtl == 0s) {
 		mMessageTtl = chrono::duration_cast<chrono::seconds>(
-		    mRouter->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->read());
+		    routerSection->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->read());
 	}
 	auto maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	mDisplayFromUri = mc->get<ConfigBoolean>("display-from-uri")->read();
@@ -466,7 +465,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), mAgent->getRegistrarDb());
 
 	mCallTtl = chrono::duration_cast<chrono::seconds>(
-	    mRouter->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
+	    routerSection->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
 	LOGI << "Module loaded, push ttl for calls is " << mCallTtl.count() << "s, and " << mMessageTtl.count()
 	     << "s for IM";
 }

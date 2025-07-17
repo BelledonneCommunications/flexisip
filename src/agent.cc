@@ -342,7 +342,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	mProxyToProxyKeepAliveInterval =
 	    global->get<ConfigDuration<chrono::seconds>>("proxy-to-proxy-keepalive-interval")->read().count();
 
-	const auto* natHelperConfig = mConfigManager->getRoot()->get<GenericStruct>("module::NatHelper");
+	const auto* natHelperConfig = findModuleByRole("NatHelper")->getConfig();
 	const auto& strategy = natHelperConfig->get<ConfigString>("nat-traversal-strategy")->read();
 	if (strategy == "contact-correction") {
 		const auto& contactCorrectionParameter = natHelperConfig->get<ConfigString>("contact-correction-param")->read();
@@ -636,7 +636,7 @@ void Agent::addConfigSections(ConfigManager& cfg) {
 void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
 	GenericStruct* cr = cfg.getEditableRoot();
-	GenericStruct* global = cr->get<GenericStruct>("global");
+	const GenericStruct* global = cr->get<GenericStruct>("global");
 	const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
 	for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
 		LOGI << "Loading [" << pluginName << "] plugin...";
@@ -647,7 +647,10 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 		}
 		moduleInfo->declareConfig(*cr);
 	}
+	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
+	ModuleInfoManager::get()->buildModuleChain();
 }
+
 // -----------------------------------------------------------------------------
 
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
@@ -661,8 +664,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	EtcHostsResolver::get();
 
-	// Ask the ModuleInfoManager to build a valid module info chain, according to module's placement hints.
-	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
+	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->getModuleChain();
 
 	// Instantiate the modules.
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
@@ -989,16 +991,12 @@ bool Agent::isUs(const url_t* url, bool check_aliases) const {
 	return isUs(url->url_host, url->url_port, check_aliases);
 }
 
-shared_ptr<Module> Agent::findModule(const string& moduleName) const {
-	auto it = find_if(mModules.cbegin(), mModules.cend(),
-	                  [&moduleName](const auto& m) { return m->getModuleName() == moduleName; });
-	return (it != mModules.cend()) ? *it : nullptr;
-}
-
 shared_ptr<Module> Agent::findModuleByRole(const std::string& moduleRole) const {
 	auto it = find_if(mModules.cbegin(), mModules.cend(),
 	                  [&moduleRole](const auto& m) { return m->getInfo()->getRole() == moduleRole; });
-	return it != mModules.cend() ? *it : nullptr;
+	// That must never happen, the Agent instanciates a module of each role even if the configuration disables it.
+	if (it == mModules.cend()) throw runtime_error("no module with the role \"" + moduleRole + "\" was found");
+	return *it;
 }
 
 template <typename SipEventT, typename ModuleIter>

@@ -142,14 +142,14 @@ SipUri Record::Key::toSipUri() const {
 }
 
 Record::Config::Config(const ConfigManager& cfg) {
-	const auto* cr = cfg.getRoot();
-	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
+	const auto& cr = *cfg.getRoot();
+	const GenericStruct* mr = cr.getModuleSectionByRole("Registrar");
 	mMaxContacts = mr->get<ConfigInt>("max-contacts-by-aor")->read();
 	mLineFieldNames = mr->get<ConfigStringList>("unique-id-parameters")->read();
 	mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
 	mAssumeUniqueDomains =
-	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
-	const GenericStruct* mro = cr->get<GenericStruct>("module::Router");
+	    cr.get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
+	const GenericStruct* mro = cr.getModuleSectionByRole("Router");
 	mUseGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 }
 

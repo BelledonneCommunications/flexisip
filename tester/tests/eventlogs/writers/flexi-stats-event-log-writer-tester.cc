@@ -162,8 +162,8 @@ void callToConference() {
 	CoreAssert asserter{johan, fakeConfServer, agent};
 
 	johan.invite(chatroom);
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(
-	    4, [&eventLogRequestsReceivedCount] { return 0 < eventLogRequestsReceivedCount; }, 1s));
+	BC_HARD_ASSERT_TRUE(
+	    asserter.iterateUpTo(4, [&eventLogRequestsReceivedCount] { return 0 < eventLogRequestsReceivedCount; }, 1s));
 
 	const auto startedEvent = flexiapiServer.popRequestReceived();
 	json actualJson;
@@ -193,7 +193,7 @@ void messageSentAndReceived() {
 	const auto mike = builder.setCpimInBasicChatroom(OnOff::On).build(expectedTo);
 	const auto directChat = tony.chatroomBuilder().build({mike.getMe()});
 	const auto& forkMessageContextsStats =
-	    dynamic_cast<ModuleRouter&>(*agent->findModule("Router")).mStats.mForkStats->mCountMessageForks;
+	    dynamic_cast<ModuleRouter&>(*agent->findModuleByRole("Router")).mStats.mForkStats->mCountMessageForks;
 	BC_HARD_ASSERT_CPP_EQUAL(forkMessageContextsStats->start->read(), 0);
 	BC_HARD_ASSERT_CPP_EQUAL(forkMessageContextsStats->finish->read(), 0);
 	const auto expectedDeviceId = mike.getGruu();
@@ -281,7 +281,7 @@ void messageDeviceUnavailable() {
 	mikeDesktop.disconnect();
 	const auto directChat = tony.chatroomBuilder().build({mikePhone.getMe()});
 	const auto& forkMessageContextsStats =
-	    dynamic_cast<ModuleRouter&>(*agent->findModule("Router")).mStats.mForkStats->mCountMessageForks;
+	    dynamic_cast<ModuleRouter&>(*agent->findModuleByRole("Router")).mStats.mForkStats->mCountMessageForks;
 	const auto phoneId = mikePhone.getGruu();
 	const auto desktopId = mikeDesktop.getGruu();
 	CoreAssert asserter{tony, mikePhone, mikeDesktop, agent};

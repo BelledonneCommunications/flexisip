@@ -42,8 +42,8 @@ namespace flexisip {
 
 RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
     : mRoot{root}, mConfigManager{cfg}, mRecordConfig{*cfg} {
-	const GenericStruct* cr = mConfigManager->getRoot();
-	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
+	const auto& cr = *mConfigManager->getRoot();
+	const GenericStruct* mr = cr.getModuleSectionByRole("Registrar");
 	mGruuEnabled = mr->get<ConfigBoolean>("enable-gruu")->read();
 	string dbImplementation = mr->get<ConfigString>("db-implementation")->read();
 
@@ -66,7 +66,7 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 	 * We check that the dbImplementation _starts_ with "redis" now, so that we stay backward compatible. */
 	else if (dbImplementation.find("redis") == 0) {
 		LOGI << "RegistrarDB implementation is REDIS";
-		const GenericStruct* registrar = cr->get<GenericStruct>("module::Registrar");
+		const GenericStruct* registrar = cr.getModuleSectionByRole("Registrar");
 		auto params = redis::async::RedisParameters::fromRegistrarConf(registrar);
 
 		auto notifyState = [this](bool bWritable) { this->notifyStateListener(bWritable); };

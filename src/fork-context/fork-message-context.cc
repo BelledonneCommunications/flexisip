@@ -78,7 +78,7 @@ ForkMessageContext::restore(ForkMessageContextDb& forkContextFromDb,
                             const std::weak_ptr<StatPair>& counter) {
 	const auto context = make(
 	    [&agent, &forkContextFromDb] {
-		    const auto router = agent->findModule("Router");
+		    const auto router = agent->findModuleByRole("Router");
 		    const auto msg = make_shared<MsgSip>(0, forkContextFromDb.request);
 		    return RequestSipEvent::makeRestored(agent->getIncomingAgent(), msg, router);
 	    }(),

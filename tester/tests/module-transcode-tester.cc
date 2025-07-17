@@ -76,8 +76,8 @@ void transcoderAddsSupportedCodecsInSdp() {
 	};
 	proxy.start();
 	auto asserter = CoreAssert(proxy);
-	for (const auto* codec :
-	     dynamic_pointer_cast<const Transcoder>(proxy.getAgent()->findModule("Transcoder"))->getSupportedPayloads()) {
+	for (const auto* codec : dynamic_pointer_cast<const Transcoder>(proxy.getAgent()->findModuleByRole("Transcoder"))
+	                             ->getSupportedPayloads()) {
 
 		expectedCodecs.emplace(codec->mime_type);
 	}

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -136,7 +136,7 @@ void forwardMidDialogRequestRouteIsNotUs() {
 	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
@@ -200,7 +200,7 @@ void forwardMidDialogRequestPathIsNextHop() {
 	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
@@ -259,7 +259,7 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
@@ -319,7 +319,7 @@ void ppiHeaderRemoval() {
 	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(std::move(event));
 
 	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
@@ -383,7 +383,7 @@ void routeConfigForwarding() {
 	    make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, inviteRequest.str()), nullptr);
 	inviteEvent->setOutgoingAgent(inviteTransaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(std::move(inviteEvent));
 
 	BC_HARD_ASSERT_CPP_EQUAL(inviteTransaction->mRequestSent, true);

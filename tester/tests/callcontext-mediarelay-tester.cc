@@ -45,7 +45,7 @@ namespace helper {
 static pair<Server, shared_ptr<MediaRelayServer>> createProxyAndMediaRelayServers() {
 	Server proxy{};
 	proxy.start();
-	auto* mediaRelayModule = dynamic_cast<MediaRelay*>(proxy.getAgent()->findModule("MediaRelay").get());
+	auto* mediaRelayModule = dynamic_cast<MediaRelay*>(proxy.getAgent()->findModuleByRole("MediaRelay").get());
 	const auto mediaRelayServer = make_shared<MediaRelayServer>(mediaRelayModule);
 	BC_HARD_ASSERT(mediaRelayServer != nullptr);
 

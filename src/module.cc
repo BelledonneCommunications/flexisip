@@ -42,7 +42,7 @@ using namespace flexisip;
 
 Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
     : mLogPrefix(moduleInfo->getLogPrefix()), mAgent(ag), mInfo(moduleInfo),
-      mModuleConfig(ag->getConfigManager().getRoot()->get<GenericStruct>("module::" + getModuleConfigName())),
+      mModuleConfig(ag->getConfigManager().getRoot()->get<GenericStruct>(mInfo->getConfigName())),
       mFilter(new ConfigEntryFilter(*mModuleConfig)) {
 	mModuleConfig->setConfigListener(this);
 }
@@ -168,13 +168,6 @@ const string& Module::getModuleName() const {
 	return mInfo->getModuleName();
 }
 
-const string& Module::getModuleConfigName() const {
-	if (!mInfo->getReplace().empty()) {
-		return mInfo->getReplace();
-	}
-	return mInfo->getModuleName();
-}
-
 ModuleClass Module::getClass() const {
 	return mInfo->getClass();
 }
@@ -191,13 +184,17 @@ void Module::sendTrap(const std::string& msg) {
 // ModuleInfo.
 // -----------------------------------------------------------------------------
 void ModuleInfoBase::declareConfig(GenericStruct& rootConfig) const {
-	auto* moduleConfig = rootConfig.addChild(std::make_unique<GenericStruct>("module::" + mName, mHelp, mOidIndex));
+	auto* moduleConfig = rootConfig.addChild(std::make_unique<GenericStruct>(getConfigName(), mHelp, mOidIndex));
 	ConfigEntryFilter::declareConfig(*moduleConfig);
 	if (mClass == ModuleClass::Experimental) {
 		// Experimental modules are forced to be disabled by default.
 		moduleConfig->get<ConfigBoolean>("enabled")->setDefault("false");
 	}
 	mDeclareConfig(*moduleConfig);
+}
+
+const std::string ModuleInfoBase::getConfigName() const {
+	return "module::"s + mName;
 }
 
 std::unique_ptr<ModuleInfoManager> ModuleInfoManager::sInstance{};
@@ -302,7 +299,7 @@ ModuleInfoManager::~ModuleInfoManager() {
 	}
 }
 
-std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
+std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() {
 	// Extract the modules which are to replace other modules from the others.
 	decltype(mRegisteredModuleInfo) sortedList{}, pendingModules{}, replacingModules{};
 	for (auto* modInfo : mRegisteredModuleInfo) {
@@ -342,5 +339,6 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 	// Replace the modules which are targeted by replacingModules.
 	replaceModules(sortedList, replacingModules);
 	LOGD << "Module chain computed successfully";
+	mModuleChain = sortedList;
 	return sortedList;
 }

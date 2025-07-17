@@ -320,7 +320,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	const GenericStruct* cr = getAgent()->getConfigManager().getRoot();
 
 	mForkManager = ForkManager::make(mAgent, this, mc);
-	mDomains = cr->get<GenericStruct>("module::Registrar")->get<ConfigStringList>("reg-domains")->read();
+	const GenericStruct* mReg = getAgent()->findModuleByRole("Registrar")->getConfig();
+	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
 	mAllowDomainRegistrations =
 	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
 	mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();

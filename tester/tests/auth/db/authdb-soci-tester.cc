@@ -118,7 +118,7 @@ void customPasswordRequestParamInjection() {
 		init(configRoot);
 	}
 
-	const auto& moduleInfos = ModuleInfoManager::get()->getRegisteredModuleInfo();
+	const auto& moduleInfos = ModuleInfoManager::get()->getModuleChain();
 	for (const auto& moduleInfo : moduleInfos) {
 		const auto& name = moduleInfo->getModuleName();
 		if (name == "Presence" || name == "Authentication") {
@@ -171,5 +171,5 @@ TestSuite _("SociAuthDB",
 	            sMysqlSuiteServer = std::nullopt;
 	            return 0;
             }));
-}
+} // namespace
 } // namespace flexisip::tester

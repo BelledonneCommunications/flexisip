@@ -220,11 +220,10 @@ GatewayRegister::GatewayRegister(Agent* ag,
 	su_home_init(&home);
 
 	url_t* domain = NULL;
-	const GenericStruct* cr = ag->getConfigManager().getRoot();
-	const GenericStruct* ma = cr->get<GenericStruct>("module::GatewayAdapter");
-	string domainString = ma->get<ConfigString>("gateway-domain")->read();
-	int forcedExpireValue = ma->get<ConfigInt>("forced-expire")->read();
-	routingParam = ma->get<ConfigString>("routing-param")->read();
+	const auto* config = ag->findModuleByRole("GatewayAdapter")->getConfig();
+	string domainString = config->get<ConfigString>("gateway-domain")->read();
+	int forcedExpireValue = config->get<ConfigInt>("forced-expire")->read();
+	routingParam = config->get<ConfigString>("routing-param")->read();
 	if (!domainString.empty()) {
 		domain = url_make(&home, domainString.c_str());
 	}

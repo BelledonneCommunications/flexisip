@@ -206,7 +206,7 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 }
 
 SociAuthDB::SociAuthDB(const RootConfigStruct& cr) : AuthDbBackend(cr) {
-	auto* ma = cr.get<GenericStruct>("module::Authentication");
+	const auto* ma = cr.getModuleSectionByRole("Authentication");
 	auto* ps = cr.get<GenericStruct>("presence-server");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
@@ -221,7 +221,7 @@ SociAuthDB::SociAuthDB(const RootConfigStruct& cr) : AuthDbBackend(cr) {
 	get_users_with_phones_request = ps->get<ConfigString>("soci-users-with-phones-request")->read();
 
 #if ENABLE_PRESENCE
-	auto* mp = cr.get<GenericStruct>("module::Presence");
+	const auto* mp = cr.getModuleSectionByRole("Presence");
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 #endif
 

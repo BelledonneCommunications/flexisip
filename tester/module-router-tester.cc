@@ -354,7 +354,7 @@ void messageExpires() {
 	CoreAssert asserter{server, belleSipUtils};
 	asserter.wait([&inserter] { return LOOP_ASSERTION(inserter.finished()); }).hard_assert_passed();
 
-	const auto& routerModule = static_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& routerModule = static_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(routerModule != nullptr);
 	auto* forks = routerModule->mStats.mForkStats->mCountForks->start;
 	BC_ASSERT_CPP_EQUAL(forks->read(), 0);
@@ -559,7 +559,7 @@ void sipMessageRequestIntendedForChatroom() {
 	    {"module::Router/message-fork-late", "true"},
 	}};
 	proxy.start();
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 
 	auto isRequestReceived = false;
 	BellesipUtils senderClient{

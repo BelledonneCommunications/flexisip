@@ -100,7 +100,7 @@ void forkMessageContextSociRepositoryMysql() {
 	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 	Random random{tester::random::seed()};
 	auto timestampGenerator = random.timestamp();
@@ -138,7 +138,7 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 	Random random{tester::random::seed()};
 	Random::TimestampGenerator timestampGenerator = random.timestamp();
@@ -180,7 +180,7 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 	Server server{configuration};
 	forceSociRepositoryInstantiation();
 	server.start();
-	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 	Random random{tester::random::seed()};
 	auto timestampGenerator = random.timestamp();
@@ -293,7 +293,7 @@ void globalTest() {
 
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
@@ -406,7 +406,7 @@ void globalTestMultipleDevices() {
 
 	SLOGD << "Step 3: Assert that db fork is still present because some devices are offline, message fork is destroyed "
 	         "because message is saved";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	asserter
 	    .wait([&moduleRouter] {
@@ -548,7 +548,7 @@ void testDBAccessOptimization() {
 
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	asserter
 	    .wait([&moduleRouter] {
@@ -674,7 +674,7 @@ static void globalTestMultipleMessages() {
 	 * Assert that db fork is still present because device is offline, message fork is destroyed because message is
 	 * saved
 	 */
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	if (!CoreAssert(receiverClient, server.getAgent()).wait([&moduleRouter, i] {
 		    return moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read() == i;
@@ -763,7 +763,7 @@ void globalTestDatabaseDeleted() {
 
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
@@ -809,7 +809,7 @@ void globalOrderTest() {
 	forceSociRepositoryInstantiation();
 	server.start();
 
-	const auto router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	router->getForkManager()->setMaxPriorityHandled(MsgSipPriority::Emergency);
 
 	ClientBuilder builder{*server.getAgent()};
@@ -873,7 +873,7 @@ void globalOrderTest() {
 
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter

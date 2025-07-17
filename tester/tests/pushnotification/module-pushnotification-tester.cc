@@ -181,7 +181,7 @@ protected:
 	}
 
 	void onAgentStarted() override {
-		mPushModule = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
+		mPushModule = dynamic_pointer_cast<PushNotification>(mAgent->findModuleByRole("PushNotification"));
 		mPushModule->getService()->setFallbackClient(mPushClient);
 	}
 
@@ -859,7 +859,7 @@ protected:
 	void onAgentStarted() override {
 		AgentTest::onAgentStarted();
 
-		const auto pnModule = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
+		const auto pnModule = dynamic_pointer_cast<PushNotification>(mAgent->findModuleByRole("PushNotification"));
 		pnModule->getService()->setFallbackClient(make_shared<DummyPushClient>(mAgent->getRoot()));
 
 		mClient = make_shared<NtaAgent>(mAgent->getRoot(), "sip:127.0.0.1:0");
