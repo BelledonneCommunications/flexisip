@@ -166,7 +166,7 @@ void auto_connect_on_command() {
 	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(1, [&registrar] { return registrar.isWritable(); }));
 }
 
-void bind_retry_on_broken_connection() {
+void bindRetryOnBrokenConnection() {
 	StaticOverride _{RegistrarDbRedisAsync::bindRetryTimeout, 20ms};
 	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
 	auto registrarBackend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar.getRegistrarBackend());
@@ -189,12 +189,13 @@ void bind_retry_on_broken_connection() {
 		// Set up keymiss event notifications
 		RedisSyncContext ctx = redisConnect("localhost", SUITE_SCOPE->redis.port());
 		auto reply = ctx.command("CONFIG SET notify-keyspace-events Em");
+		// TODO Remove when dropping support for Redis < 6.0 (Rocky8)
 		if (reply->type == REDIS_REPLY_ERROR) {
-			SLOGW << "tester: The Redis server does not support listening for keymiss events."
-			         "This test will be less reliable.";
-			// Assume the key will be fetched in one iteration of the sofia loop
-			// In this case, subscribing is unnecessary but harmless
-			keyFetched = true;
+			SLOGE << "tester: ABORTING TEST:\n"
+			         "This Redis server does not support listening for keymiss events. "
+			         "This test is irrelevant and unstable, and would disturb the following tests in the suite";
+			return;
+
 		} else {
 			BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
 			BC_ASSERT_STRING_EQUAL(reply->str, "OK");
@@ -228,7 +229,7 @@ void bind_retry_on_broken_connection() {
 	BC_ASSERT_TRUE(SUITE_SCOPE->asserter.iterateUpTo(10, [&record = listener->mRecord] { return record != nullptr; }));
 }
 
-void subscribe_to_key_expiration() {
+void subscribeToKeyExpiration() {
 	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
 	const Record::Key topic{SipUri("sip:expiring-key@example.org"), registrar.useGlobalDomain()};
 	std::optional<Record::Key> actualTopic{};
@@ -261,12 +262,17 @@ void subscribe_to_key_expiration() {
 	    },
 	    50ms));
 
-	// SET a key expiring in 1ms
+	// SET a key expiring in 20ms
 	const auto reply = ctx.command("SET %s 'stub-payload' PX 20", topic.toRedisKey().c_str());
 	BC_ASSERT_CPP_EQUAL(reply->type, REDIS_REPLY_STATUS);
 	BC_ASSERT_STRING_EQUAL(reply->str, "OK");
 	ASSERT_PASSED(SUITE_SCOPE->asserter.iterateUpTo(
-	    15, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 200ms));
+	    15, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); },
+	    // Observed on Rocky 8 with Redis 5.0.3: When the previous test inserted a record, it can take hundreds of
+	    // milliseconds, but Redis does eventually notify the expiration of the key (even if the key itself had a 20ms
+	    // lifetime). (My best guess is that Redis starts counting from the moment it has finished inserting the data
+	    // into its hashmap, so if it was busy with something else -- like another insertion -- everything gets delayed)
+	    1s));
 	BC_HARD_ASSERT(actualTopic.has_value());
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);
 }
@@ -377,8 +383,8 @@ TestSuite main("RegistrarDbRedis",
                {
                    CLASSY_TEST(mContext_should_be_checked_on_serializeAndSendToRedis),
                    CLASSY_TEST(auto_connect_on_command),
-                   CLASSY_TEST(bind_retry_on_broken_connection),
-                   CLASSY_TEST(subscribe_to_key_expiration),
+                   CLASSY_TEST(bindRetryOnBrokenConnection),
+                   CLASSY_TEST(subscribeToKeyExpiration),
                    CLASSY_TEST(periodic_replication_check),
                    CLASSY_TEST(no_perm_to_subscribe),
                    CLASSY_TEST(doFetchInstance_not_found),
