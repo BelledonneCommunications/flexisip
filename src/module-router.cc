@@ -190,8 +190,7 @@ void OnContactRegisteredListener::onContactRegistered(const shared_ptr<Record>& 
 	if (r) mModule->onContactRegistered(shared_from_this(), uid, r);
 }
 void ModuleRouter::onLoad(const GenericStruct* mc) {
-	const GenericStruct* cr = getAgent()->getConfigManager().getRoot();
-	const GenericStruct* mReg = cr->get<GenericStruct>("module::Registrar");
+	const GenericStruct* mReg = getAgent()->findModuleByRole("Registrar")->getConfig();
 
 	mDomains = mReg->get<ConfigStringList>("reg-domains")->read();
 
@@ -232,6 +231,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	mUseGlobalDomain = mc->get<ConfigBoolean>("use-global-domain")->read();
 
+	const GenericStruct* cr = getAgent()->getConfigManager().getRoot();
 	mAllowDomainRegistrations =
 	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
 	mAllowTargetFactorization = mc->get<ConfigBoolean>("allow-target-factorization")->read();

@@ -135,6 +135,7 @@ public:
 	static void addConfigSections(ConfigManager& cfg);
 	// Load plugins and add their sections
 	static void addPluginsConfigSections(ConfigManager& cfg);
+
 	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
 	std::pair<std::string, std::string> getPreferredIp(const std::string& destination) const;
 	/// Returns the _default_ bind address for RTP sockets.
@@ -228,8 +229,10 @@ public:
 	void sendResponseEvent(const std::shared_ptr<ResponseSipEvent>& ev) override;
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
-	std::shared_ptr<Module> findModule(const std::string& moduleName) const;
-	std::shared_ptr<Module> findModuleByRole(const std::string& moduleFunction) const;
+
+	// Returns the module associated with the role. Throws an exception if no module is found.
+	std::shared_ptr<Module> findModuleByRole(const std::string& moduleRole) const;
+
 	nth_engine_t* getHttpEngine() {
 		return mHttpEngine;
 	}

@@ -37,13 +37,13 @@ namespace {
 
 class TestBanExecutor : public BanExecutor {
 public:
-	void checkConfig() override{};
-	void onLoad(const flexisip::GenericStruct*) override{};
-	void onUnload() override{};
+	void checkConfig() override {};
+	void onLoad(const flexisip::GenericStruct*) override {};
+	void onUnload() override {};
 	void banIP(const std::string&, const std::string&, const std::string&) override {
 		banIPCalls++;
 	};
-	void unbanIP(const std::string&, const std::string&, const std::string&) override{};
+	void unbanIP(const std::string&, const std::string&, const std::string&) override {};
 
 	int banIPCalls = 0;
 };
@@ -60,7 +60,8 @@ void ban() {
 	server.start();
 
 	const auto& testExecutor = make_shared<TestBanExecutor>();
-	const auto& moduleDos = dynamic_pointer_cast<ModuleDoSProtection>(server.getAgent()->findModule("DoSProtection"));
+	const auto& moduleDos =
+	    dynamic_pointer_cast<ModuleDoSProtection>(server.getAgent()->findModuleByRole("DoSProtection"));
 	moduleDos->clearWhiteList();
 	moduleDos->setBanExecutor(testExecutor);
 

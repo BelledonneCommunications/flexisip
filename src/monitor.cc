@@ -17,7 +17,7 @@
 */
 
 #include "monitor.hh"
-#include <flexisip/configmanager.hh>
+#include "flexisip/configmanager.hh"
 #include <ortp/rtpsession.h>
 #include <sofia-sip/su_md5.h>
 
@@ -159,7 +159,7 @@ string Monitor::generatePassword(const string& host, const string& salt) {
 }
 
 string Monitor::findDomain(const RootConfigStruct& rootConfig) {
-	GenericStruct* registrarConf = rootConfig.get<GenericStruct>("module::Registrar");
+	const auto* registrarConf = rootConfig.getModuleSectionByRole("Registrar");
 	list<string> domains = registrarConf->get<ConfigStringList>("reg-domains")->read();
 	if (domains.size() == 0) {
 		throw FlexisipException("No domain declared in the registar module parameters");

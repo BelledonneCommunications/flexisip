@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -142,14 +142,14 @@ SipUri Record::Key::toSipUri() const {
 }
 
 Record::Config::Config(const ConfigManager& cfg) {
-	const auto* cr = cfg.getRoot();
-	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
+	const auto& cr = *cfg.getRoot();
+	const GenericStruct* mr = cr.getModuleSectionByRole("Registrar");
 	mMaxContacts = mr->get<ConfigInt>("max-contacts-by-aor")->read();
 	mLineFieldNames = mr->get<ConfigStringList>("unique-id-parameters")->read();
 	mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
 	mAssumeUniqueDomains =
-	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
-	const GenericStruct* mro = cr->get<GenericStruct>("module::Router");
+	    cr.get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
+	const GenericStruct* mro = cr.getModuleSectionByRole("Router");
 	mUseGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 }
 

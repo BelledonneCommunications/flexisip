@@ -813,7 +813,7 @@ static void external_provider_bridge__max_call_duration() {
 	    ->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 	ClientBuilder builder{*proxy.getAgent()};
 	InternalClient caller = builder.build("sip:caller@sip.company1.com");
 	ExternalClient callee = builder.build("sip:callee@sip.provider1.com");
@@ -1367,7 +1367,7 @@ void pauseWithAudioInactive() {
 	configRoot.get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
 	auto builder = ClientBuilder(*proxy.getAgent());
@@ -1464,7 +1464,7 @@ void answerToPauseWithAudioInactive() {
 	configRoot.get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
 	auto builder = ClientBuilder(*proxy.getAgent());
@@ -1570,7 +1570,7 @@ static void unknownMediaAttrAreFilteredOutOnReinvites() {
 	configRoot->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 	const auto& builder = ClientBuilder(*proxy.getAgent());
 	const auto& caller = builder.build("sip:caller@example.org");
 	const auto& reinviter = builder.build("sip:reinviter@example.org");
@@ -1633,7 +1633,7 @@ void onHoldCallIsTerminatedAfterNoRTPTimeoutTriggers() {
 	configRoot.get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
 	auto builder = ClientBuilder(*proxy.getAgent());
@@ -1733,7 +1733,7 @@ void blindCallTransfer() {
 	b2bua->init();
 	const auto b2buaUri = "sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp";
 	configRoot.get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients.
 	auto builder = ClientBuilder{*proxy.getAgent()};
@@ -1843,7 +1843,7 @@ void attendedCallTransfer() {
 	b2bua->init();
 	const auto b2buaUri = "sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp";
 	configRoot.get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients.
 	auto builder = ClientBuilder{*proxy.getAgent()};

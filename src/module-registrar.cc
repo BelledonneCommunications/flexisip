@@ -619,18 +619,11 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	                           ->get<GenericStruct>("inter-domain-connections")
 	                           ->get<ConfigBoolean>("assume-unique-domains")
 	                           ->read();
-	mUseGlobalDomain = getAgent()
-	                       ->getConfigManager()
-	                       .getRoot()
-	                       ->get<GenericStruct>("module::Router")
-	                       ->get<ConfigBoolean>("use-global-domain")
-	                       ->read();
-	mParamsToRemove = getAgent()
-	                      ->getConfigManager()
-	                      .getRoot()
-	                      ->get<GenericStruct>("module::Forward")
-	                      ->get<ConfigStringList>("params-to-remove")
-	                      ->read();
+
+	mUseGlobalDomain =
+	    getAgent()->findModuleByRole("Router")->getConfig()->get<ConfigBoolean>("use-global-domain")->read();
+	mParamsToRemove =
+	    getAgent()->findModuleByRole("Forward")->getConfig()->get<ConfigStringList>("params-to-remove")->read();
 
 	mSignalHandler = std::make_unique<signal_handling::SofiaDrivenSignalHandler>(
 	    getAgent()->getRoot()->getCPtr(), std::vector<int>{SIGUSR1, SIGUSR2},

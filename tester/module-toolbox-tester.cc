@@ -73,7 +73,7 @@ private:
 
 	void testExec() override {
 		const auto msgSip = make_shared<MsgSip>(0, rawSipInvite);
-		const auto requestSipEvent = RequestSipEvent::makeRestored(mAgent, msgSip, mAgent->findModule("Router"));
+		const auto requestSipEvent = RequestSipEvent::makeRestored(mAgent, msgSip, mAgent->findModuleByRole("Router"));
 
 		SLOGD << "############# REQUEST WITHOUT RECORD-ROUTE #############";
 		SLOGD << requestSipEvent->getMsgSip()->msgAsString();

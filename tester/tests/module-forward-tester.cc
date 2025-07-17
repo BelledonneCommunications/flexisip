@@ -129,7 +129,7 @@ void forwardMidDialogRequestRouteIsNotUs() {
 	auto event = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(event);
 
 	BC_HARD_ASSERT(transaction->mRequestSent == true);
@@ -177,8 +177,7 @@ void forwardMidDialogRequestPathIsNextHop() {
 	    .withGruu(true)
 	    .setPath(callee.path)
 	    .insert({.contact = callee.uri, .uniqueId = callee.uid});
-	BC_HARD_ASSERT(asserter.iterateUpTo(
-	    5, [&inserter]() { return inserter.finished(); }, 2s));
+	BC_HARD_ASSERT(asserter.iterateUpTo(5, [&inserter]() { return inserter.finished(); }, 2s));
 
 	stringstream request;
 	request << "BYE " << callee.aor << ";gr=" << callee.uid << " SIP/2.0\r\n"
@@ -194,7 +193,7 @@ void forwardMidDialogRequestPathIsNextHop() {
 	auto event = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(event);
 
 	BC_HARD_ASSERT(transaction->mRequestSent == true);
@@ -237,8 +236,7 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	    .withGruu(true)
 	    .setPath(callee.path)
 	    .insert({.contact = callee.uri, .uniqueId = callee.uid});
-	BC_HARD_ASSERT(asserter.iterateUpTo(
-	    5, [&inserter]() { return inserter.finished(); }, 2s));
+	BC_HARD_ASSERT(asserter.iterateUpTo(5, [&inserter]() { return inserter.finished(); }, 2s));
 
 	stringstream request;
 	request << "BYE " << callee.aor << ";gr=" << callee.uid << " SIP/2.0\r\n"
@@ -254,7 +252,7 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	auto event = make_shared<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
 	event->setOutgoingAgent(transaction);
 
-	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
 	module->onRequest(event);
 
 	BC_HARD_ASSERT(transaction->mRequestSent == true);

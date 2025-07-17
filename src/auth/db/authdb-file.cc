@@ -95,7 +95,7 @@ void FileAuthDb::parsePasswd(const vector<passwd_algo_t>& srcPasswords,
 }
 
 FileAuthDb::FileAuthDb(const RootConfigStruct& root) : AuthDbBackend(root), mConfigRoot(root) {
-	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
+	const GenericStruct* ma = root.getModuleSectionByRole("Authentication");
 
 	mLastSync = 0;
 	mFileString = ma->get<ConfigString>("file-path")->read();
@@ -168,7 +168,7 @@ shared_ptr<belr::Parser<shared_ptr<FileAuthDbParserElem>>> FileAuthDb::setupPars
 */
 void FileAuthDb::sync() {
 	LOGD("Syncing password file");
-	GenericStruct* ma = mConfigRoot.get<GenericStruct>("module::Authentication");
+	const GenericStruct* ma = mConfigRoot.getModuleSectionByRole("Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 
 	mLastSync = getCurrentTime();

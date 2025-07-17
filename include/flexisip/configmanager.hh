@@ -376,6 +376,14 @@ public:
 		return mCommittedChange;
 	}
 
+	/**
+	 * @param moduleRole The string name of the role for which the module will be responsible.
+	 *
+	 * @return A pointer to the module configuration section associated with the role.
+	 * Throws an exception if no section is found.
+	 */
+	const GenericStruct* getModuleSectionByRole(const std::string& moduleRole) const;
+
 private:
 	const std::string& mConfigFile; // keep a const ref to ConfigManager file
 	bool mCommittedChange{true};

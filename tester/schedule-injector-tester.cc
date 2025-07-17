@@ -93,7 +93,7 @@ public:
 		    [](shared_ptr<ForkMessageContext>& a, shared_ptr<RequestSipEvent>& b) { return a->getEvent() == b; }));
 	}
 	void onAgentConfigured() override {
-		mRouterModule = dynamic_pointer_cast<ModuleRouter>(mAgent->findModule("Router"));
+		mRouterModule = dynamic_pointer_cast<ModuleRouter>(mAgent->findModuleByRole("Router"));
 		mStubModule = make_shared<FakeModule>(mAgent.get(), make_unique<FakeModuleInfo>(*mConfigManager));
 		mInjector = make_unique<ScheduleInjector>(mStubModule.get());
 	}

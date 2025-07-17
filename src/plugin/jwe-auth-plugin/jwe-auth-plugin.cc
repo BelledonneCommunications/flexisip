@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -49,8 +49,8 @@ constexpr char JwkFileExtension[] = "jwk";
 // =============================================================================
 
 template <typename... T>
-static constexpr auto makeArray(T&&... values)
-    -> array<typename decay<typename common_type<T...>::type>::type, sizeof...(T)> {
+static constexpr auto
+makeArray(T&&... values) -> array<typename decay<typename common_type<T...>::type>::type, sizeof...(T)> {
 	return array<typename decay<typename common_type<T...>::type>::type, sizeof...(T)>{{std::forward<T>(values)...}};
 }
 
@@ -311,7 +311,7 @@ ModuleInfo<JweAuth> JweAuthInfo(
 	        config_item_end};
 	    moduleConfig.addChildrenValues(configs);
     });
-}
+} // namespace
 
 FLEXISIP_DECLARE_PLUGIN(JweAuthInfo, JweAuthPluginName, JweAuthPluginVersion);
 
@@ -347,7 +347,7 @@ void JweAuth::onLoad(const GenericStruct* moduleConfig) {
 
 	mCustomHeadersToCheck = {
 	    {"oid", mOidCustomHeader.c_str()}, {"aud", mAudCustomHeader.c_str()}, {"req_act", mReqActCustomHeader.c_str()}};
-	mAuthModule = dynamic_pointer_cast<Authentication>(getAgent()->findModule("Authentication"));
+	mAuthModule = dynamic_pointer_cast<Authentication>(getAgent()->findModuleByRole("Authentication"));
 }
 
 void JweAuth::onUnload() {

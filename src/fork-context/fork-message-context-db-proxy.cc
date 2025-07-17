@@ -27,7 +27,7 @@ using namespace std::chrono;
 namespace flexisip {
 namespace {
 unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
-	const auto* routerConf = cfg.getRoot()->get<GenericStruct>("module::Router");
+	const auto* routerConf = cfg.getRoot()->getModuleSectionByRole("Router");
 	return routerConf->get<ConfigInt>("message-database-pool-size")->read() * 2;
 }
 } // namespace

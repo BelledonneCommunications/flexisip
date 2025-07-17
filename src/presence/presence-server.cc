@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -243,8 +243,8 @@ void PresenceServer::_init() {
 	    cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled");
 	auto longTermEnabled = longTermEnabledConfig->read();
 
-	const auto& dbImplementation =
-	    cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	const auto* ma = cr->getModuleSectionByRole("Authentication");
+	const auto& dbImplementation = ma->get<ConfigString>("db-implementation")->read();
 	const auto* getUsersWithPhonesRequestParam =
 	    cr->get<GenericStruct>("presence-server")->get<ConfigString>("soci-users-with-phones-request");
 	const auto* getUserWithPhoneRequestParam =
@@ -707,8 +707,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 			// List subscription
 			if (supported && belle_sip_list_find_custom(belle_sip_header_supported_get_supported(supported),
 			                                            (belle_sip_compare_func)strcasecmp, "eventlist")) {
-				SLOGD << "Subscribe for resource list "
-				      << "for dialog [" << BELLE_SIP_OBJECT(dialog.get()) << "]";
+				SLOGD << "Subscribe for resource list " << "for dialog [" << BELLE_SIP_OBJECT(dialog.get()) << "]";
 				// will be release when last PresentityPresenceInformationListener is released
 				shared_ptr<ListSubscription> listSubscription;
 				belle_sip_header_content_type_t* contentType =

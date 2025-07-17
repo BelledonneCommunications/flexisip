@@ -124,7 +124,7 @@ void regOnResponseContactCleaningNoGruu() {
 	    },
 	};
 	proxy.start();
-	const auto moduleRegistrar = dynamic_pointer_cast<ModuleRegistrar>(proxy.getAgent()->findModule("Registrar"));
+	const auto moduleRegistrar = dynamic_pointer_cast<ModuleRegistrar>(proxy.getAgent()->findModuleByRole("Registrar"));
 
 	const auto proxyPort = proxy.getFirstPort();
 	const string sipUri("sip:user@" + domain);

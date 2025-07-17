@@ -28,14 +28,14 @@
 
 #include <sofia-sip/su_md5.h>
 
-#include <flexisip/flexisip-version.h>
-#include <flexisip/logmanager.hh>
-#include <flexisip/sip-boolean-expressions.hh>
+#include "flexisip/flexisip-version.h"
+#include "flexisip/logmanager.hh"
+#include "flexisip/module.hh"
+#include "flexisip/sip-boolean-expressions.hh"
 
 #include "agent.hh"
 #include "configdumper.hh"
 #include "lpconfig.h"
-
 using namespace std;
 
 namespace flexisip {
@@ -849,6 +849,14 @@ RootConfigStruct::RootConfigStruct(const string& name,
 	mOid = new Oid(oid_root_path, 1);
 }
 RootConfigStruct::~RootConfigStruct() {
+}
+
+const GenericStruct* RootConfigStruct::getModuleSectionByRole(const std::string& moduleRole) const {
+	const auto& modules = ModuleInfoManager::get()->getModuleChain();
+	const auto& modInfo = find_if(modules.cbegin(), modules.cend(),
+	                              [&moduleRole](const auto& modInfo) { return modInfo->getRole() == moduleRole; });
+	if (modInfo == modules.cend()) throw runtime_error{"no module section with the role \""s + moduleRole + "\" found"};
+	return get<GenericStruct>((*modInfo)->getConfigName());
 }
 
 #ifndef DEFAULT_LOG_DIR

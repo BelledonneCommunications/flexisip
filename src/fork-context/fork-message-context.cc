@@ -59,8 +59,8 @@ shared_ptr<ForkMessageContext> ForkMessageContext::make(const std::shared_ptr<Mo
                                                         const std::weak_ptr<ForkContextListener>& listener,
                                                         ForkMessageContextDb& forkFromDb) {
 	auto msgSipFromDB = make_shared<MsgSip>(0, forkFromDb.request);
-	auto requestSipEventFromDb = RequestSipEvent::makeRestored(router->getAgent()->shared_from_this(), msgSipFromDB,
-	                                                           router->getAgent()->findModule("Router"));
+	auto requestSipEventFromDb =
+	    RequestSipEvent::makeRestored(router->getAgent()->shared_from_this(), msgSipFromDB, router);
 
 	// new because make_shared require a public constructor.
 	shared_ptr<ForkMessageContext> shared{

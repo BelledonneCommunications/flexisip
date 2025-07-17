@@ -93,7 +93,6 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
                const std::shared_ptr<sofiasip::SuRoot>& root,
                InjectedHooks* injectedHooks)
     : mInjectedModule(injectedHooks ? decltype(mInjectedModule){*injectedHooks} : std::nullopt) {
-	mConfigManager->load("");
 
 	// add minimal config if not present
 	auto config = customConfig;

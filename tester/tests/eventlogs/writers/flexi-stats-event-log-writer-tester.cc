@@ -160,8 +160,7 @@ void callToConference() {
 	CoreAssert asserter{johan, fakeConfServer, agent};
 
 	johan.invite(chatroom);
-	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(
-	    4, [&requestsReceivedCount] { return 0 < requestsReceivedCount; }, 1s));
+	BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(4, [&requestsReceivedCount] { return 0 < requestsReceivedCount; }, 1s));
 
 	const auto startedEvent = httpMock.popRequestReceived();
 	json actualJson;
@@ -191,7 +190,7 @@ void messageSentAndReceived() {
 	const auto mike = builder.setCpimInBasicChatroom(OnOff::On).build(expectedTo);
 	const auto directChat = tony.chatroomBuilder().build({mike.getMe()});
 	const auto& forkMessageContextsStats =
-	    dynamic_cast<ModuleRouter&>(*agent->findModule("Router")).mStats.mCountMessageForks;
+	    dynamic_cast<ModuleRouter&>(*agent->findModuleByRole("Router")).mStats.mCountMessageForks;
 	BC_HARD_ASSERT_CPP_EQUAL(forkMessageContextsStats->start->read(), 0);
 	BC_HARD_ASSERT_CPP_EQUAL(forkMessageContextsStats->finish->read(), 0);
 	const auto expectedDeviceId = mike.getGruu();
@@ -279,7 +278,7 @@ void messageDeviceUnavailable() {
 	mikeDesktop.disconnect();
 	const auto directChat = tony.chatroomBuilder().build({mikePhone.getMe()});
 	const auto& forkMessageContextsStats =
-	    dynamic_cast<ModuleRouter&>(*agent->findModule("Router")).mStats.mCountMessageForks;
+	    dynamic_cast<ModuleRouter&>(*agent->findModuleByRole("Router")).mStats.mCountMessageForks;
 	const auto phoneId = mikePhone.getGruu();
 	const auto desktopId = mikeDesktop.getGruu();
 	CoreAssert asserter{tony, mikePhone, mikeDesktop, agent};

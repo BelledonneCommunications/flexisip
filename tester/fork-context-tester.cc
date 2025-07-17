@@ -92,7 +92,7 @@ void nullMaxForwardAndForkBasicContext() {
 	// should fail.
 	CoreAssert{suRoot, belleSipUtils}.waitUntil(5s, []() { return LOOP_ASSERTION(responseReceived); }).assert_passed();
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
@@ -170,7 +170,7 @@ void notRtpPortAndForkCallContext() {
 	// should fail.
 	CoreAssert{suRoot, belleSipUtils}.waitUntil(5s, []() { return LOOP_ASSERTION(responseReceived); }).assert_passed();
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_TRUE(responseReceived);
 	if (moduleRouter) {
@@ -234,12 +234,12 @@ void globalOrderTestNoSql() {
 	}
 
 	SLOGD << "Step 3: Assert that fork is still present because device is offline. No db fork because no db.";
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	CoreAssert asserter{server, receiverClient};
 	asserter
 	    .wait([&agent = server.getAgent(), &nbOfMessages] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() != nbOfMessages);
 		    return ASSERTION_PASSED();
 	    })
@@ -272,7 +272,7 @@ void globalOrderTestNoSql() {
 	SLOGD << "Step 6: Check fork stats";
 	asserter
 	    .wait([&agent = server.getAgent(), &nbOfMessages] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->finish->read() != nbOfMessages);
 		    return ASSERTION_PASSED();
 	    })
@@ -318,7 +318,7 @@ void messageDeliveryTimeoutTest() {
 	CoreAssert asserter{server, callerClient, calleeClient, calleeIdleClientVoip};
 	asserter
 	    .wait([&agent = server.getAgent()] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
 		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
 		    // All ForkMessageContexts must be destroyed, since they should only live for one second.
@@ -374,7 +374,7 @@ void callForkTimeoutTest() {
 	CoreAssert asserter{server, callerClient, calleeClient, calleeIdleClientVoip};
 	asserter
 	    .wait([&agent = server.getAgent()] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 		    // The client may send an IMDN, so we cannot explicitly check that start value equals 1.
 		    FAIL_IF(moduleRouter->mStats.mCountMessageForks->start->read() < 1);
 		    // At least 1 message must be still present.

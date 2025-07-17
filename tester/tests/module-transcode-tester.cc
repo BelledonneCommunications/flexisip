@@ -75,8 +75,8 @@ void transcoderAddsSupportedCodecsInSdp() {
 	};
 	proxy.start();
 	auto asserter = CoreAssert(proxy);
-	for (const auto* codec :
-	     dynamic_pointer_cast<const Transcoder>(proxy.getAgent()->findModule("Transcoder"))->getSupportedPayloads()) {
+	for (const auto* codec : dynamic_pointer_cast<const Transcoder>(proxy.getAgent()->findModuleByRole("Transcoder"))
+	                             ->getSupportedPayloads()) {
 
 		expectedCodecs.emplace(codec->mime_type);
 	}
@@ -107,9 +107,8 @@ void transcoderAddsSupportedCodecsInSdp() {
 	auto client = NtaAgent(proxy.getRoot(), "sip:127.0.0.1:0");
 	auto transaction = client.createOutgoingTransaction(invite, "sip:127.0.0.1:"s + proxy.getFirstPort());
 
-	asserter
-	    .iterateUpTo(
-	        1, [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted()); }, 300ms)
+	asserter.iterateUpTo(
+	            1, [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted()); }, 300ms)
 	    .assert_passed();
 	// All expected codecs were found
 	BC_ASSERT_CPP_EQUAL(expectedCodecs, decltype(expectedCodecs)());

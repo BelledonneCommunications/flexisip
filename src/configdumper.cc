@@ -36,7 +36,7 @@ ostream& ConfigDumper::dump(ostream& ostr) const {
 ostream& ConfigDumper::dump_recursive(std::ostream& ostr, const GenericEntry* entry, unsigned int level) const {
 	const GenericStruct* cs = dynamic_cast<const GenericStruct*>(entry);
 	const ConfigValue* value = dynamic_cast<const ConfigValue*>(entry);
-	if (cs && shouldDumpModule(cs->getName()) && cs->isExportable()) {
+	if (shouldRecurse(cs, level) && cs->isExportable()) {
 
 		dumpModuleHead(ostr, cs, level);
 
@@ -53,22 +53,30 @@ ostream& ConfigDumper::dump_recursive(std::ostream& ostr, const GenericEntry* en
 	return ostr;
 }
 
-bool ConfigDumper::shouldDumpModule(const string& moduleName) const {
-	smatch match;
+bool ConfigDumper::shouldRecurse(const GenericStruct* element, int level) const {
+	// Not a GenericStruct case.
+	if (!element) return false;
 
-	// When the dumpExperimental is activated, we should dump everything
-	if (mDumpExperimental) return true;
+	// Filters module structures that are conditionally dumped.
+	if (level != 1) return true;
 
-	string name = moduleName;
-	if (regex_match(moduleName, match, regex("module::([[:print:]]+)"))) {
-		name = match[1].str();
+	smatch match{};
+	if (!regex_match(element->getName(), match, regex("module::([[:print:]]+)"))) {
+		return true;
 	}
 
-	auto registeredModuleInfo = ModuleInfoManager::get()->getRegisteredModuleInfo();
-	auto it = find_if(registeredModuleInfo.cbegin(), registeredModuleInfo.cend(),
-	                  [&name](const ModuleInfoBase* mi) { return mi->getModuleName() == name; });
+	return shouldDumpModule(match[1].str());
+}
 
-	return (it != registeredModuleInfo.cend()) ? (*it)->getClass() == ModuleClass::Production : true;
+bool ConfigDumper::shouldDumpModule(const string& name) const {
+	// Check if module is activated.
+	auto moduleChain = ModuleInfoManager::get()->getModuleChain();
+	auto it = find_if(moduleChain.cbegin(), moduleChain.cend(),
+	                  [&name](const ModuleInfoBase* mi) { return mi->getModuleName() == name; });
+	if (it == moduleChain.cend()) return false;
+
+	// When the dumpExperimental is activated, we should dump everything.
+	return mDumpExperimental ? true : (*it)->getClass() == ModuleClass::Production;
 }
 
 /* FILE CONFIG DUMPER */
@@ -345,7 +353,7 @@ ostream& MibDumper::dump2(ostream& ostr, GenericEntry* entry, int level) const {
 		spacing += "	";
 		--level;
 	}
-	if (cs && shouldDumpModule(cs->getName())) {
+	if (shouldRecurse(cs, level)) {
 		cs->mibFragment(ostr, spacing);
 		for (auto it = cs->getChildren().begin(); it != cs->getChildren().end(); ++it) {
 			if (!cs->isDeprecated()) {

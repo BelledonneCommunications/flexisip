@@ -64,7 +64,6 @@ public:
 	}
 	nta_agent_t* getSofiaAgent() const;
 	const std::string& getModuleName() const;
-	const std::string& getModuleConfigName() const;
 	void checkConfig();
 	void load();
 	void unload();
@@ -86,6 +85,10 @@ public:
 
 	const ModuleInfoBase* getInfo() const {
 		return mInfo;
+	}
+
+	GenericStruct* getConfig() {
+		return mModuleConfig;
 	}
 
 protected:
@@ -133,7 +136,11 @@ public:
 	const std::list<ModuleInfoBase*>& getRegisteredModuleInfo() const {
 		return mRegisteredModuleInfo;
 	}
-	std::list<ModuleInfoBase*> buildModuleChain() const;
+	std::list<ModuleInfoBase*> buildModuleChain();
+	const std::list<ModuleInfoBase*>& getModuleChain() {
+		if (mModuleChain.empty()) buildModuleChain();
+		return mModuleChain;
+	}
 
 	static ModuleInfoManager* get();
 
@@ -146,7 +153,7 @@ private:
 	                    const std::list<ModuleInfoBase*>& replacingModules) const;
 
 	std::list<ModuleInfoBase*> mRegisteredModuleInfo;
-
+	std::list<ModuleInfoBase*> mModuleChain;
 	static std::unique_ptr<ModuleInfoManager> sInstance;
 };
 
@@ -217,6 +224,7 @@ public:
 	const std::string& getRole() const {
 		return mReplace.empty() ? mName : mReplace;
 	}
+	const std::string getConfigName() const;
 	void setRegistered(bool newState) {
 		mRegistered = newState;
 	}

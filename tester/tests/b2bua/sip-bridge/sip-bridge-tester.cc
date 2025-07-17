@@ -211,9 +211,10 @@ void bidirectionalBridging() {
 	// Update module::B2bua of Flexisip proxy.
 	const auto* cfgRoot = config->getRoot();
 	cfgRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaServerUri);
-	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("B2bua")->reload();
 	// Get Router module of Jabiru proxy in order to access forked calls statistics.
-	const auto jabiruRouterModule = dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModule("Router"));
+	const auto jabiruRouterModule =
+	    dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(jabiruRouterModule != nullptr);
 
 	auto felix = ClientBuilder(*flexisipProxy.getAgent()).build(felixUriOnFlexisip);
@@ -486,7 +487,7 @@ void invalidUriTriggersDecline() {
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigStringList>("static-targets")
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("Router")->reload();
+	proxy.getAgent()->findModuleByRole("Router")->reload();
 	const auto caller = ClientBuilder(*proxy.getAgent()).build("caller@example.org");
 	CoreAssert asserter{proxy, b2buaLoop, caller};
 
@@ -924,7 +925,7 @@ void blindCallTransfer() {
 	b2buaServer->init();
 	const auto b2buaUri = "sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp";
 	config->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
-	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
 	auto transferor = flexisipClientBuilder.build("transferor@flexisip.example.org");
@@ -1116,7 +1117,7 @@ void attendedCallTransfer() {
 	b2buaServer->init();
 	const auto b2buaUri = "sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp";
 	config->getRoot()->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
-	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
 	auto transferor = flexisipClientBuilder.build("transferor@flexisip.example.org");
