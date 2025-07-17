@@ -346,8 +346,8 @@ void PresenceServer::_init() {
 	    cr->get<GenericStruct>("presence-server")->get<ConfigBoolean>("long-term-enabled");
 	auto longTermEnabled = longTermEnabledConfig->read();
 
-	const auto& dbImplementation =
-	    cr->get<GenericStruct>("module::Authentication")->get<ConfigString>("db-implementation")->read();
+	const auto* ma = cr->getModuleSectionByRole("Authentication");
+	const auto& dbImplementation = ma->get<ConfigString>("db-implementation")->read();
 	const auto* getUsersWithPhonesRequestParam =
 	    cr->get<GenericStruct>("presence-server")->get<ConfigString>("soci-users-with-phones-request");
 	const auto* getUserWithPhoneRequestParam =

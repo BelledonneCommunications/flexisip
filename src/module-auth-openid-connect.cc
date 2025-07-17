@@ -134,7 +134,7 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	if (getAgent()
 	        ->getConfigManager()
 	        .getRoot()
-	        ->get<GenericStruct>("module::Authorization")
+	        ->getModuleSectionByRole("Authorization")
 	        ->get<ConfigBoolean>("enabled")
 	        ->read() == false)
 		throw BadConfiguration{"the AuthOpenIDConnect module requires the Authorization module to be enabled"};
@@ -173,7 +173,7 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 
 	mBearerAuth = std::make_shared<Bearer>(getAgent()->getRoot(), params, keyStore);
 
-	auto authModule = getAgent()->findModule("Authorization");
+	auto authModule = getAgent()->findModuleByRole("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
 	auth->addAuthModule(mBearerAuth);
 }

@@ -105,7 +105,7 @@ void rejectUnauthUserOfValidDomain() {
 	proxy.start();
 	const auto root = proxy.getRoot();
 
-	auto authModule = proxy.getAgent()->findModule("Authorization");
+	auto authModule = proxy.getAgent()->findModuleByRole("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
 	auth->addAuthModule(make_shared<ChallengerMock>());
 
@@ -304,7 +304,7 @@ void rejectIdentityFraudMessage() {
 	proxy.start();
 	const auto root = proxy.getRoot();
 
-	auto authModule = proxy.getAgent()->findModule("Authorization");
+	auto authModule = proxy.getAgent()->findModuleByRole("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
 	auth->addAuthModule(make_shared<ChallengerMock>());
 

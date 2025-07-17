@@ -183,7 +183,7 @@ protected:
 class GenericHttpPushMessageMinimal : public AgentTest {
 protected:
 	void testExec() override {
-		const auto& modulePush = dynamic_pointer_cast<PushNotification>(mAgent->findModule("PushNotification"));
+		const auto& modulePush = dynamic_pointer_cast<PushNotification>(mAgent->findModuleByRole("PushNotification"));
 		BC_HARD_ASSERT_NOT_NULL(modulePush);
 		const auto& pushClients = modulePush->getService()->getClients();
 		BC_HARD_ASSERT_CPP_EQUAL(pushClients.size(), 1);

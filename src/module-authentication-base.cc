@@ -404,10 +404,8 @@ void ModuleAuthenticationBase::loadTrustedHosts(const ConfigStringList& trustedH
 			BinaryIp::emplace(mTrustedHosts, host);
 		}
 	}
-
-	const auto* presenceSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("module::Presence");
-	auto presenceServerEnabled = presenceSection->get<ConfigBoolean>("enabled")->read();
-	if (presenceServerEnabled) {
+	const auto* presenceSection = getAgent()->findModuleByRole("Presence")->getConfig();
+	if (presenceSection->get<ConfigBoolean>("enabled")->read()) {
 		sofiasip::Home home{};
 		auto presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
 		const auto* contact = sip_contact_make(home.home(), presenceServer.c_str());

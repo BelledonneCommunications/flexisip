@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -81,7 +81,7 @@ void wrongContactInResponse() {
 	auto* incomingTport = tport_by_name(nta_agent_tports(proxy.getAgent()->getSofiaAgent()), &name);
 	auto event = make_unique<ResponseSipEvent>(proxy.getAgent(), msg, incomingTport);
 
-	const auto module = dynamic_pointer_cast<NatHelper>(proxy.getAgent()->findModule("NatHelper"));
+	const auto module = dynamic_pointer_cast<NatHelper>(proxy.getAgent()->findModuleByRole("NatHelper"));
 	event = module->onResponse(std::move(event));
 
 	const auto* contact = event->getSip()->sip_contact;
@@ -154,7 +154,7 @@ void onResponseNatHelperRemoveContactCorrectionParameter() {
 	BC_HARD_ASSERT(event->getSip()->sip_contact != nullptr);
 	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == true);
 
-	event = dynamic_cast<NatHelper&>(*proxy.getAgent()->findModule("NatHelper")).onResponse(std::move(event));
+	event = dynamic_cast<NatHelper&>(*proxy.getAgent()->findModuleByRole("NatHelper")).onResponse(std::move(event));
 
 	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == false);
 }

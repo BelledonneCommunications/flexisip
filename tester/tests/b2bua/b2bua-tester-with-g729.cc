@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -64,7 +64,7 @@ void forcedAudioCodec() {
 	configRoot->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 	auto builder = ClientBuilder(*proxy.getAgent());
 	auto caller = builder.build("sip:caller@example.org");
 	const auto& callee = builder.build("sip:callee@example.org");

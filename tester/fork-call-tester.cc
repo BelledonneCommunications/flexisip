@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,7 +48,7 @@ void basicCall() {
 	BC_ASSERT_PTR_NOT_NULL(callerClient.call(calleeClient));
 	BC_ASSERT(callerClient.endCurrentCall(calleeClient));
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	if (moduleRouter) {
 		BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
@@ -66,7 +66,7 @@ void callWithEarlyCancel() {
 
 	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	// Assert Fork is destroyed
 	CoreAssert(server, callerClient, calleeClient)
@@ -100,7 +100,7 @@ void callWithEarlyCancelCalleeOffline() {
 	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
 	// Assert that fork is still present because callee has one device offline.
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
@@ -250,7 +250,7 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	    })
 	    .hard_assert_passed();
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(moduleRouter != nullptr);
 	BC_HARD_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 
@@ -332,7 +332,7 @@ void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
 	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
 	// Assert that fork is still present because callee has two devices offline.
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
@@ -386,7 +386,7 @@ void calleeOfflineWithOneDevice() {
 	BC_ASSERT(callerClient.endCurrentCall(calleeClient));
 
 	// Assert that fork is still present because not all devices where online.
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
@@ -415,7 +415,7 @@ void calleeOfflineWithOneDevice() {
 	// Assert Fork is destroyed.
 	asserter
 	    .wait([agent = server.getAgent()] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
 		    return ASSERTION_PASSED();
 	    })
@@ -438,7 +438,7 @@ void calleeOfflineWithOneDeviceEarlyDecline() {
 	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyDecline(calleeClient));
 
 	// Assert that fork is still present because not all devices where online.
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 0);
@@ -467,7 +467,7 @@ void calleeOfflineWithOneDeviceEarlyDecline() {
 	// Assert Fork is destroyed.
 	asserter
 	    .wait([agent = server.getAgent()] {
-		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModule("Router"));
+		    const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
 		    FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
 		    return ASSERTION_PASSED();
 	    })
@@ -492,7 +492,7 @@ void calleeMultipleOnlineDevices() {
 	BC_ASSERT_PTR_NOT_NULL(callerClient.call(calleeClient, nullptr, nullptr, calleeIdleDevices));
 	BC_ASSERT(callerClient.endCurrentCall(calleeClient));
 
-	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModule("Router"));
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 1);
@@ -516,7 +516,7 @@ void cancelStatusOnCancel() {
 	    {"module::Router/enabled", "true"},
 	}};
 	proxy.start();
-	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 
 	const auto cancel = [&proxy, &forkFactory](const string& reason) {
@@ -573,7 +573,7 @@ void cancelStatusOnResponse() {
 	    {"module::Router/enabled", "true"},
 	}};
 	proxy.start();
-	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModule("Router"));
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
 
 	const string rawSipInvite =

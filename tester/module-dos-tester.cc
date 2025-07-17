@@ -66,7 +66,8 @@ void ban() {
 	const auto serverUri = "sip:127.0.0.1:"s + server.getFirstPort() + ";transport=" + transportProtocol;
 
 	const auto& testExecutor = make_shared<TestBanExecutor>();
-	const auto& moduleDos = dynamic_pointer_cast<ModuleDoSProtection>(server.getAgent()->findModule("DoSProtection"));
+	const auto& moduleDos =
+	    dynamic_pointer_cast<ModuleDoSProtection>(server.getAgent()->findModuleByRole("DoSProtection"));
 	moduleDos->clearWhiteList();
 	moduleDos->setBanExecutor(testExecutor);
 

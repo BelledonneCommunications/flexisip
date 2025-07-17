@@ -232,8 +232,10 @@ public:
 	std::unique_ptr<ResponseSipEvent> sendResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
-	std::shared_ptr<Module> findModule(const std::string& moduleName) const;
-	std::shared_ptr<Module> findModuleByRole(const std::string& moduleFunction) const;
+
+	// Returns the module associated with the role. Throws an exception if no module is found.
+	std::shared_ptr<Module> findModuleByRole(const std::string& moduleRole) const;
+
 	nth_engine_t* getHttpEngine() {
 		return mHttpEngine;
 	}

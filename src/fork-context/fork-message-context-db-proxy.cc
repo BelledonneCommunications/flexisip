@@ -30,7 +30,7 @@ namespace flexisip {
 namespace {
 
 unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
-	const auto* routerConf = cfg.getRoot()->get<GenericStruct>("module::Router");
+	const auto* routerConf = cfg.getRoot()->getModuleSectionByRole("Router");
 	return routerConf->get<ConfigInt>("message-database-pool-size")->read() * 2;
 }
 
@@ -300,7 +300,7 @@ bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 	if (mDbFork) {
 		try {
 			// TODO: yes, this is ugly but I do not have a better solution for now.
-			if (const auto router = dynamic_pointer_cast<ModuleRouter>(mAgent->findModule("Router"))) {
+			if (const auto router = dynamic_pointer_cast<ModuleRouter>(mAgent->findModuleByRole("Router"))) {
 				const auto factory = router->getForkManager()->getFactory();
 				mForkMessage = factory->restoreForkMessageContext(*mDbFork, shared_from_this());
 			} else {

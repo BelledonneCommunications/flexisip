@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -312,9 +312,10 @@ void bidirectionalBridging() {
 	// Update module::B2bua of Flexisip proxy.
 	const auto* cfgRoot = config->getRoot();
 	cfgRoot->get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaServerUri);
-	flexisipProxy.getAgent()->findModule("B2bua")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("B2bua")->reload();
 	// Get Router module of Jabiru proxy in order to access forked calls statistics.
-	const auto jabiruRouterModule = dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModule("Router"));
+	const auto jabiruRouterModule =
+	    dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(jabiruRouterModule != nullptr);
 
 	auto felix = ClientBuilder(*flexisipProxy.getAgent()).build(felixUriOnFlexisip);
@@ -755,7 +756,7 @@ void invalidUriTriggersDecline() {
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigStringList>("static-targets")
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("Router")->reload();
+	proxy.getAgent()->findModuleByRole("Router")->reload();
 	const auto caller = ClientBuilder(*proxy.getAgent()).build("caller@example.org");
 	CoreAssert asserter{proxy, b2buaLoop, caller};
 
@@ -1106,9 +1107,9 @@ void mwiBridging() {
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigStringList>("static-targets")
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
-	flexisipProxy.getAgent()->findModule("Router")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("Router")->reload();
 	flexisipRoutes.writeStream() << flexisipRoutesConfig.format({{"port", std::to_string(b2buaServer->getTcpPort())}});
-	flexisipProxy.getAgent()->findModule("Forward")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("Forward")->reload();
 
 	CoreAssert asserter{jabiruProxy, flexisipProxy, *b2buaLoop};
 
@@ -1778,7 +1779,7 @@ void maxCallDuration() {
 	    ->get<GenericStruct>("module::B2bua")
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
-	proxy.getAgent()->findModule("B2bua")->reload();
+	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 	ClientBuilder builder{*proxy.getAgent()};
 	InternalClient caller = builder.build("sip:caller@sip.company1.com");
 	ExternalClient callee = builder.build("sip:callee@sip.provider1.com");
@@ -1940,9 +1941,9 @@ void mwiB2buaSubscription() {
 	    ->get<GenericStruct>("module::Router")
 	    ->get<ConfigStringList>("static-targets")
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
-	flexisipProxy.getAgent()->findModule("Router")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("Router")->reload();
 	flexisipRoutes.writeStream() << flexisipRoutesConfig.format({{"port", std::to_string(b2buaServer->getTcpPort())}});
-	flexisipProxy.getAgent()->findModule("Forward")->reload();
+	flexisipProxy.getAgent()->findModuleByRole("Forward")->reload();
 
 	asserter.registerSteppable(flexisipProxy);
 	asserter.registerSteppable(*b2buaLoop);

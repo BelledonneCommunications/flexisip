@@ -150,7 +150,7 @@ AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolC
 
 			        if (globalRootConf) {
 				        redisConf.emplace(redis::async::RedisParameters::fromRegistrarConf(
-				            globalRootConf->get<GenericStruct>("module::Registrar")));
+				            globalRootConf->getModuleSectionByRole("Registrar")));
 			        }
 		        });
 

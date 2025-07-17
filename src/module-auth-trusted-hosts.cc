@@ -60,7 +60,7 @@ void ModuleAuthTrustedHosts::onLoad(const GenericStruct* mc) {
 	if (getAgent()
 	        ->getConfigManager()
 	        .getRoot()
-	        ->get<GenericStruct>("module::Authorization")
+	        ->getModuleSectionByRole("Authorization")
 	        ->get<ConfigBoolean>("enabled")
 	        ->read() == false)
 		throw BadConfiguration{"the AuthTrustedHosts module requires the Authorization module to be enabled"};
@@ -98,9 +98,8 @@ void ModuleAuthTrustedHosts::loadTrustedHosts(const ConfigStringList& trustedHos
 		}
 	}
 
-	const auto* presenceSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("module::Presence");
-	const auto presenceServerEnabled = presenceSection->get<ConfigBoolean>("enabled")->read();
-	if (presenceServerEnabled) {
+	const auto* presenceSection = getAgent()->findModuleByRole("Presence")->getConfig();
+	if (presenceSection->get<ConfigBoolean>("enabled")->read()) {
 		sofiasip::Home home{};
 		auto presenceServer = presenceSection->get<ConfigString>("presence-server")->read();
 		const auto* contact = sip_contact_make(home.home(), presenceServer.c_str());
@@ -109,7 +108,7 @@ void ModuleAuthTrustedHosts::loadTrustedHosts(const ConfigStringList& trustedHos
 			BinaryIp::emplace(mTrustedHosts, url->url_host);
 			LOGI << "Added presence server '" << url->url_host << "' to trusted hosts";
 		} else {
-			LOGW << "Could not parse presence server URL '" << presenceServer << "', cannot be add to trusted hosts";
+			LOGW << "Could not parse presence server URL '" << presenceServer << "', cannot add to trusted hosts";
 		}
 	}
 	for (const auto& trustedHost : mTrustedHosts) {
