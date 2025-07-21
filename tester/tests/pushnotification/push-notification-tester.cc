@@ -70,7 +70,7 @@ static void startApplePushTest(PushType pType,
                                bool timeout = false) {
 	AppleClient::APN_DEV_ADDRESS = "127.0.0.1";
 	AppleClient::APN_PORT = "3000";
-	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev.pem"};
+	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev"};
 	appleClient.enableInsecureTestMode();
 
 	auto request = make_shared<AppleRequest>(pType, pushInfo);
@@ -425,7 +425,7 @@ static void applePushTestConnectErrorAndReconnect() {
 	// We first send a request with mock off, leading to TLS connection error.
 	AppleClient::APN_DEV_ADDRESS = "127.0.0.1";
 	AppleClient::APN_PORT = "3000";
-	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev.pem"};
+	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "apple.test.dev"};
 	appleClient.enableInsecureTestMode();
 
 	auto request = make_shared<AppleRequest>(PushType::Message, pushInfo);

@@ -30,14 +30,14 @@ std::string AppleClient::APN_PROD_ADDRESS{"api.push.apple.com"};
 std::string AppleClient::APN_DEV_ADDRESS{"api.development.push.apple.com"};
 
 AppleClient::AppleClient(sofiasip::SuRoot& root,
-                         const std::string& trustStorePath,
-                         const std::string& certPath,
+                         const std::filesystem::path& trustStorePath,
+                         const std::filesystem::path& certPath,
                          const std::string& certName,
                          const Service* service)
     : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "AppleClient")) {
 	LOGD << "Constructing client";
 
-	const auto server = string_utils::endsWith(certName, ".dev.pem") ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
+	const auto server = string_utils::endsWith(certName, ".dev") ? APN_DEV_ADDRESS : APN_PROD_ADDRESS;
 	mHttp2Client = Http2Client::make(root, server, APN_PORT, trustStorePath, certPath);
 }
 
