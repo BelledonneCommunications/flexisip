@@ -34,8 +34,8 @@ namespace pushnotification {
 class AppleClient : public Client {
 public:
 	AppleClient(sofiasip::SuRoot& root,
-	            const std::string& trustStorePath,
-	            const std::string& certPath,
+	            const std::filesystem::path& trustStorePath,
+	            const std::filesystem::path& certPath,
 	            const std::string& certName,
 	            const Service* service = nullptr);
 

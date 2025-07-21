@@ -19,8 +19,11 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - **MediaRelay:** The server was not updating the IP address inserted in the SDP response when a client's network
     changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
+  - **PushNotifications:** Apple push certificates could not contain '.dev' in their filename and be used in production 
+    environment.
 
-## [2.4.2]
+
+## [2.4.2] - 2025-07-21
 ### [Added]
 - **Proxy/Registrar:** New parameter `default-expires` to set a default expiry value to contacts when no expiry value 
   was found in the 'REGISTER' request.
@@ -30,10 +33,8 @@ Group changes to describe their impact on the project, as follows:
     - Now replies 481 to CANCEL requests that are not related to any transaction (stateless CANCEL requests).
       This may occur when the caller sends it after the callee has already sent 200 and the proxy has destroyed the
       ForkCtx.
-    - **PushNotifications:**
-      - Now continues to send push notifications of type `message` after 45s for calls (only for
-        iOS devices when `voip` push types are not allowed).
-      - Apple push certificates could not contain '.dev' in their filename and be used in production environment.
+    - **PushNotifications:** Now continues to send push notifications of type `message` after 45s for calls (only for
+      iOS devices when `voip` push types are not allowed).
     - **Forward:**
       - The 'Contact' header is now cleaned properly in the REGISTER request transferred to another server (with
         `reg-on-response` enabled).
