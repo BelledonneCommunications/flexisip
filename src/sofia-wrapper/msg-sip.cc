@@ -130,6 +130,10 @@ bool MsgSip::isChatService() noexcept {
 
 	return false;
 }
+bool MsgSip::isInDialog() const noexcept {
+	const auto* sip = getSip();
+	return sip != nullptr && sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr;
+}
 
 shared_ptr<flexisip::SipBooleanExpression> MsgSip::sShowBodyFor{nullptr};
 
