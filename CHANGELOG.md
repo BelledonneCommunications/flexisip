@@ -114,6 +114,7 @@ Group changes to describe their impact on the project, as follows:
       - Contact paths were not properly processed for mid-dialog requests intended to GRUU addresses. Fetched
         paths from database were not translated into 'Route' headers before forwarding the request.
       - P-Preferred-Identity header is removed if present before forwarding the request.
+      - When using `routes-config-path`, a 'Route' header is now added only to out-of-dialog requests.
     - **Router:** 
       - Performance issues for MESSAGE requests intended for the conference server (linphone-sdk >= 5.4).
         Avoid creating MESSAGE requests that could be saved in memory or database in case the conference server

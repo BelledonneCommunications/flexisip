@@ -117,6 +117,11 @@ public:
 	bool isChatService() noexcept;
 
 	/**
+	 * @return 'true' if the SIP request contained in this instance is in-dialog, according to RFC3261
+	 */
+	bool isInDialog() const noexcept;
+
+	/**
 	 * Change the sip filter used by Flexisip to show or not request's body in logs.
 	 *
 	 * @param filterString string containing the name of the method.

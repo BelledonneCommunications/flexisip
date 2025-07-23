@@ -64,10 +64,9 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	        {
 	            String,
 	            "routes-config-path",
-	            "A path to a configuration file describing routes to be prepended before "
-	            "forwarding a request, when specific conditions for the SIP request being forwarded are met. The "
-	            "condition "
-	            "is described using flexisip's filter syntax, as described on \n"
+	            "Path to a file describing a set of 'Route' headers to be prepended before forwarding an out-of-dialog "
+	            "request. Headers are prepended only if the related conditions are met by the request.The conditions "
+	            "are described using Flexisip's filter syntax, as described on \n"
 	            "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/\n"
 	            "The configuration file comprises lines using the following syntax:\n"
 	            "<sip route>   <condition expressed as a filter expression> \n"
@@ -76,7 +75,7 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	            "spaces or tabs.\n"
 	            "The special condition '*' matches every request.\n"
 	            "The conditions are matched in the order they appear in the configuration file. The first fulfilled "
-	            "condition determines the route that is prepended."
+	            "condition determines the route that is prepended. "
 	            "If the request does not match any condition, no route is prepended.\n"
 	            "The file may be empty, or no path may be specified, in which case no route is preprended either. "
 	            "Here is a an example of a valid routes configuration file:\n"
@@ -310,7 +309,7 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 
 	// Prepend conditional route if any
 	const sip_route_t* route = mRoutesMap.resolveRoute(ms);
-	if (route) {
+	if (route && !ms->isInDialog()) {
 		LOGD << "Prepended route '" << url_as_string(ms->getHome(), route->r_url) << "'";
 		ModuleToolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
 	}
@@ -337,8 +336,7 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	auto routerModule = mRouterModule.lock(); // Used to be a basic pointer
 	// "gruu" processing in forward module is only done if dialog is established. In other cases, router module is
 	// involved instead
-	if (destUri.hasParam("gr") && (sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) &&
-	    routerModule->isManagedDomain(dest)) {
+	if (destUri.hasParam("gr") && ms->isInDialog() && routerModule->isManagedDomain(dest)) {
 		// gruu case, ask registrar db for AOR
 		ev->suspendProcessing();
 		auto listener = make_shared<RegistrarListener>(this, std::move(ev));

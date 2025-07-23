@@ -18,6 +18,7 @@
 
 #include "module-forward.hh"
 
+#include <fstream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -25,7 +26,6 @@
 
 #include "flexisip/event.hh"
 
-#include "sofia-sip/sip_extra.h"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
@@ -34,6 +34,7 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 using namespace sofiasip;
@@ -138,8 +139,8 @@ void forwardMidDialogRequestRouteIsNotUs() {
 	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
 	module->onRequest(std::move(event));
 
-	BC_HARD_ASSERT(transaction->mRequestSent == true);
-	BC_ASSERT(transaction->mRequestMethod == sip_method_bye);
+	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
+	BC_ASSERT_CPP_EQUAL(transaction->mRequestMethod, sip_method_bye);
 	BC_ASSERT_CPP_EQUAL(transaction->mRequestUri, routeUri.substr(1, routeUri.size() - 2));
 	BC_ASSERT_CPP_EQUAL(transaction->mRoutes.size(), 1);
 	BC_ASSERT_CPP_EQUAL(transaction->mRoutes.front(), transaction->mRequestUri);
@@ -202,8 +203,8 @@ void forwardMidDialogRequestPathIsNextHop() {
 	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
 	module->onRequest(std::move(event));
 
-	BC_HARD_ASSERT(transaction->mRequestSent == true);
-	BC_ASSERT(transaction->mRequestMethod == sip_method_bye);
+	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
+	BC_ASSERT_CPP_EQUAL(transaction->mRequestMethod, sip_method_bye);
 	BC_ASSERT_CPP_EQUAL(transaction->mRequestUri, callee.path[1].substr(1, callee.path[1].size() - 2) + ";lr");
 	BC_ASSERT_CPP_EQUAL(transaction->mRoutes.size(), 2);
 	BC_ASSERT_CPP_EQUAL(transaction->mRoutes.front(), transaction->mRequestUri);
@@ -261,8 +262,8 @@ void forwardMidDialogRequestPathIsUsSoUseContactUrl() {
 	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
 	module->onRequest(std::move(event));
 
-	BC_HARD_ASSERT(transaction->mRequestSent == true);
-	BC_ASSERT(transaction->mRequestMethod == sip_method_bye);
+	BC_HARD_ASSERT_CPP_EQUAL(transaction->mRequestSent, true);
+	BC_ASSERT_CPP_EQUAL(transaction->mRequestMethod, sip_method_bye);
 	BC_ASSERT_CPP_EQUAL(transaction->mRequestUri, callee.uri);
 	BC_ASSERT(transaction->mRoutes.empty());
 }
@@ -326,12 +327,99 @@ void ppiHeaderRemoval() {
 	BC_ASSERT_CPP_EQUAL(transaction->mMsgAsString.find("P-Preferred-Identity"), string::npos);
 }
 
+/**
+ * Test the behaviour of the 'routes-config-path' parameter.
+ * Routes should only be added if the request is not in-dialog.
+ */
+void routeConfigForwarding() {
+	auto dir = TmpDir("config");
+	const auto routesConfigPath = dir.path() / "routes.conf";
+	ofstream{routesConfigPath} << "<sip:127.0.0.2:5060;transport=tcp> "
+	                           << "is_request && (request.uri.domain == 'sip.example.org')";
+
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Forward/routes-config-path", routesConfigPath},
+	    {"module::Forward/enabled", "true"},
+	}};
+
+	proxy.start();
+	Helper::Contact callee{
+	    .aor = "sip:callee@sip.example.org",
+	    .uri = "sip:callee@127.0.0.2:5060",
+	    .uid = "caller-uid",
+	    .path = {"<sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp>"},
+	};
+
+	Helper::Contact caller{
+	    .aor = "sip:caller@sip.example.org",
+	    .uri = "sip:caller@sip.example.org:0",
+	    .uid = "caller-uid",
+	    .path = {"<sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp>"},
+	};
+
+	BcAssert asserter{};
+	ContactInserter inserter{proxy.getAgent()->getRegistrarDb()};
+	inserter.setAor(caller.aor)
+	    .setExpire(1min)
+	    .withGruu(true)
+	    .setPath(caller.path)
+	    .insert({.contact = caller.uri, .uniqueId = caller.uid});
+
+	// Requests out of dialog should be routed according to the routes-config file
+	stringstream inviteRequest;
+	inviteRequest << "INVITE " << callee.aor << " SIP/2.0\r\n"
+	              << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	              << "From: \"Caller\" <" << caller.aor << ">;tag=caller-tag\r\n"
+	              << "To: \"Callee\" <" << callee.aor << ">\r\n"
+	              << "CSeq: 20 INVITE\r\n"
+	              << "Call-ID: stub-id\r\n"
+	              << "User-Agent: stub-user-agent\r\n"
+	              << "Content-Length: 0\r\n";
+
+	auto inviteTransaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
+	auto inviteEvent =
+	    make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, inviteRequest.str()), nullptr);
+	inviteEvent->setOutgoingAgent(inviteTransaction);
+
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModule("Forward"));
+	module->onRequest(std::move(inviteEvent));
+
+	BC_HARD_ASSERT_CPP_EQUAL(inviteTransaction->mRequestSent, true);
+	BC_ASSERT_CPP_EQUAL(inviteTransaction->mRequestMethod, sip_method_invite);
+	BC_HARD_ASSERT_CPP_EQUAL(inviteTransaction->mRoutes.size(), 1);
+	BC_ASSERT_CPP_EQUAL(inviteTransaction->mRoutes.at(0), "sip:127.0.0.2:5060;transport=tcp;lr")
+
+	// A route should not be appended to in-dialog requests
+	stringstream byeRequest;
+	byeRequest << "BYE " << caller.aor << ";gr=" << caller.uid << " SIP/2.0\r\n"
+	           << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	           << "From: \"Callee\" <" << callee.aor << ">;tag=callee-tag\r\n"
+	           << "To: \"Caller\" <" << caller.aor << ">;tag=caller-tag\r\n"
+	           << "CSeq: 21 BYE\r\n"
+	           << "Call-ID: stub-id\r\n"
+	           << "User-Agent: stub-user-agent\r\n"
+	           << "Content-Length: 0\r\n";
+
+	auto byeTransaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
+	auto byeEvent = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, byeRequest.str()), nullptr);
+	byeEvent->setOutgoingAgent(byeTransaction);
+
+	module->onRequest(std::move(byeEvent));
+
+	BC_HARD_ASSERT_CPP_EQUAL(byeTransaction->mRequestSent, true);
+	BC_ASSERT_CPP_EQUAL(byeTransaction->mRequestMethod, sip_method_bye);
+	BC_ASSERT_CPP_EQUAL(byeTransaction->mRoutes.empty(), true);
+}
+
 TestSuite _("ForwardModule",
             {
                 CLASSY_TEST(forwardMidDialogRequestRouteIsNotUs),
                 CLASSY_TEST(forwardMidDialogRequestPathIsNextHop),
                 CLASSY_TEST(forwardMidDialogRequestPathIsUsSoUseContactUrl),
                 CLASSY_TEST(ppiHeaderRemoval),
+                CLASSY_TEST(routeConfigForwarding),
             });
 
 } // namespace
