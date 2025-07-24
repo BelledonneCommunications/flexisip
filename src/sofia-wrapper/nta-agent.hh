@@ -23,15 +23,13 @@
 #include <string_view>
 #include <type_traits>
 
-#include <sofia-sip/nta.h>
-#include <sofia-sip/nta_tport.h>
-#include <sofia-sip/tport.h>
+#include "sofia-sip/nta.h"
+#include "sofia-sip/nta_tport.h"
+#include "sofia-sip/tport.h"
 
-#include "flexisip/flexisip-exception.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "nta-outgoing-transaction.hh"
 #include "sofia-wrapper/utilities.hh"
 

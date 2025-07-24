@@ -167,7 +167,7 @@ void AuthLog::setOrigin(const sip_via_t* via) {
 	// In VIA you can have a parameter like received=ip.
 	// When ip is an IPv6 address it doesn't have "[]" around.
 	// url_format (see after) need "[]" around IPv6, so we add them if needed.
-	if (!string_utils::startsWith(ip, "[") && uri_utils::isIpv6Address(ip.c_str())) {
+	if (!string_utils::startsWith(ip, "[") && uri_utils::isIpv6HexAddress(ip.c_str())) {
 		ip = "[" + ip + "]";
 	}
 

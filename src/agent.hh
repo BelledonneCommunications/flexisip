@@ -121,6 +121,8 @@ private:
 	processEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
 
 public:
+	static constexpr std::string_view mLogPrefix{"Agent"};
+
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	      const std::shared_ptr<ConfigManager>& cm,
 	      const std::shared_ptr<AuthDb>& authDb,
@@ -291,7 +293,6 @@ private:
 
 	static constexpr const char* sInternalTransportIdent = "internal-transport";
 	static const std::string sEventSeparator;
-	static constexpr std::string_view mLogPrefix{"Agent"};
 
 	// Private methods
 	void updateTransport(TlsTransportInfo& info);

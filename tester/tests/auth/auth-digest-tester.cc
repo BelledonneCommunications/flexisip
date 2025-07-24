@@ -369,13 +369,13 @@ void digestAlgorithmSelection() {
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 		}
 		{
-			auto algorithms = testAlgo(bothHashDatabase, "MD5,SHA-256");
+			auto algorithms = testAlgo(bothHashDatabase, "MD5 SHA-256");
 			BC_HARD_ASSERT_CPP_EQUAL(algorithms.size(), 2);
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("MD5"));
 			BC_ASSERT_CPP_EQUAL(algorithms[1], string("SHA-256"));
 		}
 		{
-			auto algorithms = testAlgo(bothHashDatabase, "SHA-256,MD5");
+			auto algorithms = testAlgo(bothHashDatabase, "SHA-256 MD5");
 			BC_HARD_ASSERT_CPP_EQUAL(algorithms.size(), 2);
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 			BC_ASSERT_CPP_EQUAL(algorithms[1], string("MD5"));
@@ -396,7 +396,7 @@ void digestAlgorithmSelection() {
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 		}
 		{
-			auto algorithms = testAlgo(md5Database, "SHA-256,MD5");
+			auto algorithms = testAlgo(md5Database, "SHA-256 MD5");
 			BC_HARD_ASSERT_CPP_EQUAL(algorithms.size(), 1);
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("MD5"));
 		}
@@ -416,7 +416,7 @@ void digestAlgorithmSelection() {
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 		}
 		{
-			auto algorithms = testAlgo(sha256Database, "SHA-256,MD5");
+			auto algorithms = testAlgo(sha256Database, "SHA-256 MD5");
 			BC_HARD_ASSERT_CPP_EQUAL(algorithms.size(), 1);
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 		}
@@ -436,13 +436,13 @@ void digestAlgorithmSelection() {
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 		}
 		{
-			auto algorithms = testAlgo(emptyDatabase, "MD5,SHA-256");
+			auto algorithms = testAlgo(emptyDatabase, "MD5 SHA-256");
 			BC_HARD_ASSERT_CPP_EQUAL(algorithms.size(), 2);
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("MD5"));
 			BC_ASSERT_CPP_EQUAL(algorithms[1], string("SHA-256"));
 		}
 		{
-			auto algorithms = testAlgo(emptyDatabase, "SHA-256,MD5");
+			auto algorithms = testAlgo(emptyDatabase, "SHA-256 MD5");
 			BC_HARD_ASSERT_CPP_EQUAL(algorithms.size(), 2);
 			BC_ASSERT_CPP_EQUAL(algorithms[0], string("SHA-256"));
 			BC_ASSERT_CPP_EQUAL(algorithms[1], string("MD5"));

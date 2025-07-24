@@ -104,9 +104,9 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 
 				if (!ModuleToolbox::urlHostMatch(host, received) ||
 				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, rport)) {
-					LOGD << "Fixing contact header with " << ctt->m_url->url_host << ":"
-					     << (ctt->m_url->url_port ? ctt->m_url->url_port : "") << " to " << received << ":"
-					     << (rport ? rport : "");
+					LOGD << "Fixing contact header with " << ctt->m_url->url_host
+					     << (ctt->m_url->url_port ? ":"s + ctt->m_url->url_port : "") << " to " << received
+					     << (rport ? ":"s + rport : "");
 					ModuleToolbox::urlSetHost(home, ctt->m_url, received);
 					ctt->m_url->url_port = rport;
 				}

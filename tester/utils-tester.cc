@@ -54,13 +54,46 @@ void isIPv6() {
 	BC_ASSERT_FALSE(isIpv6Address("10.42.0.55"));
 
 	BC_ASSERT_TRUE(isIpv6Address("::1"));
+	BC_ASSERT_TRUE(isIpv6Address("[::1]"));
 	BC_ASSERT_TRUE(isIpv6Address("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
 	BC_ASSERT_TRUE(isIpv6Address("2001:db8:0:85a3:0:0:ac1f:8001"));
 	BC_ASSERT_TRUE(isIpv6Address("2001:db8:0:85a3::ac1f:8001"));
-	BC_ASSERT_FALSE(isIpv6Address("[2001:db8:0:85a3::ac1f:8001]"));
+	BC_ASSERT_TRUE(isIpv6Address("[2001:db8:0:85a3::ac1f:8001]"));
 
 	BC_ASSERT_FALSE(isIpv6Address("localhost"));
 	BC_ASSERT_FALSE(isIpv6Address("sip.example.org"));
+}
+
+void isIPv6Hex() {
+	BC_ASSERT_FALSE(isIpv6HexAddress("127.0.0.1"));
+	BC_ASSERT_FALSE(isIpv6HexAddress("192.168.3.5"));
+	BC_ASSERT_FALSE(isIpv6HexAddress("10.42.0.55"));
+
+	BC_ASSERT_TRUE(isIpv6HexAddress("::1"));
+	BC_ASSERT_FALSE(isIpv6HexAddress("[::1]"));
+	BC_ASSERT_TRUE(isIpv6HexAddress("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
+	BC_ASSERT_TRUE(isIpv6HexAddress("2001:db8:0:85a3:0:0:ac1f:8001"));
+	BC_ASSERT_TRUE(isIpv6HexAddress("2001:db8:0:85a3::ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv6HexAddress("[2001:db8:0:85a3::ac1f:8001]"));
+
+	BC_ASSERT_FALSE(isIpv6HexAddress("localhost"));
+	BC_ASSERT_FALSE(isIpv6HexAddress("sip.example.org"));
+}
+
+void isIPv6Ref() {
+	BC_ASSERT_FALSE(isIpv6Reference("127.0.0.1"));
+	BC_ASSERT_FALSE(isIpv6Reference("192.168.3.5"));
+	BC_ASSERT_FALSE(isIpv6Reference("10.42.0.55"));
+
+	BC_ASSERT_FALSE(isIpv6Reference("::1"));
+	BC_ASSERT_TRUE(isIpv6Reference("[::1]"));
+	BC_ASSERT_FALSE(isIpv6Reference("2001:0db8:0000:85a3:0000:0000:ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv6Reference("2001:db8:0:85a3:0:0:ac1f:8001"));
+	BC_ASSERT_FALSE(isIpv6Reference("2001:db8:0:85a3::ac1f:8001"));
+	BC_ASSERT_TRUE(isIpv6Reference("[2001:db8:0:85a3::ac1f:8001]"));
+
+	BC_ASSERT_FALSE(isIpv6Reference("localhost"));
+	BC_ASSERT_FALSE(isIpv6Reference("sip.example.org"));
 }
 
 void isIP() {
@@ -205,7 +238,9 @@ namespace {
 TestSuite _("Utils",
             {
                 CLASSY_TEST(uri_utils::isIPv4),
-                CLASSY_TEST(uri_utils::isIPv6),
+                CLASSY_TEST(uri_utils::isIPv6Hex),
+            	CLASSY_TEST(uri_utils::isIPv6Ref),
+            	CLASSY_TEST(uri_utils::isIPv6),
                 CLASSY_TEST(uri_utils::isIP),
                 CLASSY_TEST(string_utils::searchAndReplace),
                 CLASSY_TEST(string_utils::join),

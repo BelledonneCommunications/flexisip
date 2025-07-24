@@ -648,7 +648,7 @@ ConfigStringList::ConfigStringList(const string& name,
     : ConfigValue(name, StringList, help, default_value, oid_index) {
 }
 
-#define DELIMITERS " \n,"
+#define DELIMITERS " \n"
 
 list<string> ConfigStringList::parse(const std::string& in) {
 	list<string> retlist;
@@ -722,16 +722,15 @@ ConfigManager::ConfigManager()
 	    {
 	        StringList,
 	        "default-servers",
-	        "Servers started by default when '--server' is not specified in the command line. "
-	        "Possible values are: 'proxy', 'presence', 'conference', 'regevent' and 'b2bua'. Each value must be "
-	        "separated by a whitespace.",
+	        "Servers started by default when '--server' is not specified in the command line. Possible values are: "
+	        "'proxy', 'presence', 'conference', 'regevent' and 'b2bua'. Each value must be separated by a whitespace.",
 	        "proxy",
 	    },
 	    {
 	        Boolean,
 	        "auto-respawn",
-	        "Automatically respawn Flexisip in case of abnormal termination (crashes). "
-	        "This only has an effect if Flexisip is launched with '--daemon' option",
+	        "Automatically respawn Flexisip in case of abnormal termination (crashes). This only has an effect if "
+	        "Flexisip is launched with '--daemon' option",
 	        "true",
 	    },
 	    {
@@ -864,8 +863,19 @@ ConfigManager::ConfigManager()
 	        "transports",
 	        "List of whitespace separated SIP URIs where the proxy must listen.\n"
 	        "Wildcard (*) means 'all local ip addresses'. If the 'transport' parameter is not specified, the server "
-	        "will listen on both UDP and TCP transports. A local address to bind onto can be specified using the "
-	        "'maddr' SIP URI parameter. The domain part of SIP URIs are used as public domain or ip address.\n"
+	        "will listen on both UDP and TCP transports.\n"
+	        "\n"
+	        "A local address to bind onto can be specified using the 'maddr' SIP URI parameter. The domain part of SIP "
+	        "URIs are used as public domain or ip address.\n"
+	        "\n"
+	        "The 'network' SIP URI parameter can be used to instruct Flexisip which transport to use to correctly "
+	        "route requests to destinations. This is particularly useful when Flexisip is deployed on complex network "
+	        "infrastructures or needs to route requests to a local back-end server. The parameter takes a "
+	        "comma-separated list of network addresses in CIDR notation. Example: "
+	        "'network=10.0.1.0/24,192.168.1.0/24'. The 'network' parameter is not supported with the '*' host or IPv6 "
+	        "transports. The default value for this parameter is '0.0.0.0/0' (when the parameter is empty for IPv4 "
+	        "transports).\n"
+	        "\n"
 	        "The 'sips' transport definition accepts some optional parameters:\n"
 	        " - 'tls-certificates-dir': path, has the same meaning as the 'tls-certificates-dir' parameter of this "
 	        "section (overriding only applies for the current SIP URI).\n"
@@ -903,8 +913,10 @@ ConfigManager::ConfigManager()
 	        " - listen on TLS localhost with 2 peer certificate requirements:\n"
 	        "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
 	        " - listen on 192.168.0.29:6060 with TLS, but public hostname is 'sip.linphone.org' used in SIP requests. "
-	        "Bind address won't appear in requests:\n"
-	        "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29",
+	        "The binding address will not appear in requests:\n"
+	        "\ttransports=sips:sip.linphone.org:6060;maddr=192.168.0.29\n"
+	        " - listen on public interface as well as on local network to reach a back-end server:\n"
+	        "\ttransports=sip:sip.example.org:5080;maddr=10.0.1.1 sip:localhost:5080;network=10.0.1.0/24",
 	        "sip:*",
 	    },
 	    {

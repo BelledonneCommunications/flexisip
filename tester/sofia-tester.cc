@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,13 +24,12 @@
 #include "sofia-sip/nth.h"
 #include "sofia-sip/tport_tag.h"
 
-#include "sofia-wrapper/nta-agent.hh"
-#include "sofia-wrapper/sip-header-private.hh"
-
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
+#include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
+#include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/server/tls-server.hh"
@@ -46,6 +45,19 @@ using namespace sofiasip;
 
 namespace flexisip::tester::sofia_tester_suite {
 namespace {
+
+/**
+ * @return first transport in the following format: "sip:host:port;maddr=xxx;transport=xxx" or empty string if no
+ * transport were found.
+ */
+std::string getNtaAgentFirstTransport(const NtaAgent& agent) {
+	const auto* firstTport = tport_primaries(agent.getTransports());
+	if (!firstTport) return {};
+
+	const auto* name = tport_name(firstTport);
+	return std::string{"sip:"} + name->tpn_canon + ":" + name->tpn_port + ";maddr=" + name->tpn_host +
+	       ";transport=" + name->tpn_proto;
+}
 
 /*
  * Test Sofia-SIP nth_engine, with TLS SNI enabled/disabled.
@@ -429,29 +441,124 @@ void updateTlsCertificateNoIpSpecified() {
 	}
 }
 
-TestSuite _("Sofia-SIP",
-            {
-                CLASSY_TEST(nthEngineWithSni<true>),
-                CLASSY_TEST(nthEngineWithSni<false>),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, UDP>)), // message size under maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, UDP>)), // message size equals maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, UDP>)), // message size above maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, UDP>)), // message size +2x above maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
-                CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
-                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TCP>),
-                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TLS>),
-                CLASSY_TEST(updateTlsCertificate),
-                CLASSY_TEST(updateTlsWithExpiredCertificate),
-                CLASSY_TEST(updateTlsCertificateNoIpSpecified),
-            });
+/**
+ * Test primary transport selection to reach a destination using the 'network' URI parameter.
+ * Verifies that the most appropriate transport is selected to reach the destination.
+ * Configuration:
+ *                           ----------
+ *     --------------      /            \       --------------
+ *    | localClient1 |    | 127.0.2.0/24 | --- | localClient3 |
+ *     --------------      \            /       --------------
+ *           |               ----------
+ *       ----------              |
+ *     /            \         --------
+ *    | 127.0.0.0/24 |       | router |
+ *     \            /         --------
+ *       ----------              |
+ *           |               ----------
+ *     -------------       /            \       --------------
+ *    |   Flexisip  | --- | 127.0.1.0/24 | --- | localClient2 |
+ *     -------------       \            /       --------------
+ *           |               ----------
+ *       ----------
+ *     /            \       --------------
+ *    |   0.0.0.0/0  | --- | publicClient |
+ *     \            /       --------------
+ *       ----------
+ */
+void outgoingTransportSelection() {
+	const string localTport1{"sip:127.0.0.1:0;transport=tcp;network=127.0.0.0/24"};
+	const string publicTport{"sip:sip.example.org:0;maddr=127.1.0.1;transport=tcp"};
+	const string localTport2{"sip:127.0.1.1:0;transport=tcp;network=127.0.1.0/24,127.0.2.0/24"};
+	Server proxy{{
+	    {"global/transports", localTport1 + " " + publicTport + " " + localTport2},
+	    {"global/aliases", "sip.example.org"},
+	    {"module::DoSProtection/enabled", "false"},
+	}};
+	proxy.start();
+
+	struct Helper {
+		char host[32];
+	};
+	Helper h{};
+
+	const auto clientsSuRoot = make_shared<SuRoot>();
+	const auto cb = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) -> int {
+		strcpy(reinterpret_cast<Helper*>(magic)->host, sip->sip_via->v_host);
+		nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
+		return 0;
+	};
+	NtaAgent publicClient{clientsSuRoot, "sip:127.1.0.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
+	NtaAgent localClient1{clientsSuRoot, "sip:127.0.0.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
+	NtaAgent localClient2{clientsSuRoot, "sip:127.0.1.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
+	NtaAgent localClient3{clientsSuRoot, "sip:127.0.2.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
+
+	CoreAssert<kNoSleep> asserter{proxy, clientsSuRoot};
+
+	const auto test = [&proxy, &asserter, &h](NtaAgent& caller, const NtaAgent& callee, const string& expected) {
+		auto request = make_unique<MsgSip>();
+		request->makeAndInsert<SipHeaderRequest>(sip_method_invite, getNtaAgentFirstTransport(callee));
+		request->makeAndInsert<SipHeaderFrom>("sip:caller@sip.example.org", "stub-from-tag");
+		request->makeAndInsert<SipHeaderTo>("sip:callee@sip.example.org");
+		request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_invite);
+		request->makeAndInsert<SipHeaderContact>("<sip:caller@sip.example.org;transport=tcp>");
+
+		const auto routeUri = "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp";
+
+		const auto transaction = caller.createOutgoingTransaction(std::move(request), routeUri);
+		asserter
+		    .iterateUpTo(
+		        0x20,
+		        [&] {
+			        FAIL_IF(!transaction->isCompleted());
+			        FAIL_IF(expected != h.host);
+			        return ASSERTION_PASSED();
+		        },
+		        100ms)
+		    .assert_passed();
+	};
+
+	test(publicClient, localClient1, "127.0.0.1");
+	test(publicClient, localClient2, "127.0.1.1");
+	test(publicClient, localClient3, "127.0.1.1");
+	test(localClient1, publicClient, "sip.example.org");
+	test(localClient1, localClient2, "127.0.1.1");
+	test(localClient1, localClient3, "127.0.1.1");
+	test(localClient2, publicClient, "sip.example.org");
+	test(localClient2, localClient1, "127.0.0.1");
+	test(localClient2, localClient3, "127.0.1.1");
+	test(localClient3, publicClient, "sip.example.org");
+	test(localClient3, localClient1, "127.0.0.1");
+	test(localClient3, localClient2, "127.0.1.1");
+}
+
+TestSuite _{
+    "Sofia-SIP",
+    {
+        CLASSY_TEST(nthEngineWithSni<true>),
+        CLASSY_TEST(nthEngineWithSni<false>),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, UDP>)), // message size under maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TLS>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, UDP>)), // message size equals maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TLS>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, UDP>)), // message size above maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TLS>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, UDP>)), // message size +2x above maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
+        CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
+        CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TCP>),
+        CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TLS>),
+        CLASSY_TEST(updateTlsCertificate),
+        CLASSY_TEST(updateTlsWithExpiredCertificate),
+        CLASSY_TEST(updateTlsCertificateNoIpSpecified),
+        CLASSY_TEST(outgoingTransportSelection),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester::sofia_tester_suite

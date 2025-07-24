@@ -121,10 +121,18 @@ std::string grToUniqueId(const std::string& gr) noexcept;
 
 bool isIpv4Address(const char* str);
 /**
- * @warning this function will return false for IP6 references (IP6 addresses inside '[' ']')
+ * @return true if str is a valid IPv6 address (hex notation or reference).
  */
 bool isIpv6Address(const char* str);
-// TODO: bool isIpv6Reference(const char* str);
+/**
+ * @warning this function will return false for IP6 references (i.e., IP6 addresses inside '[' ']').
+ */
+bool isIpv6HexAddress(const char* str);
+/**
+ * @warnig returns false if str is not a valid IP6 reference (i.e., hex notation without square brackets).
+ */
+bool isIpv6Reference(const char* str);
+
 bool isIpAddress(const char* str);
 
 std::optional<std::string> getConferenceId(const url_t& url) noexcept;

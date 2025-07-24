@@ -16,12 +16,14 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "uri-utils.hh"
+
 #include <sstream>
 
-#include "conference/chatroom-prefix.hh"
 #include "sofia-sip/hostdomain.h"
+
+#include "conference/chatroom-prefix.hh"
 #include "string-utils.hh"
-#include "uri-utils.hh"
 
 using namespace std;
 
@@ -88,7 +90,15 @@ bool isIpv4Address(const char* str) {
 }
 
 bool isIpv6Address(const char* str) {
+	return isIpv6HexAddress(str) || isIpv6Reference(str);
+}
+
+bool isIpv6HexAddress(const char* str) {
 	return host_is_ip6_address(str);
+}
+
+bool isIpv6Reference(const char* str) {
+	return host_is_ip6_reference(str);
 }
 
 bool isIpAddress(const char* str) {

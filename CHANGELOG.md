@@ -18,12 +18,19 @@ Group changes to describe their impact on the project, as follows:
 ### [Added]
 - **Proxy:**
     - Push notification delivery can now be delegated to a FlexiAPI server instance.
+    - New SIP URI parameter 'network' for transports defined in `global/transports` to instruct Flexisip which
+      transport to use to correctly route requests to destinations. See the [configuration reference guide] for more
+      information.
 - **Conference server:**
-    - Add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically hung up because no RTP data is received.
+    - Add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically hung up because
+      no RTP data is received.
     - Add parameter 'cleanup-expired-conferences' to enable periodic removal of expired conferences.
-    - Add parameter 'conferences-availability-before-start' to set how long before the start time of a conference it is possible to join it.
-    - Add parameter 'conferences-expiry-time' to set how long after the end of a conference it is still possible to join it.
-    - Add support for end-to-end conference encryption by installing the EKT server plugin. For customers under a proprietary license, this functionality is under a specific license.
+    - Add parameter 'conferences-availability-before-start' to set how long before the start time of a conference it is
+      possible to join it.
+    - Add parameter 'conferences-expiry-time' to set how long after the end of a conference it is still possible to
+      join it.
+    - Add support for end-to-end conference encryption by installing the EKT server plugin. For customers under a
+      proprietary license, this functionality is under a specific license.
 
 ### [Changed]
 - **Pusher:**
@@ -49,6 +56,8 @@ Group changes to describe their impact on the project, as follows:
 - **EventLogs:**
     - Parameter `event-logs/dir` (deprecated in 2.0.0)
     - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)
+- **Configuration:** Parameters of type `StringList` can no longer be declared using the character `','` to separate
+  each element.
 
 ## [2.5.0]
 ### [Added]

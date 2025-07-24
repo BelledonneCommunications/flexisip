@@ -111,6 +111,55 @@ void createAgentCounters(GenericStruct& root) {
 		createCounter(key, help, "unknown");
 	}
 }
+
+/**
+ * @throw BadConfiguration if one of the network addresses is invalid
+ * @throw BadConfiguration if duplicated network addresses were found
+ * @return content of the 'network' URI parameter, or 0.0.0.0/0 in case it is empty or used with '*' host.
+ */
+string getNetworkParameter(const Url& url) {
+	static const string defaultNetwork{"0.0.0.0/0"};
+	const auto host = url.getHost();
+	const bool hostIsIpV6 = uri_utils::isIpv6Address(host.c_str());
+	string networkParameter{url.getParam("network")};
+
+	if (networkParameter.empty()) {
+		if (!hostIsIpV6) return defaultNetwork;
+		return {};
+	}
+
+	if (hostIsIpV6) {
+		LOGW_CTX(Agent::mLogPrefix) << "The 'network' URI parameter is not supported for IPv6 transports: ignoring";
+		return "";
+	}
+	if (host == "*") {
+		LOGW_CTX(Agent::mLogPrefix)
+		    << "The 'network' URI parameter cannot be set while using '*' as the host part of a transport: ignoring";
+		return defaultNetwork;
+	}
+
+	vector<string> networkAddresses{};
+	const auto networks = string_utils::split(networkParameter, ",");
+	static const regex networkRegex{R"(^((((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4})\/([0-9]|[1-2][0-9]|3[0-2]))$)"};
+	for (const auto& network : networks) {
+		LOGD_CTX(Agent::mLogPrefix) << "Validating network: " << network;
+		smatch matches{};
+		if (!regex_match(network, matches, networkRegex)) {
+			throw BadConfiguration{"invalid network address '" + network + "' in transport '" + url.str() + "'"};
+		}
+		if (matches[2].str() == "0.0.0.0" && matches[6].str() != "0") {
+			throw BadConfiguration{"network address '" + network + "' is invalid (the mask MUST be 0 for 0.0.0.0)"};
+		}
+		if (find(networkAddresses.begin(), networkAddresses.end(), network) != networkAddresses.end()) {
+			throw BadConfiguration{"duplicated network address '" + network + "' in transport '" + url.str() + "'"};
+		}
+
+		networkAddresses.push_back(network);
+	}
+
+	return networkParameter;
+}
+
 } // namespace
 
 void Agent::onDeclare(const GenericStruct& root) {
@@ -375,11 +424,11 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 
 	for (const auto& uri : transports) {
-		Url url{uri};
 		int err;
-		su_home_t home;
-		su_home_init(&home);
+		Url url{uri};
 		LOGD << "Enabling transport " << uri;
+
+		const auto networkParameter = getNetworkParameter(url);
 		if (uri.find("sips") == 0) {
 			unsigned int tls_policy = 0;
 
@@ -411,21 +460,23 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				    TPTAG_CERTIFICATE(finalTlsConfigInfo.certifDir.c_str()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
 				    TPTAG_TLS_CIPHERS(ciphers.c_str()), TPTAG_TLS_VERIFY_POLICY(tls_policy),
 				    TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
+				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize),
+				    TPTAG_NETWORK(networkParameter.c_str()), TAG_END());
 			} else {
 				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
 				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
 				finalTlsConfigInfo.certifCaFile = absolutePath(currDir, finalTlsConfigInfo.certifCaFile);
 
-				err = nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
-				                          TPTAG_CERTIFICATE_FILE(finalTlsConfigInfo.certifFile.c_str()),
-				                          TPTAG_CERTIFICATE_PRIVATE_KEY(finalTlsConfigInfo.certifPrivateKey.c_str()),
-				                          TPTAG_CERTIFICATE_CA_FILE(finalTlsConfigInfo.certifCaFile.c_str()),
-				                          TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
-				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
-				                          TPTAG_QUEUESIZE(queueSize), TAG_END());
+				err =
+				    nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
+				                        TPTAG_CERTIFICATE_FILE(finalTlsConfigInfo.certifFile.c_str()),
+				                        TPTAG_CERTIFICATE_PRIVATE_KEY(finalTlsConfigInfo.certifPrivateKey.c_str()),
+				                        TPTAG_CERTIFICATE_CA_FILE(finalTlsConfigInfo.certifCaFile.c_str()),
+				                        TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
+				                        TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
+				                        TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				                        TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
+				                        TPTAG_QUEUESIZE(queueSize), TPTAG_NETWORK(networkParameter.c_str()), TAG_END());
 				if (!err) {
 					try {
 						auto lastUpdateTime = getLastCertUpdate(finalTlsConfigInfo);
@@ -442,9 +493,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 			err = nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
 			                          TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 			                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
-			                          TPTAG_QUEUESIZE(queueSize), TAG_END());
+			                          TPTAG_QUEUESIZE(queueSize), TPTAG_NETWORK(networkParameter.c_str()), TAG_END());
 		}
-		su_home_deinit(&home);
 		if (err == -1) {
 			const auto transport = url.getParam("transport");
 			if (strcasecmp(transport.c_str(), "tls") == 0) {
@@ -507,11 +557,18 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	}
 
 	LOGI << "Agent primaries are:";
-	for (tport_t* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
-		auto name = tport_name(tport);
+	for (const auto* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
+		const auto* name = tport_name(tport);
 		char url[512];
-		snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port, name->tpn_proto,
-		         name->tpn_host);
+
+		if (tport_has_network(tport)) {
+			Home home{};
+			snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s;network=%s", name->tpn_canon, name->tpn_port,
+			         name->tpn_proto, name->tpn_host, tport_network_str(home.home(), tport));
+		} else {
+			snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port,
+			         name->tpn_proto, name->tpn_host);
+		}
 		su_md5_strupdate(&ctx, url);
 		LOGI << "\t" << url;
 		auto isIpv6 = strchr(name->tpn_host, ':') != nullptr;

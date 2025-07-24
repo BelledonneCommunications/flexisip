@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -21,14 +21,12 @@
 #include <vector>
 
 #include "bctoolbox/ownership.hh"
-#include <bctoolbox/tester.h>
+#include "bctoolbox/tester.h"
+#include "sofia-sip/msg_buffer.h"
+#include "sofia-sip/sip_protos.h"
 
-#include <sofia-sip/msg_buffer.h>
-#include <sofia-sip/msg_header.h>
-#include <sofia-sip/sip_protos.h>
-
+#include "exceptions/bad-configuration.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
-
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
@@ -45,6 +43,7 @@
 using namespace std;
 
 namespace flexisip::tester {
+namespace {
 
 class TransportsAndIsUsTest : public AgentTest {
 private:
@@ -485,29 +484,144 @@ void proxyDoesNotStartWithInvalidCertificates() {
 	BC_ASSERT_THROWN(proxy.start(), std::runtime_error);
 }
 
-namespace {
+void invalidNetworkParameterUsage() {
+	const string ipv4{"sip:127.0.0.1:0;transport=tcp;"};
+	const string domain{"sip:sip.example.org;maddr=127.0.0.1;transport=tcp;"};
+
+	for (const auto& tport : {ipv4, domain}) {
+		// Unexpected value in network parameter.
+		{
+			Server proxy{{{"global/transports", tport + "network=unexpected"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+		// Domain name in network parameter.
+		{
+			Server proxy{{{"global/transports", tport + "network=sip.example.org/12"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+		// Invalid mask value.
+		{
+			Server proxy{{{"global/transports", tport + "network=10.0.1.0/24,127.0.0.0/42"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+		// Missing element after comma.
+		{
+			Server proxy{{{"global/transports", tport + "network=127.0.0.0/24,10.0.1.0/24,"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+		// IPv6 in network parameter.
+		{
+			Server proxy{{{"global/transports", tport + "network=[::1]/12,[::1]/24"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+		// Invalid default value.
+		{
+			Server proxy{{{"global/transports", tport + "network=0.0.0.0/24"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+		// Duplicated network addresses.
+		{
+			Server proxy{{{"global/transports", tport + "network=10.0.1.0/24,10.1.0.0/16,10.0.1.0/24"}}};
+			BC_ASSERT_THROWN(proxy.start(), BadConfiguration);
+		}
+	}
+	// Usage of the network parameter with IPv6 is not supported.
+	{
+		// Added try/catch as some machines may not have IPv6 enabled.
+		try {
+			const string ipv6{"sip:[::1]:0;transport=tcp;"};
+			Server proxy{{{"global/transports", ipv6 + "network=127.0.0.0/24,10.0.1.0/24"}}};
+			proxy.start();
+
+			auto* primaries = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
+			for (tport_t* primary = primaries; primary != nullptr; primary = tport_next(primary))
+				BC_ASSERT(tport_has_network(primary) == false);
+		} catch (const exception& exception) {
+			LOGE_CTX("Agent") << "Non-fatal error: " << exception.what();
+		}
+	}
+	// Usage of the network parameter with the '*' host is not supported.
+	{
+		const string wildcard{"sip:*:0;transport=tcp;"};
+		Server proxy{{{"global/transports", wildcard + "network=127.0.0.0/24,10.0.1.0/24"}}};
+		proxy.start();
+
+		sofiasip::Home home{};
+		const auto* primaries = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
+		for (const auto* primary = primaries; primary != nullptr; primary = tport_next(primary)) {
+			if (tport_has_network(primary))
+				BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), primary), "0.0.0.0/0");
+		}
+	}
+}
+
+void validNetworkParameterUsage() {
+	sofiasip::Home home{};
+	const auto* firstNetwork = "10.0.1.0/24";
+	const auto* secondNetwork = "10.1.0.0/16,10.2.0.0/16";
+	// Usage with IPv4.
+	{
+		const string first{"sip:127.0.0.1:0;transport=tcp;network="s + firstNetwork};
+		const string second{"sip:127.0.0.2:0;transport=udp;network="s + secondNetwork};
+		Server proxy{{{"global/transports", first + " " + second}}};
+		proxy.start();
+
+		const auto* primaries = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
+		BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), primaries), firstNetwork);
+		BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), tport_next(primaries)), secondNetwork);
+	}
+	// Usage with domain.
+	{
+		const string first{"sip:localhost:0;transport=tcp;network="s + firstNetwork};
+		const string second{"sip:sip.example.org:0;maddr=127.0.0.2;transport=udp;network="s + secondNetwork};
+		Server proxy{{{"global/transports", first + " " + second}}};
+		proxy.start();
+
+		const auto* primaries = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
+
+		// Count the number of primary transports (some machines may not have IPv6 enabled, so resolving localhost does
+		// not always produce the same results).
+		int nb = 0;
+		const auto* primary = primaries;
+		while (primary != nullptr) {
+			primary = tport_next(primary);
+			nb++;
+		}
+
+		if (nb == 3) {
+			BC_ASSERT(tport_network_str(home.home(), primaries) == nullptr); // IPv6 transport.
+			BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), tport_next(primaries)), firstNetwork);
+			BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), tport_next(tport_next(primaries))), secondNetwork);
+		} else {
+			BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), primaries), firstNetwork);
+			BC_ASSERT_STRING_EQUAL(tport_network_str(home.home(), tport_next(primaries)), secondNetwork);
+		}
+	}
+}
+
 using TCP = TcpConfig;
 using NewTLS = NewTlsConfig;
 using LegacyTLS = LegacyTlsConfig;
 using InternalTransport = InternalTransportConfig;
 
-TestSuite _{"Agent unit tests",
-            {
-                CLASSY_TEST(CSeqIsCheckedOnRegisterWithoutInstanceId),
+TestSuite _{
+    "Agent",
+    {
 #if !__APPLE__
-                TEST_NO_TAG("Transports loading from conf and isUs method testing", run<TransportsAndIsUsTest>),
+        CLASSY_TEST(TransportsAndIsUsTest),
 #endif
-                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TCP", run<RFC5626KeepAliveWithCRLF<TCP>>),
-                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS", run<RFC5626KeepAliveWithCRLF<NewTLS>>),
-                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on TLS (legacy parameters)",
-                            run<RFC5626KeepAliveWithCRLF<LegacyTLS>>),
-                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) on the internal transport",
-                            run<RFC5626KeepAliveWithCRLF<InternalTransport>>),
-                TEST_NO_TAG("Keep-Alive with CRLF (RFC5626) - no PONG if 'outbound' not supported",
-                            run<RFC5626KeepAliveWithCRLF<OutboundNotSupported>>),
-                TEST_NO_TAG("Agent replies to OPTION requests", run<ReplyToOptionRequestTest>),
-                CLASSY_TEST(proxyDoesNotStartWithInvalidCertificates),
-            }};
-} // namespace
+        CLASSY_TEST(CSeqIsCheckedOnRegisterWithoutInstanceId),
+        CLASSY_TEST(RFC5626KeepAliveWithCRLF<TCP>),
+        CLASSY_TEST(RFC5626KeepAliveWithCRLF<NewTLS>),
+        CLASSY_TEST(RFC5626KeepAliveWithCRLF<LegacyTLS>),
+        CLASSY_TEST(RFC5626KeepAliveWithCRLF<InternalTransport>),
+        CLASSY_TEST(RFC5626KeepAliveWithCRLF<OutboundNotSupported>),
+        CLASSY_TEST(ReplyToOptionRequestTest),
+        CLASSY_TEST(proxyDoesNotStartWithInvalidCertificates),
+        CLASSY_TEST(invalidNetworkParameterUsage),
+        CLASSY_TEST(validNetworkParameterUsage),
+    },
+};
 
+} // namespace
 } // namespace flexisip::tester
