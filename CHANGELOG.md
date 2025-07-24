@@ -50,6 +50,14 @@ Group changes to describe their impact on the project, as follows:
     - Parameter `event-logs/dir` (deprecated in 2.0.0)
     - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)
 
+## [2.5.1]
+### [Removed]
+- **Proxy:**
+  - **Global:** 
+    - Parameter `max-log-size` (deprecated in 2.0.0).
+    - Parameter `use-maddr` (deprecated in 2.0.0).
+    - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
+
 ## [2.5.0]
 ### [Added]
 - **Proxy:**
