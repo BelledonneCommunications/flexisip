@@ -246,8 +246,6 @@ public:
 
 	static sofiasip::TlsConfigInfo getTlsConfigInfo(const GenericStruct* global);
 
-	bool shouldUseRfc2543RecordRoute() const;
-
 	const ConfigManager& getConfigManager() const {
 		return *mConfigManager;
 	}
@@ -354,7 +352,6 @@ private:
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;
 #endif
-	bool mUseRfc2543RecordRoute = false;
 	std::weak_ptr<ISupervisorNotifier> mNotifier;
 };
 

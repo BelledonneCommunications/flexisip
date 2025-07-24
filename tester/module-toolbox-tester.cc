@@ -42,12 +42,10 @@ namespace {
 
 class AddRecordRouteTest : public AgentTest {
 protected:
-	AddRecordRouteTest(bool mUseRfc2543RecordRoute, const string& mTransport, const string& mRecordRouteExpected)
-	    : mUseRfc2543RecordRoute(mUseRfc2543RecordRoute), mTransport(mTransport),
-	      mRecordRouteExpected(mRecordRouteExpected), mTmpDir{"AddRecordRouteTest"} {
+	AddRecordRouteTest(const string& mTransport, const string& mRecordRouteExpected)
+	    : mTransport(mTransport), mRecordRouteExpected(mRecordRouteExpected), mTmpDir{"AddRecordRouteTest"} {
 	}
 
-	bool mUseRfc2543RecordRoute;
 	string mTransport;
 	string mRecordRouteExpected;
 
@@ -75,7 +73,6 @@ private:
 
 		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigStringList>("transports")->set(mTransport);
-		globalCfg->get<ConfigBoolean>("use-rfc2543-record-route")->set(mUseRfc2543RecordRoute ? "true" : "false");
 
 		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("false");
 	}
@@ -102,28 +99,14 @@ private:
 
 class SipAddRecordRouteTest : public AddRecordRouteTest {
 public:
-	SipAddRecordRouteTest() : AddRecordRouteTest(false, "sip:127.0.0.1:6060", "Record-Route: <sip:127.0.0.1:6060;lr>") {
-	}
-};
-
-class SipRfc2543AddRecordRouteTest : public AddRecordRouteTest {
-public:
-	SipRfc2543AddRecordRouteTest()
-	    : AddRecordRouteTest(true, "sip:127.0.0.1:6060", "Record-Route: <sip:127.0.0.1:6060;lr>") {
+	SipAddRecordRouteTest() : AddRecordRouteTest("sip:127.0.0.1:6060", "Record-Route: <sip:127.0.0.1:6060;lr>") {
 	}
 };
 
 class SipsAddRecordRouteTest : public AddRecordRouteTest {
 public:
 	SipsAddRecordRouteTest()
-	    : AddRecordRouteTest(false, "sips:127.0.0.1:6061", "Record-Route: <sips:127.0.0.1:6061;lr>") {
-	}
-};
-
-class SipsRfc2543AddRecordRouteTest : public AddRecordRouteTest {
-public:
-	SipsRfc2543AddRecordRouteTest()
-	    : AddRecordRouteTest(true, "sips:127.0.0.1:6061", "Record-Route: <sip:127.0.0.1:6061;lr;transport=tls>") {
+	    : AddRecordRouteTest("sips:127.0.0.1:6061", "Record-Route: <sips:127.0.0.1:6061;lr>") {
 	}
 };
 
@@ -150,9 +133,7 @@ TestSuite _{
     "module_toolbox",
     {
         CLASSY_TEST(SipAddRecordRouteTest),
-        CLASSY_TEST(SipRfc2543AddRecordRouteTest),
         CLASSY_TEST(SipsAddRecordRouteTest),
-        CLASSY_TEST(SipsRfc2543AddRecordRouteTest),
         CLASSY_TEST(isPrivateAddress),
     },
 };

@@ -14,6 +14,14 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.1]
+### [Removed]
+- **Proxy:**
+  - **Global:** 
+    - Parameter `max-log-size` (deprecated in 2.0.0).
+    - Parameter `use-maddr` (deprecated in 2.0.0).
+    - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
+
 ## [2.5.0]
 ### [Added]
 - **Proxy:**

@@ -710,8 +710,6 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		LOGI << "\t" << alias;
 	}
 
-	mUseRfc2543RecordRoute = mConfigManager->getGlobal()->get<ConfigBoolean>("use-rfc2543-record-route")->read();
-
 	mRegistrarDb->setLatestExpirePredicate([weakAg = weak_from_this()](const url_t* url) {
 		auto agent = weakAg.lock();
 		if (agent == nullptr) return false;
@@ -1330,10 +1328,6 @@ void Agent::printEventTailSeparator() {
 	STREAM_LOG(BCTBX_LOG_DEBUG);
 	STREAM_LOG(BCTBX_LOG_MESSAGE) << sEventSeparator;
 	STREAM_LOG(BCTBX_LOG_DEBUG);
-}
-
-bool Agent::shouldUseRfc2543RecordRoute() const {
-	return mUseRfc2543RecordRoute;
 }
 
 void Agent::sendTrap(const GenericEntry* source, const std::string& msg) const {

@@ -853,12 +853,6 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	// configuration).
 	if (dumpDefault.getValue().empty() && listOverrides.getValue().empty() && !listModules && !listSections &&
 	    !dumpMibs && !dumpAll) {
-		const auto* maxLogSize = globalCfg->get<ConfigByteSize>("max-log-size");
-		if (maxLogSize->read() != static_cast<ConfigByteSize::ValueType>(-1)) {
-			throw BadConfiguration{"setting '" + maxLogSize->getCompleteName() +
-			                       "' is forbidden since log size control was delegated to logrotate (please "
-			                       "edit '/etc/logrotate.d/flexisip-logrotate' for log rotation customization)"};
-		}
 
 		const auto& logFilename = globalCfg->get<ConfigString>("log-filename")->read();
 

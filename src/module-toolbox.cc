@@ -105,13 +105,6 @@ void addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t* tport, const 
 	}
 
 	url_param_add(home, url, "lr");
-	if (ag->shouldUseRfc2543RecordRoute()) {
-		if (url->url_type == url_sips) {
-			url->url_type = url_sip;
-			url->url_scheme = "sip";
-			url_param_add(home, url, "transport=tls");
-		}
-	}
 
 	if (!token.empty()) {
 		if (url->url_user == nullptr) {

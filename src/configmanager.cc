@@ -1046,29 +1046,6 @@ ConfigManager::ConfigManager()
 	        "Set to 0 in order to disable the feature.",
 	        "0",
 	    },
-
-	    // Deprecated parameters.
-	    {
-	        ByteSize,
-	        "max-log-size",
-	        "Max size of a log file before switching to a new log file, expressed with units. "
-	        "For example: 10G, 100M. If -1 then there is no maximum size",
-	        "-1",
-	    },
-	    {
-	        Boolean,
-	        "use-maddr",
-	        "Allow flexisip to use maddr in sips connections to verify the CN of the TLS "
-	        "certificate.",
-	        "false",
-	    },
-	    {
-	        Boolean,
-	        "use-rfc2543-record-route",
-	        "Allow Flexisip to use the deprecated param 'transport=tls' in record-route header.",
-	        "false",
-	    },
-
 	    config_item_end,
 	};
 
@@ -1160,16 +1137,10 @@ ConfigManager::ConfigManager()
 	auto uGlobal = make_unique<GenericStruct>("global", "Some global settings of the flexisip proxy.", 2);
 	auto global = mConfigRoot.addChild(std::move(uGlobal));
 	global->addChildrenValues(global_conf);
-	global->get<ConfigByteSize>("max-log-size")->setDeprecated({"2019-05-17", "2.0.0"});
-	global->get<ConfigBoolean>("use-maddr")
-	    ->setDeprecated({"2020-04-08", "2.0.0", "This parameter has no effect anymore."});
 	global->get<ConfigString>("tls-certificates-dir")
 	    ->setDeprecated({"2022-01-04", "2.2.0",
 	                     "Prefer the new way of declaring TLS certificate with 'tls-certificates-file', "
 	                     "'tls-certificates-private-key' and 'tls-certificates-ca-file'. "});
-	global->get<ConfigBoolean>("use-rfc2543-record-route")
-	    ->setDeprecated({"2022-12-01", "2.2.0",
-	                     "Param 'transport=tls' is deprecated in rfc3261, you should now use 'sips:' scheme instead."});
 	global->setConfigListener(this);
 
 	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
