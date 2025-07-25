@@ -20,6 +20,9 @@ Group changes to describe their impact on the project, as follows:
     - Push notification delivery can now be delegated to a FlexiAPI server instance.
 - **Conference server:**
     - Add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically hung up because no RTP data is received.
+    - Add parameter 'cleanup-expired-conferences' to enable periodic removal of expired conferences.
+    - Add parameter 'conferences-availability-before-start' to set how long before the start time of a conference it is possible to join it.
+    - Add parameter 'conferences-expiry-time' to set how long after the end of a conference it is still possible to join it.
     - Add support for end-to-end conference encryption by installing the EKT server plugin. For customers under a proprietary license, this functionality is under a specific license.
 
 ### [Changed]

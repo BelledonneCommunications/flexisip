@@ -222,6 +222,17 @@ void ConferenceServer::_init() {
 	auto refreshDelay = config->get<ConfigDuration<seconds>>("subscription-refresh-delay")->readAndCast();
 	mRegEventClientFactory = make_shared<RegistrationEvent::ClientFactory>(mCore, refreshDelay);
 
+	mCore->enableEmptyChatroomsDeletion(config->get<ConfigBoolean>("empty-chat-room-deletion")->read());
+	if (config->get<ConfigBoolean>("cleanup-expired-conferences")->read())
+		// Hardcoded cleanup period of 1 hour
+		mCore->setConferenceCleanupPeriod(600);
+
+	mCore->setConferenceAvailabilityBeforeStart(
+	    config->get<ConfigDuration<seconds>>("conferences-availability-before-start")->readAndCast().count());
+
+	mCore->setConferenceExpirePeriod(
+	    config->get<ConfigDuration<seconds>>("conferences-expiry-time")->readAndCast().count());
+
 	Status err = mCore->start();
 	if (err == -2) throw ExitFailure{"the Linphone core could not start because the connection to the database failed"};
 	if (err < 0) throw ExitFailure{"the Linphone core failed to start (please check the logs)"};
@@ -653,6 +664,26 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Duration after which the server will terminate a call if no RTP packets are received from the other call "
 	        "participant. For performance reasons, this parameter cannot be disabled.",
 	        "30",
+	    },
+	    {
+	        Boolean,
+	        "cleanup-expired-conferences",
+	        "If enabled, the conference server will periodically remove all expired conferences.",
+	        "true",
+	    },
+	    {
+	        DurationS,
+	        "conferences-availability-before-start",
+	        "Duration used to set how long before the start time of a conference it is possible to join it.",
+	        "100y",
+	    },
+	    {
+	        DurationS,
+	        "conferences-expiry-time",
+	        "Duration after the end of the conference for which it is still possible to join it.\n"
+	        "The end of a conference, here, is the latest time between the scheduled end time, and the time when the "
+	        "last participant has left.",
+	        "30d",
 	    },
 
 	    // Deprecated parameters:
