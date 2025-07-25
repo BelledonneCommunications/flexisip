@@ -114,8 +114,7 @@ void ConferenceServer::_init() {
 
 	mCore = Factory::get()->createCoreWithConfig(configLinphone, nullptr);
 
-	mCore->setInCallTimeout(
-	    chrono::duration_cast<seconds>(config->get<ConfigDuration<chrono::seconds>>("call-timeout")->read()).count());
+	mCore->setInCallTimeout(config->get<ConfigDuration<chrono::seconds>>("call-timeout")->readAndCast().count());
 	mCore->enableRtpBundle(true);
 	mCore->enableEchoCancellation(false);
 
@@ -237,7 +236,7 @@ void ConferenceServer::_init() {
 
 void ConferenceServer::enableSelectedCodecs(const list<shared_ptr<linphone::PayloadType>>& codecs,
                                             const list<string>& mimeTypes) {
-	for (auto codec : codecs) {
+	for (const auto& codec : codecs) {
 		if (find(mimeTypes.begin(), mimeTypes.end(), codec->getMimeType()) != mimeTypes.end()) {
 			codec->enable(true);
 		} else {
@@ -273,11 +272,11 @@ void ConferenceServer::loadFactoryUris() {
 		LOGI << conferenceFactoryUrisSetting->getCompleteName() << " parameter must be set!";
 	}
 	auto focus_it = conferenceFocusUris.begin();
-	for (auto factoryUri : conferenceFactoryUris) {
+	for (const auto& factoryUri : conferenceFactoryUris) {
 		LOGI << "Trying to match conference factory URI " << factoryUri << " with a conference focus URI";
 		if (focus_it != conferenceFocusUris.end()) {
 			LOGI << "Matched conference factory URI " << factoryUri << " with a conference focus URI " << (*focus_it);
-			mConfServerUris.push_back({factoryUri, *focus_it++});
+			mConfServerUris.emplace_back(factoryUri, *focus_it++);
 		} else {
 			throw BadConfiguration{"number of factory SIP URIs (" + to_string(conferenceFactoryUris.size()) +
 			                       ") must match the number of focus SIP URIs (" +
@@ -356,7 +355,7 @@ void ConferenceServer::bindFactoryUris() {
 	shared_ptr<FakeListener> listener = make_shared<FakeListener>();
 
 	string uuid = getUuid();
-	for (auto conferenceFactoryUri : mConfServerUris) {
+	for (const auto& conferenceFactoryUri : mConfServerUris) {
 		try {
 			BindingParameters parameter;
 			sip_contact_t* sipContact = sip_contact_create(
@@ -416,7 +415,7 @@ void ConferenceServer::bindFocusUris() {
 	};
 	string uuid = getUuid();
 
-	for (auto account : mCore->getAccountList()) {
+	for (const auto& account : mCore->getAccountList()) {
 		BindingParameters parameter;
 		auto identityAddress = account->getParams()->getIdentityAddress();
 		auto factoryAddress = Factory::get()->createAddress(account->getParams()->getConferenceFactoryUri());
@@ -437,7 +436,7 @@ void ConferenceServer::bindFocusUris() {
 		parameter.withGruu = true;
 
 		SipUri focus(account->getParams()->getIdentityAddress()->asStringUriOnly());
-		shared_ptr<FocusListener> listener = make_shared<FocusListener>(account, uuid);
+		auto listener = make_shared<FocusListener>(account, uuid);
 		mRegistrarDb->bind(focus, sipContact, parameter, listener);
 	}
 }

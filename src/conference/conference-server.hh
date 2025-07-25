@@ -95,6 +95,10 @@ protected:
 private:
 	static constexpr std::string_view mLogPrefix{"ConferenceServer"};
 
+	static void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs,
+	                                 const std::list<std::string>& mimeTypes);
+	static void ensureDirectoryCreated(const std::filesystem::path& directory);
+
 	void loadFactoryUris();
 	// RegistrarDbStateListener implementation
 	void onRegistrarDbWritable(bool writable) override;
@@ -113,11 +117,8 @@ private:
 	void onParticipantRegistrationUnsubscriptionRequested(
 	    const std::shared_ptr<linphone::ChatRoom>& cr,
 	    const std::shared_ptr<const linphone::Address>& participantAddr) override;
-	void enableSelectedCodecs(const std::list<std::shared_ptr<linphone::PayloadType>>& codecs,
-	                          const std::list<std::string>& mimeTypes);
 	std::filesystem::path getUuidFilePath() const;
 	std::filesystem::path getStateDir(const std::string& subdir = "") const;
-	void ensureDirectoryCreated(const std::filesystem::path& directory);
 	const std::string& readUuid();
 	void writeUuid(const std::string& uuid);
 	std::string getUuid();
