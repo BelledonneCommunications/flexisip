@@ -38,12 +38,10 @@
 namespace flexisip {
 
 void init_tests(const ConfigManager& cfg) {
-	LogManager::Parameters logParams;
-
-	logParams.level = BCTBX_LOG_DEBUG;
-	logParams.enableSyslog = false;
-	logParams.enableStdout = true;
-	LogManager::get().initialize(logParams);
+	LogManager::get().configure({
+	    .enableStandardOutput = true,
+	    .level = BCTBX_LOG_DEBUG,
+	});
 
 	GenericStruct* registrar = cfg.getRoot()->get<GenericStruct>("module::Registrar");
 	registrar->get<ConfigStringList>("unique-id-parameters")->set("+sip.instance pn-tok line");

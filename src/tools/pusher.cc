@@ -21,12 +21,10 @@
 #include <fstream>
 #include <string>
 
-#include "flexisip/common.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
-#include "flexisip/sofia-wrapper/timer.hh"
-
 #include "exceptions/exit.hh"
-#include "pushnotification/apple/apple-request.hh"
+#include "flexisip/common.hh"
+#include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 #include "pushnotification/service.hh"
 
 using namespace std;
@@ -169,17 +167,14 @@ Environment Variables:
 
 	const char* parseUrlParams(const char* params) {
 		char tmp[64];
-		if (url_param(params, "pn-type", tmp, sizeof(tmp)) == 0) {
-			return "no pn-type";
-		} else pntype = tmp;
+		if (url_param(params, "pn-type", tmp, sizeof(tmp)) == 0) return "no pn-type";
+		pntype = tmp;
 
-		if (url_param(params, "app-id", tmp, sizeof(tmp)) == 0) {
-			return "no app-id";
-		} else appid = tmp;
+		if (url_param(params, "app-id", tmp, sizeof(tmp)) == 0) return "no app-id";
+		appid = tmp;
 
-		if (url_param(params, "pn-tok", tmp, sizeof(tmp)) == 0) {
-			return "no pn-tok";
-		} else pntok.emplace_back(tmp);
+		if (url_param(params, "pn-tok", tmp, sizeof(tmp)) == 0) return "no pn-tok";
+		pntok.emplace_back(tmp);
 
 		return nullptr;
 	}
@@ -334,21 +329,22 @@ static vector<std::unique_ptr<PushInfo>> createPushInfosFromArgs(const PusherArg
 	return pushInfos;
 }
 
-int _main(int argc, const char* argv[]) {
+int pusher(int argc, const char* argv[]) {
 	PusherArgs args{};
 	args.parse(argc, argv);
 
 	// Note: sorry but ConfigManager is not accessible in this tool.
-	LogManager::Parameters logParams{};
-	logParams.logDirectory = [] {
-		const auto* logDir = std::getenv("FS_LOG_DIR");
-		return logDir ? logDir : PUSHER_DEFAULT_LOG_DIR;
-	}();
-	logParams.logFilename = "flexisip-pusher.log";
-	logParams.level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_MESSAGE;
-	logParams.enableSyslog = false;
-	logParams.enableStdout = true;
-	LogManager::get().initialize(logParams);
+	LogManager::get().configure(LoggerParameters{
+	    .enableStandardOutput = true,
+	    .level = args.debug ? BCTBX_LOG_DEBUG : BCTBX_LOG_MESSAGE,
+	    .enableSyslog = false,
+	    .logFilename = "flexisip-pusher.log",
+	    .logDirectory =
+	        [] {
+		        const auto* logDir = std::getenv("FS_LOG_DIR");
+		        return logDir ? logDir : PUSHER_DEFAULT_LOG_DIR;
+	        }(),
+	});
 
 	const auto root = make_shared<sofiasip::SuRoot>();
 	Service service{root, MAX_QUEUE_SIZE};
@@ -410,10 +406,10 @@ int _main(int argc, const char* argv[]) {
 	      << ", failed = " << stats.failed << "]";
 
 	if (stats.failed > 0) {
-		SLOGI << "Some push notification requests failed, execute again with --debug to debug";
+		SLOGE << "Some push notification requests failed, execute again with --debug to debug";
 	}
 	if (stats.notsubmitted > 0 || stats.inprogress > 0) {
-		SLOGI << "There were unsubmitted or uncompleted requests, execute again with --debug to debug";
+		SLOGW << "There were unsubmitted or uncompleted requests, execute again with --debug to debug";
 	}
 
 	return stats.failed;
@@ -421,7 +417,7 @@ int _main(int argc, const char* argv[]) {
 
 int main(int argc, const char* argv[]) {
 	try {
-		return _main(argc, argv);
+		return pusher(argc, argv);
 	} catch (const ExitSuccess& exception) {
 		if (exception.what() != nullptr && exception.what()[0] != '\0') {
 			cout << "Exit success: " << exception.what();

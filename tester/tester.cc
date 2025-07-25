@@ -43,8 +43,16 @@
 namespace flexisip::tester {
 
 namespace {
+
 auto sSeed = std::random_device()();
-}
+
+LoggerParameters params{
+    .enableStandardOutput = true,
+    .level = BCTBX_LOG_WARNING,
+    .enableUserErrors = true,
+};
+
+} // namespace
 
 namespace random {
 
@@ -92,7 +100,7 @@ static int verbose_arg_func(const char*) {
 
 static int silent_arg_func([[maybe_unused]] const char* arg) {
 	LogManager::get().setLogLevel(BCTBX_LOG_FATAL);
-	LogManager::get().enableUserErrorsLogs(false);
+	LogManager::enableUserErrors(false);
 	su_log_set_level(nullptr, 0);
 	return 0;
 }
@@ -120,13 +128,7 @@ void flexisip_tester_set_factory_resources_path(const std::string& path) {
 }
 
 void flexisip_tester_init() {
-	// Initialize logs
-	LogManager::Parameters logParams{};
-	logParams.level = BCTBX_LOG_WARNING;
-	logParams.enableSyslog = false;
-	logParams.enableStdout = true;
-	logParams.enableUserErrors = true;
-	LogManager::get().initialize(logParams);
+	LogManager::get().configure(params);
 
 	su_log_redirect(
 	    nullptr,
@@ -168,7 +170,7 @@ void flexisip_tester_init() {
 	flexisip_tester_set_factory_resources_path(FLEXISIP_ROOT_DIR);
 }
 
-void flexisip_tester_uninit(void) {
+void flexisip_tester_uninit() {
 	bc_tester_uninit();
 }
 
@@ -182,7 +184,8 @@ int main(int argc, char* argv[]) {
 	for (auto i = 1; i < argc; ++i) {
 		// Parse custom Flexisip command line arguments.
 		if (strcmp(argv[i], "--disable-stdout") == 0) {
-			flexisip::LogManager::get().disableStdOut();
+			params.enableStandardOutput = false;
+			flexisip::LogManager::get().configure(params);
 			continue;
 		}
 

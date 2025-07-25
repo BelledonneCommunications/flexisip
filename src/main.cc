@@ -23,44 +23,31 @@
 #include "main/flexisip.hh"
 
 using namespace std;
+using namespace flexisip;
+
+static constexpr string_view kLogPrefix{"Flexisip"};
 
 int main(int argc, const char* argv[]) {
-	/**
-	 * Log message using provided level if the LogManager is initialized, otherwise log to stdout or stderr.
-	 */
-	static const auto log = [](BctbxLogLevel level, string_view message) {
-		if (flexisip::LogManager::get().isInitialized()) STREAM_LOG(level) << message;
-		else switch (level) {
-				case BCTBX_LOG_ERROR:
-					cerr << message << '\n';
-					break;
-				case BCTBX_LOG_DEBUG:
-				default:
-					cout << message << '\n';
-					break;
-			}
-	};
-
 	try {
 		return flexisip::main(argc, argv);
 	} catch (const TCLAP::ExitException& exception) {
 		// Exception raised when the program failed to correctly parse command line options.
 		return exception.getExitStatus();
-	} catch (const flexisip::ExitSuccess& exception) {
+	} catch (const ExitSuccess& exception) {
 		if (exception.what() != nullptr && exception.what()[0] != '\0')
-			log(BCTBX_LOG_DEBUG, "Exit success: "s + exception.what());
+			LOGD_CTX(kLogPrefix) << "Exit success: " << exception.what();
 
 		return EXIT_SUCCESS;
-	} catch (const flexisip::Exit& exception) {
+	} catch (const Exit& exception) {
 		if (exception.what() != nullptr && exception.what()[0] != '\0')
-			log(BCTBX_LOG_ERROR, "Exit failure: "s + exception.what());
+			LOGE_CTX(kLogPrefix) << "Exit failure: " << exception.what();
 
 		return exception.code();
 	} catch (const exception& exception) {
-		log(BCTBX_LOG_ERROR, "Error, caught an unexpected exception: "s + exception.what());
+		LOGE_CTX(kLogPrefix) << "Error, caught an unexpected exception: " << exception.what();
 		return EXIT_FAILURE;
 	} catch (...) {
-		log(BCTBX_LOG_ERROR, "Error, caught an unknown exception");
+		LOGE_CTX(kLogPrefix) << "Error, caught an unknown exception";
 		return EXIT_FAILURE;
 	}
 }

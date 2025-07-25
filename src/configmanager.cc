@@ -1203,7 +1203,7 @@ bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState 
 }
 
 int ConfigManager::load(const std::string& configfile) {
-	LOGI << "Loading config file " << configfile;
+	LOGD << "Loading configuration file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
 

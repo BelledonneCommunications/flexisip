@@ -379,7 +379,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		int err;
 		su_home_t home;
 		su_home_init(&home);
-		LOGI << "Enabling transport " << uri;
+		LOGD << "Enabling transport " << uri;
 		if (uri.find("sips") == 0) {
 			unsigned int tls_policy = 0;
 
@@ -666,7 +666,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	// Instantiate the modules.
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
-		LOGI << "Creating module instance of [" << moduleInfo->getModuleName() << "]";
+		LOGD << "Creating module instance of [" << moduleInfo->getModuleName() << "]";
 		mModules.push_back(moduleInfo->create(this));
 	}
 

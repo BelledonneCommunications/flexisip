@@ -51,6 +51,9 @@ Group changes to describe their impact on the project, as follows:
     - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)
 
 ## [2.5.1]
+### [Fixed]
+- **Logger:** Some useful error logs were not printed during the startup phase.
+
 ### [Removed]
 - **Proxy:**
   - **Global:** 
