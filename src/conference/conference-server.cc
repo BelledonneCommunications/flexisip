@@ -264,14 +264,11 @@ unique_ptr<AsyncCleanup> ConferenceServer::_stop() {
 
 void ConferenceServer::loadFactoryUris() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("conference-server");
-	const auto* conferenceFactoryUriSetting = config->get<ConfigString>("conference-factory-uri");
 	const auto* conferenceFactoryUrisSetting = config->get<ConfigStringList>("conference-factory-uris");
 	const auto* conferenceFocusUrisSetting = config->get<ConfigStringList>("conference-focus-uris");
-	auto conferenceFactoryUri = conferenceFactoryUriSetting->read();
 	auto conferenceFactoryUris = conferenceFactoryUrisSetting->read();
 	auto conferenceFocusUris = conferenceFocusUrisSetting->read();
 
-	if (!conferenceFactoryUri.empty()) conferenceFactoryUris.push_back(conferenceFactoryUri);
 	if (conferenceFactoryUris.empty()) {
 		LOGI << conferenceFactoryUrisSetting->getCompleteName() << " parameter must be set!";
 	}
@@ -661,13 +658,6 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 
 	    // Deprecated parameters:
 	    {
-	        String,
-	        "conference-factory-uri",
-	        "uri where the client must ask to create a conference. For example:\n"
-	        "conference-factory-uri=sip:conference-factory@sip.linphone.org",
-	        "",
-	    },
-	    {
 	        Boolean,
 	        "enable-one-to-one-chat-room",
 	        "Whether one-to-one chat room creation is allowed or not.",
@@ -690,9 +680,6 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    0);
 	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
-	s->get<ConfigString>("conference-factory-uri")
-	    ->setDeprecated("2020-09-30", "2.1.0",
-	                    "Use 'conference-factory-uris' instead, that allows to declare multiple factory uris.");
 	s->get<ConfigBoolean>("enable-one-to-one-chat-room")
 	    ->setDeprecated("2022-09-21", "2.2.0", "This parameter will be forced to 'true' in further versions.");
 });
