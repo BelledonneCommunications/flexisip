@@ -199,11 +199,21 @@ void CommandLineInterface::handleConfigSet(const shared_ptr<SocketHandle>& socke
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/log-level")) {
 		config_value->set(value);
-		LogManager::get().setLogLevel(LogManager::logLevelFromName(value));
+		try {
+			LogManager::get().setLogLevel(LogManager::logLevelFromName(value));
+		} catch (const exception& exception) {
+			socket->send("Error - Failed to set " + arg + ": " + exception.what());
+			return;
+		}
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/syslog-level")) {
 		config_value->set(value);
-		LogManager::setSyslogLevel(LogManager::logLevelFromName(value));
+		try {
+			LogManager::get().setSyslogLevel(LogManager::logLevelFromName(value));
+		} catch (const exception& exception) {
+			socket->send("Error - Failed to set " + arg + ": " + exception.what());
+			return;
+		}
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/sofia-level")) {
 		try {
@@ -220,7 +230,12 @@ void CommandLineInterface::handleConfigSet(const shared_ptr<SocketHandle>& socke
 		}
 	} else if (config_value && (arg == "global/contextual-log-level")) {
 		config_value->set(value);
-		LogManager::get().setContextualLevel(LogManager::logLevelFromName(value));
+		try {
+			LogManager::get().setContextualLevel(LogManager::logLevelFromName(value));
+		} catch (const exception& exception) {
+			socket->send("Error - Failed to set " + arg + ": " + exception.what());
+			return;
+		}
 		socket->send(arg + ": " + value);
 	} else if (config_value && (arg == "global/contextual-log-filter")) {
 		value = StringUtils::join(args, 1);

@@ -23,7 +23,6 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <limits>
 #include <list>
 #include <memory>
 #include <regex>
@@ -57,7 +56,6 @@
 
 #include <tclap/CmdLine.h>
 
-#include <flexisip/expressionparser.hh>
 #include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
 #include <flexisip/module.hh>
@@ -108,7 +106,7 @@ using namespace flexisip;
 static int run = 1;
 static pid_t flexisipPid = -1;
 static shared_ptr<sofiasip::SuRoot> root{};
-static constexpr string_view kLogPrefix{"Main"};
+static constexpr string_view kLogPrefix{"Flexisip"};
 
 /*
  * Get the identifier of the current thread.
@@ -278,10 +276,10 @@ static void set_process_name([[maybe_unused]] const string& process_name) {
 #endif
 }
 
-static void forkAndDetach(const string& pidfile,
-                          bool autoRespawn,
-                          const string& functionName,
-                          optional<pipe::WriteOnly>& flexisipStartupPipe) {
+static void forkProcess(const string& pidfile,
+                        bool autoRespawn,
+                        const string& functionName,
+                        optional<pipe::WriteOnly>& flexisipStartupPipe) {
 
 	static constexpr string_view kWatchdogLogPrefix{"Watchdog - "};
 #define WLOGI cout << kWatchdogLogPrefix
@@ -462,7 +460,6 @@ static void dump_config(
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->dump(cout);
-	throw ExitSuccess{};
 }
 
 static void list_sections(ConfigManager& cfg, bool moduleOnly = false) {
@@ -487,34 +484,34 @@ getFunctionName(bool startProxy, bool startPresence, bool startConference, bool 
 }
 
 static string version() {
-	ostringstream version;
-	version << FLEXISIP_GIT_VERSION "\n";
+	stringstream version{};
+	vector<string_view> options{};
+	version << FLEXISIP_GIT_VERSION << " (sofia-sip: " << SOFIA_SIP_VERSION << ")";
 
-	version << "sofia-sip version " SOFIA_SIP_VERSION "\n";
-	version << "\nCompiled with:\n";
 #if ENABLE_SNMP
-	version << "- SNMP\n";
+	options.emplace_back("SNMP");
 #endif
 #if ENABLE_TRANSCODER
-	version << "- Transcoder\n";
+	options.emplace_back("Transcoder");
 #endif
 #if ENABLE_REDIS
-	version << "- Redis\n";
+	options.emplace_back("Redis");
 #endif
 #if ENABLE_SOCI
-	version << "- Soci\n";
+	options.emplace_back("Soci");
 #endif
 #if ENABLE_PRESENCE
-	version << "- Presence\n";
+	options.emplace_back("Presence");
 #endif
 #if ENABLE_CONFERENCE
-	version << "- Conference\n";
-	version << "- RegEvent\n";
+	options.emplace_back("Conference");
+	options.emplace_back("RegEvent");
 #endif
 #ifdef ENABLE_B2BUA
-	version << "- B2BUA\n";
+	options.emplace_back("B2BUA");
 #endif
 
+	if (!options.empty()) version << " compiled with " << string_utils::join(options, 0, " - ");
 	return version.str();
 }
 
@@ -534,12 +531,9 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 }
 
 int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe) {
-	bool debug = false;
-	bool user_errors = false;
 	int errcode = EXIT_SUCCESS;
 
-	string versionString = version();
-	TCLAP::CmdLine cmd("", ' ', versionString);
+	TCLAP::CmdLine cmd("", ' ', version());
 	// TCLAP executes exit() when processing ExitException, so deactivate exceptions management.
 	cmd.setExceptionHandling(false);
 	TCLAP::ValueArg<string> functionName("", "server",
@@ -613,11 +607,10 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
                                                                        cmd);
 	TCLAP::ValueArg<string>     pkcsFile("",    "p12-passphrase-file", "Location of the pkcs12 passphrase file.",
                                                                        TCLAP::ValueArgOptional,"", "file", cmd);
-	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",   "Dump the configuration of a module in the "
-                                                                       "standard output (even if it is marked as "
-                                                                       "experimental). It can be useful to combine "
-                                                                       "with '--dump-default' to have the documentation "
-                                                                       "of experimental modules.",
+	TCLAP::SwitchArg   displayExperimental("",  "show-experimental",   "Dump the configuration of experimental modules in the "
+		                                                               "standard output. It MUST be used with"
+                                                                       "'--dump-default', '--dump-all-default' or"
+                                                                       "'--rewrite-config' options",
                                                                        cmd);
 	TCLAP::ValueArg<string>  listOverrides("",  "list-overrides",	   "Dump the list of configuration values that you "
                                                                        "can override. Use 'all' to get all possible "
@@ -639,13 +632,24 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
                                                                        cmd);
 	// clang-format on
 
+	// Instantiate the LogManager.
+	auto& logger = LogManager::get();
+
 	// Try parsing command line inputs.
 	try {
 		cmd.parse(argc, argv);
-		debug = useDebug.getValue();
 	} catch (TCLAP::ArgException& exception) {
 		cmd.getOutput()->failure(cmd, exception);
 	}
+
+	// First configuration of the logger using command line arguments.
+	logger.configure({
+	    .enableStandardOutput = !daemonMode,
+	    .level = useDebug ? BCTBX_LOG_DEBUG : BCTBX_LOG_WARNING,
+	    .enableSyslog = daemonMode,
+	    .syslogLevel = BCTBX_LOG_ERROR,
+	    .enableUserErrors = useDebug,
+	});
 
 	map<string, string> oset;
 	for (const string& kv : overrideConfig.getValue()) {
@@ -666,27 +670,24 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	auto cfg = make_shared<ConfigManager>();
 	cfg->setOverrideMap(oset);
 
-	// List default config and exit.
+	if (const auto module = dumpAll ? "all" : dumpDefault.getValue(); !module.empty()) {
+		dump_config(*cfg, module, displayExperimental, true, dumpFormat.getValue());
+		return EXIT_SUCCESS;
+	}
 	auto* rootCfg = cfg->getRoot();
-	auto module = dumpDefault.getValue();
-	if (dumpAll) module = "all";
-	if (!module.empty()) dump_config(*cfg, module, displayExperimental, true, dumpFormat.getValue());
-	// List all MIBs and exit.
 	if (dumpMibs) {
 		cout << MibDumper(rootCfg);
 		return EXIT_SUCCESS;
 	}
-	// List modules and exit.
 	if (listModules) {
 		list_sections(*cfg, true);
 		return EXIT_SUCCESS;
 	}
-	// List sections and exit.
 	if (listSections) {
 		list_sections(*cfg);
 		return EXIT_SUCCESS;
 	}
-	// List the overridable values and exit.
+	// List the overridable values.
 	if (!listOverrides.getValue().empty()) {
 		list<string> allCompletions;
 		allCompletions.emplace_back("nosnmp");
@@ -706,31 +707,29 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		return EXIT_SUCCESS;
 	}
 
-	try {
-		// Try parsing the configuration file.
-		if (cfg->load(configFile.getValue()) == -1) {
-			fprintf(stderr,
-			        "Flexisip version %s\n"
-			        "No configuration file found at %s.\n"
-			        "A default 'flexisip.conf' file should be installed in " CONFIG_DIR "\n"
-			        "Please edit it and restart flexisip once ready.\n"
-			        "Alternatively, a default configuration file can be generated at any time using the "
-			        "'--dump-default all' option.\n",
-			        versionString.c_str(), configFile.getValue().c_str());
-			return EXIT_FAILURE;
-		}
-	} catch (const exception& exception) {
-		cerr << exception.what() << endl;
+	// Try parsing the configuration file.
+	if (cfg->load(configFile.getValue()) == -1) {
+		throw BadConfiguration{
+		    "No configuration file found at '" + configFile.getValue() +
+		        "'. A default 'flexisip.conf' file should be installed in '" + CONFIG_DIR +
+		        "'. Please edit it and restart flexisip when ready. Alternatively, a default configuration file can be "
+		        "generated using '--dump-default all'.",
+		};
+	}
+
+	if (rewriteConf) {
+		dump_config(*cfg, "all", displayExperimental, false, "file");
+		return EXIT_SUCCESS;
+	}
+
+	if (displayExperimental) {
+		LOGE_CTX(kLogPrefix) << "The '--show-experimental' option MUST be used with '--dump-default', "
+		                        "'--dump-all-default' or '--rewrite-config' options";
 		return EXIT_FAILURE;
 	}
 
-	if (rewriteConf) dump_config(*cfg, "all", displayExperimental, false, "file");
-
-	// If '--debug' is given, enable user-errors logs as well.
-	if (debug) user_errors = true;
-
 	const auto* globalCfg = cfg->getGlobal();
-	bool dump_cores = globalCfg->get<ConfigBoolean>("dump-corefiles")->read();
+	bool enableCoreDumps = globalCfg->get<ConfigBoolean>("dump-corefiles")->read();
 
 	bool startProxy = false;
 	bool startPresence = false;
@@ -743,22 +742,22 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	} else if (functionName.getValue() == "presence") {
 		startPresence = true;
 #ifndef ENABLE_PRESENCE
-		throw FlexisipException{"Flexisip was compiled without presence server extension"};
+		throw ExitFailure{"Flexisip was compiled without presence server extension"};
 #endif
 	} else if (functionName.getValue() == "conference") {
 		startConference = true;
 #ifndef ENABLE_CONFERENCE
-		throw FlexisipException{"Flexisip was compiled without conference server extension"};
+		throw ExitFailure{"Flexisip was compiled without conference server extension"};
 #endif
 	} else if (functionName.getValue() == "regevent") {
 		startRegEvent = true;
 #ifndef ENABLE_CONFERENCE
-		throw FlexisipException{"Flexisip was compiled without regevent server extension"};
+		throw ExitFailure{"Flexisip was compiled without regevent server extension"};
 #endif
 	} else if (functionName.getValue() == "b2bua") {
 		startB2bua = true;
 #ifndef ENABLE_B2BUA
-		throw FlexisipException{"Flexisip was compiled without B2BUA server extension"};
+		throw ExitFailure{"Flexisip was compiled without B2BUA server extension"};
 #endif
 	} else if (functionName.getValue() == "all") {
 		startPresence = true;
@@ -790,20 +789,13 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		throw BadConfiguration{"unknown server type '" + functionName.getValue() + "'"};
 	}
 
-	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
-	// Initialize.
-	string log_level = globalCfg->get<ConfigString>("log-level")->read();
-	string syslog_level = globalCfg->get<ConfigString>("syslog-level")->read();
-	if (!user_errors) user_errors = globalCfg->get<ConfigBoolean>("user-errors-logs")->read();
-
 	ortp_init();
 	su_init();
 	// Tell the parser to support extra headers.
 	sip_update_default_mclass(sip_extend_mclass(nullptr));
 
-	if (dump_cores) {
-		// Enable core dumps.
-		struct rlimit lm {};
+	if (enableCoreDumps) {
+		rlimit lm{};
 		lm.rlim_cur = RLIM_INFINITY;
 		lm.rlim_max = RLIM_INFINITY;
 		if (setrlimit(RLIMIT_CORE, &lm) == -1) {
@@ -823,8 +815,10 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		}
 	}
 
+	string logLevel = globalCfg->get<ConfigString>("log-level")->read();
+
 	su_log_redirect(nullptr, sofiaLogHandler, nullptr);
-	if (debug || log_level == "debug") {
+	if (useDebug || logLevel == "debug") {
 		const auto* sofiaLevelParameter = globalCfg->get<ConfigInt>("sofia-level");
 		auto sofiaLevel = sofiaLevelParameter->read();
 		if (sofiaLevel < 1 || sofiaLevel > 9) {
@@ -836,55 +830,50 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	// Read the pkcs passphrase if any from the FIFO, and keep it in memory.
 	auto passphrase = getPkcsPassphrase(pkcsFile);
 
+	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
+
 	// Fork watchdog process, then fork the worker daemon.
 	// WARNING: never create pthreads before this point, threads do not survive the fork below.
 	optional<pipe::WriteOnly> flexisipStartupPipe{};
 	if (daemonMode) {
 		// Now that we have successfully loaded the configuration, there is nothing that can prevent us to start.
 		const auto autoRespawn = globalCfg->get<ConfigBoolean>("auto-respawn")->read();
-		forkAndDetach(pidFile.getValue(), autoRespawn, fName, flexisipStartupPipe);
+		forkProcess(pidFile.getValue(), autoRespawn, fName, flexisipStartupPipe);
 	} else if (!pidFile.getValue().empty()) {
-		// Not in daemon mode but we want a pidfile anyway.
+		// Not in daemon mode, but we want a pidfile anyway.
 		makePidFile(pidFile.getValue());
 	}
 
-	// Log initialization after forking to ensure log file reopening on respawn.
-	// Do not initialize logs if the user does not want to start a server (e.g. if a command line option dumps a
-	// configuration).
-	if (dumpDefault.getValue().empty() && listOverrides.getValue().empty() && !listModules && !listSections &&
-	    !dumpMibs && !dumpAll) {
+	// -- From now on, we are a Flexisip daemon, that is a process that will run the actual server. --
 
-		const auto& logFilename = globalCfg->get<ConfigString>("log-filename")->read();
+	// Second configuration of the logger using command line arguments and configuration file parameters.
+	const auto& logFilename = globalCfg->get<ConfigString>("log-filename")->read();
+	logger.configure({
+	    .enableStandardOutput = !daemonMode,
+	    .level = useDebug ? BCTBX_LOG_DEBUG : LogManager::logLevelFromName(logLevel),
+	    .enableSyslog = useSyslog,
+	    .syslogLevel = LogManager::logLevelFromName(globalCfg->get<ConfigString>("syslog-level")->read()),
+	    .enableUserErrors = useDebug ? true : globalCfg->get<ConfigBoolean>("user-errors-logs")->read(),
+	    .logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName),
+	    .logDirectory = globalCfg->get<ConfigString>("log-directory")->read(),
+	    .root = root,
+	});
 
-		LogManager::Parameters logParams{};
-		logParams.root = root;
-		logParams.logDirectory = globalCfg->get<ConfigString>("log-directory")->read();
-		logParams.logFilename = regex_replace(logFilename, regex{"\\{server\\}"}, fName);
-		logParams.level = debug ? BCTBX_LOG_DEBUG : LogManager::logLevelFromName(log_level);
-		logParams.enableSyslog = useSyslog;
-		logParams.syslogLevel = LogManager::logLevelFromName(syslog_level);
-		logParams.enableStdout = debug && !daemonMode; // No need to log to stdout in daemon mode.
-		logParams.enableUserErrors = user_errors;
-		LogManager::get().initialize(logParams);
-		LogManager::get().setContextualFilter(globalCfg->get<ConfigString>("contextual-log-filter")->read());
-		LogManager::get().setContextualLevel(
-		    LogManager::logLevelFromName(globalCfg->get<ConfigString>("contextual-log-level")->read()));
+	logger.message(kLogPrefix, __func__, "Starting Flexisip-" + fName + " server [version: " FLEXISIP_GIT_VERSION "]");
 
-		const auto showBodyForParameter = globalCfg->get<ConfigString>("show-body-for");
-		try {
-			MsgSip::setShowBodyFor(showBodyForParameter->read());
-		} catch (const invalid_argument& e) {
-			throw BadConfiguration{
-			    "setting " + showBodyForParameter->getCompleteName() +
-			        " must only contain SIP method names, whitespace separated (" + e.what() + ")",
-			};
-		}
-	} else {
-		LogManager::get().disable();
+	logger.setContextualFilter(globalCfg->get<ConfigString>("contextual-log-filter")->read());
+	logger.setContextualLevel(
+	    LogManager::logLevelFromName(globalCfg->get<ConfigString>("contextual-log-level")->read()));
+
+	const auto showBodyForParameter = globalCfg->get<ConfigString>("show-body-for");
+	try {
+		MsgSip::setShowBodyFor(showBodyForParameter->read());
+	} catch (const invalid_argument& e) {
+		throw BadConfiguration{
+		    "setting " + showBodyForParameter->getCompleteName() +
+		        " must only contain SIP method names, whitespace separated (" + e.what() + ")",
+		};
 	}
-
-	// From now on, we are a Flexisip daemon, that is a process that will run the actual server.
-	LOGN("Starting Flexisip %s-server version %s", fName.c_str(), FLEXISIP_GIT_VERSION);
 
 	increaseFDLimit();
 
@@ -1026,7 +1015,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	}
 #endif
 
-	LOGN("Flexisip %s-server exiting normally", fName.c_str());
+	logger.message(kLogPrefix, __func__, "Exiting Flexisip-" + fName + " server normally");
 
 	if (stunServer) stunServer->stop();
 	if (trackAllocs) dump_remaining_msgs();

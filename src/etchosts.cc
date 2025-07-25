@@ -42,7 +42,7 @@ EtcHostsResolver::EtcHostsResolver() {
 		if (sscanf(subLine, "%s%n", ip, &consumed) == 1 && ip[0] != '#') {
 			subLine += consumed;
 			while (sscanf(subLine, "%s%n", name, &consumed) == 1) {
-				LOGD << "Read " << ip << " " << name;
+				LOGI << "Read " << ip << " " << name;
 				mMap[name] = ip;
 				subLine += consumed;
 			}

@@ -68,7 +68,7 @@ bool Module::doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) 
 			break;
 		case ConfigState::Committed:
 			if (dirtyConfig) {
-				LOGI << "Reloading configuration of module " << mInfo->getModuleName();
+				LOGD << "Reloading configuration of module " << mInfo->getModuleName();
 				reload();
 				dirtyConfig = false;
 			}
@@ -223,11 +223,11 @@ void ModuleInfoManager::registerModuleInfo(ModuleInfoBase* moduleInfo) {
 		moduleInfo->setRegistered(true);
 	}
 
-	LOGI << "Registered module info [" << moduleInfo->getModuleName() << "]";
+	LOGD << "[" << moduleInfo->getModuleName() << "]";
 }
 
 void ModuleInfoManager::unregisterModuleInfo(ModuleInfoBase* moduleInfo) {
-	LOGI << "Unregistered module info [" << moduleInfo->getModuleName() << "]";
+	LOGD << "[" << moduleInfo->getModuleName() << "]";
 	mRegisteredModuleInfo.remove(moduleInfo);
 	moduleInfo->setRegistered(false);
 }
@@ -341,6 +341,6 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() const {
 
 	// Replace the modules which are targeted by replacingModules.
 	replaceModules(sortedList, replacingModules);
-	LOGI << "Module chain computed successfully";
+	LOGD << "Module chain computed successfully";
 	return sortedList;
 }

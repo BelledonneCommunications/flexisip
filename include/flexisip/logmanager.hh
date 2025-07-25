@@ -161,37 +161,45 @@ class SipLogContext;
 
 using MsgSip = sofiasip::MsgSip;
 
-/*
- * The LogManager is the main entry point to configure logs in Flexisip.
+struct LoggerParameters {
+	bool enableStandardOutput{true};
+	BctbxLogLevel level{BCTBX_LOG_WARNING}; // Logging level for both standard output and file log handlers.
+
+	bool enableSyslog{false};
+	BctbxLogLevel syslogLevel{BCTBX_LOG_ERROR};
+
+	bool enableUserErrors{};
+
+	std::string logFilename{};
+	std::string logDirectory{};
+
+	std::shared_ptr<sofiasip::SuRoot> root{}; // It MUST be set to have LogManager::reopenFiles() working.
+};
+
+/**
+ * Tool to configure logging in Flexisip.
  */
 class LogManager {
 public:
-	struct Parameters {
-		std::shared_ptr<sofiasip::SuRoot> root{nullptr}; /* MUST be set to have reopenFiles() working. */
-		std::string logDirectory{};
-		std::string logFilename{};
-		size_t fileMaxSize{std::numeric_limits<decltype(fileMaxSize)>::max()};
-		BctbxLogLevel level{BCTBX_LOG_ERROR};
-		BctbxLogLevel syslogLevel{BCTBX_LOG_ERROR};
-		bool enableSyslog{true};
-		bool enableUserErrors{false};
-		bool enableStdout{false};
-	};
-
 	LogManager(const LogManager&) = delete;
 	~LogManager() = default;
 
 	static LogManager& get();
+	/**
+	 * @throw invalid_argument if the provided name does not correspond to any known log level.
+	 * @return bctoolbox log level from provided name
+	 */
 	static BctbxLogLevel logLevelFromName(const std::string& name);
 	/**
-	 * Set the log level for syslog.
+	 * Enable logs from the 'user errors' logging domain.
 	 */
-	static void setSyslogLevel(BctbxLogLevel level);
-	/**
-	 * Set the log level for the user errors domain.
-	 */
-	static void enableUserErrorsLogs(bool enable);
+	static void enableUserErrors(bool enable);
 
+	/**
+	 * @param ptr pointer to instance of the class
+	 * @param className name of the class
+	 * @return logging prefix for an instance of a class (output: ClassName[ptr])
+	 */
 	template <typename T>
 	static std::string makeLogPrefixForInstance(const T* ptr, std::string_view className) {
 		std::stringstream logPrefix{};
@@ -200,50 +208,54 @@ public:
 	}
 
 	/**
-	 * Initialize the log manager.
-	 * @param params parameters to initialize the log manager
+	 * Apply the provided set of parameters to the logger. Leave 'params' empty to disable (and remove if set) a log
+	 * handler.
+	 *
+	 * @note The default configuration only has standard output enabled.
+	 * @param params parameters to configure the instance
 	 */
-	void initialize(const Parameters& params);
+	void configure(const LoggerParameters& params = LoggerParameters());
+
 	/**
 	 * Set the log level for all domains.
 	 */
 	void setLogLevel(BctbxLogLevel level);
+	BctbxLogLevel getLogLevel() const;
+	bool standardOutputIsEnabled() const;
+
+	/**
+	 * Set the log level for syslog.
+	 */
+	void setSyslogLevel(BctbxLogLevel level);
+	BctbxLogLevel getSyslogLevel() const;
+	bool syslogIsEnabled() const;
+
+	/**
+	 * @brief Require the reopening of each log file.
+	 * @note This method can be used inside UNIX signal handlers.
+	 */
+	void reopenFiles();
+	bool fileLoggingIsEnabled() const;
+
 	/**
 	 * Set a contextual filter based on sip message contents, and associated log level to use when the filter matches.
 	 * @return -1 if the filter is not valid.
 	 */
 	int setContextualFilter(const std::string& expression);
 	/**
-	 * Set the log level when the contextual filter matches.
+	 * Set the log level for contextual logging.
 	 */
 	void setContextualLevel(BctbxLogLevel level);
-	/**
-	 * Disable logs in the standard output.
-	 */
-	void disableStdOut();
-	bool standardOutputIsEnabled() const;
-	/**
-	 * Disable all logs.
-	 * @note set log level to BCTBX_LOG_FATAL
-	 */
-	void disable();
-
-	bool syslogEnabled() const {
-		if (mInitialized) return mSysLogHandler && mSysLogHandler->isSet();
-		return false;
-	}
 
 	/**
-	 * @brief Require the reopening of each log file.
-	 * @note This method can be used inside UNIX signal handlers.
+	 * Log the provided message with 'MESSAGE' level to all configured log handlers.
+	 *
+	 * @note The log is generated even if configured logging levels are higher than the 'MESSAGE' level.
+	 * @param scope logging scope
+	 * @param funcName function name
+	 * @param message message to log
 	 */
-	void reopenFiles() {
-		mReopenRequired = true;
-	}
-
-	bool isInitialized() const {
-		return mInitialized;
-	}
+	void message(std::string_view scope, std::string_view funcName, const std::string& message);
 
 private:
 	class BctbxLogHandler {
@@ -293,26 +305,24 @@ private:
 	LogManager();
 
 	static void clearCurrentContext();
-
 	void setCurrentContext(const SipLogContext& ctx);
 	void checkForReopening();
 
 	static std::unique_ptr<LogManager> sInstance;
 
 	std::mutex mMutex{};
-	mutable std::mutex mRootDomainMutex{};
-	std::shared_ptr<SipBooleanExpression> mCurrentFilter{};
-	// Prefixes the domain part of every log message. Useful to distinct the log messages coming from other processes.
-	std::string mRootDomain{};
-	// The normal log level.
+
+	// The logging level used for both standard output and log file handlers.
 	BctbxLogLevel mLevel{BCTBX_LOG_ERROR};
+	std::unique_ptr<LogHandler> mStdOutLogHandler{};
+	std::unique_ptr<FileLogHandler> mFileLogHandler{};
+	BctbxLogLevel mSyslogLevel{BCTBX_LOG_ERROR};
+	std::unique_ptr<LogHandler> mSysLogHandler{};
 	// The log level when log context matches the condition.
 	BctbxLogLevel mContextLevel{BCTBX_LOG_ERROR};
-	std::unique_ptr<FileLogHandler> mFileLogHandler{};
-	std::unique_ptr<LogHandler> mStdOutLogHandler{};
-	std::unique_ptr<LogHandler> mSysLogHandler{};
+	std::shared_ptr<SipBooleanExpression> mCurrentFilter{};
+
 	std::unique_ptr<sofiasip::Timer> mTimer{};
-	bool mInitialized{false};
 	bool mReopenRequired{false};
 };
 
@@ -340,21 +350,3 @@ private:
 };
 
 } // end of namespace flexisip
-
-static BctbxLogLevel flexisipMinSysLogLevel = BCTBX_LOG_ERROR;
-
-/*
- * We want LOGN to output all the time (in standard output or syslog): this is for startup notice.
- */
-template <typename... Args>
-inline void LOGN(const char* format, const Args&... args) {
-	if (!flexisip::LogManager::get().syslogEnabled()) {
-		fprintf(stdout, format, args...);
-		fprintf(stdout, "\n");
-	} else if (flexisipMinSysLogLevel >= BCTBX_LOG_MESSAGE) {
-		syslog(LOG_INFO, format, args...);
-	}
-	bctbx_set_thread_log_level(nullptr, BCTBX_LOG_MESSAGE);
-	bctbx_log(FLEXISIP_LOG_DOMAIN, BCTBX_LOG_MESSAGE, format, args...);
-	bctbx_clear_thread_log_level(nullptr);
-}
