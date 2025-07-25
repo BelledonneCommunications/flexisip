@@ -163,15 +163,15 @@ bool startsWith(const std::string_view& str, const std::string_view& prefix) noe
 // Returns 'true' if 'str' ends with 'prefix'.
 bool endsWith(const std::string& str, const std::string& suffix) noexcept;
 
-/*
+/**
  * Concat all strings from the args parameter into one whitespace separated string.
  * Note: StringList Any container type with iterator available.
  *
- * @param args			A container of strings to concat.
- * @param fromIndex 	If you do not want to start at the beginning of args. If fromIndex => args.size(), return an
- * 						empty string.
- * @param separator		Custom separator when joining args.
- * @return 				A string, can be empty, no trailing whitespace added.
+ * @param args a container of strings to concatenate.
+ * @param fromIndex if you do not want to start at the beginning of args. If fromIndex => args.size(), return an empty
+ * string.
+ * @param separator custom separator when joining args.
+ * @return a string (can be empty) without trailing separator.
  */
 template <class StringList>
 std::string join(const StringList& args, size_t fromIndex = 0, std::string_view separator = " ") {
@@ -187,7 +187,7 @@ std::string join(const StringList& args, size_t fromIndex = 0, std::string_view 
 	}
 
 	if (!ret.empty()) {
-		ret.resize(ret.size() - 1);
+		ret.resize(ret.size() - separator.size());
 	}
 
 	return ret;
