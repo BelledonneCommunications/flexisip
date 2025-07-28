@@ -1202,7 +1202,7 @@ bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState 
 	return true;
 }
 
-int ConfigManager::load(const std::string& configfile) {
+int ConfigManager::load(const std::string& configfile, OnUnknownItem onUnknownItem) {
 	LOGD << "Loading configuration file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
@@ -1214,7 +1214,9 @@ int ConfigManager::load(const std::string& configfile) {
 		mReader.reload();
 	}
 
-	mReader.checkUnread();
+	if (mReader.containsUnreadItems() && onUnknownItem == OnUnknownItem::Throw)
+		throw BadConfiguration{"invalid section(s) and/or item(s) in the configuration file are not allowed"};
+
 	applyOverrides(true);
 	return res;
 }
@@ -1258,7 +1260,7 @@ int FileConfigReader::reload() {
 	return 0;
 }
 
-void FileConfigReader::checkUnread() {
+bool FileConfigReader::containsUnreadItems() {
 	auto onUnreadItem = [&](const string& secname, const string& key, int lineno) {
 		ostringstream ss;
 		ss << "Unsupported parameter '" << key << "' in section [" << secname << "] at line " << lineno << ".";
@@ -1287,9 +1289,7 @@ void FileConfigReader::checkUnread() {
 		LOGE_CTX(mLogPrefix, "checkUnread") << ss.str();
 	};
 	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
-	if (mHaveUnreads)
-		throw BadConfiguration{
-		    "some items or sections are invalid in the configuration, please verify your configuration file"};
+	return mHaveUnreads;
 }
 
 int FileConfigReader::read2(GenericEntry* entry, int level) {

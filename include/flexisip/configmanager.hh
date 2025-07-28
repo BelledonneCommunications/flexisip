@@ -721,7 +721,7 @@ public:
 	explicit FileConfigReader(GenericStruct* root);
 	int read(const std::string& filename);
 	int reload();
-	void checkUnread();
+	bool containsUnreadItems();
 	~FileConfigReader();
 
 private:
@@ -745,11 +745,16 @@ public:
 
 class ConfigManager : protected ConfigValueListener {
 public:
+	enum class OnUnknownItem {
+		Continue,
+		Throw,
+	};
+
 	// Statically register add section functions
 	static std::vector<std::function<void(GenericStruct&)>>& defaultInit();
 	ConfigManager();
 
-	int load(const std::string& configFile);
+	int load(const std::string& configFile, OnUnknownItem onUnknownItem = OnUnknownItem::Throw);
 	const GenericStruct* getRoot() const;
 	GenericStruct* getRoot();
 	const std::string& getConfigFile() const {

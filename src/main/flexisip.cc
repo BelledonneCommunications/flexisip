@@ -99,6 +99,8 @@
 #endif
 
 #include "flexisip.hh"
+
+#include "flexisip/configmanager.hh"
 #include "utils/pipe.hh"
 #include "utils/process-monitoring/memory-watcher.hh"
 #include "utils/transport/http/http2client.hh"
@@ -713,7 +715,8 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	}
 
 	// Try parsing the configuration file.
-	if (cfg->load(configFile.getValue()) == -1) {
+	if (cfg->load(configFile.getValue(),
+	              rewriteConf ? ConfigManager::OnUnknownItem::Continue : ConfigManager::OnUnknownItem::Throw) == -1) {
 		throw BadConfiguration{
 		    "No configuration file found at '" + configFile.getValue() +
 		        "'. A default 'flexisip.conf' file should be installed in '" + CONFIG_DIR +

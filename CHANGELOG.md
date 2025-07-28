@@ -53,6 +53,8 @@ Group changes to describe their impact on the project, as follows:
 ## [2.5.1]
 ### [Fixed]
 - **Logger:** Some useful error logs were not printed during the startup phase.
+- **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
+  configuration file.
 
 ### [Removed]
 - **Proxy:**
