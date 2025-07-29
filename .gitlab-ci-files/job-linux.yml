@@ -86,7 +86,6 @@
   artifacts:
     paths:
       - build/*.rpm
-      - .gitlab-ci-files/deploy.sh
     when: always
     expire_in: 1 week
 
@@ -97,9 +96,11 @@
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
     GIT_STRATEGY: fetch
+    # Aim for a specific commit to avoid unintentional changes since the script is shared with other projects
+    DEPLOY_SCRIPT: 'curl --header "PRIVATE-TOKEN: ${TOOLS_REPOSITORY_TOKEN}" https://gitlab.linphone.org/api/v4/projects/368/repository/files/deploy_packages.sh/raw?ref=58a7c34c'
   before_script:
     - *add-deploy-keys
-  script: ./.gitlab-ci-files/deploy.sh ${DISTRIB} ${ROCKYLINUX_VERSION}
+  script: 'bash <(${DEPLOY_SCRIPT}) ${DISTRIB} ${ROCKYLINUX_VERSION}'
 
 #################################################
 # DEB
@@ -132,9 +133,11 @@
   variables:
     # Do not clone, only use artifacts (TODO 'none' doesn't clean, we are using 'fetch' until we find a way)
     GIT_STRATEGY: fetch
+    # Aim for a specific commit to avoid unintentional changes since the script is shared with other projects
+    DEPLOY_SCRIPT: 'curl --header "PRIVATE-TOKEN: ${TOOLS_REPOSITORY_TOKEN}" https://gitlab.linphone.org/api/v4/projects/368/repository/files/deploy_packages.sh/raw?ref=58a7c34c'
   before_script:
     - *add-deploy-keys
-  script: ./.gitlab-ci-files/deploy.sh debian
+  script: 'bash <(${DEPLOY_SCRIPT}) debian ${RELEASE}'
 
 #################################################
 # DOCKER
