@@ -14,19 +14,6 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.5.1]
-### [Fixed]
-- **Logger:** Some useful error logs were not printed during the startup phase.
-- **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
-  configuration file.
-
-### [Removed]
-- **Proxy:**
-  - **Global:** 
-    - Parameter `max-log-size` (deprecated in 2.0.0).
-    - Parameter `use-maddr` (deprecated in 2.0.0).
-    - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
-
 ## [2.5.0]
 ### [Added]
 - **Proxy:**
@@ -124,12 +111,19 @@ Group changes to describe their impact on the project, as follows:
 - **Build:** Compilation on macOS.
 - **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and is now only added if the target is a domain name (and not an IPv4 or IPv6 address).
 This is more compliant with RFC 6066, and therefore more compatible with stricter HTTPS implementations.
+- **Logger:** Some useful error logs were not printed during the startup phase.
+- **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
+  configuration file.
 
 ### [Removed]
 - **Proxy:**
   - Monitor (never released, it was in experimental state). All configuration files MUST not contain any reference to
     the Monitor module, otherwise Flexisip will not start.
   - **Registrar:** Parameter `name-message-expires` (deprecated in 2.0.0).
+  - **Global:**
+      - Parameter `max-log-size` (deprecated in 2.0.0).
+      - Parameter `use-maddr` (deprecated in 2.0.0).
+      - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
 - **Plugin:** JweAuth.
 
 
