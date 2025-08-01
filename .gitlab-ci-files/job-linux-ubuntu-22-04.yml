@@ -68,10 +68,10 @@ job-ubuntu-22-04-deb:
 
 job-ubuntu-22-04-deb-deploy:
   extends:
-    - .job-debian-deb-deploy
+    - .job-deploy
     - .ubuntu-22-04-image
   variables:
+    DISTRIB: ubuntu
     RELEASE: jammy
-    FREIGHT_PATH: $UBUNTU_FREIGHT_CONF_PATH
   dependencies:
     - job-ubuntu-22-04-deb
