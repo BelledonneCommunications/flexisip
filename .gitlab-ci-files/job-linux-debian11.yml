@@ -74,10 +74,10 @@ job-debian11-deb:
 
 job-debian11-deb-deploy:
   extends:
-    - .job-debian-deb-deploy
+    - .job-deploy
     - .debian11-image
   variables:
+    DISTRIB: debian
     RELEASE: bullseye
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
   dependencies:
     - job-debian11-deb

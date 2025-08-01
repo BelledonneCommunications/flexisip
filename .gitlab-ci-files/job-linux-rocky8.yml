@@ -86,10 +86,10 @@ job-rocky8-rpm-check-features:
 
 job-rocky8-rpm-deploy:
   extends:
-    - .job-rpm-deploy
+    - .job-deploy
     - .rocky8-image-variables
   dependencies:
     - job-rocky8-rpm
   variables:
     DISTRIB: rockylinux
-    ROCKYLINUX_VERSION: 8
+    RELEASE: 8

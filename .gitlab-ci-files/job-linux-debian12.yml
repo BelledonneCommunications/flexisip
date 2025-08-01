@@ -150,10 +150,10 @@ job-debian12-deb-check-features:
 
 job-debian12-deb-deploy:
   extends:
-    - .job-debian-deb-deploy
+    - .job-deploy
     - .debian12-image
   variables:
+    DISTRIB: debian
     RELEASE: bookworm
-    FREIGHT_PATH: $DEBIAN_FREIGHT_CONF_PATH
   dependencies:
     - job-debian12-deb

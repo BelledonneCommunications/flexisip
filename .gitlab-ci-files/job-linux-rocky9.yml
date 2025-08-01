@@ -125,10 +125,10 @@ job-rocky9-rpm-check-features:
 
 job-rocky9-rpm-deploy:
   extends:
-    - .job-rpm-deploy
+    - .job-deploy
     - .rocky9-image-variables
   dependencies:
     - job-rocky9-rpm
   variables:
     DISTRIB: rockylinux
-    ROCKYLINUX_VERSION: 9
+    RELEASE: 9
