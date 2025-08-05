@@ -194,11 +194,8 @@ DokuwikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val
 		auto help = StringUtils::transform(val->getHelp(), {{'\n', "\\\\ "}, {'`', "'' "}});
 		StringUtils::searchAndReplace(help, ". ", ".\\\\ ");
 
-		ostr << "|"
-		     << "'''" << val->getName() << "'''"
-		     << " | " << help << " | "
-		     << "<code>" << val->getDefault() << "</code>"
-		     << " | " << val->getTypeName() << " | " << endl;
+		ostr << "|" << "'''" << val->getName() << "'''" << " | " << help << " | " << "<code>" << val->getDefault()
+		     << "</code>" << " | " << val->getTypeName() << " | " << endl;
 	}
 	return ostr;
 }
@@ -244,8 +241,7 @@ MediaWikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* va
 		ostr << "|-" << endl // entry marker
 		     << "|'''" << val->getName() << "'''" << endl
 		     << "|" << help << endl
-		     << "|"
-		     << "<code>" << val->getDefault() << "</code>" << endl
+		     << "|" << "<code>" << val->getDefault() << "</code>" << endl
 		     << "|" << val->getTypeName() << endl;
 	}
 	return ostr;

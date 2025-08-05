@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,7 +41,7 @@ AuthDbListener::~AuthDbListener() {
 
 class FixedAuthDb : public AuthDbBackend {
 public:
-	FixedAuthDb(const GenericStruct& root) : AuthDbBackend(root) {
+	FixedAuthDb(const RootConfigStruct& root) : AuthDbBackend(root) {
 	}
 
 	void getUserWithPhoneFromBackend([[maybe_unused]] const string& phone,
@@ -57,7 +57,7 @@ public:
 			listener->onResult(PASSWORD_FOUND, {{"fixed", "CLRTXT"}});
 		}
 	}
-	static void declareConfig([[maybe_unused]] GenericStruct* mc){};
+	static void declareConfig([[maybe_unused]] GenericStruct* mc) {};
 };
 
 void AuthDb::createAuthDbBackend() {
@@ -75,7 +75,7 @@ void AuthDb::createAuthDbBackend() {
 	} else throw std::runtime_error("Cannot build Authentication Backend, unknown db-implementation: "s + impl);
 }
 
-AuthDbBackend::AuthDbBackend(const GenericStruct& root) {
+AuthDbBackend::AuthDbBackend(const RootConfigStruct& root) {
 	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
 	list<string> domains = ma->get<ConfigStringList>("auth-domains")->read();
 	mCacheExpire =

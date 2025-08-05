@@ -212,7 +212,7 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 SipBridge::SipBridge(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                      const std::shared_ptr<B2buaCore>& core,
                      config::v2::Root&& rootConf,
-                     const GenericStruct* globalConfigRoot)
+                     const RootConfigStruct* globalConfigRoot)
     : mSuRoot{suRoot}, mCore{core}, mGlobalConfigRoot(globalConfigRoot) {
 	initFromRootConfig(std::move(rootConf));
 }

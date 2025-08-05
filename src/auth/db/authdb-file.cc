@@ -102,7 +102,7 @@ void FileAuthDb::parsePasswd(const vector<passwd_algo_t>& srcPasswords,
 	}
 }
 
-FileAuthDb::FileAuthDb(const GenericStruct& root) : AuthDbBackend(root), mConfigRoot(root) {
+FileAuthDb::FileAuthDb(const RootConfigStruct& root) : AuthDbBackend(root), mConfigRoot(root) {
 	GenericStruct* ma = root.get<GenericStruct>("module::Authentication");
 
 	mLastSync = 0;

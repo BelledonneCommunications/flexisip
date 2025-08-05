@@ -625,7 +625,7 @@ void Agent::addConfigSections(ConfigManager& cfg) {
 	list<ModuleInfoBase*> moduleInfoChain = ModuleInfoManager::get()->buildModuleChain();
 
 	// Add modules config section.
-	GenericStruct* cr = cfg.getRoot();
+	GenericStruct* cr = cfg.getEditableRoot();
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
 		moduleInfo->declareConfig(*cr);
 	}
@@ -635,7 +635,7 @@ void Agent::addConfigSections(ConfigManager& cfg) {
 
 void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 	// Load plugins .so files. They will automatically register into the ModuleInfoManager singleton.
-	GenericStruct* cr = cfg.getRoot();
+	GenericStruct* cr = cfg.getEditableRoot();
 	GenericStruct* global = cr->get<GenericStruct>("global");
 	const string& pluginDir = global->get<ConfigString>("plugins-dir")->read();
 	for (const string& pluginName : global->get<ConfigStringList>("plugins")->read()) {
@@ -657,7 +657,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
     : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mTimer(mRoot, 5s) {
 	LOGD << "New Agent instance: " << this;
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
-	GenericStruct* cr = cm->getRoot();
+	const auto* cr = cm->getRoot();
 
 	EtcHostsResolver::get();
 
