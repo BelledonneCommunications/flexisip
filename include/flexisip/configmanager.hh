@@ -755,8 +755,8 @@ public:
 	ConfigManager();
 
 	int load(const std::string& configFile, OnUnknownItem onUnknownItem = OnUnknownItem::Throw);
-	const GenericStruct* getRoot() const;
-	GenericStruct* getRoot();
+	const RootConfigStruct* getRoot() const;
+	GenericStruct* getEditableRoot();
 	const std::string& getConfigFile() const {
 		return mConfigFile;
 	}

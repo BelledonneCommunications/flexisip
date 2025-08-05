@@ -140,7 +140,7 @@ void CommandLineInterface::registerHandler(CliHandler& handler) {
 
 GenericEntry* CommandLineInterface::getGenericEntry(const string& arg) const {
 	vector<string> arg_split = StringUtils::split(arg, "/");
-	GenericStruct* root = mConfigManager->getRoot();
+	GenericStruct* root = mConfigManager->getEditableRoot();
 
 	if (arg == "all") return root;
 	return find(root, arg_split);

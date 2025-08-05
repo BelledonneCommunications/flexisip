@@ -45,7 +45,7 @@ public:
 	SipBridge(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 	          const std::shared_ptr<B2buaCore>& core,
 	          config::v2::Root&& rootConf,
-	          const GenericStruct* globalConfigRoot);
+	          const RootConfigStruct* globalConfigRoot);
 
 	void init(const std::shared_ptr<B2buaCore>& core, const flexisip::ConfigManager& config) override;
 
@@ -68,7 +68,7 @@ private:
 
 	std::shared_ptr<sofiasip::SuRoot> mSuRoot;
 	std::shared_ptr<B2buaCore> mCore;
-	const GenericStruct* mGlobalConfigRoot = nullptr;
+	const RootConfigStruct* mGlobalConfigRoot = nullptr;
 	std::vector<SipProvider> providers;
 	std::unordered_map<std::string, std::weak_ptr<Account>> occupiedSlots;
 	const std::string_view mLogPrefix{"SipBridge"};

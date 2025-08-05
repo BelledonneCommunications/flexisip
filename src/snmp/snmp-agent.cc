@@ -83,7 +83,7 @@ void SnmpAgent::initFlexisipSnmp(ConfigManager& cm) {
 	}
 
 	// Register all OIDs
-	registerSnmpOid(*cm.getRoot());
+	registerSnmpOid(*cm.getEditableRoot());
 
 	snmpInitDone = true;
 }

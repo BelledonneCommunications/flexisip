@@ -205,7 +205,7 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 #endif
 }
 
-SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
+SociAuthDB::SociAuthDB(const RootConfigStruct& cr) : AuthDbBackend(cr) {
 	auto* ma = cr.get<GenericStruct>("module::Authentication");
 	auto* ps = cr.get<GenericStruct>("presence-server");
 
