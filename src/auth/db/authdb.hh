@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -88,7 +88,7 @@ public:
 protected:
 	enum CacheResult { VALID_PASS_FOUND, EXPIRED_PASS_FOUND, NO_PASS_FOUND };
 
-	AuthDbBackend(const GenericStruct&);
+	AuthDbBackend(const RootConfigStruct&);
 
 	virtual void getUserWithPhoneFromBackend(const std::string&, const std::string&, AuthDbListener* listener) = 0;
 	virtual void getUsersWithPhonesFromBackend(std::list<std::tuple<std::string, std::string, AuthDbListener*>>& creds);
@@ -258,7 +258,7 @@ private:
 
 class FileAuthDb : public AuthDbBackend {
 private:
-	const GenericStruct& mConfigRoot;
+	const RootConfigStruct& mConfigRoot;
 	std::string mFileString;
 	time_t mLastSync;
 	void parsePasswd(const std::vector<passwd_algo_t>& srcPasswords,
@@ -271,7 +271,7 @@ protected:
 	void sync();
 
 public:
-	FileAuthDb(const GenericStruct& root);
+	FileAuthDb(const RootConfigStruct& root);
 	void
 	getUserWithPhoneFromBackend(const std::string& phone, const std::string& domain, AuthDbListener* listener) override;
 	void getPasswordFromBackend(const std::string& id,
@@ -307,7 +307,7 @@ public:
 
 	static void declareConfig(GenericStruct* mc);
 
-	SociAuthDB(const GenericStruct&);
+	SociAuthDB(const RootConfigStruct&);
 
 private:
 	void connectDatabase();

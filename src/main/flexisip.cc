@@ -453,8 +453,8 @@ static void forkAndDetach(ConfigManager& cfg,
 #undef WLOGI
 }
 
-static void depthFirstSearch(string& path, GenericEntry* config, list<string>& allCompletions) {
-	auto gStruct = dynamic_cast<GenericStruct*>(config);
+static void depthFirstSearch(string& path, const GenericEntry* config, list<string>& allCompletions) {
+	const auto* gStruct = dynamic_cast<const GenericStruct*>(config);
 	if (gStruct) {
 		string newpath;
 		if (!path.empty()) newpath += path + "/";
@@ -465,7 +465,7 @@ static void depthFirstSearch(string& path, GenericEntry* config, list<string>& a
 		return;
 	}
 
-	auto cValue = dynamic_cast<ConfigValue*>(config);
+	const auto* cValue = dynamic_cast<const ConfigValue*>(config);
 	if (cValue) {
 		string completion;
 		if (!path.empty()) completion += path + "/";
@@ -482,7 +482,7 @@ static void dump_config(
 		pluginsDirEntry->set(DEFAULT_PLUGINS_DIR);
 	}
 
-	auto* rootStruct = cfg.getRoot();
+	auto* rootStruct = cfg.getEditableRoot();
 	if (dump_cfg_part != "all") {
 		smatch m;
 		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
@@ -726,7 +726,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 
 	// list all mibs and exit
 	if (dumpMibs) {
-		cout << MibDumper(cfg->getRoot());
+		cout << MibDumper(cfg->getEditableRoot());
 		return EXIT_SUCCESS;
 	}
 

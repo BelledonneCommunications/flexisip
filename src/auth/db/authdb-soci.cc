@@ -25,8 +25,8 @@
 #include <soci/mysql/soci-mysql.h>
 
 #include "flexisip/configmanager.hh"
-#include "utils/soci-helper.hh"
 #include "utils/digest.hh"
+#include "utils/soci-helper.hh"
 #include "utils/string-utils.hh"
 #include "utils/thread/auto-thread-pool.hh"
 
@@ -187,7 +187,7 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 #endif
 }
 
-SociAuthDB::SociAuthDB(const GenericStruct& cr) : AuthDbBackend(cr) {
+SociAuthDB::SociAuthDB(const RootConfigStruct& cr) : AuthDbBackend(cr) {
 	auto* ma = cr.get<GenericStruct>("module::Authentication");
 	auto* ps = cr.get<GenericStruct>("presence-server");
 

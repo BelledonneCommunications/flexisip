@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -206,7 +206,7 @@ void SipBridge::initFromRootConfig(config::v2::Root rootConfig) {
 SipBridge::SipBridge(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
                      const std::shared_ptr<B2buaCore>& core,
                      config::v2::Root&& rootConf,
-                     const GenericStruct* globalConfigRoot)
+                     const RootConfigStruct* globalConfigRoot)
     : mSuRoot{suRoot}, mCore{core}, mGlobalConfigRoot(globalConfigRoot) {
 	initFromRootConfig(std::move(rootConf));
 }

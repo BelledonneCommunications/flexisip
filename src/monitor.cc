@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,9 +47,10 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 });
 } // namespace
 
-void Monitor::exec(ConfigManager& cfg, int socket) {
-	GenericStruct* monitorParams = cfg.getRoot()->get<GenericStruct>("monitor");
-	GenericStruct* cluster = cfg.getRoot()->get<GenericStruct>("cluster");
+void Monitor::exec(const ConfigManager& cfg, int socket) {
+	const RootConfigStruct* rootConfig = cfg.getRoot();
+	const auto* monitorParams = rootConfig->get<GenericStruct>("monitor");
+	GenericStruct* cluster = rootConfig->get<GenericStruct>("cluster");
 	string interval = monitorParams->get<ConfigValue>("test-interval")->get();
 	string logfile = monitorParams->get<ConfigString>("logfile")->read();
 	string port = monitorParams->get<ConfigValue>("switch-port")->get();
@@ -58,7 +59,7 @@ void Monitor::exec(ConfigManager& cfg, int socket) {
 
 	string domain;
 	try {
-		domain = findDomain(*cfg.getRoot());
+		domain = findDomain(*rootConfig);
 	} catch (const FlexisipException& e) {
 		LOGF("Monitor: cannot find domain. %s", e.str().c_str());
 		exit(EXIT_FAILURE);
@@ -110,7 +111,7 @@ string Monitor::findLocalAddress(const list<string>& nodes) {
 	return "";
 }
 
-void Monitor::createAccounts(std::shared_ptr<AuthDb> authDb, GenericStruct& rootConfig) {
+void Monitor::createAccounts(std::shared_ptr<AuthDb> authDb, const RootConfigStruct& rootConfig) {
 	auto& authDbBackend = authDb->db();
 	GenericStruct* cluster = rootConfig.get<GenericStruct>("cluster");
 	GenericStruct* monitorConf = rootConfig.get<GenericStruct>("monitor");
@@ -157,7 +158,7 @@ string Monitor::generatePassword(const string& host, const string& salt) {
 	return md5sum(host + salt);
 }
 
-string Monitor::findDomain(GenericStruct& rootConfig) {
+string Monitor::findDomain(const RootConfigStruct& rootConfig) {
 	GenericStruct* registrarConf = rootConfig.get<GenericStruct>("module::Registrar");
 	list<string> domains = registrarConf->get<ConfigStringList>("reg-domains")->read();
 	if (domains.size() == 0) {

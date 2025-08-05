@@ -1409,11 +1409,11 @@ void ConfigManager::applyOverrides(bool strict) {
 	}
 }
 
-const GenericStruct* ConfigManager::getRoot() const {
+const RootConfigStruct* ConfigManager::getRoot() const {
 	return &mConfigRoot;
 }
 
-GenericStruct* ConfigManager::getRoot() {
+GenericStruct* ConfigManager::getEditableRoot() {
 	return &mConfigRoot;
 }
 

@@ -129,8 +129,7 @@ Record::Key::Key(const url_t* url, bool useGlobalDomain) : mWrapped() {
 		if (!useGlobalDomain) {
 			ostr << user << "@" << url->url_host;
 		} else {
-			ostr << user << "@"
-			     << "merged";
+			ostr << user << "@" << "merged";
 		}
 	} else {
 		ostr << url->url_host;
@@ -143,7 +142,7 @@ SipUri Record::Key::toSipUri() const {
 }
 
 Record::Config::Config(const ConfigManager& cfg) {
-	const GenericStruct* cr = cfg.getRoot();
+	const auto* cr = cfg.getRoot();
 	const GenericStruct* mr = cr->get<GenericStruct>("module::Registrar");
 	mMaxContacts = mr->get<ConfigInt>("max-contacts-by-aor")->read();
 	mLineFieldNames = mr->get<ConfigStringList>("unique-id-parameters")->read();
