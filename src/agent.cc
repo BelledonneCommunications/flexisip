@@ -630,8 +630,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 
 	// Instanciate the modules.
 	for (ModuleInfoBase* moduleInfo : moduleInfoChain) {
-		SLOGI << "Creating module instance of "
-		      << "[" << moduleInfo->getModuleName() << "].";
+		SLOGI << "Creating module instance of " << "[" << moduleInfo->getModuleName() << "].";
 		mModules.push_back(moduleInfo->create(this));
 	}
 
@@ -883,15 +882,13 @@ string Agent::Network::print(const struct ifaddrs* ifaddr) {
 
 	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tAddress: "
-		   << "(Error)";
+		ss << "\tAddress: " << "(Error)";
 	} else {
 		ss << "\tAddress: " << result;
 	}
 	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
 	if (err != 0) {
-		ss << "\tMask: "
-		   << "(Error)";
+		ss << "\tMask: " << "(Error)";
 	} else {
 		ss << "\tMask: " << result;
 	}
@@ -961,9 +958,9 @@ shared_ptr<Module> Agent::findModule(const string& moduleName) const {
 	return (it != mModules.cend()) ? *it : nullptr;
 }
 
-shared_ptr<Module> Agent::findModuleByFunction(const std::string& moduleFunction) const {
+shared_ptr<Module> Agent::findModuleByRole(const std::string& moduleRole) const {
 	auto it = find_if(mModules.cbegin(), mModules.cend(),
-	                  [&moduleFunction](const auto& m) { return m->getInfo()->getFunction() == moduleFunction; });
+	                  [&moduleRole](const auto& m) { return m->getInfo()->getRole() == moduleRole; });
 	return it != mModules.cend() ? *it : nullptr;
 }
 

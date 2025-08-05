@@ -214,7 +214,7 @@ public:
 	const std::string& getReplace() const {
 		return mReplace;
 	}
-	const std::string& getFunction() const {
+	const std::string& getRole() const {
 		return mReplace.empty() ? mName : mReplace;
 	}
 	void setRegistered(bool newState) {
