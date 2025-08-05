@@ -995,9 +995,9 @@ shared_ptr<Module> Agent::findModule(const string& moduleName) const {
 	return (it != mModules.cend()) ? *it : nullptr;
 }
 
-shared_ptr<Module> Agent::findModuleByFunction(const std::string& moduleFunction) const {
+shared_ptr<Module> Agent::findModuleByRole(const std::string& moduleRole) const {
 	auto it = find_if(mModules.cbegin(), mModules.cend(),
-	                  [&moduleFunction](const auto& m) { return m->getInfo()->getFunction() == moduleFunction; });
+	                  [&moduleRole](const auto& m) { return m->getInfo()->getRole() == moduleRole; });
 	return it != mModules.cend() ? *it : nullptr;
 }
 
