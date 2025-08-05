@@ -239,7 +239,7 @@ public:
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 	std::shared_ptr<Module> findModule(const std::string& moduleName) const;
-	std::shared_ptr<Module> findModuleByFunction(const std::string& moduleFunction) const;
+	std::shared_ptr<Module> findModuleByRole(const std::string& moduleFunction) const;
 	nth_engine_t* getHttpEngine() {
 		return mHttpEngine;
 	}
