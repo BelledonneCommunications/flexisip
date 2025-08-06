@@ -274,15 +274,8 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee, const
 	return call(callee, calleeAddress, nullptr, nullptr, {}, externalProxy.getAgent());
 }
 
-std::shared_ptr<linphone::Call>
-CoreClient::callWithEarlyCancel(const CoreClient& callee,
-                                const std::shared_ptr<linphone::CallParams>& callerCallParams,
-                                bool isCalleeAway,
-                                const std::shared_ptr<Agent>& externalProxy) {
-	auto callParams = callerCallParams;
-	if (callParams == nullptr) {
-		callParams = mCore->createCallParams(nullptr);
-	}
+std::shared_ptr<linphone::Call> CoreClient::callWithEarlyCancel(const CoreClient& callee) {
+	auto callParams = mCore->createCallParams(nullptr);
 
 	auto addressWithoutGr = callee.getAccount()->getContactAddress()->clone();
 	addressWithoutGr->removeUriParam("gr");
@@ -294,66 +287,29 @@ CoreClient::callWithEarlyCancel(const CoreClient& callee,
 	}
 
 	CoreAssert asserter{mCore, mAgent, callee.mCore, callee.mAgent};
-	if (isCalleeAway) {
-		callee.disconnect();
-	} else {
-		asserter.registerSteppable(callee);
-	}
-	if (externalProxy) {
-		asserter.registerSteppable(externalProxy);
-	}
 
-	// Check call get the incoming call and caller is in OutgoingRinging state
-	if (isCalleeAway) {
-		if (!asserter
-		         .waitUntil(10s,
-		                    [&callerCall, agent = &mAgent] {
-			                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingProgress);
-			                    const auto& module =
-			                        dynamic_pointer_cast<ModuleRouter>(agent->findModuleByRole("Router"));
-			                    FAIL_IF(module->mStats.mForkStats->mCountCallForks->start->read() == 1);
-			                    return ASSERTION_PASSED();
-		                    })
-		         .assert_passed()) {
-			return nullptr;
-		}
-	} else {
-		if (!asserter
-		         .waitUntil(15s,
-		                    [&callerCall, &callee] {
-			                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
-			                    const auto calleeCall = callee.getCurrentCall();
-			                    FAIL_IF(!calleeCall);
-			                    FAIL_IF(calleeCall->getState() != Call::State::IncomingReceived);
-			                    return ASSERTION_PASSED();
-		                    })
-		         .assert_passed()) {
-			return nullptr;
-		}
+	// Wait for call to be received
+	if (!asserter
+	         .waitUntil(15s,
+	                    [&callerCall, &callee] {
+		                    FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
+		                    const auto calleeCall = callee.getCurrentCall();
+		                    FAIL_IF(!calleeCall);
+		                    FAIL_IF(calleeCall->getState() != Call::State::IncomingReceived);
+		                    return ASSERTION_PASSED();
+	                    })
+	         .assert_passed()) {
+		return nullptr;
 	}
 
 	callerCall->terminate();
 
-	if (!asserter
-	         .wait([&callerCall, isCalleeAway, &callee] {
-		         FAIL_IF(callerCall->getState() != linphone::Call::State::Released);
-		         const auto calleeCall = callee.getCurrentCall();
-		         FAIL_IF(isCalleeAway && !calleeCall && calleeCall->getState() != Call::State::Released);
-		         return ASSERTION_PASSED();
-	         })
+	if (!asserter.wait([&] { return LOOP_ASSERTION(callerCall->getState() == linphone::Call::State::Released); })
 	         .assert_passed()) {
 		return nullptr;
 	}
 
 	return callerCall;
-}
-
-std::shared_ptr<linphone::Call>
-CoreClient::callWithEarlyCancel(const std::shared_ptr<CoreClient>& callee,
-                                const std::shared_ptr<linphone::CallParams>& callerCallParams,
-                                bool isCalleeAway,
-                                const std::shared_ptr<Agent>& externalProxy) {
-	return callWithEarlyCancel(*callee, callerCallParams, isCalleeAway, externalProxy);
 }
 
 std::shared_ptr<linphone::Call>
