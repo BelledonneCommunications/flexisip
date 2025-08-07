@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-authorization.hh"
+#include "modules/module-authorization.hh"
 
 #include <sofia-sip/sip_status.h>
 

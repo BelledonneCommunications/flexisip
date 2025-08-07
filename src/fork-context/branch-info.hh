@@ -24,7 +24,7 @@
 #include "branch-info-db.hh"
 #include "fork-context.hh"
 #include "fork-status.hh"
-#include "module-pushnotification.hh"
+#include "modules/module-pushnotification.hh"
 #include "transaction/outgoing-transaction.hh"
 
 #if ENABLE_UNIT_TESTS

@@ -22,7 +22,7 @@
 
 #include "agent.hh"
 #include "b2bua/b2bua-server.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 
 using namespace std;
 

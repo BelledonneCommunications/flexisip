@@ -26,7 +26,7 @@
 
 #include "flexisip/module.hh"
 
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 
 using namespace std;
 

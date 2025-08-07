@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-pushnotification.hh"
+#include "modules/module-pushnotification.hh"
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"

@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 
 #include <memory>
 

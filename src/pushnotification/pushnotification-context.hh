@@ -25,7 +25,7 @@
 
 #include "flexisip/sofia-wrapper/timer.hh"
 
-#include "module-pushnotification.hh"
+#include "modules/module-pushnotification.hh"
 #include "pushnotification/push-info.hh"
 #include "strategy/strategy.hh"
 

@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-auth-openid-connect.hh"
+#include "modules/module-auth-openid-connect.hh"
 
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/sip_extra.h>
@@ -25,7 +25,7 @@
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "module-authorization.hh"
+#include "modules/module-authorization.hh"
 
 using namespace std;
 

@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-auth-trusted-hosts.hh"
+#include "modules/module-auth-trusted-hosts.hh"
 
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"

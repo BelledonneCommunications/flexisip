@@ -21,7 +21,7 @@
 #include "agent-injector.hh"
 #include "conference/chatroom-prefix.hh"
 #include "inject-context.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 
 #if ENABLE_SOCI
 #include "fork-context/fork-message-context-soci-repository.hh"

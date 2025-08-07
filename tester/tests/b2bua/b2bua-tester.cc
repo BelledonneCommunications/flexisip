@@ -36,7 +36,7 @@
 #include "flexisip/utils/sip-uri.hh"
 
 #include "exceptions/bad-configuration.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "registrardb-internal.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"

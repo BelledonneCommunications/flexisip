@@ -16,13 +16,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-transcode.hh"
+#include "modules/module-transcode.hh"
 
 #include <charconv>
 #include <functional>
 
 #include "exceptions/bad-configuration.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "transaction/outgoing-transaction.hh"
 
 #ifdef ENABLE_TRANSCODER

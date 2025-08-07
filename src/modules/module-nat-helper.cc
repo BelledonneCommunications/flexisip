@@ -16,12 +16,12 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-nat-helper.hh"
+#include "modules/module-nat-helper.hh"
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 
 using namespace std;

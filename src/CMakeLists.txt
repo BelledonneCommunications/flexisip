@@ -84,29 +84,6 @@ add_library(flexisip SHARED
 	lpconfig.cc
 	main/flexisip.cc main/flexisip.hh
 	mediarelay.cc mediarelay.hh
-	module-auth.cc
-	module-authentication-base.cc
-	module-auth-trusted-hosts.cc module-auth-trusted-hosts.hh
-	module-authorization.cc module-authorization.hh
-	module-capabilities.cc module-capabilities.hh
-	module-contact-route-inserter.cc
-	module-forward.cc module-forward.hh
-	module-garbage-in.cc
-	module-gatewayadapter.cc
-	module-loadbalancer.cc
-	module-mediarelay.cc
-	module-nat-helper.cc module-nat-helper.hh
-	module-redirect.cc
-	module-presence.cc
-	module-pushnotification.cc module-pushnotification.hh
-	module-regevent.cc
-	module-registrar.cc
-	module-router.cc
-	module-sanitychecker.cc
-	module-statistics-collector.cc
-	module-toolbox.cc module-toolbox.hh
-	module-transcode.cc module-transcode.hh
-	module.cc
 	nat/contact-correction-strategy.cc nat/contact-correction-strategy.hh
 	nat/flow-token-strategy.cc nat/flow-token-strategy.hh
 	nat/nat-traversal-strategy.hh nat/nat-traversal-strategy.cc
@@ -147,10 +124,10 @@ endif()
 if(ENABLE_OPENID_CONNECT)
 	target_sources(flexisip PRIVATE
 		auth/bearer-auth.cc auth/bearer-auth.hh
-		module-auth-openid-connect.cc module-auth-openid-connect.hh
 	)
 endif()
 
+add_subdirectory(modules)
 add_subdirectory(pushnotification)
 add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
@@ -300,10 +277,6 @@ if(ENABLE_CONFERENCE)
 	)
 endif()
 if(ENABLE_B2BUA)
-	target_sources(flexisip PRIVATE
-		module-b2bua.cc
-	)
-
 	add_subdirectory(b2bua)
 endif()
 if(ENABLE_VOICEMAIL)

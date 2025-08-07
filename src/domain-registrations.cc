@@ -34,7 +34,7 @@
 
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "registrar/registrar-db.hh"
 
 using namespace std;

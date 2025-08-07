@@ -68,10 +68,6 @@ add_executable(flexisip_tester
 	cli-tester.cc
 	domain-registration-tester.cc
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
-	mediarelay-tester.cc
-	module-dos-tester.cc
-	module-info-tester.cc
-	module-toolbox-tester.cc
 	msg-sip-tester.cc
 	sip-uri-tests.cc
 	schedule-injector-tester.cc
@@ -92,10 +88,17 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/redis-async-session-tester.cc
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/libhiredis-wrapper/replication/redis-client-tester.cc
-	tests/module-forward-tester.cc
 	tests/main-tester.cc
-	tests/module-nat-helper-tester.cc
-	tests/module-registrar-tester.cc
+	tests/modules/mediarelay-tester.cc
+	tests/modules/module-dos-tester.cc
+	tests/modules/module-forward-tester.cc
+	tests/modules/module-info-tester.cc
+	tests/modules/module-nat-helper-tester.cc
+	tests/modules/module-registrar-tester.cc
+	tests/modules/module-toolbox-tester.cc
+	tests/modules/router/fork/fork-call-tester.cc
+	tests/modules/router/fork/fork-context-tester.cc
+	tests/modules/router/module-router-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
 	tests/nat/contact-correction-strategy-tester.cc
 	tests/nat/flow-token-strategy-tester.cc
@@ -114,9 +117,6 @@ add_executable(flexisip_tester
 	tests/registrar/register-tester.cc
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
-	tests/router/fork/fork-call-tester.cc
-	tests/router/fork/fork-context-tester.cc
-	tests/router/module-router-tester.cc
 	tests/sofia-api/sofia-driven-signal-handler-tester.cc
 	tests/sofia-api/nta-input.cc
 	tests/sofia-api/nta-reply.cc
@@ -191,7 +191,7 @@ if(ENABLE_SOCI)
 		tests/auth/db/authdb-soci-tester.cc
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
 		tests/presence/list-subscription/external-list-subscription-tester.cc
-		tests/router/fork/fork-context-mysql-tester.cc
+		tests/modules/router/fork/fork-context-mysql-tester.cc
 		tests/utils/soci-helper-tester.cc
 	)
 endif()
@@ -274,7 +274,7 @@ endif()
 
 if(ENABLE_TRANSCODER)
 	target_sources(flexisip_tester PRIVATE
-		tests/module-transcode-tester.cc
+		tests/modules/module-transcode-tester.cc
 	)
 endif()
 

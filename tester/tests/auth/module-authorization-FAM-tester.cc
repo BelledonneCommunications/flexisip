@@ -19,7 +19,7 @@
 #include <chrono>
 #include <string>
 
-#include "module-authorization.hh"
+#include "modules/module-authorization.hh"
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 

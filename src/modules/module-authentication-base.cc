@@ -28,7 +28,7 @@
 #include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/flexisip-exception.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "utils/string-utils.hh"
 
 using namespace std;

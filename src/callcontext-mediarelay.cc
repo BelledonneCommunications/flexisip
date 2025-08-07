@@ -24,7 +24,7 @@
 
 #include "h264iframefilter.hh"
 #include "mediarelay.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "utils/cast-to-const.hh"
 
 using namespace std;

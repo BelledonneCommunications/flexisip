@@ -33,7 +33,7 @@
 #include "domain-registrations.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "exceptions/bad-configuration.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"

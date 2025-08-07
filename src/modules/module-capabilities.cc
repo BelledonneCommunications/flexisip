@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-capabilities.hh"
+#include "modules/module-capabilities.hh"
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"

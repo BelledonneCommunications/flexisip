@@ -24,7 +24,7 @@
 #include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
 #include "router/fork-group-sorter.hh"

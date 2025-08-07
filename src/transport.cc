@@ -20,7 +20,7 @@
 
 #include "flexisip/module.hh"
 
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "transport.hh"
 
 using namespace std;

@@ -40,7 +40,7 @@
 #include "flexisip/flexisip-version.h"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
 #include "plugin/plugin-loader.hh"

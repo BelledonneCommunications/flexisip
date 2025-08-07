@@ -17,7 +17,7 @@
 */
 #include <fstream>
 
-#include "module-authorization.hh"
+#include "modules/module-authorization.hh"
 
 #include "auth-utils.hh"
 #include "utils/core-assert.hh"

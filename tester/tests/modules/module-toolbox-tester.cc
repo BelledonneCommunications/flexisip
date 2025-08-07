@@ -20,7 +20,7 @@
 
 #include "flexisip/module-router.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"

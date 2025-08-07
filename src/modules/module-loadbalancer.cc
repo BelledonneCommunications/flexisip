@@ -22,7 +22,7 @@
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 
 using namespace std;
 using namespace flexisip;

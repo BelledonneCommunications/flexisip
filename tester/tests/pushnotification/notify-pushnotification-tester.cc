@@ -23,7 +23,7 @@
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
 
-#include "module-pushnotification.hh"
+#include "modules/module-pushnotification.hh"
 #include "tester.hh"
 
 using namespace std;

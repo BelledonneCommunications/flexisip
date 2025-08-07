@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-forward.hh"
+#include "modules/module-forward.hh"
 
 #include <fstream>
 #include <memory>

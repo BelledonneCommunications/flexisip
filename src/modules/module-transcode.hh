@@ -25,7 +25,7 @@
 #include <flexisip/module.hh>
 
 #include "agent.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"

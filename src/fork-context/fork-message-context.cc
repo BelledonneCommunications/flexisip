@@ -30,7 +30,7 @@
 #include "flexisip/utils/sip-uri.hh"
 #include "fork-context/fork-context-base.hh"
 #include "fork-context/message-kind.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "registrar/extended-contact.hh"
 #include "sofia-sip/sip.h"
 #include "sofia-sip/sip_protos.h"

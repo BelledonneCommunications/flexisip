@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-forward.hh"
+#include "modules/module-forward.hh"
 
 #include <sstream>
 #include <utility>
@@ -36,7 +36,7 @@
 #include "flexisip/module-router.hh"
 #include "flexisip/module.hh"
 #include "fork-context/fork-context.hh"
-#include "module-toolbox.hh"
+#include "modules/module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
