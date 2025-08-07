@@ -13,15 +13,14 @@
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <chrono>
-
+#include "eventlogs/events/eventlogs.hh"
 #include "flexisip/module-router.hh"
-#include "fork-context/fork-call-context.hh"
-#include "fork-context/fork-context-factory.hh"
-#include "router/fork-manager.hh"
+#include "fork-context/branch-info.hh"
+#include "router/fork-manager.hh" // IWYU pragma: keep
+#include "sofia-wrapper/su/home.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
@@ -78,8 +77,49 @@ void callWithEarlyCancel() {
 	    .assert_passed();
 }
 
+/** Assert that when an iOS client is offline while an INVITE is sent then CANCELED (INVITE/CANCEL scenario), both are
+ * kept and re-sent when the device re-REGISTERs (comes back online).
+ *
+ * In this test scenario, the call recipient has both a client that is online, *and* an iOS client that reconnects after
+ * the call.
+ *
+ * This test also verifies that all objects involved in this mechanism are properly freed (ForkContext and
+ * sip_t/nta_incoming_t/IncomingTransaction)
+ */
 void callWithEarlyCancelCalleeOffline() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	// Track which SIP messages (struct sip_t) are freed
+	auto requestWitnesses = vector<weak_ptr<string>>();
+	auto hooks = InjectedHooks{
+	    .injectAfterModule = "Router",
+	    .onRequest =
+	        [&](unique_ptr<RequestSipEvent>&& request) {
+		        const auto& msg = request->getMsgSip();
+		        auto errormsg = ostringstream();
+		        errormsg << "SIP message at " << msg.get() << " was not freed. Request: " << request.get()
+		                 << " Call-ID: " << msg->getCallID();
+		        // Attach a debug string to a sub-home of the SIP message, then release the sub-home.
+		        // That sub-home will only ever get freed if the parent home (the struct sip_t) gets freed.
+		        // Wrapping that in a shared_ptr lets us safely observe if it was freed.
+		        const auto& witness = sofiasip::utility::Home::wrap(msg->getHome())
+		                                  ->makeChild<shared_ptr<string>>(make_shared<string>(errormsg.str()))
+		                                  .release()
+		                                  ->get();
+		        BC_ASSERT(witness != nullptr);
+		        requestWitnesses.emplace_back(witness);
+		        return std::move(request);
+	        },
+	};
+	Server server{{
+	                  {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	                  {"module::Router/fork-late", "true"},
+	                  {"module::PushNotification/enabled", "true"},
+	                  {"module::Registrar/reg-domains", "sip.test.org"},
+
+	                  // Caused a leak on injection of the cancelled INVITE
+	                  // (A new incoming transaction was wrongly created)
+	                  {"module::MediaRelay/enabled", "true"},
+	              },
+	              &hooks};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -133,8 +173,19 @@ void callWithEarlyCancelCalleeOffline() {
 		    return ASSERTION_PASSED();
 	    })
 	    .assert_passed();
-
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+
+	// Assert all messages were freed.
+	// Incoming transactions (nta_incoming_t) take ownership of their associated sip_t (refcount+1) and therefore
+	// prevent its destruction. If an incoming transaction was wrongly created for the (re)injected INVITE it will
+	// linger in the "proceeding" queue of the agent without ever receiving any response, effectively leaking until the
+	// agent itself is destroyed. If any such transaction was created, we will see it here.
+	for (const auto& witness : requestWitnesses) {
+		const auto unfreed = witness.lock();
+		if (unfreed == nullptr) continue;
+
+		BC_HARD_FAIL(unfreed->c_str());
+	}
 }
 
 /**
