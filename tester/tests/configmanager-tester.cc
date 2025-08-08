@@ -18,7 +18,7 @@
 
 #include "flexisip/configmanager.hh"
 
-#include "configparsing-exception.hh"
+#include "exceptions/configparsing-exception.hh"
 #include "tester.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

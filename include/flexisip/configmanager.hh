@@ -692,19 +692,19 @@ public:
 template <typename _retType, typename StrT>
 _retType* GenericStruct::get(StrT&& name) const {
 	GenericEntry* e = find(name);
-	if (e == NULL) {
-		std::ostringstream err{};
-		err << "No ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
-		LOGA("%s", err.str().c_str());
+	if (e == nullptr) {
+		std::stringstream message{};
+		message << "no ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
+		throw FlexisipException{message.str()};
 	}
-	_retType* ret = dynamic_cast<_retType*>(e);
-	if (ret == NULL) {
+	auto* ret = dynamic_cast<_retType*>(e);
+	if (ret == nullptr) {
 		int status;
-		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), 0, 0, &status);
-		std::ostringstream err{};
-		err << "Config entry [" << name << "] in struct [" << e->getParent()->getName()
-		    << "] does not have the expected type '" << type_name << "'.";
-		LOGA("%s", err.str().c_str());
+		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), nullptr, nullptr, &status);
+		std::stringstream message{};
+		message << "config entry [" << name << "] in struct [" << e->getParent()->getName()
+		        << "] does not have the expected type '" << type_name << "'";
+		throw FlexisipException{message.str()};
 	}
 	return ret;
 };
@@ -718,19 +718,17 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 		std::string next_node_name = name.substr(prev, next - prev);
 		GenericEntry* e = find(next_node_name.c_str());
 		if (!e) {
-			if (!strict) return NULL;
+			if (!strict) return nullptr;
 			LOGE("No ConfigEntry with name [%s] in struct [%s]", name.c_str(), prev_node->getName().c_str());
 			for (auto it = prev_node->mEntries.begin(); it != prev_node->mEntries.end(); ++it) {
 				LOGE("-> %s", (*it)->getName().c_str());
 			}
-			LOGF("end");
-			return NULL;
+			throw FlexisipException{"end"};
 		}
 		next_node = dynamic_cast<GenericStruct*>(e);
 		if (!next_node) {
-			LOGA("Config entry [%s] in struct [%s] does not have the expected type", e->getName().c_str(),
-			     e->getParent()->getName().c_str());
-			return NULL;
+			throw FlexisipException{"config entry [" + e->getName() + "] in struct [" + e->getParent()->getName() +
+			                        "] does not have the expected type"};
 		}
 		prev_node = next_node;
 		prev = next + 1;
