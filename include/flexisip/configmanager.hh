@@ -674,7 +674,7 @@ _retType* GenericStruct::get(StrT&& name) const {
 		message << "no ConfigEntry with name [" << name << "] in struct [" << getName() << "]";
 		throw FlexisipException{message.str()};
 	}
-	auto ret = dynamic_cast<_retType*>(e);
+	auto* ret = dynamic_cast<_retType*>(e);
 	if (ret == nullptr) {
 		int status;
 		std::string type_name = abi::__cxa_demangle(typeid(_retType).name(), nullptr, nullptr, &status);
@@ -706,7 +706,6 @@ _retType* GenericStruct::getDeep(const std::string& name, bool strict) const {
 		if (!next_node) {
 			throw FlexisipException{"config entry [" + e->getName() + "] in struct [" + e->getParent()->getName() +
 			                        "] does not have the expected type"};
-			return nullptr;
 		}
 		prev_node = next_node;
 		prev = next + 1;

@@ -23,7 +23,7 @@
 
 #include <ortp/ortp.h>
 
-#include "configparsing-exception.hh"
+#include "exceptions/configparsing-exception.hh"
 
 using namespace std;
 
