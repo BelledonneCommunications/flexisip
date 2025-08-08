@@ -729,6 +729,7 @@ public:
 	int read(const std::string& filename);
 	int reload();
 	bool containsUnreadItems();
+	bool containsInactiveModuleSections() const;
 	~FileConfigReader();
 
 private:
@@ -752,7 +753,7 @@ public:
 
 class ConfigManager : protected ConfigValueListener {
 public:
-	enum class OnUnknownItem {
+	enum class OnInvalidItem {
 		Continue,
 		Throw,
 	};
@@ -761,7 +762,7 @@ public:
 	static std::vector<std::function<void(GenericStruct&)>>& defaultInit();
 	ConfigManager();
 
-	int load(const std::string& configFile, OnUnknownItem onUnknownItem = OnUnknownItem::Throw);
+	int load(const std::string& configFile, OnInvalidItem onInvalidItem = OnInvalidItem::Throw);
 	const RootConfigStruct* getRoot() const;
 	GenericStruct* getEditableRoot();
 	const std::string& getConfigFile() const {

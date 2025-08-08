@@ -19,7 +19,9 @@
 #include "flexisip/configmanager.hh"
 
 #include "exceptions/configparsing-exception.hh"
+#include "flexisip/module.hh"
 #include "tester.hh"
+#include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -28,7 +30,8 @@ using namespace std::chrono_literals;
 
 namespace flexisip::tester {
 
-static void configDuration() {
+namespace {
+void configDuration() {
 	/*
 	 * CASE : ConfigDuration<chrono::milliseconds> test without unit.
 	 */
@@ -214,7 +217,7 @@ static void configDuration() {
 	/*-------------------------------*/
 }
 
-static void configIntRange() {
+void configIntRange() {
 	// Test value is set to a fixed value.
 	const int expected = 12345;
 	ConfigIntRange fixedValue{"stub-name", "stub-help", to_string(expected), 1};
@@ -236,7 +239,7 @@ static void configIntRange() {
 	BC_ASSERT_THROWN(outOfRange.readMin(), out_of_range);
 }
 
-static void redundantKey() {
+void redundantKey() {
 	auto configFile = "/config/flexisip_redundant_key.conf";
 	ConfigManager cfg{};
 
@@ -246,7 +249,7 @@ static void redundantKey() {
 	}
 }
 
-static void confValueListener() {
+void confValueListener() {
 	class TestConfigListener : public ConfigValueListener {
 	public:
 		bool doOnConfigStateChanged(const ConfigValue&, ConfigState) override {
@@ -305,13 +308,46 @@ static void confValueListener() {
 	dynamic_cast<RootConfigStruct*>(cfg.getEditableRoot())->setCommittedChange(true);
 }
 
-namespace {
+// Check that an inactive section in configuration file is properly detected.
+void detectInactiveSection() {
+	constexpr auto section = "module::Router";
+
+	class DummyRouter : public Module {
+		friend std::shared_ptr<Module> ModuleInfo<DummyRouter>::create(Agent*);
+
+	public:
+		std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
+			return std::move(ev);
+		}
+		std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
+			return std::move(ev);
+		}
+
+	private:
+		using Module::Module;
+	};
+	ModuleInfo<DummyRouter> dummyRouterInfo{
+	    "DummyRouter",           "",       {""}, ModuleInfoBase::ModuleOid::Plugin, [](GenericStruct&) {},
+	    ModuleClass::Production, "Router",
+	};
+
+	TempFile cfgFile("["s + section + "]\n");
+	ConfigManager cfg{};
+	FileConfigReader reader{cfg.getEditableRoot()};
+	reader.read(cfgFile.getFilename());
+
+	// Ensure parameter has a known parser.
+	BC_ASSERT_CPP_EQUAL(reader.containsUnreadItems(), false);
+	BC_ASSERT_CPP_EQUAL(reader.containsInactiveModuleSections(), true);
+}
+
 TestSuite _("ConfigManager",
             {
                 CLASSY_TEST(configDuration),
                 CLASSY_TEST(configIntRange),
-                TEST_NO_TAG("Redundant key error", redundantKey),
+                CLASSY_TEST(redundantKey),
                 CLASSY_TEST(confValueListener),
+                CLASSY_TEST(detectInactiveSection),
             });
-}
+} // namespace
 } // namespace flexisip::tester

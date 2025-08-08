@@ -1211,7 +1211,7 @@ bool ConfigManager::doOnConfigStateChanged(const ConfigValue& conf, ConfigState 
 	return true;
 }
 
-int ConfigManager::load(const std::string& configfile, OnUnknownItem onUnknownItem) {
+int ConfigManager::load(const std::string& configfile, OnInvalidItem onInvalidItem) {
 	LOGD << "Loading configuration file " << configfile;
 	mConfigFile = configfile;
 	int res = mReader.read(configfile);
@@ -1220,10 +1220,12 @@ int ConfigManager::load(const std::string& configfile, OnUnknownItem onUnknownIt
 	// Load them, add their configuration sections and reload config
 	if (!getGlobal()->get<ConfigStringList>("plugins")->read().empty()) {
 		Agent::addPluginsConfigSections(*this);
+		if (mReader.containsInactiveModuleSections() && onInvalidItem == OnInvalidItem::Throw)
+			throw BadConfiguration{"invalid section(s) in the configuration file are not allowed"};
 		mReader.reload();
 	}
 
-	if (mReader.containsUnreadItems() && onUnknownItem == OnUnknownItem::Throw)
+	if (mReader.containsUnreadItems() && onInvalidItem == OnInvalidItem::Throw)
 		throw BadConfiguration{"invalid section(s) and/or item(s) in the configuration file are not allowed"};
 
 	applyOverrides(true);
@@ -1269,6 +1271,30 @@ int FileConfigReader::reload() {
 	return 0;
 }
 
+bool FileConfigReader::containsInactiveModuleSections() const {
+	const auto& registered = ModuleInfoManager::get()->getRegisteredModuleInfo();
+	const auto& instantiables = ModuleInfoManager::get()->getModuleChain();
+
+	if (registered.size() == instantiables.size()) return false;
+
+	bool hasInactiveSections{};
+	for (const auto& s : mCfg->getSections()) {
+		// Find if the section is a module section.
+		const auto mod = find_if(registered.cbegin(), registered.cend(),
+		                         [&s](const auto& r) { return s.getName() == r->getConfigName(); });
+		if (mod == registered.cend()) continue;
+
+		// Find if the module is instantiable.
+		if (find(instantiables.cbegin(), instantiables.cend(), *mod) == instantiables.cend()) {
+			LOGE << "invalid section '["s << s.getName()
+			     << "]' in the configuration file, this module will not be loaded because it has been "
+			        "replaced or is invalid";
+			hasInactiveSections = true;
+		}
+	}
+	return hasInactiveSections;
+}
+
 bool FileConfigReader::containsUnreadItems() {
 	auto onUnreadItem = [&](const string& secname, const string& key, int lineno) {
 		ostringstream ss;
@@ -1295,7 +1321,7 @@ bool FileConfigReader::containsUnreadItems() {
 				}
 			}
 		}
-		LOGE_CTX(mLogPrefix, "checkUnread") << ss.str();
+		LOGE_CTX(mLogPrefix, "containsUnreadItems") << ss.str();
 	};
 	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
 	return mHaveUnreads;

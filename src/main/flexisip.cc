@@ -711,7 +711,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 
 	// Try parsing the configuration file.
 	if (cfg->load(configFile.getValue(),
-	              rewriteConf ? ConfigManager::OnUnknownItem::Continue : ConfigManager::OnUnknownItem::Throw) == -1) {
+	              rewriteConf ? ConfigManager::OnInvalidItem::Continue : ConfigManager::OnInvalidItem::Throw) == -1) {
 		throw BadConfiguration{
 		    "No configuration file found at '" + configFile.getValue() +
 		        "'. A default 'flexisip.conf' file should be installed in '" + CONFIG_DIR +
