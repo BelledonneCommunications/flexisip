@@ -285,7 +285,7 @@ void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
 			continue;
 		}
 
-		LOGD << "Module [" << moduleName << "] will replace module [" << replace << "]";
+		LOGI << "Module [" << moduleName << "] will replace module [" << replace << "]";
 		*replacedModule = module;
 	}
 }
