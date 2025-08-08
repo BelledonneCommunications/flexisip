@@ -35,6 +35,7 @@
 
 #include "agent.hh"
 #include "configdumper.hh"
+#include "exceptions/bad-configuration.hh"
 #include "lpconfig.h"
 using namespace std;
 
@@ -1396,6 +1397,7 @@ int ConfigManager::load(const std::string& configfile) {
 	// Load them, add their configuration sections and reload config
 	if (!getGlobal()->get<ConfigStringList>("plugins")->read().empty()) {
 		Agent::addPluginsConfigSections(*this);
+		mReader.detectInactiveModuleSections();
 		mReader.reload();
 	}
 
@@ -1441,6 +1443,26 @@ int FileConfigReader::read(const std::string& filename) {
 int FileConfigReader::reload() {
 	read2(mRoot, 0);
 	return 0;
+}
+
+void FileConfigReader::detectInactiveModuleSections() const {
+	const auto& registered = ModuleInfoManager::get()->getRegisteredModuleInfo();
+	const auto& instantiables = ModuleInfoManager::get()->getModuleChain();
+
+	if (registered.size() == instantiables.size()) return;
+
+	for (const auto& s : mCfg->getSections()) {
+		// Find if the section is a module section.
+		const auto mod = find_if(registered.cbegin(), registered.cend(),
+		                         [&s](const auto& r) { return s.getName() == r->getConfigName(); });
+		if (mod == registered.cend()) continue;
+
+		// Find if the module is instantiable.
+		if (find(instantiables.cbegin(), instantiables.cend(), *mod) == instantiables.cend())
+			throw BadConfiguration("invalid section '["s + s.getName() +
+			                       "]' in the configuration file, this module will not be loaded because it has been "
+			                       "replaced or is invalid");
+	}
 }
 
 void FileConfigReader::checkUnread() {

@@ -752,6 +752,7 @@ public:
 	int read(const std::string& filename);
 	int reload();
 	void checkUnread();
+	void detectInactiveModuleSections() const;
 	~FileConfigReader();
 
 private:

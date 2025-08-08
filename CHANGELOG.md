@@ -21,6 +21,8 @@ Group changes to describe their impact on the project, as follows:
     changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
   - **PushNotifications:** Apple push certificates could not contain '.dev' in their filename and be used in production 
     environment.
+  -  **Plugin:** The server was not configured correctly when a plugin replaces a module. Added an error message when
+the replaced module section is present in the configuration file.
 
 
 ## [2.4.2] - 2025-07-21
