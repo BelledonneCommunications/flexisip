@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -24,12 +24,10 @@
 #include "sofia-sip/nth.h"
 #include "sofia-sip/tport_tag.h"
 
-#include "sofia-wrapper/nta-agent.hh"
-#include "sofia-wrapper/sip-header-private.hh"
-
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
+#include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
@@ -272,26 +270,64 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	    .assert_passed();
 }
 
-TestSuite _("Sofia-SIP",
-            {
-                CLASSY_TEST(nthEngineWithSni<true>),
-                CLASSY_TEST(nthEngineWithSni<false>),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, UDP>)), // message size under maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, UDP>)), // message size equals maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, UDP>)), // message size above maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TLS>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, UDP>)), // message size +2x above maxsize
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
-                CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
-                CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
-                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TCP>),
-                CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TLS>),
-            });
+/*
+ * A crash could happen when the following error was returned by tport_resolve: "Name or service not known" (the primary
+ * transport was destroyed in 'nth_client_destroy').
+ * The crash appears on the second attempt to send an HTTP request. This is because it tries to make use of the primary
+ * transport (which is nullptr because of the first attempt) in the tport_by_name function.
+ */
+void nthClientNameOrServiceNotKnown() {
+	SuRoot root{};
+	const auto* url = "https://sip.example.org:1234";
+	const auto deleter = [](nth_engine_t* engine) { nth_engine_destroy(engine); };
+	unique_ptr<nth_engine_t, decltype(deleter)> engine{
+	    nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(true), TAG_END()),
+	    deleter,
+	};
+
+	struct Helper {
+		int status = 0;
+	};
+	Helper h;
+
+	const auto cb = [](nth_client_magic_t* magic, nth_client_t* request, const http_t*) {
+		reinterpret_cast<Helper*>(magic)->status = nth_client_status(request);
+		nth_client_destroy(request);
+		return 0;
+	};
+
+	for (int id = 0; id < 2; ++id) {
+		auto* request = nth_client_tcreate(engine.get(), cb, reinterpret_cast<nth_client_magic_t*>(&h), http_method_get,
+		                                   "GET", URL_STRING_MAKE(url), TAG_END());
+		if (request == nullptr) BC_FAIL("No request sent.");
+		h.status = 0;
+		CoreAssert<kNoSleep>(root).waitUntil(100ms, [&h] { return LOOP_ASSERTION(h.status == 503); }).assert_passed();
+	}
+}
+
+TestSuite _{
+    "Sofia-SIP",
+    {
+        CLASSY_TEST(nthEngineWithSni<true>),
+        CLASSY_TEST(nthEngineWithSni<false>),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, UDP>)), // message size under maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TLS>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, UDP>)), // message size equals maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4140, 10, TLS>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, UDP>)), // message size above maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 15, TLS>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, UDP>)), // message size +2x above maxsize
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TCP>)),
+        CLASSY_TEST((collectAndParseDataFromSocket<4096, 40, TLS>)),
+        CLASSY_TEST(collectAndTryToParseSIPMessageThatExceedsMsgMaxsize),
+        CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TCP>),
+        CLASSY_TEST(connectionToServerIsRemovedAfterIdleTimeoutTriggers<TLS>),
+        CLASSY_TEST(nthClientNameOrServiceNotKnown),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester::sofia_tester_suite
