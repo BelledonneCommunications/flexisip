@@ -556,6 +556,41 @@ void outgoingTransportSelection() {
 	test(localClient3, localClient2, localTport2Host, realLocalTport2);
 }
 
+/*
+ * A crash could happen when the following error was returned by tport_resolve: "Name or service not known" (the primary
+ * transport was destroyed in 'nth_client_destroy').
+ * The crash appears on the second attempt to send an HTTP request. This is because it tries to make use of the primary
+ * transport (which is nullptr because of the first attempt) in the tport_by_name function.
+ */
+void nthClientNameOrServiceNotKnown() {
+	SuRoot root{};
+	const auto* url = "https://sip.example.org:1234";
+	const auto deleter = [](nth_engine_t* engine) { nth_engine_destroy(engine); };
+	unique_ptr<nth_engine_t, decltype(deleter)> engine{
+	    nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(true), TAG_END()),
+	    deleter,
+	};
+
+	struct Helper {
+		int status = 0;
+	};
+	Helper h;
+
+	const auto cb = [](nth_client_magic_t* magic, nth_client_t* request, const http_t*) {
+		reinterpret_cast<Helper*>(magic)->status = nth_client_status(request);
+		nth_client_destroy(request);
+		return 0;
+	};
+
+	for (int id = 0; id < 2; ++id) {
+		auto* request = nth_client_tcreate(engine.get(), cb, reinterpret_cast<nth_client_magic_t*>(&h), http_method_get,
+		                                   "GET", URL_STRING_MAKE(url), TAG_END());
+		if (request == nullptr) BC_FAIL("No request sent.");
+		h.status = 0;
+		CoreAssert<kNoSleep>(root).waitUntil(100ms, [&h] { return LOOP_ASSERTION(h.status == 503); }).assert_passed();
+	}
+}
+
 TestSuite _{
     "Sofia-SIP",
     {
@@ -580,6 +615,7 @@ TestSuite _{
         CLASSY_TEST(updateTlsWithExpiredCertificate),
         CLASSY_TEST(updateTlsCertificateNoIpSpecified),
         CLASSY_TEST(outgoingTransportSelection),
+        CLASSY_TEST(nthClientNameOrServiceNotKnown),
     },
 };
 

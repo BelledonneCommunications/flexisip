@@ -185,8 +185,9 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
   - **PushNotifications:** Apple push certificates could not contain '.dev' in their filename and be used in production 
     environment.
   -  **Plugin:** The server was not configured correctly when a plugin replaces a module. Added an error message when
-the replaced module section is present in the configuration file.
-
+    the replaced module section is present in the configuration file.
+  - **ExternalAuth:** This module did not support "Name or service not known" error while trying to send an HTTP request
+    (which was leading to a crash).
 
 ## [2.4.2] - 2025-07-21
 ### [Added]
