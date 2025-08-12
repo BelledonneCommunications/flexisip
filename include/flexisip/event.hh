@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,11 +18,8 @@
 
 #pragma once
 
-#include <functional>
 #include <list>
-#include <map>
 #include <memory>
-#include <ostream>
 #include <regex.h>
 #include <string>
 
@@ -48,16 +45,16 @@ class SocketAddress;
 
 using MsgSip = sofiasip::MsgSip;
 
-class SipEvent : public std::enable_shared_from_this<SipEvent> {
+class SipEvent {
 	friend class Agent;
 
 public:
 	SipEvent(const std::shared_ptr<IncomingAgent>& inAgent,
 	         const std::shared_ptr<MsgSip>& msgSip,
-	         tport_t* tport = NULL);
+	         tport_t* tport = nullptr);
 	SipEvent(const std::shared_ptr<OutgoingAgent>& outAgent,
 	         const std::shared_ptr<MsgSip>& msgSip,
-	         tport_t* tport = NULL);
+	         tport_t* tport = nullptr);
 	SipEvent(const SipEvent& sipEvent);
 
 	inline const std::shared_ptr<MsgSip>& getMsgSip() const {
@@ -69,10 +66,6 @@ public:
 	}
 	inline sip_t* getSip() const {
 		return mMsgSip->getSip();
-	}
-
-	inline void setMsgSip(std::shared_ptr<MsgSip> msgSip) {
-		mMsgSip = msgSip;
 	}
 
 	virtual void terminateProcessing();
@@ -102,8 +95,8 @@ public:
 	}
 
 	virtual void send(const std::shared_ptr<MsgSip>& msg,
-	                  url_string_t const* u = NULL,
-	                  tag_type_t tag = 0,
+	                  url_string_t const* u = nullptr,
+	                  tag_type_t tag = nullptr,
 	                  tag_value_t value = 0,
 	                  ...) = 0;
 
@@ -157,14 +150,14 @@ private:
 	std::shared_ptr<tport_t> mIncomingTport;
 	std::weak_ptr<IncomingAgent> mIncomingAgent;
 	std::weak_ptr<OutgoingAgent> mOutgoingAgent;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 class RequestSipEvent : public SipEvent {
 public:
 	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent,
 	                const std::shared_ptr<MsgSip>& msgSip,
-	                tport_t* tport = NULL);
+	                tport_t* tport = nullptr);
 	RequestSipEvent(const RequestSipEvent& sipEvent);
 
 	// Sip event extends enable_shared_from_this and constructor should be private.
@@ -178,8 +171,8 @@ public:
 	std::shared_ptr<OutgoingTransaction> createOutgoingTransaction();
 
 	void send(const std::shared_ptr<MsgSip>& msg,
-	          url_string_t const* u = NULL,
-	          tag_type_t tag = 0,
+	          url_string_t const* u = nullptr,
+	          tag_type_t tag = nullptr,
 	          tag_value_t value = 0,
 	          ...) override;
 
@@ -201,7 +194,7 @@ public:
 		enum class Result { Invalid, Valid };
 		class ChallengeResult {
 		public:
-			ChallengeResult(Type type) : mType(type) {
+			explicit ChallengeResult(Type type) : mType(type) {
 			}
 			void setIdentity(const SipUri& sipUri) {
 				mIdentity = sipUri;
@@ -246,19 +239,19 @@ private:
 	// keep ownership of transactions
 	std::shared_ptr<IncomingTransaction> mIncomingTransactionOwner;
 	std::shared_ptr<OutgoingTransaction> mOutgoingTransactionOwner;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 class ResponseSipEvent : public SipEvent {
 public:
 	ResponseSipEvent(std::shared_ptr<OutgoingAgent> outgoingAgent,
 	                 const std::shared_ptr<MsgSip>& msgSip,
-	                 tport_t* tport = NULL);
+	                 tport_t* tport = nullptr);
 	ResponseSipEvent(const ResponseSipEvent& sipEvent);
 
 	void send(const std::shared_ptr<MsgSip>& msg,
-	          url_string_t const* u = NULL,
-	          tag_type_t tag = 0,
+	          url_string_t const* u = nullptr,
+	          tag_type_t tag = nullptr,
 	          tag_value_t value = 0,
 	          ...) override;
 
@@ -269,7 +262,7 @@ public:
 private:
 	void checkContentLength(const std::shared_ptr<MsgSip>& msg, const sip_via_t* via);
 	bool mPopVia; // set to true if the response comes from an outgoing transaction.
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 } // namespace flexisip

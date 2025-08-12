@@ -74,8 +74,8 @@ SipEvent::SipEvent(const shared_ptr<OutgoingAgent>& outAgent, const shared_ptr<M
 }
 
 SipEvent::SipEvent(const SipEvent& sipEvent)
-    : enable_shared_from_this<SipEvent>(), mCurrModule(sipEvent.mCurrModule), mAgent(sipEvent.mAgent),
-      mState(sipEvent.mState), mIncomingTport(sipEvent.mIncomingTport), mIncomingAgent(sipEvent.mIncomingAgent),
+    : mCurrModule(sipEvent.mCurrModule), mAgent(sipEvent.mAgent), mState(sipEvent.mState),
+      mIncomingTport(sipEvent.mIncomingTport), mIncomingAgent(sipEvent.mIncomingAgent),
       mOutgoingAgent(sipEvent.mOutgoingAgent), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SipEvent")) {
 	LOGD << "New instance with state: " << stateStr(mState);
 	// make a copy of the msgsip when the SipEvent is copy-constructed
