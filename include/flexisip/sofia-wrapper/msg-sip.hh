@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <array>
 #include <ostream>
-#include <set>
 #include <string>
 #include <string_view>
 
@@ -67,8 +66,8 @@ public:
 		msg_destroy(mMsg.take());
 	}
 
-	MsgSip& operator=(MsgSip&& other) {
-		mMsg = std::move(other.mMsg);
+	MsgSip& operator=(MsgSip&& other) noexcept {
+		std::swap(mMsg, other.mMsg);
 		return *this;
 	}
 

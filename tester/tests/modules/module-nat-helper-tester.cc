@@ -18,8 +18,6 @@
 
 #include "modules/module-nat-helper.hh"
 
-#include <exception>
-
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
 #include "utils/server/proxy-server.hh"
@@ -79,14 +77,14 @@ void wrongContactInResponse() {
 	// Create dummy incoming transport to make NatHelper::needToBeFixed return true.
 	tp_name_t name{"tcp", nullptr, "127.0.0.1", "0", nullptr, nullptr};
 	auto* incomingTport = tport_by_name(nta_agent_tports(proxy.getAgent()->getSofiaAgent()), &name);
-	auto event = make_unique<ResponseSipEvent>(proxy.getAgent(), msg, incomingTport);
+	auto event = ResponseSipEvent(proxy.getAgent(), msg, incomingTport);
 
 	const auto module = dynamic_pointer_cast<NatHelper>(proxy.getAgent()->findModuleByRole("NatHelper"));
-	event = module->onResponse(std::move(event));
+	module->onResponse(event);
 
-	const auto* contact = event->getSip()->sip_contact;
+	const auto* contact = event.getSip()->sip_contact;
 	BC_HARD_ASSERT(contact != nullptr);
-	BC_ASSERT_CPP_EQUAL(url_as_string(event->getHome(), contact->m_url), expectedContactUrl);
+	BC_ASSERT_CPP_EQUAL(url_as_string(event.getHome(), contact->m_url), expectedContactUrl);
 }
 
 void configurationValueNatTraversalStrategyContactCorrection() {
@@ -150,13 +148,13 @@ void onResponseNatHelperRemoveContactCorrectionParameter() {
 	        << "Content-Length: 0\r\n";
 
 	const auto msg = make_shared<MsgSip>(0, request.str());
-	auto event = make_unique<ResponseSipEvent>(proxy.getAgent(), msg, nullptr);
-	BC_HARD_ASSERT(event->getSip()->sip_contact != nullptr);
-	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == true);
+	auto event = ResponseSipEvent(proxy.getAgent(), msg, nullptr);
+	BC_HARD_ASSERT(event.getSip()->sip_contact != nullptr);
+	BC_ASSERT(url_has_param(event.getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == true);
 
-	event = dynamic_cast<NatHelper&>(*proxy.getAgent()->findModuleByRole("NatHelper")).onResponse(std::move(event));
+	dynamic_cast<NatHelper&>(*proxy.getAgent()->findModuleByRole("NatHelper")).onResponse(event);
 
-	BC_ASSERT(url_has_param(event->getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == false);
+	BC_ASSERT(url_has_param(event.getSip()->sip_contact->m_url, contactCorrectionParameter.c_str()) == false);
 }
 
 const char contactCorrection[] = "contact-correction";

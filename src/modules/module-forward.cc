@@ -352,10 +352,8 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	return std::move(ev);
 }
 
-unique_ptr<ResponseSipEvent> ForwardModule::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	ev->send(ms);
-	return std::move(ev);
+void ForwardModule::onResponse(ResponseSipEvent& ev) {
+	ev.send(ev.getMsgSip());
 }
 
 /*

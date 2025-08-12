@@ -51,9 +51,6 @@ protected:
 
 	void onLoad(const GenericStruct* root) override;
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
-	}
 
 	/**
 	 * Override this method to specify the specialization of #FlexisipAuthModuleBase to instantiate.

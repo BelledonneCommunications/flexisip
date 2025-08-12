@@ -43,7 +43,6 @@ private:
 
 	void onLoad(const GenericStruct* mc) override;
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
 	class IDomainManager {
 	public:

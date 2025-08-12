@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include <sofia-sip/msg_header.h>
 #include <sofia-sip/nta_tport.h>
 #include <sofia-sip/tport.h>
@@ -47,9 +49,12 @@ enum class ModuleClass { Experimental, Production };
 /**
  * Abstract base class for all Flexisip module.
  * A module is an object that is able to process sip requests and sip responses.
- * It must implements at least:
- * virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
- * virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
+ *
+ * It must implement at least one of:
+ * virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev);
+ * virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev);
+ *
+ * If not overriden, onRequest & onResponse default to no-op (returning the event untouched).
  **/
 class Module : protected ConfigValueListener {
 	template <typename T>
@@ -57,7 +62,7 @@ class Module : protected ConfigValueListener {
 
 public:
 	Module(Agent* agent, const ModuleInfoBase* moduleInfo);
-	virtual ~Module();
+	~Module() override;
 
 	Agent* getAgent() const {
 		return mAgent;
@@ -97,10 +102,10 @@ protected:
 	virtual void onUnload() {
 	}
 
-	virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
-	virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
+	virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev);
+	virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev);
 
-	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state);
+	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 	virtual void onIdle() {
 	}
 
@@ -122,6 +127,31 @@ protected:
 	const ModuleInfoBase* mInfo;
 	GenericStruct* mModuleConfig = nullptr;
 	std::unique_ptr<EntryFilter> mFilter;
+};
+
+/** Modules that do not need ownership of the SIP event (i.e. that do not suspend or halt its processing) may inherit
+ * from this interface to reduce boilerplate code. It also makes it easier to spot those that do, just by looking at
+ * their header file and/or searching for direct implementers of the `Module` class.
+ */
+class NonStoppingModule : public Module {
+public:
+	using Module::Module;
+	~NonStoppingModule() override;
+
+protected:
+	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& request) final {
+		onRequest(*request);
+		return std::move(request);
+	}
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& response) final {
+		onResponse(*response);
+		return std::move(response);
+	}
+
+	virtual void onRequest(RequestSipEvent&) {
+	}
+	virtual void onResponse(ResponseSipEvent&) {
+	}
 };
 
 // -----------------------------------------------------------------------------
@@ -152,10 +182,10 @@ private:
 
 	void registerModuleInfo(ModuleInfoBase* moduleInfo);
 	void unregisterModuleInfo(ModuleInfoBase* moduleInfo);
-	void dumpModuleDependencies(const std::list<ModuleInfoBase*>& l) const;
+	static void dumpModuleDependencies(const std::list<ModuleInfoBase*>& l);
 	bool moduleDependenciesPresent(const std::list<ModuleInfoBase*>& sortedList, ModuleInfoBase* module) const;
-	void replaceModules(std::list<ModuleInfoBase*>& sortedList,
-	                    const std::list<ModuleInfoBase*>& replacingModules) const;
+	static void replaceModules(std::list<ModuleInfoBase*>& sortedList,
+	                           const std::list<ModuleInfoBase*>& replacingModules);
 
 	std::list<ModuleInfoBase*> mRegisteredModuleInfo;
 	std::list<ModuleInfoBase*> mModuleChain;
@@ -200,7 +230,7 @@ public:
 	               std::function<void(GenericStruct&)> declareConfig,
 	               ModuleClass moduleClass,
 	               const std::string& replace)
-	    : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mDeclareConfig(declareConfig),
+	    : mName(moduleName), mHelp(help), mAfter(after), mOidIndex(oid), mDeclareConfig(std::move(declareConfig)),
 	      mClass(moduleClass), mReplace(replace) {
 		ModuleInfoManager::get()->registerModuleInfo(this);
 		mLogPrefix = std::string("module::") + mName;

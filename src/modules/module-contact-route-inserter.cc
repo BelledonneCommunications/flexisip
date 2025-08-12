@@ -24,7 +24,7 @@
 using namespace std;
 using namespace flexisip;
 
-class ContactRouteInserter : public Module {
+class ContactRouteInserter : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<ContactRouteInserter>::create(Agent*);
 
 public:
@@ -36,17 +36,17 @@ public:
 		mContactMasquerader = unique_ptr<ContactMasquerader>(new ContactMasquerader(mAgent, mCtRtParamName));
 	}
 
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
-		const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+	void onRequest(RequestSipEvent& ev) override {
+		const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 		sip_t* sip = ms->getSip();
 		const sip_method_t rq_method = sip->sip_request->rq_method;
 
 		if (mMasqueradeRegisters && rq_method == sip_method_register) {
 			LOGI << "Masquerading contact";
-			mContactMasquerader->masquerade(*ev->getMsgSip(), mInsertDomain);
+			mContactMasquerader->masquerade(*ev.getMsgSip(), mInsertDomain);
 		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
 			LOGI << "Masquerading contact";
-			mContactMasquerader->masquerade(*ev->getMsgSip());
+			mContactMasquerader->masquerade(*ev.getMsgSip());
 		}
 
 		if (rq_method != sip_method_register) {
@@ -63,17 +63,15 @@ public:
 				LOGD << "No contact route parameter found";
 			}
 		}
-		return std::move(ev);
 	}
 
-	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
-		const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-		sip_t* sip = ms->getSip();
+	void onResponse(ResponseSipEvent& ev) override {
+		auto& ms = *ev.getMsgSip();
+		sip_t* sip = ms.getSip();
 		if (mMasqueradeInvites &&
 		    (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
-			mContactMasquerader->masquerade(*ev->getMsgSip());
+			mContactMasquerader->masquerade(ms);
 		}
-		return std::move(ev);
 	}
 
 	unique_ptr<ContactMasquerader> mContactMasquerader;
@@ -82,7 +80,7 @@ public:
 	bool mInsertDomain;
 
 private:
-	ContactRouteInserter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo), mContactMasquerader() {
+	ContactRouteInserter(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo), mContactMasquerader() {
 	}
 
 	static ModuleInfo<ContactRouteInserter> sInfo;

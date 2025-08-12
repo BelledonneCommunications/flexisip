@@ -104,7 +104,7 @@ void Transcoder::onIdle() {
 unique_ptr<RequestSipEvent> Transcoder::onRequest(unique_ptr<RequestSipEvent>&&) {
 	throw FlexisipException{"Transcoder support is not compiled"};
 }
-unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>&&) {
+void Transcoder::onResponse(ResponseSipEvent&) {
 	throw FlexisipException{"Transcoder support is not compiled"};
 }
 #endif
@@ -469,40 +469,39 @@ static bool isEarlyMedia(sip_t* sip) {
 	return false;
 }
 
-unique_ptr<ResponseSipEvent> Transcoder::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
-	msg_t* msg = ms->getMsg();
+void Transcoder::onResponse(ResponseSipEvent& ev) {
+	auto& ms = *ev.getMsgSip();
+	sip_t* sip = ms.getSip();
+	msg_t* msg = ms.getMsg();
 
 	if (sip->sip_cseq && sip->sip_cseq->cs_method == sip_method_invite) {
 		if (mAgent->countUsInVia(sip->sip_via) > 1) {
 			LOGD << "We are more than 1 time in via headers, wait until next time we receive this message for any "
 			        "processing";
-			return std::move(ev);
+			return;
 		}
 
-		ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
+		ModuleToolbox::fixAuthChallengeForSDP(ms.getHome(), msg, sip);
 
-		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
 		if (transaction == NULL) {
 			LOGD << "No transaction found";
-			return std::move(ev);
+			return;
 		}
 
 		shared_ptr<TranscodedCall> c = transaction->getProperty<TranscodedCall>(getModuleName());
 		if (c == NULL) {
 			LOGD << "No transcoded call context found";
-			return std::move(ev);
+			return;
 		}
 
 		if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 			// Remove all call contexts maching the sip message
 			// Except the one from this outgoing transaction
 			mCalls.findAndRemoveExcept(getAgent(), sip, c, true);
-			process200OkforInvite(c.get(), *ev->getMsgSip());
+			process200OkforInvite(c.get(), ms);
 		}
 	}
-	return std::move(ev);
 }
 
 void Transcoder::onTimer() {

@@ -744,14 +744,16 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 	return std::move(ev);
 }
 
-unique_ptr<ResponseSipEvent> ModuleRouter::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	const auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	if (transaction == nullptr) return std::move(ev);
+std::unique_ptr<ResponseSipEvent> flexisip::ModuleRouter::onResponse(std::unique_ptr<ResponseSipEvent>&& ev) {
+	onResponse(*ev);
+	return std::move(ev);
+}
+void ModuleRouter::onResponse(ResponseSipEvent& ev) {
+	const auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
+	if (transaction == nullptr) return;
 
 	// If not, responses have not been processed.
-	if (const auto branch = BranchInfo::getBranchInfo(transaction)) branch->processResponse(*ev);
-
-	return std::move(ev);
+	if (const auto branch = BranchInfo::getBranchInfo(transaction)) branch->processResponse(ev);
 }
 
 bool ModuleRouter::isManagedDomain(const url_t* url) const {

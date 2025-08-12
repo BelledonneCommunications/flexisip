@@ -27,14 +27,13 @@
 using namespace std;
 using namespace flexisip;
 
-class LoadBalancer : public Module {
+class LoadBalancer : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<LoadBalancer>::create(Agent*);
 
 public:
 	~LoadBalancer() override;
 	void onLoad(const GenericStruct* modconf) override;
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
+	void onRequest(RequestSipEvent& ev) override;
 
 private:
 	LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -45,7 +44,7 @@ private:
 	static ModuleInfo<LoadBalancer> sInfo;
 };
 
-LoadBalancer::LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+LoadBalancer::LoadBalancer(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 }
 
 LoadBalancer::~LoadBalancer() {
@@ -63,13 +62,13 @@ void LoadBalancer::onLoad(const GenericStruct* modconf) {
 	mRoutesCount = mRoutes.size();
 }
 
-unique_ptr<RequestSipEvent> LoadBalancer::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
+void LoadBalancer::onRequest(RequestSipEvent& ev) {
+	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	uint32_t call_hash;
 	sip_t* sip = ms->getSip();
 	int index;
 
-	if (mRoutesCount == 0) return std::move(ev);
+	if (mRoutesCount == 0) return;
 
 	/* very simple load sharing algorithm, based on randomness of call id*/
 	if (sip->sip_call_id) {
@@ -81,12 +80,6 @@ unique_ptr<RequestSipEvent> LoadBalancer::onRequest(unique_ptr<RequestSipEvent>&
 	} else {
 		LOGW << "Request has no call id";
 	}
-	return std::move(ev);
-}
-
-unique_ptr<ResponseSipEvent> LoadBalancer::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	/*nothing to do*/
-	return std::move(ev);
 }
 
 ModuleInfo<LoadBalancer> LoadBalancer::sInfo(

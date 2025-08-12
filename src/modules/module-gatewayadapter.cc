@@ -373,8 +373,6 @@ public:
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
 
-	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
-
 	bool isValidNextConfig(const ConfigValue& cv) override;
 
 private:
@@ -487,10 +485,6 @@ unique_ptr<RequestSipEvent> GatewayAdapter::onRequest(unique_ptr<RequestSipEvent
 			sip->sip_to->a_url[0].url_host = su_strdup(ms->getHome(), routing_param);
 		}
 	}
-	return std::move(ev);
-}
-
-unique_ptr<ResponseSipEvent> GatewayAdapter::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
 	return std::move(ev);
 }
 

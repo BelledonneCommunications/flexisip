@@ -23,7 +23,6 @@
 #include <sofia-sip/nta.h>
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/expressionparser.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
 
@@ -34,11 +33,12 @@
 #include "utils/signaling-exception.hh"
 
 using namespace std;
-using namespace flexisip;
 
 // -----------------------------------------------------------------------------
 // Module.
 // -----------------------------------------------------------------------------
+
+namespace flexisip {
 
 Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
     : mLogPrefix(moduleInfo->getLogPrefix()), mAgent(ag), mInfo(moduleInfo),
@@ -48,6 +48,7 @@ Module::Module(Agent* ag, const ModuleInfoBase* moduleInfo)
 }
 
 Module::~Module() = default;
+NonStoppingModule::~NonStoppingModule() = default;
 
 bool Module::isEnabled() const {
 	return mFilter->isEnabled();
@@ -260,11 +261,11 @@ bool ModuleInfoManager::moduleDependenciesPresent(const list<ModuleInfoBase*>& s
 	return dependenciesOk;
 }
 
-void ModuleInfoManager::dumpModuleDependencies(const list<ModuleInfoBase*>& l) const {
+void ModuleInfoManager::dumpModuleDependencies(const list<ModuleInfoBase*>& l) {
 	ostringstream ostr;
 	for (auto module : l) {
 		ostr << "[" << module->getModuleName() << "] depending on ";
-		for (auto dep : module->getAfter()) {
+		for (const auto& dep : module->getAfter()) {
 			ostr << "[" << dep << "] ";
 		}
 		ostr << endl;
@@ -273,7 +274,7 @@ void ModuleInfoManager::dumpModuleDependencies(const list<ModuleInfoBase*>& l) c
 }
 
 void ModuleInfoManager::replaceModules(std::list<ModuleInfoBase*>& sortedList,
-                                       const std::list<ModuleInfoBase*>& replacingModules) const {
+                                       const std::list<ModuleInfoBase*>& replacingModules) {
 	for (auto* module : replacingModules) {
 		const auto& moduleName = module->getModuleName();
 		const auto& replace = module->getReplace();
@@ -342,3 +343,12 @@ std::list<ModuleInfoBase*> ModuleInfoManager::buildModuleChain() {
 	mModuleChain = sortedList;
 	return sortedList;
 }
+
+std::unique_ptr<RequestSipEvent> flexisip::Module::onRequest(std::unique_ptr<RequestSipEvent>&& ev) {
+	return std::move(ev);
+}
+std::unique_ptr<ResponseSipEvent> flexisip::Module::onResponse(std::unique_ptr<ResponseSipEvent>&& ev) {
+	return std::move(ev);
+}
+
+} // namespace flexisip

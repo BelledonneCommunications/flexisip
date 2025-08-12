@@ -51,14 +51,6 @@ public:
 
 	vector<shared_ptr<MsgSip>> mOrderedInjectedRequests;
 
-protected:
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
-		return std::move(ev);
-	};
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
-	};
-
 private:
 	std::unique_ptr<ModuleInfoBase> mInfoKeeper;
 };

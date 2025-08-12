@@ -53,11 +53,6 @@ public:
 		return std::move(ev);
 	}
 
-	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override {
-		// don't check our responses ;)
-		return std::move(ev);
-	}
-
 private:
 	ModuleSanityChecker(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	}

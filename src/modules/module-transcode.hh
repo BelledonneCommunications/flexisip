@@ -72,7 +72,11 @@ public:
 	~Transcoder();
 	void onLoad(const GenericStruct* module_config) override;
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& response) override {
+		onResponse(*response);
+		return std::move(response);
+	}
+	void onResponse(ResponseSipEvent& ev);
 	void onIdle() override;
 
 #ifdef ENABLE_TRANSCODER

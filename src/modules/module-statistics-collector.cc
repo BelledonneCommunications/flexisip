@@ -32,14 +32,13 @@
 using namespace std;
 using namespace flexisip;
 
-class StatisticsCollector : public Module {
+class StatisticsCollector : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<StatisticsCollector>::create(Agent*);
 
 public:
 	~StatisticsCollector();
 	void onLoad(const GenericStruct* root) override;
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
+	void onRequest(RequestSipEvent& ev) override;
 
 private:
 	StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo);
@@ -52,7 +51,7 @@ private:
 };
 
 StatisticsCollector::StatisticsCollector(Agent* ag, const ModuleInfoBase* moduleInfo)
-    : Module(ag, moduleInfo), mCollectorAddress(NULL) {
+    : NonStoppingModule(ag, moduleInfo), mCollectorAddress(NULL) {
 	su_home_init(&mHome);
 }
 
@@ -77,9 +76,8 @@ void StatisticsCollector::onLoad(const GenericStruct* mc) {
 	LOGI << "Setup with collector address '" << value << "'";
 }
 
-unique_ptr<RequestSipEvent> StatisticsCollector::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
+void StatisticsCollector::onRequest(RequestSipEvent& ev) {
+	sip_t* sip = ev.getMsgSip()->getSip();
 	url_t url = *sip->sip_request->rq_url;
 	// verify collector address AND content type
 	url.url_type = url_sip; /*workaround the fact that we could receive the publish as sips .*/
@@ -87,17 +85,12 @@ unique_ptr<RequestSipEvent> StatisticsCollector::onRequest(unique_ptr<RequestSip
 		if (sip->sip_content_type && (strcmp("application/vq-rtcpxr", sip->sip_content_type->c_type) == 0) &&
 		    (strcmp("vq-rtcpxr", sip->sip_content_type->c_subtype) == 0)) {
 			// some treatment
-			int err = managePublishContent(*ev);
-			ev->reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+			int err = managePublishContent(ev);
+			ev.reply(err, sip_status_phrase(err), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		} else {
 			LOGI << "Received PUBLISH with invalid type, ignoring";
 		}
 	}
-	return std::move(ev);
-}
-
-unique_ptr<ResponseSipEvent> StatisticsCollector::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	return std::move(ev);
 }
 
 /*avoid crash if x is NULL on libc versions <4.5.26 */

@@ -125,16 +125,16 @@ protected:
 	friend class pushnotification::Strategy; /**< Allow Strategy to invoke notifyPushSent(). */
 };
 
-class PushNotification : public Module {
+class PushNotification : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<PushNotification>::create(Agent*);
 
 public:
 	~PushNotification() override = default;
 
-	bool needsPush(const std::shared_ptr<MsgSip>& msgSip) const;
+	bool needsPush(MsgSip& msgSip) const;
 
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	void onRequest(RequestSipEvent& ev) override;
+	void onResponse(ResponseSipEvent& ev) override;
 	void onLoad(const GenericStruct* mc) override;
 
 	const std::shared_ptr<pushnotification::Service>& getService() const {
@@ -156,8 +156,7 @@ private:
 	 * and create an instance of it by using the right implementation. Then,
 	 * add it to the map of pending notifications.
 	 */
-	void makePushNotification(const std::shared_ptr<MsgSip>& ms,
-	                          const std::shared_ptr<OutgoingTransaction>& transaction);
+	void makePushNotification(const MsgSip& ms, const std::shared_ptr<OutgoingTransaction>& transaction);
 	void removePushNotification(PushNotificationContext* pn);
 	std::chrono::seconds getCallRemotePushInterval(const char* pushParams) const noexcept;
 

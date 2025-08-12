@@ -41,7 +41,6 @@ private:
 	ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo);
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
 	std::unordered_map<RequestSipEvent*, std::unique_ptr<RequestSipEvent>> mSuspendedEvents;
 	std::shared_ptr<Bearer> mBearerAuth;

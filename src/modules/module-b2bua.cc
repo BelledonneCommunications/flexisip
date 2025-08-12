@@ -31,7 +31,7 @@ using namespace std;
 // =============================================================================
 namespace flexisip {
 
-class B2bua : public Module {
+class B2bua : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<B2bua>::create(Agent*);
 
 public:
@@ -40,7 +40,7 @@ public:
 	}
 
 private:
-	B2bua(Agent* agent, const ModuleInfoBase* moduleInfo) : Module(agent, moduleInfo) {
+	B2bua(Agent* agent, const ModuleInfoBase* moduleInfo) : NonStoppingModule(agent, moduleInfo) {
 		su_home_init(&mHome);
 	}
 
@@ -48,8 +48,7 @@ private:
 	void onLoad(const GenericStruct* moduleConfig) override;
 	void onUnload() override;
 
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override;
-	unique_ptr<ResponseSipEvent> onResponse(unique_ptr<ResponseSipEvent>&& ev) override;
+	void onRequest(RequestSipEvent& ev) override;
 
 	static ModuleInfo<B2bua> sInfo;
 	unique_ptr<SipUri> mDestRoute;
@@ -115,25 +114,20 @@ void B2bua::onLoad(const GenericStruct* moduleConfig) {
 void B2bua::onUnload() {
 }
 
-unique_ptr<RequestSipEvent> B2bua::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	sip_t* sip = ev->getSip();
+void B2bua::onRequest(RequestSipEvent& ev) {
+	sip_t* sip = ev.getSip();
 	if (sip->sip_request->rq_method == sip_method_invite || sip->sip_request->rq_method == sip_method_cancel) {
 		// Is the request coming from the B2BUA? If no, we must intercept it.
 		const auto requestIsFromB2BUA = sip->sip_user_agent and sip->sip_user_agent->g_string == mB2buaUserAgent;
 
 		if (!requestIsFromB2BUA) {
-			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
+			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev.getMsgSip()->getMsg(), sip,
 			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
 			LOGI << "Clean and prepend done to route " << mDestRoute->str();
 		} else { // Do not intercept the call
 			LOGI << "Ignore INVITE with \"User-Agent\" header set to " << mB2buaUserAgent;
 		}
 	}
-	return std::move(ev);
-}
-
-std::unique_ptr<ResponseSipEvent> B2bua::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	return std::move(ev);
 }
 
 } // namespace flexisip

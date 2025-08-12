@@ -28,7 +28,7 @@
 using namespace std;
 using namespace flexisip;
 
-class ModulePresence : public Module {
+class ModulePresence : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<ModulePresence>::create(Agent*);
 
 private:
@@ -71,13 +71,12 @@ private:
 	void onUnload() override {
 	}
 
-	void route(const shared_ptr<MsgSip>& msgSip) {
+	void route(MsgSip& msgSip) {
 		LOGI << "Routing to [" << mDestRoute.str() << "]";
-		ModuleToolbox::cleanAndPrependRoute(this->getAgent(), msgSip->getMsg(), msgSip->getSip(),
-		                                    sip_route_create(msgSip->getHome(), mDestRoute.get(), nullptr));
+		ModuleToolbox::cleanAndPrependRoute(this->getAgent(), msgSip.getMsg(), msgSip.getSip(),
+		                                    sip_route_create(msgSip.getHome(), mDestRoute.get(), nullptr));
 	}
-	bool isMessageAPresenceMessage(const MsgSip& ms) {
-		const sip_t* sip = ms.getSip();
+	bool isMessageAPresenceMessage(const sip_t* sip) {
 		if (sip->sip_request->rq_method == sip_method_subscribe) {
 			sip_supported_t* supported;
 			bool support_list_subscription = false;
@@ -95,16 +94,12 @@ private:
 		return false;
 	}
 
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
-		const auto& msgSip = ev->getMsgSip();
-		if (isMessageAPresenceMessage(*msgSip)) route(msgSip);
-		return std::move(ev);
-	}
-	unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
+	void onRequest(RequestSipEvent& ev) override {
+		auto& msgSip = *ev.getMsgSip();
+		if (isMessageAPresenceMessage(msgSip.getSip())) route(msgSip);
 	}
 
-	ModulePresence(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+	ModulePresence(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 		su_home_init(&mHome);
 	}
 

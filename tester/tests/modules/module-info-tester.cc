@@ -35,14 +35,6 @@ namespace {
 class DummyModule : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<DummyModule>::create(Agent*);
 
-public:
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {
-		return std::move(ev);
-	}
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
-	}
-
 private:
 	using Module::Module;
 };

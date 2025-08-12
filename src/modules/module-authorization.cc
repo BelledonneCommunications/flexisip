@@ -278,8 +278,4 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	return {};
 }
 
-unique_ptr<ResponseSipEvent> ModuleAuthorization::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	return std::move(ev);
-}
-
 } // namespace flexisip

@@ -341,7 +341,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo{
     },
 };
 
-PushNotification::PushNotification(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+PushNotification::PushNotification(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 	mCountFailed = mModuleConfig->getStat("count-pn-failed");
 	mCountSent = mModuleConfig->getStat("count-pn-sent");
 }
@@ -476,16 +476,15 @@ pushnotification::Protocol PushNotification::stringToGenericPushProtocol(const s
 	throw InvalidMethodError{protocolStr};
 }
 
-void PushNotification::makePushNotification(const shared_ptr<MsgSip>& ms,
-                                            const shared_ptr<OutgoingTransaction>& transaction) {
-	const auto* sip = ms->getSip();
+void PushNotification::makePushNotification(const MsgSip& ms, const shared_ptr<OutgoingTransaction>& transaction) {
+	const auto* sip = ms.getSip();
 
 	const auto* params = sip->sip_request->rq_url->url_params;
 	if (params == nullptr) return;
 
-	auto isCall = sip->sip_request->rq_method == sip_method_invite && !ms->isGroupChatInvite();
+	auto isCall = sip->sip_request->rq_method == sip_method_invite && !ms.isGroupChatInvite();
 
-	auto pinfo = make_shared<PushInfo>(*ms);
+	auto pinfo = make_shared<PushInfo>(ms);
 	pinfo->mTtl = isCall ? mCallTtl : mMessageTtl;
 	pinfo->mNoBadge = mNoBadgeiOS;
 	if (!mDisplayFromUri) {
@@ -577,14 +576,14 @@ std::chrono::seconds PushNotification::getCallRemotePushInterval(const char* pus
 	return mCallRemotePushInterval;
 }
 
-bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) const {
-	auto* sip = msgSip->getSip();
+bool PushNotification::needsPush(MsgSip& msgSip) const {
+	const auto* sip = msgSip.getSip();
 	if (sip->sip_to->a_tag) return false;
 
 	// Only send push notification for message without :
 	//     - "Priority: non-urgent" header.
 	//     - "X-fs-message-type: chat-service" header.
-	if (msgSip->getPriority() == sofiasip::MsgSipPriority::NonUrgent || msgSip->isChatService()) return false;
+	if (msgSip.getPriority() == sofiasip::MsgSipPriority::NonUrgent || msgSip.isChatService()) return false;
 
 	if (sip->sip_request->rq_method == sip_method_refer) return true;
 
@@ -611,21 +610,21 @@ bool PushNotification::needsPush(const shared_ptr<MsgSip>& msgSip) const {
 	}
 
 	if (sip->sip_request->rq_method == sip_method_notify && mMwiPnEnabled) {
-		auto* eventHeader = msgSip->findHeader("Event");
+		auto* eventHeader = msgSip.findHeader("Event");
 		const auto* eventHeaderCString =
-		    sip_header_as_string(msgSip->getHome(), reinterpret_cast<const sip_header_t*>(eventHeader));
+		    sip_header_as_string(msgSip.getHome(), reinterpret_cast<const sip_header_t*>(eventHeader));
 		if (eventHeaderCString && strstr(eventHeaderCString, "message-summary")) return true;
 	}
 
 	return false;
 }
 
-unique_ptr<RequestSipEvent> PushNotification::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	const auto& ms = ev->getMsgSip();
+void PushNotification::onRequest(RequestSipEvent& ev) {
+	auto& ms = *ev.getMsgSip();
 	if (needsPush(ms)) {
-		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
 		if (transaction != nullptr) {
-			auto* sip = ms->getSip();
+			const auto* sip = ms.getSip();
 			if (sip->sip_request->rq_url->url_params != nullptr) {
 				try {
 					makePushNotification(ms, transaction);
@@ -639,15 +638,14 @@ unique_ptr<RequestSipEvent> PushNotification::onRequest(unique_ptr<RequestSipEve
 			}
 		}
 	}
-	return std::move(ev);
 }
 
-unique_ptr<ResponseSipEvent> PushNotification::onResponse(std::unique_ptr<ResponseSipEvent>&& ev) {
-	const auto& code = ev->getMsgSip()->getSip()->sip_status->st_status;
+void PushNotification::onResponse(ResponseSipEvent& ev) {
+	const auto& code = ev.getMsgSip()->getSip()->sip_status->st_status;
 	if (code >= 200 && code != 503) {
 		// Any response >= 200 except 503 (which is SofiaSip's internal response for broken transports) should cancel
 		// the push notification
-		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
+		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
 		auto pnr = transaction ? transaction->getProperty<PushNotificationContext>(getModuleName()) : nullptr;
 		if (pnr) {
 			LOGD << "Transaction[" << transaction << "] has been answered, canceling the associated PNR[" << pnr << "]";
@@ -655,7 +653,6 @@ unique_ptr<ResponseSipEvent> PushNotification::onResponse(std::unique_ptr<Respon
 			removePushNotification(pnr.get());
 		}
 	}
-	return std::move(ev);
 }
 
 } // namespace flexisip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -34,7 +34,7 @@ struct DosContext {
 	double packet_count_rate = 0;
 };
 
-class ModuleDoSProtection : public Module {
+class ModuleDoSProtection : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleDoSProtection>::create(Agent*);
 
 public:
@@ -53,10 +53,7 @@ private:
 
 	void onLoad(const GenericStruct* mc) override;
 	void onUnload() override;
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
-	}
+	void onRequest(RequestSipEvent& ev) override;
 	void onIdle() override;
 
 	bool isValidNextConfig(const ConfigValue& value) override;

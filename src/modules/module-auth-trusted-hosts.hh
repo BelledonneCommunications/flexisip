@@ -28,7 +28,7 @@ namespace flexisip {
 /**
  * Class that owns the the trusted hosts.
  **/
-class ModuleAuthTrustedHosts : public Module {
+class ModuleAuthTrustedHosts : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleAuthTrustedHosts>::create(Agent*);
 
 public:
@@ -37,8 +37,7 @@ public:
 private:
 	ModuleAuthTrustedHosts(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	void onRequest(RequestSipEvent& ev) override;
 	void loadTrustedHosts(const ConfigStringList& trustedHosts);
 
 	std::set<BinaryIp> mTrustedHosts;

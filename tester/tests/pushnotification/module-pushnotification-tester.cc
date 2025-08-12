@@ -203,10 +203,10 @@ protected:
 class PushModuleTest : public PushNotificationTest {
 protected:
 	void postRequestEvent(const std::shared_ptr<MsgSip>& request) {
-		auto reqSipEvent = std::make_unique<RequestSipEvent>(mAgent, request);
-		reqSipEvent->setOutgoingAgent(mAgent);
-		reqSipEvent->createOutgoingTransaction();
-		mPushModule->onRequest(std::move(reqSipEvent));
+		auto reqSipEvent = RequestSipEvent(mAgent, request);
+		reqSipEvent.setOutgoingAgent(mAgent);
+		reqSipEvent.createOutgoingTransaction();
+		mPushModule->onRequest(reqSipEvent);
 	}
 
 	std::shared_ptr<MsgSip> forgeInvite(bool replaceHeader = false) {
@@ -275,24 +275,24 @@ protected:
 		string rawSipInviteBody = "\r\n"
 		                          "For the Horde!\r\n";
 
-		auto msgSip = make_shared<MsgSip>(0, rawSipInviteBase + rawSipInviteBody);
+		auto msgSip = MsgSip(0, rawSipInviteBase + rawSipInviteBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		// Priority
-		msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "Priority: non-urgent\r\n" + rawSipInviteBody);
+		msgSip = MsgSip(0, rawSipInviteBase + "Priority: non-urgent\r\n" + rawSipInviteBody);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
-		msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "Priority: normal\r\n" + rawSipInviteBody);
+		msgSip = MsgSip(0, rawSipInviteBase + "Priority: normal\r\n" + rawSipInviteBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		// X-fs-message-type
-		msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "X-fs-message-type: chat-service\r\n" + rawSipInviteBody);
+		msgSip = MsgSip(0, rawSipInviteBase + "X-fs-message-type: chat-service\r\n" + rawSipInviteBody);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
-		msgSip = make_shared<MsgSip>(0, rawSipInviteBase + "X-fs-message-type: another-type\r\n" + rawSipInviteBody);
+		msgSip = MsgSip(0, rawSipInviteBase + "X-fs-message-type: another-type\r\n" + rawSipInviteBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		// Replaces
 		auto replaces = "Replaces: 1@1.1.1.3;to-tag=2;from-tag=2\r\n"s;
-		msgSip = make_shared<MsgSip>(0, rawSipInviteBase + replaces + rawSipInviteBody);
+		msgSip = MsgSip(0, rawSipInviteBase + replaces + rawSipInviteBody);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		/////// MESSAGES ///////
@@ -305,19 +305,19 @@ protected:
 		string rawSipMessageBody = "\r\n"
 		                           "Push forward!\r\n";
 
-		msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+		msgSip = MsgSip(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		rawContentType = "Content-Type: application/im-iscomposing+xml\r\n";
-		msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+		msgSip = MsgSip(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		rawContentType = "Content-Type: message/imdn+xml\r\n";
-		msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+		msgSip = MsgSip(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		rawContentType = "Content-Type: another/type\r\n";
-		msgSip = make_shared<MsgSip>(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
+		msgSip = MsgSip(0, rawSipMessageBase + rawContentType + rawSipMessageBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		/////// REFERS ///////
@@ -330,11 +330,11 @@ protected:
 		string rawSipReferBody = "\r\n"
 		                         "Stand. As one. For the Alliance !\r\n";
 
-		msgSip = make_shared<MsgSip>(0, rawSipReferBase + rawContentType + rawSipReferBody);
+		msgSip = MsgSip(0, rawSipReferBase + rawContentType + rawSipReferBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		rawContentType = "Content-Type: application/im-iscomposing+xml\r\n";
-		msgSip = make_shared<MsgSip>(0, rawSipReferBase + rawContentType + replaces + rawSipReferBody);
+		msgSip = MsgSip(0, rawSipReferBase + rawContentType + replaces + rawSipReferBody);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		/////// TO tag ///////
@@ -348,7 +348,7 @@ protected:
 		    "Content-Type: application/sdp\r\n";
 		rawSipInviteBody = "\r\n"
 		                   "v=0\r\n";
-		msgSip = make_shared<MsgSip>(0, rawSipInviteBase + rawSipInviteBody);
+		msgSip = MsgSip(0, rawSipInviteBase + rawSipInviteBody);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		/////// OTHERS ///////
@@ -357,7 +357,7 @@ protected:
 		                   "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
 		                   "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
 		                   "CSeq: 42 OPTIONS\r\n";
-		msgSip = make_shared<MsgSip>(0, rawOption);
+		msgSip = MsgSip(0, rawOption);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		string rawSubscribe = "SUBSCRIBE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
@@ -365,7 +365,7 @@ protected:
 		                      "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
 		                      "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
 		                      "CSeq: 42 SUBSCRIBE\r\n";
-		msgSip = make_shared<MsgSip>(0, rawSubscribe);
+		msgSip = MsgSip(0, rawSubscribe);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		string rawAck = "ACK sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
@@ -373,7 +373,7 @@ protected:
 		                "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
 		                "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
 		                "CSeq: 42 ACK\r\n";
-		msgSip = make_shared<MsgSip>(0, rawAck);
+		msgSip = MsgSip(0, rawAck);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 
 		/////// NOTIFIES ///////
@@ -385,7 +385,7 @@ protected:
 		                              "CSeq: 1 NOTIFY\r\n"
 		                              "Subscription-State: active\r\n"
 		                              "Content-Length: 0\r\n";
-		msgSip = make_shared<MsgSip>(0, notifyMessageSummary);
+		msgSip = MsgSip(0, notifyMessageSummary);
 		BC_ASSERT_TRUE(mPushModule->needsPush(msgSip));
 
 		string notifyPresence = "NOTIFY sip:notified@sip.example.org:8888;transport=tcp SIP/2.0\r\n"
@@ -396,7 +396,7 @@ protected:
 		                        "CSeq: 1 NOTIFY\r\n"
 		                        "Subscription-State: active\r\n"
 		                        "Content-Length: 0\r\n";
-		msgSip = make_shared<MsgSip>(0, notifyPresence);
+		msgSip = MsgSip(0, notifyPresence);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 	}
 };
@@ -423,7 +423,7 @@ protected:
 		                              "CSeq: 1 NOTIFY\r\n"
 		                              "Subscription-State: active\r\n"
 		                              "Content-Length: 0\r\n";
-		auto msgSip = make_shared<MsgSip>(0, notifyMessageSummary);
+		auto msgSip = MsgSip(0, notifyMessageSummary);
 		BC_ASSERT_FALSE(mPushModule->needsPush(msgSip));
 	}
 };

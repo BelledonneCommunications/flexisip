@@ -27,7 +27,7 @@
 using namespace std;
 using namespace flexisip;
 
-class ModuleRedirect : public Module {
+class ModuleRedirect : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleRedirect>::create(Agent*);
 
 private:
@@ -53,16 +53,12 @@ private:
 		LOGI << "Redirect contact is [" << mc->get<ConfigString>("contact")->read() << "]";
 	}
 
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
-		ev->reply(SIP_302_MOVED_TEMPORARILY, SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
-		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
-		return std::move(ev);
-	}
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
+	void onRequest(RequestSipEvent& ev) override {
+		ev.reply(SIP_302_MOVED_TEMPORARILY, SIPTAG_CONTACT(sip_contact_dup(&mHome, mContact)),
+		         SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	}
 
-	ModuleRedirect(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+	ModuleRedirect(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 		su_home_init(&mHome);
 	}
 

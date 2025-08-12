@@ -59,6 +59,7 @@ public:
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
+	static void onResponse(ResponseSipEvent& ev);
 	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
 	void sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code = 0, const char* warning = nullptr);

@@ -400,9 +400,9 @@ unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& 
 
 void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
                                         const shared_ptr<OutgoingTransaction>& transaction,
-                                        const shared_ptr<MsgSip>& msgSip) {
-	sip_t* sip = msgSip->getSip();
-	msg_t* msg = msgSip->getMsg();
+                                        MsgSip& msgSip) {
+	sip_t* sip = msgSip.getSip();
+	msg_t* msg = msgSip.getMsg();
 	bool isEarlyMedia = false;
 
 	LOGD << "Processing 200 Ok or early media";
@@ -417,7 +417,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 		c->setEstablished(transaction->getBranchId());
 	} else isEarlyMedia = true;
 
-	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(msgSip->getHome(), sip, mSdpMangledParam);
+	shared_ptr<SdpModifier> m = SdpModifier::createFromSipMsg(msgSip.getHome(), sip, mSdpMangledParam);
 	if (m == NULL) {
 		LOGD << "Invalid SDP";
 		return;
@@ -463,23 +463,23 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	m->update(msg, sip);
 }
 
-unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	shared_ptr<MsgSip> ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
-	msg_t* msg = ms->getMsg();
+void MediaRelay::onResponse(ResponseSipEvent& ev) {
+	auto& ms = *ev.getMsgSip();
+	sip_t* sip = ms.getSip();
+	msg_t* msg = ms.getMsg();
 	shared_ptr<RelayedCall> c;
 
 	// Handle SipEvent associated with a Stateful transaction
-	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
-	shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
+	shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev.getIncomingAgent());
 
 	if (ot != NULL) {
 		c = ot->getProperty<RelayedCall>(getModuleName());
 		if (c) {
 			if (sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
-				ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
+				ModuleToolbox::fixAuthChallengeForSDP(ms.getHome(), msg, sip);
 				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-					processResponseWithSDP(c, ot, ev->getMsgSip());
+					processResponseWithSDP(c, ot, ms);
 				} else if (sip->sip_status->st_status >= 300) {
 					c->removeBranch(ot->getBranchId());
 				}
@@ -501,7 +501,7 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 				// ensure that a single early media response is forwarded, otherwise it will be conflicting with the
 				// early-media forking feature of the MediaRelay module.
 				auto last_response = it->getLastResponse();
-				if (last_response && isEarlyMedia(last_response->getSip())) ev->terminateProcessing();
+				if (last_response && isEarlyMedia(last_response->getSip())) ev.terminateProcessing();
 			}
 		}
 	}
@@ -518,16 +518,15 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 			 * letting it pass with unconsistent data in SDP. It is then better to discard it. Retransmission should be
 			 * needed for UDP only.
 			 */
-			ev->terminateProcessing();
+			ev.terminateProcessing();
 		} else if (mByeOrphanDialogs && mCalls->find(getAgent(), sip, true) != NULL) {
 			/* There a dialog with this call-id, but this 200Ok does not belong to it.
 			 * This is the case if two callers accept a forked call at the same time*/
 			LOGD << "Receiving out of transaction and dialog 200Ok for invite, rejecting it";
 			nta_msg_ackbye(getAgent()->getSofiaAgent(), msg_dup(msg));
-			ev->terminateProcessing();
+			ev.terminateProcessing();
 		}
 	}
-	return std::move(ev);
 }
 
 void MediaRelay::onIdle() {

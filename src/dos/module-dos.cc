@@ -85,7 +85,7 @@ ModuleInfo<ModuleDoSProtection> ModuleDoSProtection::sInfo(
 	    moduleConfig.addChildrenValues(configs);
     });
 
-ModuleDoSProtection::ModuleDoSProtection(Agent* ag, ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+ModuleDoSProtection::ModuleDoSProtection(Agent* ag, ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 	mThreadPool = std::make_unique<BasicThreadPool>(1, 1000);
 	mBanExecutor = std::make_shared<IptablesExecutor>();
 }
@@ -192,18 +192,17 @@ void ModuleDoSProtection::registerUnbanTimer(const string& ip, const string& por
 	                                   chrono::minutes{mBanTime});
 }
 
-unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	shared_ptr<tport_t> inTport = ev->getIncomingTport();
-	tport_t* tport = inTport.get();
+void ModuleDoSProtection::onRequest(RequestSipEvent& ev) {
+	tport_t* tport = ev.getIncomingTport().get();
 
 	if (tport == NULL) {
 		LOGD << "Tport is null, cannot check the packet count rate";
-		return std::move(ev);
+		return;
 	}
 
 	if (tport_is_udp(tport)) { // Sofia doesn't create a secondary tport for udp, so it will ban the primary and we
 		                       // don't want that
-		shared_ptr<MsgSip> msg = ev->getMsgSip();
+		shared_ptr<MsgSip> msg = ev.getMsgSip();
 		MsgSip* msgSip = msg.get();
 		su_sockaddr_t su[1];
 		socklen_t len = sizeof su;
@@ -246,7 +245,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 				if (!isIpWhiteListed(ip)) {
 					mThreadPool->run([&, ip, port] { mBanExecutor->banIP(ip, port, "udp"); });
 					registerUnbanTimer(ip, port, "udp");
-					ev->terminateProcessing(); // the event is discarded
+					ev.terminateProcessing(); // the event is discarded
 				} else {
 					LOGI << "Address " << ip << " should be banned but was not because it is part of the white list";
 				}
@@ -271,7 +270,7 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 				if (!isIpWhiteListed(ip)) {
 					mThreadPool->run([&, ip, port] { mBanExecutor->banIP(ip, port, "tcp"); });
 					registerUnbanTimer(ip, port, "tcp");
-					ev->terminateProcessing(); // the event is discarded
+					ev.terminateProcessing(); // the event is discarded
 				} else {
 					LOGI << "Address " << ip << " should be banned but was not because it is part of the white list";
 				}
@@ -281,7 +280,6 @@ unique_ptr<RequestSipEvent> ModuleDoSProtection::onRequest(unique_ptr<RequestSip
 			}
 		}
 	}
-	return std::move(ev);
 }
 
 #ifdef ENABLE_UNIT_TESTS

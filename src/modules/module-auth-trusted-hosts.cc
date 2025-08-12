@@ -53,7 +53,7 @@ bool isEmpty(const char* value) {
 }
 } // namespace
 
-ModuleAuthTrustedHosts::ModuleAuthTrustedHosts(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+ModuleAuthTrustedHosts::ModuleAuthTrustedHosts(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 }
 
 void ModuleAuthTrustedHosts::onLoad(const GenericStruct* mc) {
@@ -116,17 +116,12 @@ void ModuleAuthTrustedHosts::loadTrustedHosts(const ConfigStringList& trustedHos
 	}
 }
 
-std::unique_ptr<RequestSipEvent> ModuleAuthTrustedHosts::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	sip_t* sip = ev->getMsgSip()->getSip();
+void ModuleAuthTrustedHosts::onRequest(RequestSipEvent& ev) {
+	sip_t* sip = ev.getMsgSip()->getSip();
 	sip_via_t* via = sip->sip_via;
 	const char* printableReceivedHost = !isEmpty(via->v_received) ? via->v_received : via->v_host;
 	BinaryIp receivedHost{printableReceivedHost};
-	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()) ev->setTrustedHost();
-	return std::move(ev);
-}
-
-std::unique_ptr<ResponseSipEvent> ModuleAuthTrustedHosts::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	return std::move(ev);
+	if (mTrustedHosts.find(receivedHost) != mTrustedHosts.end()) ev.setTrustedHost();
 }
 
 } // namespace flexisip

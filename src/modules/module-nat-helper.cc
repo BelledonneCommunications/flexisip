@@ -29,17 +29,17 @@ using namespace flexisip;
 
 constexpr auto* kFlowTokenHashKeyFilePath = DEFAULT_LIB_DIR "/flow-token-hash-key";
 
-NatHelper::NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+NatHelper::NatHelper(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 }
 
-unique_ptr<RequestSipEvent> NatHelper::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	const auto& ms = ev->getMsgSip();
+void NatHelper::onRequest(RequestSipEvent& ev) {
+	const auto& ms = ev.getMsgSip();
 	const auto* sip = ms->getSip();
 	const auto* path = sip->sip_path;
 	const auto rqMethod = ms->getSipMethod();
 	const auto& strategy = mAgent->getNatTraversalStrategy();
 
-	strategy->preProcessOnRequestNatHelper(*ev);
+	strategy->preProcessOnRequestNatHelper(ev);
 
 	// Processing of requests that may establish a dialog.
 	if ((rqMethod == sip_method_invite or rqMethod == sip_method_subscribe) and sip->sip_to->a_tag == nullptr) {
@@ -48,7 +48,7 @@ unique_ptr<RequestSipEvent> NatHelper::onRequest(unique_ptr<RequestSipEvent>&& e
 			fixRecordRouteInRequest(ms);
 		}
 
-		strategy->addRecordRouteNatHelper(*ev);
+		strategy->addRecordRouteNatHelper(ev);
 	}
 
 	// Fix potential "Path" header inserted before us by a flexisip "NATed" proxy.
@@ -59,24 +59,22 @@ unique_ptr<RequestSipEvent> NatHelper::onRequest(unique_ptr<RequestSipEvent>&& e
 
 	// Idea for future: for the case where a "NATed" proxy forwards a REGISTER (which can be detected), we could
 	// add a "Path" header corresponding to this proxy.
-	return std::move(ev);
 }
 
-unique_ptr<ResponseSipEvent> NatHelper::onResponse(unique_ptr<ResponseSipEvent>&& ev) {
-	mAgent->getNatTraversalStrategy()->onResponseNatHelper(*ev);
+void NatHelper::onResponse(ResponseSipEvent& ev) {
+	mAgent->getNatTraversalStrategy()->onResponseNatHelper(ev);
 
-	const auto* sip = ev->getSip();
+	const auto* sip = ev.getSip();
 	auto* contact = sip->sip_contact;
 
 	// If proxy is last hop, remove custom parameter from "Contact" header.
 	if (contact and sip->sip_via and sip->sip_via->v_next and !sip->sip_via->v_next->v_next /* is last hop */) {
 		if (url_has_param(contact->m_url, mContactCorrectionParameter.c_str()) /* is verified */) {
-			contact->m_url->url_params = url_strip_param_string(su_strdup(ev->getHome(), contact->m_url->url_params),
+			contact->m_url->url_params = url_strip_param_string(su_strdup(ev.getHome(), contact->m_url->url_params),
 			                                                    mContactCorrectionParameter.c_str());
 			LOGD << "Proxy is last hop, removed \"" << mContactCorrectionParameter << R"(" from "Contact" header)";
 		}
 	}
-	return std::move(ev);
 }
 
 void NatHelper::onLoad(const GenericStruct* sec) {

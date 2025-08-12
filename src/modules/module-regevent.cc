@@ -28,7 +28,7 @@
 using namespace std;
 using namespace flexisip;
 
-class RegEvent : public Module {
+class RegEvent : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<RegEvent>::create(Agent*);
 
 private:
@@ -64,21 +64,17 @@ private:
 		LOGI << "RegEvent server is [" << mDestRoute->str() << "]";
 	}
 
-	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
-		sip_t* sip = ev->getSip();
+	void onRequest(RequestSipEvent& ev) override {
+		sip_t* sip = ev.getSip();
 		if (sip->sip_request->rq_method == sip_method_subscribe && strcasecmp(sip->sip_event->o_type, "reg") == 0 &&
 		    sip->sip_to->a_tag == nullptr) {
-			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev->getMsgSip()->getMsg(), ev->getSip(),
+			ModuleToolbox::cleanAndPrependRoute(this->getAgent(), ev.getMsgSip()->getMsg(), sip,
 			                                    sip_route_create(&mHome, mDestRoute->get(), nullptr));
 		}
-		return std::move(ev);
 	}
 
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override {
-		return std::move(ev);
-	}
 
-	RegEvent(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+	RegEvent(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {
 		su_home_init(&mHome);
 	}
 

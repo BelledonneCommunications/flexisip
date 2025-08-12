@@ -41,7 +41,11 @@ public:
 	void onLoad(const GenericStruct* modconf) override;
 	void onUnload() override;
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& response) override {
+		onResponse(*response);
+		return std::move(response);
+	}
+	void onResponse(ResponseSipEvent& ev);
 	void onIdle() override;
 
 private:
@@ -54,7 +58,7 @@ private:
 	                      RequestSipEvent& ev);
 	void processResponseWithSDP(const std::shared_ptr<RelayedCall>& c,
 	                            const std::shared_ptr<OutgoingTransaction>& transaction,
-	                            const std::shared_ptr<MsgSip>& msgSip);
+	                            MsgSip& msgSip);
 	void configureContext(std::shared_ptr<RelayedCall>& c);
 
 	CallStore* mCalls;
@@ -198,7 +202,7 @@ private:
 
 class MediaFilter {
 public:
-	virtual ~MediaFilter(){};
+	virtual ~MediaFilter() {};
 
 	/// Should return false if the incoming packet must not be transfered.
 	virtual bool onIncomingTransfer(uint8_t* data, size_t size, const sockaddr* addr, socklen_t addrlen) = 0;

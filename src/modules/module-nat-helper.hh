@@ -29,14 +29,14 @@ namespace flexisip {
 /*
  * Execute small tasks to make SIP work smoothly despite firewalls and NATs.
  */
-class NatHelper : public Module {
+class NatHelper : public NonStoppingModule {
 	friend std::shared_ptr<Module> ModuleInfo<NatHelper>::create(Agent*);
 
 public:
 	~NatHelper() override = default;
 
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	void onRequest(RequestSipEvent& ev) override;
+	void onResponse(ResponseSipEvent& ev) override;
 
 protected:
 	enum RecordRouteFixingPolicy { Safe, Always };
