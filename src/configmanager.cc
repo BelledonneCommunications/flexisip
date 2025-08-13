@@ -499,7 +499,7 @@ GenericEntry* GenericStruct::findApproximate(const string& name) const {
 	return nullptr;
 }
 
-const list<unique_ptr<GenericEntry>>& GenericStruct::getChildren() const {
+const vector<unique_ptr<GenericEntry>>& GenericStruct::getChildren() const {
 	return mEntries;
 }
 

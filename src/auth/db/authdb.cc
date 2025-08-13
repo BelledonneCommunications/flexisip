@@ -18,9 +18,11 @@
 
 #include "authdb.hh"
 
+#include <stdexcept>
+
+#include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
 #include "utils/digest.hh"
-#include <stdexcept>
 
 using namespace std;
 

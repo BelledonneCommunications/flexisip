@@ -21,6 +21,7 @@
 #include <set>
 #include <unordered_map>
 
+#include "flexisip/common.hh"
 #include "flexisip/module.hh"
 
 namespace flexisip {

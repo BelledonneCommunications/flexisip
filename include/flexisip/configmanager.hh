@@ -27,12 +27,10 @@
 #include <list>
 #include <memory>
 #include <optional>
-#include <queue>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 #include <typeinfo>
 #include <unordered_set>
 #include <vector>
@@ -44,9 +42,8 @@
 #define FLEXISIP_INCLUDED
 #endif
 
-#include "flexisip/common.hh"
 #include "flexisip/flexisip-exception.hh"
-#include "flexisip/global.hh"
+#include "flexisip/logmanager.hh"
 #include "flexisip/sip-boolean-expressions.hh"
 
 typedef struct sip_s sip_t;
@@ -87,8 +84,7 @@ enum GenericValueType {
 
 /* Allows to have a string for each GenericValueType */
 static const std::map<GenericValueType, std::string> GenericValueTypeNameMap = {
-#define TypeToName(X)                                                                                                  \
-	{ X, #X }
+#define TypeToName(X) {X, #X}
     TypeToName(Boolean),     TypeToName(Integer),      TypeToName(IntegerRange), TypeToName(Counter64),
     TypeToName(String),      TypeToName(ByteSize),     TypeToName(StringList),   TypeToName(Struct),
     TypeToName(BooleanExpr), TypeToName(Notification), TypeToName(RuntimeError), TypeToName(DurationMS),
@@ -282,7 +278,7 @@ public:
 				throw std::runtime_error(std::string("Duplicate entry key: ") + entry->getName());
 			}
 		}
-		mEntries.push_back(std::move(newEntry));
+		mEntries.emplace_back(std::move(newEntry));
 		return newEntryPointer;
 	}
 
@@ -295,7 +291,7 @@ public:
 	void addChildrenValues(ConfigItemDescriptor* items);
 	void addChildrenValues(ConfigItemDescriptor* items, bool hashed);
 	void deprecateChild(const std::string& name, const DeprecationInfo& info) const;
-	const std::list<std::unique_ptr<GenericEntry>>& getChildren() const;
+	const std::vector<std::unique_ptr<GenericEntry>>& getChildren() const;
 	template <typename _retType, typename StrT>
 	_retType* get(StrT&& name) const;
 	template <typename _retType>
@@ -313,7 +309,7 @@ public:
 	void acceptVisit(ConfigManagerVisitor& visitor) override;
 
 private:
-	std::list<std::unique_ptr<GenericEntry>> mEntries;
+	std::vector<std::unique_ptr<GenericEntry>> mEntries;
 };
 
 class RootConfigStruct : public GenericStruct {

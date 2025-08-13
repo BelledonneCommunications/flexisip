@@ -23,6 +23,7 @@
 #include <flexisip/module.hh>
 
 #include "configdumper.hh"
+#include "flexisip/common.hh"
 #include "utils/string-utils.hh"
 
 using namespace std;

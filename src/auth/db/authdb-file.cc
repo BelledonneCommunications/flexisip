@@ -27,6 +27,7 @@
 #include "flexisip-config.h"
 #endif
 
+#include "flexisip/common.hh"
 #include "utils/digest.hh"
 #include "utils/load-file.hh"
 #include "utils/string-utils.hh"

@@ -26,6 +26,7 @@
 #include <string>
 
 #include "flexisip/auth/flexisip-auth-module-base.hh"
+#include "flexisip/common.hh"
 #include "flexisip/module.hh"
 
 namespace flexisip {

@@ -20,6 +20,7 @@
 
 #include <map>
 #include <memory>
+#include <queue>
 #include <thread>
 
 #include "flexisip/configmanager.hh"
