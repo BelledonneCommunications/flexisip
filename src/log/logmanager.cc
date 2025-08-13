@@ -290,4 +290,10 @@ SipLogContext::SipLogContext(const shared_ptr<MsgSip>& msg) : mMsgSip(*msg) {
 	LogManager::get().setCurrentContext(*this);
 }
 
+std::string LogManager::makeLogPrefixForInstance(const void* ptr, std::string_view className) {
+	std::stringstream logPrefix{};
+	logPrefix << className << "[" << ptr << "]";
+	return logPrefix.str();
+}
+
 } // namespace flexisip

@@ -31,11 +31,11 @@ using namespace std::chrono;
 RedisClient::RedisClient(const sofiasip::SuRoot& root,
                          const RedisParameters& redisParams,
                          SoftPtr<SessionListener>&& listener)
-    : mRoot{root}, mSessionListener{std::move(listener)},
-      mCmdSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
-      mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mParams(redisParams),
+    : mRoot{root}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RedisClient")),
+      mSessionListener{std::move(listener)}, mParams(redisParams),
       mSubSessionKeepAliveTimer{mRoot.getCPtr(), mParams.mSubSessionKeepAliveTimeout},
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RedisClient")) {
+      mCmdSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
+      mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {
 }
 
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::connect() {

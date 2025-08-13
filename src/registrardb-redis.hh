@@ -156,13 +156,14 @@ private:
 	void onConnect(int status) override;
 	void onDisconnect(int status) override;
 
-	mutable redis::async::RedisClient mRedisClient;
 	const sofiasip::SuRoot& mRoot;
 	const Record::Config& mRecordConfig;
 	LocalRegExpire& mLocalRegExpire;
 	std::function<void(const Record::Key&, std::optional<std::string_view>)> mNotifyContactListener;
 	std::function<void(bool)> mNotifyStateListener;
 	bool mWritable{};
+
+	mutable redis::async::RedisClient mRedisClient;
 };
 
 } // namespace flexisip

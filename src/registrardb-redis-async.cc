@@ -79,9 +79,9 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(
     const RedisParameters& params,
     std::function<void(const Record::Key&, std::optional<std::string_view>)> notifyContact,
     std::function<void(bool)> notifyState)
-    : mRedisClient{root, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)}, mRoot{root},
-      mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire}, mNotifyContactListener{std::move(notifyContact)},
-      mNotifyStateListener{std::move(notifyState)} {
+    : mRoot{root}, mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire},
+      mNotifyContactListener{std::move(notifyContact)}, mNotifyStateListener{std::move(notifyState)},
+      mRedisClient{mRoot, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {
 }
 
 bool RegistrarDbRedisAsync::isConnected() const {
