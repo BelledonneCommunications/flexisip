@@ -40,9 +40,9 @@ class AgentInterface {
 public:
 	virtual ~AgentInterface() = default;
 
-	virtual void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev) = 0;
-	virtual std::unique_ptr<ResponseSipEvent> injectResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
-	virtual std::unique_ptr<ResponseSipEvent> sendResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
+	virtual void injectRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
+	virtual std::unique_ptr<ResponseSipEvent> injectResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
+	virtual std::unique_ptr<ResponseSipEvent> processResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
 
 	virtual const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept = 0;
 

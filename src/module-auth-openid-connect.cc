@@ -192,7 +192,7 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 				    // Was the event suspended? (Pending)
 				    auto suspendedEv = suspendedEvents.find(event);
 				    if (suspendedEv != suspendedEvents.end()) {
-					    agent->injectRequestEvent(std::move(suspendedEv->second));
+					    agent->injectRequest(std::move(suspendedEv->second));
 					    suspendedEvents.erase(suspendedEv);
 				    }
 			    });

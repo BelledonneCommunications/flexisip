@@ -144,7 +144,7 @@ int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*,
 		auto msgSip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
 		const auto& agent = otr->mAgent.lock();
 
-		agent->sendResponseEvent(
+		agent->processResponse(
 		    make_unique<ResponseSipEvent>(otr->shared_from_this(), msgSip, agent->getIncomingTport(msgSip->getMsg())));
 
 		if (sip->sip_status && sip->sip_status->st_status >= 200) {

@@ -20,11 +20,13 @@
 
 #include <memory>
 
-#include "agent.hh"
-#include "domain-registrations.hh"
 #include "sofia-sip/auth_digest.h"
 #include "sofia-sip/msg_header.h"
+#include "sofia-sip/sip_util.h"
 #include "sofia-sip/tport.h"
+
+#include "agent.hh"
+#include "domain-registrations.hh"
 #include "utils/flow.hh"
 
 using namespace std;

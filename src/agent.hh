@@ -18,10 +18,10 @@
 
 #pragma once
 
-#include <filesystem>
 #include <ifaddrs.h>
+
+#include <filesystem>
 #include <memory>
-#include <sstream>
 #include <string>
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
@@ -33,27 +33,21 @@
 #include "belle-sip/belle-sip.h"
 #endif
 
-#include "sofia-sip/msg.h"
 #include "sofia-sip/nta.h"
-#include "sofia-sip/nta_stateless.h"
 #include "sofia-sip/nth.h"
 #include "sofia-sip/sip.h"
-#include "sofia-sip/sip_util.h"
 
+#include "agent-interface.hh"
 #include "auth/db/authdb.hh"
-#include "flexisip/common.hh"
+#include "eventlogs/writers/event-log-writer.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "registrar/registrar-db.hh"
-
-#include "agent-interface.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "i-supervisor-notifier.hh"
+#include "registrar/registrar-db.hh"
 #include "transaction/incoming-agent.hh"
 #include "transaction/outgoing-agent.hh"
-#include "transaction/transaction.hh"
 #include "transport.hh"
 
 namespace flexisip {
@@ -124,7 +118,7 @@ class Agent : public AgentInterface,
 private:
 	template <typename SipEventT, typename ModuleIter>
 	std::unique_ptr<SipEventT>
-	doSendEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
+	processEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
 
 public:
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
@@ -232,10 +226,10 @@ public:
 	typedef void (*TimerCallback)(void* unused, su_timer_t* t, void* data);
 	su_timer_t* createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating = true);
 	void stopTimer(su_timer_t* t);
-	void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> injectResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) override;
-	void sendRequestEvent(std::unique_ptr<RequestSipEvent>&& ev);
-	std::unique_ptr<ResponseSipEvent> sendResponseEvent(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	void injectRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
+	std::unique_ptr<ResponseSipEvent> injectResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	void processRequest(std::unique_ptr<RequestSipEvent>&& ev);
+	std::unique_ptr<ResponseSipEvent> processResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 	void incrReplyStat(int status);
 	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
 

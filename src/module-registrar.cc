@@ -175,7 +175,7 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	mModule->removeInternalParams(reMs->getSip()->sip_contact);
 
 	addEventLogRecordFound(mEv, r, dbContacts);
-	mModule->getAgent()->injectResponseEvent(std::move(mEv));
+	mModule->getAgent()->injectResponse(std::move(mEv));
 }
 void OnResponseBindListener::onError(const SipStatus& response) {
 	LOGE << "Reply " << response.getReason();

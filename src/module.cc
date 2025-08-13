@@ -173,7 +173,7 @@ ModuleClass Module::getClass() const {
 }
 
 void Module::injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) {
-	mAgent->injectRequestEvent(std::move(ev));
+	mAgent->injectRequest(std::move(ev));
 }
 
 void Module::sendTrap(const std::string& msg) {

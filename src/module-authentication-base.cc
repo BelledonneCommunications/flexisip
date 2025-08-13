@@ -329,7 +329,7 @@ unique_ptr<RequestSipEvent> ModuleAuthenticationBase::processAuthModuleResponse(
 		onSuccess(fAs);
 		if (ev->isSuspended()) {
 			// The event is re-injected
-			getAgent()->injectRequestEvent(std::move(ev));
+			getAgent()->injectRequest(std::move(ev));
 		}
 	} else if (as.status() == 100) {
 		if (!ev->isSuspended()) ev->suspendProcessing();

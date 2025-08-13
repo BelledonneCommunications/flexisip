@@ -21,6 +21,13 @@
 #include <sstream>
 #include <utility>
 
+#include "sofia-sip/msg_types.h"
+#include "sofia-sip/sip_extra.h"
+#include "sofia-sip/sip_status.h"
+#include "sofia-sip/sip_util.h"
+#include "sofia-sip/su_md5.h"
+#include "sofia-sip/tport.h"
+
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
@@ -33,11 +40,6 @@
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/record.hh"
-#include "sofia-sip/msg_types.h"
-#include "sofia-sip/sip_extra.h"
-#include "sofia-sip/sip_status.h"
-#include "sofia-sip/su_md5.h"
-#include "sofia-sip/tport.h"
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/uri-utils.hh"

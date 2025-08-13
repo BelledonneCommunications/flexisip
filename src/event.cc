@@ -18,15 +18,15 @@
 
 #include "flexisip/event.hh"
 
-#include <sofia-sip/msg_addr.h>
-#include <sofia-sip/sip_protos.h>
-#include <sofia-sip/su_tagarg.h>
-
-#include "flexisip/module.hh"
+#include "sofia-sip/msg_addr.h"
+#include "sofia-sip/sip_protos.h"
+#include "sofia-sip/sip_util.h"
+#include "sofia-sip/su_tagarg.h"
 
 #include "agent.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "flexisip/module.hh"
 #include "module-toolbox.hh"
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"

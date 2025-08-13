@@ -21,10 +21,12 @@
 
 #include "bctoolbox/logging.h"
 #include "bctoolbox/tester.h"
+#include "linphone++/linphone.hh"
+#include "sofia-sip/nta_stateless.h"
+
 #include "flexisip/configmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "linphone++/linphone.hh"
 #include "registrar/record.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/nta-outgoing-transaction.hh"
@@ -164,9 +166,8 @@ void basicSubscription() {
 	// Let's add a new device.
 	inserter.insert({.uniqueId = "device-d"});
 	registrarDb->publish(otherParticipantTopic, "");
-	asserter
-	    .iterateUpTo(
-	        7, [&totalDevicesCount] { return LOOP_ASSERTION(4 <= totalDevicesCount()); }, 1s)
+	asserter.iterateUpTo(
+	            7, [&totalDevicesCount] { return LOOP_ASSERTION(4 <= totalDevicesCount()); }, 1s)
 	    .hard_assert_passed();
 
 	{
@@ -179,9 +180,8 @@ void basicSubscription() {
 	// Remove a device.
 	inserter.setExpire(0s).insert({.uniqueId = "device-d"});
 	registrarDb->publish(otherParticipantTopic, "");
-	asserter
-	    .iterateUpTo(
-	        10, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }, 1s)
+	asserter.iterateUpTo(
+	            10, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }, 1s)
 	    .hard_assert_passed();
 
 	{

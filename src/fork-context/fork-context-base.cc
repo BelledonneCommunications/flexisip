@@ -305,7 +305,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 		if (const auto injectorListener = mInjectorListener.lock()) {
 			injectorListener->inject(branch->extractRequest(), shared_from_this(), contact->contactId());
 		} else {
-			mAgent->injectRequestEvent(branch->extractRequest());
+			mAgent->injectRequest(branch->extractRequest());
 		}
 	}
 
@@ -364,7 +364,7 @@ void ForkContextBase::start() {
 		if (const auto injectorListener = mInjectorListener.lock()) {
 			injectorListener->inject(br->extractRequest(), shared_from_this(), br->getContact()->contactId());
 		} else {
-			mAgent->injectRequestEvent(br->extractRequest());
+			mAgent->injectRequest(br->extractRequest());
 		}
 
 		// Can only occur if an internal error append
@@ -428,9 +428,9 @@ std::unique_ptr<ResponseSipEvent> ForkContextBase::onForwardResponse(std::unique
 	mLastResponseSent = event->getMsgSip();
 
 	if (event->isSuspended()) {
-		event = mAgent->injectResponseEvent(std::move(event));
+		event = mAgent->injectResponse(std::move(event));
 	} else {
-		event = mAgent->sendResponseEvent(std::move(event));
+		event = mAgent->processResponse(std::move(event));
 	}
 
 	if (code >= 200) {

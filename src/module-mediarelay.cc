@@ -21,8 +21,10 @@
 #include <algorithm>
 #include <vector>
 
-#include "fork-context/fork-context.hh"
+#include "sofia-sip/nta_stateless.h"
+
 #include "callcontext-mediarelay.hh"
+#include "fork-context/fork-context.hh"
 #include "module-toolbox.hh"
 #include "sdp-modifier.hh"
 #include "transaction/incoming-transaction.hh"

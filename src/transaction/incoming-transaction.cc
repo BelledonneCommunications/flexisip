@@ -109,7 +109,7 @@ int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t*,
 		auto ev = make_unique<RequestSipEvent>(
 		    it->shared_from_this(),
 		    make_shared<MsgSip>(ownership::owned(nta_incoming_getrequest_ackcancel(it->mIncoming))));
-		it->mAgent.lock()->sendRequestEvent(std::move(ev));
+		it->mAgent.lock()->processRequest(std::move(ev));
 	} else {
 		it->destroy();
 	}
