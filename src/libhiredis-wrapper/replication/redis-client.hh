@@ -1,6 +1,20 @@
-/** Copyright (C) 2010-2024 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -15,11 +29,16 @@
 
 namespace flexisip::redis::async {
 
+/**
+ * You probably want an instance of this class to be the last member of your object, so it is destructed first.
+ * On destruction, pending command/subscription callbacks will be called with reply::Disconnected. If not designed
+ * carefully, those callbacks could attempt to access members which would be already freed.
+ */
 class RedisClient : public SessionListener {
 public:
 	RedisClient(const sofiasip::SuRoot& root, const RedisParameters& redisParams, SoftPtr<SessionListener>&& listener);
 	RedisClient(const sofiasip::SuRoot& root, const GenericStruct* registarConf, SoftPtr<SessionListener>&& listener)
-	    : RedisClient(root, RedisParameters::fromRegistrarConf(registarConf), std::move(listener)){};
+	    : RedisClient(root, RedisParameters::fromRegistrarConf(registarConf), std::move(listener)) {};
 
 	// TODO we expose tryReconnect (--> tryConnect) only, and change logs for the first connection ?
 	std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> connect();
@@ -74,13 +93,9 @@ private:
 	 */
 	void handlePingReply(const redis::async::Reply& reply);
 
-	// First members so they are destructed last and still valid when destructing the redis sessions
 	const sofiasip::SuRoot& mRoot;
+	std::string mLogPrefix;
 	SoftPtr<SessionListener> mSessionListener{};
-
-	Session mCmdSession{};
-	SubscriptionSession mSubSession{};
-
 	RedisParameters mParams;
 	RedisParameters mLastActiveParams{mParams};
 	enum class SubSessionState { DISCONNECTED, PENDING, ACTIVE };
@@ -91,7 +106,10 @@ private:
 	std::optional<sofiasip::Timer> mReplicationTimer{std::nullopt};
 	std::optional<sofiasip::Timer> mReconnectTimer{std::nullopt};
 	std::chrono::system_clock::time_point mLastReconnectRotation{};
-    std::string mLogPrefix;
+
+	// Last members so they are destructed first and all other fields remain valid.
+	Session mCmdSession{};
+	SubscriptionSession mSubSession{};
 };
 
 } // namespace flexisip::redis::async

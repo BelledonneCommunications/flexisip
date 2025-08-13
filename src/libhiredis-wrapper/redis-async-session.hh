@@ -69,6 +69,11 @@ class SubscriptionSession;
  * At any time, you may call `disconnect()` to gracefully disconnect (wait for current commands to be replied to then
  * close the connection), or forcefully set the state to `Disconnected()` to abort all pending commands and destroy the
  * connection immediately.
+ *
+ * You probably want an instance of this class to be the last member of your object, so it is destructed first.
+ * Hiredis will call pending command/subscription callbacks with `nullptr` (which we translate to reply::Disconnected)
+ * on session destruction. If not designed carefully, those callbacks could attempt to access members which would be
+ * already freed.
  */
 class Session final {
 	// Sealed with `final` to prevent footgun access to attributes being freed in the `onDisconnect` callback

@@ -57,7 +57,10 @@ public:
 	friend std::ostream& operator<<(std::ostream&, const Nil&);
 };
 using Integer = decltype(redisReply::integer);
-// The session disconnected before being able to get the result of this command
+// The session disconnected before being able to get the result of this command.
+// Callbacks receiving this reply MUST NOT access memory which would have been freed before the
+// redis::Session/RedisClient. The reason being that this reply is also sent to all pending command/subscriptions on
+// destruction of the redis::Session (and, consequently, of the RedisClient).
 class Disconnected {
 public:
 	friend std::ostream& operator<<(std::ostream&, const Disconnected&);

@@ -200,12 +200,7 @@ public:
 	 * @param className name of the class
 	 * @return logging prefix for an instance of a class (output: ClassName[ptr])
 	 */
-	template <typename T>
-	static std::string makeLogPrefixForInstance(const T* ptr, std::string_view className) {
-		std::stringstream logPrefix{};
-		logPrefix << className << "[" << ptr << "]";
-		return logPrefix.str();
-	}
+	static std::string makeLogPrefixForInstance(const void* ptr, std::string_view className);
 
 	/**
 	 * Apply the provided set of parameters to the logger. Leave 'params' empty to disable (and remove if set) a log
