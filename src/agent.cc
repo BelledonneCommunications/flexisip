@@ -517,7 +517,16 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		});
 	}
 
-	/* Set up the internal transport*/
+	// Iterate over all primary transports (enabled through the "global/transports" parameter + implicitly enabled when
+	// using "sip:*") to guess information (empiric method):
+	//   - mPublicIpV4/mPublicIpV6 is the public IP of the proxy, assuming there is only one.
+	//   - mPreferredRouteV4/mPreferredRouteV6 is a private interface of the proxy that can be used for inter flexisip
+	//     nodes SIP communication.
+	//   - mRtpBindIp/mRtpBindIp6 is a local address to bind rtp ports. It is taken from maddr parameter of the public
+	//     transport of the proxy.
+	//
+	// This algorithm is empiric and aims at satisfying most common needs but cannot satisfy all of them.
+
 	if (mPreferredRouteV4 != nullptr) {
 		if (nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(mPreferredRouteV4),
 		                        TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
@@ -527,74 +536,41 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
 			throw runtime_error{"could not enable internal transport "s + prefRouteV4 + ", " + strerror(errno)};
 		}
-		tp_name_t tn = {0};
-		tn.tpn_ident = (char*)sInternalTransportIdent;
+		tp_name_t tn{};
+		tn.tpn_ident = sInternalTransportIdent;
 		mInternalTport = tport_by_name(nta_agent_tports(mAgent), &tn);
-		if (!mInternalTport) {
-			throw runtime_error{"could not obtain pointer to internal tport. Bug somewhere."};
-		}
+		if (!mInternalTport) throw runtime_error{"failed to retrieve internal transport (pointer is empty)"};
 	}
 
 	tport_t* primaries = tport_primaries(nta_agent_tports(mAgent));
-	if (primaries == nullptr) throw runtime_error{"no SIP transport defined"};
+	if (primaries == nullptr) throw BadConfiguration{"no valid SIP transport found, please verify your configuration"};
 	startMdns();
 
-	/*
-	 * Iterate on all the transports enabled or implicitly configured (case of 'sip:*') in order to guess useful
-	 *information from an empiric manner:
-	 * mPublicIpV4/mPublicIpV6 is the public IP of the proxy, assuming there's only one.
-	 * mPreferredRouteV4/mPreferredRouteV6 is a private interface of the proxy that can be used for inter flexisip nodes
-	 *SIP communication.
-	 * mRtpBindIp/mRtpBindIp6 is a local address to bind rtp ports. It is taken from maddr parameter of the public
-	 *transport of the proxy.
-	 * This algo is really empiric and aims at satisfy most common needs but cannot satisfy all of them.
-	 **/
-	su_md5_t ctx;
-	su_md5_init(&ctx);
-
-	for (auto* tport = nta_agent_tports(mAgent); tport; tport = tport_next(tport)) {
+	for (auto* tport = nta_agent_tports(mAgent); tport; tport = tport_next(tport))
 		if (tport_is_tcp(tport)) tport_set_max_read_size(tport, tcpMaxReadSize->read());
-	}
 
 	LOGI << "Agent primaries are:";
+	Home home{};
+	tp_name_t rawNodeUriTportName{};
 	for (const auto* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
 		const auto* name = tport_name(tport);
-		char url[512];
 
-		if (tport_has_network(tport)) {
-			Home home{};
-			snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s;network=%s", name->tpn_canon, name->tpn_port,
-			         name->tpn_proto, name->tpn_host, tport_network_str(home.home(), tport));
-		} else {
-			snprintf(url, sizeof(url), "sip:%s:%s;transport=%s;maddr=%s", name->tpn_canon, name->tpn_port,
-			         name->tpn_proto, name->tpn_host);
-		}
-		su_md5_strupdate(&ctx, url);
-		LOGI << "\t" << url;
-		auto isIpv6 = strchr(name->tpn_host, ':') != nullptr;
+		LOGI << "\tsip:" << name->tpn_canon << ":" << name->tpn_port << ";transport=" << name->tpn_proto
+		     << ";maddr=" << name->tpn_host
+		     << (tport_has_network(tport) ? ";network="s + tport_network_str(home.home(), tport) : "");
 
-		// The public and bind values are different
-		// which is the case of transport with sip:public;maddr=bind
-		// where public is the hostname or ip address publicly announced
-		// and maddr the real ip we listen on.
-		// Useful for a scenario where the flexisip is behind a router.
-		auto formatedHost = ModuleToolbox::getHost(name->tpn_canon);
-		if (isIpv6 && mPublicIpV6.empty()) {
-			mPublicIpV6 = formatedHost;
-		} else if (!isIpv6 && mPublicIpV4.empty()) {
-			mPublicIpV4 = formatedHost;
-		}
+		// The public IP address and the bound IP address are different. This is the case for transports with
+		// "sip:public_address;maddr=binding_address" where "public_address" is the hostname or IP address publicly
+		// announced and "binding_address" the real IP address we are listening on. It is useful for scenarios where
+		// the sever is behind a router.
+		auto isIpv6 = uri_utils::isIpv6Address(name->tpn_host);
+		auto formatedHost = module_toolbox::getHost(name->tpn_canon);
+		if (isIpv6 && mPublicIpV6.empty()) mPublicIpV6 = formatedHost;
+		else if (!isIpv6 && mPublicIpV4.empty()) mPublicIpV4 = formatedHost;
 
 		if (mNodeUri == nullptr) {
+			rawNodeUriTportName = *name;
 			mNodeUri = urlFromTportName(&mHome, name);
-			auto clusterDomain =
-			    mConfigManager->getRoot()->get<GenericStruct>("cluster")->get<ConfigString>("cluster-domain")->read();
-			if (!clusterDomain.empty()) {
-				auto tmp_name = *name;
-				tmp_name.tpn_canon = clusterDomain.c_str();
-				tmp_name.tpn_port = nullptr;
-				mClusterUri = urlFromTportName(&mHome, &tmp_name);
-			}
 		}
 
 		mTransports.emplace_back(formatedHost, name->tpn_port, name->tpn_proto,
@@ -602,9 +578,15 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		                         computeResolvedPublicIp(formatedHost, AF_INET6), name->tpn_host);
 	}
 
-	bool clusterModeEnabled =
-	    mConfigManager->getRoot()->get<GenericStruct>("cluster")->get<ConfigBoolean>("enabled")->read();
-	mDefaultUri = (clusterModeEnabled && mClusterUri) ? mClusterUri : mNodeUri;
+	const auto* clusterConfig = mConfigManager->getRoot()->get<GenericStruct>("cluster");
+	const auto clusterDomain = clusterConfig->get<ConfigString>("cluster-domain")->read();
+	if (mNodeUri && !clusterDomain.empty()) {
+		rawNodeUriTportName.tpn_canon = clusterDomain.c_str();
+		rawNodeUriTportName.tpn_port = nullptr;
+		mClusterUri = urlFromTportName(&mHome, &rawNodeUriTportName);
+	}
+
+	mDefaultUri = (clusterConfig->get<ConfigBoolean>("enabled")->read() && mClusterUri) ? mClusterUri : mNodeUri;
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
 	if (mPublicResolvedIpV4.empty()) {
@@ -626,25 +608,27 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 	// Generate the unique ID if it has not been specified in Flexisip's settings
 	if (mUniqueId.empty()) {
+		su_md5_t ctx;
+		su_md5_init(&ctx);
 		char digest[(SU_MD5_DIGEST_SIZE * 2) + 1];
 		su_md5_hexdigest(&ctx, digest);
 		su_md5_deinit(&ctx);
 		digest[16] = '\0'; // keep half of the digest, should be enough
 		// compute a network wide unique id
 		mUniqueId = digest;
-		LOGD << "Generating the unique ID: " << mUniqueId;
+		LOGD << "Generated unique ID: " << mUniqueId;
 	} else {
 		LOGD << "Static unique ID: " << mUniqueId;
 	}
 
 	if (mPublicResolvedIpV6.empty() && mPublicResolvedIpV4.empty()) {
 		throw runtime_error{"the default public address of the server could not be resolved (" + mPublicIpV4 + " / " +
-		                    mPublicIpV6 + "). Cannot continue."};
+		                    mPublicIpV6 + ")"};
 	}
 
-	LOGI << "Agent public hostname/ip: v4:" << mPublicIpV4 << " v6:" << mPublicIpV6;
-	LOGI << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
-	LOGI << "Agent _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
+	LOGI << "Agent public hostname/ip:            v4: " << mPublicIpV4 << "\tv6: " << mPublicIpV6;
+	LOGI << "Agent public resolved hostname/ip:   v4: " << mPublicResolvedIpV4 << "\tv6: " << mPublicResolvedIpV6;
+	LOGI << "Agent _default_ RTP bind ip address: v4: " << mRtpBindIp << "\tv6: " << mRtpBindIp6;
 
 	startLogWriter();
 
