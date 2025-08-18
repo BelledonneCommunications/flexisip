@@ -160,6 +160,21 @@ string getNetworkParameter(const Url& url) {
 	return networkParameter;
 }
 
+/**
+ * @return transport in string format: "sip:host:port;transport=protocol;maddr=address(;network=address)"
+ */
+string getPrintableTransport(const tport_t* tport) {
+	Home home{};
+	const auto* name = tport_name(tport);
+
+	stringstream ss{};
+	ss << "sip:" << name->tpn_canon << ":" << name->tpn_port << ";transport=" << name->tpn_proto
+	   << ";maddr=" << name->tpn_host
+	   << (tport_has_network(tport) ? ";network="s + tport_network_str(home.home(), tport) : "");
+
+	return ss.str();
+}
+
 } // namespace
 
 void Agent::onDeclare(const GenericStruct& root) {
@@ -551,39 +566,42 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 	LOGI << "Agent primaries are:";
 	Home home{};
-	tp_name_t rawNodeUriTportName{};
+	const tport_t* publicTransport{};
 	for (const auto* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
-		const auto* name = tport_name(tport);
-
-		LOGI << "\tsip:" << name->tpn_canon << ":" << name->tpn_port << ";transport=" << name->tpn_proto
-		     << ";maddr=" << name->tpn_host
-		     << (tport_has_network(tport) ? ";network="s + tport_network_str(home.home(), tport) : "");
-
 		// The public IP address and the bound IP address are different. This is the case for transports with
 		// "sip:public_address;maddr=binding_address" where "public_address" is the hostname or IP address publicly
 		// announced and "binding_address" the real IP address we are listening on. It is useful for scenarios where
 		// the sever is behind a router.
+		const auto* name = tport_name(tport);
 		auto isIpv6 = uri_utils::isIpv6Address(name->tpn_host);
 		auto formatedHost = module_toolbox::getHost(name->tpn_canon);
 		if (isIpv6 && mPublicIpV6.empty()) mPublicIpV6 = formatedHost;
 		else if (!isIpv6 && mPublicIpV4.empty()) mPublicIpV4 = formatedHost;
 
-		if (mNodeUri == nullptr) {
-			rawNodeUriTportName = *name;
-			mNodeUri = urlFromTportName(&mHome, name);
-		}
+		// Hypothesis: the first transport with network set to the "0.0.0.0/0" is the public transport.
+		if (!publicTransport && tport_has_network(tport) && tport_network_str(home.home(), tport) == "0.0.0.0/0"s)
+			publicTransport = tport;
 
 		mTransports.emplace_back(formatedHost, name->tpn_port, name->tpn_proto,
 		                         computeResolvedPublicIp(formatedHost, AF_INET),
 		                         computeResolvedPublicIp(formatedHost, AF_INET6), name->tpn_host);
+
+		LOGI << "\t" << getPrintableTransport(tport);
 	}
+
+	// If no public transport was found, take the first primary transport as public transport.
+	if (!publicTransport) publicTransport = primaries;
+	mNodeUri = urlFromTportName(&mHome, tport_name(publicTransport));
+
+	LOGI << "The 'public' transport: " << getPrintableTransport(publicTransport);
 
 	const auto* clusterConfig = mConfigManager->getRoot()->get<GenericStruct>("cluster");
 	const auto clusterDomain = clusterConfig->get<ConfigString>("cluster-domain")->read();
 	if (mNodeUri && !clusterDomain.empty()) {
-		rawNodeUriTportName.tpn_canon = clusterDomain.c_str();
-		rawNodeUriTportName.tpn_port = nullptr;
-		mClusterUri = urlFromTportName(&mHome, &rawNodeUriTportName);
+		auto name = *tport_name(publicTransport);
+		name.tpn_canon = clusterDomain.c_str();
+		name.tpn_port = nullptr;
+		mClusterUri = urlFromTportName(&mHome, &name);
 	}
 
 	mDefaultUri = (clusterConfig->get<ConfigBoolean>("enabled")->read() && mClusterUri) ? mClusterUri : mNodeUri;

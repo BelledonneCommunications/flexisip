@@ -37,6 +37,11 @@ Group changes to describe their impact on the project, as follows:
     - Default values of the push body are now empty instead of containing placeholders.
 - **EventLogs (`flexistats` backend):** Call event data sent to [`/statistics/calls`](https://subscribe.linphone.org/api#post-statisticscalls)
       now also include a `sip_call_id` field with the value of the Call-ID header.
+- **Proxy:**
+  - The server now uses the content of the 'network' parameter in `global/transports` to determine the "public"
+    transport (used for 'Path' and 'RecordRoute' headers computation). It selects the first transport for which the
+    'network' parameter is set to "0.0.0.0/0". The previous behavior was to arbitrarily select the first transport
+    defined in `global/transports`.
 
 ### [Removed]
 - **Proxy:**
