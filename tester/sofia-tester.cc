@@ -444,6 +444,9 @@ void updateTlsCertificateNoIpSpecified() {
 /**
  * Test primary transport selection to reach a destination using the 'network' URI parameter.
  * Verifies that the most appropriate transport is selected to reach the destination.
+ * This test also verifies that the right "RecordRoute" header was inserted by the Proxy when the request arrives to the
+ * callee.
+ *
  * Configuration:
  *                           ----------
  *     --------------      /            \       --------------
@@ -467,9 +470,12 @@ void updateTlsCertificateNoIpSpecified() {
  *       ----------
  */
 void outgoingTransportSelection() {
-	const string localTport1{"sip:127.0.0.1:0;transport=tcp;network=127.0.0.0/24"};
-	const string publicTport{"sip:sip.example.org:0;maddr=127.1.0.1;transport=tcp"};
-	const string localTport2{"sip:127.0.1.1:0;transport=tcp;network=127.0.1.0/24,127.0.2.0/24"};
+	const string localTport1Host{"127.0.0.1"};
+	const string publicTportHost{"sip.example.org"};
+	const string localTport2Host{"127.0.1.1"};
+	const string localTport1{"sip:" + localTport1Host + ":0;transport=tcp;network=127.0.0.0/24"};
+	const string publicTport{"sip:" + publicTportHost + ":0;maddr=127.1.0.1;transport=tcp"};
+	const string localTport2{"sip:" + localTport2Host + ":0;transport=tcp;network=127.0.1.0/24,127.0.2.0/24"};
 	Server proxy{{
 	    {"global/transports", localTport1 + " " + publicTport + " " + localTport2},
 	    {"global/aliases", "sip.example.org"},
@@ -478,13 +484,21 @@ void outgoingTransportSelection() {
 	proxy.start();
 
 	struct Helper {
-		char host[32];
+		string host{};
+		string recordRoute{};
 	};
 	Helper h{};
 
 	const auto clientsSuRoot = make_shared<SuRoot>();
 	const auto cb = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) -> int {
-		strcpy(reinterpret_cast<Helper*>(magic)->host, sip->sip_via->v_host);
+		Home home{};
+		auto* helper = reinterpret_cast<Helper*>(magic);
+		// The topmost "RecordRoute" header in the list is the last one added by the server.
+		const auto* recordRoute = sip->sip_record_route->r_url;
+
+		helper->host = sip->sip_via->v_host;
+		helper->recordRoute = "sip:"s + recordRoute->url_host + ":" + recordRoute->url_port;
+
 		nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
 		return 0;
 	};
@@ -495,7 +509,8 @@ void outgoingTransportSelection() {
 
 	CoreAssert<kNoSleep> asserter{proxy, clientsSuRoot};
 
-	const auto test = [&proxy, &asserter, &h](NtaAgent& caller, const NtaAgent& callee, const string& expected) {
+	const auto test = [&proxy, &asserter, &h](NtaAgent& caller, const NtaAgent& callee, const string& expectedHostInVia,
+	                                          const string& expectedRecordRoute) {
 		auto request = make_unique<MsgSip>();
 		request->makeAndInsert<SipHeaderRequest>(sip_method_invite, getNtaAgentFirstTransport(callee));
 		request->makeAndInsert<SipHeaderFrom>("sip:caller@sip.example.org", "stub-from-tag");
@@ -512,25 +527,33 @@ void outgoingTransportSelection() {
 		        0x20,
 		        [&] {
 			        FAIL_IF(!transaction->isCompleted());
-			        FAIL_IF(expected != h.host);
+			        FAIL_IF(expectedHostInVia != h.host);
+			        FAIL_IF(expectedRecordRoute != h.recordRoute);
 			        return ASSERTION_PASSED();
 		        },
 		        100ms)
 		    .assert_passed();
 	};
 
-	test(publicClient, localClient1, "127.0.0.1");
-	test(publicClient, localClient2, "127.0.1.1");
-	test(publicClient, localClient3, "127.0.1.1");
-	test(localClient1, publicClient, "sip.example.org");
-	test(localClient1, localClient2, "127.0.1.1");
-	test(localClient1, localClient3, "127.0.1.1");
-	test(localClient2, publicClient, "sip.example.org");
-	test(localClient2, localClient1, "127.0.0.1");
-	test(localClient2, localClient3, "127.0.1.1");
-	test(localClient3, publicClient, "sip.example.org");
-	test(localClient3, localClient1, "127.0.0.1");
-	test(localClient3, localClient2, "127.0.1.1");
+	auto* primary = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
+	const string realLocalTport1{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
+	primary = tport_next(primary);
+	const string realPublicTport{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
+	primary = tport_next(primary);
+	const string realLocalTport2{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
+
+	test(publicClient, localClient1, localTport1Host, realLocalTport1);
+	test(publicClient, localClient2, localTport2Host, realLocalTport2);
+	test(publicClient, localClient3, localTport2Host, realLocalTport2);
+	test(localClient1, publicClient, publicTportHost, realPublicTport);
+	test(localClient1, localClient2, localTport2Host, realLocalTport2);
+	test(localClient1, localClient3, localTport2Host, realLocalTport2);
+	test(localClient2, publicClient, publicTportHost, realPublicTport);
+	test(localClient2, localClient1, localTport1Host, realLocalTport1);
+	test(localClient2, localClient3, localTport2Host, realLocalTport2);
+	test(localClient3, publicClient, publicTportHost, realPublicTport);
+	test(localClient3, localClient1, localTport1Host, realLocalTport1);
+	test(localClient3, localClient2, localTport2Host, realLocalTport2);
 }
 
 TestSuite _{
