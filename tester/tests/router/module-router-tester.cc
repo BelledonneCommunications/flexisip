@@ -31,10 +31,10 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
-#include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 using namespace std::chrono;
