@@ -68,12 +68,9 @@ add_executable(flexisip_tester
 	cli-tester.cc
 	domain-registration-tester.cc
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
-	fork-call-tester.cc
-	fork-context-tester.cc
 	mediarelay-tester.cc
 	module-dos-tester.cc
 	module-info-tester.cc
-	module-router-tester.cc
 	module-toolbox-tester.cc
 	msg-sip-tester.cc
 	sip-uri-tests.cc
@@ -119,6 +116,9 @@ add_executable(flexisip_tester
 	tests/registrar/register-tester.cc
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
+	tests/router/fork/fork-call-tester.cc
+	tests/router/fork/fork-context-tester.cc
+	tests/router/module-router-tester.cc
 	tests/sofia-wrapper/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc
 	tests/transaction/outgoing-transaction-tester.cc
@@ -185,10 +185,10 @@ endif()
 
 if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
-		fork-context-mysql-tester.cc
 		tests/auth/db/authdb-soci-tester.cc
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
 		tests/presence/list-subscription/external-list-subscription-tester.cc
+		tests/router/fork/fork-context-mysql-tester.cc
 		tests/utils/soci-helper-tester.cc
 	)
 endif()
