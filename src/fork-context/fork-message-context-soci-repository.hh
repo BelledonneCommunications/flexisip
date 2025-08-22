@@ -20,40 +20,55 @@
 
 #include <string>
 
-#include "fork-message-context.hh"
 #include "soci/connection-pool.h"
-#include "soci/sqlite3/soci-sqlite3.h"
+
+#include "fork-message-context.hh"
 
 namespace flexisip {
 
 /**
- * @brief Gather all access to the database that stores ForkMessageContext instances.
+ * Responsible for creating the database to save MESSAGE requests waiting for delivery (ForkMessageContextDb instances).
+ * This tool also provides methods for performing CRUD operations on this database.
  */
 class ForkMessageContextSociRepository {
 public:
-	void operator=(const ForkMessageContextSociRepository&) = delete;
-	ForkMessageContextSociRepository(ForkMessageContextSociRepository& other) = delete;
-
-	static const std::unique_ptr<ForkMessageContextSociRepository>& getInstance();
-
-	static void prepareConfiguration(const std::string& backendString,
+	ForkMessageContextSociRepository(const std::string& backendString,
 	                                 const std::string& connectionString,
-	                                 unsigned int nbThreadsMax);
+	                                 unsigned int poolSize);
+	~ForkMessageContextSociRepository();
 
-	ForkMessageContextDb findForkMessageByUuid(const std::string& uuid);
+	ForkMessageContextSociRepository(ForkMessageContextSociRepository& other) = delete;
+	void operator=(const ForkMessageContextSociRepository&) = delete;
 
 	/**
 	 * @brief Fetch all ForkMessageContextDb instances from the database.
 	 *
 	 * @note load minimal information to create ForkMessageContextDbProxy instances with IN_DATABASE state
-	 * @warning the list must be ordered by expiration date
 	 */
 	std::vector<ForkMessageContextDb> findAllForkMessage();
-
+	/**
+	 * @param uuid unique ForkMessageContextDb identifier
+	 * @return the ForkMessageContextDb instance associated with the provided uuid in the database
+	 */
+	ForkMessageContextDb findForkMessageByUuid(const std::string& uuid);
+	/**
+	 * Save data of the provided ForkMessageContextDb into the database.
+	 *
+	 * @param dbFork instance to save into the database
+	 * @return the uuid associated with the saved instance
+	 */
 	std::string saveForkMessageContext(const ForkMessageContextDb& dbFork);
-
+	/**
+	 * Update the content of a ForkMessageContextDb saved into the database.
+	 *
+	 * @param dbFork new data to insert into the database for the provided uuid
+	 * @param uuid unique identifier target by this update
+	 */
 	void updateForkMessageContext(const ForkMessageContextDb& dbFork, const std::string& uuid);
-
+	/**
+	 * Remove a ForkMessageContextDb from the database associated with the provided uuid.
+	 * @param uuid unique ForkMessageContextDb identifier to remove from the database
+	 */
 	void deleteByUuid(const std::string& uuid);
 
 #ifdef ENABLE_UNIT_TESTS
@@ -61,17 +76,8 @@ public:
 #endif
 
 private:
-	ForkMessageContextSociRepository(const std::string& backendString,
-	                                 const std::string& connectionString,
-	                                 unsigned int nbThreadsMax);
-
 	static void findAndPushBackKeys(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
 	static void findAndPushBackBranches(const std::string& uuid, ForkMessageContextDb& dbFork, soci::session& sql);
-
-	static std::string sBackendString;
-	static std::string sConnectionString;
-	static unsigned int sNbThreadsMax;
-	static std::unique_ptr<ForkMessageContextSociRepository> singleton;
 
 	soci::connection_pool mConnectionPool;
 	std::vector<std::string> mUuidsToDelete;

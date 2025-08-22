@@ -134,10 +134,12 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
   - **PushNotifications:** Apple push certificates could not contain '.dev' in their filename and be used in production 
     environment.
-  -  **Plugin:** The server was not configured correctly when a plugin replaces a module. Added an error message when
+  - **Plugin:** The server was not configured correctly when a plugin replaces a module. Added an error message when
     the replaced module section is present in the configuration file.
   - **ExternalAuth:** This module did not support "Name or service not known" error while trying to send an HTTP request
     (which was leading to a crash).
+  - **Router:** A crash of the server could happen if MESSAGE requests waiting for delivery stored in the database were
+    removed from that database during the shutdown phase.
 
 ## [2.4.2] - 2025-07-21
 ### [Added]

@@ -23,6 +23,10 @@
 #include "fork-group-sorter.hh"
 #include "injector.hh"
 
+#if ENABLE_SOCI
+#include "fork-context/fork-message-context-soci-repository.hh"
+#endif
+
 namespace flexisip {
 
 /**
@@ -135,6 +139,9 @@ private:
 	std::unique_ptr<Injector> mInjector{};
 	std::shared_ptr<ForkContextFactory> mFactory{};
 	std::function<bool(const sip_t*)> mDispatchFilter{[](const sip_t*) { return true; }};
+#if ENABLE_SOCI
+	std::shared_ptr<ForkMessageContextSociRepository> mForkMessageDatabase{};
+#endif
 };
 
 } // namespace flexisip

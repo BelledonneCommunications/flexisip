@@ -32,6 +32,7 @@
 namespace flexisip {
 
 class ModuleRouter;
+class ForkMessageContextSociRepository;
 
 class ForkMessageContextDbProxy : public ForkContext,
                                   public ForkContextListener,
@@ -39,8 +40,8 @@ class ForkMessageContextDbProxy : public ForkContext,
 public:
 	/**
 	 * @brief State of a ForkMessageContextDbProxy object.
-	 * - IN_DATABASE : means the instance is not present in memory and should be restored from DB before accessing it.
-	 * - IN_MEMORY : means the instance is present in memory, no restoration needed.
+	 * - IN_DATABASE: means the instance is not present in memory and should be restored from DB before accessing it.
+	 * - IN_MEMORY: means the instance is present in memory, no restoration needed.
 	 */
 	enum class State : uint8_t { IN_DATABASE, IN_MEMORY };
 
@@ -53,6 +54,7 @@ public:
 	restore(ForkMessageContextDb& forkContextFromDb,
 	        const std::weak_ptr<ForkContextListener>& forkContextListener,
 	        const std::weak_ptr<InjectorListener>& injectorListener,
+	        const std::weak_ptr<ForkMessageContextSociRepository>& database,
 	        Agent* agent,
 	        const std::shared_ptr<ForkContextConfig>& config,
 	        const std::weak_ptr<StatPair>& forkMessageCounter,
@@ -92,7 +94,7 @@ public:
 	                                   const DispatchStatus reason) override;
 
 #ifdef ENABLE_UNIT_TESTS
-	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) {
+	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) const {
 		BC_ASSERT_STRING_EQUAL(mForkUuidInDb.c_str(), expected->mForkUuidInDb.c_str());
 		mForkMessage->assertEqual(expected->mForkMessage);
 	}
@@ -113,6 +115,7 @@ private:
 	                          bool isRestored,
 	                          const std::weak_ptr<ForkContextListener>& forkContextListener,
 	                          const std::weak_ptr<InjectorListener>& injectorListener,
+	                          const std::weak_ptr<ForkMessageContextSociRepository>& database,
 	                          Agent* agent,
 	                          const std::shared_ptr<ForkContextConfig>& config,
 	                          const std::weak_ptr<StatPair>& forkMessageCounter,
@@ -185,6 +188,7 @@ private:
 	std::vector<std::string> mSavedKeys;
 	sofiasip::MsgSipPriority mSavedMsgPriority;
 	const unsigned int mMaxThreadNumber;
+	std::weak_ptr<ForkMessageContextSociRepository> mForkMessageDatabase;
 	std::string mLogPrefix;
 };
 

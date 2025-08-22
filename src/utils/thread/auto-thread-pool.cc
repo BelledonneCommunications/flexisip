@@ -79,7 +79,8 @@ void AutoThreadPool::_run() {
 			// Wait until queue is not empty or termination signal is sent, respecting max thread count.
 			mCondition.wait(lock, [this]() {
 				if (mCurrentThreadNumber == mMaxThreadNumber) {
-					LOGD_CTX(mLogPrefix, "run") << "Notified but max thread number is reached";
+					LOGD_CTX(mLogPrefix, "run")
+					    << "Notified but max number of threads " << mMaxThreadNumber << " is reached";
 				}
 				return (!mTasks.empty() && mCurrentThreadNumber < mMaxThreadNumber) ||
 				       (mCurrentThreadNumber < mMaxThreadNumber && mState == Shutdown);
@@ -87,7 +88,7 @@ void AutoThreadPool::_run() {
 
 			// If termination signal received and queue is empty then exit else continue clearing the queue.
 			if (mTasks.empty() && mState == Shutdown) {
-				LOGD << "Terminate threads";
+				LOGD << "Terminating " << mCurrentThreadNumber << " threads";
 				mCondition.wait(lock, [this]() { return mCurrentThreadNumber == 0; });
 				return;
 			}

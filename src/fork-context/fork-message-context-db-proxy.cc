@@ -41,13 +41,14 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(std::unique_ptr<RequestSipE
                                                      bool isRestored,
                                                      const std::weak_ptr<ForkContextListener>& forkContextListener,
                                                      const std::weak_ptr<InjectorListener>& injectorListener,
+                                                     const std::weak_ptr<ForkMessageContextSociRepository>& database,
                                                      Agent* agent,
                                                      const std::shared_ptr<ForkContextConfig>& config,
                                                      const std::weak_ptr<StatPair>& forkMessageCounter,
                                                      const std::weak_ptr<StatPair>& counter)
     : mAgent(agent), mState{State::IN_MEMORY}, mProxyLateTimer{agent->getRoot()}, mCounter{counter},
       mForkContextListener{forkContextListener}, mSavedConfig{config}, mSavedMsgPriority{priority},
-      mMaxThreadNumber{getMaxThreadNumber(agent->getConfigManager())},
+      mMaxThreadNumber{getMaxThreadNumber(agent->getConfigManager())}, mForkMessageDatabase{database},
       mLogPrefix{LogManager::makeLogPrefixForInstance(this, "ForkMessageContextDbProxy")} {
 	LOGD << "New instance";
 	if (const auto statCounter = mCounter.lock()) {
@@ -65,13 +66,14 @@ std::shared_ptr<ForkMessageContextDbProxy>
 ForkMessageContextDbProxy::restore(ForkMessageContextDb& forkContextFromDb,
                                    const std::weak_ptr<ForkContextListener>& forkContextListener,
                                    const std::weak_ptr<InjectorListener>& injectorListener,
+                                   const std::weak_ptr<ForkMessageContextSociRepository>& database,
                                    Agent* agent,
                                    const std::shared_ptr<ForkContextConfig>& config,
                                    const std::weak_ptr<StatPair>& forkMessageCounter,
                                    const std::weak_ptr<StatPair>& counter) {
 
 	const auto context = make(nullptr, forkContextFromDb.msgPriority, true, forkContextListener, injectorListener,
-	                          agent, config, forkMessageCounter, counter);
+	                          database, agent, config, forkMessageCounter, counter);
 
 	context->mForkUuidInDb = forkContextFromDb.uuid;
 	context->mLastSavedVersion = context->mCurrentVersion.load();
@@ -90,36 +92,50 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 	}
 
 	if (!mForkUuidInDb.empty() && mIsFinished) {
-		// Destructor is called because the ForkContext is finished, removing info from database
-		LOGD << "Was present in database, cleaning UUID [" << mForkUuidInDb << "]";
-		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([uuid = mForkUuidInDb]() {
-			ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid);
-		});
+		// Destructor is called because the ForkContext is finished, removing info from the database.
+		LOGD << "Was present in database, removing UUID [" << mForkUuidInDb << "] from the database";
+		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)
+		    ->run([uuid = mForkUuidInDb, database = mForkMessageDatabase.lock(), prefix = mLogPrefix] {
+			    if (database) database->deleteByUuid(uuid);
+			    else LOGE_CTX(prefix) << "Access to database unavailable (ForkMessageContextSociRepository is nullptr)";
+		    });
 	}
 }
 
 void ForkMessageContextDbProxy::loadFromDb() const {
 	LOGD << "Retrieving message in database for UUID [" << mForkUuidInDb << "]";
-	mDbFork = make_unique<ForkMessageContextDb>(
-	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
+	const auto database = mForkMessageDatabase.lock();
+	if (database == nullptr) {
+		LOGE << "Access to database unavailable (ForkMessageContextSociRepository is nullptr)";
+		return;
+	}
+
+	mDbFork = make_unique<ForkMessageContextDb>(database->findForkMessageByUuid(mForkUuidInDb));
 }
 
 bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
-	LOGD << "Saving ForkMessage to DB";
+	LOGD << "Saving to database";
+	const auto database = mForkMessageDatabase.lock();
+	if (database == nullptr) {
+		SLOGE << "Access to database unavailable (ForkMessageContextSociRepository is nullptr)";
+		return false;
+	}
+
 	try {
 		if (mForkUuidInDb.empty()) {
 			LOGD << "Not saved before, creating a new entry";
-			mForkUuidInDb = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(dbFork);
+			mForkUuidInDb = database->saveForkMessageContext(dbFork);
+			LOGD << "Successfully saved with UUID [" << mForkUuidInDb << "]";
 		} else {
 			LOGD << "Already in database with UUID [" << mForkUuidInDb << "], updating";
-			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(dbFork, mForkUuidInDb);
+			database->updateForkMessageContext(dbFork, mForkUuidInDb);
 		}
 		if (mForkUuidInDb.empty()) {
-			LOGE << "Fork error: mForkUuidInDb empty after save, keeping message in memory";
+			LOGE << "Error: no UUID returned after attempting to save into the database, keeping message in memory";
 			return false;
 		}
 	} catch (const exception& e) {
-		LOGE << "A problem occurred while saving ForkMessageContext, it will remain in RAM: " << e.what();
+		LOGE << "A problem occurred while saving, it will remain in memory: " << e.what();
 		return false;
 	}
 	return true;

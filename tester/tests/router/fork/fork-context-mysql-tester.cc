@@ -25,7 +25,6 @@
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 #include "fork-context/fork-context-factory.hh"
-#include "fork-context/fork-message-context-db-proxy.hh"
 #include "fork-context/fork-message-context-soci-repository.hh"
 #include "router/fork-manager.hh"
 #include "tester.hh"
@@ -45,8 +44,6 @@ using namespace sofiasip;
 
 namespace flexisip::tester {
 namespace {
-
-using days = duration<int, ratio_multiply<ratio<24>, hours::period>>;
 
 optional<MysqlServer> mysqlServer = nullopt;
 const weak_ptr<ForkContextListener> nullListener{};
@@ -90,18 +87,13 @@ const map<string, string> configuration{
     {"module::Registrar/reg-domains", "sip.test.org 127.0.0.1"},
 };
 
-// Use it to create an instance before the configuration is overridden by a reload.
-void forceSociRepositoryInstantiation() {
-	mysqlServer->waitReady();
-	ForkMessageContextSociRepository::getInstance();
-}
-
 void forkMessageContextSociRepositoryMysql() {
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
+	const auto forkMessageDatabase = forkFactory->getForkMessageDatabase();
 	Random random{tester::random::seed()};
 	auto timestampGenerator = random.timestamp();
 
@@ -114,9 +106,8 @@ void forkMessageContextSociRepositoryMysql() {
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 	auto expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 	mysqlServer->waitReady();
-	const auto insertedUuid =
-	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
-	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	const auto insertedUuid = forkMessageDatabase->saveForkMessageContext(expectedFork->getDbObject());
+	auto dbFork = forkMessageDatabase->findForkMessageByUuid(insertedUuid);
 	auto actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
 	BC_ASSERT_CPP_EQUAL(string{asctime(&dbFork.expirationDate)}, string{asctime(&fakeDbObject.expirationDate)});
 	actualFork->assertEqual(expectedFork);
@@ -127,19 +118,22 @@ void forkMessageContextSociRepositoryMysql() {
 	// We keep the same keys because they are not updated.
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 	expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
-	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
-	                                                                          insertedUuid);
-	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	forkMessageDatabase->updateForkMessageContext(expectedFork->getDbObject(), insertedUuid);
+	dbFork = forkMessageDatabase->findForkMessageByUuid(insertedUuid);
 	actualFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 	actualFork->assertEqual(expectedFork);
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 void forkMessageContextWithBranchesSociRepositoryMysql() {
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
+	const auto forkMessageDatabase = forkFactory->getForkMessageDatabase();
 	Random random{tester::random::seed()};
 	Random::TimestampGenerator timestampGenerator = random.timestamp();
 
@@ -154,9 +148,8 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 	auto expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 
 	mysqlServer->waitReady();
-	const auto insertedUuid =
-	    ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(expectedFork->getDbObject());
-	auto dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	const auto insertedUuid = forkMessageDatabase->saveForkMessageContext(expectedFork->getDbObject());
+	auto dbFork = forkMessageDatabase->findForkMessageByUuid(insertedUuid);
 	auto actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
 	actualFork->assertEqual(expectedFork);
 
@@ -169,19 +162,22 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 	branchInfoDb3 = BranchInfoDb{"contactUid3", 3.42, rawRequest, rawResponse, false};
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 	expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
-	ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(expectedFork->getDbObject(),
-	                                                                          insertedUuid);
-	dbFork = ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(insertedUuid);
+	forkMessageDatabase->updateForkMessageContext(expectedFork->getDbObject(), insertedUuid);
+	dbFork = forkMessageDatabase->findForkMessageByUuid(insertedUuid);
 	actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
 	actualFork->assertEqual(expectedFork);
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 void forkMessageContextSociRepositoryFullLoadMysql() {
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
+	const auto forkMessageDatabase = forkFactory->getForkMessageDatabase();
 	Random random{tester::random::seed()};
 	auto timestampGenerator = random.timestamp();
 
@@ -206,11 +202,11 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 
 		const auto fork = forkFactory->restoreForkMessageContext(fakeFork, nullListener);
 		mysqlServer->waitReady();
-		const auto uuid = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(fork->getDbObject());
+		const auto uuid = forkMessageDatabase->saveForkMessageContext(fork->getDbObject());
 		expectedForks.insert({uuid, fork});
 	}
 
-	auto dbForks = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	auto dbForks = forkMessageDatabase->findAllForkMessage();
 	BC_HARD_ASSERT_CPP_EQUAL(dbForks.size(), expectedForks.size());
 
 	// Verify order of dbForks (must be ordered by expiration date).
@@ -238,6 +234,9 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 		for (size_t keyId = 0; keyId < actualKeys.size(); keyId++)
 			BC_HARD_ASSERT_CPP_EQUAL(actualKeys[keyId], expectedKeys[keyId]);
 	}
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 /**
@@ -249,7 +248,7 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 void globalTest() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -294,6 +293,7 @@ void globalTest() {
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	const auto forkMessageDatabase = moduleRouter->getForkManager()->getFactory()->getForkMessageDatabase();
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
@@ -306,10 +306,9 @@ void globalTest() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Check that request in DB is the same that request sent";
-	const auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	const auto allMessages = forkMessageDatabase->findAllForkMessage();
 	if (allMessages.size() == 1) {
-		const auto requestInDb =
-		    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(allMessages.cbegin()->uuid).request;
+		const auto requestInDb = forkMessageDatabase->findForkMessageByUuid(allMessages.cbegin()->uuid).request;
 		// We only compare body because headers can be modified a bit by the proxy
 		if (requestInDb.find(body) == string::npos) BC_FAIL("Body not found");
 	} else BC_FAIL("No message in DB, or too much");
@@ -332,12 +331,15 @@ void globalTest() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 2);
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 void globalTestMultipleDevices() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 
 	CoreAssert asserter{server};
@@ -407,6 +409,7 @@ void globalTestMultipleDevices() {
 	SLOGD << "Step 3: Assert that db fork is still present because some devices are offline, message fork is destroyed "
 	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	const auto forkMessageDatabase = moduleRouter->getForkManager()->getFactory()->getForkMessageDatabase();
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	asserter
 	    .wait([&moduleRouter] {
@@ -418,10 +421,9 @@ void globalTestMultipleDevices() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Check that request in DB is the same that request sent";
-	const auto allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	const auto allMessages = forkMessageDatabase->findAllForkMessage();
 	if (allMessages.size() == 1) {
-		const auto requestInDb =
-		    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(allMessages.cbegin()->uuid).request;
+		const auto requestInDb = forkMessageDatabase->findForkMessageByUuid(allMessages.cbegin()->uuid).request;
 		// We only compare body because headers can be modified a bit by the proxy.
 		if (requestInDb.find(body) == string::npos) BC_FAIL("Body not found");
 	} else BC_FAIL("No message in DB, or too much");
@@ -480,8 +482,8 @@ void globalTestMultipleDevices() {
 
 	SLOGD << "Step 9: Assert Fork is destroyed after being delivered (from memory AND database)";
 	asserter
-	    .wait([&moduleRouter] {
-		    const auto& allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	    .wait([&moduleRouter, &forkMessageDatabase] {
+		    const auto& allMessages = forkMessageDatabase->findAllForkMessage();
 		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == 1 &&
 		                          allMessages.empty());
 	    })
@@ -491,12 +493,15 @@ void globalTestMultipleDevices() {
 	BC_ASSERT_GREATER(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 3, int, "%i");
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(),
 	                    moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read());
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 void testDBAccessOptimization() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -549,6 +554,7 @@ void testDBAccessOptimization() {
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	const auto forkMessageDatabase = moduleRouter->getForkManager()->getFactory()->getForkMessageDatabase();
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	asserter
 	    .wait([&moduleRouter] {
@@ -604,8 +610,8 @@ void testDBAccessOptimization() {
 	    })
 	    .assert_passed();
 	asserter
-	    .wait([&moduleRouter] {
-		    const auto& allMessages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	    .wait([&moduleRouter, &forkMessageDatabase] {
+		    const auto& allMessages = forkMessageDatabase->findAllForkMessage();
 		    return LOOP_ASSERTION(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->finish->read() == 1 &&
 		                          allMessages.empty());
 	    })
@@ -613,12 +619,15 @@ void testDBAccessOptimization() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 3);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 3);
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 /**
  * This test is a performance test, and too much system dependant.
  */
-#ifdef false
+#if false
 /**
  * Same test as globalTest, but this time we send a lot of large message while receiver is not reachable.
  * This test try to saturate sofia-sip queue when receiver register again. If all messages are received test is passed.
@@ -627,6 +636,7 @@ static void globalTestMultipleMessages() {
 	// This test log too much, modify this value to "BCTBX_LOG_DEBUG" if you need logs
 	bctbx_set_log_level(nullptr, BCTBX_LOG_FATAL);
 	Server server{configuration};
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 
 	auto receiverClient = make_shared<CoreClient>("sip:provencal_le_gaulois@sip.test.org", server.getAgent());
@@ -648,18 +658,16 @@ static void globalTestMultipleMessages() {
 	for (; i < 1000; ++i) {
 		ostringstream rawHeaders;
 		rawHeaders << "MESSAGE sip:provencal_le_gaulois@sip.test.org SIP/2.0\r\n"
-		              "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-		              "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
-		              "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
-		              "CSeq: 20 MESSAGE\r\n"
-		              "Call-ID: Tvw6USHXYv"
-		           << i
-		           << "\r\n"
-		              "Max-Forwards: 70\r\n"
-		              "Route: <sip:127.0.0.1:5960;transport=tcp;lr>\r\n"
-		              "Supported: replaces, outbound, gruu\r\n"
-		              "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
-		              "Content-Type: text/plain\r\n\r\n";
+		           << "Via: SIP/2.0/TCP 127.0.0.1:6066;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
+		           << "From: <sip:kijou@sip.test.org;gr=8aabdb1c>;tag=l3qXxwsO~\r\n"
+		           << "To: <sip:provencal_le_gaulois@sip.test.org>\r\n"
+		           << "CSeq: 20 MESSAGE\r\n"
+		           << "Call-ID: Tvw6USHXYv" << i << "\r\n"
+		           << "Max-Forwards: 70\r\n"
+		           << "Route: <sip:127.0.0.1:5960;transport=tcp;lr>\r\n"
+		           << "Supported: replaces, outbound, gruu\r\n"
+		           << "Date: Fri, 01 Apr 2022 11:18:26 GMT\r\n"
+		           << "Content-Type: text/plain\r\n\r\n";
 		bellesipUtils.sendRawRequest(rawHeaders.str(), rawBody);
 	}
 
@@ -720,7 +728,7 @@ static void globalTestMultipleMessages() {
 void globalTestDatabaseDeleted() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -764,6 +772,7 @@ void globalTestDatabaseDeleted() {
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	const auto forkMessageDatabase = moduleRouter->getForkManager()->getFactory()->getForkMessageDatabase();
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
@@ -776,7 +785,7 @@ void globalTestDatabaseDeleted() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 
 	SLOGD << "Step 4: Clear database to simulate DB errors on Client REGISTER.";
-	ForkMessageContextSociRepository::getInstance()->deleteAll();
+	forkMessageDatabase->deleteAll();
 
 	SLOGD << "Step 4b: Client REGISTER, no message received.";
 	receiverClient.reconnect();
@@ -796,6 +805,9 @@ void globalTestDatabaseDeleted() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 1);
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 /**
@@ -806,7 +818,7 @@ void globalTestDatabaseDeleted() {
 void globalOrderTest() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	forceSociRepositoryInstantiation();
+	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
 	server.start();
 
 	const auto router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
@@ -874,6 +886,7 @@ void globalOrderTest() {
 	SLOGD << "Step 3: Assert that db fork is still present because device is offline, message fork is destroyed "
 	         "because message is saved";
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	const auto forkMessageDatabase = moduleRouter->getForkManager()->getFactory()->getForkMessageDatabase();
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 
 	asserter
@@ -912,6 +925,9 @@ void globalOrderTest() {
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageProxyForks->start->read(), messageSent);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->start->read(), 2 * messageSent);
 	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountMessageForks->finish->read(), 2 * messageSent);
+
+	// Clear the database.
+	forkMessageDatabase->deleteAll();
 }
 
 TestSuite _{
@@ -929,10 +945,9 @@ TestSuite _{
     Hooks()
         .beforeSuite([] {
 	        mysqlServer.emplace();
-	        ForkMessageContextSociRepository::prepareConfiguration("mysql", mysqlServer->connectionString(), 10);
+        	mysqlServer->waitReady();
 	        return 0;
         })
-        .afterEach([] { ForkMessageContextSociRepository::getInstance()->deleteAll(); })
         .afterSuite([] {
 	        mysqlServer.reset();
 	        return 0;

@@ -27,6 +27,10 @@
 #include "fork-message-context-db-proxy.hh"
 #include "fork-message-context.hh"
 
+#if ENABLE_SOCI
+#include "fork-message-context-soci-repository.hh"
+#endif
+
 namespace flexisip {
 
 /**
@@ -75,7 +79,8 @@ public:
 				forkMessageCounter = forkStats->mCountMessageForks;
 			}
 			return ForkMessageContextDbProxy::make(std::forward<Args>(args)..., mForkContextListener, mInjectorListener,
-			                                       mAgent, mMessageForkCfg, forkMessageCounter, statCounter);
+			                                       mForkMessageDatabase, mAgent, mMessageForkCfg, forkMessageCounter,
+			                                       statCounter);
 		}
 #endif
 		if (isIntendedForConfServer) {
@@ -104,9 +109,12 @@ public:
 			statCounter = forkStats->mCountMessageProxyForks;
 			forkMessageCounter = forkStats->mCountMessageForks;
 		}
-		return ForkMessageContextDbProxy::restore(std::forward<Args>(args)..., mInjectorListener, mAgent,
-		                                          mMessageForkCfg, forkMessageCounter, statCounter);
+		return ForkMessageContextDbProxy::restore(std::forward<Args>(args)..., mInjectorListener, mForkMessageDatabase,
+		                                          mAgent, mMessageForkCfg, forkMessageCounter, statCounter);
 	}
+
+	void setForkMessageDatabase(const std::weak_ptr<ForkMessageContextSociRepository>& database);
+	std::shared_ptr<ForkMessageContextSociRepository> getForkMessageDatabase() const;
 #endif
 
 	bool callForkLateEnabled() const;
@@ -123,6 +131,9 @@ private:
 	std::shared_ptr<ForkContextConfig> mCallForkCfg{};
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg{};
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg{};
+#if ENABLE_SOCI
+	std::weak_ptr<ForkMessageContextSociRepository> mForkMessageDatabase{};
+#endif
 };
 
 } // namespace flexisip
