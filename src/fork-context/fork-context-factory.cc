@@ -63,6 +63,16 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	mOtherForkCfg->mForkLate = false;
 }
 
+#if ENABLE_SOCI
+void ForkContextFactory::setForkMessageDatabase(const std::weak_ptr<ForkMessageContextSociRepository>& database) {
+	mForkMessageDatabase = database;
+}
+
+shared_ptr<ForkMessageContextSociRepository> ForkContextFactory::getForkMessageDatabase() const {
+	return mForkMessageDatabase.lock();
+}
+#endif
+
 bool ForkContextFactory::callForkLateEnabled() const {
 	return mCallForkCfg->mForkLate;
 }

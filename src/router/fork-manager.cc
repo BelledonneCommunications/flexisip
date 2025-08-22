@@ -46,11 +46,12 @@ ForkManager::make(Agent* agent, ModuleRouter* router, const GenericStruct* modul
 	if (manager->mFactory->messageStorageInDbEnabled()) {
 		InjectContext::setMaxRequestRetentionTime(
 		    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("max-request-retention-time")->read());
-		ForkMessageContextSociRepository::prepareConfiguration(
+		manager->mForkMessageDatabase = make_shared<ForkMessageContextSociRepository>(
 		    moduleRouterConfig->get<ConfigString>("message-database-backend")->read(),
 		    moduleRouterConfig->get<ConfigString>("message-database-connection-string")->read(),
 		    moduleRouterConfig->get<ConfigInt>("message-database-pool-size")->read());
 		manager->mInjector = make_unique<ScheduleInjector>(router);
+		manager->mFactory->setForkMessageDatabase(manager->mForkMessageDatabase);
 
 		manager->restoreForkMessageContextsFromDatabase();
 	}
@@ -155,7 +156,7 @@ void ForkManager::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 		for (auto iterator = forkKeyIt; iterator != forkContextIt;) {
 			if (iterator->second == ctx) {
 				LOGD << "Removing ForkContext[" << iterator->second << "] related to key '" << iterator->first
-				     << "' (cout = " << mForks.count(iterator->first) << ")";
+				     << "' (count = " << mForks.count(iterator->first) << ")";
 
 				if (const auto forkStats = mStats.lock()) {
 					forkStats->mCountForks->incrFinish();
@@ -315,7 +316,7 @@ std::shared_ptr<BranchInfo> ForkManager::dispatch(const shared_ptr<ForkContext>&
 #if ENABLE_SOCI
 void ForkManager::restoreForkMessageContextsFromDatabase() {
 	LOGI << "Storage of messages in database is enabled, retrieving previous messages in the database";
-	auto messages = ForkMessageContextSociRepository::getInstance()->findAllForkMessage();
+	auto messages = mForkMessageDatabase->findAllForkMessage();
 	LOGI << "Retrieved " << messages.size() << " messages from the database";
 	for (auto& dbMessage : messages) {
 		if (const auto forkStats = mStats.lock()) {
