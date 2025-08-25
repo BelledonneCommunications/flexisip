@@ -16,9 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/soci-helper.hh"
-
 #include "fork-message-context-soci-repository.hh"
+
+#include "utils/soci-helper.hh"
 
 using namespace flexisip;
 using namespace std;
@@ -27,17 +27,25 @@ using namespace soci;
 std::string ForkMessageContextSociRepository::sBackendString{};
 std::string ForkMessageContextSociRepository::sConnectionString{};
 unsigned int ForkMessageContextSociRepository::sNbThreadsMax = 1;
-std::unique_ptr<ForkMessageContextSociRepository> ForkMessageContextSociRepository::singleton{};
+std::shared_ptr<ForkMessageContextSociRepository> ForkMessageContextSociRepository::singleton{};
 
-const std::unique_ptr<ForkMessageContextSociRepository>& ForkMessageContextSociRepository::getInstance() {
+const std::shared_ptr<ForkMessageContextSociRepository>& ForkMessageContextSociRepository::getInstance() {
 	if (singleton) {
 		return singleton;
 	}
 
-	singleton = std::unique_ptr<ForkMessageContextSociRepository>(
+	singleton = std::shared_ptr<ForkMessageContextSociRepository>(
 	    new ForkMessageContextSociRepository(sBackendString, sConnectionString, sNbThreadsMax));
 
 	return singleton;
+}
+
+void ForkMessageContextSociRepository::prepareConfiguration(const std::string& backendString,
+                                                            const std::string& connectionString,
+                                                            unsigned int nbThreadsMax) {
+	sBackendString = backendString;
+	sConnectionString = connectionString;
+	sNbThreadsMax = nbThreadsMax;
 }
 
 ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string& backendString,
@@ -123,6 +131,12 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		     "message-database-enabled before restart. \nException : %s",
 		     e.what());
 	}
+	SLOGD << "ForkMessageContextSociRepository[" << this
+	      << "]: creation done, the ForkMessageContext database is configured and accessible";
+}
+
+ForkMessageContextSociRepository::~ForkMessageContextSociRepository() {
+	SLOGD << "ForkMessageContextSociRepository[" << this << "]: destruction";
 }
 
 ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(const string& uuid) {

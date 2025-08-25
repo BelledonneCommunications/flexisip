@@ -32,6 +32,7 @@
 namespace flexisip {
 
 class ModuleRouter;
+class ForkMessageContextSociRepository;
 
 class ForkMessageContextDbProxy : public ForkContext,
                                   public ForkContextListener,
@@ -168,18 +169,20 @@ protected:
 	}
 
 private:
+	using Database = std::shared_ptr<ForkMessageContextSociRepository>;
+
 	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router, sofiasip::MsgSipPriority priority);
 	ForkMessageContextDbProxy(const std::shared_ptr<ModuleRouter> router, ForkMessageContextDb& forkFromDb);
 
 	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.
 	 */
-	void loadFromDb() const;
+	void loadFromDb(const Database& database) const;
 
 	/**
 	 * Be careful, blocking I/O with DB, should be called in a thread.
 	 */
-	bool saveToDb(const ForkMessageContextDb& dbFork);
+	bool saveToDb(const ForkMessageContextDb& dbFork, const Database& database);
 
 	void checkState(const std::string& methodName, const ForkMessageContextDbProxy::State& expectedState) const;
 	bool canBeSaved() const;

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -89,27 +89,38 @@ ForkMessageContextDbProxy::~ForkMessageContextDbProxy() {
 	if (!mForkUuidInDb.empty() && mIsFinished) {
 		// Destructor is called because the ForkContext is finished, removing info from database
 		LOGD("ForkMessageContextDbProxy[%p] was present in DB, cleaning UUID[%s]", this, mForkUuidInDb.c_str());
-		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([uuid = mForkUuidInDb]() {
-			ForkMessageContextSociRepository::getInstance()->deleteByUuid(uuid);
-		});
+		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)
+		    ->run([uuid = mForkUuidInDb, database = ForkMessageContextSociRepository::getInstance(),
+		           prefix = errorLogPrefix()] {
+			    if (database) database->deleteByUuid(uuid);
+			    else SLOGE << prefix << "Access to database unavailable (ForkMessageContextSociRepository is nullptr)";
+		    });
 	}
 }
 
-void ForkMessageContextDbProxy::loadFromDb() const {
+void ForkMessageContextDbProxy::loadFromDb(const Database& database) const {
 	LOGI("ForkMessageContextDbProxy[%p] retrieving message in DB for UUID [%s]", this, mForkUuidInDb.c_str());
-	mDbFork = make_unique<ForkMessageContextDb>(
-	    ForkMessageContextSociRepository::getInstance()->findForkMessageByUuid(mForkUuidInDb));
+	if (database == nullptr) {
+		SLOGE << errorLogPrefix() << "Access to database unavailable (ForkMessageContextSociRepository is nullptr)";
+		return;
+	}
+	mDbFork = make_unique<ForkMessageContextDb>(database->findForkMessageByUuid(mForkUuidInDb));
 }
 
-bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork) {
+bool ForkMessageContextDbProxy::saveToDb(const ForkMessageContextDb& dbFork, const Database& database) {
 	LOGI("ForkMessageContextDbProxy[%p] saving ForkMessage to DB.", this);
+	if (database == nullptr) {
+		SLOGE << errorLogPrefix() << "Access to database unavailable (ForkMessageContextSociRepository is nullptr)";
+		return false;
+	}
+
 	try {
 		if (mForkUuidInDb.empty()) {
 			LOGD("ForkMessageContextDbProxy[%p] not saved before, creating a new entry.", this);
-			mForkUuidInDb = ForkMessageContextSociRepository::getInstance()->saveForkMessageContext(dbFork);
+			mForkUuidInDb = database->saveForkMessageContext(dbFork);
 		} else {
 			LOGD("ForkMessageContextDbProxy[%p] already in DB with UUID[%s], updating", this, mForkUuidInDb.c_str());
-			ForkMessageContextSociRepository::getInstance()->updateForkMessageContext(dbFork, mForkUuidInDb);
+			database->updateForkMessageContext(dbFork, mForkUuidInDb);
 		}
 		if (mForkUuidInDb.empty()) {
 			SLOGE << errorLogPrefix() << "mForkUuidInDb empty after save, keeping message in memory";
@@ -170,10 +181,11 @@ void ForkMessageContextDbProxy::onUselessRegisterNotification([[maybe_unused]] c
 void ForkMessageContextDbProxy::runSavingThread() {
 	const auto dbFork = mForkMessage->getDbObject();
 	AutoThreadPool::getDbThreadPool(mMaxThreadNumber)
-	    ->run([thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load()]() {
+	    ->run([thiz = shared_from_this(), dbFork, dbForkVersion = mCurrentVersion.load(),
+	           database = ForkMessageContextSociRepository::getInstance()] {
 		    lock_guard<mutex> lock(thiz->mDbAccessMutex);
 		    if (dbForkVersion == thiz->mCurrentVersion && thiz->mLastSavedVersion < dbForkVersion &&
-		        thiz->saveToDb(dbFork)) {
+		        thiz->saveToDb(dbFork, database)) {
 			    thiz->mLastSavedVersion = dbForkVersion;
 
 			    if (auto router = thiz->mSavedRouter.lock()) {
@@ -239,32 +251,36 @@ void ForkMessageContextDbProxy::onNewRegister(const SipUri& dest,
 	// If the ForkMessage is only in database create a thread to access database and then recursively call this method.
 	if (getState() == State::IN_DATABASE) {
 		LOGD("ForkMessageContext[%p] onNewRegister: message is in DB. Initiating load from DB.", this);
-		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)->run([thiz = shared_from_this(), dest, uid, newContact]() {
-			lock_guard<mutex> lock(thiz->mDbAccessMutex);
-			if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
-				try {
-					thiz->loadFromDb();
-				} catch (const exception& e) {
-					SLOGE << thiz->errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
-				}
-			} else {
-				LOGD("ForkMessageContext[%p] onNewRegister (thread): message was previously loaded.", thiz.get());
-			}
+		AutoThreadPool::getDbThreadPool(mMaxThreadNumber)
+		    ->run([thiz = shared_from_this(), dest, uid, newContact,
+		           database = ForkMessageContextSociRepository::getInstance()] {
+			    lock_guard<mutex> lock(thiz->mDbAccessMutex);
+			    if (thiz->getState() == State::IN_DATABASE && !thiz->mDbFork) {
+				    try {
+					    thiz->loadFromDb(database);
+				    } catch (const exception& e) {
+					    SLOGE << thiz->errorLogPrefix() << "Error loading ForkMessageContext from db : " << e.what();
+				    }
+			    } else {
+				    LOGD("ForkMessageContext[%p] onNewRegister (thread): message was previously loaded.", thiz.get());
+			    }
 
-			if (auto router = thiz->mSavedRouter.lock()) {
-				LOGD("ForkMessageContext[%p] onNewRegister (thread): loaded or previously loaded, recursively added to "
-				     "main loop",
-				     thiz.get());
-				router->getAgent()->getRoot()->addToMainLoop(
-				    [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid, newContact]() {
-					    if (auto shared = weak.lock()) {
-						    shared->onNewRegister(dest, uid, newContact);
-					    }
-				    });
-			} else {
-				SLOGE << thiz->errorLogPrefix() << " onNewRegister: router missing, this should not happened";
-			}
-		});
+			    if (auto router = thiz->mSavedRouter.lock()) {
+				    LOGD("ForkMessageContext[%p] onNewRegister (thread): loaded or previously loaded, recursively "
+				         "added to "
+				         "main loop",
+				         thiz.get());
+				    router->getAgent()->getRoot()->addToMainLoop(
+				        [weak = weak_ptr<ForkMessageContextDbProxy>{thiz->shared_from_this()}, dest, uid,
+				         newContact]() {
+					        if (auto shared = weak.lock()) {
+						        shared->onNewRegister(dest, uid, newContact);
+					        }
+				        });
+			    } else {
+				    SLOGE << thiz->errorLogPrefix() << " onNewRegister: router missing, this should not happened";
+			    }
+		    });
 
 		return;
 	}

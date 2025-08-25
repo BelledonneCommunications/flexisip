@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,44 +21,35 @@
 #include <string>
 
 #include <soci/connection-pool.h>
-#include <soci/mysql/soci-mysql.h>
-#include <soci/session.h>
-#include <soci/sqlite3/soci-sqlite3.h>
 
 #include "fork-message-context.hh"
 
 namespace flexisip {
 
 /**
- * Singleton class used to gather all access to fork message context database.<br>
- * <br>
- * Instantiating the singleton connect to the database and create/update the schema if it doesn't already exist.
+ * Singleton class used to gather all access to the database for ForkMessageContext instances.
+ * Creating the singleton creates the connection to the database and creates/updates the schema if it doesn't already
+ * exist.
+ *
+ * This class should not be cloneable or assignable.
  */
 class ForkMessageContextSociRepository {
 public:
-	/**
-	 * ForkMessageContextSociRepository should not be cloneable.
-	 */
 	ForkMessageContextSociRepository(ForkMessageContextSociRepository& other) = delete;
-	/**
-	 * ForkMessageContextSociRepository should not be assignable.
-	 */
 	void operator=(const ForkMessageContextSociRepository&) = delete;
 
-	static const std::unique_ptr<ForkMessageContextSociRepository>& getInstance();
+	~ForkMessageContextSociRepository();
+
+	static const std::shared_ptr<ForkMessageContextSociRepository>& getInstance();
 
 	static void prepareConfiguration(const std::string& backendString,
 	                                 const std::string& connectionString,
-	                                 unsigned int nbThreadsMax) {
-		sBackendString = backendString;
-		sConnectionString = connectionString;
-		sNbThreadsMax = nbThreadsMax;
-	}
+	                                 unsigned int nbThreadsMax);
 
 	ForkMessageContextDb findForkMessageByUuid(const std::string& uuid);
 
 	/**
-	 * Load minimal information about all fork_message_context to re-create proxy objects in Database state.
+	 * Load minimal information about all ForkMessageContext instances to re-create proxy objects in "database state".
 	 */
 	std::vector<ForkMessageContextDb> findAllForkMessage();
 
@@ -87,7 +78,7 @@ private:
 	static std::string sBackendString;
 	static std::string sConnectionString;
 	static unsigned int sNbThreadsMax;
-	static std::unique_ptr<ForkMessageContextSociRepository> singleton;
+	static std::shared_ptr<ForkMessageContextSociRepository> singleton;
 };
 
 } // namespace flexisip
