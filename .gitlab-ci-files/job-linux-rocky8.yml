@@ -52,6 +52,8 @@ job-rocky8-unit-test:
     - .rocky8-image-variables
   needs:
     - job-rocky8-ninja-clang
+  variables:
+    LSAN_SUPPRESSIONS_FILE_PATH: "./sanitizer_ignore_rocky8.txt"
 
 #################################################
 # RPM

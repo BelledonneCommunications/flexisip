@@ -83,6 +83,7 @@ void ConferenceServer::_init() {
 		configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
 		configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
 		configLinphone->setString("storage", "uri", dbUri);
+		configLinphone->setBool("misc", "keep_gruu_in_conference_address", true);
 	} else {
 		configLinphone->setString("storage", "uri", "null");
 	}
@@ -440,21 +441,21 @@ void ConferenceServer::bindFocusUris() {
 void ConferenceServer::bindChatRoom(const string& bindingUrl,
                                     const string& contact,
                                     const shared_ptr<ContactUpdateListener>& listener) {
-	BindingParameters parameter;
-	const auto gruu = getUuid();
+	SipUri uri(bindingUrl);
+	auto gruu = uri.getParam("gr");
+	if (gruu.empty()) gruu = getUuid();
 
 	sip_contact_t* sipContact =
 	    sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t*>(url_make(mHome.home(), contact.c_str())),
 	                       su_strdup(mHome.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruu)).c_str()), nullptr);
 
+	BindingParameters parameter;
 	parameter.callId = "dummy-call-id"; // Mandatory parameter but useless in our case.
 	parameter.path.add(mPath);
 	parameter.globalExpire = numeric_limits<int>::max();
 	parameter.alias = false;
 	parameter.version = 0;
 	parameter.withGruu = true;
-
-	SipUri uri(bindingUrl);
 
 	if (uri.getUser().empty()) throw FlexisipException{"trying to bind with no username"};
 

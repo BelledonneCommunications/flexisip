@@ -38,7 +38,8 @@ TestConferenceServer::TestConferenceServer(const Server& proxy)
 TestConferenceServer::TestConferenceServer(const Agent& agent,
                                            const std::shared_ptr<ConfigManager>& cfg,
                                            const std::shared_ptr<RegistrarDb>& registrarDb)
-    : mConfServer(make_shared<PatchedConferenceServer>(agent.getPreferredRoute(), agent.getRoot(), cfg, registrarDb)) {
+    : mRoot(agent.getRoot()),
+      mConfServer(make_shared<PatchedConferenceServer>(agent.getPreferredRoute(), agent.getRoot(), cfg, registrarDb)) {
 	mConfServer->getServerConf()
 	    .get<ConfigString>("outbound-proxy")
 	    ->set(cfg->getRoot()->get<GenericStruct>("global")->get<ConfigStringList>("transports")->read().front());
@@ -46,7 +47,10 @@ TestConferenceServer::TestConferenceServer(const Agent& agent,
 }
 
 TestConferenceServer::~TestConferenceServer() {
+	// Stopping the conference-server properly.
 	std::ignore = mConfServer->stop();
+	mConfServer.reset();
+	mRoot->step(200ms);
 }
 
 void TestConferenceServer::clearLocalDomainList() {
