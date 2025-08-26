@@ -29,6 +29,7 @@
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "registrardb-internal.hh"
+#include "registrardb-redis.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
@@ -37,10 +38,12 @@
 #include "utils/core-assert.hh"
 #include "utils/server/mysql-server.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/server/test-conference-server.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 using namespace std::chrono_literals;
@@ -293,10 +296,85 @@ void inviteResentOnReconnect() {
 	BC_ASSERT_ENUM_EQUAL(offlineDevice->getState(), linphone::ParticipantDevice::State::Present);
 }
 
+/**
+ * Test that the conference-server correctly binds the "old" chatroom (chatroom-xyz) even if the uuid has changed.
+ */
+void oldChatroomSupport() {
+	RedisServer redis{};
+	const auto testDir = TmpDir(__FUNCTION__ + "."s);
+	Server proxy{
+	    {
+	        {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	        {"module::Registrar/db-implementation", "redis"},
+	        {"module::Registrar/enable-gruu", "true"},
+	        {"module::Registrar/redis-server-domain", "localhost"},
+	        {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	        {"module::Registrar/redis-slave-check-period", "1" /* second */},
+	        {"conference-server/database-backend", "sqlite"},
+	        {"conference-server/database-connection-string", "/dev/null"},
+	        {"conference-server/conference-factory-uris", "sip:conference-factory@sip.example.org"},
+	        {"conference-server/conference-focus-uris", "sip:conference-focus@sip.example.org"},
+	        {"conference-server/state-directory", testDir.path() / "conf-server"},
+	    },
+	};
+	proxy.start();
+	CoreAssert asserter{proxy};
+	auto& registrar = proxy.getRegistrarDb();
+
+	auto backend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar->getRegistrarBackend());
+	BC_HARD_ASSERT(backend != nullptr);
+	auto& registrarBackend = const_cast<RegistrarDbRedisAsync&>(*backend); // we want to force a behavior
+	BC_ASSERT(registrarBackend.connect() != std::nullopt);
+
+	class FakeListener : public ContactUpdateListener {
+		void onRecordFound(const std::shared_ptr<Record>&) override {
+			recorded = true;
+		}
+		void onError(const SipStatus&) override {
+		}
+		void onInvalid(const SipStatus&) override {
+		}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
+			updated = true;
+		}
+
+	public:
+		bool recorded{};
+		bool updated{};
+	};
+	std::shared_ptr<FakeListener> listener = std::make_shared<FakeListener>();
+	const auto bindingUrl = "sip:chatroom-xyz@sip.example.org;gr=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+	flexisip::SipUri uri(bindingUrl);
+
+	BindingParameters parameter;
+	parameter.callId = "dummy";
+	parameter.globalExpire = 100;
+	parameter.alias = false;
+	parameter.version = 0;
+	parameter.withGruu = true;
+
+	// Simulate an old chatroom creation with a uuid 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'.
+	sofiasip::Home home{};
+	const auto gruuA = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+	sip_contact_t* sipContactOnA = sip_contact_create(
+	    home.home(), reinterpret_cast<const url_string_t*>(url_make(home.home(), "sip:127.0.0.1:6064;transport=tcp")),
+	    su_strdup(home.home(), ("+sip.instance=" + UriUtils::grToUniqueId(gruuA)).c_str()), nullptr);
+	registrar->bind(uri, sipContactOnA, parameter, listener);
+	BC_ASSERT(asserter.iterateUpTo(10, [&listener] { return listener->recorded; }));
+
+	TestConferenceServer conf{proxy};
+	BC_ASSERT_CPP_EQUAL(listener->updated, false);
+
+	// Bind chatroom with a new uuid, the previous contact must be updated.
+	conf.bindChatRoom(bindingUrl, "sip:127.0.0.1:6065;transport=tcp", listener);
+	BC_ASSERT(asserter.iterateUpTo(10, [&listener] { return listener->updated; }));
+}
+
 TestSuite _("Conference",
             {
                 CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit),
                 CLASSY_TEST(conferenceServerClearsOldBindingsOnInit),
                 CLASSY_TEST(inviteResentOnReconnect),
+                CLASSY_TEST(oldChatroomSupport),
             });
 } // namespace

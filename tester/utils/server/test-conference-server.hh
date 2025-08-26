@@ -42,6 +42,12 @@ public:
 		return mConfServer->getCore()->getChatRooms();
 	}
 
+	void bindChatRoom(const std::string& bindingUrl,
+	                  const std::string& contact,
+	                  const std::shared_ptr<ContactUpdateListener>& listener) {
+		mConfServer->bindChatRoom(bindingUrl, contact, listener);
+	};
+
 private:
 	/** Overrides the behaviour of the ConferenceServer to make it use a port chosen at random. This works because it
 	 *  will share the same config as the proxy, so it can hot-patch it with the port bound.
@@ -67,7 +73,8 @@ private:
 		std::shared_ptr<ConfigManager> mConfigManager;
 	};
 
-	const std::shared_ptr<PatchedConferenceServer> mConfServer;
+	std::shared_ptr<sofiasip::SuRoot> mRoot;
+	std::shared_ptr<PatchedConferenceServer> mConfServer;
 };
 
 } // namespace flexisip::tester

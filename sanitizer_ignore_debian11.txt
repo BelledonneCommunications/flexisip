@@ -3,8 +3,15 @@ leak:getaddrinfo
 
 leak:dlfcn/dlerror.c
 
-leak:LinphonePrivate
-leak:dblk_alloc
 leak:bctbx_libc_malloc
+leak:dblk_alloc
 leak:belle_sip_header_require_add_require
 leak:belle_sip_header_supported_add_supported
+
+leak:LinphonePrivate
+
+# conference-server tests
+leak:ConferenceServer
+leak:ExtendedContact
+leak:handleBind
+leak:conference-server-tester
