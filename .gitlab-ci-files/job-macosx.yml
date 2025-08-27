@@ -48,3 +48,6 @@ job-macosx-xcode:
   variables:
     CMAKE_GENERATOR: Xcode
     NJOBS: $MAX_NUMBER_TASK_XCODE
+    
+  # Temporarily allows macosx jobs to fail because it doesn't run on the new macos machine. Remove when it is fixed, using a dev mac.
+  allow_failure: true
