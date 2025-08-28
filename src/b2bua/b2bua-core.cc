@@ -77,7 +77,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	}
 	core->setMaxCalls(maxCalls * 2);
 	// Share media resources in the local conference (that is how media is transmitted to the other call leg).
-	core->setMediaResourceMode(linphone::MediaResourceMode::SharedMediaResources);
+	core->setMediaResourceMode(linphone::MediaResourceMode::Shared);
 	// No sound card shall be used in calls.
 	core->setUseFiles(true);
 	core->enableEchoCancellation(false);
