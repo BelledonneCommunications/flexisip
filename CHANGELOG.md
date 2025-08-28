@@ -190,6 +190,8 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     (which was leading to a crash).
   - **Router:** A crash of the server could happen if MESSAGE requests waiting for delivery stored in the database were
     removed from that database during the shutdown phase.
+- **Conference:**
+  - A crash could happen when renaming a chatroom with a name containing special characters.
 
 ## [2.4.2] - 2025-07-21
 ### [Added]
