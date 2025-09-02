@@ -21,8 +21,6 @@
 #include "bctoolbox/tester.h"
 
 #include "flexisip/logmanager.hh"
-
-#include "flexisip-tester-config.hh"
 #include "tester.hh"
 #include "tls-server.hh"
 
@@ -55,7 +53,7 @@ void TlsServer::accept() {
 	SLOGD << "TlsServer[" << this << "] handshake ok";
 }
 
-void TlsServer::accept(std::string sniValueExpected) {
+void TlsServer::accept(const std::string& sniValueExpected) {
 	accept();
 
 	const auto SSL = mSocket->native_handle();
@@ -64,10 +62,12 @@ void TlsServer::accept(std::string sniValueExpected) {
 	if (sniType == -1 && !sniValueExpected.empty()) {
 		BC_FAIL("No SNI found after SSL hanshake.");
 		return;
-	} else if (sniType != -1 && sniValueExpected.empty()) {
+	}
+	if (sniType != -1 && sniValueExpected.empty()) {
 		BC_FAIL("SNI found after SSL hanshake.");
 		return;
-	} else if (sniType == -1 && sniValueExpected.empty()) {
+	}
+	if (sniType == -1 && sniValueExpected.empty()) {
 		return;
 	}
 
@@ -82,7 +82,7 @@ std::string TlsServer::read() {
 	std::istream is(&b);
 	ostringstream line;
 	line << is.rdbuf();
-	SLOGD << "TlsServer[" << this << "] read : " << line.str();
+	SLOGD << "TlsServer[" << this << "] read: " << line.str();
 	return line.str();
 }
 
@@ -90,7 +90,11 @@ void TlsServer::send(const std::string& message) {
 	SLOGD << "TlsServer[" << this << "] entering send";
 	const string msg = message + "\n";
 	boost::asio::write(*mSocket, buffer(message));
-	SLOGD << "TlsServer[" << this << "] send : " << message;
+	SLOGD << "TlsServer[" << this << "] send: " << message;
+}
+
+int TlsServer::getPort() const {
+	return mAcceptor.local_endpoint().port();
 }
 
 bool TlsServer::runServerForTest(const std::string& expectedRequest,

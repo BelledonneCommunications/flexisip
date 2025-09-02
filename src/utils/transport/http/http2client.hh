@@ -200,7 +200,14 @@ private:
 
 	void tlsConnect();
 	void http2Setup();
+	/**
+	 * Disconnect the client, clear timers and switch to the 'Disconnected' state.
+	 */
 	void disconnect();
+	/**
+	 * Disconnect the client (see @disconnect) and clear the list of active and pending requests.
+	 */
+	void abort();
 
 	int sendAll() {
 		return nghttp2_session_send(mHttpSession.get());

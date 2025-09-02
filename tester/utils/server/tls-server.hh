@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <boost/asio.hpp>
 #include <boost/asio/ssl.hpp>
 
@@ -35,13 +33,11 @@ public:
 	                      const std::chrono::milliseconds responseDelay = std::chrono::milliseconds{0});
 
 	void accept();
-	void accept(std::string sniValueExpected);
+	void accept(const std::string& sniValueExpected);
 	std::string read();
 	void send(const std::string& message);
 
-	int getPort() {
-		return mAcceptor.local_endpoint().port();
-	}
+	int getPort() const;
 
 	void resetSocket();
 

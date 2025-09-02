@@ -141,6 +141,7 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 	if (status < 0) {
 		LOGE << "Sending failed (" << nghttp2_strerror(status) << ")";
 		mActiveHttpContexts.erase(streamId);
+		if (!mConn->isConnected()) disconnect();
 		onErrorCb(request);
 		return;
 	}
@@ -232,7 +233,7 @@ void Http2Client::http2Setup() {
 	int status;
 	if ((status = mSessionSettings.submitTo(session)) != 0) {
 		LOGE << "Sending settings failed (status = " << to_string(status) << ")";
-		disconnect();
+		abort();
 		return;
 	}
 
@@ -347,26 +348,25 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg
 
 	if (w->revents & SU_WAIT_HUP) {
 		LOGD_CTX(thiz->mLogPrefix) << "Peer has hung up";
-		thiz->disconnect();
+		thiz->abort();
 		return 0;
 	}
 	if (w->revents & SU_WAIT_ERR) {
 		LOGE_CTX(thiz->mLogPrefix) << "Socket error";
-		thiz->disconnect();
+		thiz->abort();
 		return 0;
 	}
 
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
 	if (status < 0) {
-		LOGE_CTX(thiz->mLogPrefix) << "Error while receiving HTTP2 data (" << nghttp2_strerror(status)
-		                           << "): disconnecting";
-		thiz->disconnect();
+		LOGE_CTX(thiz->mLogPrefix) << "Error while receiving HTTP2 data (" << nghttp2_strerror(status) << ")";
+		thiz->abort();
 		return 0;
 	}
 	if (thiz->mLastSID >= 0) {
 		LOGD_CTX(thiz->mLogPrefix) << "Closing connection after receiving 'GOAWAY' frame, last processed stream is ["
 		                           << thiz->mLastSID << "]";
-		thiz->disconnect();
+		thiz->abort();
 	}
 	return 0;
 }
@@ -424,12 +424,9 @@ void Http2Client::resumeSending() {
 }
 
 void Http2Client::disconnect() {
-	LOGI << "Disconnecting";
-	if (mState == State::Disconnected) {
-		return;
-	}
-	discardAllPendingRequests();
-	discardAllActiveRequests();
+	LOGD << "Disconnecting";
+	if (mState == State::Disconnected) return;
+
 	su_root_unregister(mRoot.getCPtr(), &mPollInWait, onPollInCb, this);
 	mHttpSession.reset();
 	mConn->disconnect();
@@ -438,9 +435,18 @@ void Http2Client::disconnect() {
 	setState(State::Disconnected);
 }
 
+void Http2Client::abort() {
+	LOGD << "Aborting";
+	if (mState == State::Disconnected) return;
+
+	discardAllPendingRequests();
+	discardAllActiveRequests();
+	disconnect();
+}
+
 void Http2Client::onConnectionIdle() noexcept {
 	LOGD << "Connection is idle";
-	disconnect();
+	abort();
 }
 
 void Http2Client::setState(State state) noexcept {

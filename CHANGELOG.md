@@ -182,8 +182,10 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
 - **Proxy:**
   - **MediaRelay:** The server was not updating the IP address inserted in the SDP response when a client's network
     changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
-  - **PushNotifications:** Apple push certificates could not contain '.dev' in their filename and be used in production 
-    environment.
+  - **PushNotifications:**
+    - Apple push certificates could not contain '.dev' in their filename and be used in a production environment.
+    - The HTTP client was not trying to reconnect in case of a "connection reset by peer" error before sending pending
+      requests. In some rare cases, this could lead to a crash while sending service push notifications.
   - **Plugin:** The server was not configured correctly when a plugin replaces a module. Added an error message when
     the replaced module section is present in the configuration file.
   - **ExternalAuth:** This module did not support "Name or service not known" error while trying to send an HTTP request
