@@ -324,6 +324,8 @@ int TlsConnection::write(const void* data, int dlen) noexcept {
 			return 0;
 		}
 		handleBioError(mLogPrefix + "Error while writing data", nbBytes);
+		// If an error occurs and that we know we cannot simply retry, prefer disconnecting right now.
+		disconnect();
 	}
 
 	return nbBytes;
