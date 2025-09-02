@@ -27,12 +27,10 @@
 
 #include "bctoolbox/tester.h"
 
-#include "flexisip-config.h"
 #include "flexisip-tester-config.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 #include "flexisip/utils/sip-uri.hh"
-
 #include "pushnotification/apple/apple-client.hh"
 #include "pushnotification/apple/apple-request.hh"
 #include "pushnotification/contact-expiration-notifier.hh"
@@ -880,37 +878,37 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 	BC_ASSERT_EQUAL(respondedCount, sentCount, uint32_t, "%i");
 }
 
-TestSuite _("Push notification",
-            {
-                TEST_NO_TAG("TestNotifyExpiringContact", run<TestNotifyExpiringContact>),
-                TEST_NO_TAG_AUTO_NAMED(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
-                TEST_NO_TAG("Firebase push notification test OK", firebasePushTestOk),
-                TEST_NO_TAG("FirebaseV1 push notification test OK", firebaseV1PushTestOk),
-                TEST_NO_TAG("Apple push notification test OK PushKit", applePushTestOkPushkit),
-                TEST_NO_TAG("Apple push notification test OK Background", applePushTestOkBackground),
-                TEST_NO_TAG("Apple push notification test OK RemoteWithMutableContent",
-                            applePushTestOkRemoteWithMutableContent),
-                TEST_NO_TAG("Firebase push notification test KO", firebasePushTestKo),
-                TEST_NO_TAG("FirebaseV1 push notification test KO", firebaseV1PushTestKo),
-                TEST_NO_TAG("Apple push notification test KO", applePushTestKo),
-                TEST_NO_TAG("Apple push notification test KO wrong type", applePushTestKoWrongType),
-                TEST_NO_TAG("Apple push notification test with a first connection failed and a reconnection (fix)",
-                            applePushTestConnectErrorAndReconnect),
-                TEST_NO_TAG("Tls timeout test", tlsTimeoutTest),
-                TEST_NO_TAG("Firebase push notification test timeout", firebasePushTestTimeout),
-                TEST_NO_TAG("FirebaseV1 push notification test timeout", firebaseV1PushTestTimeout),
-                TEST_NO_TAG("Apple push notification test timeout", applePushTestTimeout),
-                TEST_NO_TAG("Generic test ok", genericPushTestOk),
-                TEST_NO_TAG("Generic test ko, timeout", genericPushTestTimeout),
-            },
-            Hooks()
-                .beforeSuite([] {
-	                root = make_unique<sofiasip::SuRoot>();
-	                return 0;
-                })
-                .afterSuite([] {
-	                root.reset();
-	                return 0;
-                }));
+TestSuite _{
+    "PushNotification",
+    {
+        CLASSY_TEST(TestNotifyExpiringContact),
+        CLASSY_TEST(test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later),
+        CLASSY_TEST(firebasePushTestOk),
+        CLASSY_TEST(firebaseV1PushTestOk),
+        CLASSY_TEST(applePushTestOkPushkit),
+        CLASSY_TEST(applePushTestOkBackground),
+        CLASSY_TEST(applePushTestOkRemoteWithMutableContent),
+        CLASSY_TEST(firebasePushTestKo),
+        CLASSY_TEST(firebaseV1PushTestKo),
+        CLASSY_TEST(applePushTestKo),
+        CLASSY_TEST(applePushTestKoWrongType),
+        CLASSY_TEST(applePushTestConnectErrorAndReconnect),
+        CLASSY_TEST(tlsTimeoutTest),
+        CLASSY_TEST(firebasePushTestTimeout),
+        CLASSY_TEST(firebaseV1PushTestTimeout),
+        CLASSY_TEST(applePushTestTimeout),
+        CLASSY_TEST(genericPushTestOk),
+        CLASSY_TEST(genericPushTestTimeout),
+    },
+    Hooks()
+        .beforeSuite([] {
+	        root = make_unique<sofiasip::SuRoot>();
+	        return 0;
+        })
+        .afterSuite([] {
+	        root.reset();
+	        return 0;
+        }),
+};
 
 } // namespace
