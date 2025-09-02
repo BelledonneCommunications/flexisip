@@ -16,16 +16,16 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "http2client.hh"
+
 #include <array>
-#include <nghttp2/nghttp2.h>
 #include <sstream>
 
+#include <nghttp2/nghttp2.h>
 #include <nghttp2/nghttp2ver.h>
 
 #include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
-#include "http2client.hh"
 
 using namespace std;
 
@@ -111,22 +111,22 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 		}
 	}
 	if (mState == State::Disconnected) {
-		LOGI << "Not connected, trying to connect...";
+		LOGD << "Not connected, trying to connect...";
 		this->tlsConnect();
 	}
 	if (mState != State::Connected) {
-		LOGI << "Request[" << request << "] is waiting to be sent";
+		LOGD << "Request[" << request << "] is waiting to be sent";
 		mPendingHttpContexts.emplace_back(std::move(context));
 		return;
 	}
 
-	LOGD << "Sending request[" << request << "]:\n" << request->toString();
+	LOGD << "Sending Request[" << request << "]:\n" << request->toString();
 
 	auto streamId =
 	    nghttp2_submit_request(mHttpSession.get(), &request->mPriority, request->getHeaders().makeCHeaderList().data(),
 	                           request->getHeaders().getHeadersList().size(), request->getCDataProvider(), nullptr);
 	if (streamId < 0) {
-		LOGE << "Push request submit failed, reason=[" << nghttp2_strerror(streamId) << "]";
+		LOGE << "Sending failed (" << nghttp2_strerror(streamId) << ")";
 		onErrorCb(request);
 		return;
 	}
@@ -139,13 +139,13 @@ void Http2Client::send(const shared_ptr<HttpRequest>& request,
 	mActiveHttpContexts.emplace(streamId, std::move(context));
 	auto status = sendAll();
 	if (status < 0) {
-		LOGE << "Push request sending failed, reason=[" << nghttp2_strerror(status) << "]";
+		LOGE << "Sending failed (" << nghttp2_strerror(status) << ")";
 		mActiveHttpContexts.erase(streamId);
 		onErrorCb(request);
 		return;
 	}
 
-	LOGI << "Request[" << request << "] submitted";
+	LOGI << "Request[" << request << "] sent";
 }
 
 void Http2Client::tlsConnect() {
@@ -231,7 +231,7 @@ void Http2Client::http2Setup() {
 
 	int status;
 	if ((status = mSessionSettings.submitTo(session)) != 0) {
-		LOGE << "Submitting settings failed [status=" << to_string(status) << "]";
+		LOGE << "Sending settings failed (status = " << to_string(status) << ")";
 		disconnect();
 		return;
 	}
@@ -250,7 +250,7 @@ ssize_t Http2Client::doSend([[maybe_unused]] nghttp2_session& session, const uin
 	length = min(length, size_t(numeric_limits<int>::max()));
 	auto nwritten = mConn->write(data, int(length));
 	if (nwritten < 0) {
-		LOGE << "Error while writing into socket[" << nwritten << "]";
+		LOGE << "Error while writing into socket (" << nwritten << ")";
 		return NGHTTP2_ERR_CALLBACK_FAILURE;
 	}
 	if (nwritten == 0 && length > 0) return NGHTTP2_ERR_WOULDBLOCK;
@@ -295,8 +295,8 @@ void Http2Client::onFrameRecv([[maybe_unused]] nghttp2_session& session, const n
 			break;
 		case NGHTTP2_GOAWAY: {
 			ostringstream msg{};
-			msg << "GOAWAY frame received, errorCode=[" << frame.goaway.error_code << "], lastStreamId=["
-			    << frame.goaway.last_stream_id << "]:";
+			msg << "'GOAWAY' frame received (errorCode = [" << frame.goaway.error_code << "], lastStreamId = ["
+			    << frame.goaway.last_stream_id << "])";
 			if (frame.goaway.opaque_data_len > 0) {
 				msg << endl;
 				msg.write(reinterpret_cast<const char*>(frame.goaway.opaque_data), frame.goaway.opaque_data_len);
@@ -358,13 +358,13 @@ int Http2Client::onPollInCb(su_root_magic_t*, su_wait_t* w, su_wakeup_arg_t* arg
 
 	auto status = nghttp2_session_recv(thiz->mHttpSession.get());
 	if (status < 0) {
-		LOGE_CTX(thiz->mLogPrefix) << "Error while receiving HTTP2 data[" << nghttp2_strerror(status)
-		                           << "], disconnecting";
+		LOGE_CTX(thiz->mLogPrefix) << "Error while receiving HTTP2 data (" << nghttp2_strerror(status)
+		                           << "): disconnecting";
 		thiz->disconnect();
 		return 0;
 	}
 	if (thiz->mLastSID >= 0) {
-		LOGD_CTX(thiz->mLogPrefix) << "Closing connection after receiving GOAWAY frame, last processed stream is ["
+		LOGD_CTX(thiz->mLogPrefix) << "Closing connection after receiving 'GOAWAY' frame, last processed stream is ["
 		                           << thiz->mLastSID << "]";
 		thiz->disconnect();
 	}
@@ -384,7 +384,7 @@ void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
 		if (context != nullptr) {
 			try {
 				context->getResponse()->getStatusCode(); // throw an exception if the status code is invalid.
-				LOGD << "Response received for HttpRequest[" << context->getRequest() << "]:\n"
+				LOGD << "Response received for HttpRequest (" << context->getRequest() << "):\n"
 				     << context->getResponse()->toString();
 				context->getOnResponseCb()(context->getRequest(), context->getResponse());
 				mActiveHttpContexts.erase(contextMapIterator);
@@ -419,7 +419,7 @@ void Http2Client::onStreamClosed([[maybe_unused]] nghttp2_session& session,
 void Http2Client::resumeSending() {
 	const auto status = sendAll();
 	if (status < 0) {
-		LOGE << "Failure while trying to catch up queued frames, reason=[" << nghttp2_strerror(status) << "]";
+		LOGE << "Failure while trying to catch up queued frames (" << nghttp2_strerror(status) << ")";
 	}
 }
 
@@ -460,7 +460,7 @@ void Http2Client::onRequestTimeout(int32_t streamId) {
 	auto contextMapIterator = mActiveHttpContexts.find(streamId);
 	if (contextMapIterator != mActiveHttpContexts.cend()) {
 		auto context = contextMapIterator->second;
-		LOGD << "Closing stream[" << streamId << "] after request timeout";
+		LOGD << "Closing stream [" << streamId << "] after request timeout";
 		context->getOnErrorCb()(context->getRequest());
 		// Cancel any unsent frames
 		nghttp2_submit_rst_stream(mHttpSession.get(), nghttp2_flag::NGHTTP2_FLAG_NONE, streamId,
