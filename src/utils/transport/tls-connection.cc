@@ -317,8 +317,7 @@ bool TlsConnection::hasData() {
 
 void TlsConnection::enableInsecureTestMode() {
 	SLOGW << mLogPrefix << "BE CAREFUL, YOU BETTER BE IN A TESTING ENVIRONMENT, YOU ARE USING AN INSECURE CONNECTION";
-	SSL_CTX_set_cert_verify_callback(
-	    mCtx.get(), [](auto, auto) { return 1; }, nullptr);
+	SSL_CTX_set_cert_verify_callback(mCtx.get(), [](auto, auto) { return 1; }, nullptr);
 }
 
 TlsConnection::SSLCtxUniquePtr TlsConnection::makeDefaultCtx() {
@@ -336,16 +335,18 @@ TlsConnection::SSLCtxUniquePtr TlsConnection::makeDefaultCtx() {
 }
 
 void TlsConnection::handleBioError(const string& msg, int status) {
-	ostringstream os;
-	os << msg << ": " << status << " - " << strerror(errno) << " - SSL error stack:";
+	SLOGE << msg << " (status = " << status << "), errno = " << strerror(errno);
+	string sslErrorStack{};
 	ERR_print_errors_cb(
-	    [](const char* str, [[maybe_unused]] size_t len, void* u) {
-		    auto& os = *static_cast<ostream*>(u);
-		    os << endl << '\t' << str;
+	    [](const char* str, size_t, void* u) {
+		    if (str == nullptr) return 0;
+		    auto& error = *static_cast<string*>(u);
+		    error = str;
 		    return 0;
 	    },
-	    &os);
-	SLOGE << os.str();
+	    &sslErrorStack);
+	if (sslErrorStack.empty()) return;
+	SLOGE << "SSL error stack: " << sslErrorStack;
 }
 
 int TlsConnection::handleVerifyCallback(X509_STORE_CTX* ctx, void*) {
