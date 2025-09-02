@@ -1,30 +1,42 @@
-/** Copyright (C) 2010-2023 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
-#include "bctoolbox/tester.h"
-#include "utils/http-mock/http-mock.hh"
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <sys/types.h>
 
 #include <atomic>
 #include <chrono>
-#include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
 
-#include <sys/types.h>
-
-#include <nghttp2/nghttp2.h>
-
+#include "bctoolbox/tester.h"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
+#include "utils/core-assert.hh"
+#include "utils/http-mock/http-mock.hh"
+#include "utils/server/tls-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/transport/http/http-headers.hh"
 #include "utils/transport/http/http2client.hh"
 
+using namespace std;
 using namespace std::string_literals;
 using namespace std::chrono_literals;
 
@@ -126,11 +138,68 @@ void partiallySentRequestResumedAtWindowUpdate() {
 	setup.root.run();
 }
 
+/**
+ * Test that the Http2Client switches to the "disconnected" state if the "connection reset by peer" error occurs.
+ * Then, it should try to reconnect before sending pending requests.
+ */
+void reconnectAfterConnectionResetByPeer() {
+	TlsServer server{};
+	const auto serverPort = to_string(server.getPort());
+
+	sofiasip::SuRoot root{};
+	CoreAssert asserter{root};
+
+	const auto onError = [&root](const auto&) { root.quit(); };
+	const auto onResponse = [&root](const auto&, const auto&) { root.quit(); };
+	const auto client = Http2Client::make(root, "127.0.0.1", serverPort);
+	client->setRequestTimeout(5s);
+	client->enableInsecureTestMode();
+
+	const auto& conn = client->getConnection();
+	const auto func = [&server] {
+		return server.runServerForTest("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n", "stub-response", 0ms);
+	};
+
+	// The first request works as expected.
+	{
+		auto result = async(launch::async, func);
+		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
+		asserter.iterateUpTo(0x20, [&conn] { return LOOP_ASSERTION(conn->isConnected()); }, 2s).assert_passed();
+		BC_HARD_ASSERT(result.wait_for(2s) == std::future_status::ready);
+		BC_ASSERT(result.get());
+	}
+
+	// Simulate the "connection reset by peer" error.
+	server.resetSocket();
+
+	// The second request fails, and the connection is then closed by the client.
+	// Test that the third request works as expected.
+	{
+		auto result = async(launch::async, func);
+		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
+
+		asserter.iterateUpTo(0x20, [&conn] { return LOOP_ASSERTION(!conn->isConnected()); }, 2s).assert_passed();
+
+		BC_HARD_ASSERT(result.wait_for(500ms) == std::future_status::timeout);
+
+		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
+		asserter.iterateUpTo(0x20, [&conn] { return LOOP_ASSERTION(conn->isConnected()); }, 2s).assert_passed();
+
+		BC_HARD_ASSERT(result.wait_for(2s) == std::future_status::ready);
+		BC_ASSERT(result.get());
+	}
+}
+
 namespace {
-TestSuite _("Http2Client",
-            {
-                CLASSY_TEST(partiallySentRequestCanceledByTimeout),
-                CLASSY_TEST(partiallySentRequestResumedAtWindowUpdate),
-            });
+
+TestSuite _{
+    "Http2Client",
+    {
+        CLASSY_TEST(partiallySentRequestCanceledByTimeout),
+        CLASSY_TEST(partiallySentRequestResumedAtWindowUpdate),
+        CLASSY_TEST(reconnectAfterConnectionResetByPeer),
+    },
+};
+
 }
 } // namespace flexisip::tester

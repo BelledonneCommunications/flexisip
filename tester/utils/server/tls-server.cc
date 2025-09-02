@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -21,8 +21,6 @@
 #include "bctoolbox/tester.h"
 
 #include "flexisip/logmanager.hh"
-
-#include "flexisip-tester-config.hh"
 #include "tester.hh"
 #include "tls-server.hh"
 
@@ -43,7 +41,7 @@ TlsServer::TlsServer(int port)
 	mContext.set_options(ssl::context::default_workarounds | ssl::context::verify_none | ssl::context::no_sslv2 |
 	                     ssl::context::no_sslv3);
 	mContext.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
-	mContext.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), boost::asio::ssl::context::pem);
+	mContext.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
 	mSocket = make_unique<ssl::stream<ip::tcp::socket>>(mIoService, mContext);
 }
 
@@ -51,11 +49,11 @@ void TlsServer::accept() {
 	LOGD("TlsServer[%p] entering accept", this);
 	mAcceptor.accept(mSocket->lowest_layer());
 	LOGD("TlsServer[%p] new connection accepted, starting handshake", this);
-	mSocket->handshake(boost::asio::ssl::stream_base::server);
+	mSocket->handshake(ssl::stream_base::server);
 	LOGD("TlsServer[%p] handshake ok", this);
 }
 
-void TlsServer::accept(std::string sniValueExpected) {
+void TlsServer::accept(const std::string& sniValueExpected) {
 	accept();
 
 	const auto SSL = mSocket->native_handle();
@@ -64,10 +62,12 @@ void TlsServer::accept(std::string sniValueExpected) {
 	if (sniType == -1 && !sniValueExpected.empty()) {
 		BC_FAIL("No SNI found after SSL hanshake.");
 		return;
-	} else if (sniType != -1 && sniValueExpected.empty()) {
+	}
+	if (sniType != -1 && sniValueExpected.empty()) {
 		BC_FAIL("SNI found after SSL hanshake.");
 		return;
-	} else if (sniType == -1 && sniValueExpected.empty()) {
+	}
+	if (sniType == -1 && sniValueExpected.empty()) {
 		return;
 	}
 
@@ -82,7 +82,7 @@ std::string TlsServer::read() {
 	std::istream is(&b);
 	ostringstream line;
 	line << is.rdbuf();
-	LOGD("TlsServer[%p] read : %s", this, line.str().c_str());
+	LOGD("TlsServer[%p] read: %s", this, line.str().c_str());
 	return line.str();
 }
 
@@ -90,7 +90,11 @@ void TlsServer::send(const std::string& message) {
 	LOGD("TlsServer[%p] entering send", this);
 	const string msg = message + "\n";
 	boost::asio::write(*mSocket, buffer(message));
-	LOGD("TlsServer[%p] send : %s", this, message.c_str());
+	LOGD("TlsServer[%p] send: %s", this, message.c_str());
+}
+
+int TlsServer::getPort() const {
+	return mAcceptor.local_endpoint().port();
 }
 
 bool TlsServer::runServerForTest(const std::string& expectedRequest,
@@ -101,4 +105,9 @@ bool TlsServer::runServerForTest(const std::string& expectedRequest,
 	this_thread::sleep_for(responseDelay);
 	send(response);
 	return request == expectedRequest;
+}
+
+void TlsServer::resetSocket() {
+	LOGD("TlsServer[%p] entering %s", this, __func__);
+	mSocket = make_unique<ssl::stream<ip::tcp::socket>>(mIoService, mContext);
 }
