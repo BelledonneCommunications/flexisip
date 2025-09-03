@@ -17,6 +17,8 @@
 */
 
 #include <csignal> // For macOS
+#include <fstream>
+#include <iostream>
 #include <sys/wait.h>
 
 #include "flexisip/logmanager.hh"
@@ -24,6 +26,7 @@
 #include "tester.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 #include "utils/variant-utils.hh"
 
 using namespace std;
@@ -38,11 +41,18 @@ namespace flexisip::tester {
  *
  */
 void callAndStopMain() {
+	auto dir = TmpDir(__func__);
+	auto confFilePath = dir.path() / "flexisip.conf";
+	ofstream(confFilePath) << "[global]" << '\n'
+	                       << "enable-snmp=true" << '\n'
 #ifdef ENABLE_CONFERENCE
-	auto confFilePath = bcTesterRes("config/flexisip-main-all-services.conf");
-#else
-	auto confFilePath = bcTesterRes("config/flexisip-main-no-conference.conf");
+	                       << "[conference-server]" << '\n'
+	                       << "database-backend=sqlite3" << '\n'
+	                       << "database-connection-string=\":memory:\"" << '\n'
 #endif
+	                       << "[presence-server]" << '\n'
+	                       << "long-term-enabled=true" << '\n';
+
 	vector<const char*> args{
 	    "flexisip",
 	    "-c",

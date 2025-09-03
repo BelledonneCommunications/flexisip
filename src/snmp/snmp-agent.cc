@@ -28,9 +28,10 @@
 using namespace std;
 namespace flexisip {
 
-SnmpAgent::SnmpAgent(ConfigManager& cm, map<string, string>& oset) : mInitialized(false), mTask(*this, cm, oset) {
+SnmpAgent::SnmpAgent(std::shared_ptr<ConfigManager> cm, map<string, string>& oset)
+    : mInitialized(false), mTask(*this, cm, oset) {
 	// Init SNMP
-	initFlexisipSnmp(cm);
+	initFlexisipSnmp(*cm);
 
 	mThread = std::thread(std::ref(mTask));
 }
@@ -167,7 +168,7 @@ void SnmpAgent::sendTrap(const GenericEntry* source, const string& msg) {
 		return;
 	}
 
-	static const auto* configRoot = mTask.mConfigManager.getRoot();
+	static const auto* configRoot = mTask.mConfigManager->getRoot();
 	static Oid& sNotifierOid = configRoot->getDeep<GenericEntry>("notif", true)->getOid();
 	static Oid& sMsgTemplateOid = configRoot->getDeep<GenericEntry>("notif/msg", true)->getOid();
 	static Oid& sSourceTemplateOid = configRoot->getDeep<GenericEntry>("notif/source", true)->getOid();
@@ -200,8 +201,10 @@ void SnmpAgent::sendTrap(const GenericEntry* source, const string& msg) {
 	snmp_free_varbind(notification_vars);
 }
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(SnmpAgent& snmpAgent, ConfigManager& cm, map<string, string>& oset)
-    : mConfigManager(cm), mSnmpAgent(snmpAgent) {
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(SnmpAgent& snmpAgent,
+                                        std::shared_ptr<ConfigManager> cm,
+                                        map<string, string>& oset)
+    : mConfigManager(std::move(cm)), mSnmpAgent(snmpAgent) {
 	bool disabled = oset.find("nosnmp") != oset.end();
 	mKeepRunning = !disabled;
 }
@@ -214,7 +217,7 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 	init_snmp("flexisip");
 	mSnmpAgent.setInitialized(true);
 	while (mKeepRunning) {
-		if (mConfigManager.mNeedRestart) mKeepRunning = false;
+		if (mConfigManager->mNeedRestart) mKeepRunning = false;
 		agent_check_and_process(0);
 		usleep(100000);
 	}

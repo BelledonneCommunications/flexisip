@@ -906,7 +906,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		agent->start(transportsArg.getValue(), passphrase);
 #ifdef ENABLE_SNMP
 		if (globalCfg->get<ConfigBoolean>("enable-snmp")->read()) {
-			snmpAgent = make_shared<SnmpAgent>(*cfg, oset);
+			snmpAgent = make_shared<SnmpAgent>(cfg, oset);
 			snmpAgent->sendNotification("Flexisip " + fName + "-server starting");
 			agent->setNotifier(snmpAgent);
 		}
