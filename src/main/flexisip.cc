@@ -978,7 +978,7 @@ int _main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startup
 #ifdef ENABLE_SNMP
 		bool snmpEnabled = cfg->getGlobal()->get<ConfigBoolean>("enable-snmp")->read();
 		if (snmpEnabled) {
-			snmpAgent.reset(new SnmpAgent(*a, *cfg, oset));
+			snmpAgent.reset(new SnmpAgent(cfg, oset));
 		}
 #endif
 

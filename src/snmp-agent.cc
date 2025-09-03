@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023  Belledonne Communications SARL.
+    Copyright (C) 2010-2025  Belledonne Communications SARL.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,10 +38,9 @@ SnmpAgent::~SnmpAgent() {
 	mThread.join();
 }
 
-SnmpAgent::SnmpAgentTask::SnmpAgentTask(Agent& agent, ConfigManager& cm, map<string, string>& oset)
-    : mConfigmanager(cm), mAgent(agent) {
+SnmpAgent::SnmpAgentTask::SnmpAgentTask(const std::shared_ptr<ConfigManager>& cm, map<string, string>& oset)
+    : mConfigmanager(cm) {
 	bool disabled = oset.find("nosnmp") != oset.end();
-	(void)mAgent;
 	mKeepRunning = !disabled;
 }
 
@@ -51,17 +50,17 @@ void SnmpAgent::SnmpAgentTask::operator()() {
 		return;
 	}
 	init_snmp("flexisip");
-	mConfigmanager.getSnmpNotifier()->setInitialized(true);
+	mConfigmanager->getSnmpNotifier()->setInitialized(true);
 	while (mKeepRunning) {
-		if (mConfigmanager.mNeedRestart) mKeepRunning = false;
+		if (mConfigmanager->mNeedRestart) mKeepRunning = false;
 		agent_check_and_process(0);
 		usleep(100000);
 	}
-	mConfigmanager.getSnmpNotifier()->setInitialized(false);
+	mConfigmanager->getSnmpNotifier()->setInitialized(false);
 	snmp_shutdown("flexisip");
 	SOCK_CLEANUP;
 }
 
-SnmpAgent::SnmpAgent(Agent& agent, ConfigManager& cm, map<string, string>& oset)
-    : mTask(agent, cm, oset), mThread(std::ref(mTask)) {
+SnmpAgent::SnmpAgent(const std::shared_ptr<ConfigManager>& cm, map<string, string>& oset)
+    : mTask(cm, oset), mThread(std::ref(mTask)) {
 }
