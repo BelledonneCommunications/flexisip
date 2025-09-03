@@ -100,6 +100,9 @@ endif()
 if(ENABLE_B2BUA)
 	string(APPEND FLEXISIP_SERVICES " flexisip-b2bua")
 endif()
+if(ENABLE_VOICEMAIL)
+	string(APPEND FLEXISIP_SERVICES " flexisip-voicemail")
+endif()
 
 # List of files to mark as config files.
 # Prevents them from being replaced after a package upgrade or downgrade if their content has been modified.

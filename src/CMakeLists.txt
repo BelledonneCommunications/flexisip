@@ -306,6 +306,16 @@ if(ENABLE_B2BUA)
 
 	add_subdirectory(b2bua)
 endif()
+if(ENABLE_VOICEMAIL)
+	target_sources(flexisip PRIVATE
+		voicemail/call-handler.cc voicemail/call-handler.hh
+		voicemail/voicemail-server.cc voicemail/voicemail-server.hh
+	)
+	target_link_libraries(flexisip
+		PRIVATE belle-sip
+		PUBLIC liblinphone++
+	)
+endif()
 if(ENABLE_SOCI)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_SOCI")
 	target_sources(flexisip PRIVATE

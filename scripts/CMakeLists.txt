@@ -57,6 +57,12 @@ if(ENABLE_B2BUA)
 		"flexisip-b2bua@.service"
 	)
 endif()
+if(ENABLE_VOICEMAIL)
+	list(APPEND systemd_services
+		"flexisip-voicemail.service"
+		"flexisip-voicemail@.service"
+	)
+endif()
 set(FLEXISIP_SYSTEMD_SERVICES ${systemd_services} PARENT_SCOPE)
 
 foreach(service ${systemd_services})

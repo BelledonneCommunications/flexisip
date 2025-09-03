@@ -81,6 +81,7 @@ option(ENABLE_MDNS "Build with multicast DNS support" OFF)
 option(ENABLE_OPENID_CONNECT "Build with OpenID Connect support" ON)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
+option(ENABLE_VOICEMAIL "Build with voicemail server support" ON)
 add_ccache_option(ON)
 option(ENABLE_COVERAGE "Enable flexisip clang test coverage reports (add instrumentation)" OFF)
 option(ENABLE_MSGPACK "[Deprecated] Build with support for MessagePack for Record serializing" OFF)
@@ -104,7 +105,7 @@ set(FLEXISIP_SYSTEMD_INSTALL_DIR "" CACHE STRING
 	"Where to install the SystemD units. Always equal to '${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system' if empty."
 )
 
-if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
+if(ENABLE_CONFERENCE OR ENABLE_B2BUA OR ENABLE_VOICEMAIL)
 	set(LIBLINPHONE_REQUIRED ON)
 	set(HAVE_LIBLINPHONE YES)
 	set(HAVE_LIBLINPHONECXX YES)

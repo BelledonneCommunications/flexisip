@@ -58,7 +58,7 @@ target_sources(flexisip PRIVATE
 	xsd-utils.hh
 )
 
-if(ENABLE_CONFERENCE OR ENABLE_B2BUA)
+if(ENABLE_CONFERENCE OR ENABLE_B2BUA OR ENABLE_VOICEMAIL)
 	target_sources(flexisip PRIVATE
 		configuration/media.cc configuration/media.hh
 		configuration/transport.cc configuration/transport.hh

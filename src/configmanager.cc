@@ -723,7 +723,8 @@ ConfigManager::ConfigManager()
 	        StringList,
 	        "default-servers",
 	        "Servers started by default when '--server' is not specified in the command line. Possible values are: "
-	        "'proxy', 'presence', 'conference', 'regevent' and 'b2bua'. Each value must be separated by a whitespace.",
+	        "'proxy', 'presence', 'conference', 'regevent', 'b2bua' and 'voicemail'. Each value must be separated by a "
+	        "whitespace.",
 	        "proxy",
 	    },
 	    {

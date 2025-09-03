@@ -89,6 +89,9 @@
 #include "presence/observers/presence-longterm.hh"
 #include "presence/presence-server.hh"
 #endif
+#ifdef ENABLE_VOICEMAIL
+#include "voicemail/voicemail-server.hh"
+#endif // ENABLE_VOICEMAIL
 
 #ifdef ENABLE_SNMP
 #include "snmp/snmp-agent.hh"
@@ -108,7 +111,7 @@
 using namespace std;
 using namespace flexisip;
 
-#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA
+#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA || ENABLE_VOICEMAIL
 
 static int run = 1;
 static pid_t flexisipPid = -1;
@@ -479,13 +482,14 @@ static void list_sections(ConfigManager& cfg, bool moduleOnly = false) {
 }
 
 static const string
-getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent, bool b2bua) {
+getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent, bool b2bua, bool voicemail) {
 	string functions;
 	if (startProxy) functions = "proxy";
 	if (startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
 	if (startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
 	if (regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
 	if (b2bua) functions += ((functions.empty()) ? "" : "+") + string("b2bua");
+	if (voicemail) functions += ((functions.empty()) ? "" : "+") + string("voicemail");
 
 	return (functions.empty()) ? "none" : functions;
 }
@@ -516,6 +520,9 @@ static string version() {
 #endif
 #ifdef ENABLE_B2BUA
 	options.emplace_back("B2BUA");
+#endif
+#ifdef ENABLE_VOICEMAIL
+	options.emplace_back("Voicemail");
 #endif
 
 	if (!options.empty()) version << " compiled with " << string_utils::join(options, 0, " - ");
@@ -553,6 +560,9 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 #endif
 #ifdef ENABLE_B2BUA
 	                                     " 'b2bua',"
+#endif
+#ifdef ENABLE_VOICEMAIL
+	                                     " 'voicemail',"
 #endif
 	                                     " or 'all'.",
 	                                     TCLAP::ValueArgOptional, "", "server function", cmd);
@@ -744,6 +754,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	bool startConference = false;
 	bool startRegEvent = false;
 	bool startB2bua = false;
+	bool startVoicemail = false;
 
 	if (functionName.getValue() == "proxy") {
 		startProxy = true;
@@ -766,6 +777,11 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		startB2bua = true;
 #ifndef ENABLE_B2BUA
 		throw ExitFailure{"Flexisip was compiled without B2BUA server extension"};
+#endif
+	} else if (functionName.getValue() == "voicemail") {
+		startVoicemail = true;
+#ifndef ENABLE_VOICEMAIL
+		throw ExitFailure{"Flexisip was compiled without Voicemail server extension"};
 #endif
 	} else if (functionName.getValue() == "all") {
 		startPresence = true;
@@ -838,7 +854,8 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	// Read the pkcs passphrase if any from the FIFO, and keep it in memory.
 	auto passphrase = getPkcsPassphrase(pkcsFile);
 
-	string fName = getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua);
+	string fName =
+	    getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua, startVoicemail);
 
 	// Fork watchdog process, then fork the worker daemon.
 	// WARNING: never create pthreads before this point, threads do not survive the fork below.
@@ -976,6 +993,14 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		auto b2buaServer = make_shared<B2buaServer>(root, cfg);
 		b2buaServer->init();
 		serviceServers.emplace_back(std::move(b2buaServer));
+#endif // ENABLE_B2BUA
+	}
+
+	if (startVoicemail) {
+#if ENABLE_VOICEMAIL
+		auto voicemailServer = make_shared<VoicemailServer>(root, cfg);
+		voicemailServer->init();
+		serviceServers.emplace_back(std::move(voicemailServer));
 #endif // ENABLE_B2BUA
 	}
 

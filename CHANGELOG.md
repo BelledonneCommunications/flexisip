@@ -31,6 +31,9 @@ Group changes to describe their impact on the project, as follows:
       join it.
     - Add support for end-to-end conference encryption by installing the EKT server plugin. For customers under a
       proprietary license, this functionality is under a specific license.
+- **[Experimental] Voicemail server:** This new server is designed to store voice messages left by users when a call is 
+declined or not answered. Currently, the server accepts all incoming calls, plays the provided audio file
+(announcement), and automatically hangs up once the audio playback is complete.
 
 ### [Changed]
 - **Pusher:**

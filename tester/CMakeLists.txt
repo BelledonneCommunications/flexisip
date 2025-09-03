@@ -136,6 +136,7 @@ add_executable(flexisip_tester
 	tls-connection-tester.cc
 	utils-tester.cc
 	utils/asserts.hh
+	utils/audio/wave.cc utils/audio/wave.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
 	utils/call-builder.cc utils/call-builder.hh
 	utils/call-listeners.cc utils/call-listeners.hh
@@ -254,6 +255,12 @@ if(ENABLE_B2BUA)
 			tests/b2bua/b2bua-tester-with-g729.cc
 		)
 	endif()
+endif()
+
+if(ENABLE_VOICEMAIL)
+	target_sources(flexisip_tester PRIVATE
+		tests/voicemail/voicemail-server-tester.cc
+	)
 endif()
 
 if(ENABLE_OPENID_CONNECT)
