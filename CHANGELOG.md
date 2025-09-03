@@ -195,6 +195,7 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
       removed from that database during the shutdown phase.
     - Messages waiting for delivery retrieved from the database at startup could not be handled properly. These messages
       were delivered to destinations but not freed and could lead to misleading error messages in the logs.
+  - **SNMP:** A crash could occur during the shutdown process.
 - **Conference:**
   - A crash could happen when renaming a chatroom with a name containing special characters.
 

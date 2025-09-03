@@ -19,9 +19,9 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <thread>
 
-#include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
 
 #include "i-supervisor-notifier.hh"
@@ -34,14 +34,14 @@ class ConfigManager;
 class SnmpAgent : virtual public ISupervisorNotifier {
 
 public:
-	SnmpAgent(ConfigManager& cm, std::map<std::string, std::string>& oset);
+	SnmpAgent(std::shared_ptr<ConfigManager> cm, std::map<std::string, std::string>& oset);
 	virtual ~SnmpAgent();
 
 	void sendNotification(const GenericEntry* source, const std::string& msg) override {
 		sendTrap(source, msg);
 	}
 	void sendNotification(const std::string& msg) {
-		sendTrap(mTask.mConfigManager.getRoot(), msg);
+		sendTrap(mTask.mConfigManager->getRoot(), msg);
 	}
 
 private:
@@ -60,7 +60,9 @@ private:
 		friend class SnmpAgent;
 
 	public:
-		SnmpAgentTask(SnmpAgent& snmpAgent, ConfigManager& cm, std::map<std::string, std::string>& oset);
+		SnmpAgentTask(SnmpAgent& snmpAgent,
+		              std::shared_ptr<ConfigManager> cm,
+		              std::map<std::string, std::string>& oset);
 
 		void operator()();
 
@@ -68,7 +70,7 @@ private:
 		static constexpr std::string_view mLogPrefix{"SnmpAgentTask"};
 
 		bool mKeepRunning;
-		ConfigManager& mConfigManager;
+		std::shared_ptr<ConfigManager> mConfigManager;
 		SnmpAgent& mSnmpAgent;
 	};
 
