@@ -227,11 +227,12 @@ std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkM
 
 	SociHelper helper{mConnectionPool};
 	helper.execute([&forks](auto& sql) {
-		soci::rowset<soci::row> set = (sql.prepare << "SELECT UuidFromBin(fork_uuid), key_value, expiration_date"
-		                                              " FROM fork_key"
-		                                              " INNER JOIN fork_message_context"
-		                                              " ON fork_key.fork_uuid = fork_message_context.uuid"
-		                                              " ORDER BY fork_message_context.expiration_date, uuid");
+		soci::rowset<soci::row> set =
+		    (sql.prepare << "SELECT UuidFromBin(fork_uuid), key_value, expiration_date, msg_priority"
+		                    " FROM fork_key"
+		                    " INNER JOIN fork_message_context"
+		                    " ON fork_key.fork_uuid = fork_message_context.uuid"
+		                    " ORDER BY fork_message_context.expiration_date, uuid");
 
 		auto _ = ForkMessageContextDb();
 		auto* fork = &_;
@@ -241,6 +242,7 @@ std::vector<ForkMessageContextDb> ForkMessageContextSociRepository::findAllForkM
 				fork = &forks.emplace_back();
 				fork->uuid = uuid;
 				fork->expirationDate = row.get<tm>(2);
+				fork->msgPriority = static_cast<sofiasip::MsgSipPriority>(row.get<int>(3));
 			}
 
 			fork->dbKeys.push_back(row.get<string>(1));
