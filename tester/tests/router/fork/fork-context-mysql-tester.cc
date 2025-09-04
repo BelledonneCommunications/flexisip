@@ -182,11 +182,16 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 	auto timestampGenerator = random.timestamp();
 
 	auto integerGenerator = random.integer<int>(10, 20);
+	auto msgPriorityGenerator = random.integer<int>(0, 3);
 	const auto nbForks = integerGenerator.generate();
 	map<string, shared_ptr<ForkMessageContext>> expectedForks{};
 	for (int forkId = 0; forkId < nbForks; forkId++) {
 		auto targetTime = timestampGenerator.generate();
-		auto fakeFork = ForkMessageContextDb{1., 5, false, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
+		auto fakeFork = ForkMessageContextDb{
+		    1.,         5,
+		    false,      *gmtime(&targetTime),
+		    rawRequest, static_cast<MsgSipPriority>(msgPriorityGenerator.generate()),
+		};
 
 		auto stringGenerator = random.string();
 		auto stringLengthGenerator = random.integer<size_t>(1, 255);
@@ -217,13 +222,15 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 		lastExpirationTime = expirationTime;
 	}
 
-	// Compare uuid and dbKeys.
+	// Compare uuid, dbKeys and msgPriority.
 	for (auto& actualFork : dbForks) {
 		auto expectedForkIt = expectedForks.find(actualFork.uuid);
 		if (expectedForkIt == expectedForks.end()) {
 			BC_FAIL("uuid from dbForks not found in expectedForks map");
 			continue;
 		}
+
+		BC_ASSERT(actualFork.msgPriority == expectedForkIt->second->getDbObject().msgPriority);
 
 		auto actualKeys = forkFactory->restoreForkMessageContextDbProxy(actualFork, nullListener)->getKeys();
 		auto expectedKeys = expectedForkIt->second->getKeys();
@@ -945,7 +952,7 @@ TestSuite _{
     Hooks()
         .beforeSuite([] {
 	        mysqlServer.emplace();
-        	mysqlServer->waitReady();
+	        mysqlServer->waitReady();
 	        return 0;
         })
         .afterSuite([] {
