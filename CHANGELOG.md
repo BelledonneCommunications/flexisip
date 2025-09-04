@@ -190,8 +190,11 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     the replaced module section is present in the configuration file.
   - **ExternalAuth:** This module did not support "Name or service not known" error while trying to send an HTTP request
     (which was leading to a crash).
-  - **Router:** A crash of the server could happen if MESSAGE requests waiting for delivery stored in the database were
-    removed from that database during the shutdown phase.
+  - **Router:**
+    - A crash of the server could happen if MESSAGE requests waiting for delivery stored in the database were
+      removed from that database during the shutdown phase.
+    - Messages waiting for delivery retrieved from the database at startup could not be handled properly. These messages
+      were delivered to destinations but not freed and could lead to misleading error messages in the logs.
 - **Conference:**
   - A crash could happen when renaming a chatroom with a name containing special characters.
 
