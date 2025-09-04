@@ -16,10 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/module.hh>
-
 #include "schedule-injector.hh"
 
+#include "flexisip/module.hh"
 #include "inject-context.hh"
 
 using namespace std;
@@ -31,14 +30,14 @@ void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
                                           const std::string& contactId) {
 	LOGD << "ForkContext[" << fork->getPtrForEquality() << "]";
 
-	auto currentWorkingPriority = fork->getMsgPriority();
+	const auto currentWorkingPriority = fork->getMsgPriority();
 	auto& injectMap = getMapFromPriority(currentWorkingPriority);
 	const auto& contactMapEntry = injectMap.find(contactId);
 
 	if (contactMapEntry == injectMap.end()) {
-		// This should not happen, but we prefer to send in wrong order than not at all.
-		LOGW << "ForkContext[" << fork->getPtrForEquality() << "], CallID [" << ev->getMsgSip()->getCallID()
-		     << "], no map found, injected out of order to " << contactId;
+		// This should not happen (error in our code), but we prefer to send it in the wrong order than not at all.
+		LOGW << "ForkContext[" << fork->getPtrForEquality() << "] | CallID (" << ev->getMsgSip()->getCallID()
+		     << "): no map found, injected out of order to '" << contactId << "'";
 		mModule->injectRequestEvent(std::move(ev));
 		return;
 	}
@@ -50,9 +49,9 @@ void ScheduleInjector::injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
 	    it != contactInjectContexts.end()) {
 		it->waitForInject = std::move(ev);
 	} else {
-		// This should not happen, but we prefer to send in wrong order than not at all.
-		LOGW << "ForkContext[" << fork->getPtrForEquality() << "], CallID [" << ev->getMsgSip()->getCallID()
-		     << "] was not found in and is injected out of order to " << contactId;
+		// This should not happen (error in our code), but we prefer to send it in the wrong order than not at all.
+		LOGW << "ForkContext[" << fork->getPtrForEquality() << "] | CallID (" << ev->getMsgSip()->getCallID()
+		     << "): not found and is injected out of order to '" << contactId << "'";
 		mModule->injectRequestEvent(std::move(ev));
 	}
 
@@ -65,34 +64,34 @@ void ScheduleInjector::startInject(const std::string& contactId) {
 		auto& injectMap = getMapFromPriority(priority);
 
 		const auto& contactMapEntry = injectMap.find(contactId);
-		if (contactMapEntry == injectMap.end()) {
-			continue;
-		}
+		if (contactMapEntry == injectMap.end()) continue;
 
 		auto& contactInjectContexts = contactMapEntry->second;
 		auto it = contactInjectContexts.begin();
 		while (it != contactInjectContexts.end()) {
 			if (it->waitForInject) {
+				LOGD << "Injecting ForkContext[" << it->mFork->getPtrForEquality() << "]";
 				mModule->injectRequestEvent(std::move(it->waitForInject));
 				it = contactInjectContexts.erase(it);
 			} else if (it->isExpired()) {
-				LOGE << "ForkContext[" << it->mFork->getPtrForEquality()
-				     << "], is expired and is not waiting for inject, removing";
+				LOGW << "ForkContext[" << it->mFork->getPtrForEquality()
+				     << "] is expired and is not waiting for inject: removing";
 				it = contactInjectContexts.erase(it);
 			} else {
-				LOGD << "Blocked by fork [" << it->mFork->getPtrForEquality() << "]";
+				LOGD << "ForkContext[" << it->mFork->getPtrForEquality()
+				     << "] is blocking other ForkContext instances to be injected for priority '"
+				     << static_cast<int>(priority) << "' (maintaining the order)";
 				break;
 			}
 		}
-		if (it != contactInjectContexts.end()) {
-			break;
-		}
+
+		if (it != contactInjectContexts.end()) break;
 	}
 }
 
 void ScheduleInjector::addContext(const shared_ptr<ForkContext>& fork, const string& contactId) {
-	LOGD << "ForkContext[" << fork->getPtrForEquality() << "]";
 	startInject(contactId);
+	LOGD << "ForkContext[" << fork->getPtrForEquality() << "]";
 	getMapFromPriority(fork->getMsgPriority())[contactId].emplace_back(fork);
 }
 
@@ -114,8 +113,17 @@ void ScheduleInjector::removeContext(const shared_ptr<ForkContext>& fork, const 
 		const auto& it = find_if(contactInjectContexts.begin(), contactInjectContexts.end(),
 		                         [&fork](const auto& i) { return i.isEqual(fork); });
 		if (it != contactInjectContexts.end()) {
+			LOGD << "Removing ForkContext[" << it->mFork->getPtrForEquality() << "]";
 			contactInjectContexts.erase(it);
+		} else {
+			// This should not happen (error in our code).
+			LOGW << "ForkContext[" << fork->getPtrForEquality() << "] | ContactID '" << contactId
+			     << "': ForkContext instance not found in the map";
 		}
+	} else {
+		// This should not happen (error in our code).
+		LOGW << "ForkContext[" << fork->getPtrForEquality() << "] | ContactID '" << contactId
+		     << "': contactID not found in any map";
 	}
 
 	startInject(contactId);
@@ -133,7 +141,7 @@ ScheduleInjector::InjectContextMap& ScheduleInjector::getMapFromPriority(sofiasi
 			return mEmergencyInjectContexts;
 		default:
 			throw invalid_argument(
-			    "ScheduleInjector::getMapFromPriority - sofiasip::MsgSipPriority value is not valid ["s +
-			    to_string(static_cast<int>(msgSipPriority)) + "]");
+			    "ScheduleInjector::getMapFromPriority - sofiasip::MsgSipPriority value is not valid ("s +
+			    to_string(static_cast<int>(msgSipPriority)) + ")");
 	}
 }
