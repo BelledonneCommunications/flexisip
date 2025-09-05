@@ -20,6 +20,9 @@
 
 #include <memory>
 
+#include "sofia-sip/sip.h"
+#include "sofia-sip/sip_status.h"
+
 #include "domain-registrations.hh"
 #include "eventlogs/events/calls/call-ended-event-log.hh"
 #include "exceptions/bad-configuration.hh"
@@ -30,13 +33,10 @@
 #include "router/fork-group-sorter.hh"
 #include "router/fork-manager.hh"
 #include "router/inject-context.hh"
-#include "sofia-sip/sip.h"
-#include "sofia-sip/sip_status.h"
 #include "utils/uri-utils.hh"
 
 #if ENABLE_SOCI
 #include "fork-context/fork-message-context-db-proxy.hh"
-#include "fork-context/fork-message-context-soci-repository.hh"
 #endif
 
 using namespace std;

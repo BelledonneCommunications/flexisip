@@ -22,6 +22,8 @@
 #include <memory>
 #include <string_view>
 
+#include "sofia-sip/sip_status.h"
+
 #include "agent.hh"
 #include "branch-info.hh"
 #include "eventlogs/events/calls/call-ringing-event-log.hh"
@@ -30,7 +32,6 @@
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/fork-status.hh"
 #include "registrar/extended-contact.hh"
-#include "sofia-sip/sip_status.h"
 
 using namespace std;
 using namespace string_view_literals;
@@ -63,52 +64,47 @@ void ForkCallContext::onCancel(const MsgSip& ms) {
 	mCancelled = true;
 	cancelAll(ms.getSip());
 
-	if (shouldFinish()) {
-		setFinished();
-	} else {
-		checkFinished();
-	}
+	if (shouldFinish()) setFinished();
+	else checkFinished();
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
-	if (!mCancel.has_value()) {
-		mCancel = make_optional<CancelInfo>(mHome, ForkStatus::Standard);
-	}
+	if (!mCancel.has_value()) mCancel = make_optional<CancelInfo>(mHome, ForkStatus::Standard);
 
-	// Work on a copy of the list.
+	// WARNING: work on a copy of the list.
 	const auto branches = getBranches();
-	for (const auto& branch : branches) {
-		if (branch != br) {
-			branch->cancel(mCancel, true);
-			// Always notify here, even if the branch is not canceled (due to status or iOS devices specific reasons).
-			branch->notifyBranchCanceled(mCancel->mStatus);
 
-			auto& event = getEvent();
-			auto eventLog = make_shared<CallLog>(event.getMsgSip()->getSip());
-			eventLog->setDevice(*branch->getContact());
-			eventLog->setCancelled();
-			eventLog->setForkStatus(mCancel->mStatus);
-			event.writeLog(eventLog);
-		}
+	for (const auto& branch : branches) {
+		if (branch == br) continue;
+
+		branch->cancel(mCancel, true);
+		// Always notify here, even if the branch is not canceled (due to status or iOS devices specific reasons).
+		branch->notifyBranchCanceled(mCancel->mStatus);
+
+		auto& event = getEvent();
+		auto eventLog = make_shared<CallLog>(event.getMsgSip()->getSip());
+		eventLog->setDevice(*branch->getContact());
+		eventLog->setCancelled();
+		eventLog->setForkStatus(mCancel->mStatus);
+		event.writeLog(eventLog);
 	}
 	mNextBranchesTimer.reset();
 }
 
 void ForkCallContext::cancelAll(const sip_t* received_cancel) {
-	if (!mCancel.has_value() && received_cancel && received_cancel->sip_reason) {
+	if (!mCancel.has_value() && received_cancel && received_cancel->sip_reason)
 		mCancel = make_optional<CancelInfo>(sip_reason_dup(mHome.home(), received_cancel->sip_reason));
-	}
+
 	cancelOthers(nullptr);
 }
 
 void ForkCallContext::cancelOthersWithStatus(const shared_ptr<BranchInfo>& br, ForkStatus status) {
-	if (!mCancel.has_value()) {
-		mCancel = make_optional<CancelInfo>(mHome, status);
-	}
+	if (!mCancel.has_value()) mCancel = make_optional<CancelInfo>(mHome, status);
+
 	cancelOthers(br);
 }
 
-const int* ForkCallContext::getUrgentCodes() {
+const int* ForkCallContext::getUrgentCodes() const {
 	if (mCfg->mTreatAllErrorsAsUrgent) return kAllCodesUrgent;
 	if (mCfg->mTreatDeclineAsUrgent) return kUrgentCodes;
 	return kUrgentCodesWithout603;
@@ -119,15 +115,14 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 
 	ForkContextBase::onResponse(br, event);
 
-	const auto code = event.getMsgSip()->getSip()->sip_status->st_status;
-	if (code >= 300) {
+	if (const auto code = event.getStatusCode(); code >= 300) {
 		/*
 		 * In fork-late mode, we must not consider that 503 and 408 response codes (which are sent by sofia in case of
 		 * i/o error or timeouts) are branches that are answered. Instead, we must wait for the duration of the fork for
 		 * new registers.
 		 */
 		if (code >= 600) {
-			/*6xx response are normally treated as global failures */
+			// 6xx responses are normally processed as global failures.
 			if (!mCfg->mForkNoGlobalDecline) {
 				mCancelled = true;
 				cancelOthersWithStatus(br, ForkStatus::DeclinedElsewhere);
@@ -137,16 +132,16 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
 		}
 	} else if (code >= 200) {
-		forwardThenLogResponse(br);
+		forwardAndLogResponse(br);
 		mCancelled = true;
 		cancelOthersWithStatus(br, ForkStatus::AcceptedElsewhere);
 	} else if (code >= 100) {
 		if (code == 180) {
-			auto& event = getEvent();
-			event.writeLog(make_shared<CallRingingEventLog>(*event.getMsgSip()->getSip(), br.get()));
+			auto& request = getEvent();
+			request.writeLog(make_shared<CallRingingEventLog>(*request.getMsgSip()->getSip(), br.get()));
 		}
 
-		forwardThenLogResponse(br);
+		forwardAndLogResponse(br);
 	}
 
 	if (auto forwardedBr = checkFinished(); forwardedBr)
@@ -158,28 +153,27 @@ void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingP
 	if (aRingingPush && !isRingingSomewhere()) sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
 }
 
-void ForkCallContext::forwardThenLogResponse(const shared_ptr<BranchInfo>& branch) {
+void ForkCallContext::forwardAndLogResponse(const shared_ptr<BranchInfo>& branch) const {
 	if (branch->forwardResponse(mIncoming != nullptr)) logResponse(branch->getLastResponseEvent(), branch.get());
 }
 
-void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) {
-	if (ev) {
-		if (branch) mLog->setDevice(*branch->getContact());
+void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) const {
+	if (ev == nullptr) return;
 
-		sip_t* sip = ev->getMsgSip()->getSip();
-		mLog->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
+	if (branch) mLog->setDevice(*branch->getContact());
 
-		if (sip->sip_status->st_status >= 200) mLog->setCompleted();
+	const auto* sip = ev->getMsgSip()->getSip();
+	mLog->setStatusCode(sip->sip_status->st_status, sip->sip_status->st_phrase);
 
-		ev->setEventLog(mLog);
-	}
+	if (sip->sip_status->st_status >= 200) mLog->setCompleted();
+
+	ev->setEventLog(mLog);
 }
 
 void ForkCallContext::onNewRegister(const SipUri& dest,
                                     const std::string& uid,
                                     const std::shared_ptr<ExtendedContact>& newContact) {
-
-	LOGD << "Running " << __func__;
+	LOGD << "Received new registration notification";
 	const auto forkContextListener = mForkContextListener.lock();
 	if (!forkContextListener) return;
 
@@ -189,10 +183,10 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		return;
 	}
 
-	const auto dispatch = shouldDispatch(dest, uid);
+	const auto [status, branch] = shouldDispatch(dest, uid);
 
-	if (dispatch.status != DispatchStatus::DispatchNeeded) {
-		forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, dispatch.status);
+	if (status != DispatchStatus::DispatchNeeded) {
+		forkContextListener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, status);
 		return;
 	}
 
@@ -202,7 +196,7 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 		return;
 	}
 
-	if (dispatch.branch && dispatch.branch->pushContextIsAppleVoIp()) {
+	if (branch && branch->pushContextIsAppleVoIp()) {
 		const auto& dispatchedBranch = forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 		dispatchedBranch->cancel(mCancel);
 		checkFinished();
@@ -214,49 +208,43 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 }
 
 bool ForkCallContext::isCompleted() const {
-	if (getLastResponseCode() >= 200 || mCancelled || mIncoming == NULL) return true;
+	if (getLastResponseCode() >= 200 || mCancelled || !mIncoming) return true;
 
 	return false;
 }
 
 bool ForkCallContext::isRingingSomewhere() const {
-	for (const auto& br : getBranches()) {
-		auto status = br->getStatus();
-		if (status >= 180 && status < 200) return true;
-	}
-	return false;
+	return any_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(), [](const auto& br) {
+		const auto status = br->getStatus();
+		return status >= 180 && status < 200;
+	});
 }
 
 void ForkCallContext::onShortTimer() {
 	LOGD << "Time to send urgent replies";
 
-	/*first stop the timer, it has to be one shot*/
+	// First, stop the timer; it has to be one shot.
 	mShortTimer.reset();
 
-	if (isRingingSomewhere()) return; /*it's ringing somewhere*/
+	if (isRingingSomewhere()) return;
 
-	auto br = findBestBranch(mCfg->mForkLate);
-
-	if (br) forwardThenLogResponse(br);
+	if (const auto br = findBestBranch(mCfg->mForkLate)) forwardAndLogResponse(br);
 }
 
 void ForkCallContext::onLateTimeout() {
-	if (mIncoming) {
-		if (auto br = findBestBranch(mCfg->mForkLate); !br || br->getStatus() == 0) {
-			// Forward then log _custom_ response
-			logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT), br.get());
-		} else {
-			forwardThenLogResponse(br);
-		}
+	if (!mIncoming) return;
 
-		/*cancel all possibly pending outgoing transactions*/
-		cancelOthers(shared_ptr<BranchInfo>());
-	}
+	if (const auto br = findBestBranch(mCfg->mForkLate); !br || br->getStatus() == 0)
+		logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT), br.get());
+	else forwardAndLogResponse(br);
+
+	// Cancel all possibly pending outgoing transactions.
+	cancelOthers(nullptr);
 }
 
 void ForkCallContext::processInternalError(int status, const char* phrase) {
 	ForkContextBase::processInternalError(status, phrase);
-	cancelOthers(shared_ptr<BranchInfo>());
+	cancelOthers(nullptr);
 }
 
 void ForkCallContext::start() {
@@ -274,9 +262,7 @@ void ForkCallContext::start() {
 }
 
 std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
-	if (auto br = ForkContextBase::checkFinished(); (mIncoming == nullptr && !mCfg->mForkLate) || br) {
-		return br;
-	}
+	if (auto br = ForkContextBase::checkFinished(); (mIncoming == nullptr && !mCfg->mForkLate) || br) return br;
 
 	if (mCancelled) {
 		// If a call is canceled by caller/callee, even if some branches only answered 503 or 408, even in fork-late

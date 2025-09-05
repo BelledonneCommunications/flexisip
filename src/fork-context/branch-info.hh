@@ -100,7 +100,7 @@ public:
 	static void setBranchInfo(const std::shared_ptr<OutgoingTransaction>& tr, const std::weak_ptr<BranchInfo>& br);
 	/**
 	 * @brief Notify the listener that this branch has been canceled.
-	 * 
+	 *
 	 * @param cancelReason reason of cancellation
 	 */
 	void notifyBranchCanceled(ForkStatus cancelReason) noexcept;
@@ -110,19 +110,19 @@ public:
 	void notifyBranchCompleted() noexcept;
 	/**
 	 * @brief Process the response received on this branch and notifies the ForkContext consequently.
-	 * 
+	 *
 	 * @param event received response to process
 	 */
 	void processResponse(ResponseSipEvent& event);
 	/**
 	 * @brief Forward the last response received on the branch to the ForkContext.
-	 * 
+	 *
 	 * @return 'true' if a response was sent
 	 */
 	bool forwardResponse(bool forkContextHasIncomingTransaction);
 	/**
 	 * @brief Cancel the branch (send a '487 Request terminated' to the target).
-	 * 
+	 *
 	 * @warning Does not send the request if the branch has already sent or received a terminal response. Same behavior
 	 * if it did not receive a response yet and that keepAppleVoIpAlive is set to 'true' (for iOS devices only,
 	 * Invite/Cancel feature).
@@ -133,11 +133,11 @@ public:
 	/**
 	 * @return status of the last response
 	 */
-	virtual int getStatus();
+	virtual int getStatus() const;
 	/**
-	 * @return 'true' if the SIP message needs to be sent to the targe of this branch.
+	 * @return 'true' if the SIP message (response) needs to be sent to the target of this branch.
 	 */
-	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC);
+	bool needsDelivery(FinalStatusMode mode = FinalStatusMode::RFC) const;
 	/**
 	 * @return 'true' if the push context of this branch is Apple::VoIP.
 	 */

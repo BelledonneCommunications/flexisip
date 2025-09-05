@@ -25,7 +25,8 @@
 #######################################################################################################################
 
 add_library(flexisip SHARED
-	agent.cc agent-startlogwriter.cc agent.hh
+	agent.cc agent.hh
+	agent-startlogwriter.cc
 	auth/auth-scheme.hh
 	auth/db/authdb-file.cc
 	auth/db/authdb.cc auth/db/authdb.hh
@@ -39,7 +40,7 @@ add_library(flexisip SHARED
 	cli.cc cli.hh
 	cJSON.c
 	common.cc
-	sip-boolean-expressions.cc
+	conditional-routes.cc conditional-routes.hh
 	configdumper.cc configdumper.hh
 	configmanager.cc
 	contact-masquerader.cc contact-masquerader.hh
@@ -79,6 +80,7 @@ add_library(flexisip SHARED
 	fork-context/fork-context.cc
 	fork-context/fork-status.hh
 	h264iframefilter.cc h264iframefilter.hh
+	i-supervisor-notifier.hh
 	lib/nlohmann-json-3-11-2/json.hpp
 	log/logmanager.cc
 	lpconfig.cc
@@ -102,6 +104,7 @@ add_library(flexisip SHARED
 	sdp-modifier.cc sdp-modifier.hh
 	service-server/service-server.cc service-server/service-server.hh
 	signal-handling/signal-handling.cc
+	sip-boolean-expressions.cc
 	stun.cc stun.hh
 	stun/stun_udp.c
 	stun/stun.c
@@ -109,8 +112,6 @@ add_library(flexisip SHARED
 	transport.cc transport.hh
 	uac-register.cc uac-register.hh
 	utils/process-monitoring/memory-watcher.cc utils/process-monitoring/memory-watcher.hh
-	conditional-routes.cc conditional-routes.hh
-	i-supervisor-notifier.hh
 )
 
 if(ENABLE_FLEXIAPI)

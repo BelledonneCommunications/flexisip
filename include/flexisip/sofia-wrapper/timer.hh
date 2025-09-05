@@ -22,19 +22,19 @@
 #include <functional>
 #include <memory>
 
-#include <sofia-sip/su_wait.h>
+#include "sofia-sip/su_wait.h"
 
 namespace sofiasip {
 
 class SuRoot;
 
 /**
- * @brief Helping class for manipulating SofiaSip's timers.
+ * @brief Wrapper for SofiaSip's timers.
  */
 class Timer {
 public:
 	/**
-	 * @brief Callbacks that is called when the timer expires.
+	 * @brief Callback that is called when the timer expires.
 	 */
 	using Func = std::function<void()>;
 	using NativeDuration = std::chrono::duration<su_duration_t, std::milli>;
@@ -52,65 +52,80 @@ public:
 
 	[[deprecated]] explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
 
-	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, NativeDuration interval);
+	explicit Timer(const std::shared_ptr<SuRoot>& root, NativeDuration interval);
 
 	~Timer();
 
-	/**
-	 * Copying or moving a timer has no sense.
-	 */
+	// Copying or moving a timer has no sense.
 	Timer(const Timer&) = delete;
 	Timer(Timer&&) = delete;
 
 	/**
 	 * @brief Start the timer with the default expiration time.
-	 * @param[in] func The function to call when the timer expires. The
-	 * context of the function is copied and automatically destroyed on
-	 * timer expiration.
-	 * @throw std::logic_error if the time couldn't be set.
+	 *
+	 * @param[in] func The function to call when the timer expires. The context of the function is copied and
+	 * automatically destroyed on timer expiration.
+	 * @throw std::logic_error if the timer could not be set.
 	 */
 	void set(const Func& func);
 	/**
 	 * @brief Start the timer with a specific expiration time.
-	 * @param[in] func The function to call when the timer expires. The
-	 * context of the function is copied and automatically destroyed on
-	 * timer expiration.
+	 *
+	 * @param[in] func The function to call when the timer expires. The context of the function is copied and
+	 * automatically destroyed on timer expiration.
 	 * @param[in] intervalMs The expiration time in ms.
-	 * @throw std::logic_error if the timer couldn't been set.
+	 * @throw std::logic_error if the timer could not be set.
 	 */
 	void set(const Func& func, su_duration_t intervalMs);
-
 	/**
-	 * @brief Same as before, but using std::chrono for time interval.
+	 * @brief Start the timer with a specific expiration time.
+	 *
+	 * @param[in] func The function to call when the timer expires. The context of the function is copied and
+	 * automatically destroyed on timer expiration.
+	 * @param[in] interval The expiration time.
+	 * @throw std::logic_error if the timer could not be set.
 	 */
 	void set(const Func& func, NativeDuration interval) {
 		set(func, interval.count());
 	}
+	/**
+	 * @brief Start the timer with a specific expiration time.
+	 *
+	 * @param[in] func The function to call when the timer expires. The context of the function is copied and
+	 * automatically destroyed on timer expiration.
+	 * @param[in] interval The expiration time.
+	 * @throw std::logic_error if the timer could not be set.
+	 */
 	template <typename Duration>
 	void set(const Func& func, Duration interval) {
 		set(func, std::chrono::duration_cast<NativeDuration>(interval));
 	}
 	/**
 	 * @brief Start the timer to be executed regularly.
-	 * @param[in] func The function to call on each interval
-	 * of time. The context of the function is copied and is
-	 * only destroyed on reset() call.
-	 * @throw std::logic_error if the timer couldn't be stated.
+	 * @warning Use with care as it will be called many times in case of time leap.
 	 *
-	 * Use with care as it will be called numerous times in case of time leap.
+	 * @param[in] func The function to call on each interval of time. The context of the function is copied and is only
+	 * destroyed on the stop() call.
+	 * @throw std::logic_error if the timer could not be set.
 	 */
 	void run(const Func& func);
 	/**
-	 * @brief Same as run() except it doesn't try to catch up missed callbacks.
+	 * @brief Start the timer to be executed regularly.
+	 * @note Same as run() except it doesn't try to catch up missed callbacks.
+	 *
+	 * @param[in] func The function to call on each interval of time. The context of the function is copied and is only
+	 * destroyed on the stop() call.
+	 * @throw std::logic_error if the timer could not be set.
 	 */
 	void setForEver(const Func& func);
 	/**
 	 * @brief Stop the timer and delete the internal function.
-	 * @throw std::logic_error if the timer couldn't been reset.
+	 *
+	 * @throw std::logic_error if the timer could not be stopped.
 	 */
 	void reset();
 	/**
-	 * @brief Check whether the timer has already been set.
+	 * @return 'true' if the timer is of type 'running' ('run_for_ever' or 'run_at_intervals'), 'false' otherwise.
 	 */
 	bool isRunning() const;
 
@@ -118,9 +133,9 @@ private:
 	static void _oneShotTimerCb(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) noexcept;
 	static void _regularTimerCb(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) noexcept;
 
-	std::shared_ptr<sofiasip::SuRoot> mRoot{};
-	su_timer_t* _timer = nullptr;
-	Func _func;
+	std::shared_ptr<SuRoot> mRoot{};
+	su_timer_t* mTimer{};
+	Func mFunc;
 };
 
 } // namespace sofiasip

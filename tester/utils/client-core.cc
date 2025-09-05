@@ -419,7 +419,7 @@ bool CoreClient::endCurrentCall(const CoreClient& peer, const std::shared_ptr<Ag
 	auto selfCall = mCore->getCurrentCall();
 	auto peerCall = peer.mCore->getCurrentCall();
 	if (selfCall == nullptr || peerCall == nullptr) {
-		BC_FAIL("Trying to end call but No current call running");
+		BC_FAIL("Trying to end a call, but there is no call currently running");
 		return false;
 	}
 

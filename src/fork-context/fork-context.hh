@@ -189,12 +189,6 @@ public:
 	virtual ~ForkContextListener() = default;
 
 	/**
-	 * @brief Notify the ForkContext is finished.
-	 *
-	 * @param ctx ForkContext that is finished
-	 */
-	virtual void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) = 0;
-	/**
 	 * @brief Notify a new register and a dispatch is needed for it.
 	 *
 	 * @param ctx ForkContext that needs a dispatch (add a new branch)
@@ -217,6 +211,12 @@ public:
 	                                           const SipUri& dest,
 	                                           const std::string& uid,
 	                                           DispatchStatus reason) = 0;
+	/**
+	 * @brief Notify the ForkContext is finished.
+	 *
+	 * @param ctx ForkContext that is finished
+	 */
+	virtual void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) = 0;
 };
 
 } // namespace flexisip

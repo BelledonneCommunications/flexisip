@@ -23,10 +23,9 @@
 #include <regex.h>
 #include <string>
 
-#include <sofia-sip/msg.h>
-#include <sofia-sip/nta.h>
-#include <sofia-sip/sip.h>
-#include <sofia-sip/tport.h>
+#include "sofia-sip/nta.h"
+#include "sofia-sip/sip.h"
+#include "sofia-sip/tport.h"
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -120,6 +119,8 @@ public:
 
 	const std::shared_ptr<tport_t>& getIncomingTport() const;
 	std::shared_ptr<SocketAddress> getMsgAddress() const;
+
+	int getStatusCode() const;
 
 protected:
 	enum class State {

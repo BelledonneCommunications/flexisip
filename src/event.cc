@@ -181,6 +181,12 @@ std::shared_ptr<SocketAddress> SipEvent::getMsgAddress() const {
 	return SocketAddress::make(&suSocketAddress);
 }
 
+int SipEvent::getStatusCode() const {
+	const auto* sip = getSip();
+	const auto* status = sip ? sip->sip_status : nullptr;
+	return status ? status->st_status : 0;
+}
+
 void RequestSipEvent::checkContentLength(const url_t* url) {
 	sip_t* sip = mMsgSip->getSip();
 	if (sip->sip_content_length == NULL) {

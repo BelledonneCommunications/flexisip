@@ -18,11 +18,10 @@
 
 #include "incoming-transaction.hh"
 
-#include <sofia-sip/su_tagarg.h>
-
-#include "flexisip/logmanager.hh"
+#include "sofia-sip/su_tagarg.h"
 
 #include "agent.hh"
+#include "flexisip/logmanager.hh"
 
 using namespace flexisip;
 using namespace std;

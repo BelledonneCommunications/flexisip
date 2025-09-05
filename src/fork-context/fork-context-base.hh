@@ -105,7 +105,7 @@ protected:
 	virtual bool shouldFinish();
 
 	/**
-	 * @brief Mark the fork process as terminated.
+	 * @brief Tag the ForkContext as 'finished'.
 	 *
 	 * @note the real destruction is performed asynchronously, in the next main loop iteration.
 	 */
@@ -119,7 +119,7 @@ protected:
 	void onFinished();
 	/**
 	 * @brief Forward a custom response.
-	 * 
+	 *
 	 * @param status the status of the custom response to send
 	 * @param phrase the content of the custom response to send
 	 * @return the response sent, or nullptr if the response was not sent
@@ -148,7 +148,7 @@ protected:
 	/**
 	 * @brief Find the best branch to take the response from and forward it to all the other branches.
 	 */
-	std::shared_ptr<BranchInfo> findBestBranch(bool ignore503And408 = false);
+	std::shared_ptr<BranchInfo> findBestBranch(bool ignore503And408 = false) const;
 	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);
 	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 	/**

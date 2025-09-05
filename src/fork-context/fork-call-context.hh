@@ -83,7 +83,7 @@ private:
 	/**
 	 * @return the list of SIP status codes that are considered as urgent regarding the configuration of this fork
 	 */
-	const int* getUrgentCodes();
+	const int* getUrgentCodes() const;
 	/**
 	 * @brief Send urgent responses to branches if no branch is ringing.
 	 */
@@ -112,11 +112,11 @@ private:
 	 *
 	 * @param ev received response
 	 */
-	void logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo*);
+	void logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo*) const;
 	/**
 	 * @brief Forward the response on the provided branch and send an event log for this response.
 	 */
-	void forwardThenLogResponse(const std::shared_ptr<BranchInfo>&);
+	void forwardAndLogResponse(const std::shared_ptr<BranchInfo>&) const;
 
 	sofiasip::Home mHome{};
 	// Optionally used to send retryable responses.

@@ -40,29 +40,21 @@ ForkContextBase::ForkContextBase(AgentInterface* agent,
       mNextBranchesTimer(mAgent->getRoot()), mMsgPriority(priority), mInjectorListener(injectorListener),
       mForkContextListener(forkContextListener), mEvent(std::move(event)), mStatCounter(counter),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkContextBase")) {
-	if (const auto statCounter = mStatCounter.lock()) {
-		statCounter->incrStart();
-	} else {
-		LOGE << "Failed to increment counter (std::weak_ptr is empty)";
-	}
+	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
+	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 
 	if (!isRestored) {
 		mIncoming = mEvent->createIncomingTransaction();
-		if (mCfg->mForkLate) {
-			// this timer is for when outgoing transaction all die prematurely, we still need to wait that late register
-			// arrive.
-			mLateTimer.set([this]() { processLateTimeout(); },
-			               static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
-		}
+		// This timer is for when outgoing transaction all die prematurely, we still need to wait that late register
+		// arrive.
+		if (mCfg->mForkLate)
+			mLateTimer.set([this] { processLateTimeout(); }, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
 	}
 }
 
 ForkContextBase::~ForkContextBase() {
-	if (const auto statCounter = mStatCounter.lock()) {
-		statCounter->incrFinish();
-	} else {
-		LOGE << "Failed to increment counter (std::weak_ptr is empty)";
-	}
+	if (const auto statCounter = mStatCounter.lock()) statCounter->incrFinish();
+	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 }
 
 void ForkContextBase::processLateTimeout() {
@@ -102,15 +94,15 @@ bool ForkContextBase::isUrgent(int code, const int urgentCodes[]) {
 }
 
 static bool isConsidered(int code, bool ignore503And408) {
-	return ignore503And408 ? (!(code == 503 || code == 408)) : true;
+	return ignore503And408 ? !(code == 503 || code == 408) : true;
 }
 
 bool ForkContextBase::isUseful4xx(int statusCode) {
-	constexpr std::array<int, 5> useful4xxCodes = {401, 407, 415, 420, 484};
-	return (std::find(useful4xxCodes.begin(), useful4xxCodes.end(), statusCode) != useful4xxCodes.end());
+	constexpr std::array<int, 5> useful4xxCodes{401, 407, 415, 420, 484};
+	return find(useful4xxCodes.begin(), useful4xxCodes.end(), statusCode) != useful4xxCodes.end();
 }
 
-std::shared_ptr<BranchInfo> ForkContextBase::findBestBranch(bool ignore503And408) {
+std::shared_ptr<BranchInfo> ForkContextBase::findBestBranch(bool ignore503And408) const {
 	shared_ptr<BranchInfo> best{nullptr};
 
 	for (const auto& br : mWaitingBranches) {
@@ -153,30 +145,19 @@ std::shared_ptr<BranchInfo> ForkContextBase::findBestBranch(bool ignore503And408
 }
 
 bool ForkContextBase::allBranchesAnswered(FinalStatusMode finalStatusMode) const {
-	for (const auto& br : mWaitingBranches) {
-		if (br->needsDelivery(finalStatusMode)) {
-			return false;
-		}
-	}
-
-	return true;
+	return all_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(),
+	              [&](const auto& branch) { return !branch->needsDelivery(finalStatusMode); });
 }
 
 bool ForkContextBase::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const {
-	for (const auto& br : mCurrentBranches) {
-		if (br->needsDelivery(finalStatusMode)) {
-			return false;
-		}
-	}
-
-	return true;
+	return all_of(mCurrentBranches.cbegin(), mCurrentBranches.cend(),
+	              [&](const auto& branch) { return !branch->needsDelivery(finalStatusMode); });
 }
 
 void ForkContextBase::removeBranch(const shared_ptr<BranchInfo>& br) {
-	LOGD << "Removed branch: " << br;
-
 	mWaitingBranches.remove(br);
 	mCurrentBranches.remove(br);
+	LOGD << "Removed branch: " << br;
 }
 
 const list<shared_ptr<BranchInfo>>& ForkContextBase::getBranches() const {
@@ -184,8 +165,6 @@ const list<shared_ptr<BranchInfo>>& ForkContextBase::getBranches() const {
 }
 
 ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri& dest, const std::string& uid) {
-	shared_ptr<BranchInfo> br, br_by_url;
-
 	/*
 	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall
 	 * match.
@@ -194,39 +173,39 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 	const auto targetGr = url.getParam("gr");
 	if (!targetGr.empty()) {
 		if (uid.find(targetGr) == string::npos) { // to compare regardless of < >
-			/* This request was targetting a gruu address, but this REGISTER is not coming from our target contact.*/
+			// This request was targeting a GRUU address, but this REGISTER is not coming from our target contact.
 			return {.status = DispatchStatus::DispatchNotNeeded, .branch = nullptr};
 		}
 	}
 
-	br = findBranchByUid(uid);
-	br_by_url = findBranchByDest(dest);
+	const auto br = findBranchByUid(uid);
+	const auto brByUrl = findBranchByDest(dest);
 	if (br) {
-		int code = br->getStatus();
+		const auto code = br->getStatus();
 		if (code == 503 || code == 408) {
 			LOGD << "Instance failed to receive the request previously";
 			return {.status = DispatchStatus::DispatchNeeded, .branch = br};
-		} else if (code >= 200) {
+		}
+		if (code >= 200) {
 			/*
 			 * This instance has already accepted or declined the request.
 			 * We should not send it the request again.
 			 */
 			LOGD << "Instance has already answered the request";
 			return {.status = DispatchStatus::DispatchNotNeeded, .branch = nullptr};
-		} else {
-			/*
-			 * No response, or a provisional response is received. We can cannot conclude on what to do.
-			 * The transaction might succeeed in near future, or it might be dead.
-			 * However, if the contact's uri is new, there is a high probability that the client reconnected
-			 * from a new socket, in which case the current branch will receive no response.
-			 */
-			if (br_by_url == nullptr) {
-				LOGD << "Instance reconnected";
-				return {.status = DispatchStatus::DispatchNeeded, .branch = br};
-			}
+		}
+		/*
+		 * No response, or a provisional response is received. We cannot conclude on what to do.
+		 * The transaction might succeed soon, or it might be dead.
+		 * However, if the contact's uri is new, there is a high probability that the client reconnected
+		 * from a new socket, in which case the current branch will receive no response.
+		 */
+		if (brByUrl == nullptr) {
+			LOGD << "Instance reconnected";
+			return {.status = DispatchStatus::DispatchNeeded, .branch = br};
 		}
 	}
-	if (br_by_url) {
+	if (brByUrl) {
 		LOGD << "Pending transaction for this destination";
 		return {.status = DispatchStatus::PendingTransaction, .branch = nullptr};
 	}
@@ -234,7 +213,7 @@ ForkContextBase::ShouldDispatchType ForkContextBase::shouldDispatch(const SipUri
 	return {.status = DispatchStatus::DispatchNeeded, .branch = nullptr};
 }
 
-// This is actually called when we want to simulate a ringing event by sending a 180, or for example to signal the
+// This is actually called when we want to simulate a ringing event by sending a 180, or, for example, to signal the
 // caller that we've sent a push notification.
 void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) {
 	if (!mCfg->mPermitSelfGeneratedProvisionalResponse) {
@@ -242,11 +221,8 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 		return;
 	}
 
-	auto previousCode = getLastResponseCode();
-	if (previousCode > code || !mIncoming) {
-		// Don't send a response with status code lesser than the last transmitted response.
-		return;
-	}
+	// Don't send a response with status code lesser than the last transmitted response.
+	if (const auto previousCode = getLastResponseCode(); previousCode > code || !mIncoming) return;
 
 	auto msgsip = mIncoming->createResponse(code, phrase);
 	if (!msgsip) return;
@@ -299,7 +275,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 		return lhs->getPriority() > rhs->getPriority();
 	});
 
-	// If mCurrentPriority != -1 it means that this fork is already started.
+	// If mCurrentPriority != -1, it means that this fork is already started.
 	if (mCurrentPriority != -1 && mCurrentPriority <= branch->getPriority()) {
 		mCurrentBranches.push_back(branch);
 		if (const auto injectorListener = mInjectorListener.lock()) {
@@ -317,17 +293,17 @@ void ForkContextBase::onNextBranches() {
 }
 
 bool ForkContextBase::hasNextBranches() const {
-	const auto& wBrs = mWaitingBranches;
-	auto findCond = [this](const auto& br) { return br->getPriority() < mCurrentPriority; };
-	return !mFinished && ((mCurrentPriority == -1 && !mWaitingBranches.empty()) ||
-	                      find_if(wBrs.cbegin(), wBrs.cend(), findCond) != wBrs.cend());
+	const auto hasWaitingBranchesLeft =
+	    any_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(),
+	           [this](const auto& br) { return mCurrentPriority == -1. || br->getPriority() < mCurrentPriority; });
+	return !mFinished && hasWaitingBranchesLeft;
 }
 
 void ForkContextBase::nextBranches() {
-	/* Clear all current branches is there is any */
+	// Clear all current branches if there is any.
 	mCurrentBranches.clear();
 
-	/* Get next priority value */
+	// Get next priority value.
 	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
 		mCurrentPriority = mWaitingBranches.front()->getPriority();
 	} else {
@@ -339,27 +315,26 @@ void ForkContextBase::nextBranches() {
 		}
 	}
 
-	/* Stock all wanted branches */
-	for (const auto& br : mWaitingBranches) {
+	// Store all wanted branches.
+	for (const auto& br : mWaitingBranches)
 		if (br->getPriority() == mCurrentPriority) mCurrentBranches.push_back(br);
-	}
 }
 
 void ForkContextBase::start() {
 	if (mFinished) {
-		LOGE << "Calling start() on a completed: do nothing";
+		LOGE << "Calling start() on a finished fork: do nothing";
 		return;
 	}
 
-	/* Remove existing timer */
+	// Remove existing timer.
 	mNextBranchesTimer.reset();
 
-	/* Prepare branches */
+	// Prepare branches.
 	nextBranches();
 
-	LOGD << "Started forking branches with priority: " << mCurrentPriority;
+	LOGD << "Started forking branches with priority '" << mCurrentPriority << "'";
 
-	/* Start the processing */
+	// Start the processing.
 	for (const auto& br : mCurrentBranches) {
 		if (const auto injectorListener = mInjectorListener.lock()) {
 			injectorListener->inject(br->extractRequest(), shared_from_this(), br->getContact()->contactId());
@@ -398,20 +373,16 @@ void ForkContextBase::onFinished() {
 }
 
 void ForkContextBase::setFinished() {
-	if (mFinishTimer.isRunning()) {
-		/*already finishing, ignore*/
-		return;
-	}
+	// Already finishing: ignore.
+	if (mFinishTimer.isRunning()) return;
+
 	mFinished = true;
 
 	mLateTimer.reset();
 	mNextBranchesTimer.reset();
-
 	mFinishTimer.set(
-	    [weak = weak_ptr<ForkContextBase>{shared_from_this()}]() {
-		    if (auto shared = weak.lock()) {
-			    shared->onFinished();
-		    }
+	    [weak = weak_ptr{shared_from_this()}] {
+		    if (const auto shared = weak.lock()) shared->onFinished();
 	    },
 	    0ms);
 }
@@ -421,17 +392,14 @@ bool ForkContextBase::shouldFinish() {
 }
 
 std::unique_ptr<ResponseSipEvent> ForkContextBase::onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) {
-	if (mIncoming == nullptr) return {};
+	if (!mIncoming) return {};
 
-	const int code = event->getMsgSip()->getSip()->sip_status->st_status;
+	const int code = event->getStatusCode();
 	event->setIncomingAgent(mIncoming);
 	mLastResponseSent = event->getMsgSip();
 
-	if (event->isSuspended()) {
-		event = mAgent->injectResponse(std::move(event));
-	} else {
-		event = mAgent->processResponse(std::move(event));
-	}
+	if (event->isSuspended()) event = mAgent->injectResponse(std::move(event));
+	else event = mAgent->processResponse(std::move(event));
 
 	if (code >= 200) {
 		mIncoming.reset();
@@ -442,9 +410,7 @@ std::unique_ptr<ResponseSipEvent> ForkContextBase::onForwardResponse(std::unique
 }
 
 void ForkContextBase::onCancel(const MsgSip&) {
-	if (shouldFinish()) {
-		setFinished();
-	}
+	if (shouldFinish()) setFinished();
 }
 
 void ForkContextBase::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent&) {
@@ -456,10 +422,10 @@ bool ForkContextBase::isFinished() const {
 }
 
 void ForkContextBase::onPushSent(PushNotificationContext& aPNCtx, bool) noexcept {
-	if (!m110Sent) {
-		sendResponse(110, "Push sent", aPNCtx.toTagEnabled());
-		m110Sent = true;
-	}
+	if (m110Sent) return;
+
+	sendResponse(110, "Push sent", aPNCtx.toTagEnabled());
+	m110Sent = true;
 }
 
 void ForkContextBase::addKey(const string& key) {
@@ -471,25 +437,26 @@ const vector<string>& ForkContextBase::getKeys() const {
 }
 
 int ForkContextBase::getLastResponseCode() const {
-	if (mLastResponseSent) return mLastResponseSent->getSip()->sip_status->st_status;
+	if (!mLastResponseSent) return 0;
 
-	return 0;
+	return mLastResponseSent->getSip()->sip_status->st_status;
 }
 
 unique_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
-	if (mIncoming == nullptr) {
+	if (!mIncoming) {
 		LOGD << "Cannot forward SIP response [" << status << " " << phrase << "]: no incoming transaction";
 		return {};
 	}
-	auto msgsip = mIncoming->createResponse(status, phrase);
-	if (msgsip) {
-		auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
-		return onForwardResponse(std::move(ev));
-	} else { // Should never happen
-		LOGE << "Fork error: MsgSip cannot be created, fork is completed without forwarding any response";
+
+	const auto message = mIncoming->createResponse(status, phrase);
+	if (message == nullptr) { // Should never happen
+		LOGE << "Error, MsgSip cannot be created: fork is completed without forwarding any response";
 		setFinished();
+		return {};
 	}
-	return {};
+
+	auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), message);
+	return onForwardResponse(std::move(ev));
 }
 
 void ForkContextBase::processInternalError(int status, const char* phrase) {
@@ -497,21 +464,16 @@ void ForkContextBase::processInternalError(int status, const char* phrase) {
 }
 
 std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
-	if (mIncoming == nullptr && !mCfg->mForkLate) {
+	if (!mIncoming && !mCfg->mForkLate) {
 		setFinished();
 		return nullptr;
 	}
 
 	if (allBranchesAnswered(FinalStatusMode::RFC)) {
-		const auto& br = findBestBranch(mCfg->mForkLate);
+		if (!mCfg->mForkLate || allBranchesAnswered(FinalStatusMode::ForkLate)) setFinished();
 
-		if (mCfg->mForkLate && allBranchesAnswered(FinalStatusMode::ForkLate)) {
-			setFinished();
-		} else if (!mCfg->mForkLate) {
-			setFinished();
-		}
-
-		if (br && br->forwardResponse(mIncoming != nullptr)) return br;
+		if (const auto& br = findBestBranch(mCfg->mForkLate); br && br->forwardResponse(mIncoming != nullptr))
+			return br;
 	}
 
 	return nullptr;

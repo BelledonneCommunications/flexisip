@@ -18,10 +18,9 @@
 
 #include <stdexcept>
 
-#include <sofia-sip/su_wait.h>
+#include "sofia-sip/su_wait.h"
 
 #include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "flexisip/sofia-wrapper/timer.hh"
 
 using namespace std;
@@ -29,8 +28,8 @@ using namespace std;
 namespace sofiasip {
 
 Timer::Timer(su_root_t* root, su_duration_t intervalMs) {
-	_timer = su_timer_create(su_root_task(root), intervalMs);
-	if (_timer == nullptr) throw logic_error("fail to instantiate the timer");
+	mTimer = su_timer_create(su_root_task(root), intervalMs);
+	if (mTimer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
 Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) : Timer{root.getCPtr(), intervalMs} {
@@ -40,59 +39,46 @@ Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs)
 	mRoot = root;
 }
 
-Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, NativeDuration intervalMs) {
-	_timer = su_timer_create(root->getTask(), intervalMs.count());
-	if (_timer == nullptr) {
-		if (errno == ENOMEM) {
-			throw runtime_error("fail to instantiate the timer");
-		} else {
-			throw invalid_argument("fail to instantiate the timer");
-		}
+Timer::Timer(const shared_ptr<SuRoot>& root, NativeDuration intervalMs) {
+	if (mTimer = su_timer_create(root->getTask(), intervalMs.count()); !mTimer) {
+		if (errno == ENOMEM) throw runtime_error("failed to create the timer (out of memory)");
+		throw invalid_argument("failed to create the timer");
 	}
 	mRoot = root;
 }
 
 Timer::~Timer() {
-	su_timer_destroy(_timer);
+	su_timer_destroy(mTimer);
 }
 
 void Timer::set(const Func& func) {
-	if (su_timer_set(_timer, _oneShotTimerCb, this) != 0) {
-		throw logic_error("fail to set timer");
-	}
-	_func = func;
+	if (su_timer_set(mTimer, _oneShotTimerCb, this) != 0) throw logic_error("failed to set the timer");
+	mFunc = func;
 }
 
 void Timer::set(const Func& func, su_duration_t intervalMs) {
-	if (su_timer_set_interval(_timer, _oneShotTimerCb, this, intervalMs) != 0) {
-		throw logic_error("fail to set timer");
-	}
-	_func = func;
+	if (su_timer_set_interval(mTimer, _oneShotTimerCb, this, intervalMs) != 0)
+		throw logic_error("failed to set the timer");
+	mFunc = func;
 }
 
 void Timer::run(const Func& func) {
-	if (su_timer_run(_timer, _regularTimerCb, this) != 0) {
-		throw logic_error("fail to run timer");
-	}
-	_func = func;
+	if (su_timer_run(mTimer, _regularTimerCb, this) != 0) throw logic_error("failed to run the timer");
+	mFunc = func;
 }
 
 void Timer::setForEver(const Func& func) {
-	if (su_timer_set_for_ever(_timer, _regularTimerCb, this) != 0) {
-		throw logic_error("fail to set timer");
-	}
-	_func = func;
+	if (su_timer_set_for_ever(mTimer, _regularTimerCb, this) != 0) throw logic_error("failed to set the timer");
+	mFunc = func;
 }
 
 void Timer::reset() {
-	if (su_timer_reset(_timer) != 0) {
-		throw logic_error("fail to reset timer");
-	}
-	_func = nullptr;
+	if (su_timer_reset(mTimer) != 0) throw logic_error("failed to stop the timer");
+	mFunc = nullptr;
 }
 
 bool Timer::isRunning() const {
-	return su_timer_is_running(_timer) != 0;
+	return su_timer_is_running(mTimer) != 0;
 }
 
 void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t* magic,
@@ -100,11 +86,10 @@ void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t* magic,
                             su_timer_arg_t* arg) noexcept {
 	auto* timer = static_cast<Timer*>(arg);
 
-	// timer->_func must be emptied before calling the function to avoid
-	// invalid Timer state should the function call Timer::set() again.
-	// That would result to have the C timer set without C++ function set.
+	// The attribute timer->_func must be emptied before calling the function to avoid an invalid Timer state if the
+	// function calls Timer::set() again. That would result in having the C timer set without a C++ function set.
 	Func func;
-	func.swap(timer->_func);
+	func.swap(timer->mFunc);
 	func();
 }
 
@@ -112,7 +97,7 @@ void Timer::_regularTimerCb([[maybe_unused]] su_root_magic_t* magic,
                             [[maybe_unused]] su_timer_t* t,
                             su_timer_arg_t* arg) noexcept {
 	auto* timer = static_cast<Timer*>(arg);
-	timer->_func();
+	timer->mFunc();
 }
 
 } // namespace sofiasip

@@ -138,18 +138,19 @@ void OutgoingTransaction::send(
 }
 
 int OutgoingTransaction::_callback(nta_outgoing_magic_t* magic, nta_outgoing_t*, const sip_t* sip) noexcept {
-	OutgoingTransaction* otr = reinterpret_cast<OutgoingTransaction*>(magic);
+	auto* otr = reinterpret_cast<OutgoingTransaction*>(magic);
 	LOGD_CTX("OutgoingTransaction") << "Callback execution for instance " << otr;
 	if (sip != nullptr) {
 		auto msgSip = make_shared<MsgSip>(ownership::owned(nta_outgoing_getresponse(otr->mOutgoing.borrow())));
-		const auto& agent = otr->mAgent.lock();
-
-		agent->processResponse(
-		    make_unique<ResponseSipEvent>(otr->shared_from_this(), msgSip, agent->getIncomingTport(msgSip->getMsg())));
-
-		if (sip->sip_status && sip->sip_status->st_status >= 200) {
-			otr->queueFree();
+		if (const auto agent = otr->mAgent.lock()) {
+			agent->processResponse(make_unique<ResponseSipEvent>(otr->shared_from_this(), msgSip,
+			                                                     agent->getIncomingTport(msgSip->getMsg())));
+		} else {
+			LOGD_CTX("OutgoingTransaction") << "Failed to process the response: Agent has been destroyed";
+			return 1;
 		}
+
+		if (sip->sip_status && sip->sip_status->st_status >= 200) otr->queueFree();
 	} else {
 		otr->queueFree();
 	}

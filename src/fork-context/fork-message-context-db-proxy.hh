@@ -84,7 +84,6 @@ public:
 	sofiasip::MsgSipPriority getMsgPriority() const override;
 	std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
 
-	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
 	                                             const std::shared_ptr<ExtendedContact>& newContact) override;
 	void onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
@@ -92,6 +91,7 @@ public:
 	                                   const SipUri& dest,
 	                                   const std::string& uid,
 	                                   const DispatchStatus reason) override;
+	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 
 #ifdef ENABLE_UNIT_TESTS
 	void assertEqual(const std::shared_ptr<ForkMessageContextDbProxy>& expected) const {

@@ -20,12 +20,10 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 
-#include <bctoolbox/ownership.hh>
+#include "bctoolbox/ownership.hh"
 
 #include "flexisip/event.hh"
-
 #include "transaction/outgoing-agent.hh"
 #include "transaction/transaction.hh"
 
@@ -75,7 +73,7 @@ private:
 	std::shared_ptr<OutgoingTransaction> mSofiaRef{};
 	std::string mBranchId{};
 	std::weak_ptr<IncomingTransaction> mIncoming; // The incoming transaction from which the message comes from, if any.
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 
 	friend class RequestSipEvent;
 };

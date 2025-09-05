@@ -92,7 +92,6 @@ private:
 
 	ForkManager() = default;
 
-	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
 	                                             const std::shared_ptr<ExtendedContact>& newContact) override;
 	void onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
@@ -100,6 +99,7 @@ private:
 	                                   const SipUri& dest,
 	                                   const std::string& uid,
 	                                   DispatchStatus reason) override;
+	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 
 	void onContactRegistered(const std::shared_ptr<Record>& record, const std::string& uid) override;
 

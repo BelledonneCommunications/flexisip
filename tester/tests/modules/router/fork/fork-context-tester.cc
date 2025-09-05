@@ -429,7 +429,7 @@ public:
 	virtual ~BranchInfoTest() {
 	}
 
-	int getStatus() override {
+	int getStatus() const override {
 		return mTestStatus;
 	}
 

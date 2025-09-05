@@ -150,6 +150,19 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 	context->start();
 }
 
+shared_ptr<BranchInfo> ForkManager::onDispatchNeeded(const shared_ptr<ForkContext>& ctx,
+                                                     const shared_ptr<ExtendedContact>& newContact) {
+	return dispatch(ctx, newContact);
+}
+
+void ForkManager::onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
+                                                const std::shared_ptr<ExtendedContact>& newContact,
+                                                const SipUri&,
+                                                const std::string&,
+                                                const DispatchStatus) {
+	mInjector->removeContext(ctx, newContact->contactId());
+}
+
 void ForkManager::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 	for (const auto& key : ctx->getKeys()) {
 		const auto [forkKeyIt, forkContextIt] = mForks.equal_range(key);
@@ -173,19 +186,6 @@ void ForkManager::onForkContextFinished(const shared_ptr<ForkContext>& ctx) {
 			} else ++iterator;
 		}
 	}
-}
-
-shared_ptr<BranchInfo> ForkManager::onDispatchNeeded(const shared_ptr<ForkContext>& ctx,
-                                                     const shared_ptr<ExtendedContact>& newContact) {
-	return dispatch(ctx, newContact);
-}
-
-void ForkManager::onUselessRegisterNotification(const std::shared_ptr<ForkContext>& ctx,
-                                                const std::shared_ptr<ExtendedContact>& newContact,
-                                                const SipUri&,
-                                                const std::string&,
-                                                const DispatchStatus) {
-	mInjector->removeContext(ctx, newContact->contactId());
 }
 
 void ForkManager::onContactRegistered(const std::shared_ptr<Record>& record, const std::string& uid) {

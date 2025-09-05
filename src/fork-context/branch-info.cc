@@ -76,6 +76,7 @@ void BranchInfo::notifyBranchCompleted() noexcept {
 }
 
 void BranchInfo::processResponse(ResponseSipEvent& event) {
+	LOGD << "Processing response";
 	mLastResponseEvent = make_unique<ResponseSipEvent>(event); // make a copy
 	mLastResponse = mLastResponseEvent->getMsgSip();
 
@@ -96,12 +97,12 @@ void BranchInfo::processResponse(ResponseSipEvent& event) {
 	if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) forkCtx->start();
 }
 
-int BranchInfo::getStatus() {
+int BranchInfo::getStatus() const {
 	return mLastResponse ? mLastResponse->getSip()->sip_status->st_status : 0;
 }
 
-bool BranchInfo::needsDelivery(FinalStatusMode mode) {
-	auto currentStatus = getStatus();
+bool BranchInfo::needsDelivery(FinalStatusMode mode) const {
+	const auto currentStatus = getStatus();
 
 	switch (mode) {
 		case FinalStatusMode::ForkLate:
@@ -193,7 +194,7 @@ bool BranchInfo::forwardResponse(bool forkContextHasIncomingTransaction) {
 		return false;
 	}
 
-	const int statusCode = mLastResponseEvent->getMsgSip()->getSip()->sip_status->st_status;
+	const int statusCode = getStatus();
 	if (const auto forkContext = mForkCtx.lock())
 		mLastResponseEvent = forkContext->onForwardResponse(std::move(mLastResponseEvent));
 
@@ -218,11 +219,10 @@ void BranchInfo::cancel(const std::optional<CancelInfo>& information, bool keepA
 		return;
 	}
 
-	if (information && information->mReason) {
-		mTransaction->cancelWithReason(information->mReason);
-	} else {
-		mTransaction->cancel();
-	}
+	LOGD << "Cancel requested (status = '" << getStatus() << "')";
+
+	if (information && information->mReason) mTransaction->cancelWithReason(information->mReason);
+	else mTransaction->cancel();
 }
 
 } // namespace flexisip

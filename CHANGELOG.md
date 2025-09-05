@@ -18,7 +18,7 @@ Group changes to describe their impact on the project, as follows:
 ### [Added]
 - **Proxy:**
     - Push notification delivery can now be delegated to a FlexiAPI server instance.
-    - New SIP URI parameter 'network' for transports defined in `global/transports` to instruct Flexisip which
+    - New SIP URI parameter `network` for transports defined in `global/transports` to instruct Flexisip which
       transport to use to correctly route requests to destinations. See the [configuration reference guide] for more
       information.
 - **Conference server:**
