@@ -47,8 +47,7 @@ ForkContextBase::ForkContextBase(AgentInterface* agent,
 		mIncoming = mEvent->createIncomingTransaction();
 		// This timer is for when outgoing transaction all die prematurely, we still need to wait that late register
 		// arrive.
-		if (mCfg->mForkLate)
-			mLateTimer.set([this] { processLateTimeout(); }, static_cast<su_duration_t>(mCfg->mDeliveryTimeout) * 1000);
+		if (mCfg->mForkLate) mLateTimer.set([this] { processLateTimeout(); }, mCfg->mDeliveryTimeout);
 	}
 }
 
@@ -347,9 +346,8 @@ void ForkContextBase::start() {
 	}
 
 	// Start the timer for the next branches.
-	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches())
-		mNextBranchesTimer.set([this]() { onNextBranches(); },
-		                       static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
+	if (mCfg->mCurrentBranchesTimeout > 0s && hasNextBranches())
+		mNextBranchesTimer.set([this] { onNextBranches(); }, mCfg->mCurrentBranchesTimeout);
 }
 
 RequestSipEvent& ForkContextBase::getEvent() {

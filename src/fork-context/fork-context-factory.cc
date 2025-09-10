@@ -38,19 +38,17 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	mCallForkCfg->mPushResponseTimeout =
 	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")->readAndCast();
 	mCallForkCfg->mDeliveryTimeout =
-	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->readAndCast().count();
+	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->readAndCast();
 	mCallForkCfg->mTreatDeclineAsUrgent = moduleRouterConfig->get<ConfigBoolean>("treat-decline-as-urgent")->read();
 	mCallForkCfg->mCurrentBranchesTimeout =
-	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")
-	        ->readAndCast()
-	        .count();
+	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")->readAndCast();
 	mCallForkCfg->mPermitSelfGeneratedProvisionalResponse =
 	    moduleRouterConfig->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
 
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = moduleRouterConfig->get<ConfigBoolean>("message-fork-late")->read();
 	mMessageForkCfg->mDeliveryTimeout =
-	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->readAndCast().count();
+	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("message-delivery-timeout")->readAndCast();
 	mMessageForkCfg->mUrgentTimeout =
 	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("message-accept-timeout")->readAndCast();
 #if ENABLE_SOCI

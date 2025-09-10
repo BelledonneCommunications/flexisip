@@ -60,8 +60,8 @@ ForkMessageContext::ForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
 	LOGD << "New instance";
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
-		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30) {
-			mExpirationDate = system_clock::to_time_t(system_clock::now() + chrono::seconds(mCfg->mDeliveryTimeout));
+		if (mCfg->mForkLate && mCfg->mDeliveryTimeout > 30s) {
+			mExpirationDate = system_clock::to_time_t(system_clock::now() + mCfg->mDeliveryTimeout);
 			mAcceptanceTimer = make_unique<sofiasip::Timer>(mAgent->getRoot(), mCfg->mUrgentTimeout);
 			mAcceptanceTimer->set([this]() { onAcceptanceTimer(); });
 		}

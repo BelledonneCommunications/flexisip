@@ -39,14 +39,14 @@ class SipUri;
 struct ExtendedContact;
 
 struct ForkContextConfig {
-	// In seconds, used for "late" forking.
-	int mDeliveryTimeout{0};
+	// Used for "late" forking.
+	std::chrono::seconds mDeliveryTimeout{0};
 	// Timeout for sending buffered urgent or retryable responses (like '415').
 	std::chrono::seconds mUrgentTimeout{5};
 	// Timeout for receiving response to push.
 	std::chrono::seconds mPushResponseTimeout{0};
 	// Timeout for receiving response on current branches.
-	int mCurrentBranchesTimeout{0};
+	std::chrono::seconds mCurrentBranchesTimeout{0};
 
 	bool mForkLate{false};
 	bool mForkNoGlobalDecline{false};
