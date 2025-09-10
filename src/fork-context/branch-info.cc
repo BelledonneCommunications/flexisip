@@ -139,7 +139,7 @@ optional<SipUri> BranchInfo::getRequestUri() const {
 	}
 }
 
-double BranchInfo::getPriority() const {
+float BranchInfo::getPriority() const {
 	return mPriority;
 }
 

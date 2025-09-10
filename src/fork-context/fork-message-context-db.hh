@@ -30,18 +30,18 @@ namespace flexisip {
 class ForkMessageContextDb {
 public:
 	ForkMessageContextDb() = default;
-	ForkMessageContextDb(double currentPriority,
+	ForkMessageContextDb(float currentPriority,
 	                     int deliveredCount,
 	                     bool isFinished,
 	                     const tm& expirationDate,
 	                     const std::string& request,
 	                     sofiasip::MsgSipPriority priority)
-	    : currentPriority(currentPriority), deliveredCount(deliveredCount), isFinished(isFinished),
-	      isMessage(true), expirationDate(expirationDate), request(request), msgPriority(priority) {
+	    : currentPriority(currentPriority), deliveredCount(deliveredCount), isFinished(isFinished), isMessage(true),
+	      expirationDate(expirationDate), request(request), msgPriority(priority) {
 	}
 
 	std::string uuid;
-	double currentPriority;
+	float currentPriority;
 	int deliveredCount;
 	bool isFinished;
 	// As of 2023-07-06 and Flexisip 2.3.0, isMessage is unused and deprecated.
@@ -65,11 +65,10 @@ namespace soci {
  */
 template <>
 struct type_conversion<flexisip::ForkMessageContextDb> {
-public:
 	typedef values base_type;
 
 	static void from_base(values const& v, indicator /* ind */, flexisip::ForkMessageContextDb& fork) {
-		fork.currentPriority = v.get<double>("current_priority");
+		fork.currentPriority = static_cast<float>(v.get<double>("current_priority"));
 		fork.deliveredCount = v.get<int>("delivered_count");
 		fork.isFinished = v.get<int>("is_finished");
 		fork.isMessage = v.get<int>("is_message");
@@ -79,7 +78,7 @@ public:
 	}
 
 	static void to_base(flexisip::ForkMessageContextDb& fork, values& v, indicator& ind) {
-		v.set("current_priority", fork.currentPriority);
+		v.set("current_priority", static_cast<double>(fork.currentPriority));
 		v.set("delivered_count", fork.deliveredCount);
 		v.set("is_finished", (int)fork.isFinished);
 		v.set("is_message", (int)fork.isMessage);

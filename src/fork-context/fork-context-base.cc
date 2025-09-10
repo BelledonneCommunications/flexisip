@@ -275,7 +275,7 @@ shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEven
 	});
 
 	// If mCurrentPriority != -1, it means that this fork is already started.
-	if (mCurrentPriority != -1 && mCurrentPriority <= branch->getPriority()) {
+	if (mCurrentPriority != -1.f && mCurrentPriority <= branch->getPriority()) {
 		mCurrentBranches.push_back(branch);
 		if (const auto injectorListener = mInjectorListener.lock()) {
 			injectorListener->inject(branch->extractRequest(), shared_from_this(), contact->contactId());
@@ -294,7 +294,7 @@ void ForkContextBase::onNextBranches() {
 bool ForkContextBase::hasNextBranches() const {
 	const auto hasWaitingBranchesLeft =
 	    any_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(),
-	           [this](const auto& br) { return mCurrentPriority == -1. || br->getPriority() < mCurrentPriority; });
+	           [this](const auto& br) { return mCurrentPriority == -1.f || br->getPriority() < mCurrentPriority; });
 	return !mFinished && hasWaitingBranchesLeft;
 }
 
@@ -303,7 +303,7 @@ void ForkContextBase::nextBranches() {
 	mCurrentBranches.clear();
 
 	// Get next priority value.
-	if (mCurrentPriority == -1 && !mWaitingBranches.empty()) {
+	if (mCurrentPriority == -1.f && !mWaitingBranches.empty()) {
 		mCurrentPriority = mWaitingBranches.front()->getPriority();
 	} else {
 		for (const auto& br : mWaitingBranches) {

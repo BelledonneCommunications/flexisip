@@ -29,7 +29,7 @@ class BranchInfoDb {
 public:
 	BranchInfoDb() = default;
 	BranchInfoDb(const std::string& contactUid,
-	             double priority,
+	             float priority,
 	             const std::string& request,
 	             const std::string& lastResponse,
 	             int clearedCount)
@@ -38,7 +38,7 @@ public:
 	}
 
 	std::string contactUid{};
-	double priority{};
+	float priority{};
 	std::string request{};
 	std::string lastResponse{};
 	int clearedCount{};
@@ -62,7 +62,7 @@ struct type_conversion<flexisip::BranchInfoDb> {
 
 	static void from_base(values const& v, indicator, flexisip::BranchInfoDb& bi) {
 		bi.contactUid = v.get<std::string>("contact_uid");
-		bi.priority = v.get<double>("priority");
+		bi.priority = static_cast<float>(v.get<double>("priority"));
 		bi.request = v.get<std::string>("request");
 		bi.lastResponse = v.get<std::string>("last_response");
 		bi.clearedCount = v.get<int>("cleared_count");
@@ -70,7 +70,7 @@ struct type_conversion<flexisip::BranchInfoDb> {
 
 	static void to_base(flexisip::BranchInfoDb& bi, values& v, indicator& ind) {
 		v.set("contact_uid", bi.contactUid);
-		v.set("priority", bi.priority);
+		v.set("priority", static_cast<double>(bi.priority));
 		v.set("request", bi.request);
 		v.set("last_response", bi.lastResponse);
 		v.set("cleared_count", bi.clearedCount);

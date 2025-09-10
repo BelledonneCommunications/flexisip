@@ -250,7 +250,7 @@ void ForkCallContext::processInternalError(int status, const char* phrase) {
 void ForkCallContext::start() {
 	if (isCompleted()) return;
 
-	bool firstStart = mCurrentPriority == -1;
+	bool firstStart = mCurrentPriority == -1.f;
 	if (firstStart) {
 		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that
 		// presumes there are no branches answered yet. We also presume all branches have been added by now.

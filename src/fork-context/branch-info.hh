@@ -145,7 +145,7 @@ public:
 
 	std::string getUid() const;
 	std::optional<SipUri> getRequestUri() const;
-	double getPriority() const;
+	float getPriority() const;
 	int getClearedCount() const;
 	std::weak_ptr<BranchInfoListener> getListener() const;
 	std::shared_ptr<const ExtendedContact> getContact() const;
@@ -212,7 +212,7 @@ private:
 	std::shared_ptr<MsgSip> mRequestMsg{};
 	std::shared_ptr<OutgoingTransaction> mTransaction{};
 	std::string mUid{};
-	double mPriority{1.0};
+	float mPriority{1.f};
 	std::weak_ptr<BranchInfoListener> mListener{};
 	std::unique_ptr<ResponseSipEvent> mLastResponseEvent{};
 	std::shared_ptr<MsgSip> mLastResponse{};

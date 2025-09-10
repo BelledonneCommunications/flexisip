@@ -289,7 +289,7 @@ void ForkMessageContext::restoreBranch(const BranchInfoDb& dbBranch) {
 
 void ForkMessageContext::start() {
 	// A priority of -1 means "first start".
-	if (mCurrentPriority == -1 /* first start */ && mKind.getKind() != MessageKind::Kind::Refer) {
+	if (mCurrentPriority == -1.f /* first start */ && mKind.getKind() != MessageKind::Kind::Refer) {
 		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that
 		// presumes there are no branches answered yet. We also presume all branches have been added by now.
 		auto& event = getEvent();

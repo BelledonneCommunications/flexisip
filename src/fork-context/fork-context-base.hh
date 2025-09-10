@@ -163,7 +163,7 @@ protected:
 	// Whether a "110 Push sent" response has already been sent in the incoming transaction or not.
 	bool m110Sent{};
 	bool mFinished{};
-	float mCurrentPriority{-1};
+	float mCurrentPriority{-1.f};
 	AgentInterface* mAgent;
 	std::shared_ptr<MsgSip> mLastResponseSent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
