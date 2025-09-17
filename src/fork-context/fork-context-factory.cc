@@ -35,8 +35,6 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	mCallForkCfg->mForkNoGlobalDecline = moduleRouterConfig->get<ConfigBoolean>("fork-no-global-decline")->read();
 	mCallForkCfg->mUrgentTimeout =
 	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-urgent-timeout")->readAndCast();
-	mCallForkCfg->mPushResponseTimeout =
-	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")->readAndCast();
 	mCallForkCfg->mDeliveryTimeout =
 	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->readAndCast();
 	mCallForkCfg->mTreatDeclineAsUrgent = moduleRouterConfig->get<ConfigBoolean>("treat-decline-as-urgent")->read();

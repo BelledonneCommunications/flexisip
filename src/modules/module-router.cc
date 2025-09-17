@@ -116,12 +116,6 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "10",
 	    },
 	    {
-	        DurationS,
-	        "call-push-response-timeout",
-	        "Optional timer to detect lack of push response.",
-	        "0",
-	    },
-	    {
 	        Boolean,
 	        "message-fork-late",
 	        "Fork MESSAGE requests to clients that register late.",
@@ -235,78 +229,9 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "when routing INVITE and MESSAGE requests.",
 	        "",
 	    },
-
-	    // deprecated parameters
-	    {
-	        Boolean,
-	        "stateful",
-	        "Force forking and thus the creation of an outgoing transaction even when only one contact found",
-	        "true",
-	    },
-	    {
-	        Boolean,
-	        "fork",
-	        "Fork messages to all registered devices",
-	        "true",
-	    },
-	    {
-	        String,
-	        "generated-contact-route",
-	        "Generate a contact from the TO header and route it to the above destination. [sip:host:port]",
-	        "",
-	    },
-	    {
-	        String,
-	        "generated-contact-expected-realm",
-	        "Require presence of authorization header for specified realm. [Realm]",
-	        "",
-	    },
-	    {
-	        Boolean,
-	        "generate-contact-even-on-filled-aor",
-	        "Generate a contact route even on filled AOR.",
-	        "false",
-	    },
-	    {
-	        String,
-	        "preroute",
-	        "Rewrite username with given value.",
-	        "",
-	    },
 	    config_item_end,
 	};
 	moduleConfig.addChildrenValues(configs);
-
-	// deprecated since 2020-01-28 (2.0.0)
-	{
-		const char* depDate = "2020-01-28";
-		const char* depVersion = "2.0.0";
-
-		moduleConfig.get<ConfigBoolean>("stateful")
-		    ->setDeprecated({
-		        depDate,
-		        depVersion,
-		        "Stateless mode isn't supported anymore.",
-		    });
-		moduleConfig.get<ConfigBoolean>("fork")->setDeprecated({
-		    depDate,
-		    depVersion,
-		    "This feature is always enabled since stateless mode is removed.",
-		});
-
-		GenericEntry::DeprecationInfo removedFeatureDepInfo(depDate, depVersion, "This feature has been removed.");
-		moduleConfig.get<ConfigString>("generated-contact-route")->setDeprecated(removedFeatureDepInfo);
-		moduleConfig.get<ConfigString>("generated-contact-expected-realm")->setDeprecated(removedFeatureDepInfo);
-		moduleConfig.get<ConfigBoolean>("generate-contact-even-on-filled-aor")->setDeprecated(removedFeatureDepInfo);
-		moduleConfig.get<ConfigString>("preroute")->setDeprecated(removedFeatureDepInfo);
-	}
-
-	moduleConfig.get<ConfigDuration<chrono::seconds>>("call-push-response-timeout")
-	    ->setDeprecated({
-	        "2022-02-03",
-	        "2.2.0",
-	        "This feature will be removed in a future version.",
-	    });
 
 	moduleConfig.createStatPair("count-forks", "Number of forks");
 	moduleConfig.createStatPair("count-basic-forks", "Number of basic forks");

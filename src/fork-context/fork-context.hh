@@ -43,8 +43,6 @@ struct ForkContextConfig {
 	std::chrono::seconds mDeliveryTimeout{0};
 	// Timeout for sending buffered urgent or retryable responses (like '415').
 	std::chrono::seconds mUrgentTimeout{5};
-	// Timeout for receiving response to push.
-	std::chrono::seconds mPushResponseTimeout{0};
 	// Timeout for receiving response on current branches.
 	std::chrono::seconds mCurrentBranchesTimeout{0};
 
