@@ -75,8 +75,6 @@ add_executable(flexisip_tester
 	msg-sip-tester.cc
 	sip-uri-tests.cc
 	schedule-injector-tester.cc
-	sofia-tester.cc
-	sofia-driven-signal-handler-tester.cc
 	tester.cc
 	tests/auth/auth-digest-tester.cc
 	tests/auth/auth-domains-tester.cc
@@ -119,6 +117,10 @@ add_executable(flexisip_tester
 	tests/router/fork/fork-call-tester.cc
 	tests/router/fork/fork-context-tester.cc
 	tests/router/module-router-tester.cc
+	tests/sofia-api/sofia-driven-signal-handler-tester.cc
+	tests/sofia-api/nta-input.cc
+	tests/sofia-api/nta-reply.cc
+	tests/sofia-api/nth.cc
 	tests/sofia-wrapper/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc
 	tests/transaction/outgoing-transaction-tester.cc

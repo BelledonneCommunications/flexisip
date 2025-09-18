@@ -16,12 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <future>
-
-#include "sofia-sip/http.h"
 #include "sofia-sip/nta.h"
 #include "sofia-sip/nta_stateless.h"
-#include "sofia-sip/nth.h"
 #include "sofia-sip/tport_tag.h"
 
 #include "flexisip/logmanager.hh"
@@ -32,7 +28,6 @@
 #include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
-#include "utils/server/tls-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/tls/certificate.hh"
@@ -45,54 +40,6 @@ using namespace sofiasip;
 
 namespace flexisip::tester::sofia_tester_suite {
 namespace {
-
-/**
- * @return first transport in the following format: "sip:host:port;maddr=xxx;transport=xxx" or empty string if no
- * transport were found.
- */
-std::string getNtaAgentFirstTransport(const NtaAgent& agent) {
-	const auto* firstTport = tport_primaries(agent.getTransports());
-	if (!firstTport) return {};
-
-	const auto* name = tport_name(firstTport);
-	return std::string{"sip:"} + name->tpn_canon + ":" + name->tpn_port + ";maddr=" + name->tpn_host +
-	       ";transport=" + name->tpn_proto;
-}
-
-/*
- * Test Sofia-SIP nth_engine, with TLS SNI enabled/disabled.
- */
-template <bool tlsSniEnabled>
-void nthEngineWithSni() {
-	SuRoot root{};
-	TlsServer server{};
-	auto requestReceived = false;
-	auto requestMatch = async(launch::async, [&server, &requestReceived]() {
-		server.accept(tlsSniEnabled ? "127.0.0.1" : ""); // SNI checks are done in TlsServer::accept.
-		server.read();
-		server.send("Status: 200");
-		return requestReceived = true;
-	});
-
-	const auto url = "https://127.0.0.1:" + to_string(server.getPort());
-	auto* engine = nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(tlsSniEnabled), TAG_END());
-
-	auto* request =
-	    nth_client_tcreate(engine, nullptr, nullptr, http_method_get, "GET", URL_STRING_MAKE(url.c_str()), TAG_END());
-
-	if (request == nullptr) {
-		BC_FAIL("No request sent.");
-	}
-
-	CoreAssert<kNoSleep>(root)
-	    .waitUntil(100ms, [&requestReceived] { return LOOP_ASSERTION(requestReceived); })
-	    .assert_passed();
-
-	BC_ASSERT_TRUE(requestMatch.get());
-	nth_client_destroy(request);
-	nth_engine_destroy(engine);
-}
-
 const auto UDP = "transport=udp"s;
 const auto TCP = "transport=tcp"s;
 const auto TLS = "transport=tls"s;
@@ -441,161 +388,9 @@ void updateTlsCertificateNoIpSpecified() {
 	}
 }
 
-/**
- * Test primary transport selection to reach a destination using the 'network' URI parameter.
- * Verifies that the most appropriate transport is selected to reach the destination.
- * This test also verifies that the right "RecordRoute" header was inserted by the Proxy when the request arrives to the
- * callee.
- *
- * Configuration:
- *                           ----------
- *     --------------      /            \       --------------
- *    | localClient1 |    | 127.0.2.0/24 | --- | localClient3 |
- *     --------------      \            /       --------------
- *           |               ----------
- *       ----------              |
- *     /            \         --------
- *    | 127.0.0.0/24 |       | router |
- *     \            /         --------
- *       ----------              |
- *           |               ----------
- *     -------------       /            \       --------------
- *    |   Flexisip  | --- | 127.0.1.0/24 | --- | localClient2 |
- *     -------------       \            /       --------------
- *           |               ----------
- *       ----------
- *     /            \       --------------
- *    |   0.0.0.0/0  | --- | publicClient |
- *     \            /       --------------
- *       ----------
- */
-void outgoingTransportSelection() {
-	const string localTport1Host{"127.0.0.1"};
-	const string publicTportHost{"sip.example.org"};
-	const string localTport2Host{"127.0.1.1"};
-	const string localTport1{"sip:" + localTport1Host + ":0;transport=tcp;network=127.0.0.0/24"};
-	const string publicTport{"sip:" + publicTportHost + ":0;maddr=127.1.0.1;transport=tcp"};
-	const string localTport2{"sip:" + localTport2Host + ":0;transport=tcp;network=127.0.1.0/24,127.0.2.0/24"};
-	Server proxy{{
-	    {"global/transports", localTport1 + " " + publicTport + " " + localTport2},
-	    {"global/aliases", "sip.example.org"},
-	    {"module::DoSProtection/enabled", "false"},
-	}};
-	proxy.start();
-
-	struct Helper {
-		string host{};
-		string recordRoute{};
-	};
-	Helper h{};
-
-	const auto clientsSuRoot = make_shared<SuRoot>();
-	const auto cb = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) -> int {
-		Home home{};
-		auto* helper = reinterpret_cast<Helper*>(magic);
-		// The topmost "RecordRoute" header in the list is the last one added by the server.
-		const auto* recordRoute = sip->sip_record_route->r_url;
-
-		helper->host = sip->sip_via->v_host;
-		helper->recordRoute = "sip:"s + recordRoute->url_host + ":" + recordRoute->url_port;
-
-		nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
-		return 0;
-	};
-	NtaAgent publicClient{clientsSuRoot, "sip:127.1.0.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
-	NtaAgent localClient1{clientsSuRoot, "sip:127.0.0.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
-	NtaAgent localClient2{clientsSuRoot, "sip:127.0.1.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
-	NtaAgent localClient3{clientsSuRoot, "sip:127.0.2.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
-
-	CoreAssert<kNoSleep> asserter{proxy, clientsSuRoot};
-
-	const auto test = [&proxy, &asserter, &h](NtaAgent& caller, const NtaAgent& callee, const string& expectedHostInVia,
-	                                          const string& expectedRecordRoute) {
-		auto request = make_unique<MsgSip>();
-		request->makeAndInsert<SipHeaderRequest>(sip_method_invite, getNtaAgentFirstTransport(callee));
-		request->makeAndInsert<SipHeaderFrom>("sip:caller@sip.example.org", "stub-from-tag");
-		request->makeAndInsert<SipHeaderTo>("sip:callee@sip.example.org");
-		request->makeAndInsert<SipHeaderCallID>("stub-call-id");
-		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_invite);
-		request->makeAndInsert<SipHeaderContact>("<sip:caller@sip.example.org;transport=tcp>");
-
-		const auto routeUri = "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp";
-
-		const auto transaction = caller.createOutgoingTransaction(std::move(request), routeUri);
-		asserter
-		    .iterateUpTo(
-		        0x20,
-		        [&] {
-			        FAIL_IF(!transaction->isCompleted());
-			        FAIL_IF(expectedHostInVia != h.host);
-			        FAIL_IF(expectedRecordRoute != h.recordRoute);
-			        return ASSERTION_PASSED();
-		        },
-		        100ms)
-		    .assert_passed();
-	};
-
-	auto* primary = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
-	const string realLocalTport1{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
-	primary = tport_next(primary);
-	const string realPublicTport{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
-	primary = tport_next(primary);
-	const string realLocalTport2{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
-
-	test(publicClient, localClient1, localTport1Host, realLocalTport1);
-	test(publicClient, localClient2, localTport2Host, realLocalTport2);
-	test(publicClient, localClient3, localTport2Host, realLocalTport2);
-	test(localClient1, publicClient, publicTportHost, realPublicTport);
-	test(localClient1, localClient2, localTport2Host, realLocalTport2);
-	test(localClient1, localClient3, localTport2Host, realLocalTport2);
-	test(localClient2, publicClient, publicTportHost, realPublicTport);
-	test(localClient2, localClient1, localTport1Host, realLocalTport1);
-	test(localClient2, localClient3, localTport2Host, realLocalTport2);
-	test(localClient3, publicClient, publicTportHost, realPublicTport);
-	test(localClient3, localClient1, localTport1Host, realLocalTport1);
-	test(localClient3, localClient2, localTport2Host, realLocalTport2);
-}
-
-/*
- * A crash could happen when the following error was returned by tport_resolve: "Name or service not known" (the primary
- * transport was destroyed in 'nth_client_destroy').
- * The crash appears on the second attempt to send an HTTP request. This is because it tries to make use of the primary
- * transport (which is nullptr because of the first attempt) in the tport_by_name function.
- */
-void nthClientNameOrServiceNotKnown() {
-	SuRoot root{};
-	const auto* url = "https://sip.example.org:1234";
-	const auto deleter = [](nth_engine_t* engine) { nth_engine_destroy(engine); };
-	unique_ptr<nth_engine_t, decltype(deleter)> engine{
-	    nth_engine_create(root.getCPtr(), TPTAG_TLS_SNI(true), TAG_END()),
-	    deleter,
-	};
-
-	struct Helper {
-		int status = 0;
-	};
-	Helper h;
-
-	const auto cb = [](nth_client_magic_t* magic, nth_client_t* request, const http_t*) {
-		reinterpret_cast<Helper*>(magic)->status = nth_client_status(request);
-		nth_client_destroy(request);
-		return 0;
-	};
-
-	for (int id = 0; id < 2; ++id) {
-		auto* request = nth_client_tcreate(engine.get(), cb, reinterpret_cast<nth_client_magic_t*>(&h), http_method_get,
-		                                   "GET", URL_STRING_MAKE(url), TAG_END());
-		if (request == nullptr) BC_FAIL("No request sent.");
-		h.status = 0;
-		CoreAssert<kNoSleep>(root).waitUntil(100ms, [&h] { return LOOP_ASSERTION(h.status == 503); }).assert_passed();
-	}
-}
-
 TestSuite _{
-    "Sofia-SIP",
+    "sofia::nta::input",
     {
-        CLASSY_TEST(nthEngineWithSni<true>),
-        CLASSY_TEST(nthEngineWithSni<false>),
         CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, UDP>)), // message size under maxsize
         CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TCP>)),
         CLASSY_TEST((collectAndParseDataFromSocket<4096, 5, TLS>)),
@@ -614,8 +409,6 @@ TestSuite _{
         CLASSY_TEST(updateTlsCertificate),
         CLASSY_TEST(updateTlsWithExpiredCertificate),
         CLASSY_TEST(updateTlsCertificateNoIpSpecified),
-        CLASSY_TEST(outgoingTransportSelection),
-        CLASSY_TEST(nthClientNameOrServiceNotKnown),
     },
 };
 
