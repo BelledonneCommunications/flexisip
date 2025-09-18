@@ -159,6 +159,13 @@ public:
 		return ::nta_agent_tports(mNativePtr);
 	}
 
+	/*
+	 * Return the sofia agent.
+	 */
+	nta_agent_t* getAgent() {
+		return mNativePtr;
+	}
+
 private:
 	static constexpr std::string_view mLogPrefix{"NtaAgent"};
 
