@@ -152,12 +152,19 @@ public:
 		return firstTransport ? ::tport_name(firstTransport)->tpn_port : "";
 	}
 
-    /*
-     * Return the master transport for the agent.
-     */
-    const tport_t* getTransports() const {
-        return ::nta_agent_tports(mNativePtr);
-    }
+	/*
+	 * Return the master transport for the agent.
+	 */
+	const tport_t* getTransports() const {
+		return ::nta_agent_tports(mNativePtr);
+	}
+
+	/*
+	 * Return the sofia agent.
+	 */
+	nta_agent_t* getAgent() {
+		return mNativePtr;
+	}
 
 private:
 	void onOutgoingTransactionResponse(nta_outgoing_t* transaction, const sip_t* response) noexcept {

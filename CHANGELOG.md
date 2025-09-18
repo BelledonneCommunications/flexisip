@@ -32,7 +32,10 @@ Group changes to describe their impact on the project, as follows:
       removed from that database during the shutdown phase.
     - Messages waiting for delivery retrieved from the database at startup could not be handled properly. These messages
       were delivered to destinations but not freed and could lead to misleading error messages in the logs.
-  - **SNMP:** A crash could occur during the shutdown process.
+  - **SNMP:**
+	- A crash could occur during the shutdown process.
+  - **Sofia-SIP:**
+	- Prevent the premature destruction of a transport.
 - **Conference:**
   - A crash could happen when renaming a chatroom with a name containing special characters.
 

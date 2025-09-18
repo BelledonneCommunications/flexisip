@@ -112,6 +112,7 @@ add_executable(flexisip_tester
 	tests/router/module-router-tester.cc
 	tests/sofia-api/sofia-driven-signal-handler-tester.cc
 	tests/sofia-api/nta-input.cc
+	tests/sofia-api/nta-reply.cc
 	tests/sofia-api/nth.cc
 	tests/sofia-wrapper/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc

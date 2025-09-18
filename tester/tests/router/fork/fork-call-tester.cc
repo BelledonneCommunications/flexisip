@@ -261,7 +261,17 @@ void callWithEarlyCancelCalleeOnlyOffline() {
  * Assert that only the device with voip push receive an INVITE+CANCEL on register.
  */
 void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/aliases", "localhost sip.test.org"},
+	    {"module::Forward/enabled", "true"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Router/fork-late", "true"},
+	    {"module::PushNotification/enabled", "true"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.test.org"},
+	    {"module::MediaRelay/enabled", "true"},
+	}};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
