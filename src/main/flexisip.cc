@@ -807,7 +807,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 			startB2bua = true;
 		}
 		if (!startPresence && !startProxy && !startConference && !startB2bua) {
-			throw BadConfiguration{"invalid value for '" + defaultServers->getCompleteName() + "'"};
+			throw BadConfigurationValue{defaultServers};
 		}
 	} else {
 		throw BadConfiguration{"unknown server type '" + functionName.getValue() + "'"};
@@ -846,7 +846,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 		const auto* sofiaLevelParameter = globalCfg->get<ConfigInt>("sofia-level");
 		auto sofiaLevel = sofiaLevelParameter->read();
 		if (sofiaLevel < 1 || sofiaLevel > 9) {
-			throw BadConfiguration{"setting " + sofiaLevelParameter->getCompleteName() + " levels range from 1 to 9"};
+			throw BadConfigurationValue{sofiaLevelParameter};
 		}
 		su_log_set_level(nullptr, sofiaLevel);
 	}
@@ -894,9 +894,9 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	try {
 		MsgSip::setShowBodyFor(showBodyForParameter->read());
 	} catch (const invalid_argument& e) {
-		throw BadConfiguration{
-		    "setting " + showBodyForParameter->getCompleteName() +
-		        " must only contain SIP method names, whitespace separated (" + e.what() + ")",
+		throw BadConfigurationValue{
+		    showBodyForParameter,
+		    "it must only contain SIP method names, whitespace separated ("s + e.what() + ")",
 		};
 	}
 

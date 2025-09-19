@@ -55,12 +55,11 @@ private:
 	void onLoad(const GenericStruct* mc) override {
 		auto presenceServerSetting = mc->get<ConfigString>("presence-server");
 		auto destRouteStr = presenceServerSetting->read();
-		if (destRouteStr.empty()) throw BadConfiguration{presenceServerSetting->getName() + " parameter must be set"};
+		if (destRouteStr.empty()) throw BadConfigurationEmpty{presenceServerSetting};
 		try {
 			mDestRoute = SipUri(destRouteStr);
 		} catch (const sofiasip::InvalidUrlError& e) {
-			throw BadConfiguration{"invalid SIP URI ('" + destRouteStr + "') set in '" +
-			                       presenceServerSetting->getCompleteName() + "'"};
+			throw BadConfigurationValue{presenceServerSetting, "invalid SIP URI ("s + e.what() + ")"};
 		}
 
 		mOnlyListSubscription = mc->get<ConfigBooleanExpression>("only-list-subscription")->read();

@@ -120,7 +120,7 @@ void configureTransportWithMissingPortInUri() {
 	const auto transports = linphone::Factory::get()->createTransports();
 	const ConfigString parameter{"transport", "", "sip:missing-port-in-uri@sip.example.org;transport=tcp", 0};
 
-	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter), BadConfiguration)
+	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter), BadConfigurationValue)
 }
 
 void configureTransportWithInvalidSipUri() {
@@ -133,7 +133,7 @@ void configureTransportWithInvalidSipUri() {
 
 	for (const auto& invalidSipUri : invalidSipUris) {
 		const ConfigString parameter{"transport", "", invalidSipUri, 0};
-		BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter), BadConfiguration)
+		BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter), BadConfigurationValue)
 	}
 }
 
@@ -141,14 +141,14 @@ void configureTransportWithForbiddenTransportUriParameter() {
 	const auto transports = linphone::Factory::get()->createTransports();
 	const ConfigString parameter{"transport", "", "sip:sip.example.org;transport=forbidden", 0};
 
-	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter), BadConfiguration)
+	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter), BadConfigurationValue)
 }
 
 void configureTransportWithForbiddenUriScheme() {
 	const auto transports = linphone::Factory::get()->createTransports();
 	const ConfigString parameter{"transport", "", "sips:sip.example.org;transport=tcp", 0};
 
-	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter, {}, {}), BadConfiguration)
+	BC_ASSERT_THROWN(configuration_utils::configureTransport(transports, &parameter, {}, {}), BadConfigurationValue)
 }
 
 void parseInternetAddress() {
@@ -216,7 +216,7 @@ void configureNatAddressesWithSeveralIPv4Addresses() {
 	const auto policy = core->createNatPolicy();
 	const ConfigStringList parameter{"nat-addresses", "", "127.0.0.1 127.0.0.2", 0};
 
-	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfiguration)
+	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfigurationValue)
 }
 
 void configureNatAddressesWithSeveralIPv6Addresses() {
@@ -225,7 +225,7 @@ void configureNatAddressesWithSeveralIPv6Addresses() {
 	const auto policy = core->createNatPolicy();
 	const ConfigStringList parameter{"nat-addresses", "", "::1 ::2", 0};
 
-	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfiguration)
+	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfigurationValue)
 }
 
 TestSuite _{

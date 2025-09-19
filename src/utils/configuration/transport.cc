@@ -53,7 +53,7 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 	try {
 		transportUri = SipUri{transport};
 	} catch (const std::exception& exception) {
-		throw BadConfiguration{parameterName + " invalid SIP URI ("s + exception.what() + ")"};
+		throw BadConfigurationValue{parameter, " invalid SIP URI ("s + exception.what() + ")"};
 	}
 
 	const auto scheme = transportUri.getScheme();
@@ -63,13 +63,12 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 	int listeningPort{};
 	if (std::from_chars(portText.data(), portText.data() + portText.size(), listeningPort).ec ==
 	    std::errc::invalid_argument) {
-		throw BadConfiguration{parameterName + " failed to get port from SIP URI (" + transport + ")"};
+		throw BadConfigurationValue{parameter, "failed to get port from SIP URI"};
 	}
 	if (listeningPort == 0) listeningPort = LC_SIP_TRANSPORT_RANDOM;
 
 	if (scheme == "sip") {
-		if (allowedSip.empty())
-			throw BadConfiguration{parameterName + " 'sip' scheme is not allowed (" + transport + ")"};
+		if (allowedSip.empty()) throw BadConfigurationValue{parameter, "'sip' scheme is not allowed"};
 
 		static map<string, const function<void(linphone::Transports&, int)>> sipSchemeTransports{
 		    {"", &linphone::Transports::setUdpPort},
@@ -79,14 +78,13 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 		};
 
 		if (allowedSip.find(transportUriParam) == allowedSip.end())
-			throw BadConfiguration{parameterName + " transport type '" + transportUriParam +
-			                       "' is not allowed for 'sip' scheme (" + transport + ")"};
+			throw BadConfigurationValue{parameter,
+			                            "transport type '" + transportUriParam + "' is not allowed for 'sip' scheme"};
 
 		sipSchemeTransports.at(transportUriParam)(*transports, listeningPort);
 
 	} else if (scheme == "sips") {
-		if (allowedSips.empty())
-			throw BadConfiguration{parameterName + " 'sips' scheme is not allowed (" + transport + ")"};
+		if (allowedSips.empty()) throw BadConfigurationValue{parameter, "'sips' scheme is not allowed"};
 
 		static const map<string, const function<void(linphone::Transports&, int)>> sipsSchemeTransports{
 		    {"udp", &linphone::Transports::setDtlsPort},
@@ -95,19 +93,19 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 		};
 
 		if (allowedSips.find(transportUriParam) == allowedSips.end())
-			throw BadConfiguration{parameterName + " transport type '" + transportUriParam +
-			                       "' is not allowed for 'sips' scheme (" + transport + ")"};
+			throw BadConfigurationValue{parameter,
+			                            "transport type '" + transportUriParam + "' is not allowed for 'sips' scheme"};
 
 		sipsSchemeTransports.at(transportUriParam)(*transports, listeningPort);
 
 	} else {
-		throw BadConfiguration{parameterName + " invalid scheme for SIP URI (" + transport + ")"};
+		throw BadConfigurationValue{parameter, "invalid scheme for SIP URI"};
 	}
 }
 
 pair<string, IP_FAMILY> parseInternetAddress(string_view address, string_view service) {
 	struct addrinfo* res{nullptr};
-	struct addrinfo hints {};
+	struct addrinfo hints{};
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 
@@ -136,7 +134,7 @@ void configureNatAddresses(const shared_ptr<linphone::NatPolicy>& policy, const 
 	for (const auto& address : addresses) {
 		const auto [ipAddress, ipFamily] = parseInternetAddress(address);
 		if (ipAddress.empty())
-			throw BadConfiguration{parameterName + " failed to configure NAT address (" + address + ")"};
+			throw BadConfiguration{parameterName + " failed to configure NAT address ("s + address + ")"};
 
 		switch (ipFamily) {
 			case AF_INET: {
@@ -144,7 +142,7 @@ void configureNatAddresses(const shared_ptr<linphone::NatPolicy>& policy, const 
 					policy->setNatV4Address(ipAddress);
 					LOGI_CTX(kLogPrefix) << "Configured IPv4 NAT address: " << ipAddress;
 				} else {
-					throw BadConfiguration{parameterName + " only one IPv4 NAT address can be configured"};
+					throw BadConfigurationValue{parameter, "only one IPv4 NAT address can be configured"};
 				}
 			} break;
 			case AF_INET6: {
@@ -152,12 +150,12 @@ void configureNatAddresses(const shared_ptr<linphone::NatPolicy>& policy, const 
 					policy->setNatV6Address(ipAddress);
 					LOGI_CTX(kLogPrefix) << "Configured IPv6 NAT address: " << ipAddress;
 				} else {
-					throw BadConfiguration{parameterName + " only one IPv6 NAT address can be configured"};
+					throw BadConfigurationValue{parameter, "only one IPv6 NAT address can be configured"};
 				}
 			} break;
 			default:
-				throw BadConfiguration{parameterName + " unknown IP family (" + ipAddress + " | " +
-				                       to_string(ipFamily) + ")"};
+				throw BadConfigurationValue{parameter,
+				                            "unknown IP family (" + ipAddress + " | " + to_string(ipFamily) + ")"};
 		}
 	}
 }

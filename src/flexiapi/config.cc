@@ -26,6 +26,8 @@
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/transport/http/http2client.hh"
 
+using namespace std::string_literals;
+
 namespace flexisip::flexiapi {
 namespace {
 constexpr auto configSection = "global::flexiapi";
@@ -68,14 +70,12 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
 		if (!flexiApiUrl.empty()) {
 			auto urlType = flexiApiUrl.getType();
 			if (urlType != url_https) {
-				throw BadConfiguration{"URL scheme MUST be 'https'"};
+				throw BadConfigurationValue{flexiApiUrlParameter, "URL scheme MUST be 'HTTPS'"};
 			}
 			return Http2Client::make(root, flexiApiUrl.getHost(), std::string{flexiApiUrl.getPort(true)});
 		}
 	} catch (std::exception& e) {
-		throw BadConfiguration{
-		    "setting " + flexiApiUrlParameter->getCompleteName() + " does not contain a valid URL: " + e.what(),
-		};
+		throw BadConfigurationValue{flexiApiUrlParameter, "invalid URL ("s + e.what() + ")"};
 	}
 	return nullptr;
 }

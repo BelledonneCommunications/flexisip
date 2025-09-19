@@ -217,13 +217,13 @@ void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::
 			try {
 				mOutgoingEncryption.emplace_back(*outgoingEncryption, outgoingEncryptionList.front());
 			} catch (const std::exception&) {
-				throw BadConfiguration{outgoingEncRegex->getCompleteName() + " contains invalid regex (" +
-				                       outgoingEncryptionList.front() + ")"};
+				throw BadConfigurationValue{outgoingEncRegex,
+				                            "list contains invalid regex (" + outgoingEncryptionList.front() + ")"};
 			}
 			outgoingEncryptionList.pop_front();
 		} else {
-			throw BadConfiguration{outgoingEncRegex->getCompleteName() + " contains invalid encryption mode (" +
-			                       outgoingEncryptionList.front() + ")"};
+			throw BadConfigurationValue{outgoingEncRegex, "list contains invalid encryption mode (" +
+			                                                  outgoingEncryptionList.front() + ")"};
 		}
 	}
 
@@ -247,13 +247,13 @@ void Trenscrypter::init(const std::shared_ptr<B2buaCore>& core, const flexisip::
 			try {
 				mSrtpConf.emplace_back(srtpCryptoSuites, outgoingSrptSuiteList.front());
 			} catch (const std::exception&) {
-				throw BadConfiguration{outgoingSrptRegex->getCompleteName() + " contains invalid regex (" +
-				                       outgoingSrptSuiteList.front() + ")"};
+				throw BadConfigurationValue{outgoingSrptRegex,
+				                            "list contains invalid regex (" + outgoingSrptSuiteList.front() + ")"};
 			}
 			outgoingSrptSuiteList.pop_front();
 		} else {
-			throw BadConfiguration{outgoingSrptRegex->getCompleteName() + " contains invalid suite (" +
-			                       outgoingSrptSuiteList.front() + ")"};
+			throw BadConfigurationValue{outgoingSrptRegex,
+			                            "list contains invalid suite (" + outgoingSrptSuiteList.front() + ")"};
 		}
 	}
 }

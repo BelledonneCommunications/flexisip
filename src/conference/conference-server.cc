@@ -48,7 +48,7 @@ void ConferenceServer::_init() {
 	// Transport configuration.
 	const auto transports = Factory::get()->createTransports();
 	const auto* transportParam = config->get<ConfigString>("transport");
-	if (transportParam->read().empty()) throw BadConfiguration{transportParam->getCompleteName() + " cannot be empty"};
+	if (transportParam->read().empty()) throw BadConfigurationEmpty{transportParam};
 	configuration_utils::configureTransport(transports, transportParam, {"", "udp", "tcp"});
 	mTransport = SipUri{transportParam->read()};
 	const auto bindAddress = mTransport.getHost();
@@ -57,12 +57,14 @@ void ConferenceServer::_init() {
 	mStateDir = config->get<ConfigString>("state-directory")->read();
 
 	// Read enabled media types (audio, video, text).
-	auto mediaTypes = config->get<ConfigStringList>("supported-media-types")->read();
+	const auto* mediaTypesParam = config->get<ConfigStringList>("supported-media-types");
+	auto mediaTypes = mediaTypesParam->read();
 	if (find(mediaTypes.begin(), mediaTypes.end(), "audio") != mediaTypes.end()) mMediaConfig.audioEnabled = true;
 	if (find(mediaTypes.begin(), mediaTypes.end(), "video") != mediaTypes.end()) mMediaConfig.videoEnabled = true;
 	if (find(mediaTypes.begin(), mediaTypes.end(), "text") != mediaTypes.end()) mMediaConfig.textEnabled = true;
 	if (mMediaConfig.audioEnabled == false && mMediaConfig.videoEnabled == false && mMediaConfig.textEnabled == false)
-		throw BadConfiguration{"no media types enabled in conference server (at least one media type must be enabled)"};
+		throw BadConfigurationWithHelp{
+		    mediaTypesParam, "no media types enabled in conference server (at least one media type must be enabled)"};
 
 	// Linphone-sdk configuration.
 	auto configLinphone = Factory::get()->createConfig("");
@@ -77,8 +79,11 @@ void ConferenceServer::_init() {
 		const auto* dbConnectionStringParam = config->get<ConfigString>("database-connection-string");
 		string dbUri = dbConnectionStringParam->read();
 		if (dbUri.empty())
-			throw BadConfiguration{dbConnectionStringParam->getCompleteName() +
-			                       " is not set but is mandatory when 'text' media type is enabled"};
+			throw BadConfigurationWithHelp{
+			    dbConnectionStringParam,
+			    dbConnectionStringParam->getCompleteName() +
+			        " is not set but is mandatory when 'text' media type is enabled",
+			};
 		configLinphone->setInt("misc", "hide_empty_chat_rooms", 0);
 		configLinphone->setInt("misc", "hide_chat_rooms_from_removed_proxies", 0);
 		configLinphone->setString("storage", "backend", config->get<ConfigString>("database-backend")->read());
@@ -121,10 +126,8 @@ void ConferenceServer::_init() {
 
 	const auto* noRTPTimeoutParameter = config->get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
 	const auto noRTPTimeout = noRTPTimeoutParameter->read();
-	if (noRTPTimeout <= 0ms) {
-		const auto parameterName = noRTPTimeoutParameter->getCompleteName();
-		throw BadConfiguration{"invalid value for '" + parameterName + "', duration must be strictly positive"};
-	}
+	if (noRTPTimeout <= 0ms) throw BadConfigurationValue{noRTPTimeoutParameter, "duration must be strictly positive"};
+
 	mCore->setNortpTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPTimeout).count()));
 
 	mCore->setUserAgent("Flexisip-conference", FLEXISIP_GIT_VERSION);
@@ -178,8 +181,7 @@ void ConferenceServer::_init() {
 	const auto* outboundProxyParam = config->get<ConfigString>("outbound-proxy");
 	auto outboundProxy = outboundProxyParam->read();
 	auto outboundProxyAddress = Factory::get()->createAddress(outboundProxy);
-	if (!outboundProxyAddress)
-		throw BadConfiguration{outboundProxyParam->getCompleteName() + " is invalid (" + outboundProxy + ")"};
+	if (!outboundProxyAddress) throw BadConfigurationValue{outboundProxyParam};
 
 	bool defaultAccountSet = false;
 	for (const auto& conferenceServerUris : mConfServerUris) {

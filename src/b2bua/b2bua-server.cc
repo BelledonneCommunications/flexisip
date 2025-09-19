@@ -606,7 +606,8 @@ void B2buaServer::_init() {
 
 	mCore->addListener(shared_from_this());
 
-	auto applicationType = config->get<ConfigString>("application")->read();
+	const auto* applicationTypeParam = config->get<ConfigString>("application");
+	auto applicationType = applicationTypeParam->read();
 	LOGI << "Starting with '" << applicationType << "' application";
 	if (applicationType == "trenscrypter") {
 		mApplication = make_unique<b2bua::trenscrypter::Trenscrypter>();
@@ -615,7 +616,7 @@ void B2buaServer::_init() {
 		mCli.registerHandler(*bridge);
 		mApplication = std::move(bridge);
 	} else {
-		throw BadConfiguration{"unknown B2BUA server application type: "s + applicationType};
+		throw BadConfigurationValue{applicationTypeParam, "unknown B2BUA server application type"};
 	}
 	mApplication->init(mCore, *mConfigManager);
 
@@ -777,7 +778,10 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    {
 	        String,
 	        "video-codec",
-	        "Same as 'audio-codec' but for video.\n"
+	        "Turn off all video codecs except this one. This will effectively force this codec on both ends of all "
+	        "bridged calls. If either end does not support the codec set here, the call will fail to establish. "
+	        "Setting this option will also turn on the media payload forwarding optimization which improves the "
+	        "performances of the B2BUA.\n"
 	        "Format: <codec>.\n"
 	        "Example: H264",
 	        "",

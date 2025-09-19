@@ -72,9 +72,8 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	// Since there are two legs per call, the core should be configured with twice the number of maximum calls.
 	const auto* maxCallsParameter = config.get<ConfigInt>("max-calls");
 	const auto maxCalls = maxCallsParameter->read();
-	if (maxCalls <= 0) {
-		throw BadConfiguration{maxCallsParameter->getCompleteName() + " must be strictly positive"};
-	}
+	if (maxCalls <= 0) throw BadConfigurationValue{maxCallsParameter, "it must be strictly positive"};
+
 	core->setMaxCalls(maxCalls * 2);
 	// Share media resources in the local conference (that is how media is transmitted to the other call leg).
 	core->setMediaResourceMode(linphone::MediaResourceMode::Shared);
@@ -123,7 +122,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 		natPolicy->enableIce(true);
 		configuration_utils::configureNatAddresses(natPolicy, natAddressesParameter);
 	} else if (!natAddressesParameter->read().empty()) {
-		throw BadConfiguration{"NAT addresses cannot be configured if ICE is not enabled"};
+		throw BadConfigurationValue{natAddressesParameter, "NAT addresses cannot be configured if ICE is not enabled"};
 	} else {
 		natPolicy->enableIce(false);
 	}
@@ -138,9 +137,8 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 		if (configDesc.empty()) return;
 
 		smatch res{};
-		if (!regex_match(configDesc, res, regEx))
-			throw BadConfiguration(configField->getCompleteName() + " (" + configDesc +
-			                       ") does not have the expected format.");
+		if (!regex_match(configDesc, res, regEx)) throw BadConfigurationValue{configField};
+
 		const auto codec = res[1].str();
 		string rate;
 		if (res.size() == 3) rate = res[2];
@@ -186,18 +184,14 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	const auto* noRTPTimeoutParameter = config.get<ConfigDuration<chrono::seconds>>("no-rtp-timeout");
 	const auto noRTPTimeout = noRTPTimeoutParameter->read();
-	if (noRTPTimeout <= 0ms) {
-		const auto parameterName = noRTPTimeoutParameter->getCompleteName();
-		throw BadConfiguration{"invalid value for '" + parameterName + "', duration must be strictly positive"};
-	}
+	if (noRTPTimeout <= 0ms) throw BadConfigurationValue{noRTPTimeoutParameter, "duration must be strictly positive"};
+
 	core->setNortpTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(noRTPTimeout).count()));
 
 	const auto* maxCallDurationParameter = config.get<ConfigDuration<chrono::seconds>>("max-call-duration");
 	const auto maxCallDuration = maxCallDurationParameter->read();
-	if (maxCallDuration < 0ms) {
-		const auto parameterName = maxCallDurationParameter->getCompleteName();
-		throw BadConfiguration{"invalid value for '" + parameterName + "', duration must be positive"};
-	}
+	if (maxCallDuration < 0ms) throw BadConfigurationValue{maxCallDurationParameter, "duration must be positive"};
+
 	core->setInCallTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(maxCallDuration).count()));
 
 	// Get transport from flexisip configuration.

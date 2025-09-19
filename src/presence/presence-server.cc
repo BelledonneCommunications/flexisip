@@ -370,11 +370,13 @@ void PresenceServer::_init() {
 		    getUsersWithPhonesRequestParam->getCompleteName() + "' are set whereas long-term presence is enabled"};
 	}
 
-	auto transports = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports")->read();
+	const auto* transportsParam = cr->get<GenericStruct>("presence-server")->get<ConfigStringList>("transports");
+	auto transports = transportsParam->read();
 
 	for (const auto& transport : transports) {
 		if (transport.find("sips") != string::npos || transport.find("transport=tls") != string::npos)
-			throw BadConfiguration{"unable to start presence server, TLS transports are not supported"};
+			throw BadConfigurationValue{transportsParam,
+			                            "unable to start presence server, TLS transports are not supported"};
 
 		auto* uri = belle_sip_uri_parse(transport.c_str());
 		if (uri) {

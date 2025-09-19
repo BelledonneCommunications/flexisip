@@ -159,14 +159,14 @@ void Authentication::onLoad(const GenericStruct* mc) {
 	mTrustedClientCertificates = mc->get<ConfigStringList>("trusted-client-certificates")->read();
 	mTrustDomainCertificates = mc->get<ConfigBoolean>("trust-domain-certificates")->read();
 
-	string requiredSubject = mc->get<ConfigString>("tls-client-certificate-required-subject")->read();
+	const auto* requiredSubjectParam = mc->get<ConfigString>("tls-client-certificate-required-subject");
+	string requiredSubject = requiredSubjectParam->read();
 	if (!requiredSubject.empty()) {
 		int res = regcomp(&mRequiredSubject, requiredSubject.c_str(), REG_EXTENDED | REG_NOSUB);
 		if (res != 0) {
 			string err_msg(128, '\0');
 			regerror(res, &mRequiredSubject, &err_msg[0], err_msg.size());
-			throw BadConfiguration{"could not compile regex for 'tls-client-certificate-required-subject' '" +
-			                       requiredSubject + "' (" + err_msg + ")"};
+			throw BadConfigurationValue{requiredSubjectParam, "could not compile regex (" + err_msg + ")"};
 		} else mRequiredSubjectCheckSet = true;
 	}
 	mRejectWrongClientCertificates = mc->get<ConfigBoolean>("reject-wrong-client-certificates")->read();

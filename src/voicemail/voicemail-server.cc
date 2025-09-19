@@ -44,7 +44,7 @@ void VoicemailServer::_init() {
 	const auto* announcementParam = config->get<ConfigString>("announcement-file-path");
 	const auto announcementParamName = announcementParam->getCompleteName();
 	mAnnouncementFile = announcementParam->read();
-	if (mAnnouncementFile.empty()) throw BadConfiguration{announcementParamName + " cannot be empty"};
+	if (mAnnouncementFile.empty()) throw BadConfigurationEmpty{announcementParam};
 	if (!exists(mAnnouncementFile))
 		throw BadConfiguration{announcementParamName + " (" + mAnnouncementFile.string() + ") does not exists"};
 
@@ -52,7 +52,7 @@ void VoicemailServer::_init() {
 
 	const auto transport = factory->createTransports();
 	const auto* transportParam = config->get<ConfigString>("transport");
-	if (transportParam->read().empty()) throw BadConfiguration{transportParam->getCompleteName() + " cannot be empty"};
+	if (transportParam->read().empty()) throw BadConfigurationEmpty{transportParam};
 	configuration_utils::configureTransport(transport, transportParam, {"", "udp", "tcp"});
 	mTransport = SipUri{transportParam->read()};
 
@@ -76,7 +76,7 @@ void VoicemailServer::_init() {
 	const auto* maxCallsParameter = config->get<ConfigInt>("max-calls");
 	const auto maxCalls = maxCallsParameter->read();
 	if (maxCalls <= 0) {
-		throw BadConfiguration{maxCallsParameter->getCompleteName() + " must be strictly positive"};
+		throw BadConfigurationValue{maxCallsParameter, "parameter must be strictly positive"};
 	}
 	mCore->setMaxCalls(maxCalls);
 	mCore->setInCallTimeout(300); // 5 minutes
