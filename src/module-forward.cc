@@ -153,11 +153,13 @@ ForwardModule::~ForwardModule() {
 }
 
 void ForwardModule::onLoad(const GenericStruct* mc) {
-	string routesConfigPath = mc->get<ConfigString>("routes-config-path")->read();
+	const auto* routesConfigPathParam = mc->get<ConfigString>("routes-config-path");
+	string routesConfigPath = routesConfigPathParam->read();
 	try {
 		if (!routesConfigPath.empty()) mRoutesMap.loadConfig(routesConfigPath);
 	} catch (exception& e) {
-		throw BadConfiguration{"error while loading routes configuration ("s + e.what() + ")"};
+		throw BadConfigurationValue{routesConfigPathParam,
+		                            "error while loading routes configuration ("s + e.what() + ")"};
 	}
 	const auto* routeParam = mc->get<ConfigString>("route");
 	const auto route = routeParam->read();
@@ -165,7 +167,7 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	if (!route.empty()) {
 		mOutRoute = sip_route_make(&mHome, route.c_str());
 		if (mOutRoute == nullptr || mOutRoute->r_url->url_host == nullptr) {
-			throw BadConfiguration{"invalid '" + routeParam->getCompleteName() + "' parameter value '" + route + "'"};
+			throw BadConfigurationValue{routeParam};
 		}
 	}
 	mAddPath = mc->get<ConfigBoolean>("add-path")->read();

@@ -203,7 +203,8 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	int lineIndex = 0;
 
 	auto* domainRegistrationCfg = mAgent->getConfigManager().getRoot()->get<GenericStruct>("inter-domain-connections");
-	configFile = domainRegistrationCfg->get<ConfigString>("domain-registrations")->read();
+	const auto* domainRegistrationParam = domainRegistrationCfg->get<ConfigString>("domain-registrations");
+	configFile = domainRegistrationParam->read();
 
 	mVerifyServerCerts = domainRegistrationCfg->get<ConfigBoolean>("verify-server-certs")->read();
 
@@ -214,10 +215,9 @@ int DomainRegistrationManager::load(const string& passphrase) {
 	mKeepaliveInterval = chrono::duration_cast<chrono::seconds>(keepAliveIntervalCfg->read());
 	mPingPongTimeoutDelay = chrono::duration_cast<chrono::seconds>(pingPongTimeoutDelayCfg->read());
 	if (mPingPongTimeoutDelay >= mKeepaliveInterval) {
-		throw BadConfiguration{"invalid value for '" + pingPongTimeoutDelayCfg->getCompleteName() + "' (" +
-		                       to_string(mPingPongTimeoutDelay.count()) + "), it must be strictly lower than '" +
-		                       keepAliveIntervalCfg->getCompleteName() + "' (" + to_string(mKeepaliveInterval.count()) +
-		                       ")"};
+		throw BadConfigurationValue{pingPongTimeoutDelayCfg, "it must be strictly lower than '" +
+		                                                         keepAliveIntervalCfg->getCompleteName() + "' (" +
+		                                                         keepAliveIntervalCfg->get() + ")"};
 	}
 	mReconnectionDelay = chrono::duration_cast<chrono::seconds>(reconnectionDelayCfg->read());
 
@@ -230,8 +230,7 @@ int DomainRegistrationManager::load(const string& passphrase) {
 		try {
 			mRelayRegsToDomainsRegex = std::regex(relayRegsToDomainsRegex);
 		} catch (const std::regex_error& e) {
-			throw BadConfiguration{"invalid regex in '" + relayRegsToDomainsRegexParam->getCompleteName() + "' (" +
-			                       e.what() + ")"};
+			throw BadConfigurationValue{relayRegsToDomainsRegexParam, "invalid regex ("s + e.what() + ")"};
 		}
 		LOGD << "Found relay-reg-to-domain regex: " << relayRegsToDomainsRegex;
 	}
@@ -295,8 +294,8 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 	return 0;
 error:
-	throw BadConfiguration{"syntax error detected while parsing domain registration configuration file '" + configFile +
-	                       "'"};
+	throw BadConfigurationValue{domainRegistrationParam,
+	                            "syntax error detected while parsing domain registration configuration file"};
 }
 
 bool DomainRegistrationManager::isUs(const url_t* url) const {

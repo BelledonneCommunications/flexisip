@@ -61,12 +61,13 @@ StatisticsCollector::~StatisticsCollector() {
 }
 
 void StatisticsCollector::onLoad(const GenericStruct* mc) {
-	string value = mc->get<ConfigString>("collector-address")->read();
+	const auto* collectorAddressParam = mc->get<ConfigString>("collector-address");
+	string value = collectorAddressParam->read();
 	if (value.size() > 0) {
 		mCollectorAddress = url_make(&mHome, value.c_str());
 		if (mCollectorAddress == NULL ||
 		    (mCollectorAddress->url_type != url_sip && mCollectorAddress->url_type != url_sips)) {
-			throw BadConfiguration{"invalid collector address '" + value + "'"};
+			throw BadConfigurationValue{collectorAddressParam};
 		}
 		mCollectorAddress->url_type =
 		    url_sip; /*we don't want to distinguish between sip and sips for the collector url*/

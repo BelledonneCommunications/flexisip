@@ -325,14 +325,14 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	mAllowDomainRegistrations =
 	    cr->get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("accept-domain-registrations")->read();
 	mResolveRoutes = mc->get<ConfigBoolean>("resolve-routes")->read();
-	mFallbackRoute = mc->get<ConfigString>("fallback-route")->read();
+	const auto* fallbackRouteParam = mc->get<ConfigString>("fallback-route");
+	mFallbackRoute = fallbackRouteParam->read();
 	mFallbackRouteFilter = mc->get<ConfigBooleanExpression>("fallback-route-filter")->read();
 	mFallbackParentDomain = mc->get<ConfigBoolean>("parent-domain-fallback")->read();
 
 	if (!mFallbackRoute.empty()) {
 		mFallbackRouteParsed = ModuleToolbox::sipUrlMake(mHome.home(), mFallbackRoute.c_str());
-		if (!mFallbackRouteParsed)
-			throw BadConfiguration{"invalid value '" + mFallbackRoute + "' for module::Router/fallback-route"};
+		if (!mFallbackRouteParsed) throw BadConfigurationValue{fallbackRouteParam};
 	}
 
 	for (const auto& uri : mc->get<ConfigStringList>("static-targets")->read())

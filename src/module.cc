@@ -86,7 +86,7 @@ void Module::checkConfig() {
 	for (auto it = children.begin(); it != children.end(); ++it) {
 		auto cv = dynamic_cast<ConfigValue*>(it->get());
 		if (cv && !isValidNextConfig(*cv)) {
-			throw BadConfiguration{"invalid configuration " + cv->getCompleteName() + "=" + cv->get()};
+			throw BadConfigurationValue{cv};
 		}
 	}
 }

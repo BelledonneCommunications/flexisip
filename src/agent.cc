@@ -172,16 +172,18 @@ void Agent::onDeclare(const GenericStruct& root) {
 			    uniqueId.end()) {
 				mUniqueId = uniqueId;
 			} else {
-				throw BadConfiguration{uniqueIdParam->getCompleteName() + " parameter must hold an hexadecimal number"};
+				throw BadConfigurationValue{uniqueIdParam, "parameter must hold an hexadecimal number"};
 			}
 		} else {
-			throw BadConfiguration{uniqueIdParam->getCompleteName() + " parameter must have 16 characters"};
+			throw BadConfigurationValue{uniqueIdParam, "parameter must have 16 characters"};
 		}
 	}
 
-	const auto rtpBindAddress = global->get<ConfigStringList>("rtp-bind-address")->read();
+	const auto* rtpBindAddressParam = global->get<ConfigStringList>("rtp-bind-address");
+	const auto rtpBindAddress = rtpBindAddressParam->read();
 	if (rtpBindAddress.size() != 2) {
-		throw BadConfiguration{
+		throw BadConfigurationValue{
+		    rtpBindAddressParam,
 		    "config entry [rtp-bind-address] must have 2 and only 2 ip addresses, IPV4 first, IPV6 second"};
 	}
 	mRtpBindIp = rtpBindAddress.front();
@@ -358,10 +360,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	mTimer.setForEver([this] { idle(); });
 
 	const auto tcpMaxReadSize = global->get<ConfigInt>("tcp-max-read-size");
-	if (tcpMaxReadSize->read() <= 0) {
-		throw BadConfiguration{"invalid value for " + tcpMaxReadSize->getCompleteName() +
-		                       ", it must be strictly positive"};
-	}
+	if (tcpMaxReadSize->read() <= 0)
+		throw BadConfigurationValue{tcpMaxReadSize, "parameter should be strictly positive"};
 
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64), NTATAG_RPORT(1), NTATAG_TCP_RPORT(1),
 	                     NTATAG_TLS_RPORT(1),    // use rport in vias added to outgoing requests for all protocols

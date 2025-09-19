@@ -88,7 +88,7 @@ void NatHelper::onLoad(const GenericStruct* sec) {
 	} else if (rrPolicy == "always") {
 		mRRPolicy = Always;
 	} else {
-		throw BadConfiguration{"invalid '" + rrPolicyParam->getCompleteName() + "' parameter value '" + rrPolicy + "'"};
+		throw BadConfigurationValue{rrPolicyParam};
 	}
 
 	mContactCorrectionParameter = sec->get<ConfigString>("contact-correction-param")->read();

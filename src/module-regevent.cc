@@ -58,8 +58,7 @@ private:
 		try {
 			mDestRoute.reset(new SipUri(destRouteStr));
 		} catch (const sofiasip::InvalidUrlError& e) {
-			throw BadConfiguration{"invalid SIP URI ('" + destRouteStr + "') in parameter '" +
-			                       destRouteParam->getCompleteName() + "' (" + e.what() + ")"};
+			throw BadConfigurationValue{destRouteParam, "invalid SIP URI ("s + e.what() + ")"};
 		}
 
 		LOGI << "RegEvent server is [" << mDestRoute->str() << "]";

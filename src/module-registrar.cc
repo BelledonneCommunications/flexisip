@@ -583,15 +583,12 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 
 	const auto* expireRandomizerParam = mc->get<ConfigInt>("register-expire-randomizer-max");
 	mExpireRandomizer = expireRandomizerParam->read();
-	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) {
-		throw BadConfiguration{expireRandomizerParam->getCompleteName() + " value (" + to_string(mExpireRandomizer) +
-		                       ") must be in [0,100]"};
-	}
+	if (mExpireRandomizer < 0 || mExpireRandomizer > 100) throw BadConfigurationValue{expireRandomizerParam};
 
 	const auto* maxContactsPerRegistration = mc->get<ConfigInt>("max-contacts-per-registration");
 	mMaxContactsPerRegistration = maxContactsPerRegistration->read();
 	if (mMaxContactsPerRegistration <= 0)
-		throw BadConfiguration{maxContactsPerRegistration->getCompleteName() + " must be strictly positive"};
+		throw BadConfigurationValue{maxContactsPerRegistration, "parameter must be strictly positive"};
 
 	if (!mStaticRecordsFile.empty()) {
 		readStaticRecords(); // read static records from configuration file

@@ -437,14 +437,13 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	// Load the push retransmissions parameters.
 	const auto* retransmissionCountParam = mModuleConfig->get<ConfigInt>("retransmission-count");
 	const auto retransmissionCount = mModuleConfig->get<ConfigInt>("retransmission-count")->read();
-	if (retransmissionCount < 0)
-		throw BadConfiguration{retransmissionCountParam->getCompleteName() + " must be positive"};
+	if (retransmissionCount < 0) throw BadConfigurationValue{retransmissionCountParam, "parameter must be positive"};
 
 	const auto* retransmissionIntervalParam =
 	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("retransmission-interval");
 	const auto retransmissionInterval = chrono::duration_cast<chrono::seconds>(retransmissionIntervalParam->read());
 	if (retransmissionInterval <= 0s)
-		throw BadConfiguration{retransmissionIntervalParam->getCompleteName() + " must be strictly positive"};
+		throw BadConfigurationValue{retransmissionIntervalParam, "parameter must be strictly positive"};
 
 	mRetransmissionCount = retransmissionCount;
 	mRetransmissionInterval = retransmissionInterval;
@@ -454,7 +453,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	    mModuleConfig->get<ConfigDuration<chrono::seconds>>("call-remote-push-interval");
 	auto callRemotePushInterval = callRemotePushIntervalCfg->read();
 	if (callRemotePushInterval < 0s || callRemotePushInterval > 30s)
-		throw BadConfiguration{callRemotePushIntervalCfg->getCompleteName() + " must be in [0, 30]"};
+		throw BadConfigurationValue{callRemotePushIntervalCfg};
 
 	mCallRemotePushInterval = chrono::duration_cast<chrono::seconds>(callRemotePushInterval);
 
@@ -465,10 +464,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	const auto& addToTagFilterStr = addToTagFilterCfg->read();
 	if (!addToTagFilterStr.empty()) {
 		mAddToTagFilter = SipBooleanExpressionBuilder::get().parse(addToTagFilterStr);
-		if (mAddToTagFilter == nullptr) {
-			throw BadConfiguration{"invalid boolean expression '" + addToTagFilterStr + "' set in parameter '" +
-			                       addToTagFilterCfg->getCompleteName() + "'"};
-		}
+		if (mAddToTagFilter == nullptr) throw BadConfigurationValue{addToTagFilterCfg, "invalid boolean expression"};
 	}
 
 	if (!externalUri.empty()) {
@@ -482,11 +478,9 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 				mPNS->setupGenericClient(externalPushUri, externalPushMethod, externalPushProtocol);
 			}
 		} catch (const sofiasip::InvalidUrlError& e) {
-			throw BadConfiguration{"invalid value for parameter '" + externalUriCfg->getCompleteName() + "' (" +
-			                       e.what() + +")"};
+			throw BadConfigurationValue{externalUriCfg, "("s + e.what() + +")"};
 		} catch (const InvalidMethodError& e) {
-			throw BadConfiguration{"invalid value for parameter '" + externalPushMethodCfg->getCompleteName() +
-			                       "', expected values are 'GET' or 'POST' (" + e.what() + ")"};
+			throw BadConfigurationValue{externalPushMethodCfg, "("s + e.what() + ")"};
 		}
 	}
 

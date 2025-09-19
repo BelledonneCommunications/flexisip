@@ -146,15 +146,13 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 
 	auto authDomains = mc->get<ConfigStringList>("auth-domains")->read();
 
-	mAlgorithms = mc->get<ConfigStringList>("available-algorithms")->read();
+	const auto* algorithmsParam = mc->get<ConfigStringList>("available-algorithms");
+	mAlgorithms = algorithmsParam->read();
 	mAlgorithms.unique();
 	auto it = find_if(mAlgorithms.cbegin(), mAlgorithms.cend(), [](const string& algo) { return !validAlgo(algo); });
-	if (it != mAlgorithms.cend()) {
-		ostringstream os;
-		os << "invalid algorithm (" << *it << ") set in '" << mc->getName() << "/available-algorithms'. ";
-		os << "Available algorithms are " << StringUtils::toString(sValidAlgos);
-		throw BadConfiguration{os.str()};
-	}
+	if (it != mAlgorithms.cend())
+		throw BadConfigurationValue{algorithmsParam, "available algorithms are " + StringUtils::toString(sValidAlgos)};
+
 	if (mAlgorithms.empty()) mAlgorithms.assign(sValidAlgos.cbegin(), sValidAlgos.cend());
 
 	auto disableQOPAuth = mc->get<ConfigBoolean>("disable-qop-auth")->read();
@@ -182,7 +180,7 @@ void ModuleAuthenticationBase::onLoad(const GenericStruct* mc) {
 		try {
 			mRealmExtractor = new RegexRealmExtractor{std::move(realmRegex)};
 		} catch (const regex_error& e) {
-			throw BadConfiguration{"invalid regex in '" + realmRegexCfg->getCompleteName() + "' (" + e.what()};
+			throw BadConfigurationValue{realmRegexCfg, "invalid regex ("s + e.what() + ")"};
 		}
 	} else if (!realm.empty()) {
 		mRealmExtractor = new StaticRealmExtractor{std::move(realm)};

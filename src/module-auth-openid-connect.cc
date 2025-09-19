@@ -142,7 +142,7 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	auto readMandatoryString = [&mc](string_view paramName) {
 		const auto* configValue = mc->get<ConfigString>(paramName);
 		auto value = configValue->read();
-		if (value.empty()) throw BadConfiguration{"parameter '" + configValue->getCompleteName() + "' must be set"};
+		if (value.empty()) throw BadConfigurationEmpty{configValue};
 		return value;
 	};
 
@@ -155,7 +155,7 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 		const auto issuer = readMandatoryString("authorization-server");
 		auto issUrl = sofiasip::Url(issuer);
 		if (issUrl.getType() != url_https)
-			throw BadConfiguration{"invalid authorization-server https url '" + issuer + "'"};
+			throw BadConfigurationValue{mc->get<ConfigString>("authorization-server"), "it must be a HTTPS url"};
 		params.issuer = issUrl;
 	}
 	params.realm = readMandatoryString("realm");
