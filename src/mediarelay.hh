@@ -47,7 +47,6 @@ public:
 private:
 	MediaRelay(Agent* ag, const ModuleInfoBase* moduleInfo);
 
-	bool isInviteOrUpdate(sip_method_t method) const;
 	void createServers();
 	bool processNewInvite(const std::shared_ptr<RelayedCall>& c,
 	                      const std::shared_ptr<OutgoingTransaction>& transaction,
@@ -154,7 +153,7 @@ public:
 	void fillPollFd(PollFd* pfd);
 	void checkPollFd(const PollFd* pfd, time_t curtime);
 	void unuse();
-	int getActiveBranchesCount();
+	int getActiveBranchesCount() const;
 
 	bool isUsed() const {
 		return mUsed;

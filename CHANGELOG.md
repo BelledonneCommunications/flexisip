@@ -130,8 +130,10 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
 ## [2.4.3]
 ### [Fixed]
 - **Proxy:**
-  - **MediaRelay:** The server was not updating the IP address inserted in the SDP response when a client's network
-    changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
+  - **MediaRelay:**
+    - The server was not updating the IP address inserted in the SDP response when a client's network
+      changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
+    - Memory leak on calls to offline iOS devices (INVITE/CANCEL scenario)
   - **PushNotifications:**
     - Apple push certificates could not contain '.dev' in their filename and be used in a production environment.
     - The HTTP client was not trying to reconnect in case of a "connection reset by peer" error before sending pending
