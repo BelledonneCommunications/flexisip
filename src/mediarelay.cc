@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2023 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <list>
 #include <poll.h>
 #include <sys/resource.h>
@@ -317,7 +316,7 @@ void RelaySession::removeBranch(const std::string& trId) {
 	}
 }
 
-int RelaySession::getActiveBranchesCount() {
+int RelaySession::getActiveBranchesCount() const {
 	int count = 0;
 	mMutex.lock();
 	for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {

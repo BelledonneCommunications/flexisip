@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,6 @@
 
 #include "mediarelay.hh"
 
-#include <algorithm>
 #include <vector>
 
 #include "flexisip/fork-context/fork-context.hh"
@@ -33,14 +32,22 @@ using namespace std;
 using namespace ::std::placeholders;
 using namespace flexisip;
 
-static bool isEarlyMedia(sip_t* sip) {
+namespace {
+
+bool isEarlyMedia(sip_t* sip) {
 	if (sip->sip_status->st_status == 180 || sip->sip_status->st_status == 183) {
 		sip_payload_t* payload = sip->sip_payload;
 		// TODO: should check if it is application/sdp
-		return payload != NULL;
+		return payload != nullptr;
 	}
 	return false;
 }
+
+bool isInviteOrUpdate(sip_method_t method) {
+	return method == sip_method_invite || method == sip_method_update;
+}
+
+} // namespace
 
 ModuleInfo<MediaRelay> MediaRelay::sInfo(
     "MediaRelay",
@@ -182,10 +189,6 @@ void MediaRelay::onUnload() {
 	mServers.clear();
 }
 
-bool MediaRelay::isInviteOrUpdate(sip_method_t method) const {
-	return method == sip_method_invite || method == sip_method_update;
-}
-
 bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
                                   const shared_ptr<OutgoingTransaction>& transaction,
                                   const shared_ptr<RequestSipEvent>& ev) {
@@ -287,56 +290,67 @@ void MediaRelay::configureContext([[maybe_unused]] shared_ptr<RelayedCall>& c) {
 }
 
 void MediaRelay::onRequest(shared_ptr<RequestSipEvent>& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
-
-	shared_ptr<RelayedCall> c;
-
-	if (isInviteOrUpdate(sip->sip_request->rq_method)) {
-		shared_ptr<IncomingTransaction> it = ev->createIncomingTransaction();
-		shared_ptr<OutgoingTransaction> ot = ev->createOutgoingTransaction();
-		bool newContext = false;
-
-		c = it->getProperty<RelayedCall>(getModuleName());
-		/*if the transaction has no RelayedCall associated, then look for an established dialog (case of reINVITE) */
-		if (c == NULL) c = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, false));
-		if (c == NULL) {
-			if (mMaxCalls > 0 && mCalls->size() >= mMaxCalls) {
-				LOGW("Maximum number of relayed calls reached (%i), call is rejected", mMaxCalls);
-				ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()),
-				          TAG_END());
-				return;
-			}
-
-			c = make_shared<RelayedCall>(mServers[mCurServer], sip);
-			c->forcePublicAddress(mUsePublicIpForSdpMasquerading);
-			mCurServer = (mCurServer + 1) % mServers.size();
-			newContext = true;
-			it->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
-			configureContext(c);
+	auto* sip = ev->getSip();
+	auto method = sip->sip_request->rq_method;
+	if (method == sip_method_bye) {
+		if (const auto relayedCall =
+		        dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) {
+			mCalls->remove(relayedCall);
 		}
-		if (processNewInvite(c, ot, ev)) {
-			// be in the record-route
-			ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
-			if (newContext) mCalls->store(c);
-			ot->setProperty(getModuleName(), weak_ptr<RelayedCall>{c});
-			// Let this transaction survive till it reaches the Forward module.
-			// Otherwise a new `OutgoingTransaction` will be created to send the request, but it won't have the
-			// `RelayedCall` back-pointer
-			c->mCurrentOutgoingTransaction = std::move(ot);
+		return;
+	}
+
+	auto incomingTransaction = ev->getIncomingTransaction();
+	auto relayedCall = incomingTransaction ? incomingTransaction->getProperty<RelayedCall>(getModuleName()) : nullptr;
+	if (method == sip_method_cancel) {
+		if (relayedCall) {
+			SLOGD << "Relayed call terminated by incoming cancel";
+			mCalls->remove(relayedCall);
 		}
-	} else if (sip->sip_request->rq_method == sip_method_bye) {
-		if ((c = dynamic_pointer_cast<RelayedCall>(mCalls->findEstablishedDialog(getAgent(), sip))) != NULL) {
-			mCalls->remove(c);
+		return;
+	}
+
+	if (!isInviteOrUpdate(method)) return;
+
+	if (!incomingTransaction && ForkContext::getFork(ev->getOutgoingTransaction())) {
+		// The request has been reinjected. If there's no incoming transaction, then there is nothing to relay.
+		// (Most likely an INVITE/CANCEL scenario. Creating an incoming transaction now would only leak it, as no-one is
+		// going to send it a terminating answer.)
+		SLOGD << "Skipping re-injected INVITE.";
+		return;
+	}
+
+	// Force stateful mode to store the RelayedCall context.
+	incomingTransaction = ev->createIncomingTransaction();
+	auto outgoingTransaction = ev->createOutgoingTransaction();
+
+	auto newContext = false;
+	// If the transaction has no RelayedCall associated, then look for an established dialog (case of reINVITE)
+	if (relayedCall == nullptr) relayedCall = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, false));
+	if (relayedCall == nullptr) {
+		if (mMaxCalls > 0 && mCalls->size() >= mMaxCalls) {
+			SLOGW << "Maximum number of relayed calls reached (" << mMaxCalls << "), call is rejected";
+			ev->reply(503, "Maximum number of calls reached", SIPTAG_SERVER_STR(getAgent()->getServerString()),
+			          TAG_END());
+			return;
 		}
-	} else if (sip->sip_request->rq_method == sip_method_cancel) {
-		shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
-		/* need to match cancel from incoming transaction, because in this case the entire call context can be dropped
-		 * immediately*/
-		if (it && (c = it->getProperty<RelayedCall>(getModuleName())) != NULL) {
-			LOGD("Relayed call terminated by incoming cancel.");
-			mCalls->remove(c);
-		}
+
+		relayedCall = make_shared<RelayedCall>(mServers[mCurServer], sip);
+		relayedCall->forcePublicAddress(mUsePublicIpForSdpMasquerading);
+		mCurServer = (mCurServer + 1) % mServers.size();
+		newContext = true;
+		incomingTransaction->setProperty(getModuleName(), weak_ptr<RelayedCall>{relayedCall});
+		configureContext(relayedCall);
+	}
+	if (processNewInvite(relayedCall, outgoingTransaction, ev)) {
+		// Be in the record-route
+		ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
+		if (newContext) mCalls->store(relayedCall);
+		outgoingTransaction->setProperty(getModuleName(), weak_ptr<RelayedCall>{relayedCall});
+		// Let this transaction survive till it reaches the Forward module.
+		// Otherwise a new `OutgoingTransaction` will be created to send the request, but it won't have the
+		// `RelayedCall` back-pointer
+		relayedCall->mCurrentOutgoingTransaction = std::move(outgoingTransaction);
 	}
 }
 
@@ -424,6 +438,14 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 					processResponseWithSDP(c, ot, ev->getMsgSip());
 				} else if (sip->sip_status->st_status >= 300) {
 					c->removeBranch(ot->getBranchId());
+					auto hasActiveBranches =
+					    std::any_of(c->getSessions().begin(), c->getSessions().end(), [](const auto& session) {
+						    return session && (0 < session->getActiveBranchesCount());
+					    });
+					if (!hasActiveBranches) {
+						SLOGD << "RelayedCall[" << c << "] terminated: Last branch removed.";
+						mCalls->remove(c);
+					}
 				}
 			}
 		}
