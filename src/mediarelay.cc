@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <list>
 #include <poll.h>
 #include <sys/resource.h>
@@ -313,7 +312,7 @@ void RelaySession::removeBranch(const std::string& trId) {
 	}
 }
 
-int RelaySession::getActiveBranchesCount() {
+int RelaySession::getActiveBranchesCount() const {
 	int count = 0;
 	mMutex.lock();
 	for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
