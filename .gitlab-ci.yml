@@ -21,6 +21,7 @@ variables:
   ROCKY_9_IMAGE_VERSION: 20250324_add_rsync
   DEBIAN_11_IMAGE_VERSION: 20240911_remove_protobuf
   DEBIAN_12_IMAGE_VERSION: 20240916_add_coverage
+  DEBIAN_13_IMAGE_VERSION: 20250930
   MINIMAL_IMAGE_VERSION: 20240911_remove_protobuf
   UBUNTU_22_04_IMAGE_VERSION: 20240911_remove_protobuf
   UBUNTU_24_04_IMAGE_VERSION: 20240916_add_cpp-jwt
@@ -60,6 +61,7 @@ include:
   - '.gitlab-ci-files/job-linux-rocky9.yml'
   - '.gitlab-ci-files/job-linux-debian11.yml'
   - '.gitlab-ci-files/job-linux-debian12.yml'
+  - '.gitlab-ci-files/job-linux-debian13.yml'
   - '.gitlab-ci-files/job-linux-minimal.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-22-04.yml'
   - '.gitlab-ci-files/job-linux-ubuntu-24-04.yml'

@@ -1,0 +1,156 @@
+variables:
+  DEBIAN13_CMAKE_OPTIONS: -DENABLE_G729=ON -DENABLE_EKT_SERVER=ON
+
+.debian13-image:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:$DEBIAN_13_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: ${DEBIAN13_CMAKE_OPTIONS}
+
+#################################################
+# Makefile
+#################################################
+
+job-debian13-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .debian13-image
+    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+
+
+job-debian13-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .debian13-image
+    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-clang rules
+
+#################################################
+# Ninja
+#################################################
+
+job-debian13-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .debian13-image
+  variables:
+    CMAKE_OPTIONS: ${DEBIAN13_CMAKE_OPTIONS}
+
+
+job-debian13-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .debian13-image
+    - .tester-artifacts
+  variables:
+    CMAKE_OPTIONS: ${DEBIAN13_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-debian13-unit-test:
+  extends:
+    - .unit-test
+    - .debian13-image
+  needs:
+    - job-debian13-ninja-clang
+  after_script:
+    - ls -lah #default.profraw should exist
+    - llvm-profdata merge -sparse default.profraw -o default.profdata
+  artifacts:
+    when: always
+    paths:
+      - default.profdata
+      - work/lib/libflexisip.so
+      - ${LOGS_DIR}/*
+
+debian13-coverage:
+  stage: coverage 📑
+  tags: [ "docker-test-flexisip-flat" ]
+  extends:
+    - .rules-dev
+    - .debian13-image
+  needs:
+    - job-debian13-unit-test
+  variables:
+    TERM: xterm-color
+    LLVM_COV_OPTIONS: >
+      -instr-profile=default.profdata
+      include/flexisip
+      src
+      --ignore-filename-regex=cJSON
+      --ignore-filename-regex=libxsd
+      --ignore-filename-regex=linphone-sdk
+      --ignore-filename-regex=src/lib/
+      --ignore-filename-regex=src/tclap
+      --ignore-filename-regex=src/xml
+      --ignore-filename-regex=submodules
+  script:
+    - export SO_FILE=$PWD/work/lib/libflexisip.so
+    - echo "Full coverage of Flexisip library"
+    - llvm-cov show $SO_FILE $LLVM_COV_OPTIONS -use-color > flexisip_coverage_lines_full.txt
+    - echo "Display coverage by file of Flexisip library"
+    - llvm-cov report $SO_FILE $LLVM_COV_OPTIONS -use-color | tee flexisip_coverage_report_by_file.txt
+    - echo "filtering work of report to get global coverage %"
+    - cat flexisip_coverage_report_by_file.txt | grep -E "TOTAL" | grep -Po "\d+\.\d+\%" | sed -n '3p'
+    - echo "Export results in JSON format"
+    - llvm-cov export $SO_FILE $LLVM_COV_OPTIONS -format=text > flexisip_coverage_export.txt
+    - echo "Export results in Lcov format"
+    - llvm-cov export $SO_FILE $LLVM_COV_OPTIONS -format=lcov > flexisip_coverage_export.lcov
+    - lcov_cobertura flexisip_coverage_export.lcov
+  coverage: '/[0-9][0-9]\.[0-9]+\%/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - default.profdata
+      - flexisip_coverage_report_by_file.txt
+      - flexisip_coverage_lines_full.txt
+      - flexisip_coverage_export.lcov
+      - flexisip_coverage_export.txt
+      - coverage.xml
+    expire_in: 1 week
+
+#################################################
+# DEB
+#################################################
+
+job-debian13-deb:
+  extends:
+    - .job-linux-deb
+    - .debian13-image
+  needs:
+    - job: job-debian13-unit-test
+      optional: true
+      artifacts: false
+    - job: job-debian13-ninja-clang
+      optional: true
+      artifacts: false
+
+# Test installation of the DEB package and check its feature list
+job-debian13-deb-check-features:
+  stage: check-package 📤
+  tags: [ "docker-flat" ]
+  image: debian:13
+  rules:
+    - !reference [job-debian13-deb, rules]
+  needs:
+    - job: job-debian13-deb
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt update
+    - apt install -y ./build/*.deb
+    - !reference [.script-check-features, script]
+
+job-debian13-deb-deploy:
+  extends:
+    - .job-deploy
+    - .debian13-image
+  variables:
+    DISTRIB: debian
+    RELEASE: trixie
+  dependencies:
+    - job-debian13-deb
