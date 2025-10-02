@@ -31,16 +31,22 @@ Timer::Timer(su_root_t* root, su_duration_t intervalMs) {
 	mTimer = su_timer_create(su_root_task(root), intervalMs);
 	if (mTimer == nullptr) throw logic_error("fail to instantiate the timer");
 }
-
-Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) : Timer{root.getCPtr(), intervalMs} {
+Timer::Timer(su_root_t* root, NativeDuration interval) {
+	mTimer = su_timer_create(su_root_task(root), interval.count());
+	if (mTimer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
-Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs) : Timer{root->getCPtr(), intervalMs} {
-	mRoot = root;
+Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) {
+	mTimer = su_timer_create(su_root_task(root.getCPtr()), intervalMs.count());
+	if (mTimer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
-Timer::Timer(const shared_ptr<SuRoot>& root, NativeDuration intervalMs) {
-	if (mTimer = su_timer_create(root->getTask(), intervalMs.count()); !mTimer) {
+Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs)
+    : Timer{root, std::chrono::milliseconds(intervalMs)} {
+}
+
+Timer::Timer(const shared_ptr<SuRoot>& root, NativeDuration interval) {
+	if (mTimer = su_timer_create(root->getTask(), interval.count()); !mTimer) {
 		if (errno == ENOMEM) throw runtime_error("failed to create the timer (out of memory)");
 		throw invalid_argument("failed to create the timer");
 	}
