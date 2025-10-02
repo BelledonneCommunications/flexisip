@@ -60,7 +60,6 @@ std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready
 	             });
 
 	mLastActiveParams = mParams;
-	mLastReconnectRotation = {};
 	mSubSessionKeepAliveTimer.setForEver([this]() { onSubSessionKeepAliveTimer(); });
 
 	return {{*cmdSession, *subsSession}};
@@ -119,14 +118,16 @@ void RedisClient::onDisconnect(int status) {
 	}
 }
 
+std::chrono::milliseconds RedisClient::connectionRetryTimeout = 1s;
+
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::tryReconnect() {
 	if (isReady()) {
 		return {{std::get<Session::Ready>(mCmdSession.getState()),
 		         std::get<SubscriptionSession::Ready>(mSubSession.getState())}};
 	}
-	if (chrono::system_clock::now() - mLastReconnectRotation < 1s) {
+	if (chrono::system_clock::now() - mLastReconnectRotation < connectionRetryTimeout) {
 		if (!mReconnectTimer.has_value()) {
-			mReconnectTimer.emplace(mRoot.getCPtr(), 1s);
+			mReconnectTimer.emplace(mRoot.getCPtr(), connectionRetryTimeout);
 			mReconnectTimer->set([this]() { onTryReconnectTimer(); });
 		}
 		return nullopt;

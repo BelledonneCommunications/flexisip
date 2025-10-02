@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,7 @@
 #include "libhiredis-wrapper/replication/redis-client.hh"
 
 #include "utils/core-assert.hh"
+#include "utils/override-static.hh"
 #include "utils/redis-sync-access.hh"
 #include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -48,6 +49,7 @@ struct ClientListener : SessionListener {
  * Connect the RedisClient to the replica, verify that it auto-reconnects to the master node.
  */
 void autoReconnectToMaster() {
+	StaticOverride _{redis::async::RedisClient::connectionRetryTimeout, 20ms};
 	const auto& auth = auth::Legacy{.password = "There is no 55"};
 	auto redisMaster = RedisServer({.requirepass = auth.password});
 	auto redisReplica = redisMaster.createReplica();
@@ -98,17 +100,13 @@ void autoReconnectToMaster() {
 			BC_ASSERT_CPP_EQUAL(status->substr(0, expected.size()), expected);
 		});
 	}
-	asserter
-	    .iterateUpTo(
-	        1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
+	asserter.iterateUpTo(
+	            1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
 	    .assert_passed();
 
 	// Let the client auto-reconnect to the master
 	BC_ASSERT(!listener.connected);
-	asserter
-	    .iterateUpTo(
-	        6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms)
-	    .assert_passed();
+	asserter.iterateUpTo(6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms).assert_passed();
 
 	// Try sending the write command again. This time it succeeds.
 	writeCommandReturned = false;
@@ -122,9 +120,8 @@ void autoReconnectToMaster() {
 			BC_ASSERT_CPP_EQUAL(*status, "OK");
 		});
 	}
-	asserter
-	    .iterateUpTo(
-	        1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
+	asserter.iterateUpTo(
+	            1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
 	    .assert_passed();
 }
 

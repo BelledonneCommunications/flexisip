@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -168,6 +168,7 @@ void auto_connect_on_command() {
 
 void bindRetryOnBrokenConnection() {
 	StaticOverride _{RegistrarDbRedisAsync::bindRetryTimeout, 20ms};
+	StaticOverride connectionRetryTimeout{redis::async::RedisClient::connectionRetryTimeout, 10ms};
 	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
 	auto registrarBackend = dynamic_cast<const RegistrarDbRedisAsync*>(&registrar.getRegistrarBackend());
 	BC_HARD_ASSERT(registrarBackend != nullptr);
@@ -304,6 +305,7 @@ void periodic_replication_check() {
  * successfully re-subscribes, and PUBLISHes get through.
  */
 void no_perm_to_subscribe() {
+	StaticOverride _{redis::async::RedisClient::connectionRetryTimeout, 20ms};
 	auto& registrar = SUITE_SCOPE->proxyServer.getAgent()->getRegistrarDb();
 	const auto& topic = Record::Key(SipUri("sip:subscription-failed@example.org"), registrar.useGlobalDomain());
 	auto actualTopic = std::optional<Record::Key>();

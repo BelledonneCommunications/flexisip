@@ -36,6 +36,8 @@ namespace flexisip::redis::async {
  */
 class RedisClient : public SessionListener {
 public:
+	static std::chrono::milliseconds connectionRetryTimeout;
+
 	RedisClient(const sofiasip::SuRoot& root, const RedisParameters& redisParams, SoftPtr<SessionListener>&& listener);
 	RedisClient(const sofiasip::SuRoot& root, const GenericStruct* registarConf, SoftPtr<SessionListener>&& listener)
 	    : RedisClient(root, RedisParameters::fromRegistrarConf(registarConf), std::move(listener)) {};

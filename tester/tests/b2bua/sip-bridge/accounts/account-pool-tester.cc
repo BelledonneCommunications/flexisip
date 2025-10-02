@@ -29,6 +29,7 @@
 #include "tester.hh"
 #include "utils/core-assert.hh"
 #include "utils/lazy.hh"
+#include "utils/override-static.hh"
 #include "utils/server/redis-server.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
@@ -611,7 +612,7 @@ public:
 			      });
 		      }
 		      return dbAccounts;
-	      }()){};
+	      }()) {};
 
 	explicit AccountPoolConnectedToRedis(AccountCollection&& accounts,
 	                                     const vector<std::pair<std::string, std::string>>& parameters = {})
@@ -627,7 +628,7 @@ public:
 	               .registrationThrottlingRateMs = registerIntervalMs,
 	           },
 	           std::make_unique<MockAccountLoader>(dbAccounts),
-	           &sRedisServer->params){};
+	           &sRedisServer->params) {};
 
 	auto allAccountsAvailable(BcAssert<>& asserter) {
 		auto result = asserter.iterateUpTo(
@@ -662,6 +663,8 @@ public:
  */
 template <uint32_t accountCount, uint32_t registerIntervalMs>
 void accountsUpdatedOnRedisResubscribe() {
+	StaticOverride _{redis::async::RedisClient::connectionRetryTimeout, 20ms};
+
 	auto accountPool = AccountPoolConnectedToRedis<accountCount, registerIntervalMs>();
 	auto& registers = accountPool.proxy.registers;
 	auto& unregisters = accountPool.proxy.unregisters;
@@ -772,6 +775,7 @@ void accountsUpdatedOnRedisResubscribe() {
  */
 template <uint32_t accountCount, uint32_t registerIntervalMs>
 void accountsUpdatePartiallyAbortedOnRapidReload() {
+	StaticOverride _{redis::async::RedisClient::connectionRetryTimeout, 20ms};
 	auto accountPool = AccountPoolConnectedToRedis<accountCount, registerIntervalMs>();
 	auto& registers = accountPool.proxy.registers;
 	auto& unregisters = accountPool.proxy.unregisters;
@@ -895,6 +899,7 @@ void accountRegistrationOnAuthInfoUpdate() {
  */
 template <const bool authenticationEnabled>
 void authInfoDeletionOnAccountRemoval() {
+	StaticOverride _{redis::async::RedisClient::connectionRetryTimeout, 20ms};
 	TmpDir authDbDirectory{"auth"};
 	constexpr int nbAccounts{10};
 	const string domain{"example.org"};

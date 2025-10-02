@@ -56,6 +56,10 @@ declined or not answered. Currently, the server accepts all incoming calls, play
     'network' parameter is set to "0.0.0.0/0". The previous behavior was to arbitrarily select the first transport
     defined in `global/transports`.
 
+### [Fixed]
+- **Redis client:**
+  - Wait 1 second before retrying to connect when the connection to the server fails instead of retrying immediately.
+
 ### [Removed]
 - **Proxy:**
     - Old Firebase API as it is not supported anymore to send push notifications.
