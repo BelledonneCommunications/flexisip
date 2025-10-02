@@ -85,7 +85,7 @@ AccountPool::AccountPool(const std::shared_ptr<sofiasip::SuRoot>& suRoot,
 
 	if (redisConf) {
 		mRedisClient = make_unique<redis::async::RedisClient>(
-		    *mSuRoot, *redisConf, SoftPtr<redis::async::SessionListener>::fromObjectLivingLongEnough(*this));
+		    mSuRoot, *redisConf, SoftPtr<redis::async::SessionListener>::fromObjectLivingLongEnough(*this));
 
 		mRedisClient->connect();
 	} else {

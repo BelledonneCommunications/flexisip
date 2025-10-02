@@ -53,7 +53,7 @@ void autoReconnectToMaster() {
 	const auto& auth = auth::Legacy{.password = "There is no 55"};
 	auto redisMaster = RedisServer({.requirepass = auth.password});
 	auto redisReplica = redisMaster.createReplica();
-	auto root = sofiasip::SuRoot();
+	auto root = make_shared<sofiasip::SuRoot>();
 	const auto& params = RedisParameters{
 	    .domain = "127.0.0.1",
 	    .auth = auth,

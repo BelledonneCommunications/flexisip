@@ -38,9 +38,13 @@ class RedisClient : public SessionListener {
 public:
 	static std::chrono::milliseconds connectionRetryTimeout;
 
-	RedisClient(const sofiasip::SuRoot& root, const RedisParameters& redisParams, SoftPtr<SessionListener>&& listener);
-	RedisClient(const sofiasip::SuRoot& root, const GenericStruct* registarConf, SoftPtr<SessionListener>&& listener)
-	    : RedisClient(root, RedisParameters::fromRegistrarConf(registarConf), std::move(listener)) {};
+	RedisClient(const std::shared_ptr<sofiasip::SuRoot>& root,
+	            const RedisParameters& redisParams,
+	            SoftPtr<SessionListener>&& listener);
+	RedisClient(const std::shared_ptr<sofiasip::SuRoot>& root,
+	            const GenericStruct* registrarConf,
+	            SoftPtr<SessionListener>&& listener)
+	    : RedisClient(root, RedisParameters::fromRegistrarConf(registrarConf), std::move(listener)) {};
 
 	// TODO we expose tryReconnect (--> tryConnect) only, and change logs for the first connection ?
 	std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> connect();

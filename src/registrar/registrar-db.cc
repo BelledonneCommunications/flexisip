@@ -70,7 +70,7 @@ RegistrarDb::RegistrarDb(const std::shared_ptr<sofiasip::SuRoot>& root, const st
 		auto params = redis::async::RedisParameters::fromRegistrarConf(registrar);
 
 		auto notifyState = [this](bool bWritable) { this->notifyStateListener(bWritable); };
-		mBackend = make_unique<RegistrarDbRedisAsync>(*mRoot, mRecordConfig, mLocalRegExpire, params, notifyContact,
+		mBackend = make_unique<RegistrarDbRedisAsync>(mRoot, mRecordConfig, mLocalRegExpire, params, notifyContact,
 		                                              notifyState);
 		static_cast<RegistrarDbRedisAsync*>(mBackend.get())->connect();
 	}

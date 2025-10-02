@@ -28,12 +28,12 @@ namespace flexisip::redis::async {
 using namespace std;
 using namespace std::chrono;
 
-RedisClient::RedisClient(const sofiasip::SuRoot& root,
+RedisClient::RedisClient(const std::shared_ptr<sofiasip::SuRoot>& root,
                          const RedisParameters& redisParams,
                          SoftPtr<SessionListener>&& listener)
-    : mRoot{root}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RedisClient")),
+    : mRoot{*root}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RedisClient")),
       mSessionListener{std::move(listener)}, mParams(redisParams),
-      mSubSessionKeepAliveTimer{mRoot.getCPtr(), mParams.mSubSessionKeepAliveTimeout},
+      mSubSessionKeepAliveTimer{root, mParams.mSubSessionKeepAliveTimeout},
       mCmdSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
       mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {
 }

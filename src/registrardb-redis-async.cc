@@ -73,7 +73,7 @@ const Script FETCH_EXPIRING_CONTACTS_SCRIPT{
  */
 
 RegistrarDbRedisAsync::RegistrarDbRedisAsync(
-    const sofiasip::SuRoot& root,
+    const std::shared_ptr<sofiasip::SuRoot>& root,
     const Record::Config& recordConfig,
     LocalRegExpire& localRegExpire,
     const RedisParameters& params,
@@ -292,7 +292,7 @@ void RegistrarDbRedisAsync::handleBind(Reply reply, std::unique_ptr<RedisRegiste
 		    context->mRetryCount = 0;
 		    if (context->listener) context->listener->onRecordFound(context->mRecord);
 	    },
-	    [&context, root = mRoot.getCPtr()](const auto& reply) {
+	    [&context, root = mRoot](const auto& reply) {
 		    std::ostringstream log{};
 		    log << "Error updating record fs:" << context->mRecord->getKey() << " [" << context->token
 		        << "] hashmap in Redis, reply: " << reply << "\n";

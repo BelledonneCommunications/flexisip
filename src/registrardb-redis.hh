@@ -95,7 +95,7 @@ public:
 	 * indicates that the Redis subscription received an unprocessable message. This should never happen under any
 	 * circumstances, see REDISPUBSUBFORMAT.
 	 */
-	RegistrarDbRedisAsync(const sofiasip::SuRoot& root,
+	RegistrarDbRedisAsync(const std::shared_ptr<sofiasip::SuRoot>& root,
 	                      const Record::Config& recordConfig,
 	                      LocalRegExpire& localRegExpire,
 	                      const redis::async::RedisParameters& params,
@@ -156,7 +156,7 @@ private:
 	void onConnect(int status) override;
 	void onDisconnect(int status) override;
 
-	const sofiasip::SuRoot& mRoot;
+	const std::shared_ptr<sofiasip::SuRoot> mRoot;
 	const Record::Config& mRecordConfig;
 	LocalRegExpire& mLocalRegExpire;
 	std::function<void(const Record::Key&, std::optional<std::string_view>)> mNotifyContactListener;
