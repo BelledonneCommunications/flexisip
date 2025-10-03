@@ -628,7 +628,6 @@ void attendedCallTransferSuccessful() {
 			        if (call->getRemoteAddress()->getUsername() == transfereeUser) {
 				        transferTargetCallFromTransferee = ClientCall::tryFrom(std::move(call));
 				        FAIL_IF(transferTargetCallFromTransferee == nullopt);
-				        transferTargetCallFromTransferee->accept();
 				        return ASSERTION_PASSED();
 			        }
 		        }
@@ -906,6 +905,80 @@ void attendedCallTransferDeclined() {
 	    .assert_passed();
 }
 
+/*
+ * TE: Transferee
+ * TO: Transferor
+ * TT: TransferTarget
+ * ---x--> INVITE with Call-Id 'x'
+ *
+ * TE calls TO
+ * TO calls TT
+ * TO sends a REFER to TE containing the call-Id that TO has with TT
+ * TE calls TT with a 'Replaces' header containing the call-Id that TT has with TO
+ */
+
+/*
+ * FLEXISIP    B2BUA    JABIRU
+ *     TE ---1--> ---2--> TO
+ *
+ *     					  TO --3╷
+ *                        TT <--╵
+ *                                   TO sends a REFER to TE with call-ID 3
+ *     TE ---4--> ---5--> TT         TT must receive a 'Replaces' header containing call-ID 3
+ */
+void attendedCallTransferSuccessful_noBridgeForReplacementCall() {
+	attendedCallTransferSuccessful<transfereeIntern, transferorExtern, transferTExtern>();
+}
+
+/*
+ * FLEXISIP    B2BUA    JABIRU
+ *     TO <--2--- <--1--- TE
+ *
+ *     TO ---3--> ---4--> TT
+ *                                   TO sends a REFER to TE with call-ID 3
+ *     					  TE --5╷
+ *                        TT <--╵    TT must receive a 'Replaces' header containing call-ID 4
+ */
+void attendedCallTransferSuccessful_unidirectionalBridgeForReplacementCall() {
+	attendedCallTransferSuccessful<transfereeExtern, transferorIntern, transferTExtern>();
+}
+
+/*
+ * FLEXISIP    B2BUA    JABIRU
+ *     					  TE --1╷
+ *                        TO <--╵
+ *
+ *     TT <--3--- <--2--- TO
+ *                                   TO sends a REFER to TE with call-ID 2
+ *     TT <--5--- <--4--- TE         TT must receive a 'Replaces' header containing call-ID 3
+ */
+void attendedCallTransferSuccessful_unidirectionalBridgeForReplacementCallAndFromTEtoTT() {
+	attendedCallTransferSuccessful<transfereeExtern, transferorExtern, transferTIntern>();
+}
+
+void attendedCallTransferDeclined_unidirectionalBridgeForReplacementCall() {
+	attendedCallTransferDeclined<transfereeExtern, transferorIntern, transferTExtern>();
+}
+
+/*
+ * FLEXISIP    B2BUA    JABIRU
+ *     TE ---1--> ---2-->
+ *     TO <--3--- <--2---
+ *
+ *     TO ---4--> ---5-->
+ *     TT <--6--- <--5---
+ *                                   TO send a REFER to TE with call-ID 4
+ *     TE ---7--> ---8-->
+ *     TT <--9--- <--8---            TT must receive a 'Replaces' header containing call-ID 6
+ */
+void attendedCallTransferSuccessful_bidirectionalBridgeForAll() {
+	attendedCallTransferSuccessful<transfereeIntern, transferorIntern, transferTIntern>();
+}
+
+void attendedCallTransferDeclined_bidirectionalBridgeForAll() {
+	attendedCallTransferDeclined<transfereeIntern, transferorIntern, transferTIntern>();
+}
+
 TestSuite _{
     "b2bua::sip-bridge::callTransfer",
     {
@@ -927,23 +1000,13 @@ TestSuite _{
         CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorExtern, transferTIntern>)),
         CLASSY_TEST((blindCallTransferDeclined<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
 
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorIntern, transferTIntern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorIntern, transferTExtern>)),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorExtern, transferTIntern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeIntern, transferorExtern, transferTExtern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorIntern, transferTIntern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorIntern, transferTExtern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorExtern, transferTIntern>)),
-        CLASSY_TEST((attendedCallTransferSuccessful<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST(attendedCallTransferSuccessful_noBridgeForReplacementCall),
+        CLASSY_TEST(attendedCallTransferSuccessful_unidirectionalBridgeForReplacementCall),
+        CLASSY_TEST(attendedCallTransferSuccessful_unidirectionalBridgeForReplacementCallAndFromTEtoTT),
+        CLASSY_TEST(attendedCallTransferSuccessful_bidirectionalBridgeForAll),
 
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorIntern, transferTIntern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorIntern, transferTExtern>)),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorExtern, transferTIntern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeIntern, transferorExtern, transferTExtern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorIntern, transferTIntern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorIntern, transferTExtern>)).tag("skip"),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorExtern, transferTIntern>)),
-        CLASSY_TEST((attendedCallTransferDeclined<transfereeExtern, transferorExtern, transferTExtern>)).tag("skip"),
+        CLASSY_TEST(attendedCallTransferDeclined_unidirectionalBridgeForReplacementCall),
+        CLASSY_TEST(attendedCallTransferDeclined_bidirectionalBridgeForAll),
     },
 };
 } // namespace

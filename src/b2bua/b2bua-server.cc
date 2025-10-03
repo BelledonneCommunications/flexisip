@@ -90,7 +90,6 @@ bool callIsInPausedByRemoteState(const std::shared_ptr<linphone::Call>& call) {
 
 	return callHasMediaDirection(call, linphone::MediaDirection::RecvOnly);
 }
-
 } // namespace
 
 B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
@@ -191,9 +190,13 @@ void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Ca
 	if (const auto referredByAddress = call->getReferredByAddress()) {
 		outgoingCallParams->addCustomHeader("Referred-By", referredByAddress->asString());
 	}
-	// Replicate "Replaces" header if present (for call transfers).
-	if (const auto replaces = call->getRemoteParams()->getCustomHeader("Replaces"); !replaces.empty()) {
-		outgoingCallParams->addCustomHeader("Replaces", replaces);
+	// Add "Replaces" header if present (for call transfers).
+	if (auto replacesHeader = b2bua::ReplacesHeader::fromStr(call->getRemoteParams()->getCustomHeader("Replaces"))) {
+		const auto replacingCall = findPeerReplacingCall(*replacesHeader);
+		if (replacingCall) {
+			replacesHeader->update(replacingCall);
+		}
+		outgoingCallParams->addCustomHeader("Replaces", replacesHeader->str());
 	}
 
 	// Create legB and add it to the conference.
@@ -298,15 +301,10 @@ void B2buaServer::onCallStateReferred(const std::shared_ptr<linphone::Call>& cal
 	auto replacesHeader = b2bua::ReplacesHeader::fromStr(originalReferToAddress->getHeader("Replaces"));
 
 	if (replacesHeader != nullopt) /* Case: attended call transfer */ {
-		const auto replacingCall = findReplacingCallOnAttendedTransfer(*replacesHeader);
+		const auto replacingCall = findPeerReplacingCall(*replacesHeader);
 		if (replacingCall) {
-			const auto peerReplacingCall = getPeerCall(replacingCall);
-			if (peerReplacingCall) {
-				LOGD << "Found bridged call " << replacingCall << " to replace with call " << peerReplacingCall;
-
-				replacesHeader->update(peerReplacingCall);
-				if (!referToAddress) referToAddress = peerReplacingCall->getToAddress()->clone();
-			}
+			replacesHeader->update(replacingCall);
+			if (!referToAddress) referToAddress = replacingCall->getToAddress()->clone();
 		}
 
 		if (!referToAddress) referToAddress = originalReferToAddress->clone();
@@ -648,19 +646,25 @@ shared_ptr<linphone::Call> B2buaServer::getPeerCall(const shared_ptr<linphone::C
 	return peerCallEntry->second.lock();
 }
 
-shared_ptr<linphone::Call>
-B2buaServer::findReplacingCallOnAttendedTransfer(const b2bua::ReplacesHeader& replacesHeader) const {
+shared_ptr<linphone::Call> B2buaServer::findPeerReplacingCall(const b2bua::ReplacesHeader& replacesHeader) const {
 	LOGD << "Looking for calls matching " << replacesHeader;
 	for (const auto& candidate : mCore->getCalls()) {
 		if (candidate->getCallLog()->getCallId() != replacesHeader.getCallId()) continue;
 
-		const auto callIsOutgoing = candidate->getDir() == linphone::Call::Dir::Outgoing;
-		const auto candidateFromTag = callIsOutgoing ? candidate->getLocalTag() : candidate->getRemoteTag();
+		if (candidate->getDir() == linphone::Call::Dir::Outgoing) continue;
+
+		// legA
+		const auto candidateFromTag = candidate->getRemoteTag();
 		if (candidateFromTag != replacesHeader.getFromTag()) continue;
-		const auto candidateToTag = callIsOutgoing ? candidate->getRemoteTag() : candidate->getLocalTag();
+		const auto candidateToTag = candidate->getLocalTag();
 		if (candidateToTag != replacesHeader.getToTag()) continue;
 
-		return candidate;
+		// legB
+		const auto peerReplacingCall = getPeerCall(candidate);
+		if (!peerReplacingCall) return {};
+
+		LOGD << "Found bridged call " << candidate << " to replace with call " << peerReplacingCall;
+		return peerReplacingCall;
 	}
 
 	LOGD << "No suitable candidate found";

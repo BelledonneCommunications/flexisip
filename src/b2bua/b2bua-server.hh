@@ -125,8 +125,13 @@ private:
 	 */
 	std::shared_ptr<linphone::Call> getPeerCall(const std::shared_ptr<linphone::Call>& call) const;
 
-	std::shared_ptr<linphone::Call>
-	findReplacingCallOnAttendedTransfer(const b2bua::ReplacesHeader& replacesHeader) const;
+	/**
+	 * @brief Return legB call if the given call in Replace header is a legA.
+	 *
+	 * @param replacesHeader the 'Replaces' header to inspect
+	 * @return peer call legB or nullptr if the call in the 'Replace' header is already a legB or not found
+	 */
+	std::shared_ptr<linphone::Call> findPeerReplacingCall(const b2bua::ReplacesHeader& replacesHeader) const;
 
 	std::shared_ptr<ConfigManager> mConfigManager;
 	CommandLineInterface mCli;
