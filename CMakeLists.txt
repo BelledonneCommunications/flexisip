@@ -90,6 +90,7 @@ option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submod
 option(INTERNAL_JSONCPP "Build and use vendored Jsoncpp source code instead of searching for it in system libraries" OFF)
 
 cmake_dependent_option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF "ENABLE_REDIS" OFF)
+cmake_dependent_option(ENABLE_REDIS_TLS "Enable TLS connections with Redis servers. Libhiredis may need to be compiled internally, depending on the version of the library available on your system" ON "ENABLE_REDIS" OFF)
 cmake_dependent_option(ENABLE_CONFERENCE "Build conference support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)

@@ -179,7 +179,7 @@ void bindRetryOnBrokenConnection() {
 	bindParams.callId = __FUNCTION__;
 	sofiasip::Home home{};
 	auto listener = std::make_shared<SuccessfulBindListener>();
-	redis::async::SubscriptionSession keyMissListener{};
+	redis::async::SubscriptionSession keyMissListener{{}};
 	keyMissListener.connect(SUITE_SCOPE->proxyServer.getRoot()->getCPtr(), "localhost", SUITE_SCOPE->redis.port());
 	bool keyFetched = false;
 	bool subscribed = false;
@@ -359,9 +359,8 @@ void no_perm_to_subscribe() {
 	        },
 	        maxDuration)
 	    .assert_passed();
-	SUITE_SCOPE->asserter
-	    .iterateUpTo(
-	        1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
+	SUITE_SCOPE->asserter.iterateUpTo(
+	                         1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
 	    .assert_passed();
 	BC_HARD_ASSERT(actualTopic.has_value());
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);

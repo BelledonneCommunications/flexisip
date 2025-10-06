@@ -19,6 +19,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 
 #include "utils/posix-process.hh"
@@ -32,6 +33,8 @@ namespace tester {
  */
 class RedisServer {
 public:
+	enum class TlsMode { disabled, mutual, noClientAuth };
+
 	struct Params {
 		std::optional<std::uint16_t> port;
 		std::string requirepass;
@@ -39,6 +42,12 @@ public:
 			std::string host;
 			std::string port;
 		} replicaof;
+		TlsMode tlsMode;
+		struct {
+			std::string cert;
+			std::string key;
+			std::string caFile;
+		} tls;
 		std::string masterauth;
 	};
 

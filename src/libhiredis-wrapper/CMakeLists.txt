@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -21,11 +21,21 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
-		redis-async-script.cc redis-async-script.hh
-		redis-async-session.cc redis-async-session.hh
-		redis-auth.hh
-		redis-parameters.cc redis-parameters.hh
-		redis-reply.cc redis-reply.hh
-		replication/redis-client.cc replication/redis-client.hh
-		replication/redis-host.cc replication/redis-host.hh
+	async-ctx/async-ctx-creator.cc async-ctx/async-ctx-creator.hh
+	async-ctx/async-ctx-creator-interface.hh
+	async-ctx/factory.cc async-ctx/factory.hh
+	async-ctx/parameters.hh
+	redis-async-script.cc redis-async-script.hh
+	redis-async-session.cc redis-async-session.hh
+	redis-auth.hh
+	redis-parameters.cc redis-parameters.hh
+	redis-reply.cc redis-reply.hh
+	replication/redis-client.cc replication/redis-client.hh
+	replication/redis-host.cc replication/redis-host.hh
 )
+
+if(ENABLE_REDIS_TLS)
+	target_sources(flexisip PRIVATE
+		async-ctx/tls-async-ctx-creator.cc async-ctx/tls-async-ctx-creator.hh
+	)
+endif()

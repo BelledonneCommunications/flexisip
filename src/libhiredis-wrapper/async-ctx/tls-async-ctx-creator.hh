@@ -18,28 +18,30 @@
 
 #pragma once
 
-#include <chrono>
-#include <filesystem>
-#include <string>
-#include <variant>
+// Needed by hiredis_ssl.h
+#include "compat/hiredis/hiredis.h"
+#include "compat/hiredis/hiredis_ssl.h"
 
-#include "flexisip/configmanager.hh"
-
-#include "libhiredis-wrapper/async-ctx/parameters.hh"
-#include "libhiredis-wrapper/redis-auth.hh"
+#include "async-ctx-creator-interface.hh"
+#include "async-ctx-creator.hh"
+#include "parameters.hh"
 
 namespace flexisip::redis::async {
 
-struct RedisParameters {
-	std::string domain{};
-	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
-	int port = 0;
-	std::chrono::seconds mSlaveCheckTimeout{0};
-	bool useSlavesAsBackup = true;
-	std::chrono::seconds mSubSessionKeepAliveTimeout{0};
-	ConnectionParameters connectionParameters{};
+class TlsAsyncCtxCreator : public AsyncCtxCreatorInterface {
+public:
+	explicit TlsAsyncCtxCreator(const ConnectionParameters&);
+	AsyncContextPtr createAsyncCtx(const std::string_view& address, int port) override;
 
-	static RedisParameters fromRegistrarConf(GenericStruct const*);
+private:
+	struct SslContextDeleter {
+		void operator()(redisSSLContext*) noexcept;
+	};
+	using SslContextPtr = std::unique_ptr<redisSSLContext, SslContextDeleter>;
+
+	std::string mLogPrefix;
+	AsyncCtxCreator mAsyncCtxCreator{};
+	SslContextPtr mSslCtx{};
 };
 
 } // namespace flexisip::redis::async

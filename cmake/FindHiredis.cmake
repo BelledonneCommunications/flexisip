@@ -1,6 +1,6 @@
 ############################################################################
 # FindHiredis.cmake
-# Copyright (C) 2017  Belledonne Communications, Grenoble France
+# Copyright (C) 2017-2025  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -26,6 +26,7 @@
 #  HIREDIS_INCLUDE_DIRS - the libhiredis include directory
 #  HIREDIS_LIBRARIES - The libraries needed to use libhiredis
 #  HIREDIS_ASYNC_ENABLED - The found libhiredis library supports async commands
+#  HIREDIS_SSL_ENABLED - The found libhiredis library supports tls connections
 
 
 # Find out the include directory
@@ -62,6 +63,7 @@ if(HIREDIS_INCLUDE_DIRS AND HIREDIS_LIBRARIES)
 	list(APPEND CMAKE_REQUIRED_INCLUDES ${HIREDIS_INCLUDE_DIRS})
 	list(APPEND CMAKE_REQUIRED_LIBRARIES ${HIREDIS_LIBRARIES})
 	check_symbol_exists("redisAsyncCommand" "hiredis/async.h" HIREDIS_ASYNC_ENABLED)
+	check_symbol_exists("redisCreateSSLContext" "hiredis/hiredis_ssl.h" HIREDIS_SSL_ENABLED)
 	cmake_pop_check_state()
 	if(NOT HIREDIS_ASYNC_ENABLED)
 		message(FATAL_ERROR "redisAsyncCommand() not found")
@@ -83,3 +85,21 @@ if (HIREDIS_FOUND)
 endif()
 
 mark_as_advanced(HIREDIS_INCLUDE_DIRS HIREDIS_LIBRARIES HIREDIS_ASYNC_ENABLED)
+
+# Check that the ssl mode is supported
+if(ENABLE_REDIS_TLS)
+	# Find out the include directory
+	find_path(HIREDIS_SSL_INCLUDE_DIRS
+		NAMES hiredis/hiredis_ssl.h
+		PATH_SUFFIXES include
+	)
+
+	# Find out the path to the library
+	find_library(HIREDIS_SSL_LIBRARIES
+		NAMES hiredis_ssl
+	)
+
+	if(NOT HIREDIS_SSL_INCLUDE_DIRS OR NOT HIREDIS_SSL_LIBRARIES)
+		message(FATAL_ERROR "Libhiredis is not installed with SSL. Disable 'ENABLE_REDIS_TLS' or use 'INTERNAL_LIBHIREDIS'.")
+	endif()
+endif()

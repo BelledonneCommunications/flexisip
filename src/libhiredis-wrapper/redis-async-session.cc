@@ -36,6 +36,8 @@
 
 #include "flexisip/logmanager.hh"
 
+#include "compat/hiredis/async.h"
+#include "libhiredis-wrapper/async-ctx/factory.hh"
 #include "libhiredis-wrapper/redis-args-packer.hh"
 #include "libhiredis-wrapper/redis-auth.hh"
 #include "libhiredis-wrapper/redis-reply.hh"
@@ -47,8 +49,9 @@ using namespace std::string_view_literals;
 
 namespace flexisip::redis::async {
 
-Session::Session(SoftPtr<SessionListener>&& listener)
+Session::Session(const ConnectionParameters& connectionParams, SoftPtr<SessionListener>&& listener)
     : mListener(std::move(listener)), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Session")) {
+	mAsyncContextCreator = AsyncCtxCreatorFactory::makeAsyncCtxCreator(connectionParams);
 }
 
 const Session::State& Session::connect(su_root_t* sofiaRoot, const std::string_view& address, int port) {
@@ -58,11 +61,9 @@ const Session::State& Session::connect(su_root_t* sofiaRoot, const std::string_v
 			return;
 		}
 
-		ContextPtr ctx{redisAsyncConnect(address.data(), port)};
-		if (ctx == nullptr) {
-			throw std::bad_alloc{};
-		}
+		if (!mAsyncContextCreator) throw std::runtime_error{"no AsyncContextCreator"};
 
+		AsyncContextPtr ctx = mAsyncContextCreator->createAsyncCtx(address, port);
 		if (ctx->err) {
 			LOGE_CTX(mLogPrefix, "connect") << "Connection error: " << ctx->err;
 			return;
@@ -148,8 +149,8 @@ void Session::onConnect(const redisAsyncContext*, int status) {
 
 void Session::onDisconnect(const redisAsyncContext* ctx, int status) {
 	const auto* ourCtx =
-	    Match(mState).against([](const Disconnected&) -> ContextPtr::pointer { return nullptr; },
-	                          [](const auto& state) -> ContextPtr::pointer { return state.mCtx.get(); });
+	    Match(mState).against([](const Disconnected&) -> AsyncContextPtr::pointer { return nullptr; },
+	                          [](const auto& state) -> AsyncContextPtr::pointer { return state.mCtx.get(); });
 	if (ourCtx != ctx) {
 		LOGD << "Zombie context " << ctx << " is trying to call us from beyond the grave: ignore it (ours is " << ourCtx
 		     << ")";
@@ -169,7 +170,7 @@ void Session::onDisconnect(const redisAsyncContext* ctx, int status) {
 	}
 }
 
-Session::Ready::Ready(ContextPtr&& ctx) : mCtx(std::move(ctx)) {
+Session::Ready::Ready(AsyncContextPtr&& ctx) : mCtx(std::move(ctx)) {
 }
 Session::Disconnecting::Disconnecting(Ready&& prev) : mCtx(std::move(prev.mCtx)) {
 }
@@ -220,8 +221,10 @@ auto& SubscriptionSession::getSubscriptionsFrom(const redisAsyncContext* rawCont
 	return self->mSubscriptions;
 }
 
-SubscriptionSession::SubscriptionSession(SoftPtr<SessionListener>&& listener)
-    : mListener(std::move(listener)), mWrapped(SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)),
+SubscriptionSession::SubscriptionSession(const ConnectionParameters& connectionParams,
+                                         SoftPtr<SessionListener>&& listener)
+    : mListener(std::move(listener)),
+      mWrapped(connectionParams, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "SubscriptionSession")) {
 }
 
@@ -322,13 +325,8 @@ void SubscriptionSession::SubscriptionEntry::unsubscribe() {
 
 void Session::Ready::auth(std::variant<auth::ACL, auth::Legacy> credentials, CommandCallback&& callback) const {
 	command(Match(credentials)
-	            .against(
-	                [](redis::auth::Legacy legacy) -> ArgsPacker {
-		                return {"AUTH", legacy.password};
-	                },
-	                [](redis::auth::ACL acl) -> ArgsPacker {
-		                return {"AUTH", acl.user, acl.password};
-	                }),
+	            .against([](redis::auth::Legacy legacy) -> ArgsPacker { return {"AUTH", legacy.password}; },
+	                     [](redis::auth::ACL acl) -> ArgsPacker { return {"AUTH", acl.user, acl.password}; }),
 	        std::move(callback));
 }
 void SubscriptionSession::Ready::auth(std::variant<auth::ACL, auth::Legacy> credentials,
@@ -412,15 +410,6 @@ std::ostream& operator<<(std::ostream& stream, const Session::Ready& ready) {
 }
 std::ostream& operator<<(std::ostream& stream, const Session::Disconnecting& disconnecting) {
 	return stream << "Disconnecting(ctx: " << disconnecting.mCtx.get() << ")";
-}
-
-void Session::ContextDeleter::operator()(redisAsyncContext* ctx) noexcept {
-	if (ctx->c.flags & (REDIS_FREEING | REDIS_DISCONNECTING)) {
-		// The context is already halfway through freeing/disconnecting and we're probably in a disconnect callback
-		return;
-	}
-
-	redisAsyncFree(ctx);
 }
 
 bool Session::isConnected() const {

@@ -149,7 +149,7 @@ void globalSqlTest() {
 	///////// ARRANGE
 	auto proxy = ProxyServer();
 	const auto& suRoot = proxy.proxy.getRoot();
-	Session commandsSession{};
+	Session commandsSession{{}};
 	auto& ready =
 	    std::get<Session::Ready>(commandsSession.connect(suRoot->getCPtr(), "localhost", sRedisServer->redis.port()));
 	const auto core = proxy.makeB2buaCoreFromConfig();
@@ -334,7 +334,7 @@ void emptyNoRedisSqlTest() {
 void emptyThenPublishSqlTest() {
 	auto proxy = ProxyServer();
 	const auto& suRoot = proxy.proxy.getRoot();
-	Session commandsSession{};
+	Session commandsSession{{}};
 	auto& ready =
 	    std::get<Session::Ready>(commandsSession.connect(suRoot->getCPtr(), "localhost", sRedisServer->redis.port()));
 	const auto core = proxy.makeB2buaCoreFromConfig();
@@ -612,7 +612,7 @@ public:
 			      });
 		      }
 		      return dbAccounts;
-	      }()) {};
+	      }()){};
 
 	explicit AccountPoolConnectedToRedis(AccountCollection&& accounts,
 	                                     const vector<std::pair<std::string, std::string>>& parameters = {})
@@ -628,7 +628,7 @@ public:
 	               .registrationThrottlingRateMs = registerIntervalMs,
 	           },
 	           std::make_unique<MockAccountLoader>(dbAccounts),
-	           &sRedisServer->params) {};
+	           &sRedisServer->params){};
 
 	auto allAccountsAvailable(BcAssert<>& asserter) {
 		auto result = asserter.iterateUpTo(
@@ -856,7 +856,7 @@ void accountRegistrationOnAuthInfoUpdate() {
 		BC_HARD_FAIL(msg.str().c_str());
 	}
 	const auto uri = SipUri(account.getUri());
-	Session commandsSession{};
+	Session commandsSession{{}};
 	auto& ready = std::get<Session::Ready>(
 	    commandsSession.connect(accountPool.proxy.proxy.getRoot()->getCPtr(), "localhost", sRedisServer->redis.port()));
 

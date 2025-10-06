@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -43,14 +43,10 @@
 using namespace std;
 using namespace std::chrono;
 
-namespace flexisip {
-namespace tester {
-
+namespace flexisip::tester {
 uint16_t RedisServer::genPort() noexcept {
-	static auto engine = tester::random::engine();
-	static std::uniform_int_distribution<uint16_t> dist(1024, numeric_limits<uint16_t>::max());
-
-	return dist(engine);
+	static auto rand = tester::random::random();
+	return rand.integer<uint16_t>(1024, numeric_limits<uint16_t>::max()).generate();
 }
 
 process::Process RedisServer::spawn(const RedisServer::Params& params) {
@@ -58,8 +54,9 @@ process::Process RedisServer::spawn(const RedisServer::Params& params) {
 	auto argv = vector<const char*>{
 	    REDIS_SERVER_EXEC,
 	    // specify listen port
-	    "--port", port.c_str(),
-	    // disable snapshotting (persistence) to avoid polluting the test env with useless files, and avoid disk writes.
+	    "--port", params.tlsMode == TlsMode::disabled ? port.c_str() : "0",
+	    // disable snapshotting (persistence) to avoid polluting the test
+	    // env with useless files, and avoid disk writes.
 	    "--save", "",
 	    // save 5s on replica sync (affects the master node)
 	    "--repl-diskless-sync-delay", "0",
@@ -81,6 +78,16 @@ process::Process RedisServer::spawn(const RedisServer::Params& params) {
 		argv.emplace_back(params.replicaof.host.data());
 		argv.emplace_back(params.replicaof.port.data());
 	}
+	if (params.tlsMode != TlsMode::disabled) {
+		addSingleValueArg("--tls-port", port);
+		addSingleValueArg("--tls-cert-file", params.tls.cert);
+		addSingleValueArg("--tls-key-file", params.tls.key);
+		if (params.tlsMode == TlsMode::mutual) {
+			addSingleValueArg("--tls-ca-cert-file", params.tls.caFile);
+		} else if (params.tlsMode == TlsMode::noClientAuth) {
+			addSingleValueArg("--tls-auth-clients", "no"s);
+		}
+	}
 	argv.emplace_back(nullptr);
 
 	return process::Process([&argv] {
@@ -96,9 +103,11 @@ RedisServer::RedisServer(RedisServer::Params&& params)
           .port = params.port ? *params.port : genPort(),
           .requirepass = std::move(params.requirepass),
           .replicaof = std::move(params.replicaof),
+          .tlsMode = params.tlsMode,
+          .tls = std::move(params.tls),
           .masterauth = std::move(params.masterauth),
-      },
-      mDaemon(spawn(mParams)) {
+    },
+	mDaemon(spawn(mParams)){
 }
 
 void RedisServer::stop() {
@@ -181,6 +190,4 @@ RedisServer RedisServer::createReplica() {
 	    .masterauth = mParams.requirepass,
 	});
 }
-
-} // namespace tester
-} // namespace flexisip
+} // namespace flexisip::tester

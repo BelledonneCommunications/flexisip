@@ -29,15 +29,16 @@
 #include <utility>
 #include <variant>
 
+#include "async-ctx/async-ctx-creator-interface.hh"
+#include "async-ctx/parameters.hh"
 #include "compat/hiredis/async.h"
-#include "sofia-sip/su_wait.h"
-
 #include "flexisip/logmanager.hh"
-
 #include "flexisip/utils/stl-backports.hh"
 #include "redis-args-packer.hh"
 #include "redis-auth.hh"
+#include "redis-parameters.hh"
 #include "redis-reply.hh"
+#include "sofia-sip/su_wait.h"
 #include "utils/soft-ptr.hh"
 
 namespace flexisip::redis::async {
@@ -78,13 +79,6 @@ class SubscriptionSession;
 class Session final {
 	// Sealed with `final` to prevent footgun access to attributes being freed in the `onDisconnect` callback
 public:
-	// Intelligently free a raw redisAsyncContext* when hiredis would otherwise leak it.
-	// (There are cases where hiredis frees the context itself, in which case this deleter does nothing)
-	struct ContextDeleter {
-		void operator()(redisAsyncContext*) noexcept;
-	};
-	using ContextPtr = std::unique_ptr<redisAsyncContext, ContextDeleter>;
-
 	using CommandCallback = stl_backports::move_only_function<void(Session&, Reply)>;
 
 	// This session is not connected. You must call `connect()` before being able to do anything with it.
@@ -106,7 +100,7 @@ public:
 		// https://redis.io/commands/auth/
 		void auth(std::variant<auth::ACL, auth::Legacy>, CommandCallback&& callback) const;
 		// Send any kind of command, except subscription-related commands (for which you should use a
-		// SusbscriptionSession).
+		// SubscriptionSession).
 		// The `callback` will be called exactly once, with the reply from the Redis server (or `reply::Disconnected` if
 		// the session was forcefully disconnected before the command received a reply)
 		void command(const ArgsPacker& args, CommandCallback&& callback) const;
@@ -135,13 +129,13 @@ public:
 		}
 
 	private:
-		explicit Ready(ContextPtr&&);
+		explicit Ready(AsyncContextPtr&&);
 
 		// Possible error cases: Out of Memory, context disconnecting or freeing, UNSUBSCRIBE called on a context that
 		// is not subscribed
 		[[nodiscard]] int command(const ArgsPacker&, void* cbData, redisCallbackFn* callback) const;
 
-		ContextPtr mCtx;
+		AsyncContextPtr mCtx;
 	};
 
 	// This session is asynchronously disconnecting. It is still connected to Redis and will wait for a reply to all
@@ -156,12 +150,12 @@ public:
 
 		void disconnect();
 
-		ContextPtr mCtx;
+		AsyncContextPtr mCtx;
 	};
 
 	using State = std::variant<Disconnected, Ready, Disconnecting>;
 
-	Session(SoftPtr<SessionListener>&& = {});
+	explicit Session(const ConnectionParameters&, SoftPtr<SessionListener>&& = {});
 
 	const State& getState() const;
 	// Shortcut to `std::get_if<T>(&session.getState())`.
@@ -196,7 +190,9 @@ private:
 	void onDisconnect(const redisAsyncContext*, int status);
 
 	std::string mLogPrefix{};
-	// Must be the last member of self, to be destructed first. Destructing the ContextPtr calls onDisconnect
+	std::unique_ptr<AsyncCtxCreatorInterface> mAsyncContextCreator{};
+
+	// Must be the last member of self, to be destructed first. Destructing the AsyncContextPtr calls onDisconnect
 	// synchronously, which still needs access to the rest of self.
 	State mState{Disconnected()};
 };
@@ -323,7 +319,7 @@ public:
 
 	using State = std::variant<Session::Disconnected, Ready, Session::Disconnecting>;
 
-	SubscriptionSession(SoftPtr<SessionListener>&& = {});
+	SubscriptionSession(const ConnectionParameters& connectionParams, SoftPtr<SessionListener>&& = {});
 
 	template <typename T>
 	const T* tryGetState() const {

@@ -20,11 +20,12 @@
 #include <chrono>
 
 #include "redis-client.hh"
+
+#include "exceptions/bad-configuration.hh"
 #include "utils/string-utils.hh"
 #include "utils/variant-utils.hh"
 
 namespace flexisip::redis::async {
-
 using namespace std;
 using namespace std::chrono;
 
@@ -34,13 +35,16 @@ RedisClient::RedisClient(const std::shared_ptr<sofiasip::SuRoot>& root,
     : mRoot{*root}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RedisClient")),
       mSessionListener{std::move(listener)}, mParams(redisParams),
       mSubSessionKeepAliveTimer{root, mParams.mSubSessionKeepAliveTimeout},
-      mCmdSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
-      mSubSession{SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {
+      mCmdSession{mParams.connectionParameters, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)},
+      mSubSession{mParams.connectionParameters, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {
 }
 
 std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> RedisClient::connect() {
-	LOGI << "Connecting to Redis server tcp://" << mParams.domain << ":" << mParams.port << " ...";
+	LOGI << "Connecting to Redis server "
+	     << (mParams.connectionParameters.connectionType == ConnectionType::tcp ? "tcp" : "tls") << "://"
+	     << mParams.domain << ":" << mParams.port << " ...";
 	const Session::Ready* cmdSession = nullptr;
+
 	auto& cmdState = mCmdSession.connect(mRoot.getCPtr(), mParams.domain, mParams.port);
 	if ((cmdSession = std::get_if<Session::Ready>(&cmdState)) == nullptr) return nullopt;
 	LOGD << mCmdSession.getLogPrefix() << " - Command session created";

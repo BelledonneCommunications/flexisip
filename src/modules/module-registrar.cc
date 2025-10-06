@@ -502,6 +502,33 @@ void ModuleRegistrar::declareConfig(GenericStruct& moduleConfig) {
 	    },
 	    {
 	        String,
+	        "redis-connection",
+	        "Type of connection that will be used to connect to the redis server.\n"
+	        "Possible values are: 'tcp', 'tls-server-auth' or 'tls-mutual'.\n\n"
+	        "If the connection is not 'tcp', 'redis-tls-cafile' MUST be set.\n"
+	        "If the connection is 'tls-mutual', both 'redis-tls-certificate' and 'redis-tls-key' MUST be set.",
+	        "tcp",
+	    },
+	    {
+	        String,
+	        "redis-tls-certificate",
+	        "Path to a TLS certificate which will be used to connect to the redis server.",
+	        "",
+	    },
+	    {
+	        String,
+	        "redis-tls-key",
+	        "Path to a TLS key which will be used to connect to the redis server.",
+	        "",
+	    },
+	    {
+	        String,
+	        "redis-tls-cafile",
+	        "Path to a TLS certificate authority file which will be used to connect to the redis server.",
+	        "",
+	    },
+	    {
+	        String,
 	        "service-route",
 	        "Sequence of proxies (space-separated) where requests will be redirected through (RFC3608)",
 	        "",

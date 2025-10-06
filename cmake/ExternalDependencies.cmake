@@ -41,7 +41,6 @@ if(ENABLE_REDIS AND INTERNAL_LIBHIREDIS)
 		set(ENABLE_ASYNC_TESTS OFF)
 
 		add_subdirectory("submodules/externals/hiredis")
-		target_compile_definitions(hiredis INTERFACE "INTERNAL_LIBHIREDIS")
 	endfunction()
 	add_hiredis()
 endif()

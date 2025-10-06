@@ -44,7 +44,7 @@ public:
 	RedisClient(const std::shared_ptr<sofiasip::SuRoot>& root,
 	            const GenericStruct* registrarConf,
 	            SoftPtr<SessionListener>&& listener)
-	    : RedisClient(root, RedisParameters::fromRegistrarConf(registrarConf), std::move(listener)) {};
+	    : RedisClient(root, RedisParameters::fromRegistrarConf(registrarConf), std::move(listener)){};
 
 	// TODO we expose tryReconnect (--> tryConnect) only, and change logs for the first connection ?
 	std::optional<std::tuple<const Session::Ready&, const SubscriptionSession::Ready&>> connect();
@@ -114,8 +114,8 @@ private:
 	std::chrono::system_clock::time_point mLastReconnectRotation{};
 
 	// Last members so they are destructed first and all other fields remain valid.
-	Session mCmdSession{};
-	SubscriptionSession mSubSession{};
+	Session mCmdSession;
+	SubscriptionSession mSubSession;
 };
 
 } // namespace flexisip::redis::async

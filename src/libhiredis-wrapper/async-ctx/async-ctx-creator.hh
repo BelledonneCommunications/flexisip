@@ -18,28 +18,17 @@
 
 #pragma once
 
-#include <chrono>
-#include <filesystem>
-#include <string>
-#include <variant>
-
-#include "flexisip/configmanager.hh"
-
-#include "libhiredis-wrapper/async-ctx/parameters.hh"
-#include "libhiredis-wrapper/redis-auth.hh"
+#include "async-ctx-creator-interface.hh"
 
 namespace flexisip::redis::async {
 
-struct RedisParameters {
-	std::string domain{};
-	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
-	int port = 0;
-	std::chrono::seconds mSlaveCheckTimeout{0};
-	bool useSlavesAsBackup = true;
-	std::chrono::seconds mSubSessionKeepAliveTimeout{0};
-	ConnectionParameters connectionParameters{};
+class AsyncCtxCreator : public AsyncCtxCreatorInterface {
+public:
+	AsyncCtxCreator();
+	AsyncContextPtr createAsyncCtx(const std::string_view& address, int port) override;
 
-	static RedisParameters fromRegistrarConf(GenericStruct const*);
+private:
+	std::string mLogPrefix{};
 };
 
 } // namespace flexisip::redis::async

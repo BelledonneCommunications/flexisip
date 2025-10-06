@@ -21,6 +21,8 @@ Group changes to describe their impact on the project, as follows:
     - New SIP URI parameter `network` for transports defined in `global/transports` to instruct Flexisip which
       transport to use to correctly route requests to destinations. See the [configuration reference guide] for more
       information.
+    - **Registrar:**
+      - Add TLS support for connecting to Redis servers.
     - **Router:** 
       - Add call forwarding support to a voicemail server:
         - New parameter `voicemail-server` to indicate the SIP URI of the voicemail server to which calls should be

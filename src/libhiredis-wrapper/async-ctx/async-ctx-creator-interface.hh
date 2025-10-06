@@ -18,28 +18,32 @@
 
 #pragma once
 
-#include <chrono>
-#include <filesystem>
+#include <memory>
 #include <string>
-#include <variant>
 
-#include "flexisip/configmanager.hh"
-
-#include "libhiredis-wrapper/async-ctx/parameters.hh"
-#include "libhiredis-wrapper/redis-auth.hh"
+#include "compat/hiredis/async.h"
 
 namespace flexisip::redis::async {
 
-struct RedisParameters {
-	std::string domain{};
-	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
-	int port = 0;
-	std::chrono::seconds mSlaveCheckTimeout{0};
-	bool useSlavesAsBackup = true;
-	std::chrono::seconds mSubSessionKeepAliveTimeout{0};
-	ConnectionParameters connectionParameters{};
+// Intelligently free a raw redisAsyncContext* when hiredis would otherwise leak it.
+// (There are cases where hiredis frees the context itself, in which case this deleter does nothing)
+struct ContextDeleter {
+	void operator()(redisAsyncContext* ctx) noexcept {
+		if (ctx->c.flags & (REDIS_FREEING | REDIS_DISCONNECTING)) {
+			// The context is already halfway through freeing/disconnecting and we're probably in a disconnect
+			// callback
+			return;
+		}
 
-	static RedisParameters fromRegistrarConf(GenericStruct const*);
+		redisAsyncFree(ctx);
+	}
+};
+using AsyncContextPtr = std::unique_ptr<redisAsyncContext, ContextDeleter>;
+class AsyncCtxCreatorInterface {
+public:
+	virtual ~AsyncCtxCreatorInterface() = default;
+
+	virtual AsyncContextPtr createAsyncCtx(const std::string_view& address, int port) = 0;
 };
 
 } // namespace flexisip::redis::async

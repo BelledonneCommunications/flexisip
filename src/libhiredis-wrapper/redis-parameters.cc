@@ -18,11 +18,54 @@
 
 #include "redis-parameters.hh"
 
-#include <exception>
+#include "async-ctx/factory.hh"
+#include "exceptions/bad-configuration.hh"
 
 namespace flexisip::redis::async {
 
 RedisParameters RedisParameters::fromRegistrarConf(GenericStruct const* const registarConf) {
+	const auto* connectionParam = registarConf->get<ConfigString>("redis-connection");
+	const auto connectionStr = connectionParam->read();
+	ConnectionType connection;
+
+	if (!AsyncCtxCreatorFactory::isTlsAllowed() && connectionStr != "tcp") {
+		throw BadConfigurationValue{connectionParam,
+		                            "unsupported connection type, Flexisip was compiled without 'ENABLE_REDIS_TLS'."};
+	}
+
+	if (connectionStr == "tcp") {
+		connection = ConnectionType::tcp;
+	} else if (connectionStr == "tls-server-auth") {
+		connection = ConnectionType::serverSideTls;
+	} else if (connectionStr == "tls-mutual") {
+		connection = ConnectionType::mutualTls;
+	} else {
+		throw BadConfigurationValue{connectionParam};
+	}
+
+	const auto* certParam = registarConf->get<ConfigString>("redis-tls-certificate");
+	const auto* keyParam = registarConf->get<ConfigString>("redis-tls-key");
+	const auto* caFileParam = registarConf->get<ConfigString>("redis-tls-cafile");
+	const auto tlsCert = certParam->read();
+	const auto tlsKey = keyParam->read();
+	const auto caFile = caFileParam->read();
+	if (connection != ConnectionType::tcp and caFile.empty())
+		throw BadConfigurationWithHelp{connectionParam, "if '" + connectionParam->getCompleteName() +
+		                                                    "' is not set to 'tcp', '" +
+		                                                    caFileParam->getCompleteName() + "' MUST be set."};
+	if (connection == ConnectionType::mutualTls and (tlsCert.empty() or tlsKey.empty() or caFile.empty()))
+		throw BadConfigurationWithHelp{connectionParam, "if '" + connectionParam->getCompleteName() +
+		                                                    "' is enabled, '" + certParam->getCompleteName() + "', '" +
+		                                                    keyParam->getCompleteName() + "' and '" +
+		                                                    caFileParam->getCompleteName() + "' MUST be set."};
+
+	const ConnectionParameters connectionParams = {
+	    .connectionType = connection,
+	    .tlsCert = tlsCert,
+	    .tlsKey = tlsKey,
+	    .tlsCaFile = caFile,
+	};
+
 	return RedisParameters{
 	    .domain = registarConf->get<ConfigString>("redis-server-domain")->read(),
 	    .auth = [&registarConf]() -> decltype(auth) {
@@ -47,9 +90,10 @@ RedisParameters RedisParameters::fromRegistrarConf(GenericStruct const* const re
 		        auto* param = registarConf->get<ConfigDuration<std::chrono::seconds>>(
 		            "redis-subscription-keep-alive-check-period");
 		        auto timeout = std::chrono::duration_cast<std::chrono::seconds>(param->read());
-		        if (timeout.count() <= 0) throw std::runtime_error{param->getCompleteName() + " must be positive"};
+		        if (timeout.count() <= 0) throw BadConfigurationValue{param, "parameter must be positive"};
 		        return timeout;
 	        }(),
+	    .connectionParameters = connectionParams,
 	};
 }
 

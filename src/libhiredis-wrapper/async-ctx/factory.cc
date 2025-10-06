@@ -16,30 +16,26 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "factory.hh"
 
-#include <chrono>
-#include <filesystem>
-#include <string>
-#include <variant>
-
-#include "flexisip/configmanager.hh"
-
-#include "libhiredis-wrapper/async-ctx/parameters.hh"
-#include "libhiredis-wrapper/redis-auth.hh"
+#include "async-ctx-creator.hh"
+#if ENABLE_REDIS_TLS
+#include "tls-async-ctx-creator.hh"
+#endif
+#include "parameters.hh"
 
 namespace flexisip::redis::async {
+std::unique_ptr<AsyncCtxCreatorInterface>
+AsyncCtxCreatorFactory::makeAsyncCtxCreator(const ConnectionParameters& params) {
+#if ENABLE_REDIS_TLS
+	if (params.connectionType != ConnectionType::tcp) return std::make_unique<TlsAsyncCtxCreator>(params);
+#endif
+	std::ignore = params;
+	return std::make_unique<AsyncCtxCreator>();
+}
 
-struct RedisParameters {
-	std::string domain{};
-	std::variant<redis::auth::None, redis::auth::Legacy, redis::auth::ACL> auth{};
-	int port = 0;
-	std::chrono::seconds mSlaveCheckTimeout{0};
-	bool useSlavesAsBackup = true;
-	std::chrono::seconds mSubSessionKeepAliveTimeout{0};
-	ConnectionParameters connectionParameters{};
-
-	static RedisParameters fromRegistrarConf(GenericStruct const*);
-};
+bool AsyncCtxCreatorFactory::isTlsAllowed() {
+	return ENABLE_REDIS_TLS;
+}
 
 } // namespace flexisip::redis::async

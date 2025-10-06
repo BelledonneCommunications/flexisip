@@ -281,6 +281,12 @@ if(ENABLE_TRANSCODER)
 	)
 endif()
 
+if(ENABLE_REDIS_TLS)
+	target_sources(flexisip_tester PRIVATE
+		tests/libhiredis-wrapper/replication/redis-tls-client-tester.cc
+	)
+endif()
+
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
 	Boost::system
@@ -298,6 +304,10 @@ target_link_libraries(flexisip_tester PRIVATE
 	hiredis::hiredis
 	XercesC::XercesC
 )
+
+if(ENABLE_REDIS_TLS)
+	target_link_libraries(flexisip_tester PRIVATE hiredis_ssl)
+endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)

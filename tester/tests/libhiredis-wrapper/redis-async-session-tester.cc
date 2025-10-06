@@ -48,7 +48,6 @@ struct SuiteScope {
 };
 
 std::optional<SuiteScope> SUITE_SCOPE;
-
 } // namespace
 
 struct TestSessionListener : redis::async::SessionListener {
@@ -63,7 +62,8 @@ struct TestSessionListener : redis::async::SessionListener {
 void commandSession_connectThenSendCommand() {
 	auto& asserter = SUITE_SCOPE->asserter;
 	TestSessionListener listener{};
-	redis::async::Session session{SoftPtr<redis::async::SessionListener>::fromObjectLivingLongEnough(listener)};
+
+	redis::async::Session session{{}, SoftPtr<redis::async::SessionListener>::fromObjectLivingLongEnough(listener)};
 	BC_ASSERT_TRUE(std::holds_alternative<redis::async::Session::Disconnected>(session.getState()));
 
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
@@ -88,7 +88,7 @@ void commandSession_connectThenSendCommand() {
 void commandSession_cleanDisconnectFinishesPendingCommands() {
 	auto& asserter = SUITE_SCOPE->asserter;
 	TestSessionListener listener{};
-	redis::async::Session session{SoftPtr<redis::async::SessionListener>::fromObjectLivingLongEnough(listener)};
+	redis::async::Session session{{}, SoftPtr<redis::async::SessionListener>::fromObjectLivingLongEnough(listener)};
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
 	BC_HARD_ASSERT(ready != nullptr);
 	BC_ASSERT_TRUE(asserter.iterateUpTo(1, [&connected = listener.connected]() { return connected; }));
@@ -111,7 +111,7 @@ void commandSession_cleanDisconnectFinishesPendingCommands() {
 
 void commandSession_earlyCommand() {
 	auto& asserter = SUITE_SCOPE->asserter;
-	redis::async::Session session{};
+	redis::async::Session session{{}};
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
 	BC_HARD_ASSERT(ready != nullptr);
 	BC_ASSERT_FALSE(ready->connected()); // Not connected yet
@@ -129,7 +129,7 @@ void commandSession_earlyCommand() {
 }
 
 void commandSession_connectIsIdempotent() {
-	redis::async::Session session{};
+	redis::async::Session session{{}};
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
 	BC_HARD_ASSERT(ready != nullptr);
 
@@ -139,7 +139,7 @@ void commandSession_connectIsIdempotent() {
 }
 
 void commandSession_cannotSendSubscriptionCommands() {
-	redis::async::Session session{};
+	redis::async::Session session{{}};
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
 	BC_HARD_ASSERT(ready != nullptr);
 
@@ -166,7 +166,7 @@ void commandSession_cannotSendSubscriptionCommands() {
 }
 
 void commandSession_exceptionInCallback() {
-	redis::async::Session session{};
+	redis::async::Session session{{}};
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
 	BC_HARD_ASSERT(ready != nullptr);
 	bool returned = false;
@@ -181,7 +181,7 @@ void commandSession_exceptionInCallback() {
 }
 
 void commandSession_destructionBeforeConnection() {
-	redis::async::Session session{};
+	redis::async::Session session{{}};
 	auto* ready = std::get_if<redis::async::Session::Ready>(&SUITE_SCOPE->connect(session));
 	BC_HARD_ASSERT(ready != nullptr);
 	BC_ASSERT(!ready->connected());
@@ -190,7 +190,7 @@ void commandSession_destructionBeforeConnection() {
 }
 
 void subscriptionsSession_exceptionInCallback() {
-	redis::async::SubscriptionSession subscriptionsSession{};
+	redis::async::SubscriptionSession subscriptionsSession{{}};
 	auto* subsReady = std::get_if<decltype(subscriptionsSession)::Ready>(&SUITE_SCOPE->connect(subscriptionsSession));
 	BC_HARD_ASSERT(subsReady != nullptr);
 	bool called = false;
@@ -208,8 +208,8 @@ void subscriptionsSession_exceptionInCallback() {
 }
 
 void subscriptionsSession_autoReSub() {
-	redis::async::Session commandsSession{};
-	redis::async::SubscriptionSession subscriptionsSession{};
+	redis::async::Session commandsSession{{}};
+	redis::async::SubscriptionSession subscriptionsSession{{}};
 	auto* commands = std::get_if<decltype(commandsSession)::Ready>(&SUITE_SCOPE->connect(commandsSession));
 	BC_HARD_ASSERT(commands != nullptr);
 	auto* subscriptions =
@@ -257,7 +257,7 @@ void subscriptionsSession_autoReSub() {
 
 void subscriptionsSession_subscriptionFreedOnUnsubscribe() {
 	static constexpr std::string_view topic{"subscription freed on unsubscribe"};
-	redis::async::SubscriptionSession subscriptionsSession{};
+	redis::async::SubscriptionSession subscriptionsSession{{}};
 	auto* subsReady = std::get_if<decltype(subscriptionsSession)::Ready>(&SUITE_SCOPE->connect(subscriptionsSession));
 	BC_HARD_ASSERT(subsReady != nullptr);
 	auto subscriptions = subsReady->subscriptions();
@@ -282,7 +282,7 @@ void subscriptionsSession_subscriptionFreedOnUnsubscribe() {
 }
 
 void subscriptionsSession_ping() {
-	redis::async::SubscriptionSession subscriptionsSession{};
+	redis::async::SubscriptionSession subscriptionsSession{{}};
 	auto* subsReady = std::get_if<decltype(subscriptionsSession)::Ready>(&SUITE_SCOPE->connect(subscriptionsSession));
 	BC_HARD_ASSERT(subsReady != nullptr);
 	bool called = false;

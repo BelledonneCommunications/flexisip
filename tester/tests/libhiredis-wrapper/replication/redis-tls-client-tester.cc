@@ -20,7 +20,6 @@
 
 #include "tester.hh"
 #include "utils/core-assert.hh"
-#include "utils/override-static.hh"
 #include "utils/redis-sync-access.hh"
 #include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -46,72 +45,57 @@ struct ClientListener : SessionListener {
 	}
 };
 
-/* Setup 2 Redis servers with authentication (1 master, 1 replica)
- * Connect the RedisClient to the replica, verify that it auto-reconnects to the master node.
+/**
+ * Check if RedisClient can connect to a Redis server using TLS connection
+ *
+ * There are two modes possible:
+ * - Mutual TLS:	Both the client and the server need to use a certificate and key
+ * - NoClientAuth:	Only the server needs to authentify itself
  */
-void autoReconnectToMaster() {
-	StaticOverride _{redis::async::RedisClient::connectionRetryTimeout, 20ms};
+template <const RedisServer::TlsMode tlsMode>
+void tlsConnection() {
+	const std::string certFile = bcTesterRes("cert/redis/redis.crt");
+	const std::string keyFile = bcTesterRes("cert/redis/redis.key");
+	const std::string caFile = bcTesterRes("cert/redis/ca.crt");
+
 	const auto& auth = auth::Legacy{.password = "There is no 55"};
-	auto redisMaster = RedisServer({.requirepass = auth.password});
-	auto redisReplica = redisMaster.createReplica();
+	auto redisMaster = RedisServer({
+	    .requirepass = auth.password,
+	    .tlsMode = tlsMode,
+	    .tls =
+	        {
+	            .cert = certFile,
+	            .key = keyFile,
+	            .caFile = tlsMode == RedisServer::TlsMode::mutual ? caFile : "",
+	        },
+	});
 	auto root = make_shared<sofiasip::SuRoot>();
+
+	const ConnectionParameters connectionParams{
+	    .connectionType =
+	        tlsMode == RedisServer::TlsMode::mutual ? ConnectionType::mutualTls : ConnectionType::serverSideTls,
+	    .tlsCert = tlsMode == RedisServer::TlsMode::mutual ? certFile : "",
+	    .tlsKey = tlsMode == RedisServer::TlsMode::mutual ? keyFile : "",
+	    .tlsCaFile = caFile,
+	};
 	const auto& params = RedisParameters{
 	    .domain = "127.0.0.1",
 	    .auth = auth,
-	    .port = redisReplica.port(),
+	    .port = redisMaster.port(),
 	    .mSlaveCheckTimeout = 0xbeads,
 	    .mSubSessionKeepAliveTimeout = 60s,
+	    .connectionParameters = connectionParams,
 	};
 	auto listener = ClientListener();
 	auto client = RedisClient(root, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(listener));
 	auto asserter = CoreAssert(root);
 	auto writeCommandReturned = false;
-	{ // Wait for replica to connect to master node
-		auto controlSession = RedisSyncContext(redisConnect("127.0.0.1", params.port));
-		const auto& response = controlSession.command("AUTH %s", auth.password.c_str());
-		BC_HARD_ASSERT_CPP_EQUAL(response->type, REDIS_REPLY_STATUS);
-		BC_HARD_ASSERT_CPP_EQUAL(response->str, "OK"sv);
-		std::ignore = asserter
-		                  .iterateUpTo(
-		                      10,
-		                      [&controlSession] {
-			                      const auto& response = controlSession.command("INFO replication");
-			                      FAIL_IF(response->type != REDIS_REPLY_STRING);
-			                      const auto& info = string_view(response->str);
-			                      constexpr auto fieldName = "master_link_status:"sv;
-			                      const auto index = info.find(fieldName);
-			                      FAIL_IF(index == info.npos);
-			                      constexpr auto expectedStatus = "up"sv;
-			                      return LOOP_ASSERTION(info.substr(index + fieldName.size(), expectedStatus.size()) ==
-			                                            expectedStatus);
-		                      },
-		                      200ms)
-		                  .assert_passed();
-	}
 
-	// Send write command early. It will reach the replica before the client gets a chance to reconnect to the master
-	{
-		const auto* ready = client.tryGetCmdSession();
-		BC_HARD_ASSERT(ready != nullptr);
-		ready->command({"SET", "stub-key", "stub-value"}, [&writeCommandReturned](const auto&, Reply reply) {
-			writeCommandReturned = true;
-			const auto* status = std::get_if<reply::Error>(&reply);
-			BC_HARD_ASSERT(status != nullptr);
-			constexpr auto expected = "READONLY"sv;
-			BC_ASSERT_CPP_EQUAL(status->substr(0, expected.size()), expected);
-		});
-	}
-	std::ignore =
-	    asserter.iterateUpTo(
-	                1, [&writeCommandReturned]() { return LOOP_ASSERTION(writeCommandReturned); }, 100ms)
-	        .assert_passed();
-
-	// Let the client auto-reconnect to the master
 	BC_ASSERT(!listener.connected);
+
+	client.connect();
 	std::ignore =
 	    asserter.iterateUpTo(6, [&listener]() { return LOOP_ASSERTION(listener.connected); }, 200ms).assert_passed();
-
-	// Try sending the write command again. This time it succeeds.
 	writeCommandReturned = false;
 	{
 		const auto* ready = client.tryGetCmdSession();
@@ -129,9 +113,10 @@ void autoReconnectToMaster() {
 	        .assert_passed();
 }
 
-TestSuite _("redis::async::RedisClient",
+TestSuite _("redis::async::RedisClientTls",
             {
-                CLASSY_TEST(autoReconnectToMaster),
+                CLASSY_TEST(tlsConnection<RedisServer::TlsMode::mutual>),
+                CLASSY_TEST(tlsConnection<RedisServer::TlsMode::noClientAuth>),
             });
 
 } // namespace

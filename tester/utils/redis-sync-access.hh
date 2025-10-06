@@ -19,7 +19,7 @@ namespace tester {
 class RedisSyncReply {
 public:
 	RedisSyncReply(redisReply* rep) : mReply(rep) {
-		BC_ASSERT_PTR_NOT_NULL(rep);
+		BC_HARD_ASSERT_CPP_NOT_EQUAL(rep, nullptr);
 	}
 	~RedisSyncReply() {
 		freeReplyObject(mReply);
