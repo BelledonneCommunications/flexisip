@@ -624,7 +624,7 @@ static void tlsTimeoutTest() {
 	FirebaseClient::FIREBASE_PORT = "3000";
 	FirebaseClient firebaseClient{*root, ""};
 	firebaseClient.enableInsecureTestMode();
-	firebaseClient.getHttp2Client()->getConnection()->setTimeout(500ms);
+	firebaseClient.getHttp2Client()->setConnectionTimeout(500ms);
 
 	// Minimal request creation, values don't matter for this test
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");
