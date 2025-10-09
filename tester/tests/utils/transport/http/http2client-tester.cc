@@ -26,7 +26,6 @@
 #include <sstream>
 #include <string>
 
-#include "bctoolbox/tester.h"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "utils/core-assert.hh"
 #include "utils/http-mock/http-mock.hh"
@@ -149,22 +148,22 @@ void reconnectAfterConnectionResetByPeer() {
 	sofiasip::SuRoot root{};
 	CoreAssert asserter{root};
 
-	const auto onError = [&root](const auto&) { root.quit(); };
-	const auto onResponse = [&root](const auto&, const auto&) { root.quit(); };
 	const auto client = Http2Client::make(root, "127.0.0.1", serverPort);
 	client->setRequestTimeout(5s);
 	client->enableInsecureTestMode();
 
-	const auto& conn = client->getConnection();
 	const auto func = [&server] {
 		return server.runServerForTest("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n", "stub-response", 0ms);
 	};
+
+	const auto onError = [](const auto&) {};
+	const auto onResponse = [](const auto&, const auto&) {};
 
 	// The first request works as expected.
 	{
 		auto result = async(launch::async, func);
 		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
-		asserter.iterateUpTo(0x20, [&conn] { return LOOP_ASSERTION(conn->isConnected()); }, 2s).assert_passed();
+		asserter.iterateUpTo(0x20, [&client] { return LOOP_ASSERTION(client->isConnected()); }, 2s).assert_passed();
 		BC_HARD_ASSERT(result.wait_for(2s) == std::future_status::ready);
 		BC_ASSERT(result.get());
 	}
@@ -178,12 +177,12 @@ void reconnectAfterConnectionResetByPeer() {
 		auto result = async(launch::async, func);
 		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
 
-		asserter.iterateUpTo(0x20, [&conn] { return LOOP_ASSERTION(!conn->isConnected()); }, 2s).assert_passed();
+		asserter.iterateUpTo(0x20, [&client] { return LOOP_ASSERTION(!client->isConnected()); }, 2s).assert_passed();
 
 		BC_HARD_ASSERT(result.wait_for(500ms) == std::future_status::timeout);
 
 		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
-		asserter.iterateUpTo(0x20, [&conn] { return LOOP_ASSERTION(conn->isConnected()); }, 2s).assert_passed();
+		asserter.iterateUpTo(0x20, [&client] { return LOOP_ASSERTION(client->isConnected()); }, 2s).assert_passed();
 
 		BC_HARD_ASSERT(result.wait_for(2s) == std::future_status::ready);
 		BC_ASSERT(result.get());

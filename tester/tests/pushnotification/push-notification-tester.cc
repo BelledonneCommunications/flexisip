@@ -451,7 +451,7 @@ static void tlsTimeoutTest() {
 	               root, FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
 	               FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json", 15s, 30s)};
 	firebaseClient.enableInsecureTestMode();
-	firebaseClient.getHttp2Client()->getConnection()->setTimeout(500ms);
+	firebaseClient.getHttp2Client()->setConnectionTimeout(500ms);
 
 	// Minimal request creation, values don't matter for this test
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "");

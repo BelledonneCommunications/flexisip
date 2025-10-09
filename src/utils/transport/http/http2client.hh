@@ -127,8 +127,19 @@ public:
 		mConn->enableInsecureTestMode();
 	}
 
-	const std::unique_ptr<TlsConnection>& getConnection() const {
-		return mConn;
+	/**
+	 * Return true if the client is connected to a server.
+	 */
+	bool isConnected() const {
+		return mState == State::Connected;
+	}
+
+	/**
+	 * Set connection timeout used when connecting to the other end.
+	 * @param timeout new value
+	 */
+	void setConnectionTimeout(const std::chrono::milliseconds& timeout) {
+		mConn->setTimeout(timeout);
 	}
 
 	/**
