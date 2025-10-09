@@ -48,6 +48,11 @@ struct PresenceStats {
 	std::shared_ptr<StatPair> countExternalListSub;
 };
 
+enum class CompatibilityMode {
+	LEGACY,
+	RFC
+};
+
 class PresenceServer : public ServiceServer {
 public:
 	PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
@@ -98,6 +103,8 @@ private:
 	int mDefaultExpires;
 	std::string mBypass;
 	std::string mRequest;
+	CompatibilityMode mCompatibilityMode;
+	std::string mPresenceEvent;
 #if ENABLE_SOCI
 	soci::connection_pool* mConnPool = nullptr;
 #endif

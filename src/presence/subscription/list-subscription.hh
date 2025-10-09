@@ -24,9 +24,8 @@
 #include <belle-sip/mainloop.h>
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/event.hh"
-#include "flexisip/sofia-wrapper/home.hh"
 
+#include "presence-server.hh"
 #include "subscription.hh"
 #include "xml/rlmi+xml.hh"
 
@@ -68,7 +67,8 @@ private:
  */
 class ListSubscription : public Subscription {
 public:
-	ListSubscription(unsigned int expires,
+	ListSubscription(const CompatibilityMode& compatibilityMode,
+	                 unsigned int expires,
 	                 belle_sip_server_transaction_t* ist,
 	                 belle_sip_provider_t* aProv,
 	                 size_t maxPresenceInfoNotifiedAtATime,
@@ -101,6 +101,7 @@ protected:
 private:
 	// return true if a real notify can be sent.
 	bool isTimeToNotify();
+	std::string getContentIdHeaderValueFormated(const std::string& value) const;
 	void addInstanceToResource(Xsd::Rlmi::Resource& resource,
 	                           std::list<belle_sip_body_handler_t*>& multipartList,
 	                           PresentityPresenceInformation& presentityInformation,
@@ -125,7 +126,8 @@ private:
 	BelleSipSourcePtr mTimer;
 	size_t mMaxPresenceInfoNotifiedAtATime{0}; // maximum number of presentity available in a sigle notify
 	std::function<void(std::shared_ptr<ListSubscription>)> mListAvailable;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
+	CompatibilityMode mCompatibilityMode;
 };
 
 } // namespace flexisip

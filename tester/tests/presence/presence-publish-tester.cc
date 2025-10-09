@@ -74,7 +74,7 @@ protected:
 	virtual string getPublishBody() = 0;
 	virtual void assertAfterPublish() = 0;
 	virtual string getSubscribeBody(const string& aor, const string& port);
-	virtual void assertAfterPublishExpire(){};
+	virtual void assertAfterPublishExpire() {};
 	virtual bool waitForExpire() {
 		return false;
 	};
@@ -84,7 +84,7 @@ protected:
 	virtual string getPublish2Body() {
 		return ""s;
 	};
-	virtual void assertAfterPublish2(){};
+	virtual void assertAfterPublish2() {};
 
 	int isRequestAccepted = 0;
 	int isRequestAcceptedPublisher = 0;
@@ -94,6 +94,7 @@ protected:
 	unique_ptr<BellesipUtils> belleSipSubscriber;
 	unique_ptr<BellesipUtils> belleSipPublisher;
 	string mEtag{};
+	bool mLegacySupported = true;
 
 private:
 	static string getSubscribeHeaders(const string& aor, const string& port, size_t contentLength);
@@ -144,6 +145,17 @@ protected:
 
 		// Two presentity with two default element, 1 element for publish
 		checkStats(2, 3);
+	}
+};
+
+class BasicPublishNoLegacySupport : public BasicPublish {
+protected:
+	void onAgentConfiguration(ConfigManager& cfg) override {
+		BasicPublish::onAgentConfiguration(cfg);
+
+		auto* presenceConf = cfg.getRoot()->get<GenericStruct>("presence-server");
+		presenceConf->get<ConfigBoolean>("support-legacy-client")->set("false");
+		mLegacySupported = false;
 	}
 };
 
@@ -378,6 +390,17 @@ protected:
 	}
 };
 
+class DoubleAwayDateBeforePublishNoLegacySupport : public DoubleAwayDateBeforePublish {
+protected:
+	void onAgentConfiguration(ConfigManager& cfg) override {
+		DoubleAwayDateBeforePublish::onAgentConfiguration(cfg);
+
+		auto* presenceConf = cfg.getRoot()->get<GenericStruct>("presence-server");
+		presenceConf->get<ConfigBoolean>("support-legacy-client")->set("false");
+		mLegacySupported = false;
+	}
+};
+
 class SipIfMatch : public BasicPublish {
 protected:
 	string getPublish2Headers(size_t contentLength) override {
@@ -439,11 +462,13 @@ protected:
 TestSuite _("PublishPresence",
             {
                 CLASSY_TEST(BasicPublish),
+                CLASSY_TEST(BasicPublishNoLegacySupport),
                 CLASSY_TEST(BasicPublishUserPhone),
                 CLASSY_TEST(BasicPublishLastActivityExpires),
                 CLASSY_TEST(AwayPublish),
                 CLASSY_TEST(DoubleAwayDateAfterPublish),
                 CLASSY_TEST(DoubleAwayDateBeforePublish),
+            	CLASSY_TEST(DoubleAwayDateBeforePublishNoLegacySupport),
                 CLASSY_TEST(SipIfMatch),
             });
 
@@ -472,6 +497,21 @@ void PublishTest::crossSubscribe(const string& aorPublisher, const string& aorSu
 		    }
 		    auto message = BELLE_SIP_MESSAGE(request);
 		    mNotifiesBodyConcat += belle_sip_message_get_body(message);
+		    if (auto eventHeader = belle_sip_message_get_header(message, "Event")) {
+			    if (mLegacySupported) {
+			    	BC_ASSERT_STRING_EQUAL(belle_sip_header_get_unparsed_value(eventHeader), "Presence");
+			    } else {
+				    BC_ASSERT_STRING_EQUAL(belle_sip_header_get_unparsed_value(eventHeader), "presence");
+			    }
+		    }
+	    	if (auto contentIdHeader = belle_sip_message_get_header(message, "Content-Id")) {
+	    		string contentIdValue = belle_sip_header_get_unparsed_value(contentIdHeader);
+	    		if (mLegacySupported) {
+					BC_ASSERT_TRUE(contentIdValue.front() != '<' && contentIdValue.back() != '>');
+				} else {
+					BC_ASSERT_TRUE(contentIdValue.front() == '<' && contentIdValue.back() == '>');
+				}
+			}
 	    });
 
 	const auto bodyPublisher = getSubscribeBody(aorPublisher, "8888");

@@ -190,6 +190,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Duration in milliseconds during which the last activity is kept in memory. Default is 1 day.",
 	        "86400000",
 	    },
+	    {
+	        Boolean,
+	        "support-legacy-client",
+	        "Enable to maintain compatibility with legacy clients (linphone-sdk < 5.4). Some behaviors of the presence "
+	        "server previously violated RFC standards (e.g., using 'Event: Presence' instead of 'Event: presence'). "
+	        "Setting this parameter to false enforces RFC compliance but may break compatibility with older clients.",
+	        "true",
+	    },
 	    config_item_end,
 	};
 
@@ -287,6 +295,9 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, co
 	mBypass = config->get<ConfigString>("bypass-condition")->read();
 	mEnabled = config->get<ConfigBoolean>("enabled")->read();
 	mRequest = config->get<ConfigString>("rls-database-request")->read();
+	mCompatibilityMode = config->get<ConfigBoolean>("support-legacy-client")->read() ? CompatibilityMode::LEGACY
+	                                                                                 : CompatibilityMode::RFC;
+	mPresenceEvent = mCompatibilityMode == CompatibilityMode::LEGACY ? "Presence" : "presence";
 
 	if (mRequest.empty()) return;
 
@@ -413,10 +424,10 @@ void PresenceServer::processRequestEvent(PresenceServer* thiz, const belle_sip_r
 	belle_sip_request_t* request = belle_sip_request_event_get_request(event);
 	belle_sip_response_t* resp = nullptr;
 	try {
-		if (strcmp(belle_sip_request_get_method(request), "PUBLISH") == 0) {
+		if (strcasecmp(belle_sip_request_get_method(request), "PUBLISH") == 0) {
 			thiz->processPublishRequestEvent(event);
 
-		} else if (strcmp(belle_sip_request_get_method(request), "SUBSCRIBE") == 0) {
+		} else if (strcasecmp(belle_sip_request_get_method(request), "SUBSCRIBE") == 0) {
 			thiz->processSubscribeRequestEvent(event);
 
 		} else {
@@ -523,7 +534,7 @@ void PresenceServer::processPublishRequestEvent(const belle_sip_request_event_t*
 		throw BelleSipSignalingException{489};
 	}
 
-	if (strcasecmp(belle_sip_header_get_unparsed_value(eventHeader), "Presence") != 0) {
+	if (strcasecmp(belle_sip_header_get_unparsed_value(eventHeader), mPresenceEvent.c_str()) != 0) {
 		LOGI << "Unsupported event [" << belle_sip_header_get_unparsed_value(eventHeader) << "] for request [" << hex
 		     << (long)request << "]";
 		throw BelleSipSignalingException{489};
@@ -732,7 +743,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 		throw BelleSipSignalingException{400, belle_sip_header_create("Warning", "No Event package")};
 	}
 
-	if (strcmp("presence", belle_sip_header_event_get_package_name(headerEvent)) != 0) {
+	if (strcasecmp(mPresenceEvent.c_str(), belle_sip_header_event_get_package_name(headerEvent)) != 0) {
 		LOGI << "Unexpected event package [" << belle_sip_header_event_get_package_name(headerEvent) << "]";
 		throw BelleSipSignalingException{489};
 	}
@@ -857,7 +868,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 					}
 
 					listSubscription = make_shared<ExternalListSubscription>(
-					    expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime,
+					    mCompatibilityMode, expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime,
 					    mPresenceStats.countExternalListSub, listAvailableLambda, mRequest, mConnPool,
 					    mThreadPool.get());
 #else
@@ -870,7 +881,7 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				    strcasecmp(belle_sip_header_content_type_get_type(contentType), "application") == 0 &&
 				    strcasecmp(belle_sip_header_content_type_get_subtype(contentType), "resource-lists+xml") == 0) {
 					listSubscription = make_shared<BodyListSubscription>(
-					    expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime,
+					    mCompatibilityMode, expires, server_transaction, mProvider, mMaxPresenceInfoNotifiedAtATime,
 					    mPresenceStats.countBodyListSub, listAvailableLambda);
 				} else { // Unsuported
 				error:
@@ -882,8 +893,9 @@ void PresenceServer::processSubscribeRequestEvent(const belle_sip_request_event_
 				}
 				setSubscription(dialog.get(), listSubscription);
 			} else { // Simple subscription
-				auto sub = make_shared<PresenceSubscription>(expires, belle_sip_request_get_uri(request), dialog,
-				                                             mProvider, mPresenceStats.countPresenceSub);
+				auto sub =
+				    make_shared<PresenceSubscription>(mPresenceEvent, expires, belle_sip_request_get_uri(request),
+				                                      dialog, mProvider, mPresenceStats.countPresenceSub);
 				shared_ptr<PresentityPresenceInformationListener> subscription{sub};
 				setSubscription(dialog.get(), sub);
 				LOGD << "Setting sub pointer [" << belle_sip_dialog_get_application_data(dialog.get())

@@ -29,7 +29,8 @@ namespace flexisip {
  */
 class BodyListSubscription : public ListSubscription {
 public:
-	BodyListSubscription(unsigned int expires,
+	BodyListSubscription(const CompatibilityMode& compatibilityMode,
+	                     unsigned int expires,
 	                     belle_sip_server_transaction_t* ist,
 	                     belle_sip_provider_t* aProv,
 	                     size_t maxPresenceInfoNotifiedAtATime,

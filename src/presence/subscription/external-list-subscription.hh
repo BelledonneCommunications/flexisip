@@ -30,7 +30,8 @@ namespace flexisip {
  */
 class ExternalListSubscription : public ListSubscription {
 public:
-	ExternalListSubscription(unsigned int expires,
+	ExternalListSubscription(const CompatibilityMode& compatibilityMode,
+	                         unsigned int expires,
 	                         belle_sip_server_transaction_t* ist,
 	                         belle_sip_provider_t* aProv,
 	                         size_t maxPresenceInfoNotifiedAtATime,
@@ -41,7 +42,7 @@ public:
 	                         ThreadPool* threadPool);
 
 private:
-    static constexpr std::string_view mLogPrefix{"ExternalListSubscription"};
+	static constexpr std::string_view mLogPrefix{"ExternalListSubscription"};
 
 	void getUsersList(const std::string& sqlRequest, belle_sip_server_transaction_t* ist);
 

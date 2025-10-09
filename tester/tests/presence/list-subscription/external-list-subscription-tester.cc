@@ -87,7 +87,7 @@ void getUsersListAppendsListenersToTheBack() {
 	auto stats = make_shared<StatPair>(statsCounter.get(), statsCounter.get());
 
 	auto externalListSubscription = make_shared<ExternalListSubscription>(
-	    0xdead, transaction, utils.getProvider(), 0xdead, stats, [](const auto&) {},
+	    CompatibilityMode::RFC, 0xdead, transaction, utils.getProvider(), 0xdead, stats, [](const auto&) {},
 	    "SELECT * FROM Users WHERE FromIdentity = :from AND ToIdentity = :to", &connectionPool, &threadPool);
 
 	BC_ASSERT(asserter.iterateUpTo(

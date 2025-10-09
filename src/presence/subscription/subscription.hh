@@ -121,7 +121,8 @@ private:
  */
 class PresenceSubscription : public Subscription, public PresentityPresenceInformationListener {
 public:
-	PresenceSubscription(unsigned int expires,
+	PresenceSubscription(const std::string& eventName,
+	                     unsigned int expires,
 	                     const belle_sip_uri_t* presentity,
 	                     const bellesip::weak_ptr<belle_sip_dialog_t>& aDialog,
 	                     belle_sip_provider_t* aProv,
@@ -146,6 +147,6 @@ public:
 private:
 	using BelleSipUriPtr = std::unique_ptr<belle_sip_uri_t, BelleSipObjectDeleter<belle_sip_uri_t>>;
 	BelleSipUriPtr mPresentity;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 } // namespace flexisip

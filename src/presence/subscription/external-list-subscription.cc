@@ -30,7 +30,8 @@ using namespace chrono;
 
 namespace flexisip {
 
-ExternalListSubscription::ExternalListSubscription(unsigned int expires,
+ExternalListSubscription::ExternalListSubscription(const CompatibilityMode& compatibilityMode,
+                                                   unsigned int expires,
                                                    belle_sip_server_transaction_t* ist,
                                                    belle_sip_provider_t* aProv,
                                                    size_t maxPresenceInfoNotifiedAtATime,
@@ -39,8 +40,13 @@ ExternalListSubscription::ExternalListSubscription(unsigned int expires,
                                                    const string& sqlRequest,
                                                    soci::connection_pool* connPool,
                                                    ThreadPool* threadPool)
-    : ListSubscription(
-          expires, ist, aProv, maxPresenceInfoNotifiedAtATime, countExternalListSubscription, listAvailable),
+    : ListSubscription(compatibilityMode,
+                       expires,
+                       ist,
+                       aProv,
+                       maxPresenceInfoNotifiedAtATime,
+                       countExternalListSubscription,
+                       listAvailable),
       mConnPool(connPool) {
 	// create a thread to grab a pool connection and use it to retrieve the auth information
 	auto func = bind(&ExternalListSubscription::getUsersList, this, sqlRequest, ist);

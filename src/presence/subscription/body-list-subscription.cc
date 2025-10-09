@@ -26,13 +26,20 @@ using namespace std;
 
 namespace flexisip {
 
-BodyListSubscription::BodyListSubscription(unsigned int expires,
+BodyListSubscription::BodyListSubscription(const CompatibilityMode& compatibilityMode,
+                                           unsigned int expires,
                                            belle_sip_server_transaction_t* ist,
                                            belle_sip_provider_t* aProv,
                                            size_t maxPresenceInfoNotifiedAtATime,
                                            const std::weak_ptr<StatPair>& countBodyListSubscription,
                                            function<void(shared_ptr<ListSubscription>)> listAvailable)
-    : ListSubscription(expires, ist, aProv, maxPresenceInfoNotifiedAtATime, countBodyListSubscription, listAvailable) {
+    : ListSubscription(compatibilityMode,
+                       expires,
+                       ist,
+                       aProv,
+                       maxPresenceInfoNotifiedAtATime,
+                       countBodyListSubscription,
+                       listAvailable) {
 	belle_sip_request_t* request = belle_sip_transaction_get_request(BELLE_SIP_TRANSACTION(ist));
 	if (!belle_sip_message_get_body(BELLE_SIP_MESSAGE(request))) {
 		LOGI << "Unexpected: body is empty";
@@ -44,8 +51,8 @@ BodyListSubscription::BodyListSubscription(unsigned int expires,
 		istringstream data(belle_sip_message_get_body(BELLE_SIP_MESSAGE(request)));
 		resource_list_body = Xsd::ResourceLists::parseResourceLists(data, Xsd::XmlSchema::Flags::dont_validate);
 	} catch (const Xsd::XmlSchema::Exception& e) {
-        stringstream error;
-        error << "Cannot parse body: " << e.what();
+		stringstream error;
+		error << "Cannot parse body: " << e.what();
 		LOGI << error.str();
 		// todo check error code
 		throw BelleSipSignalingException{400, belle_sip_header_create("Warning", error.str().c_str())};

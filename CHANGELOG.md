@@ -31,6 +31,11 @@ Group changes to describe their impact on the project, as follows:
       join it.
     - Add support for end-to-end conference encryption by installing the EKT server plugin. For customers under a
       proprietary license, this functionality is under a specific license.
+- **Presence server:**
+    - Add the parameter 'support-legacy-client' (default: true) to maintain compatibility with legacy clients (
+      linphone-sdk < 5.4). Some behaviors of the presence server previously violated RFC standards (e.g., using "Event:
+      Presence" instead of "Event: presence"). Setting this parameter to false enforces RFC compliance but may break
+      compatibility with older clients.
 - **[Experimental] Voicemail server:** This new server is designed to store voice messages left by users when a call is 
 declined or not answered. Currently, the server accepts all incoming calls, plays the provided audio file
 (announcement), and automatically hangs up once the audio playback is complete.

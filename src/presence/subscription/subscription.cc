@@ -154,12 +154,13 @@ const belle_sip_uri_t* Subscription::getTo() {
 }
 // Presence Subscription
 
-PresenceSubscription::PresenceSubscription(unsigned int expires,
+PresenceSubscription::PresenceSubscription(const std::string& eventName,
+                                           unsigned int expires,
                                            const belle_sip_uri_t* presentity,
                                            const bellesip::weak_ptr<belle_sip_dialog_t>& aDialog,
                                            belle_sip_provider_t* aProv,
                                            const std::weak_ptr<StatPair>& countPresenceSubscription)
-    : Subscription{"Presence", expires, aDialog, aProv, countPresenceSubscription},
+    : Subscription{eventName, expires, aDialog, aProv, countPresenceSubscription},
       mPresentity{(belle_sip_uri_t*)belle_sip_object_ref(belle_sip_object_clone(BELLE_SIP_OBJECT(presentity)))},
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresenceSubscription")) {
 }

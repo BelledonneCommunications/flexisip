@@ -33,19 +33,21 @@ using namespace std;
 
 namespace flexisip {
 
-ListSubscription::ListSubscription(unsigned int expires,
+ListSubscription::ListSubscription(const CompatibilityMode& compatibilityMode,
+                                   unsigned int expires,
                                    belle_sip_server_transaction_t* ist,
                                    belle_sip_provider_t* aProv,
                                    size_t maxPresenceInfoNotifiedAtATime,
                                    const std::weak_ptr<StatPair>& countListSubscription,
                                    function<void(shared_ptr<ListSubscription>)> listAvailable)
-    : Subscription("Presence",
+    : Subscription(compatibilityMode == CompatibilityMode::LEGACY ? "Presence" : "presence",
                    expires,
                    belle_sip_transaction_get_dialog(BELLE_SIP_TRANSACTION(ist)),
                    aProv,
                    countListSubscription),
       mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime), mListAvailable(listAvailable),
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ListSubscription")) {
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ListSubscription")),
+      mCompatibilityMode{compatibilityMode} {
 }
 
 list<shared_ptr<PresentityPresenceInformationListener>>& ListSubscription::getListeners() {
@@ -57,6 +59,10 @@ ListSubscription::~ListSubscription() {
 	}
 	LOGD << "Destroyed instance";
 };
+
+std::string ListSubscription::getContentIdHeaderValueFormated(const std::string& value) const {
+	return mCompatibilityMode == CompatibilityMode::LEGACY ? value : "<" + value + ">";
+}
 
 void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource& resource,
                                              list<belle_sip_body_handler_t*>& multipartList,
@@ -78,8 +84,9 @@ void ListSubscription::addInstanceToResource(Xsd::Rlmi::Resource& resource,
 	                                  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 	ostringstream content_id;
 	content_id << "<" << cid.str() << ">";
-	belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(bodyPart),
-	                                  belle_sip_header_create("Content-Id", cid.str().c_str()));
+	belle_sip_body_handler_add_header(
+	    BELLE_SIP_BODY_HANDLER(bodyPart),
+	    belle_sip_header_create("Content-Id", getContentIdHeaderValueFormated(cid.str()).c_str()));
 	belle_sip_body_handler_add_header(
 	    BELLE_SIP_BODY_HANDLER(bodyPart),
 	    belle_sip_header_create("Content-Type", "application/pidf+xml;charset=\"UTF-8\""));
@@ -179,8 +186,9 @@ void ListSubscription::notify(bool isFullState) {
 		                                  belle_sip_header_create("Content-Transfer-Encoding", "binary"));
 		ostringstream content_id;
 		content_id << "<" << cid.str() << ">";
-		belle_sip_body_handler_add_header(BELLE_SIP_BODY_HANDLER(firstBodyPart),
-		                                  belle_sip_header_create("Content-Id", cid.str().c_str()));
+		belle_sip_body_handler_add_header(
+		    BELLE_SIP_BODY_HANDLER(firstBodyPart),
+		    belle_sip_header_create("Content-Id", getContentIdHeaderValueFormated(cid.str()).c_str()));
 		belle_sip_body_handler_add_header(
 		    BELLE_SIP_BODY_HANDLER(firstBodyPart),
 		    belle_sip_header_create("Content-Type", "application/rlmi+xml;charset=\"UTF-8\""));
