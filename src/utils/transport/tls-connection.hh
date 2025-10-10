@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #pragma once
 
@@ -28,7 +28,8 @@
 #include <openssl/ssl.h>
 #include <sofia-sip/su_wait.h>
 
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "utils/thread/must-finish-thread.hh"
 
@@ -108,7 +109,7 @@ public:
 	 * @param root sofia-sip loop root object
 	 * @param onConnectCb callback to call after connection success/error
 	 */
-	void connectAsync(su_root_t& root, const std::function<void()>& onConnectCb) noexcept;
+	void connectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb) noexcept;
 
 	void disconnect() noexcept;
 
@@ -295,8 +296,7 @@ private:
 	static SSLCtxUniquePtr makeDefaultCtx();
 	static int getFd(BIO& bio);
 
-	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
-	void doConnectAsync(su_root_t& root, const std::function<void()>& onConnectCb);
+	void doConnectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb);
 
 	BIOUniquePtr mBio{nullptr};
 	SSLCtxUniquePtr mCtx{nullptr};

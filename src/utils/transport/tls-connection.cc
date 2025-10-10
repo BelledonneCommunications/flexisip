@@ -1,20 +1,20 @@
 /*
- Flexisip, a flexible SIP proxy server with media capabilities.
- Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU Affero General Public License as
- published by the Free Software Foundation, either version 3 of the
- License, or (at your option) any later version.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- GNU Affero General Public License for more details.
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
 
- You should have received a copy of the GNU Affero General Public License
- along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include <filesystem>
 #include <fstream>
@@ -102,33 +102,14 @@ TlsConnection::TlsConnection(
 	}
 }
 
-void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
+void TlsConnection::connectAsync(sofiasip::SuRoot& root, const function<void()>& onConnectCb) noexcept {
 	// SAFETY: The thread MUST NOT outlive `this`;
 	mThread = thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }};
 }
 
-void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onConnectCb) {
+void TlsConnection::doConnectAsync(sofiasip::SuRoot& root, const function<void()>& onConnectCb) {
 	connect();
-
-	su_msg_r mamc = SU_MSG_R_INIT;
-	if (-1 == su_msg_create(mamc, su_root_task(&root), su_root_task(&root), doConnectCb, sizeof(function<void()>*))) {
-		const auto message = mLogPrefix + "Couldn't create auth async message";
-		LOGF(message.c_str());
-	}
-
-	auto clientOnConnectCb = reinterpret_cast<function<void()>**>(su_msg_data(mamc));
-	*clientOnConnectCb = new function<void()>(onConnectCb);
-
-	if (-1 == su_msg_send(mamc)) {
-		const auto message = mLogPrefix + "Couldn't send auth async message to main thread.";
-		LOGF(message.c_str());
-	}
-}
-
-void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r msg, [[maybe_unused]] void* u) {
-	auto clientOnConnectCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
-	(*clientOnConnectCb)();
-	delete clientOnConnectCb;
+	root.addToMainLoop(onConnectCb);
 }
 
 void TlsConnection::connect() noexcept {

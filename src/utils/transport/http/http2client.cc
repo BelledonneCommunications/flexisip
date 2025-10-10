@@ -158,7 +158,7 @@ void Http2Client::tlsConnect() {
 	}
 	setState(State::Connecting);
 
-	mConn->connectAsync(*mRoot.getCPtr(), [weakThis = weak_ptr<Http2Client>{this->shared_from_this()}]() {
+	mConn->connectAsync(mRoot, [weakThis = weak_ptr<Http2Client>{this->shared_from_this()}]() {
 		if (auto sharedThis = weakThis.lock()) {
 			sharedThis->onTlsConnectCb();
 		}

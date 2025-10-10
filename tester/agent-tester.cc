@@ -50,8 +50,7 @@ private:
 		globalCfg->get<ConfigStringList>("transports")->set("sips:localhost:6060;maddr=127.0.0.2 sips:localhost:6062");
 		globalCfg->get<ConfigStringList>("aliases")->set("localhost aRandomAlias 8.8.8.8");
 		globalCfg->get<ConfigString>("tls-certificates-file")->set(bcTesterRes("cert/self.signed.cert.test.pem"));
-		globalCfg->get<ConfigString>("tls-certificates-private-key")
-		    ->set(bcTesterRes("cert/self.signed.key.test.pem"));
+		globalCfg->get<ConfigString>("tls-certificates-private-key")->set(bcTesterRes("cert/self.signed.key.test.pem"));
 
 		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("true");
 	}
@@ -251,7 +250,7 @@ protected:
 		auto conn = mConfig->makeConnection();
 		SLOGD << "Connecting on " << mConfig->getHost() << ":" << mConfig->getPort() << " using "
 		      << mConfig->getProtoName();
-		conn->connectAsync(*mRoot->getCPtr(), []() {});
+		conn->connectAsync(*mRoot, []() {});
 		BC_HARD_ASSERT_TRUE(waitFor([&conn]() { return conn->isConnected(); }, 1s));
 		return conn;
 	}
