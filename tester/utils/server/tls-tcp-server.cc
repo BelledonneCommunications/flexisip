@@ -175,11 +175,16 @@ template <typename SocketType>
 bool TServer<SocketType>::runServerForTest(const std::string& expectedRequest,
                                            const std::string& response,
                                            const std::chrono::milliseconds responseDelay) {
-	accept();
-	auto request = read();
-	this_thread::sleep_for(responseDelay);
-	send(response);
-	return request == expectedRequest;
+	try {
+		accept();
+		auto request = read();
+		this_thread::sleep_for(responseDelay);
+		send(response);
+		return request == expectedRequest;
+	} catch (const std::exception& e) {
+		LOGW("TServer[%p] exception %s\n", this, e.what());
+		return false;
+	}
 }
 
 template <typename SocketType>
