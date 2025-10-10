@@ -113,29 +113,14 @@ string TlsConnection::loadCertificate() {
 	return "";
 }
 
-void TlsConnection::connectAsync(su_root_t& root, const function<void()>& onConnectCb) noexcept {
+void TlsConnection::connectAsync(sofiasip::SuRoot& root, const function<void()>& onConnectCb) noexcept {
 	// SAFETY: The thread MUST NOT outlive `this`;
 	mThread = thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }};
 }
 
-void TlsConnection::doConnectAsync(su_root_t& root, const function<void()>& onConnectCb) {
+void TlsConnection::doConnectAsync(sofiasip::SuRoot& root, const function<void()>& onConnectCb) {
 	connect();
-
-	su_msg_r mamc = SU_MSG_R_INIT;
-	if (-1 == su_msg_create(mamc, su_root_task(&root), su_root_task(&root), doConnectCb, sizeof(function<void()>*)))
-		throw FlexisipException{mLogPrefix + "could not create auth async message"};
-
-	auto clientOnConnectCb = reinterpret_cast<function<void()>**>(su_msg_data(mamc));
-	*clientOnConnectCb = new function<void()>(onConnectCb);
-
-	if (-1 == su_msg_send(mamc))
-		throw FlexisipException{mLogPrefix + "could not send auth async message to main thread"};
-}
-
-void TlsConnection::doConnectCb([[maybe_unused]] su_root_magic_t* rm, su_msg_r msg, [[maybe_unused]] void* u) {
-	auto clientOnConnectCb = *reinterpret_cast<function<void()>**>(su_msg_data(msg));
-	(*clientOnConnectCb)();
-	delete clientOnConnectCb;
+	root.addToMainLoop(onConnectCb);
 }
 
 /* Add a Server Name Indication (SNI) to the SSL context.

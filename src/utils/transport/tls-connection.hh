@@ -27,7 +27,8 @@
 #include <openssl/ssl.h>
 #include <sofia-sip/su_wait.h>
 
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 
 #include "utils/thread/must-finish-thread.hh"
 
@@ -107,7 +108,7 @@ public:
 	 * @param root sofia-sip loop root object
 	 * @param onConnectCb callback to call after connection success/error
 	 */
-	void connectAsync(su_root_t& root, const std::function<void()>& onConnectCb) noexcept;
+	void connectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb) noexcept;
 
 	void disconnect() noexcept;
 
@@ -292,8 +293,7 @@ private:
 	std::string loadCertificate();
 
 	static int handleVerifyCallback(X509_STORE_CTX* ctx, void* ud);
-	static void doConnectCb(su_root_magic_t* rm, su_msg_r msg, void* u);
-	void doConnectAsync(su_root_t& root, const std::function<void()>& onConnectCb);
+	void doConnectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb);
 
 	int getFd(BIO& bio) const;
 
