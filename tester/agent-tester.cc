@@ -262,7 +262,7 @@ protected:
 		auto conn = mConfig->makeConnection();
 		SLOGD << "Connecting on " << mConfig->getHost() << ":" << mConfig->getPort() << " using "
 		      << mConfig->getProtoName();
-		conn->connectAsync(*mRoot->getCPtr(), []() {});
+		conn->connectAsync(*mRoot, []() {});
 		BC_HARD_ASSERT_TRUE(waitFor([&conn]() { return conn->isConnected(); }, 1s));
 		return conn;
 	}
