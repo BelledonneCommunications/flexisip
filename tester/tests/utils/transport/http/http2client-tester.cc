@@ -148,7 +148,7 @@ void reconnectAfterConnectionResetByPeer() {
 	sofiasip::SuRoot root{};
 	CoreAssert asserter{root};
 
-	const auto client = Http2Client::make(root, "127.0.0.1", serverPort);
+	auto client = Http2Client::make(root, "127.0.0.1", serverPort);
 	client->setRequestTimeout(5s);
 	client->enableInsecureTestMode();
 
@@ -164,8 +164,10 @@ void reconnectAfterConnectionResetByPeer() {
 		auto result = async(launch::async, func);
 		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
 		asserter.iterateUpTo(0x20, [&client] { return LOOP_ASSERTION(client->isConnected()); }, 2s).assert_passed();
-		BC_HARD_ASSERT(result.wait_for(2s) == std::future_status::ready);
-		BC_ASSERT(result.get());
+		if (result.wait_for(2s) != std::future_status::ready) {
+			client.reset(); // force disconnection to stop server thread
+		}
+		BC_HARD_ASSERT(result.get());
 	}
 
 	// Simulate the "connection reset by peer" error.
@@ -183,8 +185,9 @@ void reconnectAfterConnectionResetByPeer() {
 
 		client->send(make_shared<Http2Client::HttpRequest>(HttpHeaders{}, "stub-request"), onResponse, onError);
 		asserter.iterateUpTo(0x20, [&client] { return LOOP_ASSERTION(client->isConnected()); }, 2s).assert_passed();
-
-		BC_HARD_ASSERT(result.wait_for(2s) == std::future_status::ready);
+		if (result.wait_for(2s) != std::future_status::ready) {
+			client.reset(); // force disconnection to stop server thread
+		}
 		BC_ASSERT(result.get());
 	}
 }
