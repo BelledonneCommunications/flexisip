@@ -124,6 +124,7 @@ add_executable(flexisip_tester
 	tests/sofia-wrapper/home-tester.cc
 	tests/sofia-wrapper/su/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc
+	tests/sofia-wrapper/su-root-tester.cc
 	tests/transaction/outgoing-transaction-tester.cc
 	tests/transaction/transaction-tester.cc
 	tests/utils/cast-to-const-tester.cc
