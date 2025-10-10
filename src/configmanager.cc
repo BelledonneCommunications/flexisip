@@ -1360,6 +1360,12 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 				     << "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
 				     << "\t" << info.getText() << "\n"
 				     << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
+			} else if (cv->isDeprecatedValue(val)) {
+				const auto& info = cv->getDeprecationValueInfo();
+				LOGW << "Deprecated value [" << val << "] for parameter:\n"
+				     << "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
+				     << "\t" << info.getText() << "\n"
+				     << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
 			}
 			try {
 				cv->set(val);
@@ -1368,6 +1374,13 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 			}
 		} else {
 			cv->restoreDefault();
+			if (cv->isDeprecatedValue(cv->get())) {
+				const auto& info = cv->getDeprecationValueInfo();
+				LOGW << "Deprecated value [" << info.getValue() << "] for parameter:\n"
+				     << "\t[" << cv->getParent()->getName() << "/" << cv->getName() << "]\n"
+				     << "\t" << info.getText() << "\n"
+				     << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n";
+			}
 		}
 	}
 	return 0;

@@ -163,6 +163,45 @@ public:
 		std::string mText;
 	};
 
+	class DeprecationValueInfo {
+	public:
+		DeprecationValueInfo() = default;
+		DeprecationValueInfo(const std::string& date,
+		                     const std::string& version,
+		                     const std::string& text,
+		                     const std::string& value)
+		    : mDeprecationInfo{date, version, text}, mValue{value} {
+		}
+		bool isDeprecatedValue(const std::string& currentVal) const {
+			return mDeprecationInfo.isDeprecated() && currentVal == mValue;
+		}
+
+		void setAsDeprecatedValue(const std::string& date,
+		                          const std::string& version,
+		                          const std::string& text,
+		                          const std::string& value) {
+			mDeprecationInfo = DeprecationInfo{date, version, text};
+			mValue = value;
+		}
+
+		const std::string& getDate() const {
+			return mDeprecationInfo.getDate();
+		}
+		const std::string& getVersion() const {
+			return mDeprecationInfo.getVersion();
+		}
+		const std::string& getText() const {
+			return mDeprecationInfo.getText();
+		}
+		const std::string& getValue() const {
+			return mValue;
+		}
+
+	private:
+		DeprecationInfo mDeprecationInfo;
+		std::string mValue;
+	};
+
 	static std::string sanitize(const std::string& str);
 
 	const std::string& getName() const {
@@ -232,6 +271,22 @@ public:
 		return mDeprecationInfo;
 	}
 
+	void setDeprecatedValue(const DeprecationValueInfo& info) {
+		mDeprecationValueInfo = info;
+	}
+	void setDeprecatedValue(const std::string& aDate,
+	                        const std::string& aVersion,
+	                        const std::string& aText,
+	                        const std::string& aValue) {
+		mDeprecationValueInfo.setAsDeprecatedValue(aDate, aVersion, aText, aValue);
+	}
+	bool isDeprecatedValue(const std::string& currentValue) const {
+		return mDeprecationValueInfo.isDeprecatedValue(currentValue);
+	}
+	DeprecationValueInfo& getDeprecationValueInfo() {
+		return mDeprecationValueInfo;
+	}
+
 protected:
 	virtual void doMibFragment(std::ostream& ostr,
 	                           const std::string& def,
@@ -246,6 +301,7 @@ protected:
 	bool mReadOnly = false;
 	bool mExportToConfigFile = true;
 	DeprecationInfo mDeprecationInfo;
+	DeprecationValueInfo mDeprecationValueInfo;
 	std::string mErrorMessage;
 
 private:

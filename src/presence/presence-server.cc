@@ -246,6 +246,12 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	s->createStatPair("count-presence-subscription", "Number of PresenceSubscription");
 	s->createStatPair("count-presence-body-list-subscription", "Number of BodyListSubscription");
 	s->createStatPair("count-presence-external-list-subscription", "Number of ExternalListSubscription");
+
+	s->get<ConfigBoolean>("support-legacy-client")
+	    ->setDeprecatedValue("2025-10-10", "2.6",
+	                         "In future versions, Flexisip may break compatibility with clients using linphone-sdk "
+	                         "older than version 5.4",
+	                         "true");
 });
 } // namespace
 
