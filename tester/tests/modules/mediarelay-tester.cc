@@ -342,8 +342,8 @@ void early_media_video_sendrecv_takeover() {
 		                 return ASSERTION_PASSED();
 	                 })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(appExtCall->getVideoRtpStats().sent_rtcp_packets, 0);
-	BC_ASSERT_CPP_EQUAL(doorCall->getVideoRtpStats().recv_rtcp_packets, 0);
+	BC_ASSERT_CPP_EQUAL(appExtCall->getVideoRtpStats()->sent_rtcp_packets, 0);
+	BC_ASSERT_CPP_EQUAL(doorCall->getVideoRtpStats()->recv_rtcp_packets, 0);
 
 	/**
 	 * Test that a second 183 Session Progress takes the SendRecv stream from the app extension
@@ -357,13 +357,13 @@ void early_media_video_sendrecv_takeover() {
 	asserter
 	    .iterateUpTo(0x10,
 	                 [&appReceivedVideo = appExtCall->videoFrameDecoded(), &appCall, &doorCall] {
-		                 FAIL_IF(appCall.getVideoRtpStats().sent_rtcp_packets == 0);
+		                 FAIL_IF(appCall.getVideoRtpStats()->sent_rtcp_packets == 0);
 		                 FAIL_IF(!appReceivedVideo);
-		                 FAIL_IF(doorCall->getVideoRtpStats().recv_rtcp_packets == 0);
+		                 FAIL_IF(doorCall->getVideoRtpStats()->recv_rtcp_packets == 0);
 		                 return ASSERTION_PASSED();
 	                 })
 	    .assert_passed();
-	BC_ASSERT_CPP_EQUAL(appExtCall->getVideoRtpStats().sent_rtcp_packets, 0);
+	BC_ASSERT_CPP_EQUAL(appExtCall->getVideoRtpStats()->sent_rtcp_packets, 0);
 }
 
 /*

@@ -142,6 +142,7 @@ add_executable(flexisip_tester
 	utils/asserts.hh
 	utils/audio/wave.cc utils/audio/wave.hh
 	utils/bellesip-utils.cc utils/bellesip-utils.hh
+	utils/call-assert.hh
 	utils/call-builder.cc utils/call-builder.hh
 	utils/call-listeners.cc utils/call-listeners.hh
 	utils/chat-room-builder.cc utils/chat-room-builder.hh
