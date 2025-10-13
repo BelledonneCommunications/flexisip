@@ -29,7 +29,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "utils/core-assert.hh"
 #include "utils/http-mock/http-mock.hh"
-#include "utils/server/tls-server.hh"
+#include "utils/server/tls-tcp-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/transport/http/http-headers.hh"

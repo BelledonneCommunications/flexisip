@@ -161,8 +161,7 @@ add_executable(flexisip_tester
 	utils/server/mysql-server.cc utils/server/mysql-server.hh
 	utils/server/proxy-server.cc utils/server/proxy-server.hh
 	utils/server/redis-server.cc utils/server/redis-server.hh
-	utils/server/tcp-server.cc utils/server/tcp-server.hh
-	utils/server/tls-server.cc utils/server/tls-server.hh
+	utils/server/tls-tcp-server.cc utils/server/tls-tcp-server.hh
 	utils/test-patterns/agent-test.hh
 	utils/test-patterns/presence-test.hh
 	utils/test-patterns/test.hh

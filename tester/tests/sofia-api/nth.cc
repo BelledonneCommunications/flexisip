@@ -25,7 +25,7 @@
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "tester.hh"
 #include "utils/core-assert.hh"
-#include "utils/server/tls-server.hh"
+#include "utils/server/tls-tcp-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -41,10 +41,10 @@ namespace {
 template <bool tlsSniEnabled>
 void nthEngineWithSni() {
 	SuRoot root{};
-	TlsServer server{};
+	TlsServer server{0, tlsSniEnabled ? "127.0.0.1" : ""}; // SNI checks are done in TlsServer::accept.
 	auto requestReceived = false;
 	auto requestMatch = async(launch::async, [&server, &requestReceived]() {
-		server.accept(tlsSniEnabled ? "127.0.0.1" : ""); // SNI checks are done in TlsServer::accept.
+		server.accept();
 		server.read();
 		server.send("Status: 200");
 		return requestReceived = true;
