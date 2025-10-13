@@ -27,18 +27,39 @@
 #include "linphone/api/c-call.h"
 #include "ortp/rtp.h"
 
+using namespace std;
+
 namespace flexisip::tester {
+
+ClientCall::ClientCall(std::shared_ptr<linphone::Call>&& call) : mCall(std::move(call)) {
+}
 
 std::optional<ClientCall> ClientCall::tryFrom(std::shared_ptr<linphone::Call>&& maybeCall) {
 	if (!maybeCall) return {};
 	return ClientCall(std::move(maybeCall));
 }
 
-ClientCall::ClientCall(std::shared_ptr<linphone::Call>&& call) : mCall(std::move(call)) {
-}
-
 const std::shared_ptr<linphone::Call>& ClientCall::getLinphoneCall(const ClientCall& wrapper) {
 	return wrapper.mCall;
+}
+
+AssertionResult ClientCall::assertOnState(linphone::Call::State state) const {
+	FAIL_IF(getState() != state);
+	return ASSERTION_PASSED();
+}
+
+AssertionResult ClientCall::assertOnState(linphone::Call::State state, linphone::MediaDirection audio) const {
+	FAIL_IF(!assertOnState(state));
+	FAIL_IF(getAudioDirection() != audio);
+	return ASSERTION_PASSED();
+}
+
+AssertionResult ClientCall::assertOnState(linphone::Call::State state,
+                                          linphone::MediaDirection audio,
+                                          linphone::MediaDirection video) const {
+	FAIL_IF(!assertOnState(state, audio));
+	FAIL_IF(getAudioDirection() != video);
+	return ASSERTION_PASSED();
 }
 
 linphone::Status ClientCall::accept() const {
@@ -106,12 +127,28 @@ std::shared_ptr<linphone::CallStats> ClientCall::getStats(linphone::StreamType t
 	return mCall->getStats(type);
 }
 
+void ClientCall::takeRtpStatsSnapshot() const {
+	mRtpStatsSnapshot = RtpStats{getAudioRtpStats(), getVideoRtpStats()};
+}
+
+ClientCall::RtpStats ClientCall::getRtpStatsSnapshot() const {
+	return mRtpStatsSnapshot;
+}
+
 linphone::MediaDirection ClientCall::getAudioDirection() const {
 	return mCall->getCurrentParams()->getAudioDirection();
 }
 
 std::shared_ptr<linphone::CallStats> ClientCall::getAudioStats() const {
 	return mCall->getAudioStats();
+}
+
+std::optional<rtp_stats> ClientCall::getAudioRtpStats() const {
+	const auto callStats = linphone_call_get_audio_stats(mCall->cPtr());
+	if (!callStats) return std::nullopt;
+	const auto rtpStats = linphone_call_stats_get_rtp_stats(callStats);
+	if (!rtpStats) return std::nullopt;
+	return *rtpStats;
 }
 
 std::shared_ptr<const linphone::PayloadType> ClientCall::getAudioPayloadType() const {
@@ -138,8 +175,12 @@ std::shared_ptr<linphone::CallStats> ClientCall::getVideoStats() const {
 	return mCall->getVideoStats();
 }
 
-const ::rtp_stats& ClientCall::getVideoRtpStats() const {
-	return *::linphone_call_stats_get_rtp_stats(::linphone_call_get_video_stats(mCall->cPtr()));
+std::optional<rtp_stats> ClientCall::getVideoRtpStats() const {
+	const auto callStats = linphone_call_get_video_stats(mCall->cPtr());
+	if (!callStats) return std::nullopt;
+	const auto rtpStats = linphone_call_stats_get_rtp_stats(callStats);
+	if (!rtpStats) return std::nullopt;
+	return *rtpStats;
 }
 
 std::shared_ptr<linphone::Core> ClientCall::getCore() const {
