@@ -212,7 +212,10 @@ void TlsConnection::connect() noexcept {
 		return;
 	}
 
-	mBio = std::move(newBio);
+	{
+		const lock_guard<mutex> lock(mBioMutex);
+		mBio = std::move(newBio);
+	}
 	LOGI << "Connected";
 }
 

@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 
@@ -120,6 +121,7 @@ public:
 	void resetConnection() noexcept;
 
 	bool isConnected() const noexcept {
+		const std::lock_guard<std::mutex> lock(mBioMutex);
 		return mBio != nullptr;
 	}
 	bool isSecured() const noexcept {
@@ -301,6 +303,7 @@ private:
 	bool isCertExpired(const std::string& certPath) noexcept;
 
 	BIOUniquePtr mBio{nullptr};
+	mutable std::mutex mBioMutex{}; // Protect async set of mBio.
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
 	std::filesystem::path mCertPath{};
