@@ -21,6 +21,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
 #include <vector>
@@ -121,6 +122,7 @@ public:
 	void resetConnection() noexcept;
 
 	bool isConnected() const noexcept {
+		const std::lock_guard<std::mutex> lock(mBioMutex);
 		return mBio != nullptr;
 	}
 	bool isSecured() const noexcept {
@@ -299,6 +301,7 @@ private:
 	void doConnectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb);
 
 	BIOUniquePtr mBio{nullptr};
+	mutable std::mutex mBioMutex{}; // Protect async set of mBio.
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::string mHost{}, mPort{};
 	bool mMustBeHttp2 = false;
