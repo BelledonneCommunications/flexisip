@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -496,6 +496,16 @@ void ForwardModule::sendRequest(const unique_ptr<RequestSipEvent>& ev,
 		return;
 	}
 
+	uintptr_t destConnId{};
+	if (dest->url_params != nullptr) {
+		char strConnId[32] = {0};
+		if (url_param(dest->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
+			destConnId = std::strtoull(strConnId, nullptr, 16);
+			// Strip out "fs-conn-id" that shall not go out to the network.
+			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "fs-conn-id");
+		}
+	}
+
 	// Legacy outgoing transport selection algorithm.
 	// Future developments should get rid of it (only rely on the 'network' URI parameter and sofia-sip algorithm).
 	tport_t* tport = nullptr;
@@ -504,6 +514,20 @@ void ForwardModule::sendRequest(const unique_ptr<RequestSipEvent>& ev,
 			LOGD << "Using internal transport to route message to a node of the cluster";
 		} else if ((tport = getAgent()->getDRM()->lookupTport(dest)) != nullptr) {
 			LOGD << "Found outgoing transport from domain registration manager";
+		} else if (destConnId != 0) {
+			tp_name_t name{};
+			if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(dest)) == 0) {
+				tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
+				if (tport) {
+					auto* tportConnId = tport_get_user_data(tport);
+					if (tportConnId && (uintptr_t)tportConnId != destConnId) {
+						LOGD << "Stopping request: DestConnId(" << hex << destConnId << ") != TportConnId("
+						     << (uintptr_t)tportConnId << ")";
+						// Set tport at -1 for sofia-sip so it will generate a "503 Service Unavailable" response.
+						tport = (tport_t*)-1;
+					}
+				}
+			}
 		}
 	}
 

@@ -233,7 +233,7 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 
 	// "For each address, the registrar […] searches the list of current bindings using the URI comparison rules."
 	// (RFC 3261 §10.3)
-	if (SipUri(existing.mSipContact->m_url).rfc3261Compare(neo.mSipContact->m_url)) {
+	if (existing.toSipUriClean().rfc3261Compare(neo.toSipUriClean())) {
 		LOGD << "Contact [" << existing << "] matches [" << neo << "] based on URI";
 		// "If the binding does exist, the registrar checks the Call-ID value. If the Call-ID value in the existing
 		// binding differs from the Call-ID value in the request, the binding MUST be removed [or] updated. If they are
