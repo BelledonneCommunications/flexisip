@@ -48,12 +48,12 @@ void ForkGroupSorter::makeGroups() {
 
 		dest.sipContact = (*it).first;
 		dest.extendedContact = (*it).second;
-		targetUris << "<" << *dest.extendedContact->toSofiaUrlClean(home.home()) << ">";
+		targetUris << "<" << dest.extendedContact->urlAsString() << ">";
 		url_t* url = url_make(home.home(), (*it).second->mPath.back().c_str());
 		// Remove it and now search for other contacts that have the same route.
 		it = mAllContacts.erase(it);
 		while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()) {
-			targetUris << ", <" << *(*sameDestinationIt).second->toSofiaUrlClean(home.home()) << ">";
+			targetUris << ", <" << sameDestinationIt->second->urlAsString() << ">";
 			mAllContacts.erase(sameDestinationIt);
 			foundGroup = true;
 		}

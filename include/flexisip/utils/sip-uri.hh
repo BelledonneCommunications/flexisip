@@ -196,6 +196,15 @@ public:
 	std::string getParam(const std::string& paramName) const;
 	bool getBoolParam(const std::string& paramName, bool defaultValue) const;
 
+	/**
+	 * @note This function removes the parameter from the url.
+	 *
+	 * @param param name of the parameter to extract
+	 * @return the extracted parameter or a default-constructed value of `Type` if not found or extraction failed
+	 */
+	template <typename Type>
+	Type extractParam(const char* param);
+
 	void removeParam(const std::string& paramName);
 
 	TlsConfigInfo getTlsConfigInfo() const;
@@ -220,6 +229,18 @@ bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs);
 inline std::ostream& operator<<(std::ostream& os, const sofiasip::Url& url) {
 	return os << url.str();
 }
+
+template <>
+std::string Url::extractParam<std::string>(const char* param);
+template <>
+int Url::extractParam<int>(const char* param);
+template <>
+uintptr_t Url::extractParam<uintptr_t>(const char* param);
+template <>
+time_t Url::extractParam<time_t>(const char* param);
+template <>
+bool Url::extractParam<bool>(const char* param);
+
 } // namespace sofiasip
 
 namespace flexisip {

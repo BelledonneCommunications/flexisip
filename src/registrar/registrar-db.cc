@@ -386,9 +386,7 @@ private:
 		shared_ptr<ExtendedContact> newEc = make_shared<ExtendedContact>(*ec);
 		newEc->mSipContact =
 		    sip_contact_create(newEc->mHome.home(), reinterpret_cast<const url_string_t*>(uri.c_str()), nullptr);
-		ostringstream path;
-		path << *ec->toSofiaUrlClean(newEc->mHome.home());
-		newEc->mPath.push_back(path.str());
+		newEc->mPath.push_back(ec->urlAsString());
 		newEc->mUsedAsRoute = false;
 		return newEc;
 	}
