@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,6 +35,7 @@
 #include "registrardb-redis.hh"
 #include "utils/asserts.hh"
 #include "utils/core-assert.hh"
+#include "utils/listeners.hh"
 #include "utils/override-static.hh"
 #include "utils/redis-sync-access.hh"
 #include "utils/server/proxy-server.hh"
@@ -67,8 +68,7 @@ class OperationFailedListener : public ContactUpdateListener {
 public:
 	bool finished = false;
 
-	OperationFailedListener() {
-	}
+	OperationFailedListener() {}
 
 	void onRecordFound(const std::shared_ptr<Record>&) override {
 		BC_HARD_FAIL("unexpected call to onRecordFound");
@@ -101,20 +101,6 @@ public:
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
 		BC_FAIL("This test doesn't expect a contact to be updated");
 	}
-};
-
-class ContactRegisteredCallback : public ContactRegisteredListener {
-public:
-	template <typename TCallback>
-	ContactRegisteredCallback(TCallback&& callback) : mCallback(std::forward<TCallback>(callback)) {
-	}
-
-private:
-	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override {
-		mCallback(r, uid);
-	}
-
-	std::function<void(const std::shared_ptr<Record>&, const std::string&)> mCallback;
 };
 
 class SuccessfulConnectionListener : public RegistrarDbStateListener {
@@ -357,9 +343,8 @@ void no_perm_to_subscribe() {
 	        },
 	        maxDuration)
 	    .assert_passed();
-	SUITE_SCOPE->asserter
-	    .iterateUpTo(
-	        1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
+	SUITE_SCOPE->asserter.iterateUpTo(
+	                         1, [&actualTopic] { return LOOP_ASSERTION(actualTopic.has_value()); }, 100ms)
 	    .assert_passed();
 	BC_HARD_ASSERT(actualTopic.has_value());
 	BC_ASSERT_CPP_EQUAL(*actualTopic, topic);
