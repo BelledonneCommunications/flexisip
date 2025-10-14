@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -141,8 +141,11 @@ struct ExtendedContact {
 	 */
 	sip_route_t* toSofiaRoute(su_home_t* home) const;
 
-	/*returns a new url_t where ConnId (private flexisip parameter) is removed*/
-	url_t* toSofiaUrlClean(su_home_t* home);
+	/**
+	 * @note the returned SipUri is empty if the contact is invalid.
+	 * @return copy of internal sip_contact_t url as SipUri with "fs-conn-id" removed (private flexisip parameter).
+	 */
+	SipUri toSipUriClean() const;
 	bool isSame(const ExtendedContact& otherContact) const;
 
 	sofiasip::Home mHome{};

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -146,8 +146,7 @@ class ContactNotificationListener : public ContactUpdateListener,
                                     public std::enable_shared_from_this<ContactNotificationListener> {
 public:
 	ContactNotificationListener(std::string_view uid, RegistrarDb* db, const SipUri& aor)
-	    : mUid(uid), mDb(db), mAor(aor) {
-	}
+	    : mUid(uid), mDb(db), mAor(aor) {}
 
 private:
 	// ContactUpdateListener implementation
@@ -155,12 +154,9 @@ private:
 		auto record = r ?: make_shared<Record>(mAor, mDb->getRecordConfig());
 		mDb->notifyContactListener(record, mUid);
 	}
-	void onError(const SipStatus&) override {
-	}
-	void onInvalid(const SipStatus&) override {
-	}
-	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {
-	}
+	void onError(const SipStatus&) override {}
+	void onInvalid(const SipStatus&) override {}
+	void onContactUpdated([[maybe_unused]] const std::shared_ptr<ExtendedContact>& ec) override {}
 
 	string mUid;
 	RegistrarDb* mDb = nullptr;
@@ -310,8 +306,7 @@ public:
 	                             const SipUri& url,
 	                             int step = sMaxStep)
 	    : mDatabase(database), mOriginalListener(original_listerner),
-	      mRecord(make_shared<Record>(url, mDatabase->getRecordConfig())), mUrl(url), mStep(step) {
-	}
+	      mRecord(make_shared<Record>(url, mDatabase->getRecordConfig())), mUrl(url), mStep(step) {}
 
 	void onRecordFound(const shared_ptr<Record>& r) override {
 		mPendingRequests--;
@@ -368,8 +363,7 @@ public:
 		}
 	}
 
-	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
-	}
+	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {}
 
 private:
 	shared_ptr<ExtendedContact> transformContactUsedAsRoute(const std::string& uri,
@@ -387,7 +381,7 @@ private:
 		newEc->mSipContact =
 		    sip_contact_create(newEc->mHome.home(), reinterpret_cast<const url_string_t*>(uri.c_str()), nullptr);
 		ostringstream path;
-		path << *ec->toSofiaUrlClean(newEc->mHome.home());
+		path << ec->toSipUriClean();
 		newEc->mPath.push_back(path.str());
 		newEc->mUsedAsRoute = false;
 		return newEc;
@@ -437,8 +431,7 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 	class InternalContactUpdateListener : public ContactUpdateListener {
 	public:
 		InternalContactUpdateListener(shared_ptr<ListContactUpdateListener> listener, size_t size)
-		    : listListener(listener), count(size) {
-		}
+		    : listListener(listener), count(size) {}
 
 	private:
 		const std::string_view mLogPrefix{"InternalContactUpdateListener"};
@@ -456,8 +449,7 @@ void RegistrarDb::fetchList(const vector<SipUri> urls, const shared_ptr<ListCont
 			if (r) listListener->records.push_back(r);
 			updateCount();
 		}
-		void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
-		}
+		void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {}
 		void updateCount() {
 			count--;
 			if (count == 0) listListener->onContactsUpdated();
@@ -597,8 +589,7 @@ public:
 	      mRecordConfig(recordConfig), mRecord(0) {
 		mError = false;
 	}
-	virtual ~AgregatorRegistrarDbListener() {
-	}
+	virtual ~AgregatorRegistrarDbListener() {}
 	virtual void onRecordFound(const shared_ptr<Record>& r) override {
 		if (r) {
 			getRecord()->appendContactsFrom(r);
@@ -614,8 +605,7 @@ public:
 		checkFinished();
 	}
 
-	virtual void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
-	}
+	virtual void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {}
 };
 
 void RegistrarDb::fetchWithDomain(const SipUri& url,

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -48,12 +48,12 @@ void ForkGroupSorter::makeGroups() {
 
 		dest.sipContact = (*it).first;
 		dest.extendedContact = (*it).second;
-		targetUris << "<" << *dest.extendedContact->toSofiaUrlClean(home.home()) << ">";
+		targetUris << "<" << dest.extendedContact->toSipUriClean() << ">";
 		url_t* url = url_make(home.home(), (*it).second->mPath.back().c_str());
 		// Remove it and now search for other contacts that have the same route.
 		it = mAllContacts.erase(it);
 		while ((sameDestinationIt = findDestination(url)) != mAllContacts.end()) {
-			targetUris << ", <" << *(*sameDestinationIt).second->toSofiaUrlClean(home.home()) << ">";
+			targetUris << ", <" << (*sameDestinationIt).second->toSipUriClean() << ">";
 			mAllContacts.erase(sameDestinationIt);
 			foundGroup = true;
 		}
