@@ -24,11 +24,10 @@
 #include <string>
 #include <utility>
 
+#include "extended-contact.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/home.hh"
 #include "flexisip/utils/sip-uri.hh"
-
-#include "extended-contact.hh"
 
 namespace flexisip {
 
@@ -39,8 +38,6 @@ struct ExtendedContact;
 struct ExtendedContactCommon;
 
 class Record {
-	friend class RegistrarDb;
-
 public:
 	struct OrderByUpdateTime {
 		bool operator()(const std::shared_ptr<ExtendedContact>& lhs,
@@ -49,7 +46,9 @@ public:
 		}
 	};
 
-	// multiset, because contacts may have the same update time
+	/**
+	 * @note Multiset, because contacts may have the same update time.
+	 */
 	class Contacts : public std::multiset<std::shared_ptr<ExtendedContact>, OrderByUpdateTime> {
 	public:
 		auto oldest() const {
@@ -65,10 +64,11 @@ public:
 		friend class ForkManager;
 		friend class RegistrarDbRedisAsync;
 
-		// A null pointer or an empty AOR leads to an empty key.
+		/**
+		 * @note A null pointer or an empty AOR leads to an empty key.
+		 */
 		explicit Key(const url_t* aor, bool useGlobalDomain);
-		explicit Key(const SipUri& aor, bool useGlobalDomain) : Key(aor.get(), useGlobalDomain) {
-		}
+		explicit Key(const SipUri& aor, bool useGlobalDomain) : Key(aor.get(), useGlobalDomain){};
 
 		std::string toRedisKey() const {
 			return "fs:" + mWrapped;
@@ -98,7 +98,9 @@ public:
 		std::string mWrapped;
 	};
 
-	// Retain the configuration parameters used by the record class.
+	/**
+	 * @brief Retain the configuration parameters used by the record class.
+	 */
 	class Config {
 	public:
 		explicit Config(const ConfigManager& cfg);
@@ -133,24 +135,29 @@ public:
 	Record(Record&& other) = delete;      // disable move constructor
 	~Record() = default;
 
-	Record& operator=(const Record& other) = delete; // disable assignement operator too
-	Record& operator=(Record&& other) = delete;      // disable move assignement operator too
+	Record& operator=(const Record& other) = delete; // disable assignment operator too
+	Record& operator=(Record&& other) = delete;      // disable move assignment operator too
 
-	// Get address of record
+	/**
+	 * @return the address-of-record (AOR)
+	 */
 	const SipUri& getAor() const {
 		return mAor;
 	}
 
 	/**
 	 * @throws InvalidCseq when the contact has a CSeq less than or equal to that of a matching contact in the record
-	 * (only when updating based on RFC 3261 URI matching rules. I.e. cannot happen when updating based on
-	 * +sip.instance)
+	 * (only when updating based on RFC 3261 URI matching rules. I.e., cannot happen when updating based on
+	 * '+sip.instance')
 	 */
 	ChangeSet insertOrUpdateBinding(std::unique_ptr<ExtendedContact>&& ec, ContactUpdateListener* listener);
 
-	const std::shared_ptr<ExtendedContact> extractContactByUniqueId(const std::string& uid) const;
+	std::shared_ptr<ExtendedContact> extractContactByUniqueId(const std::string& uid) const;
 	sip_contact_t* getContacts(su_home_t* home);
 
+	/**
+	 * @note Should first have checked the validity of the register with isValidRegister.
+	 */
 	void clean(const std::shared_ptr<ContactUpdateListener>& listener);
 
 	/**
@@ -161,7 +168,9 @@ public:
 	ChangeSet update(const sip_t* sip,
 	                 const BindingParameters& parameters,
 	                 const std::shared_ptr<ContactUpdateListener>& listener);
-	// Deprecated: this one is used by serializer
+	/**
+	 * @deprecated this one is used by serializer.
+	 */
 	void update(const ExtendedContactCommon& ecc,
 	            const char* sipuri,
 	            long int expireAt,
@@ -180,7 +189,7 @@ public:
 	const Key& getKey() const {
 		return mKey;
 	}
-	int count() {
+	int count() const {
 		return mContacts.size();
 	}
 	const Contacts& getExtendedContacts() const {
@@ -193,16 +202,17 @@ public:
 		return mConfig;
 	}
 
-	/*
-	 * Synthetise the pub-gruu address from an extended contact belonging to this Record.
-	 * FIXME: of course this method should be directly attached to ExtendedContact.
-	 * Unfortunately, because pub-gruu were not contained in the ExtendedContact, it shall remain in Record for
-	 * compatibility.
-	 */
-	url_t* getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home);
 	/**
-	 * Check if the contacts list size is < to max aor config option and remove older contacts to match restriction if
-	 * needed
+	 * @brief Synthesize the 'pub-gruu' address from an extended contact belonging to this Record.
+	 * Unfortunately, because 'pub-gruu' were not contained in the ExtendedContact, it shall remain in Record for
+	 * compatibility.
+	 *
+	 * FIXME: of course this method should be directly attached to ExtendedContact.
+	 */
+	url_t* getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home) const;
+	/**
+	 * @brief Check if the contact list size is inferior to max aor config option and remove older contacts to match
+	 * restriction if needed
 	 */
 	ChangeSet applyMaxAor();
 	time_t latestExpire() const;
@@ -212,15 +222,21 @@ public:
 	bool haveOnlyStaticContacts() const {
 		return mOnlyStaticContacts;
 	}
+	/**
+	 * @warning This function is designed for non-regression tests. It is not performant and non-exhaustive in
+	 * comparison.
+	 */
 	bool isSame(const Record& other) const;
 
-	std::string extractUniqueId(const sip_contact_t* contact);
+	std::string extractUniqueId(const sip_contact_t* contact) const;
 
 private:
+	friend class RegistrarDb;
+
 	enum class ContactMatch {
-		Skip,           // Does not match the newly registered contact. Nothing to do.
-		EraseAndNotify, // Update or Remove
-		ForceErase,     // Service clean up
+		Skip,           // Does not match the newly registered contact: nothing to do.
+		EraseAndNotify, // Update or Remove.
+		ForceErase,     // Service cleanup.
 	};
 
 	static constexpr std::string_view mLogPrefix{"Record"};
