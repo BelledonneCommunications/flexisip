@@ -18,12 +18,11 @@
 
 #include "record.hh"
 
-#include "flexisip/registrar/registar-listeners.hh"
-
 #include "binding-parameters.hh"
 #include "change-set.hh"
 #include "exceptions.hh"
 #include "extended-contact.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 
 using namespace std;
 
@@ -41,10 +40,10 @@ sip_contact_t* Record::getContacts(su_home_t* home) {
 	return alist;
 }
 
-string Record::extractUniqueId(const sip_contact_t* contact) {
+string Record::extractUniqueId(const sip_contact_t* contact) const {
 	char lineValue[256] = {0};
 
-	/*search for device unique parameter among the ones configured */
+	// Search for device unique parameter among the ones configured.
 	for (auto it = mConfig.getLineFieldNames().begin(); it != mConfig.getLineFieldNames().end(); ++it) {
 		const char* ct_param = msg_params_find(contact->m_params, it->c_str());
 		if (ct_param) return ct_param;
@@ -56,7 +55,7 @@ string Record::extractUniqueId(const sip_contact_t* contact) {
 	return "";
 }
 
-const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(const string& uid) const {
+shared_ptr<ExtendedContact> Record::extractContactByUniqueId(const string& uid) const {
 	const auto contacts = getExtendedContacts();
 	for (auto it = contacts.begin(); it != contacts.end(); ++it) {
 		const shared_ptr<ExtendedContact> ec = *it;
@@ -64,13 +63,9 @@ const shared_ptr<ExtendedContact> Record::extractContactByUniqueId(const string&
 			return ec;
 		}
 	}
-	shared_ptr<ExtendedContact> noContact;
-	return noContact;
+	return nullptr;
 }
 
-/**
- * Should first have checked the validity of the register with isValidRegister.
- */
 void Record::clean(const shared_ptr<ContactUpdateListener>& listener) {
 	auto it = mContacts.begin();
 	while (it != mContacts.end()) {
@@ -100,7 +95,7 @@ time_t Record::latestExpire(std::function<bool(const url_t*)>& predicate) const 
 		const auto expireTime = (*it)->getExpireTime();
 		if ((*it)->mPath.empty() || expireTime <= latest) continue;
 
-		/* Remove extra parameters */
+		// Remove extra parameters.
 		string s = *(*it)->mPath.begin();
 		string::size_type n = s.find(";");
 		if (n != string::npos) s = s.substr(0, n);
@@ -121,20 +116,20 @@ list<string> Record::route_to_stl(const sip_route_s* route) {
 	return res;
 }
 
-Record::Key::Key(const url_t* url, bool useGlobalDomain) : mWrapped() {
-	ostringstream ostr;
+Record::Key::Key(const url_t* url, bool useGlobalDomain) {
+	ostringstream wrapped{};
 	if (url == nullptr) return;
-	const char* user = url->url_user;
+	const auto* user = url->url_user;
 	if (user && user[0] != '\0') {
 		if (!useGlobalDomain) {
-			ostr << user << "@" << url->url_host;
+			wrapped << user << "@" << url->url_host;
 		} else {
-			ostr << user << "@merged";
+			wrapped << user << "@merged";
 		}
 	} else {
-		ostr << url->url_host;
+		wrapped << url->url_host;
 	}
-	mWrapped = ostr.str();
+	mWrapped = wrapped.str();
 }
 
 SipUri Record::Key::toSipUri() const {
@@ -143,13 +138,13 @@ SipUri Record::Key::toSipUri() const {
 
 Record::Config::Config(const ConfigManager& cfg) {
 	const auto& cr = *cfg.getRoot();
-	const GenericStruct* mr = cr.getModuleSectionByRole("Registrar");
+	const auto* mr = cr.getModuleSectionByRole("Registrar");
 	mMaxContacts = mr->get<ConfigInt>("max-contacts-by-aor")->read();
 	mLineFieldNames = mr->get<ConfigStringList>("unique-id-parameters")->read();
 	mMessageExpiresName = mr->get<ConfigString>("message-expires-param-name")->read();
 	mAssumeUniqueDomains =
 	    cr.get<GenericStruct>("inter-domain-connections")->get<ConfigBoolean>("assume-unique-domains")->read();
-	const GenericStruct* mro = cr.getModuleSectionByRole("Router");
+	const auto* mro = cr.getModuleSectionByRole("Router");
 	mUseGlobalDomain = mro->get<ConfigBoolean>("use-global-domain")->read();
 }
 
@@ -163,8 +158,9 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 		mContacts.clear();
 	}
 
-	auto alreadyMatched = false; // If multiple existing contacts match the new contact (e.g. based on URI) then we
-	                             // update the first one, and delete the others
+	// If multiple existing contacts match the new contact (e.g., based on URI) then we update the first one and delete
+	// the others.
+	auto alreadyMatched = false;
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		auto existing = *it;
 		auto remove = true;
@@ -177,7 +173,7 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 				if (listener) listener->onContactUpdated(existing);
 				remove = ec->isExpired() || alreadyMatched;
 			}
-			/* fallthrough */
+				[[fallthrough]];
 			case ContactMatch::ForceErase:
 				if (remove) {
 					LOGI << "Removing " << *existing;
@@ -185,8 +181,7 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 				} else {
 					LOGI << "Updating " << *existing;
 
-					// Carry over existing key
-					// (otherwise the contact would get duplicated instead of updated)
+					// Carry over the existing key (otherwise the contact would get duplicated instead of updated).
 					ec->mKey = existing->mKey;
 					alreadyMatched = true;
 				}
@@ -195,11 +190,9 @@ ChangeSet Record::insertOrUpdateBinding(unique_ptr<ExtendedContact>&& ec, Contac
 		}
 	}
 
-	if (ec->mCallId.find("static-record") == string::npos) {
-		mOnlyStaticContacts = false;
-	}
+	if (ec->mCallId.find("static-record") == string::npos) mOnlyStaticContacts = false;
 
-	/* Add the new contact, if not expired (ie with expires=0) */
+	// Add the new contact, if not expired (i.e., with 'expires=0').
 	if (!ec->isExpired()) {
 		shared_ptr<ExtendedContact> shared = std::move(ec);
 		mContacts.emplace(shared);
@@ -215,11 +208,11 @@ Record::ContactMatch Record::matchContacts(const ExtendedContact& existing, cons
 			LOGD << "Removing contact [" << existing.contactId() << "] with identical push params : new["
 			     << neo.mPushParamList << "], current[" << existing.mPushParamList << "]";
 			return ContactMatch::ForceErase;
-		} else {
-			LOGW << "Inserted contact has the same push parameters as another more recent contact, this should not "
-			        "happen (existing: "
-			     << existing.getRegisterTime() << " ≮ new: " << neo.getRegisterTime() << ")";
 		}
+
+		LOGW << "Inserted contact has the same push parameters as another more recent contact, this should not "
+		        "happen (existing: "
+		     << existing.getRegisterTime() << " ≮ new: " << neo.getRegisterTime() << ")";
 	}
 
 	// "If the Contact header field does not contain a "+sip.instance" Contact header field parameter, the registrar
@@ -315,7 +308,6 @@ ChangeSet Record::update(const sip_t* sip,
                          const shared_ptr<ContactUpdateListener>& listener) {
 	list<string> stlPath;
 	sofiasip::Home home;
-	string userAgent;
 	const sip_contact_t* contacts = sip->sip_contact;
 	const sip_accept_t* accept = sip->sip_accept;
 	list<string> acceptHeaders;
@@ -330,7 +322,7 @@ ChangeSet Record::update(const sip_t* sip,
 		stlPath = route_to_stl(sip->sip_path);
 	}
 
-	userAgent = (sip->sip_user_agent) ? sip->sip_user_agent->g_string : "";
+	string userAgent = (sip->sip_user_agent) ? sip->sip_user_agent->g_string : "";
 
 	// Build ExtendedContacts from sip contacts.
 	while (contacts) {
@@ -371,13 +363,13 @@ void Record::update(const ExtendedContactCommon& ecc,
                     bool usedAsRoute,
                     const shared_ptr<ContactUpdateListener>& listener) {
 	sofiasip::Home home;
-	url_t* sipUri = url_make(home.home(), sipuri);
+	auto* sipUri = url_make(home.home(), sipuri);
 
 	if (!sipUri) {
 		LOGE << "Could not build SIP URI";
 		return;
 	}
-	sip_contact_t* contact = sip_contact_create(home.home(), (url_string_t*)sipUri, nullptr);
+	auto* contact = sip_contact_create(home.home(), reinterpret_cast<url_string_t*>(sipUri), nullptr);
 	if (!contact) {
 		LOGE << "Could not build contact";
 		return;
@@ -396,7 +388,6 @@ void Record::update(const ExtendedContactCommon& ecc,
 	LOGD << *this;
 }
 
-/* This function is designed for non-regression tests. It is not performant and non-exhaustive in the compararison */
 bool Record::isSame(const Record& other) const {
 	LOGD << "Comparing " << this << "\nwith " << other;
 	if (!getAor().compareAll(other.getAor())) {
@@ -422,8 +413,8 @@ bool Record::isSame(const Record& other) const {
 }
 
 void Record::print(ostream& stream) const {
-	time_t now = getCurrentTime();
-	time_t offset = getTimeOffset(now);
+	const auto now = getCurrentTime();
+	const auto offset = getTimeOffset(now);
 	stream << mLogPrefix << "[" << this << "] {\n";
 	stream << "mContacts (" << mContacts.size() << "): [";
 	for (const auto& contact : mContacts) {
@@ -453,7 +444,7 @@ Record::Record(SipUri&& aor, const Config& recordConfig)
       mConfig{recordConfig} {
 }
 
-url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home) {
+url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home) const {
 	char gr_value[256] = {0};
 	url_t* gruu_addr = NULL;
 	const char* pub_gruu_value = msg_header_find_param((msg_common_t*)ec->mSipContact, "pub-gruu");

@@ -20,7 +20,7 @@
 
 #include <chrono>
 
-#include <sofia-sip/sip_tag.h>
+#include "sofia-sip/sip_tag.h"
 
 #include "utils/uri-utils.hh"
 #include "utils/utf8-string.hh"
@@ -28,6 +28,65 @@
 using namespace std;
 
 namespace flexisip {
+
+ExtendedContact::ExtendedContact(const char* key, const char* fullUrl, const std::string& messageExpiresName)
+    : mKey(key), mMessageExpiresName{messageExpiresName} {
+	extractInfoFromUrl(fullUrl);
+	init();
+}
+
+ExtendedContact::ExtendedContact(const ExtendedContactCommon& common,
+                                 const sip_contact_t* sip_contact,
+                                 int global_expire,
+                                 uint32_t cseq,
+                                 time_t updateTime,
+                                 bool alias,
+                                 const std::list<std::string>& acceptHeaders,
+                                 const std::string& userAgent,
+                                 const std::string& messageExpiresName)
+    : mCallId(common.mCallId), mKey(common.mKey), mPath(common.mPath), mUserAgent(userAgent), mCSeq(cseq),
+      mAcceptHeader(acceptHeaders), mAlias(alias), mRegisterTime(updateTime), mMessageExpiresName{messageExpiresName},
+      mExpires(global_expire) {
+
+	mSipContact = sip_contact_dup(mHome.home(), sip_contact);
+	mSipContact->m_next = nullptr;
+	init();
+}
+
+ExtendedContact::ExtendedContact(const SipUri& url,
+                                 const std::string& route,
+                                 const std::string& messageExpiresName,
+                                 float q)
+    : mPath({route}), mMessageExpiresName{messageExpiresName}, mExpires(std::chrono::seconds::max()) {
+	mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<const url_string_t*>(url.get()), nullptr);
+	q = min(1.0f, max(0.0f, q)); // Enforce RFC compliance.
+	mSipContact->m_q = mHome.sprintf("%.3f", q);
+	// MUST be called with [initExpire == false] to keep mExpires and mMessageExpires untouched to prevent the contact
+	// from expiring.
+	init(false);
+}
+
+ExtendedContact::ExtendedContact(const ExtendedContact& ec)
+    : mCallId(ec.mCallId), mKey(ec.mKey), mPath(ec.mPath), mUserAgent(ec.mUserAgent), mQ(ec.mQ), mCSeq(ec.mCSeq),
+      mAcceptHeader(ec.mAcceptHeader), mConnId(ec.mConnId), mAlias(ec.mAlias), mUsedAsRoute(ec.mUsedAsRoute),
+      mIsFallback(ec.mIsFallback), mRegisterTime(ec.mRegisterTime), mMessageExpiresName(ec.mMessageExpiresName),
+      mExpires(ec.mExpires), mMessageExpires(ec.mMessageExpires) {
+	mSipContact = sip_contact_dup(mHome.home(), ec.mSipContact);
+	mSipContact->m_next = nullptr;
+}
+
+int ExtendedContact::resolveExpire(const char* contact_expire, int global_expire) {
+	if (contact_expire) return atoi(contact_expire);
+	if (global_expire >= 0) return global_expire;
+	return -1;
+}
+
+std::string ExtendedContact::urlToString(const url_t* url) {
+	std::ostringstream ostr;
+	sofiasip::Home home;
+	char* tmp = url_as_string(home.home(), url);
+	return std::string(tmp ? tmp : "");
+}
 
 ostream& ExtendedContact::print(ostream& stream, time_t _now, time_t _offset) const {
 	time_t now = _now;
@@ -39,7 +98,7 @@ ostream& ExtendedContact::print(ostream& stream, time_t _now, time_t _offset) co
 	if (ptm != nullptr) {
 		strftime(buffer, sizeof(buffer) - 1, "%c", ptm);
 	}
-	int expireAfter = expire - now;
+	const auto expireAfter = expire - now;
 
 	stream << "ExtendedContact[" << this << "]( ";
 	stream << urlToString(mSipContact->m_url) << " path=\"";
@@ -73,24 +132,21 @@ url_t* ExtendedContact::toSofiaUrlClean(su_home_t* home) {
 }
 
 string ExtendedContact::getOrgLinphoneSpecs() const {
-	if (!mSipContact) return string();
+	if (!mSipContact) return {};
 	const char* specs = msg_params_find(mSipContact->m_params, "+org.linphone.specs");
 	string result = specs ? string(specs) : string();
 	return result;
 }
 
-const string ExtendedContact::getMessageExpires(const msg_param_t* m_params) {
-	if (m_params) {
-		// Find message expires time in the contact parameters
-		string mss_expires(*m_params);
-		string name_expires_mss = mMessageExpiresName;
-		if (mss_expires.find(name_expires_mss + "=") != string::npos) {
-			mss_expires =
-			    mss_expires.substr(mss_expires.find(name_expires_mss + "=") + (strlen(name_expires_mss.c_str()) + 1));
-			return mss_expires;
-		}
-	}
-	return "";
+string ExtendedContact::getMessageExpires(const msg_param_t* m_params) const {
+	if (m_params == nullptr) return {};
+
+	// Find message expires time in the contact parameters.
+	string mss_expires(*m_params);
+	string name_expires_mss = mMessageExpiresName;
+	if (mss_expires.find(name_expires_mss + "=") == string::npos) return {};
+
+	return mss_expires.substr(mss_expires.find(name_expires_mss + "=") + (strlen(name_expires_mss.c_str()) + 1));
 }
 
 sip_contact_t* ExtendedContact::toSofiaContact(su_home_t* home) const {
@@ -98,9 +154,6 @@ sip_contact_t* ExtendedContact::toSofiaContact(su_home_t* home) const {
 	return sip_contact_dup(home, mSipContact);
 }
 
-/*
- * Convert list of paths into sofia route.
- */
 sip_route_t* ExtendedContact::toSofiaRoute(su_home_t* home) const {
 	sip_route_t* rbegin = nullptr;
 	sip_route_t* r = nullptr;
@@ -176,14 +229,14 @@ void ExtendedContact::extractInfoFromHeader(const char* urlHeaders) {
 
 utils::Utf8String ExtendedContact::getDeviceName() const {
 	const string& userAgent = mUserAgent;
-	size_t begin = userAgent.find("(");
+	const auto begin = userAgent.find('(');
 	string deviceName;
 	if (begin != string::npos) {
-		size_t end = userAgent.find(")", begin);
-		size_t openingParenthesis = userAgent.find("(", begin + 1);
+		auto end = userAgent.find(')', begin);
+		auto openingParenthesis = userAgent.find('(', begin + 1);
 		while (openingParenthesis != string::npos && openingParenthesis < end) {
-			openingParenthesis = userAgent.find("(", openingParenthesis + 1);
-			end = userAgent.find(")", end + 1);
+			openingParenthesis = userAgent.find('(', openingParenthesis + 1);
+			end = userAgent.find(')', end + 1);
 		}
 		if (end != string::npos) {
 			deviceName = userAgent.substr(begin + 1, end - (begin + 1));
@@ -192,88 +245,77 @@ utils::Utf8String ExtendedContact::getDeviceName() const {
 	return deviceName;
 }
 
-string ExtendedContact::serializeAsUrlEncodedParams() {
+string ExtendedContact::serializeAsUrlEncodedParams() const {
 	sofiasip::Home home;
 	string param{};
 	sip_contact_t* contact = sip_contact_dup(home.home(), mSipContact);
 
-	// CallId
 	param = "callid=" + UriUtils::escape(mCallId, UriUtils::sipUriParamValueReserved);
 	url_param_add(home.home(), contact->m_url, param.c_str());
 
-	// Expire
 	param = "expires=" + to_string(mExpires.count());
 	url_param_add(home.home(), contact->m_url, param.c_str());
 
-	// CSeq
 	param = "cseq=" + to_string(mCSeq);
 	url_param_add(home.home(), contact->m_url, param.c_str());
 
-	// Updated at
 	param = "updatedAt=" + to_string(mRegisterTime);
 	url_param_add(home.home(), contact->m_url, param.c_str());
 
-	// Alias
 	param = string{"alias="} + (mAlias ? "yes" : "no");
 	url_param_add(home.home(), contact->m_url, param.c_str());
 
-	// Used as route
 	param = string{"usedAsRoute="} + (mUsedAsRoute ? "yes" : "no");
 	url_param_add(home.home(), contact->m_url, param.c_str());
 
-	// Path
-	ostringstream oss_path{};
+	ostringstream path{};
 	for (auto it = mPath.cbegin(); it != mPath.cend(); ++it) {
-		if (it != mPath.cbegin()) oss_path << ",";
-		oss_path << "<" << *it << ">";
+		if (it != mPath.cbegin()) path << ",";
+		path << "<" << *it << ">";
 	}
 
-	// AcceptHeaders
-	ostringstream oss_accept{};
+	ostringstream accept{};
 	for (auto it = mAcceptHeader.cbegin(); it != mAcceptHeader.cend(); ++it) {
-		if (it != mAcceptHeader.cbegin()) oss_accept << ",";
-		oss_accept << *it;
+		if (it != mAcceptHeader.cbegin()) accept << ",";
+		accept << *it;
 	}
 
-	contact->m_url->url_headers = sip_headers_as_url_query(home.home(), SIPTAG_PATH_STR(oss_path.str().c_str()),
-	                                                       SIPTAG_ACCEPT_STR(oss_accept.str().c_str()),
+	contact->m_url->url_headers = sip_headers_as_url_query(home.home(), SIPTAG_PATH_STR(path.str().c_str()),
+	                                                       SIPTAG_ACCEPT_STR(accept.str().c_str()),
 	                                                       SIPTAG_USER_AGENT_STR(mUserAgent.c_str()), TAG_END());
 
-	string contact_string{sip_header_as_string(home.home(), (sip_header_t const*)contact)};
-	return contact_string;
+	return {sip_header_as_string(home.home(), reinterpret_cast<sip_header_t const*>(contact))};
 }
 
 void ExtendedContact::init(bool initExpire) {
-	if (mSipContact) {
-		if (mSipContact->m_q) {
-			mQ = atof(mSipContact->m_q);
-		}
+	if (mSipContact == nullptr) return;
 
-		if (url_has_param(mSipContact->m_url, "fs-conn-id")) {
-			char strConnId[32] = {0};
-			if (url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
-				mConnId = std::strtoull(strConnId, nullptr, 16);
-			}
-		}
+	if (mSipContact->m_q) mQ = atof(mSipContact->m_q);
 
-		if (initExpire) {
-			mMessageExpires = chrono::seconds(atoi(getMessageExpires(mSipContact->m_params).c_str()));
-			if (mSipContact->m_expires) {
-				mExpires = chrono::seconds(atoi(mSipContact->m_expires));
-			}
+	if (url_has_param(mSipContact->m_url, "fs-conn-id")) {
+		char strConnId[32] = {0};
+		if (url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
+			mConnId = std::strtoull(strConnId, nullptr, 16);
 		}
-		auto pnProvider = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-provider");
-		auto pnPrId = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-prid");
-		auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
-		if (!pnProvider.empty() && !pnPrId.empty() && !pnParam.empty()) {
-			mPushParamList = PushParamList{pnProvider, pnPrId, pnParam};
-		} else {
-			auto appId = UriUtils::getParamValue(mSipContact->m_url->url_params, "app-id");
-			auto pnType = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-type");
-			auto pnTok = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-tok");
-			if (!appId.empty() && !pnType.empty() && !pnTok.empty()) {
-				mPushParamList = PushParamList{pnType, pnTok, appId, true};
-			}
+	}
+
+	if (initExpire) {
+		mMessageExpires = chrono::seconds(atoi(getMessageExpires(mSipContact->m_params).c_str()));
+		if (mSipContact->m_expires) {
+			mExpires = chrono::seconds(atoi(mSipContact->m_expires));
+		}
+	}
+	auto pnProvider = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-provider");
+	auto pnPrId = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-prid");
+	auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
+	if (!pnProvider.empty() && !pnPrId.empty() && !pnParam.empty()) {
+		mPushParamList = PushParamList{pnProvider, pnPrId, pnParam};
+	} else {
+		auto appId = UriUtils::getParamValue(mSipContact->m_url->url_params, "app-id");
+		auto pnType = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-type");
+		auto pnTok = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-tok");
+		if (!appId.empty() && !pnType.empty() && !pnTok.empty()) {
+			mPushParamList = PushParamList{pnType, pnTok, appId, true};
 		}
 	}
 }
@@ -311,14 +353,14 @@ static bool extractBoolParam(url_t* url, const char* param) noexcept {
 	return !extractedParam.empty() && extractedParam.find("yes") != string::npos;
 }
 
-void ExtendedContact::extractInfoFromUrl(const char* full_url) {
-	sip_contact_t* temp_contact = sip_contact_make(mHome.home(), full_url);
+void ExtendedContact::extractInfoFromUrl(const char* fullUrl) {
 	url_t* url = nullptr;
-	if (temp_contact == nullptr) {
-		LOGD << "Could not parse " << full_url << " as contact, fallback to url instead";
-		url = url_make(mHome.home(), full_url);
+	auto* tmp = sip_contact_make(mHome.home(), fullUrl);
+	if (tmp == nullptr) {
+		LOGD << "Could not parse " << fullUrl << " as contact, fallback to url instead";
+		url = url_make(mHome.home(), fullUrl);
 	} else {
-		url = temp_contact->m_url;
+		url = tmp->m_url;
 	}
 
 	if (url == nullptr) {
@@ -326,22 +368,11 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 		return;
 	}
 
-	// CallId
 	mCallId = extractStringParam(url, "callid");
-
-	// Expire
 	mExpires = chrono::seconds(extractIntParam(url, "expires"));
-
-	// Update time
 	mRegisterTime = extractUnsignedLongParam(url, "updatedAt");
-
-	// CSeq
 	mCSeq = extractIntParam(url, "cseq");
-
-	// Alias
 	mAlias = extractBoolParam(url, "alias");
-
-	// Used as route
 	mUsedAsRoute = extractBoolParam(url, "usedAsRoute");
 
 	extractInfoFromHeader(url->url_headers);
@@ -351,10 +382,10 @@ void ExtendedContact::extractInfoFromUrl(const char* full_url) {
 
 	url->url_headers = nullptr;
 
-	if (temp_contact == nullptr) {
-		mSipContact = sip_contact_create(mHome.home(), (url_string_t*)url, nullptr);
+	if (tmp == nullptr) {
+		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<url_string_t*>(url), nullptr);
 	} else {
-		mSipContact = temp_contact;
+		mSipContact = tmp;
 	}
 }
 
