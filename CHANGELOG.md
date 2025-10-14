@@ -97,6 +97,7 @@ Group changes to describe their impact on the project, as follows:
         properly to the server ('202 Accepted' was previously immediately answered to the UAC).
       - Invite/Cancel (iOS devices) feature was not working properly when no response (503 or 408 to INVITE request) was
         received before CANCEL request receipt.
+    - **Registrar:** A client that does not use '+sip.instance' could have duplicate entries in the registrar database.
 - **Conference server:**
     - Set the default contact address (with identity address of the conference server) to fix issues when connection
       to the Redis database is slow or broken.

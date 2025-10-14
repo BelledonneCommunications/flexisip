@@ -22,6 +22,7 @@
 
 #include "sofia-sip/sip_tag.h"
 
+#include "sofia-wrapper/utilities.hh"
 #include "utils/uri-utils.hh"
 #include "utils/utf8-string.hh"
 
@@ -120,15 +121,6 @@ ostream& ExtendedContact::print(ostream& stream, time_t _now, time_t _offset) co
 	ExtendedContact[0x61200022ce40]( sip:existing1@example.org path="" user-agent="" alias=no uid=test-contact-0 expire=87 s (Thu Feb  9 15:01:00 2023) )
 
 	clang-format on */
-}
-
-url_t* ExtendedContact::toSofiaUrlClean(su_home_t* home) {
-	url_t* ret = nullptr;
-	if (!mSipContact) return nullptr;
-
-	ret = url_hdup(home, mSipContact->m_url);
-	ret->url_params = url_strip_param_string((char*)ret->url_params, "fs-conn-id");
-	return ret;
 }
 
 string ExtendedContact::getOrgLinphoneSpecs() const {
@@ -246,9 +238,13 @@ utils::Utf8String ExtendedContact::getDeviceName() const {
 }
 
 string ExtendedContact::serializeAsUrlEncodedParams() const {
-	sofiasip::Home home;
 	string param{};
-	sip_contact_t* contact = sip_contact_dup(home.home(), mSipContact);
+	stringstream stream{};
+	sofiasip::Home home{};
+	auto* contact = sip_contact_dup(home.home(), mSipContact);
+
+	stream << "fs-conn-id=" << hex << mConnId;
+	url_param_add(home.home(), contact->m_url, stream.str().c_str());
 
 	param = "callid=" + UriUtils::escape(mCallId, UriUtils::sipUriParamValueReserved);
 	url_param_add(home.home(), contact->m_url, param.c_str());
@@ -292,19 +288,14 @@ void ExtendedContact::init(bool initExpire) {
 
 	if (mSipContact->m_q) mQ = atof(mSipContact->m_q);
 
-	if (url_has_param(mSipContact->m_url, "fs-conn-id")) {
-		char strConnId[32] = {0};
-		if (url_param(mSipContact->m_url->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
-			mConnId = std::strtoull(strConnId, nullptr, 16);
-		}
-	}
+	if (const auto* param = msg_header_find_param(reinterpret_cast<msg_common_t const*>(mSipContact), "fs-conn-id"))
+		mConnId = strtoul(param, nullptr, 16);
 
 	if (initExpire) {
 		mMessageExpires = chrono::seconds(atoi(getMessageExpires(mSipContact->m_params).c_str()));
-		if (mSipContact->m_expires) {
-			mExpires = chrono::seconds(atoi(mSipContact->m_expires));
-		}
+		if (mSipContact->m_expires) mExpires = chrono::seconds(atoi(mSipContact->m_expires));
 	}
+
 	auto pnProvider = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-provider");
 	auto pnPrId = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-prid");
 	auto pnParam = UriUtils::getParamValue(mSipContact->m_url->url_params, "pn-param");
@@ -320,71 +311,42 @@ void ExtendedContact::init(bool initExpire) {
 	}
 }
 
-static std::string extractStringParam(url_t* url, const char* param) noexcept {
-	if (!url_has_param(url, param)) {
-		return string{};
-	}
-
-	string buffer(255, '\0');
-	auto valueLength = url_param(url->url_params, param, &buffer[0], buffer.size());
-	buffer.resize(valueLength - 1);
-	url->url_params = url_strip_param_string(const_cast<char*>(url->url_params), param);
-	return UriUtils::unescape(buffer);
-}
-
-static int extractIntParam(url_t* url, const char* param) noexcept {
-	try {
-		return stoi(extractStringParam(url, param));
-	} catch (...) {
-		return 0;
-	}
-}
-
-static int extractUnsignedLongParam(url_t* url, const char* param) noexcept {
-	try {
-		return static_cast<int>(stoll(extractStringParam(url, param)));
-	} catch (...) {
-		return 0;
-	}
-}
-
-static bool extractBoolParam(url_t* url, const char* param) noexcept {
-	auto extractedParam = extractStringParam(url, param);
-	return !extractedParam.empty() && extractedParam.find("yes") != string::npos;
-}
-
 void ExtendedContact::extractInfoFromUrl(const char* fullUrl) {
-	url_t* url = nullptr;
+	sofiasip::Url url{};
 	auto* tmp = sip_contact_make(mHome.home(), fullUrl);
-	if (tmp == nullptr) {
-		LOGD << "Could not parse " << fullUrl << " as contact, fallback to url instead";
-		url = url_make(mHome.home(), fullUrl);
-	} else {
-		url = tmp->m_url;
-	}
-
-	if (url == nullptr) {
-		LOGE << "Url is null";
+	try {
+		if (tmp == nullptr) {
+			LOGD << "Could not parse " << fullUrl << " as contact, fallback to url instead";
+			url = sofiasip::Url{fullUrl};
+		} else {
+			url = sofiasip::Url{tmp->m_url};
+		}
+	} catch (const std::exception& e) {
+		LOGE << "Failed to parse url: " << e.what();
 		return;
 	}
 
-	mCallId = extractStringParam(url, "callid");
-	mExpires = chrono::seconds(extractIntParam(url, "expires"));
-	mRegisterTime = extractUnsignedLongParam(url, "updatedAt");
-	mCSeq = extractIntParam(url, "cseq");
-	mAlias = extractBoolParam(url, "alias");
-	mUsedAsRoute = extractBoolParam(url, "usedAsRoute");
+	if (url.empty()) {
+		LOGE << "Url is empty";
+		return;
+	}
 
-	extractInfoFromHeader(url->url_headers);
+	mConnId = url.extractParam<uintptr_t>("fs-conn-id");
+	mCallId = url.extractParam<string>("callid");
+	mExpires = chrono::seconds{url.extractParam<int>("expires")};
+	mRegisterTime = url.extractParam<time_t>("updatedAt");
+	mCSeq = url.extractParam<int>("cseq");
+	mAlias = url.extractParam<bool>("alias");
+	mUsedAsRoute = url.extractParam<bool>("usedAsRoute");
 
-	char transport[20] = {0};
-	url_param(url[0].url_params, "transport", transport, sizeof(transport) - 1);
+	extractInfoFromHeader(url.getHeaders().c_str());
 
-	url->url_headers = nullptr;
+	url = url.replace(&url_t::url_headers, "");
 
 	if (tmp == nullptr) {
-		mSipContact = sip_contact_create(mHome.home(), reinterpret_cast<url_string_t*>(url), nullptr);
+		mSipContact = sip_contact_create(mHome.home(), sofiasip::toSofiaSipUrlUnion(url.str()), nullptr);
 	} else {
+		*tmp->m_url = *url_hdup(mHome.home(), url.get());
 		mSipContact = tmp;
 	}
 }

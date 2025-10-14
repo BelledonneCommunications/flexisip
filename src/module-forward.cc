@@ -328,6 +328,9 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 		msg_header_remove_all(msg, (msg_pub_t*)sip, (msg_header_t*)ppi);
 	}
 
+	// Remove the "fs-conn-id" internal parameter (if present).
+	msg_header_remove_param(reinterpret_cast<msg_common_t*>(sip->sip_request), "fs-conn-id");
+
 	auto dest = sip->sip_request->rq_url;
 	if (sip->sip_route != nullptr) {
 		dest = getDestinationFromRoute(ms->getHome(), sip);
@@ -508,12 +511,12 @@ url_t* ForwardModule::overrideDest(MsgSip& ms, url_t* dest) {
 
 /*
  * Find the right transport to use in order to correctly deliver the request to the destination.
- * It also sanitizes the destination url: "/etc/hosts" name resolution + "fs-conn-id" removal.
+ * It also sanitizes the destination url: "/etc/hosts" name resolution.
  *
- * @param[in]	dest		destination url of the request, used by default to find the transport.
- * @param[in]	tportDest	alternative destination url used to find the transport. Will not be sanitized.
+ * @param[in] dest destination url of the request, used by default to find the transport.
+ * @param[in] tportDest alternative destination url used to find the transport. Will not be sanitized.
  *
- * @return					transport to be used in order to deliver the request to the destination.
+ * @return transport to be used to deliver the request to the destination.
  */
 tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, url_t* dest, url_t* tportDest) {
 	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
@@ -525,15 +528,6 @@ tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, ur
 		// Duplicate "dest" because we don't want to modify the message with our name resolution result.
 		dest = url_hdup(ms->getHome(), dest);
 		dest->url_host = ip.c_str();
-	}
-
-	if (dest->url_params != nullptr) {
-		char strConnId[32] = {0};
-		if (url_param(dest->url_params, "fs-conn-id", strConnId, sizeof(strConnId) - 1) > 0) {
-			destConnId = std::strtoull(strConnId, nullptr, 16);
-			// Strip out "fs-conn-id" that shall not go out to the network.
-			dest->url_params = url_strip_param_string(su_strdup(ms->getHome(), dest->url_params), "fs-conn-id");
-		}
 	}
 
 	// If given, "tportDest" will be used to find the transport instead of "dest".

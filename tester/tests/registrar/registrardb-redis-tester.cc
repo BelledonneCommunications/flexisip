@@ -35,6 +35,7 @@
 #include "registrardb-redis.hh"
 #include "utils/asserts.hh"
 #include "utils/core-assert.hh"
+#include "utils/listeners.hh"
 #include "utils/override-static.hh"
 #include "utils/redis-sync-access.hh"
 #include "utils/server/proxy-server.hh"
@@ -101,20 +102,6 @@ public:
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
 		BC_FAIL("This test doesn't expect a contact to be updated");
 	}
-};
-
-class ContactRegisteredCallback : public ContactRegisteredListener {
-public:
-	template <typename TCallback>
-	ContactRegisteredCallback(TCallback&& callback) : mCallback(std::forward<TCallback>(callback)) {
-	}
-
-private:
-	void onContactRegistered(const std::shared_ptr<Record>& r, const std::string& uid) override {
-		mCallback(r, uid);
-	}
-
-	std::function<void(const std::shared_ptr<Record>&, const std::string&)> mCallback;
 };
 
 class SuccessfulConnectionListener : public RegistrarDbStateListener {

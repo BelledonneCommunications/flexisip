@@ -28,12 +28,14 @@
 #include "registrar/record.hh"
 #include "registrar/registrar-db.hh"
 #include "registrardb-internal.hh"
+#include "registrardb-redis.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
+#include "utils/listeners.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -880,6 +882,81 @@ void registerWithoutExpiryValueInRequest() {
 	BC_ASSERT(contact->getSipExpires() == defaultExpires);
 }
 
+/**
+ * When a client (which does not provide a "+sip.instance") registers several times with the exact same information
+ * (especially: same host:port in the contact header field), test the first registration gets updated once later
+ * registrations are processed.
+ *
+ * Here we test the worst case scenario: when a client registers with the same host:port but through two distinct
+ * tport_t instances. We trigger this behavior by restarting the proxy between the two registration attempts.
+ */
+void uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance() {
+	int id{0};
+	string port{"0"};
+	string clientSipUri{};
+	bool contactRegistered{};
+	const string clientSipIdentity{"sip:user@localhost"};
+	const Record::Key recordKey{SipUri{clientSipIdentity}, false};
+
+	RedisServer redis{};
+	const map<string, string> config = {{
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", to_string(redis.port())},
+	    {"module::Registrar/redis-slave-check-period", "1s"},
+	}};
+
+	const auto test = [&](Server& proxy) {
+		CoreAssert asserter{proxy};
+		const auto proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+
+		auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:" + port};
+		clientSipUri = "sip:user@127.0.0.1:"s + client.getFirstPort();
+		auto request = make_unique<MsgSip>();
+		request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+		request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+		request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+		request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+		request->makeAndInsert<SipHeaderCSeq>(20u + ++id, sip_method_register);
+		request->makeAndInsert<SipHeaderContact>("<" + clientSipUri + ";transport=tcp>");
+
+		auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+		asserter.iterateUpTo(16, [&transaction] { return transaction->isCompleted(); }).hard_assert_passed();
+		port = client.getFirstPort();
+		asserter.iterateUpTo(16, [&] { return LOOP_ASSERTION(contactRegistered); }).hard_assert_passed();
+	};
+
+	const auto dbListener = make_shared<ContactRegisteredCallback>(
+	    [&clientSipUri, &contactRegistered](const shared_ptr<Record>& record, const string&) {
+		    BC_HARD_ASSERT(record != nullptr);
+		    const auto contacts = record->getExtendedContacts();
+		    BC_HARD_ASSERT(contacts.size() == 1);
+		    const auto contact = (*contacts.latest())->urlAsString();
+		    BC_ASSERT(contact == clientSipUri);
+		    contactRegistered = true;
+	    });
+
+	// Send the first REGISTER request and stop the proxy, so the client will be able to register again using the same
+	// host:port but through a different tport_t instance (see test description).
+	{
+		Server proxy{config};
+		proxy.start();
+		proxy.getRegistrarDb()->subscribe(recordKey, dbListener);
+		test(proxy);
+		contactRegistered = false;
+	}
+
+	// Send a second REGISTER request and make sure the existing entry gets updated.
+	Server proxy{config};
+	proxy.start();
+	proxy.getRegistrarDb()->subscribe(recordKey, dbListener);
+	test(proxy);
+}
+
 TestSuite _{
     "Register",
     {
@@ -894,6 +971,7 @@ TestSuite _{
         CLASSY_TEST(missingExpiresHeaderWithWildcardContactHeader),
         CLASSY_TEST(correctWildcardContactHeaderUsage),
         CLASSY_TEST(registerWithoutExpiryValueInRequest),
+        CLASSY_TEST(uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance),
     },
     Hooks().beforeEach([] {
 	    responseReceived = 0;
