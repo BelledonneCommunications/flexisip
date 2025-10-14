@@ -29,6 +29,7 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 
@@ -131,6 +132,48 @@ bool Url::getBoolParam(const string& paramName, bool defaultValue) const {
 		}
 	}
 	return defaultValue;
+}
+
+template <>
+string Url::extractParam<string>(const char* param) {
+	const auto value = getParam(param);
+	if (value.empty()) return {};
+
+	removeParam(param);
+	return flexisip::uri_utils::unescape(value);
+}
+
+template <>
+int Url::extractParam<int>(const char* param) {
+	try {
+		return stoi(extractParam<string>(param));
+	} catch (...) {
+		return 0;
+	}
+}
+
+template <>
+uintptr_t Url::extractParam<uintptr_t>(const char* param) {
+	try {
+		return stoul(extractParam<string>(param), nullptr, 16);
+	} catch (...) {
+		return 0;
+	}
+}
+
+template <>
+time_t Url::extractParam<time_t>(const char* param) {
+	try {
+		return stoull(extractParam<string>(param));
+	} catch (...) {
+		return 0;
+	}
+}
+
+template <>
+bool Url::extractParam<bool>(const char* param) {
+	const auto extractedParam = extractParam<string>(param);
+	return !extractedParam.empty() && extractedParam.find("yes") != string::npos;
 }
 
 bool Url::compareAll(const Url& other) const {

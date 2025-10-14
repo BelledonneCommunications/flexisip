@@ -141,8 +141,11 @@ struct ExtendedContact {
 	 */
 	sip_route_t* toSofiaRoute(su_home_t* home) const;
 
-	/*returns a new url_t where ConnId (private flexisip parameter) is removed*/
-	url_t* toSofiaUrlClean(su_home_t* home);
+	/**
+	 * @note the returned SipUri is empty if the contact is invalid.
+	 * @return copy of internal sip_contact_t url as SipUri with "fs-conn-id" removed (private flexisip parameter).
+	 */
+	SipUri toSipUriClean() const;
 	bool isSame(const ExtendedContact& otherContact) const;
 
 	sofiasip::Home mHome{};
