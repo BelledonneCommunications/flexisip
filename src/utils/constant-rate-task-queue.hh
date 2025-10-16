@@ -91,7 +91,7 @@ private:
 	void startTimer() {
 		mTimer.setForEver([this]() {
 			if (mQueue.empty()) {
-				mTimer.reset();
+				mTimer.stop();
 				return;
 			}
 

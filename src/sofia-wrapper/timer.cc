@@ -54,12 +54,14 @@ Timer::~Timer() {
 void Timer::set(const Func& func) {
 	if (su_timer_set(mTimer, _oneShotTimerCb, this) != 0) throw logic_error("failed to set the timer");
 	mFunc = func;
+	mOneShotTimerHasExpired = false;
 }
 
 void Timer::set(const Func& func, su_duration_t intervalMs) {
 	if (su_timer_set_interval(mTimer, _oneShotTimerCb, this, intervalMs) != 0)
 		throw logic_error("failed to set the timer");
 	mFunc = func;
+	mOneShotTimerHasExpired = false;
 }
 
 void Timer::run(const Func& func) {
@@ -72,7 +74,7 @@ void Timer::setForEver(const Func& func) {
 	mFunc = func;
 }
 
-void Timer::reset() {
+void Timer::stop() {
 	if (su_timer_reset(mTimer) != 0) throw logic_error("failed to stop the timer");
 	mFunc = nullptr;
 }
@@ -81,10 +83,15 @@ bool Timer::isRunning() const {
 	return su_timer_is_running(mTimer) != 0;
 }
 
+bool Timer::hasAlreadyExpiredOnce() const {
+	return mOneShotTimerHasExpired || su_timer_woken(mTimer) != 0;
+}
+
 void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t* magic,
                             [[maybe_unused]] su_timer_t* t,
                             su_timer_arg_t* arg) noexcept {
 	auto* timer = static_cast<Timer*>(arg);
+	timer->mOneShotTimerHasExpired = true;
 
 	// The attribute timer->_func must be emptied before calling the function to avoid an invalid Timer state if the
 	// function calls Timer::set() again. That would result in having the C timer set without a C++ function set.

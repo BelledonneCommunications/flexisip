@@ -57,7 +57,7 @@ ForkContextBase::~ForkContextBase() {
 }
 
 void ForkContextBase::processLateTimeout() {
-	mLateTimer.reset();
+	mLateTimer.stop();
 	onLateTimeout();
 	setFinished();
 }
@@ -326,7 +326,7 @@ void ForkContextBase::start() {
 	}
 
 	// Remove existing timer.
-	mNextBranchesTimer.reset();
+	mNextBranchesTimer.stop();
 
 	// Prepare branches.
 	nextBranches();
@@ -376,8 +376,8 @@ void ForkContextBase::setFinished() {
 
 	mFinished = true;
 
-	mLateTimer.reset();
-	mNextBranchesTimer.reset();
+	mLateTimer.stop();
+	mNextBranchesTimer.stop();
 	mFinishTimer.set(
 	    [weak = weak_ptr{shared_from_this()}] {
 		    if (const auto shared = weak.lock()) shared->onFinished();

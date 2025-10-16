@@ -793,8 +793,8 @@ Agent::~Agent() {
 	// We need to clear modules before calling destroy on sofia agent.
 	mModules.clear();
 
-	mTimer.reset();
-	if (mCertificateUpdateTimer.has_value()) mCertificateUpdateTimer->reset();
+	mTimer.stop();
+	if (mCertificateUpdateTimer.has_value()) mCertificateUpdateTimer->stop();
 	delete mDrm;
 	if (mAgent) nta_agent_destroy(mAgent);
 	if (mHttpEngine) nth_engine_destroy(mHttpEngine);

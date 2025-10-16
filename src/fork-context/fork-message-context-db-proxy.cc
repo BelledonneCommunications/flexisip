@@ -325,7 +325,7 @@ bool ForkMessageContextDbProxy::restoreForkIfNeeded() {
 			mDbFork.reset();
 
 			// Timer is now handle by the newly restored inner ForkMessageContext
-			mProxyLateTimer.reset();
+			mProxyLateTimer.stop();
 			setState(State::IN_MEMORY);
 		} catch (const runtime_error& e) {
 			LOGE << "An error occurred during ForkMessage creation from database object with UUID [" << mForkUuidInDb

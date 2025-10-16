@@ -88,7 +88,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 		eventLog->setForkStatus(mCancel->mStatus);
 		event.writeLog(eventLog);
 	}
-	mNextBranchesTimer.reset();
+	mNextBranchesTimer.stop();
 }
 
 void ForkCallContext::cancelAll(const sip_t* received_cancel) {

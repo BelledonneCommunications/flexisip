@@ -123,11 +123,15 @@ public:
 	 *
 	 * @throw std::logic_error if the timer could not be stopped.
 	 */
-	void reset();
+	void stop();
 	/**
 	 * @return 'true' if the timer is of type 'running' ('run_for_ever' or 'run_at_intervals'), 'false' otherwise.
 	 */
 	bool isRunning() const;
+	/**
+	 * @return 'true' if the timer has already expired (callback function executed), 'false' otherwise.
+	 */
+	bool hasAlreadyExpiredOnce() const;
 
 private:
 	static void _oneShotTimerCb(su_root_magic_t* magic, su_timer_t* t, su_timer_arg_t* arg) noexcept;
@@ -136,6 +140,7 @@ private:
 	std::shared_ptr<SuRoot> mRoot{};
 	su_timer_t* mTimer{};
 	Func mFunc;
+	bool mOneShotTimerHasExpired{};
 };
 
 } // namespace sofiasip

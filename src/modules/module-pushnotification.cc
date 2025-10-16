@@ -62,7 +62,7 @@ void PushNotificationContext::start(std::chrono::seconds delay) {
 
 void PushNotificationContext::cancel() {
 	LOGI << "PNR " << mPInfo.get() << ": canceling push request";
-	mTimer.reset();
+	mTimer.stop();
 }
 
 void PushNotificationContext::onTimeout() noexcept {
