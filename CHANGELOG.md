@@ -73,6 +73,8 @@ declined or not answered. Currently, the server accepts all incoming calls, play
   each element.
 
 ## [2.5.0]
+- **SDK version:** 5.4.49
+
 ### [Added]
 - **Proxy:**
     - Apple push notification certificates can now be updated without restarting the server.
