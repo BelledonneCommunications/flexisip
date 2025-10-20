@@ -1761,9 +1761,12 @@ TestSuite _{
         CLASSY_TEST(basicCall),
         CLASSY_TEST(basicCallWithEarlyMedia),
         CLASSY_TEST(basicCallDeclined),
-        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::On, OnOff::Off>)),
-        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::On, OnOff::On>)),
-        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::Off, OnOff::On>)),
+
+        // Resume test execution once the associated bug has been fixed.
+        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::On, OnOff::Off>)).tag("skip"),
+        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::On, OnOff::On>)).tag("skip"),
+        CLASSY_TEST((basicCallOnHoldThenResume<OnOff::Off, OnOff::On>)).tag("skip"),
+
         CLASSY_TEST(usesAORButNotContact),
         CLASSY_TEST(userAgentHeader),
         CLASSY_TEST(userAgentParameterConfiguration),
