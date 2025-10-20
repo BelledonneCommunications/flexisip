@@ -1,10 +1,10 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20240912_cpp-jwt_no_protobuf
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20251020_redis6
 ###############################################################################
 
-FROM rockylinux:8
+FROM rockylinux/rockylinux:8
 
-MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
+LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
 # Install common general tools
 RUN dnf install -y sudo vim wget
@@ -62,13 +62,13 @@ RUN sudo dnf -y install \
                    speex-devel \
                    speexdsp-devel \
                    libxml2-devel \
-                   redis \
                  # Dependencies of the B2BUA
                    libvpx-devel  \
                    jsoncpp-devel \
                  # Dependencies of the tester
                    mariadb-server \
                    rsync \
+               &&  dnf -y module install redis:6 \
                &&  dnf -y clean all
 
 # Install CMake 3.22.6
