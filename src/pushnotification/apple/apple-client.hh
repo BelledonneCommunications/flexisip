@@ -36,7 +36,7 @@ public:
 	AppleClient(sofiasip::SuRoot& root,
 	            const std::filesystem::path& trustStorePath,
 	            const std::filesystem::path& certPath,
-	            const std::string& certName,
+	            const std::string& server,
 	            const Service* service = nullptr);
 
 	/**
@@ -63,7 +63,6 @@ public:
 		mHttp2Client->setRequestTimeout(requestTimeout);
 	}
 
-	static std::string APN_DEV_ADDRESS;
 	static std::string APN_PORT;
 
 private:
@@ -72,8 +71,6 @@ private:
 
 	std::shared_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
-
-	static std::string APN_PROD_ADDRESS;
 };
 
 } // namespace pushnotification

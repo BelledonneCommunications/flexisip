@@ -20,6 +20,7 @@ Group changes to describe their impact on the project, as follows:
 ### [Added]
 - **Proxy:**
     - Apple push notification certificates can now be updated without restarting the server.
+    - URLs of Apple push notification service servers are now configurable.
     - TLS/SSL certificates can now be updated without restarting the server.
     - **Authorization and authentication:** New path for all authorization and authentication steps:
         - New module called `AuthTrustedHosts` that identifies SIP requests from trusted hosts.

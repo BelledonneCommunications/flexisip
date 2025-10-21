@@ -43,6 +43,7 @@ namespace flexisip::pushnotification {
 
 const std::string Service::sGenericClientName{"generic"};
 const std::string Service::sFallbackClientKey{"fallback"};
+const ApnsServers Service::kDefaultApnsServers{.prod = "api.push.apple.com", .dev = "api.sandbox.push.apple.com"};
 
 Service::Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize)
     : mRoot{root}, mMaxQueueSize{maxQueueSize} {
@@ -57,8 +58,9 @@ Service::~Service() {
 shared_ptr<Client> Service::createAppleClient(const path& caFile, const path& certDir, const path& certFile) {
 	auto certName = certFile.stem();
 	auto certPath = certDir / certFile;
+	const auto server = string_utils::endsWith(certName, ".dev") ? mApnsServers.dev : mApnsServers.prod;
 	try {
-		mClients[certName] = make_unique<AppleClient>(*mRoot, caFile, certPath, certName, this);
+		mClients[certName] = make_unique<AppleClient>(*mRoot, caFile, certPath, server, this);
 		LOGD << "Created iOS push notification client [" << certName << "]";
 		return mClients[certName];
 	} catch (const TlsConnection::CreationError& err) {
@@ -138,7 +140,7 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protoc
 	}
 }
 
-void Service::setupiOSClient(const std::string& certDir, const std::string& caFile) {
+void Service::setupiOSClient(const std::string& certDir, const std::string& caFile, const ApnsServers& apnsServers) {
 	filesystem::directory_iterator dirIt;
 	try {
 		dirIt = filesystem::directory_iterator{certDir};
@@ -147,6 +149,7 @@ void Service::setupiOSClient(const std::string& certDir, const std::string& caFi
 		return;
 	}
 	mAppleCertDirs[certDir] = caFile;
+	mApnsServers = apnsServers;
 
 	LOGI << "Searching for push notification certificates in directory [" << certDir << "]";
 
