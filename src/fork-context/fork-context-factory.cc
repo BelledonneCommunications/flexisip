@@ -18,9 +18,18 @@
 
 #include "fork-context-factory.hh"
 
+#include "exceptions/bad-configuration.hh"
+
 using namespace std;
 
 namespace flexisip {
+
+namespace {
+
+// List of supported status codes to consider for forwarding calls to the voicemail server.
+constexpr std::array<int, 3> kStatusCodes{408, 486, 603};
+
+} // namespace
 
 ForkContextFactory::ForkContextFactory(Agent* agent,
                                        const std::weak_ptr<ForkStats>& forkStats,
@@ -29,7 +38,7 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
                                        const GenericStruct* moduleRouterConfig)
     : mAgent(agent), mForkStats(forkStats), mInjectorListener(injectorListener),
       mForkContextListener(forkContextListener) {
-	mCallForkCfg = make_shared<ForkContextConfig>();
+	mCallForkCfg = make_shared<ForkCallContextConfig>();
 	mCallForkCfg->mForkLate = moduleRouterConfig->get<ConfigBoolean>("fork-late")->read();
 	mCallForkCfg->mTreatAllErrorsAsUrgent = moduleRouterConfig->get<ConfigBoolean>("treat-all-as-urgent")->read();
 	mCallForkCfg->mForkNoGlobalDecline = moduleRouterConfig->get<ConfigBoolean>("fork-no-global-decline")->read();
@@ -42,6 +51,8 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")->readAndCast();
 	mCallForkCfg->mPermitSelfGeneratedProvisionalResponse =
 	    moduleRouterConfig->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
+
+	setVoicemailConfiguration(moduleRouterConfig);
 
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = moduleRouterConfig->get<ConfigBoolean>("message-fork-late")->read();
@@ -79,6 +90,38 @@ bool ForkContextFactory::messageForkLateEnabled() const {
 
 bool ForkContextFactory::messageStorageInDbEnabled() const {
 	return mMessageForkCfg->mSaveForkMessageEnabled;
+}
+
+void ForkContextFactory::setVoicemailConfiguration(const GenericStruct* config) {
+	const auto* voicemailUriParameter = config->get<ConfigString>("voicemail-server");
+	try {
+		mCallForkCfg->mVoicemailServerUri = SipUri{voicemailUriParameter->read()};
+	} catch (const exception&) {
+		throw BadConfigurationValue{voicemailUriParameter, "invalid voicemail server URI"};
+	}
+
+	if (!mCallForkCfg->mVoicemailServerUri.empty()) {
+		LOGI << "Voicemail server is [" << mCallForkCfg->mVoicemailServerUri.str() << "]";
+
+		const auto* statusCodesParameter = config->get<ConfigStringList>("forwarding-status-codes");
+		for (const auto& value : statusCodesParameter->read()) {
+			try {
+				const auto status = stoi(value);
+				const auto predicate = [&status](const auto& code) { return code == status; };
+				if (find_if(kStatusCodes.cbegin(), kStatusCodes.cend(), predicate) == kStatusCodes.cend())
+					throw BadConfigurationValue{statusCodesParameter,
+					                            "unsupported forwarding status code '" + value + "'"};
+
+				mCallForkCfg->mStatusCodes.push_back(status);
+			} catch (const exception& exception) {
+				throw BadConfigurationValue{statusCodesParameter, "unsupported forwarding status code '" + value +
+				                                                      "' (error: " + exception.what() + ")"};
+			}
+		}
+
+		LOGI << "Call forwarding enabled to the voicemail server for status codes: "
+		     << string_utils::join(statusCodesParameter->read(), 0, ", ");
+	}
 }
 
 } // namespace flexisip

@@ -93,7 +93,9 @@ ForkMessageContext::restore(ForkMessageContextDb& forkContextFromDb,
 	if (timeLeftUntilExpiration < 0s) timeLeftUntilExpiration = 0s;
 	context->mLateTimer.set(
 	    [forkMessageContext = weak_ptr<ForkMessageContext>{context}]() {
-		    if (const auto context = forkMessageContext.lock()) context->processLateTimeout();
+		    if (const auto context = forkMessageContext.lock()) {
+			    context->executeOnLateTimeout();
+		    }
 	    },
 	    timeLeftUntilExpiration);
 
@@ -111,7 +113,7 @@ ForkMessageContext::~ForkMessageContext() {
 }
 
 bool ForkMessageContext::shouldFinish() {
-	// The messaging fork context controls its termination in late forking mode.
+	// This fork controls its termination in late forking mode.
 	return !mCfg->mForkLate;
 }
 
@@ -173,15 +175,15 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 			}
 		}
 		logResponseFromRecipient(*br, event);
-		br->forwardResponse(mIncoming != nullptr);
+		br->sendResponse(mIncoming != nullptr);
 	} else if (code >= 300 && !mCfg->mForkLate && isUrgent(code, kUrgentCodes)) {
 		// Expedite back any urgent replies if late forking is disabled.
 		logResponseFromRecipient(*br, event);
-		br->forwardResponse(mIncoming != nullptr);
+		br->sendResponse(mIncoming != nullptr);
 	} else {
 		logResponseFromRecipient(*br, event);
 	}
-	checkFinished();
+	tryToSendFinalResponse();
 	if (mAcceptanceTimer && allBranchesAnswered(FinalStatusMode::RFC) && !isFinished()) {
 		// If all branches are answered quickly but the ForkContext is not finished and the mAcceptanceTimer is still up
 		// we can trigger it directly.
@@ -196,7 +198,7 @@ void ForkMessageContext::acceptMessage() {
 	// In fork late mode, never answer a service unavailable.
 	shared_ptr<MsgSip> msgSip(mIncoming->createResponse(SIP_202_ACCEPTED));
 	auto ev = make_unique<ResponseSipEvent>(ResponseSipEvent(mAgent->getOutgoingAgent(), msgSip));
-	ev = ForkContextBase::onForwardResponse(std::move(ev));
+	ev = ForkContextBase::onSendResponse(std::move(ev));
 
 	// In the sender's log will appear the 202 accepted from Flexisip server.
 	logResponseToSender(getEvent(), *ev);

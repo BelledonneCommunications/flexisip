@@ -21,6 +21,7 @@
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/branch-info.hh"
+#include "modules/module-pushnotification.hh"
 #include "registrar/registrar-db.hh"
 #include "router/injector.hh"
 
@@ -47,7 +48,7 @@ ForkContextBase::ForkContextBase(AgentInterface* agent,
 		mIncoming = mEvent->createIncomingTransaction();
 		// This timer is for when outgoing transaction all die prematurely, we still need to wait that late register
 		// arrive.
-		if (mCfg->mForkLate) mLateTimer.set([this] { processLateTimeout(); }, mCfg->mDeliveryTimeout);
+		if (mCfg->mForkLate) mLateTimer.set([this] { executeOnLateTimeout(); }, mCfg->mDeliveryTimeout);
 	}
 }
 
@@ -56,8 +57,8 @@ ForkContextBase::~ForkContextBase() {
 	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 }
 
-void ForkContextBase::processLateTimeout() {
-	mLateTimer.stop();
+void ForkContextBase::executeOnLateTimeout() {
+	LOGD << "Late timeout timer triggered";
 	onLateTimeout();
 	setFinished();
 }
@@ -234,7 +235,7 @@ void ForkContextBase::sendResponse(int code, char const* phrase, bool addToTag) 
 		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
 	}
 
-	onForwardResponse(std::move(ev));
+	onSendResponse(std::move(ev));
 }
 
 shared_ptr<BranchInfo> ForkContextBase::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
@@ -362,6 +363,10 @@ const std::shared_ptr<ForkContextConfig>& ForkContextBase::getConfig() const {
 	return mCfg;
 }
 
+const std::shared_ptr<IncomingTransaction>& ForkContextBase::getIncomingTransaction() const {
+	return mIncoming;
+}
+
 void ForkContextBase::onFinished() {
 	if (const auto forkContextListener = mForkContextListener.lock()) {
 		forkContextListener->onForkContextFinished(shared_from_this());
@@ -389,7 +394,7 @@ bool ForkContextBase::shouldFinish() {
 	return true;
 }
 
-std::unique_ptr<ResponseSipEvent> ForkContextBase::onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) {
+std::unique_ptr<ResponseSipEvent> ForkContextBase::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
 	if (!mIncoming) return {};
 
 	const int code = event->getStatusCode();
@@ -440,39 +445,41 @@ int ForkContextBase::getLastResponseCode() const {
 	return mLastResponseSent->getSip()->sip_status->st_status;
 }
 
-unique_ptr<ResponseSipEvent> ForkContextBase::forwardCustomResponse(int status, const char* phrase) {
+unique_ptr<ResponseSipEvent> ForkContextBase::sendCustomResponse(int status, const char* phrase) {
 	if (!mIncoming) {
-		LOGD << "Cannot forward SIP response [" << status << " " << phrase << "]: no incoming transaction";
+		LOGD << "Cannot send SIP response [" << status << " " << phrase << "]: no incoming transaction";
 		return {};
 	}
 
 	const auto message = mIncoming->createResponse(status, phrase);
 	if (message == nullptr) { // Should never happen
-		LOGE << "Error, MsgSip cannot be created: fork is completed without forwarding any response";
+		LOGE << "Error, MsgSip cannot be created: fork is completed without sending any response";
 		setFinished();
 		return {};
 	}
 
 	auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), message);
-	return onForwardResponse(std::move(ev));
+	return onSendResponse(std::move(ev));
 }
 
 void ForkContextBase::processInternalError(int status, const char* phrase) {
-	forwardCustomResponse(status, phrase);
+	sendCustomResponse(status, phrase);
 }
 
-std::shared_ptr<BranchInfo> ForkContextBase::checkFinished() {
-	if (!mIncoming && !mCfg->mForkLate) {
-		setFinished();
-		return nullptr;
-	}
+void ForkContextBase::tryToSetFinished() {
+	if (!mIncoming && !mCfg->mForkLate) setFinished();
+	if (!allBranchesAnswered(FinalStatusMode::RFC)) return;
+	if (!mCfg->mForkLate || allBranchesAnswered(FinalStatusMode::ForkLate)) setFinished();
+}
 
-	if (allBranchesAnswered(FinalStatusMode::RFC)) {
-		if (!mCfg->mForkLate || allBranchesAnswered(FinalStatusMode::ForkLate)) setFinished();
+std::shared_ptr<BranchInfo> ForkContextBase::tryToSendFinalResponse() {
+	tryToSetFinished();
+	if (!mIncoming && !mCfg->mForkLate) return nullptr;
+	if (!allBranchesAnswered(FinalStatusMode::RFC)) return nullptr;
 
-		if (const auto& br = findBestBranch(mCfg->mForkLate); br && br->forwardResponse(mIncoming != nullptr))
-			return br;
-	}
+	auto branch = findBestBranch(mCfg->mForkLate);
+	if (branch == nullptr) return nullptr;
+	if (branch->sendResponse(mIncoming != nullptr)) return branch;
 
 	return nullptr;
 }

@@ -252,7 +252,7 @@ void callInviteStatuses() {
 		    .assert_passed();
 	}
 
-	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 3 + 1); // one per device + one on first 487 received
+	BC_ASSERT_CPP_EQUAL(invitesEnded.size(), 3);
 	BC_ASSERT_CPP_EQUAL(callsStarted.size(), 1);
 	for (const auto& event : invitesEnded) {
 		BC_ASSERT(event.getDevice() != nullopt);
@@ -407,7 +407,7 @@ void doubleForkContextStart() {
 	CoreAssert asserter{lux, paulClient, agent};
 
 	auto luxCall = lux.invite(paul);
-	paulClient.hasReceivedCallFrom(lux, asserter).assert_passed();
+	paulClient.hasReceivedCallFrom(lux, asserter).hard_assert_passed();
 	paulClient.getCurrentCall()->decline(linphone::Reason::Declined);
 
 	BC_HARD_ASSERT_CPP_EQUAL(callsStarted.size(), 1);

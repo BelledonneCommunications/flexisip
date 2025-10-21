@@ -54,7 +54,6 @@ public:
 	~ModuleRouter() override;
 
 	void onLoad(const GenericStruct* mc) override;
-
 	void onUnload() override {};
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;

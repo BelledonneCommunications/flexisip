@@ -111,6 +111,10 @@ std::shared_ptr<const linphone::Address> ClientCall::getRemoteAddress() const {
 	return mCall->getRemoteAddress();
 }
 
+std::shared_ptr<const linphone::Address> ClientCall::getRequestAddress() const {
+	return mCall->getRequestAddress();
+}
+
 std::shared_ptr<const linphone::Address> ClientCall::getReferredByAddress() const {
 	return mCall->getReferredByAddress();
 }

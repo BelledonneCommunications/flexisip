@@ -48,8 +48,14 @@ public:
 	}
 
 	void handle(const std::shared_ptr<MsgSip>& ms);
+	/**
+	 * @return a (sofia-sip) reference on the incoming request associated with this transaction or nullptr if not found
+	 */
+	std::shared_ptr<MsgSip> getIncomingRequest() const;
 	std::shared_ptr<MsgSip> createResponse(int status, char const* phrase);
 	std::shared_ptr<MsgSip> getLastResponse();
+
+	int getStatus() const;
 
 private:
 	IncomingTransaction(Agent* agent);

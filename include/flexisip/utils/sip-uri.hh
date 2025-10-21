@@ -178,6 +178,10 @@ public:
 	 * @throw UrlModificationError if the Url is empty
 	 */
 	Url replace(const char* url_t::*attribute, std::string_view value) const;
+	/**
+	 * Replace or insert a URI parameter.
+	 */
+	Url replaceParam(const std::string& name, const std::string& value) const;
 
 	/**
 	 * Test whether the URL has a given param by its name.
@@ -310,6 +314,10 @@ public:
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
 	[[nodiscard]] SipUri replacePort(std::string_view newPort) const;
+	/**
+	 * @throw sofiasip::UrlModificationError if the URL is empty
+	 */
+	[[nodiscard]] SipUri replaceParameter(const std::string& name, const std::string& value) const;
 
 	/**
 	 * True if this URI is the same as the other according to RFC 3261.

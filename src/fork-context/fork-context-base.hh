@@ -56,10 +56,11 @@ public:
 	void onCancel(const sofiasip::MsgSip& ms) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) override;
 	bool isFinished() const override;
-	std::shared_ptr<BranchInfo> checkFinished() override;
+	std::shared_ptr<BranchInfo> tryToSendFinalResponse() override;
 	RequestSipEvent& getEvent() override;
 	sofiasip::MsgSipPriority getMsgPriority() const override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
+	const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const override;
 
 	/**
 	 * @param finalStatusMode fork mode to consider for the final status answer of a branch
@@ -67,7 +68,7 @@ public:
 	 */
 	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
 
-	std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
+	std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
 
 protected:
 	struct ShouldDispatchType {
@@ -103,13 +104,16 @@ protected:
 	 * @return 'true' if the fork process should be terminated.
 	 */
 	virtual bool shouldFinish();
-
 	/**
-	 * @brief Tag the ForkContext as 'finished'.
+	 * @brief Inspects the current state of the fork and executes setFinished if necessary.
+	 */
+	virtual void tryToSetFinished();
+	/**
+	 * @brief Start the finish timer to schedule instance destruction.
 	 *
 	 * @note the real destruction is performed asynchronously, in the next main loop iteration.
 	 */
-	void setFinished();
+	virtual void setFinished();
 	/**
 	 * @breif Notify the destruction of the fork context.
 	 *
@@ -118,13 +122,13 @@ protected:
 	 */
 	void onFinished();
 	/**
-	 * @brief Forward a custom response.
+	 * @brief Send a custom response.
 	 *
 	 * @param status the status of the custom response to send
 	 * @param phrase the content of the custom response to send
 	 * @return the response sent, or nullptr if the response was not sent
 	 */
-	std::unique_ptr<ResponseSipEvent> forwardCustomResponse(int status, const char* phrase);
+	std::unique_ptr<ResponseSipEvent> sendCustomResponse(int status, const char* phrase);
 	/**
 	 * @brief Remove a branch from the list of branches (both current and waiting branches lists).
 	 *
@@ -143,7 +147,7 @@ protected:
 	 * @param addToTag if 'true', add a generated 'tag' parameter to the 'To' header of the response
 	 */
 	void sendResponse(int status, char const* phrase, bool addToTag = false);
-	void processLateTimeout();
+	void executeOnLateTimeout();
 
 	/**
 	 * @brief Find the best branch to take the response from and forward it to all the other branches.

@@ -124,11 +124,13 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"ForkContextFactory"};
 
+	void setVoicemailConfiguration(const GenericStruct* config);
+
 	Agent* mAgent{};
 	std::weak_ptr<ForkStats> mForkStats{};
 	std::weak_ptr<InjectorListener> mInjectorListener{};
 	std::weak_ptr<ForkContextListener> mForkContextListener{};
-	std::shared_ptr<ForkContextConfig> mCallForkCfg{};
+	std::shared_ptr<ForkCallContextConfig> mCallForkCfg{};
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg{};
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg{};
 #if ENABLE_SOCI

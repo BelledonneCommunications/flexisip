@@ -29,6 +29,11 @@
 
 namespace flexisip {
 
+struct ForkCallContextConfig : ForkContextConfig {
+	SipUri mVoicemailServerUri{};
+	std::vector<int> mStatusCodes{};
+};
+
 /**
  * @brief Handle the forking of SIP calls (INVITE requests). It manages the branches of the call and processes responses
  * from them.
@@ -44,8 +49,16 @@ public:
 
 	void processInternalError(int status, const char* phrase) override;
 	void onCancel(const MsgSip& ms) override;
-	std::shared_ptr<BranchInfo> checkFinished() override;
+	std::shared_ptr<BranchInfo> tryToSendFinalResponse() override;
 
+	/**
+	 * Try to create a new call forwarding branch for this fork.
+	 *
+	 * @param code the 'cause' code to insert into the request URI.
+	 *
+	 * @return the new branch if the operation succeeded, nullptr otherwise.
+	 */
+	std::shared_ptr<BranchInfo> forward(int code);
 	/**
 	 * @return 'true' if the fork process is terminated
 	 */
@@ -63,6 +76,7 @@ protected:
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
+	void setFinished() override;
 	const char* getClassName() const override;
 
 private:
@@ -115,8 +129,15 @@ private:
 	void logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo*) const;
 	/**
 	 * @brief Forward the response on the provided branch and send an event log for this response.
+	 *
+	 * @note An event log is not sent in case the provided branch is of 'CallForwarding' type.
 	 */
-	void forwardAndLogResponse(const std::shared_ptr<BranchInfo>&) const;
+	void sendAndLogResponse(const std::shared_ptr<BranchInfo>&) const;
+
+	/**
+	 * @return 'true' if the address of the voicemail server is set in the configuration.
+	 */
+	bool callForwardingEnabled() const;
 
 	sofiasip::Home mHome{};
 	// Optionally used to send retryable responses.
@@ -124,6 +145,8 @@ private:
 	std::shared_ptr<CallLog> mLog{};
 	bool mCancelled{};
 	std::optional<CancelInfo> mCancel{};
+	// If non-null, indicate that call forwarding has already been successfully triggered for this instance.
+	std::weak_ptr<BranchInfo> mCallForwardingBranch{};
 	std::string mLogPrefix{};
 };
 

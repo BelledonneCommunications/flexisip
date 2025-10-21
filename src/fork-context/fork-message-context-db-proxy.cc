@@ -441,9 +441,9 @@ bool ForkMessageContextDbProxy::isFinished() const {
 	return mIsFinished;
 }
 
-std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::checkFinished() {
+std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::tryToSendFinalResponse() {
 	checkState(__FUNCTION__, State::IN_MEMORY);
-	return mForkMessage->checkFinished();
+	return mForkMessage->tryToSendFinalResponse();
 }
 
 RequestSipEvent& ForkMessageContextDbProxy::getEvent() {
@@ -459,9 +459,13 @@ sofiasip::MsgSipPriority ForkMessageContextDbProxy::getMsgPriority() const {
 	return mSavedMsgPriority;
 }
 
-std::unique_ptr<ResponseSipEvent>
-ForkMessageContextDbProxy::onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) {
-	if (mForkMessage) return mForkMessage->onForwardResponse(std::move(event));
+const std::shared_ptr<IncomingTransaction>& ForkMessageContextDbProxy::getIncomingTransaction() const {
+	checkState(__FUNCTION__, State::IN_MEMORY);
+	return mForkMessage->getIncomingTransaction();
+}
+
+std::unique_ptr<ResponseSipEvent> ForkMessageContextDbProxy::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
+	if (mForkMessage) return mForkMessage->onSendResponse(std::move(event));
 	return std::move(event);
 }
 

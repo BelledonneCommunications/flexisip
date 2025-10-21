@@ -21,6 +21,11 @@ Group changes to describe their impact on the project, as follows:
     - New SIP URI parameter `network` for transports defined in `global/transports` to instruct Flexisip which
       transport to use to correctly route requests to destinations. See the [configuration reference guide] for more
       information.
+    - **Router:** 
+      - Add call forwarding support to a voicemail server:
+        - New parameter `voicemail-server` to indicate the SIP URI of the voicemail server to which calls should be
+          forwarded. The call forwarding is based on the status code received from the callee or timeout of the call.
+        - New parameter `redirecting-status-codes` to list the supported status codes for call forwarding.
 - **Conference server:**
     - Add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically hung up because
       no RTP data is received.

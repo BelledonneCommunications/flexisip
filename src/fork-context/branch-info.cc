@@ -18,6 +18,8 @@
 
 #include "branch-info.hh"
 
+#include "modules/module-pushnotification.hh"
+
 using namespace std;
 
 namespace flexisip {
@@ -102,6 +104,8 @@ int BranchInfo::getStatus() const {
 }
 
 bool BranchInfo::needsDelivery(FinalStatusMode mode) const {
+	if (mCanceled) return false;
+
 	const auto currentStatus = getStatus();
 
 	switch (mode) {
@@ -183,7 +187,7 @@ void BranchInfo::setPushNotificationContext(const shared_ptr<PushNotificationCon
 	mPushContext = context;
 }
 
-bool BranchInfo::forwardResponse(bool forkContextHasIncomingTransaction) {
+bool BranchInfo::sendResponse(bool forkContextHasIncomingTransaction) {
 	if (mLastResponseEvent == nullptr) {
 		LOGE << "No response received on this branch";
 		return false;
@@ -196,7 +200,7 @@ bool BranchInfo::forwardResponse(bool forkContextHasIncomingTransaction) {
 
 	const int statusCode = getStatus();
 	if (const auto forkContext = mForkCtx.lock())
-		mLastResponseEvent = forkContext->onForwardResponse(std::move(mLastResponseEvent));
+		mLastResponseEvent = forkContext->onSendResponse(std::move(mLastResponseEvent));
 
 	if (statusCode >= 200) mTransaction.reset();
 	return true;
@@ -219,10 +223,11 @@ void BranchInfo::cancel(const std::optional<CancelInfo>& information, bool keepA
 		return;
 	}
 
-	LOGD << "Cancel requested (status = '" << getStatus() << "')";
+	LOGD << "Canceling branch (status = '" << getStatus() << "')";
 
 	if (information && information->mReason) mTransaction->cancelWithReason(information->mReason);
 	else mTransaction->cancel();
+	mCanceled = true;
 }
 
 } // namespace flexisip

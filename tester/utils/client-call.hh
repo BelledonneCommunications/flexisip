@@ -128,6 +128,7 @@ public:
 	linphone::Call::State getState() const;
 
 	std::shared_ptr<const linphone::Address> getRemoteAddress() const;
+	std::shared_ptr<const linphone::Address> getRequestAddress() const;
 	std::shared_ptr<const linphone::Address> getReferredByAddress() const;
 
 	const ::RtpSession* getRtpSession() const;

@@ -19,12 +19,12 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 
 #include "agent-interface.hh"
 #include "branch-info-db.hh"
-#include "fork-context.hh"
+#include "flexisip/logmanager.hh"
 #include "fork-status.hh"
-#include "modules/module-pushnotification.hh"
 #include "transaction/outgoing-transaction.hh"
 
 #if ENABLE_UNIT_TESTS
@@ -33,7 +33,9 @@
 
 namespace flexisip {
 
+class BranchInfo;
 class ForkContext;
+class PushNotificationContext;
 struct ExtendedContact;
 
 enum class FinalStatusMode {
@@ -115,17 +117,18 @@ public:
 	 */
 	void processResponse(ResponseSipEvent& event);
 	/**
-	 * @brief Forward the last response received on the branch to the ForkContext.
+	 * @brief Send the last response received on this branch to the ForkContext (incoming transaction).
 	 *
 	 * @return 'true' if a response was sent
 	 */
-	bool forwardResponse(bool forkContextHasIncomingTransaction);
+	bool sendResponse(bool forkContextHasIncomingTransaction);
 	/**
-	 * @brief Cancel the branch (send a '487 Request terminated' to the target).
+	 * @brief Cancel the branch (send a 'CANCEL' request to the target).
 	 *
 	 * @warning Does not send the request if the branch has already sent or received a terminal response. Same behavior
 	 * if it did not receive a response yet and that keepAppleVoIpAlive is set to 'true' (for iOS devices only,
 	 * Invite/Cancel feature).
+	 *
 	 * @param information cancellation reason
 	 * @param keepAppleVoIpAlive prevent cancellation for the Invite/Cancel feature
 	 */
@@ -222,6 +225,7 @@ private:
 	// Only used with Invite/ForkCall.
 	std::weak_ptr<PushNotificationContext> mPushContext{};
 	bool mWaitingAppleClientResponse{};
+	bool mCanceled{};
 	std::string mLogPrefix{};
 };
 

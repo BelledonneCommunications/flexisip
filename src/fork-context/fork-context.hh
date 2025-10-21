@@ -22,14 +22,12 @@
 #include <memory>
 #include <vector>
 
+#include "branch-info.hh"
 #include "flexisip/pushnotification/pushnotification-context-observer.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
 namespace flexisip {
 
-enum class FinalStatusMode;
-
-class BranchInfo;
 class IncomingTransaction;
 class OutgoingTransaction;
 class RequestSipEvent;
@@ -141,17 +139,18 @@ public:
 	/**
 	 * @brief Process the forwarding of the provided response from a branch.
 	 */
-	virtual std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) = 0;
+	virtual std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) = 0;
 	/**
 	 * @return 'true' if the fork is terminated
 	 */
 	virtual bool isFinished() const = 0;
 	/**
-	 * @brief Verify if the ForkContext should be considered as finished. A final answer is sent if needed.
+	 * @brief Try to send the final response through the incoming transaction.
 	 *
-	 * @return the branch that was answered with a final response or nullptr if no branch was answered
+	 * @return the branch that was used to answer the caller with the best final response or nullptr if no suitable
+	 * final response could be answered for the moment.
 	 */
-	virtual std::shared_ptr<BranchInfo> checkFinished() = 0;
+	virtual std::shared_ptr<BranchInfo> tryToSendFinalResponse() = 0;
 
 	/**
 	 * @return the event that created the ForkContext
@@ -160,6 +159,7 @@ public:
 	virtual const ForkContext* getPtrForEquality() const = 0;
 	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
+	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
 
 	/**
 	 * @param other other ForkContext to compare with

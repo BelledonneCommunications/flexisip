@@ -229,6 +229,21 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "when routing INVITE and MESSAGE requests.",
 	        "",
 	    },
+	    {
+	        String,
+	        "voicemail-server",
+	        "The SIP URI of the voicemail server.\n"
+	        "Example: sip:127.0.0.1:6066;transport=tcp",
+	        "",
+	    },
+	    {
+	        StringList,
+	        "forwarding-status-codes",
+	        "List of whitespace separated status codes to consider for forwarding calls to the voicemail server. "
+	        "Please refer to RFC4458 (§ 2.2) to see all forwarding reasons and their status code.\n"
+	        "Available values: 408, 486, 603",
+	        "408 486 603",
+	    },
 	    config_item_end,
 	};
 	moduleConfig.addChildrenValues(configs);

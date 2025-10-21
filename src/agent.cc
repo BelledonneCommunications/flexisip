@@ -751,13 +751,8 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		LOGE << "Cannot find interface addresses: " << strerror(err);
 	}
 
-	/**
-	 * We use NTATAG_CANCEL_487(0) so sofia-sip don't return a 487 responses to incoming CANCEL request automatically.
-	 * In fact CANCEL request will be sent using nta_outgoing_tcancel with NTATAG_CANCEL_2543(1) leading to 487
-	 * responses on each cancelled branches.
-	 */
 	mAgent = nta_agent_create(root->getCPtr(), (url_string_t*)-1, &Agent::messageCallback, (nta_agent_magic_t*)this,
-	                          NTATAG_CANCEL_487(0), TAG_END());
+	                          TAG_END());
 	su_home_init(&mHome);
 	mPreferredRouteV4 = nullptr;
 	mPreferredRouteV6 = nullptr;

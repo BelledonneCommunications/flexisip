@@ -78,11 +78,12 @@ public:
 	void onCancel(const sofiasip::MsgSip&) override {};
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
 	bool isFinished() const override;
-	std::shared_ptr<BranchInfo> checkFinished() override;
+	std::shared_ptr<BranchInfo> tryToSendFinalResponse() override;
 	RequestSipEvent& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
 	sofiasip::MsgSipPriority getMsgPriority() const override;
-	std::unique_ptr<ResponseSipEvent> onForwardResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
+	const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const override;
+	std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
 
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
 	                                             const std::shared_ptr<ExtendedContact>& newContact) override;

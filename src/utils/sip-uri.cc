@@ -96,6 +96,14 @@ Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
 	return Url{&url};
 }
 
+Url Url::replaceParam(const std::string& name, const std::string& value) const {
+	auto url = Url{_url};
+	if (url.hasParam(name)) url.removeParam(name);
+	const auto parameter = name + "=" + value;
+	url_param_add(url._home.home(), url._url, parameter.c_str());
+	return Url{url._url};
+}
+
 std::string Url::getParam(const string& paramName) const {
 	if (hasParam(paramName)) {
 		char tmp[256] = {0};
@@ -243,6 +251,10 @@ SipUri SipUri::replaceHost(std::string_view newHost) const {
 
 SipUri SipUri::replacePort(std::string_view newPort) const {
 	return SipUri(Url::replace(&url_t::url_port, newPort));
+}
+
+SipUri SipUri::replaceParameter(const std::string& name, const std::string& value) const {
+	return SipUri(Url::replaceParam(name, value));
 }
 
 void SipUri::checkUrl(const sofiasip::Url& url) {

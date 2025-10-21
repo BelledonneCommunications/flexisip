@@ -57,6 +57,10 @@ void IncomingTransaction::handle(const shared_ptr<MsgSip>& ms) {
 	}
 }
 
+std::shared_ptr<MsgSip> IncomingTransaction::getIncomingRequest() const {
+	return make_shared<MsgSip>(owned(nta_incoming_getrequest(mIncoming)));
+}
+
 shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* phrase) {
 	if (mIncoming) {
 		auto msg = ownership::owned(nta_incoming_create_response(mIncoming, status, phrase));
@@ -122,6 +126,10 @@ shared_ptr<MsgSip> IncomingTransaction::getLastResponse() {
 	}
 
 	return make_shared<MsgSip>(std::move(msg));
+}
+
+int IncomingTransaction::getStatus() const {
+	return nta_incoming_status(mIncoming);
 }
 
 void IncomingTransaction::destroy() {

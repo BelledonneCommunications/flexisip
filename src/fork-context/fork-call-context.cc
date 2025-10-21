@@ -31,7 +31,9 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/writers/event-log-writer.hh"
 #include "fork-context/fork-status.hh"
+#include "modules/module-pushnotification.hh"
 #include "registrar/extended-contact.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 using namespace string_view_literals;
@@ -55,17 +57,19 @@ ForkCallContext::ForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
 
 ForkCallContext::~ForkCallContext() {
 	LOGD << "Destroy instance";
-	if (mIncoming) ForkContextBase::getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
+	if (mIncoming && mIncoming->getStatus() < 200)
+		ForkContextBase::getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
 }
 
 void ForkCallContext::onCancel(const MsgSip& ms) {
+	LOGD << "Canceling fork";
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
 	cancelAll(ms.getSip());
 
 	if (shouldFinish()) setFinished();
-	else checkFinished();
+	else tryToSendFinalResponse();
 }
 
 void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
@@ -132,20 +136,25 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
 		}
 	} else if (code >= 200) {
-		forwardAndLogResponse(br);
+		sendAndLogResponse(br);
 		mCancelled = true;
 		cancelOthersWithStatus(br, ForkStatus::AcceptedElsewhere);
-	} else if (code >= 100) {
+	} else if (code >= 100 && br != mCallForwardingBranch.lock()) {
 		if (code == 180) {
 			auto& request = getEvent();
 			request.writeLog(make_shared<CallRingingEventLog>(*request.getMsgSip()->getSip(), br.get()));
 		}
 
-		forwardAndLogResponse(br);
+		if (!mCancelled) sendAndLogResponse(br);
 	}
 
-	if (auto forwardedBr = checkFinished(); forwardedBr)
-		logResponse(forwardedBr->getLastResponseEvent(), forwardedBr.get());
+	if (isFinished()) return;
+	if (const auto branch = tryToSendFinalResponse()) logResponse(branch->getLastResponseEvent(), branch.get());
+}
+
+void ForkCallContext::setFinished() {
+	if (mLateTimer.hasAlreadyExpiredOnce() && mCallForwardingBranch.lock()) return;
+	ForkContextBase::setFinished();
 }
 
 void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
@@ -153,8 +162,14 @@ void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingP
 	if (aRingingPush && !isRingingSomewhere()) sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
 }
 
-void ForkCallContext::forwardAndLogResponse(const shared_ptr<BranchInfo>& branch) const {
-	if (branch->forwardResponse(mIncoming != nullptr)) logResponse(branch->getLastResponseEvent(), branch.get());
+void ForkCallContext::sendAndLogResponse(const shared_ptr<BranchInfo>& branch) const {
+	if (branch->sendResponse(mIncoming != nullptr) && branch != mCallForwardingBranch.lock())
+		logResponse(branch->getLastResponseEvent(), branch.get());
+}
+
+bool ForkCallContext::callForwardingEnabled() const {
+	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+	return !config->mVoicemailServerUri.empty();
 }
 
 void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) const {
@@ -192,14 +207,14 @@ void ForkCallContext::onNewRegister(const SipUri& dest,
 
 	if (!isCompleted()) {
 		forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
-		checkFinished();
+		tryToSendFinalResponse();
 		return;
 	}
 
 	if (branch && branch->pushContextIsAppleVoIp()) {
 		const auto& dispatchedBranch = forkContextListener->onDispatchNeeded(shared_from_this(), newContact);
 		dispatchedBranch->cancel(mCancel);
-		checkFinished();
+		tryToSendFinalResponse();
 		return;
 	}
 
@@ -228,18 +243,23 @@ void ForkCallContext::onShortTimer() {
 
 	if (isRingingSomewhere()) return;
 
-	if (const auto br = findBestBranch(mCfg->mForkLate)) forwardAndLogResponse(br);
+	if (const auto br = findBestBranch(mCfg->mForkLate)) sendAndLogResponse(br);
 }
 
 void ForkCallContext::onLateTimeout() {
 	if (!mIncoming) return;
 
-	if (const auto br = findBestBranch(mCfg->mForkLate); !br || br->getStatus() == 0)
-		logResponse(forwardCustomResponse(SIP_408_REQUEST_TIMEOUT), br.get());
-	else forwardAndLogResponse(br);
-
 	// Cancel all possibly pending outgoing transactions.
 	cancelOthers(nullptr);
+
+	if (callForwardingEnabled()) {
+		forward(408);
+		return;
+	}
+
+	if (const auto br = findBestBranch(mCfg->mForkLate); !br || br->getStatus() == 0)
+		logResponse(sendCustomResponse(SIP_408_REQUEST_TIMEOUT), br.get());
+	else sendAndLogResponse(br);
 }
 
 void ForkCallContext::processInternalError(int status, const char* phrase) {
@@ -261,14 +281,99 @@ void ForkCallContext::start() {
 	ForkContextBase::start();
 }
 
-std::shared_ptr<BranchInfo> ForkCallContext::checkFinished() {
-	if (auto br = ForkContextBase::checkFinished(); (mIncoming == nullptr && !mCfg->mForkLate) || br) return br;
+std::shared_ptr<BranchInfo> ForkCallContext::tryToSendFinalResponse() {
+	const auto hasBeenForwarded = mCallForwardingBranch.lock() != nullptr;
+	if (!callForwardingEnabled() || hasBeenForwarded || (!mIncoming && !mCfg->mForkLate)) {
+		tryToSetFinished();
+		if (!mIncoming && !mCfg->mForkLate) return nullptr;
+	}
+	if (!allBranchesAnswered(FinalStatusMode::RFC)) return nullptr;
 
-	if (mCancelled) {
-		// If a call is canceled by caller/callee, even if some branches only answered 503 or 408, even in fork-late
-		// mode, we want to directly send a response.
-		auto br = findBestBranch(false);
-		if (br && br->forwardResponse(mIncoming != nullptr)) return br;
+	auto branch = findBestBranch(mCfg->mForkLate);
+	// If a call is canceled by caller/callee, even if some branches only answered 503 or 408, even in fork-late
+	// mode, we want to directly send a response.
+	if (mCancelled && branch == nullptr) branch = findBestBranch(false);
+	if (branch == nullptr) return nullptr;
+
+	if (!callForwardingEnabled()) {
+		if (branch->sendResponse(mIncoming != nullptr)) return branch;
+		return nullptr;
+	}
+
+	// From now on, we will try to forward the call to the voicemail server.
+	// Manage several cases before actually trying to forward the call.
+
+	// -- First case: If the 'call-fork-timeout' timer triggered, but the call forwarding did not work: answer '408'
+	//                (we know it did not work because this part of the code is reached).
+	if (hasBeenForwarded && mLateTimer.hasAlreadyExpiredOnce() && !mFinished) {
+		if (branch == mCallForwardingBranch.lock() || allBranchesAnswered(FinalStatusMode::RFC)) {
+			sendCustomResponse(SIP_408_REQUEST_TIMEOUT);
+			ForkContextBase::setFinished();
+			return branch;
+		}
+	}
+
+	if (hasBeenForwarded) {
+		// -- Second case: If we received a final response on all branches, but the call forwarding did not work: answer
+		//                 the best response to the caller (we know it did not work because this part of the code is
+		//                 reached).
+		if (allBranchesAnswered(FinalStatusMode::RFC) && branch->sendResponse(mIncoming != nullptr)) return branch;
+		// -- Third case: if the call has already been forwarded, do not forward it again.
+		return nullptr;
+	}
+
+	// -- Fourth case: make sure the status code received on this branch is supported for call forwarding.
+	const auto status = branch->getStatus();
+	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+	const auto supported = config->mStatusCodes;
+	if (find(supported.cbegin(), supported.cend(), status) == supported.cend()) {
+		if (branch->sendResponse(mIncoming != nullptr)) return branch;
+		return nullptr;
+	}
+
+	// Finally, try to forward the call.
+	if (forward(branch->getStatus())) return nullptr;
+
+	// If it failed, try to send the response anyway.
+	if (branch->sendResponse(mIncoming != nullptr)) return branch;
+	return nullptr;
+}
+
+std::shared_ptr<BranchInfo> ForkCallContext::forward(int code) {
+	const auto listener = mForkContextListener.lock();
+	if (listener == nullptr) {
+		LOGE << "Failed to trigger call forwarding (ForkContextListener pointer is empty)";
+		return nullptr;
+	}
+	if (!mIncoming) {
+		LOGE << "Failed to trigger call forwarding (incoming request pointer is empty)";
+		return nullptr;
+	}
+
+	LOGD << "Starting call forwarding with status '" << code << "'";
+
+	const auto request = mIncoming->getIncomingRequest();
+	auto* home = request->getHome();
+	const auto* sip = request->getSip();
+
+	const auto voicemailServerUri = static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri;
+	const auto target = uri_utils::escape(url_as_string(home, sip->sip_to->a_url), uri_utils::sipUriParamValueReserved);
+	const auto cause = to_string(code);
+	const auto requestUri = voicemailServerUri.replaceParameter("target", target).replaceParameter("cause", cause);
+
+	const auto requestEvent = RequestSipEvent::makeRestored(mIncoming, request, std::weak_ptr<Module>{});
+	if (requestEvent == nullptr) {
+		LOGW << "Failed to restore the RequestSipEvent, cannot proceed further: aborting";
+		return nullptr;
+	}
+
+	const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
+	contact->mKey = ContactKey{}.str();
+	if (const auto branch = listener->onDispatchNeeded(shared_from_this(), contact)) {
+		// Reply to incoming transaction.
+		requestEvent->reply(SIP_181_CALL_IS_BEING_FORWARDED, TAG_END());
+		mCallForwardingBranch = branch;
+		return branch;
 	}
 
 	return nullptr;
