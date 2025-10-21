@@ -201,6 +201,18 @@ ModuleInfo<PushNotification> PushNotification::sInfo{
 	            "/etc/flexisip/apn",
 	        },
 	        {
+	            String,
+	            "apns-server",
+	            "Url of Apple push notification service server.",
+	            Service::kDefaultApnsServers.prod.c_str(),
+	        },
+	        {
+	            String,
+	            "apns.dev-server",
+	            "Url of Apple push notification service server for development purpose.",
+	            Service::kDefaultApnsServers.dev.c_str(),
+	        },
+	        {
 	            Boolean,
 	            "no-badge",
 	            "Set the badge value to 0 for Apple push notifications.",
@@ -360,6 +372,9 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 	auto maxQueueSize = mc->get<ConfigInt>("max-queue-size")->read();
 	mDisplayFromUri = mc->get<ConfigBoolean>("display-from-uri")->read();
 	auto certdir = mc->get<ConfigString>("apple-certificate-dir")->read();
+	ApnsServers apnsServers{};
+	apnsServers.prod = mc->get<ConfigString>("apns-server")->read();
+	apnsServers.dev = mc->get<ConfigString>("apns.dev-server")->read();
 	auto* externalUriCfg = mc->get<ConfigString>("external-push-uri");
 	auto externalUri = externalUriCfg->read();
 	auto appleEnabled = mc->get<ConfigBoolean>("apple")->read();
@@ -452,7 +467,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mPNS->setStatCounters(mCountFailed, mCountSent);
 
-	if (appleEnabled) mPNS->setupiOSClient(certdir, "");
+	if (appleEnabled) mPNS->setupiOSClient(certdir, "", apnsServers);
+
 	if (firebaseEnabled) mPNS->setupFirebaseClients(mc);
 
 	mExpirationNotifier =

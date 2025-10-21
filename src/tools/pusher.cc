@@ -355,7 +355,7 @@ int pusher(int argc, const char* argv[]) {
 	const auto& pushParams = pushInfos.front()->mDestinations.cbegin()->second;
 	const auto& provider = pushParams->getProvider();
 	if (provider == "apns" || provider == "apns.dev") {
-		service.setupiOSClient(args.prefix + "/apn", "");
+		service.setupiOSClient(args.prefix + "/apn", "", Service::kDefaultApnsServers);
 	} else if (provider == "fcm") {
 		const auto& apiKey = args.apikey;
 		if (apiKey.empty()) throw ExitFailure{"missing Firebase service account file, use '--key'"};

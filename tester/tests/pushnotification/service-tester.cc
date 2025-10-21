@@ -35,6 +35,8 @@ using namespace flexisip::pushnotification;
 using namespace sofiasip;
 using namespace std;
 
+const ApnsServers apnsServer{};
+
 void setupiOSClient__bad_certificate_does_not_crash() {
 	const auto stubRoot = make_shared<SuRoot>();
 	Service service{stubRoot, 0xdead};
@@ -42,7 +44,7 @@ void setupiOSClient__bad_certificate_does_not_crash() {
 	ofstream badCertFile{certDir.path() / "bad-cert.pem"};
 	badCertFile << "I'd like to speak to your manager >:(";
 
-	service.setupiOSClient(certDir.path(), bcTesterRes("cert/apple.test.dev.pem"));
+	service.setupiOSClient(certDir.path(), bcTesterRes("cert/apple.test.dev.pem"), apnsServer);
 }
 
 /**
@@ -56,7 +58,7 @@ void createAppleClientFromPotentialNewCertificate__valid_certificate_added() {
 	const auto validCertPath = bcTesterResourceDir() / "cert/apple.test.dev.pem";
 	// Create empty dir
 	TmpDir certDir{".certificates.d"};
-	service.setupiOSClient(certDir.path(), "");
+	service.setupiOSClient(certDir.path(), "", apnsServer);
 
 	const auto pushType = PushType::Message;
 	auto pushInfo = make_shared<PushInfo>();

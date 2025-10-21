@@ -37,6 +37,11 @@ namespace flexisip::pushnotification {
 class Client;
 class GenericHttpRequest;
 
+struct ApnsServers {
+	std::string prod;
+	std::string dev;
+};
+
 class Service {
 public:
 	Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize);
@@ -64,7 +69,7 @@ public:
 	                            JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
 	                            const std::shared_ptr<Http2Client>& http2Client = nullptr);
 	void setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol);
-	void setupiOSClient(const std::string& certDir, const std::string& caFile);
+	void setupiOSClient(const std::string& certDir, const std::string& caFile, const ApnsServers& apnsServers);
 	void setupFirebaseClients(const GenericStruct* pushConfig);
 	void addFirebaseV1Client(const std::string& appId,
 	                         const std::filesystem::path& tokenScriptPath,
@@ -81,6 +86,7 @@ public:
 	bool isIdle() const noexcept;
 
 	static const std::string kExternalClientName;
+	static const ApnsServers kDefaultApnsServers;
 
 private:
 	static const std::string kFallbackClientKey;
@@ -97,6 +103,7 @@ private:
 	std::map<std::string, std::shared_ptr<Client>> mClients{};
 	std::string mWindowsPhonePackageSID{};
 	std::string mWindowsPhoneApplicationSecret{};
+	ApnsServers mApnsServers{};
 	std::map<std::filesystem::path, std::filesystem::path> mAppleCertDirs{};
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};

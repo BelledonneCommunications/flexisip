@@ -90,6 +90,7 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 ### [Added]
 - **Proxy:**
     - Apple push notification certificates can now be updated without restarting the server.
+    - URLs of Apple push notification service servers are now configurable.
     - TLS/SSL certificates can now be updated without restarting the server.
     - **Authorization and authentication:** New path for all authorization and authentication steps:
         - New module called `AuthTrustedHosts` that identifies SIP requests from trusted hosts.
