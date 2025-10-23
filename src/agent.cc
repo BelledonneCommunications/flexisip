@@ -240,11 +240,16 @@ string absolutePath(const string& currdir, const string& file) {
 	return currdir + "/" + file;
 }
 
-void verifyAllowedParameters(const url_t* uri) {
-	sofiasip::Home home;
-	if (!uri->url_params) return;
-	char* params = su_strdup(home.home(), uri->url_params);
-	/*remove all the allowed params and see if something else is remaning at the end*/
+/**
+ * Make sure that there is no mistyped params in the provided url.
+ * @throw BadConfiguration if a non-authorized parameter is present in the url
+ */
+void verifyAllowedParameters(const url_t* url) {
+	Home home{};
+	if (!url->url_params) return;
+
+	// Remove all the allowed params and see if something else is remaining at the end.
+	char* params = su_strdup(home.home(), url->url_params);
 	params = url_strip_param_string(params, "tls-certificates-dir");
 	params = url_strip_param_string(params, "tls-certificates-file");
 	params = url_strip_param_string(params, "tls-certificates-private-key");
@@ -254,10 +259,10 @@ void verifyAllowedParameters(const url_t* uri) {
 	params = url_strip_param_string(params, "tls-verify-incoming");
 	params = url_strip_param_string(params, "tls-allow-missing-client-certificate");
 	params = url_strip_param_string(params, "tls-verify-outgoing");
+	params = url_strip_param_string(params, "network");
 
-	// make sure that there is no misstyped params in the url:
 	if (params && strlen(params) > 0)
-		throw runtime_error{"bad parameters '"s + params + "' given in transports definition."};
+		throw BadConfiguration{"bad parameters '"s + params + "' given in transports definition"};
 }
 
 } // namespace

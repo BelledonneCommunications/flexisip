@@ -29,6 +29,9 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tls/certificate.hh"
+#include "utils/tls/private-key.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 using namespace sofiasip;
@@ -52,7 +55,7 @@ std::string getNtaAgentFirstTransport(const NtaAgent& agent) {
 /**
  * Test primary transport selection to reach a destination using the 'network' URI parameter.
  * Verifies that the most appropriate transport is selected to reach the destination.
- * This test also verifies that the right "RecordRoute" header was inserted by the Proxy when the request arrives to the
+ * This test also verifies that the Proxy inserted the right "RecordRoute" header when the request arrives to the
  * callee.
  *
  * Configuration:
@@ -67,9 +70,9 @@ std::string getNtaAgentFirstTransport(const NtaAgent& agent) {
  *     \            /         --------
  *       ----------              |
  *           |               ----------
- *     -------------       /            \       --------------
- *    |   Flexisip  | --- | 127.0.1.0/24 | --- | localClient2 |
- *     -------------       \            /       --------------
+ *     -------------       /            \       ---------------------
+ *    |   Flexisip  | --- | 127.0.1.0/24 | --- | localClient2 (sips) |
+ *     -------------       \            /       --------------------
  *           |               ----------
  *       ----------
  *     /            \       --------------
@@ -82,12 +85,32 @@ void outgoingTransportSelection() {
 	const string publicTportHost{"sip.example.org"};
 	const string localTport2Host{"127.0.1.1"};
 	const string localTport1{"sip:" + localTport1Host + ":0;transport=tcp;network=127.0.0.0/24"};
-	const string publicTport{"sip:" + publicTportHost + ":0;maddr=127.1.0.1;transport=tcp"};
-	const string localTport2{"sip:" + localTport2Host + ":0;transport=tcp;network=127.0.1.0/24,127.0.2.0/24"};
+	const string publicTportTcp{"sip:" + publicTportHost + ":0;maddr=127.1.0.1;transport=tcp"};
+	const string publicTportTls{"sips:" + publicTportHost + ":0;maddr=127.1.0.1;tls-verify-outgoing=0"};
+	const string localTport2Tcp{"sip:" + localTport2Host + ":0;network=127.0.1.0/24,127.0.2.0/24"};
+	const string localTport2Tls{"sips:" + localTport2Host +
+	                            ":0;tls-verify-outgoing=0;network=127.0.1.0/24,127.0.2.0/24"};
+
+	// Server certificates.
+	auto dir = TmpDir("certs-");
+	const auto keyPath = dir.path() / "key.pem";
+	const auto certPath = dir.path() / "cert.pem";
+	const TlsPrivateKey privateKey{};
+	const TlsCertificate certificate{privateKey};
+	privateKey.writeToFile(keyPath);
+	certificate.writeToFile(certPath);
+
+	// Client certificate.
+	const auto certs = bcTesterRes("cert/self.signed.legacy");
+
 	Server proxy{{
-	    {"global/transports", localTport1 + " " + publicTport + " " + localTport2},
+	    {"global/transports",
+	     localTport1 + " " + publicTportTcp + " " + publicTportTls + " " + localTport2Tls + " " + localTport2Tcp},
 	    {"global/aliases", "sip.example.org"},
+	    {"global/tls-certificates-file", certPath},
+	    {"global/tls-certificates-private-key", keyPath},
 	    {"module::DoSProtection/enabled", "false"},
+	    {"module::MediaRelay/enabled", "false"},
 	}};
 	proxy.start();
 
@@ -105,20 +128,38 @@ void outgoingTransportSelection() {
 		const auto* recordRoute = sip->sip_record_route->r_url;
 
 		helper->host = sip->sip_via->v_host;
-		helper->recordRoute = "sip:"s + recordRoute->url_host + ":" + recordRoute->url_port;
+		helper->recordRoute = recordRoute->url_scheme + ":"s + recordRoute->url_host + ":" + recordRoute->url_port;
 
 		nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
 		return 0;
 	};
 	NtaAgent publicClient{clientsSuRoot, "sip:127.1.0.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
 	NtaAgent localClient1{clientsSuRoot, "sip:127.0.0.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
-	NtaAgent localClient2{clientsSuRoot, "sip:127.0.1.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
+	NtaAgent localClient2{
+	    clientsSuRoot,
+	    "sips:127.0.1.2:0",
+	    cb,
+	    reinterpret_cast<nta_agent_magic_t*>(&h),
+	    TPTAG_CERTIFICATE(certs.c_str()),
+	    TPTAG_CERTIFICATE_CA_FILE(""),
+	    TPTAG_TLS_VERIFY_POLICY(TPTLS_VERIFY_NONE),
+	    TPTAG_TLS_CIPHERS("HIGH:!SSLv2:!SSLv3:!TLSv1:!EXP:!ADH:!RC4:!3DES:!aNULL:!eNULL"),
+	};
 	NtaAgent localClient3{clientsSuRoot, "sip:127.0.2.2:0;transport=tcp", cb, reinterpret_cast<nta_agent_magic_t*>(&h)};
+
+	auto* primary = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
+	const string realLocalTport1{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
+	primary = tport_next(primary);
+	const string realPublicTport{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
+	primary = tport_next(tport_next(primary)); // Skip tls public transport.
+	const string realLocalTport2Tls{"sips:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
+	primary = tport_next(primary);
+	const string realLocalTport2Tcp{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
 
 	CoreAssert<kNoSleep> asserter{proxy, clientsSuRoot};
 
-	const auto test = [&proxy, &asserter, &h](NtaAgent& caller, const NtaAgent& callee, const string& expectedHostInVia,
-	                                          const string& expectedRecordRoute) {
+	const auto test = [&](NtaAgent& caller, const NtaAgent& callee, const string& expectedHostInVia,
+	                      const string& expectedRecordRoute) {
 		auto request = make_unique<MsgSip>();
 		request->makeAndInsert<SipHeaderRequest>(sip_method_invite, getNtaAgentFirstTransport(callee));
 		request->makeAndInsert<SipHeaderFrom>("sip:caller@sip.example.org", "stub-from-tag");
@@ -127,9 +168,11 @@ void outgoingTransportSelection() {
 		request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_invite);
 		request->makeAndInsert<SipHeaderContact>("<sip:caller@sip.example.org;transport=tcp>");
 
-		const auto routeUri = "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp";
-
+		const auto routeUri = SipUri{getNtaAgentFirstTransport(caller)}.getParam("transport") == "tls"
+		                          ? realLocalTport2Tls
+		                          : realLocalTport1 + ";transport=tcp";
 		const auto transaction = caller.createOutgoingTransaction(std::move(request), routeUri);
+
 		asserter
 		    .iterateUpTo(
 		        0x20,
@@ -140,28 +183,24 @@ void outgoingTransportSelection() {
 			        return ASSERTION_PASSED();
 		        },
 		        100ms)
-		    .assert_passed();
+		    .hard_assert_passed();
+
+		h.host.clear();
+		h.recordRoute.clear();
 	};
 
-	auto* primary = tport_primaries(nta_agent_tports(proxy.getAgent()->getSofiaAgent()));
-	const string realLocalTport1{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
-	primary = tport_next(primary);
-	const string realPublicTport{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
-	primary = tport_next(primary);
-	const string realLocalTport2{"sip:"s + tport_name(primary)->tpn_canon + ":" + tport_name(primary)->tpn_port};
-
 	test(publicClient, localClient1, localTport1Host, realLocalTport1);
-	test(publicClient, localClient2, localTport2Host, realLocalTport2);
-	test(publicClient, localClient3, localTport2Host, realLocalTport2);
+	test(publicClient, localClient2, localTport2Host, realLocalTport2Tls);
+	test(publicClient, localClient3, localTport2Host, realLocalTport2Tcp);
 	test(localClient1, publicClient, publicTportHost, realPublicTport);
-	test(localClient1, localClient2, localTport2Host, realLocalTport2);
-	test(localClient1, localClient3, localTport2Host, realLocalTport2);
+	test(localClient1, localClient2, localTport2Host, realLocalTport2Tls);
+	test(localClient1, localClient3, localTport2Host, realLocalTport2Tcp);
 	test(localClient2, publicClient, publicTportHost, realPublicTport);
 	test(localClient2, localClient1, localTport1Host, realLocalTport1);
-	test(localClient2, localClient3, localTport2Host, realLocalTport2);
+	test(localClient2, localClient3, localTport2Host, realLocalTport2Tcp);
 	test(localClient3, publicClient, publicTportHost, realPublicTport);
 	test(localClient3, localClient1, localTport1Host, realLocalTport1);
-	test(localClient3, localClient2, localTport2Host, realLocalTport2);
+	test(localClient3, localClient2, localTport2Host, realLocalTport2Tls);
 }
 
 /*
