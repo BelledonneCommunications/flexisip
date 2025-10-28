@@ -193,8 +193,9 @@ if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
 		tests/auth/db/authdb-soci-tester.cc
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
-		tests/presence/list-subscription/external-list-subscription-tester.cc
 		tests/modules/router/fork/fork-context-mysql-tester.cc
+		tests/modules/router/fork/fork-message-context-soci-repository-tester.cc
+		tests/presence/list-subscription/external-list-subscription-tester.cc
 		tests/utils/soci-helper-tester.cc
 	)
 endif()

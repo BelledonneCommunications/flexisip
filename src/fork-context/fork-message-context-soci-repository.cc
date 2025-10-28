@@ -46,10 +46,12 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		expiration_date TIMESTAMP NOT NULL,
 		request MEDIUMBLOB NOT NULL))sql";
 
+		// Migrate to v2 (Flexisip 2.2.0).
 		try {
 			sql << R"sql(CREATE INDEX expiration_date_index ON fork_message_context (expiration_date))sql";
-		} catch (const soci::soci_error&) {
-			LOGD << "The index 'expiration_date_index' already exists in table 'fork_message_context'";
+		} catch (const soci::mysql_soci_error& error) {
+			// We are expecting to get the error '1061' here as the index may already exist.
+			if (error.err_num_ != 1061) throw;
 		}
 
 		sql << R"sql(CREATE TABLE IF NOT EXISTS branch_info (
@@ -68,10 +70,7 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		PRIMARY KEY (fork_uuid, key_value),
 		FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
 
-		// See https://mariadb.com/kb/en/guiduuid-performance/ for more info about those two functions. We use "DROP
-		// FUNCTION IF EXISTS" because "CREATE OR REPLACE FUNCTION" is not available in MariaDB 5.5 (centos7).
-		sql << R"sql(DROP FUNCTION IF EXISTS UuidToBin;)sql";
-		sql << R"sql(CREATE FUNCTION UuidToBin(_uuid BINARY(36))
+		sql << R"sql(CREATE OR REPLACE FUNCTION UuidToBin(_uuid BINARY(36))
 			RETURNS BINARY(16)
 			LANGUAGE SQL  DETERMINISTIC  CONTAINS SQL  SQL SECURITY INVOKER
 		RETURN
@@ -94,11 +93,20 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 				HEX(SUBSTR(_bin,  9, 2)),
 				HEX(SUBSTR(_bin, 11))));)sql";
 
-		// Database schema update for Flexisip 2.2.1
+		// Migrate to v3 (Flexisip 2.2.1).
 		try {
 			sql << R"sql(ALTER TABLE fork_message_context ADD COLUMN msg_priority TINYINT NOT NULL DEFAULT 0;)sql";
-		} catch (const soci::soci_error&) {
-			LOGD << "The column 'msg_priority' already exists in table 'fork_message_context'";
+		} catch (const soci::mysql_soci_error& error) {
+			// We are expecting to get the error '1060' here as the column may already exist.
+			if (error.err_num_ != 1060) throw;
+		}
+
+		// Migrate to v4 (Flexisip 2.5.0).
+		try {
+			sql << R"sql(ALTER TABLE fork_message_context DROP COLUMN is_message;)sql";
+		} catch (const soci::mysql_soci_error& error) {
+			// We are expecting to get the error '1091' here as the column may have already been removed.
+			if (error.err_num_ != 1091) throw;
 		}
 	} catch (const runtime_error& error) {
 		throw runtime_error{
@@ -106,7 +114,6 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		        error.what() + ")",
 		};
 	}
-	LOGD << "Creation done, the ForkMessageContext database is configured and accessible";
 }
 
 ForkMessageContextSociRepository::~ForkMessageContextSociRepository() {
@@ -121,8 +128,8 @@ ForkMessageContextDb ForkMessageContextSociRepository::findForkMessageByUuid(con
 		soci::transaction tr(sql);
 
 		// fork_message_context
-		sql << "select current_priority, delivered_count, is_finished, is_message, expiration_date, request, "
-		       "msg_priority from fork_message_context where uuid = UuidToBin(:v)",
+		sql << "select current_priority, delivered_count, is_finished, expiration_date, request, msg_priority from "
+		       "fork_message_context where uuid = UuidToBin(:v)",
 		    soci::use(uuid), soci::into(dbFork);
 
 		// fork_key
@@ -143,9 +150,9 @@ string ForkMessageContextSociRepository::saveForkMessageContext(const ForkMessag
 		soci::transaction tr(sql);
 
 		sql << "SET @uuid=UUID()";
-		sql << "insert into fork_message_context(uuid, current_priority, delivered_count, is_finished, is_message, "
+		sql << "insert into fork_message_context(uuid, current_priority, delivered_count, is_finished, "
 		       "expiration_date, request, msg_priority) values(UuidToBin(@uuid), :current_priority, :delivered_count, "
-		       ":is_finished ,:is_message, :expiration_date, :request, :msg_priority);",
+		       ":is_finished, :expiration_date, :request, :msg_priority);",
 		    soci::use(dbFork);
 		sql << "SET @uuid = IF(ROW_COUNT(), @uuid, null)";
 		sql << "SELECT @uuid", soci::into(insertedUuid);
@@ -174,8 +181,8 @@ void ForkMessageContextSociRepository::updateForkMessageContext(const ForkMessag
 		soci::transaction tr(sql);
 
 		sql << "update fork_message_context set current_priority = :current_priority, delivered_count = "
-		       ":delivered_count, is_finished = :is_finished, is_message = :is_message, expiration_date = "
-		       ":expiration_date, request = :request, msg_priority = :msg_priority where uuid = UuidToBin(:uuid)",
+		       ":delivered_count, is_finished = :is_finished, expiration_date = :expiration_date, request = :request, "
+		       "msg_priority = :msg_priority where uuid = UuidToBin(:uuid)",
 		    soci::use(dbFork), soci::use(uuid, "uuid");
 
 		// Keys in the table 'fork_key' are not updated because they always remain the same.
