@@ -389,7 +389,7 @@ void routeConfigForwarding() {
 	BC_HARD_ASSERT_CPP_EQUAL(inviteTransaction->mRequestSent, true);
 	BC_ASSERT_CPP_EQUAL(inviteTransaction->mRequestMethod, sip_method_invite);
 	BC_HARD_ASSERT_CPP_EQUAL(inviteTransaction->mRoutes.size(), 1);
-	BC_ASSERT_CPP_EQUAL(inviteTransaction->mRoutes.at(0), "sip:127.0.0.2:5060;transport=tcp;lr")
+	BC_ASSERT_CPP_EQUAL(inviteTransaction->mRoutes.at(0), "sip:127.0.0.2:5060;transport=tcp;lr");
 
 	// A route should not be appended to in-dialog requests
 	stringstream byeRequest;
