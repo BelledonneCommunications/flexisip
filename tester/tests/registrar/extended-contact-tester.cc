@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,25 +16,27 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/configmanager.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "flexisip/configmanager.hh"
 #include "registrar/extended-contact.hh"
 #include "registrar/registrar-db.hh"
 #include "tester.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
+using namespace std;
 using namespace flexisip;
 using namespace flexisip::tester;
-using namespace std;
 
-static void qValueConstructorTest(const SipUri& inputUri,
-                                  const string& inputRoute,
-                                  const std::string& msgExpiresName,
-                                  const float inputQ,
-                                  const float expectedQ) {
+namespace flexisip::tester {
+namespace {
+
+void qValueConstructorTest(const SipUri& inputUri,
+                           const string& inputRoute,
+                           const std::string& msgExpiresName,
+                           const float inputQ,
+                           const float expectedQ) {
 	ExtendedContact extendedContact{inputUri, inputRoute, msgExpiresName, inputQ};
 
 	BC_ASSERT_EQUAL(extendedContact.mQ, expectedQ, float, "%f");
@@ -50,11 +52,8 @@ static void qValueConstructorTest(const SipUri& inputUri,
 	BC_ASSERT_STRING_EQUAL(actualRoute, inputRoute.c_str());
 }
 
-static void qValueConstructorTests(void) {
-	ConfigManager cfg{};
-	cfg.load(bcTesterRes("config/flexisip_fork_context.conf"));
-	Record::Config recordConfig{cfg};
-	auto msgExpiresName = recordConfig.messageExpiresName();
+void qValueConstructorTests() {
+	const auto msgExpiresName = Record::Config{ConfigManager{}}.messageExpiresName();
 
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"},
 	                      msgExpiresName, 0.555, 0.555);
@@ -69,9 +68,12 @@ static void qValueConstructorTests(void) {
 	                      msgExpiresName, -0.001, 0.0);
 }
 
-namespace {
-TestSuite _("Extended contact",
-            {
-                TEST_NO_TAG("ExtendedContact constructor with qValue tests", qValueConstructorTests),
-            });
-}
+TestSuite _{
+    "ExtendedContact",
+    {
+        CLASSY_TEST(qValueConstructorTests),
+    },
+};
+
+} // namespace
+} // namespace flexisip::tester

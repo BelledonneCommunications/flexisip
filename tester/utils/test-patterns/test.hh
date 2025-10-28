@@ -82,7 +82,7 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 			os << "BC_ASSERT_CPP_EQUAL(" #valueExpr ", " #expectedExpr "), value: \"" << value << "\", expected: \""   \
 			   << expected << "\"";                                                                                    \
 		assertFunction(__FILE__, __LINE__, equal, os.str().c_str());                                                   \
-	}((valueExpr), (expectedExpr));
+	}((valueExpr), (expectedExpr))
 
 /**
  * Assert the equality of two expressions whatever their types. The '==' and '<<' operators must be declared for
