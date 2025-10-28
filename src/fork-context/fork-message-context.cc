@@ -46,6 +46,7 @@ using namespace flexisip;
 
 ForkMessageContext::ForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
                                        sofiasip::MsgSipPriority priority,
+                                       const MessageKind& kind,
                                        bool isRestored,
                                        const std::weak_ptr<ForkContextListener>& forkContextListener,
                                        const std::weak_ptr<InjectorListener>& injectorListener,
@@ -54,8 +55,7 @@ ForkMessageContext::ForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
                                        const std::weak_ptr<StatPair>& counter)
     : ForkContextBase{agent,   config,   injectorListener, forkContextListener, std::move(event),
                       counter, priority, isRestored},
-      mKind(*ForkContextBase::getEvent().getMsgSip()->getSip(), priority),
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkMessageContext")) {
+      mKind(kind), mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ForkMessageContext")) {
 	LOGD << "New instance";
 	if (!isRestored) {
 		// Start the acceptance timer immediately.
@@ -75,13 +75,12 @@ ForkMessageContext::restore(ForkMessageContextDb& forkContextFromDb,
                             Agent* agent,
                             const std::shared_ptr<ForkContextConfig>& config,
                             const std::weak_ptr<StatPair>& counter) {
-	const auto context = make(
-	    [&agent, &forkContextFromDb] {
-		    const auto router = agent->findModuleByRole("Router");
-		    const auto msg = make_shared<MsgSip>(0, forkContextFromDb.request);
-		    return RequestSipEvent::makeRestored(agent->getIncomingAgent(), msg, router);
-	    }(),
-	    forkContextFromDb.msgPriority, true, forkContextListener, injectorListener, agent, config, counter);
+	auto restoredEvent =
+	    RequestSipEvent::makeRestored(agent->getIncomingAgent(), make_shared<MsgSip>(0, forkContextFromDb.request),
+	                                  agent->findModuleByRole("Router"));
+	const auto context = make(std::move(restoredEvent), forkContextFromDb.msgPriority,
+	                          MessageKind{*restoredEvent->getSip(), forkContextFromDb.msgPriority}, true,
+	                          forkContextListener, injectorListener, agent, config, counter);
 
 	context->mFinished = forkContextFromDb.isFinished;
 	context->mDeliveredCount = forkContextFromDb.deliveredCount;

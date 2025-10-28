@@ -91,10 +91,10 @@ Group changes to describe their impact on the project, as follows:
       - P-Preferred-Identity header is removed if present before forwarding the request.
       - When using `routes-config-path`, a 'Route' header is now added only to out-of-dialog requests.
     - **Router:** 
-      - Performance issues for MESSAGE requests intended for the conference server (linphone-sdk >= 5.4).
+      - Performance issues for MESSAGE requests intended for the conference server.
         Avoid creating MESSAGE requests that could be saved in memory or database in case the conference server
-        is not available. Moreover, in such cases this fix allows the UAC to know that the chat message was not delivered
-        properly to the server ('202 Accepted' was previously immediately answered to the UAC).
+        is not available. Moreover, in such cases this fix allows the UAC to know that the chat message was not
+        delivered properly to the server ('202 Accepted' was previously immediately answered to the UAC).
       - Invite/Cancel (iOS devices) feature was not working properly when no response (503 or 408 to INVITE request) was
         received before CANCEL request receipt.
     - **Registrar:** A client that does not use '+sip.instance' could have duplicate entries in the registrar database.
