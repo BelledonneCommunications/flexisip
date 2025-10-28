@@ -70,6 +70,32 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	mOtherForkCfg->mForkLate = false;
 }
 
+std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
+                                                                        sofiasip::MsgSipPriority priority) const {
+	std::weak_ptr<StatPair> statCounter{};
+	const auto kind = MessageKind{*event->getSip(), priority};
+	if (kind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
+		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageConferenceForks;
+		return ForkMessageContext::make(std::move(event), priority, kind, false, mForkContextListener,
+		                                mInjectorListener, mAgent, std::make_shared<ForkContextConfig>(), statCounter);
+	}
+#if ENABLE_SOCI
+	if (messageStorageInDbEnabled()) {
+		std::weak_ptr<StatPair> forkMessageCounter{};
+		if (const auto forkStats = mForkStats.lock()) {
+			statCounter = forkStats->mCountMessageProxyForks;
+			forkMessageCounter = forkStats->mCountMessageForks;
+		}
+		return ForkMessageContextDbProxy::make(std::move(event), priority, false, mForkContextListener,
+		                                       mInjectorListener, mForkMessageDatabase, mAgent, mMessageForkCfg,
+		                                       forkMessageCounter, statCounter);
+	}
+#endif
+	if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageForks;
+	return ForkMessageContext::make(std::move(event), priority, kind, false, mForkContextListener, mInjectorListener,
+	                                mAgent, mMessageForkCfg, statCounter);
+}
+
 #if ENABLE_SOCI
 void ForkContextFactory::setForkMessageDatabase(const std::weak_ptr<ForkMessageContextSociRepository>& database) {
 	mForkMessageDatabase = database;

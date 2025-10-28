@@ -64,34 +64,11 @@ public:
 	}
 
 	/**
-	 * @param isIntendedForConfServer MESSAGE requests intended for the conference server use a custom set of parameters
 	 * @return a ForkMessageContext or a ForkMessageContextDbProxy if storage of MESSAGE requests in the database is
 	 * enabled
 	 */
-	template <typename... Args>
-	std::shared_ptr<ForkContext> makeForkMessageContext(bool isIntendedForConfServer, Args&&... args) const {
-		std::weak_ptr<StatPair> statCounter{};
-#if ENABLE_SOCI
-		if (messageStorageInDbEnabled()) {
-			std::weak_ptr<StatPair> forkMessageCounter{};
-			if (const auto forkStats = mForkStats.lock()) {
-				statCounter = forkStats->mCountMessageProxyForks;
-				forkMessageCounter = forkStats->mCountMessageForks;
-			}
-			return ForkMessageContextDbProxy::make(std::forward<Args>(args)..., mForkContextListener, mInjectorListener,
-			                                       mForkMessageDatabase, mAgent, mMessageForkCfg, forkMessageCounter,
-			                                       statCounter);
-		}
-#endif
-		if (isIntendedForConfServer) {
-			if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageConferenceForks;
-			return ForkMessageContext::make(std::forward<Args>(args)..., mForkContextListener, mInjectorListener,
-			                                mAgent, std::make_shared<ForkContextConfig>(), statCounter);
-		}
-		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageForks;
-		return ForkMessageContext::make(std::forward<Args>(args)..., mForkContextListener, mInjectorListener, mAgent,
-		                                mMessageForkCfg, statCounter);
-	}
+	std::shared_ptr<ForkContext> makeForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
+	                                                    sofiasip::MsgSipPriority priority) const;
 
 	template <typename... Args>
 	std::shared_ptr<ForkMessageContext> restoreForkMessageContext(Args&&... args) const {

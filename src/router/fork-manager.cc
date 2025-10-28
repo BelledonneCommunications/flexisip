@@ -94,8 +94,7 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 		context = mFactory->makeForkCallContext(std::move(ev), MsgSipPriority::Urgent);
 	} else if (method == sip_method_message && !imIsComposingXml && !sipExDeltaIsZero) {
 		// Note: use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages.
-		const bool isIntendedForConfServer = url_has_param(sip->sip_to->a_url, conference::CONFERENCE_ID);
-		context = mFactory->makeForkMessageContext(isIntendedForConfServer, std::move(ev), priority, false);
+		context = mFactory->makeForkMessageContext(std::move(ev), priority);
 	} else {
 		context = mFactory->makeForkBasicContext(std::move(ev), priority);
 	}

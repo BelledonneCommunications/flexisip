@@ -58,8 +58,9 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(std::unique_ptr<RequestSipE
 	}
 
 	if (event != nullptr)
-		mForkMessage = ForkMessageContext::make(std::move(event), priority, isRestored, forkContextListener,
-		                                        injectorListener, agent, config, forkMessageCounter);
+		mForkMessage =
+		    ForkMessageContext::make(std::move(event), priority, MessageKind{*event->getSip(), priority}, isRestored,
+		                             forkContextListener, injectorListener, agent, config, forkMessageCounter);
 }
 
 std::shared_ptr<ForkMessageContextDbProxy>

@@ -80,6 +80,7 @@ protected:
 private:
 	ForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
 	                   sofiasip::MsgSipPriority priority,
+	                   const MessageKind& kind,
 	                   bool isRestored,
 	                   const std::weak_ptr<ForkContextListener>& forkContextListener,
 	                   const std::weak_ptr<InjectorListener>& injectorListener,
