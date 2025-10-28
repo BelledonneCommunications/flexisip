@@ -18,31 +18,33 @@
 
 #include "message-kind.hh"
 
-#include "flexisip/logmanager.hh"
 #include "utils/uri-utils.hh"
-
-using namespace std::string_view_literals;
 
 namespace flexisip {
 
 MessageKind::MessageKind(const ::sip_t& event, sofiasip::MsgSipPriority priority)
-    : mKind(Kind::Message), mCardinality(Cardinality::Direct), mPriority(priority) {
-	if (event.sip_request->rq_method == sip_method_refer) mKind = Kind::Refer;
-
-	constexpr auto tryExtractConferenceIdFrom = [](const auto& recipient) {
-		return UriUtils::getConferenceId(*recipient.a_url);
-	};
-
-	mConferenceId = tryExtractConferenceIdFrom(*event.sip_from);
+    : mCardinality(Cardinality::Direct), mPriority(priority) {
+	mConferenceId = uri_utils::getConferenceId(*event.sip_from->a_url);
 	if (mConferenceId) {
 		mCardinality = Cardinality::FromConferenceServer;
 		return;
 	}
-
-	mConferenceId = tryExtractConferenceIdFrom(*event.sip_to);
+	mConferenceId = uri_utils::getConferenceId(*event.sip_to->a_url);
 	if (mConferenceId) {
 		mCardinality = Cardinality::ToConferenceServer;
 	}
+}
+
+MessageKind::Cardinality MessageKind::getCardinality() const {
+	return mCardinality;
+}
+
+sofiasip::MsgSipPriority MessageKind::getPriority() const {
+	return mPriority;
+}
+
+const std::optional<std::string>& MessageKind::getConferenceId() const {
+	return mConferenceId;
 }
 
 } // namespace flexisip

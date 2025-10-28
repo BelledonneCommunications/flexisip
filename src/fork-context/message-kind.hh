@@ -27,40 +27,24 @@
 namespace flexisip {
 
 /**
- * @brief Technical information on a SIP MESSAGE request. Indicates the type of message (MESSAGE or REFER) and the
- * cardinality of the message (direct or 'going through' the conference server).
+ * @brief Indicate if the SIP MESSAGE request is a 'one-to-one' message, is intended for the conference server of
+ * coming from the conference server.
  */
 class MessageKind {
 public:
-	enum class Kind : std::uint8_t {
-		Refer,
-		Message,
-	};
-
-	// Is this a One-to-One message, or is it going through the conference server?
 	enum class Cardinality : std::uint8_t {
 		Direct,
 		ToConferenceServer,
 		FromConferenceServer,
 	};
 
-	MessageKind(const ::sip_t&, sofiasip::MsgSipPriority);
+	MessageKind(const sip_t& event, sofiasip::MsgSipPriority priority);
 
-	Kind getKind() const {
-		return mKind;
-	}
-	Cardinality getCardinality() const {
-		return mCardinality;
-	}
-	sofiasip::MsgSipPriority getPriority() const {
-		return mPriority;
-	}
-	const std::optional<std::string>& getConferenceId() const {
-		return mConferenceId;
-	}
+	Cardinality getCardinality() const;
+	sofiasip::MsgSipPriority getPriority() const;
+	const std::optional<std::string>& getConferenceId() const;
 
 private:
-	Kind mKind;
 	Cardinality mCardinality;
 	sofiasip::MsgSipPriority mPriority;
 	std::optional<std::string> mConferenceId;

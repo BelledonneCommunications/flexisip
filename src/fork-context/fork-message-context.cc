@@ -117,8 +117,6 @@ bool ForkMessageContext::shouldFinish() {
 }
 
 void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch, ResponseSipEvent& respEv) {
-	if (mKind.getKind() == MessageKind::Kind::Refer) return;
-
 	const auto* sip = respEv.getMsgSip()->getSip();
 	const auto& sipRequest = *branch.getRequestMsg()->getSip();
 	const auto forwardedId = ModuleToolbox::getCustomHeaderByName(&sipRequest, kEventIdHeader.data());
@@ -142,8 +140,6 @@ void ForkMessageContext::logResponseFromRecipient(const BranchInfo& branch, Resp
 }
 
 void ForkMessageContext::logResponseToSender(const RequestSipEvent& reqEv, ResponseSipEvent& respEv) const {
-	if (mKind.getKind() == MessageKind::Kind::Refer) return;
-
 	const auto* sip = respEv.getMsgSip()->getSip();
 	const auto* sipRequest = reqEv.getMsgSip()->getSip();
 	const auto log = make_shared<MessageLog>(*sip);
@@ -289,7 +285,7 @@ void ForkMessageContext::restoreBranch(const BranchInfoDb& dbBranch) {
 
 void ForkMessageContext::start() {
 	// A priority of -1 means "first start".
-	if (mCurrentPriority == -1.f /* first start */ && mKind.getKind() != MessageKind::Kind::Refer) {
+	if (mCurrentPriority == -1.f) {
 		// SOUNDNESS: getBranches() returns the waiting branches. We want all the branches in the event, so that
 		// presumes there are no branches answered yet. We also presume all branches have been added by now.
 		auto& event = getEvent();
@@ -307,7 +303,6 @@ const char* ForkMessageContext::getClassName() const {
 
 #ifdef ENABLE_UNIT_TESTS
 void ForkMessageContext::assertEqual(const shared_ptr<ForkMessageContext>& expected) {
-	BC_ASSERT_EQUAL(int(mKind.getKind()), int(expected->mKind.getKind()), int, "%d");
 	BC_ASSERT_EQUAL(mFinished, expected->mFinished, bool, "%d");
 	BC_ASSERT_EQUAL(int(mMsgPriority), int(expected->mMsgPriority), int, "%i");
 	BC_ASSERT_EQUAL(mDeliveredCount, expected->mDeliveredCount, int, "%d");
