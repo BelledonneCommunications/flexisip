@@ -105,7 +105,6 @@ void FlexiStatsEventLogWriter::write(const CallEndedEventLog& call) {
 void FlexiStatsEventLogWriter::write(const MessageSentEventLog& msg) {
 	const auto& kind = msg.getMessageKind();
 	if (kind.getPriority() == sofiasip::MsgSipPriority::NonUrgent) return; // Ignore IMDNs
-	if (kind.getKind() != MessageKind::Kind::Message) return;
 
 	flexiapi::ToParam recipients{};
 	switch (kind.getCardinality()) {

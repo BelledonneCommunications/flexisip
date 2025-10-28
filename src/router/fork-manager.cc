@@ -88,19 +88,14 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 	const auto imIsComposingXml =
 	    sip->sip_content_type && strcasecmp(sip->sip_content_type->c_type, "application/im-iscomposing+xml") == 0;
 	const auto sipExDeltaIsZero = sip->sip_expires && sip->sip_expires->ex_delta == 0;
-	const auto referRequestIsText = sip->sip_refer_to && msg_params_find(sip->sip_refer_to->r_params, "text");
 
 	if (method == sip_method_invite) {
 		isInviteRequest = true;
 		context = mFactory->makeForkCallContext(std::move(ev), MsgSipPriority::Urgent);
 	} else if (method == sip_method_message && !imIsComposingXml && !sipExDeltaIsZero) {
-		// Use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages.
+		// Note: use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages.
 		const bool isIntendedForConfServer = url_has_param(sip->sip_to->a_url, conference::CONFERENCE_ID);
 		context = mFactory->makeForkMessageContext(isIntendedForConfServer, std::move(ev), priority, false);
-	} else if (method == sip_method_refer && referRequestIsText) {
-		// Use the message fork context only for REFER requests that are 'text' to prevent storing useless REFER
-		// requests.
-		context = mFactory->makeForkMessageContext(false, std::move(ev), priority, false);
 	} else {
 		context = mFactory->makeForkBasicContext(std::move(ev), priority);
 	}

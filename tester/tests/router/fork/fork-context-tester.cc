@@ -161,6 +161,58 @@ void notRtpPortAndForkCallContext() {
 	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountCallForks->finish->read(), 1);
 }
 
+void referRequestUsesForkBasicContext() {
+	Server proxy{kConfig};
+	proxy.start();
+
+	bool responseReceived = false;
+	BellesipUtils client{
+	    "127.0.0.1",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "TCP",
+	    [&](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, 200);
+			    responseReceived = true;
+		    }
+	    },
+	    nullptr,
+	};
+
+	const auto& registrarDb = proxy.getRegistrarDb();
+	ContactInserter inserter{*registrarDb};
+	inserter.withGruu(true)
+	    .setExpire(1000s)
+	    .setAor("sip:participant1@localhost")
+	    .insert({"sip:participant1@127.0.0.1:"s + to_string(client.getListeningPort()) + ";transport=tcp"});
+
+	stringstream request{};
+	request << "REFER sip:participant1@localhost SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP localhost:5060;rport;branch=z9hG4bK1439638806\r\n"
+	        << "From: <sip:participant2@localhost>;tag=465687829\r\n"
+	        << "To: <sip:participant1@localhost>\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 1 REFER\r\n"
+	        << "Route: <sip:127.0.0.1:" << proxy.getFirstPort() << ";transport=tcp;lr>\r\n"
+	        << "Contact: <sip:participant1@localhost>\r\n"
+	        << "Refer-To: <sip:stub@localhost>;text\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "User-Agent: BelleSipUtils\r\n"
+	        << "Content-Length: 0\r\n\r\n";
+	client.sendRawRequest(request.str());
+
+	CoreAssert{proxy, client}.wait([&] { return LOOP_ASSERTION(responseReceived); }).hard_assert_passed();
+	BC_HARD_ASSERT(responseReceived == true);
+
+	const auto router = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
+	BC_HARD_ASSERT(router != nullptr);
+
+	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->finish->read(), 1);
+	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->finish->read(), 1);
+}
+
 /**
  * We send multiple messages to a client with one idle device. Then we put the client back online and see if the
  * messages are correctly delivered AND IN ORDER. All along we check fork stats and client state.
@@ -503,7 +555,6 @@ void missingUserInfoInFromOrToHeaderWhenCreatingMessageKindInstance() {
 	sip_request_t request = {.rq_method = sip_method_message};
 	sip_t sip{.sip_request = &request, .sip_from = &from, .sip_to = &to};
 	MessageKind kind{sip, sofiasip::MsgSipPriority::Normal};
-	BC_ASSERT_ENUM_EQUAL(kind.getKind(), MessageKind::Kind::Message);
 	BC_ASSERT_ENUM_EQUAL(kind.getCardinality(), MessageKind::Cardinality::ToConferenceServer);
 	BC_ASSERT_ENUM_EQUAL(kind.getPriority(), sofiasip::MsgSipPriority::Normal);
 	BC_ASSERT_CPP_EQUAL(kind.getConferenceId().value_or(""), "id-of-the-chatroom");
@@ -514,6 +565,7 @@ TestSuite _{
     {
         CLASSY_TEST(nullMaxForwardAndForkBasicContext),
         CLASSY_TEST(notRtpPortAndForkCallContext),
+        CLASSY_TEST(referRequestUsesForkBasicContext),
         CLASSY_TEST(globalOrderTestNoSql),
         CLASSY_TEST(messageDeliveryTimeoutTest),
         CLASSY_TEST(callForkTimeoutTest),
