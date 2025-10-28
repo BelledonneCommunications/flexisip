@@ -37,16 +37,13 @@ public:
 	                     const std::string& request,
 	                     sofiasip::MsgSipPriority priority)
 	    : currentPriority(currentPriority), deliveredCount(deliveredCount), isFinished(isFinished),
-	      isMessage(true), expirationDate(expirationDate), request(request), msgPriority(priority) {
+	      expirationDate(expirationDate), request(request), msgPriority(priority) {
 	}
 
 	std::string uuid;
 	double currentPriority;
 	int deliveredCount;
 	bool isFinished;
-	// As of 2023-07-06 and Flexisip 2.3.0, isMessage is unused and deprecated.
-	// To allow for smooth DB rollbacks, the field is kept updated but should be removed in future versions.
-	bool isMessage;
 	std::tm expirationDate;
 	std::string request;
 	sofiasip::MsgSipPriority msgPriority;
@@ -65,14 +62,12 @@ namespace soci {
  */
 template <>
 struct type_conversion<flexisip::ForkMessageContextDb> {
-public:
 	typedef values base_type;
 
 	static void from_base(values const& v, indicator /* ind */, flexisip::ForkMessageContextDb& fork) {
 		fork.currentPriority = v.get<double>("current_priority");
 		fork.deliveredCount = v.get<int>("delivered_count");
 		fork.isFinished = v.get<int>("is_finished");
-		fork.isMessage = v.get<int>("is_message");
 		fork.expirationDate = v.get<std::tm>("expiration_date");
 		fork.request = v.get<std::string>("request");
 		fork.msgPriority = static_cast<sofiasip::MsgSipPriority>(v.get<int>("msg_priority"));
@@ -82,7 +77,6 @@ public:
 		v.set("current_priority", fork.currentPriority);
 		v.set("delivered_count", fork.deliveredCount);
 		v.set("is_finished", (int)fork.isFinished);
-		v.set("is_message", (int)fork.isMessage);
 		v.set("expiration_date", fork.expirationDate);
 		v.set("request", fork.request);
 		v.set("msg_priority", static_cast<int>(fork.msgPriority));

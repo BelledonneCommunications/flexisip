@@ -26,7 +26,6 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/events/messages/message-response-from-recipient-event-log.hh"
 #include "eventlogs/events/messages/message-sent-event-log.hh"
-#include "flexisip/module.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "fork-context/fork-context-base.hh"
 #include "fork-context/message-kind.hh"
@@ -268,7 +267,6 @@ void ForkMessageContext::onNewRegister(const SipUri& dest,
 
 ForkMessageContextDb ForkMessageContext::getDbObject() {
 	ForkMessageContextDb dbObject{};
-	dbObject.isMessage = mKind.getKind() == MessageKind::Kind::Message;
 	dbObject.isFinished = mFinished;
 	dbObject.msgPriority = mMsgPriority;
 	dbObject.deliveredCount = mDeliveredCount;

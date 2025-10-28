@@ -22,7 +22,6 @@
 
 #include "agent.hh"
 #include "flexisip/event.hh"
-#include "flexisip/module-router.hh"
 #include "fork-context-base.hh"
 #include "fork-context/branch-info.hh"
 #include "fork-context/message-kind.hh"
@@ -30,7 +29,6 @@
 #include "registrar/extended-contact.hh"
 
 namespace flexisip {
-class ModuleRouter;
 
 /**
  * @brief Handle the forking of SIP chat messages (MESSAGE requests). It manages the branches of the call and processes

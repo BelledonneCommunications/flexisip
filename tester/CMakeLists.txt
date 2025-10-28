@@ -194,6 +194,7 @@ if(ENABLE_SOCI)
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
 		tests/presence/list-subscription/external-list-subscription-tester.cc
 		tests/router/fork/fork-context-mysql-tester.cc
+		tests/router/fork/fork-message-context-soci-repository-tester.cc
 		tests/utils/soci-helper-tester.cc
 	)
 endif()
