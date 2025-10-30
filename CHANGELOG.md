@@ -80,6 +80,9 @@ Group changes to describe their impact on the project, as follows:
         - **Account:**
             - Parameter `outbound_proxy` can now contain a hostname or a full SIP URI.
 
+### [Deprecated]
+- **Debian 11:** Support will be discontinued in the next release, as distribution will reach its end-of-life (2026-08-31).
+
 ### [Fixed]
 - **Proxy:**
     - **Forward:**
