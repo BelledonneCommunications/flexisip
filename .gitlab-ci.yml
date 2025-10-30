@@ -19,7 +19,6 @@ variables:
   ARCHLINUX_IMAGE_VERSION: 20250702_patch_cppjwt_for_gcc15
   ROCKY_8_IMAGE_VERSION: 20251020_redis6
   ROCKY_9_IMAGE_VERSION: 20251017_redis7
-  DEBIAN_11_IMAGE_VERSION: 20240911_remove_protobuf
   DEBIAN_12_IMAGE_VERSION: 20240916_add_coverage
   DEBIAN_13_IMAGE_VERSION: 20250930
   MINIMAL_IMAGE_VERSION: 20240911_remove_protobuf
@@ -59,7 +58,6 @@ include:
   - '.gitlab-ci-files/job-linux-archlinux.yml'
   - '.gitlab-ci-files/job-linux-rocky8.yml'
   - '.gitlab-ci-files/job-linux-rocky9.yml'
-  - '.gitlab-ci-files/job-linux-debian11.yml'
   - '.gitlab-ci-files/job-linux-debian12.yml'
   - '.gitlab-ci-files/job-linux-debian13.yml'
   - '.gitlab-ci-files/job-linux-minimal.yml'

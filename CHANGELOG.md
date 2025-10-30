@@ -89,6 +89,7 @@ declined or not answered. Currently, the server accepts all incoming calls, play
     - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)
 - **Configuration:** Parameters of type `StringList` can no longer be declared using the character `','` to separate
   each element.
+- **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
 
 ## [2.5.0]
 - **SDK version:** 5.4.49
@@ -155,6 +156,9 @@ declined or not answered. Currently, the server accepts all incoming calls, play
             - Parameter `outbound_proxy` is now optional.
         - **Account:**
             - Parameter `outbound_proxy` can now contain a hostname or a full SIP URI.
+
+### [Deprecated]
+- **Debian 11:** Support will be discontinued in the next release, as distribution will reach its end-of-life (2026-08-31).
 
 ### [Fixed]
 - **Proxy:**
