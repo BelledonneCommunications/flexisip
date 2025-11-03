@@ -180,6 +180,16 @@ endfunction()
 
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
+if(ENABLE_SANITIZERS)
+	set(SANITIZERS_FLAG "-fsanitize=address,undefined")
+	add_compile_options(
+			${SANITIZERS_FLAG}
+			"-fno-omit-frame-pointer"
+			"-fno-optimize-sibling-calls"
+	)
+	add_link_options(${SANITIZERS_FLAG})
+endif()
+
 set(INTERNAL_MBEDTLS ON)
 include("cmake/ExternalDependencies.cmake")
 include("cmake/LinphoneSDK.cmake")
@@ -268,16 +278,6 @@ add_compile_definitions("HAVE_CONFIG_H")
 
 # Compute and set compilation options
 bc_init_compilation_flags(CPP_BUILD_FLAGS C_BUILD_FLAGS CXX_BUILD_FLAGS ENABLE_STRICT)
-
-if(ENABLE_SANITIZERS)
-	set(SANITIZERS_FLAG "-fsanitize=address,undefined")
-	add_compile_options(
-		${SANITIZERS_FLAG}
-		"-fno-omit-frame-pointer"
-		"-fno-optimize-sibling-calls"
-	)
-	add_link_options(${SANITIZERS_FLAG})
-endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 	if(ENABLE_STRICT)
