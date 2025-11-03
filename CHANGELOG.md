@@ -121,6 +121,13 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
 - **Logger:** Some useful error logs were not printed during the startup phase.
 - **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
   configuration file.
+ 
+### [Security]
+- **Sofia-sip:** Fixed multiple CVE: 
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-47516
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-31001
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-31002
+  - https://nvd.nist.gov/vuln/detail/CVE-2022-31003
 
 ### [Removed]
 - **Proxy:**
