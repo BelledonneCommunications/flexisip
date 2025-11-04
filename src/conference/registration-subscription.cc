@@ -32,11 +32,11 @@ using namespace linphone;
 
 namespace flexisip {
 
-RegistrationSubscription::RegistrationSubscription(const ConferenceServer& server,
+RegistrationSubscription::RegistrationSubscription(bool checkCapabilities,
                                                    const shared_ptr<ChatRoom>& cr,
                                                    const shared_ptr<const Address>& participant)
-    : mServer(server), mChatRoom(cr), mParticipant(participant->clone()),
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RegistrationSubscription")) {
+    : mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RegistrationSubscription")),
+      mCheckCapabilities(checkCapabilities), mChatRoom(cr), mParticipant(participant->clone()) {
 	LOGD << "Initialized for chatroom [" << cr.get() << "] and participant '" << participant->asStringUriOnly() << "'";
 }
 
@@ -70,9 +70,11 @@ int RegistrationSubscription::getMaskFromSpecs(const string& specs) {
 }
 
 bool RegistrationSubscription::isContactCompatible(const string& specs) {
+	if (!mCheckCapabilities) return true;
+
 	int mask = getMaskFromSpecs(specs);
 	unsigned int chatRoomCapabilities = mChatRoom->getCapabilities() & ~(int)ChatRoom::Capabilities::OneToOne;
-	return !mServer.capabilityCheckEnabled() || (mask & chatRoomCapabilities) == chatRoomCapabilities;
+	return (mask & chatRoomCapabilities) == chatRoomCapabilities;
 }
 
 /*
@@ -83,7 +85,7 @@ OwnRegistrationSubscription::OwnRegistrationSubscription(const ConferenceServer&
                                                          const std::shared_ptr<linphone::ChatRoom>& cr,
                                                          const std::shared_ptr<const linphone::Address>& participant,
                                                          RegistrarDb& registrarDb)
-    : RegistrationSubscription{server, cr, participant},
+    : RegistrationSubscription{server.capabilityCheckEnabled(), cr, participant},
       mLogPrefix{LogManager::makeLogPrefixForInstance(this, "OwnRegistrationSubscription")}, mRegistrarDb{registrarDb} {
 	try {
 		mParticipantAor = SipUri(participant->asStringUriOnly());
@@ -166,7 +168,8 @@ void OwnRegistrationSubscription::onContactRegistered(const shared_ptr<Record>& 
 ExternalRegistrationSubscription::ExternalRegistrationSubscription(const ConferenceServer& server,
                                                                    const shared_ptr<ChatRoom>& cr,
                                                                    const shared_ptr<const Address>& participant)
-    : RegistrationSubscription(server, cr, participant), Client(server.getRegEventClientFactory(), participant) {
+    : RegistrationSubscription(server.capabilityCheckEnabled(), cr, participant),
+      Client(server.getRegEventClientFactory(), participant) {
 	setListener(this);
 }
 

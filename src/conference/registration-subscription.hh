@@ -41,8 +41,9 @@ class ConferenceServer;
 
 /*Base for a class that manages registration information subscription for the server group chatroom*/
 class RegistrationSubscription : public virtual_enable_shared_from_this<RegistrationSubscription> {
+
 public:
-	RegistrationSubscription(const ConferenceServer& server,
+	RegistrationSubscription(bool checkCapabilities,
 	                         const std::shared_ptr<linphone::ChatRoom>& cr,
 	                         const std::shared_ptr<const linphone::Address>& participant);
 	virtual void start() = 0;
@@ -56,14 +57,16 @@ protected:
 	void notify(const std::list<std::shared_ptr<linphone::ParticipantDeviceIdentity>>& participantDevices);
 	/*call this to notify that a device has just registered*/
 	void notifyRegistration(const std::shared_ptr<const linphone::Address>& participantDevices);
-	const ConferenceServer& mServer;
-	const std::shared_ptr<linphone::ChatRoom> mChatRoom;
-	const std::shared_ptr<linphone::Address> mParticipant;
 
 private:
 	int getMaskFromSpecs(const std::string& specs);
 
 	std::string mLogPrefix{};
+	const bool mCheckCapabilities;
+
+protected:
+	const std::shared_ptr<linphone::ChatRoom> mChatRoom;
+	const std::shared_ptr<linphone::Address> mParticipant;
 };
 
 class RegistrationSubscriptionFetchListener
