@@ -141,7 +141,9 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
 - **Plugin:** JweAuth.
 
 
-## [2.4.3]
+## [2.4.3] - 2025-11-07 
+- **SDK version:** 5.3.112
+
 ### [Fixed]
 - **Proxy:**
   - **MediaRelay:**
