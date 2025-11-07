@@ -184,6 +184,7 @@ if(ENABLE_CONFERENCE)
 	target_sources(flexisip_tester PRIVATE
 		registration-event-tester.cc
 		tests/conference/conference-server-tester.cc
+		tests/conference/registration-subscription-tester.cc
 		utils/server/regevent-server.cc utils/server/regevent-server.hh
 		utils/server/test-conference-server.cc utils/server/test-conference-server.hh
 	)
