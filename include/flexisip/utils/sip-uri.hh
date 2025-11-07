@@ -37,8 +37,7 @@ class InvalidUrlError : public flexisip::InvalidRequestError {
 public:
 	template <typename T, typename U>
 	InvalidUrlError(T&& url, U&& reason) noexcept
-	    : InvalidRequestError("Invalid SIP URI", url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {
-	}
+	    : InvalidRequestError("Invalid SIP URI", url), _url(std::forward<T>(url)), _reason(std::forward<U>(reason)) {}
 
 	/**
 	 * Get the string that couldn't be parsed.
@@ -152,8 +151,16 @@ public:
 	std::string getHost() const noexcept {
 		return getUrlAttr(url_host);
 	}
-	std::string_view getPort(bool usingFallback = false) const noexcept {
-		return usingFallback ? url_port(_url) : getUrlAttr(url_port);
+	std::string_view getPort() const noexcept {
+		return getUrlAttr(url_port);
+	}
+	/**
+	 * @warning In case the port is empty, the URL is of "sip" or "sips" scheme type, and the host part is not an IP
+	 * address, return an empty string.
+	 * @return The port of the URL. If not set, return the default port for the URL scheme type.
+	 */
+	std::string_view getPortWithFallback() const noexcept {
+		return url_port(_url);
 	}
 	std::string getPath() const noexcept {
 		return getUrlAttr(url_path);
@@ -181,7 +188,7 @@ public:
 	/**
 	 * Replace or insert a URI parameter.
 	 */
-	Url replaceParam(const std::string& name, const std::string& value) const;
+	Url setParam(const std::string& name, const std::string& value) const;
 
 	/**
 	 * Test whether the URL has a given param by its name.
@@ -289,6 +296,14 @@ public:
 		std::unordered_map<std::string, std::string> mHeaders{};
 	};
 
+	enum class Scheme : std::underlying_type_t<url_type_e> {
+		invalid = url_invalid,
+		any = url_any, // The star '*' scheme.
+		sip = url_sip,
+		sips = url_sips,
+		none = _url_none,
+	};
+
 	SipUri() = default;
 	/**
 	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
@@ -321,6 +336,12 @@ public:
 	SipUri& operator=(const SipUri& src) noexcept = default;
 	SipUri& operator=(SipUri&& src) noexcept = default;
 
+	Scheme getSchemeType() const noexcept;
+
+	/**
+	 * @throw sofiasip::UrlModificationError if the URL is empty
+	 */
+	[[nodiscard]] SipUri replaceScheme(Scheme newScheme) const;
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
@@ -338,7 +359,7 @@ public:
 	/**
 	 * @throw sofiasip::UrlModificationError if the URL is empty
 	 */
-	[[nodiscard]] SipUri replaceParameter(const std::string& name, const std::string& value) const;
+	[[nodiscard]] SipUri setParameter(const std::string& name, const std::string& value) const;
 
 	/**
 	 * True if this URI is the same as the other according to RFC 3261.

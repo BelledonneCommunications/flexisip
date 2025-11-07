@@ -41,9 +41,9 @@ std::unique_ptr<GenericHttpClient> GenericHttpClient::makeUnique(
 
 	unique_ptr<TlsConnection> conn{};
 	if (url.getType() == url_https) {
-		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true));
+		conn = make_unique<TlsConnection>(url.getHost(), url.getPortWithFallback());
 	} else {
-		conn = make_unique<TlsConnection>(url.getHost(), url.getPort(true), "", "");
+		conn = make_unique<TlsConnection>(url.getHost(), url.getPortWithFallback(), "", "");
 	}
 
 	return make_unique<GenericHttpClient>(make_unique<TlsTransport>(std::move(conn), method, url), name, maxQueueSize,

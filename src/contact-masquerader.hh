@@ -18,41 +18,51 @@
 
 #pragma once
 
-#include <memory>
 #include <string>
 
-#include "flexisip/event.hh"
-
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
+#include "flexisip/event.hh"
 
 namespace flexisip {
 
 class ContactMasquerader {
-	Agent* mAgent;
-	std::string mCtRtParamName;
-
 public:
-	ContactMasquerader(Agent* agent, std::string paramName) : mAgent(agent), mCtRtParamName(paramName) {
-	}
-
-	/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the
-	 client
-	 when we later have to route an INVITE to him */
-	void masquerade(su_home_t* home, sip_contact_t* c, const char* domain = NULL);
+	ContactMasquerader(Agent* agent, const std::string& paramName) : mAgent(agent), mCtRtParamName(paramName) {}
 
 	/**
-	 * Masquerade each contact header of a REGISTER request except those
-	 * which have an 'expires' parameter with a null value. Those contact headers
-	 * will be removed from the REGISTER request. However, if each contact header
-	 * has a null 'expires' parameter, the last one will be preserved.
+	 * Add a parameter in the form "CtRt15.128.128.2=tcp:201.45.118.16:50025" into the contact header field. Thus, we
+	 * know the transport to use to forward requests back to the client.
+	 *
+	 * @param home home to store the new contact url
+	 * @param contact contact to masquerade
+	 * @param domain SIP domain to insert into the contact route parameter
 	 */
-	void masquerade(MsgSip& ms, bool insertDomain = false);
-
-	void restore(su_home_t* home, url_t* dest, char ctrt_param[64], const char* new_param = NULL);
+	void masquerade(su_home_t* home, sip_contact_t* contact, const std::string& domain) const;
+	/**
+	 * @brief Masquerade each contact header field of the provided request except those which have an 'expires'
+	 * parameter with a null value. These contact header fields will be removed from the request. However, if
+	 * each contact header has a null 'expires' parameter, the last one will be preserved.
+	 *
+	 * @param ms the message containing header fields to masquerade
+	 * @param insertDomain if 'true', use the host part in the 'From' header field instead of 'host:port' in the
+	 * original 'Contact' header field to masquerade the provided message.
+	 */
+	void masquerade(MsgSip& ms, bool insertDomain = false) const;
+	/**
+	 * Parse the provided contact route parameter and modify the provided uri with parsed information.
+	 *
+	 * @param home home to store the restored uri
+	 * @param dest uri that will be set to the restored uri
+	 * @param param the contact route parameter
+	 * @param newParam a new parameter to add
+	 */
+	void restore(su_home_t* home, url_t* dest, const std::string& param, const std::string& newParam = {}) const;
 
 private:
 	static constexpr std::string_view mLogPrefix{"ContactMasquerader"};
+
+	Agent* mAgent;
+	std::string mCtRtParamName;
 };
 
 } // namespace flexisip

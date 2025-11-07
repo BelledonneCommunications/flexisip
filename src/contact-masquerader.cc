@@ -20,67 +20,58 @@
 
 using namespace std;
 using namespace flexisip;
+using namespace sofiasip;
 
-/*add a parameter like "CtRt15.128.128.2=tcp:201.45.118.16:50025" in the contact, so that we know where is the client
- when we later have to route an INVITE to him */
-void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* c, const char* domain) {
-	if (c == NULL || c->m_url->url_host == NULL) {
-		LOGD << "Sip contact or url is null";
+void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* contact, const string& domain) const {
+	if (contact == nullptr) {
+		LOGD << "Contact is empty: aborting";
+		return;
+	}
+	SipUri uri{};
+	try {
+		uri = SipUri{contact->m_url};
+	} catch (const std::exception& exception) {
+		LOGD << "Contact is invalid (" << exception.what() << "): aborting";
+		return;
+	}
+	if (uri.getSchemeType() == SipUri::Scheme::any) {
+		LOGD << "Contact is star '*': aborting";
 		return;
 	}
 
-	url_t* ct_url = c->m_url;
-	if (ct_url->url_scheme && ct_url->url_scheme[0] == '*') {
-		LOGD << "not masquerading star contact";
-		return;
-	}
-
-	// grab the transport of the contact uri
-	char ct_tport[32] = "udp";
-	if (url_param(ct_url->url_params, "transport", ct_tport, sizeof(ct_tport)) > 0) {
-	}
-
-	// Create parameter
-	string param = mCtRtParamName + "=" + ct_tport + ":";
-	if (domain) {
-		// param=tport:domain
+	string param = (uri.hasParam("transport") ? uri.getParam("transport") : "udp") + ":";
+	if (!domain.empty()) {
+		// param=transport:domain
 		param += domain;
 	} else {
-		// param=tport:ip_prev_hop:port_prev_hop
-		param += ct_url->url_host;
-		param += ":";
-		param += url_port(ct_url);
+		// param=transport:ip_prev_hop:port_prev_hop
+		param += uri.getHost() + ":" + uri.getPortWithFallback().data();
 	}
 
-	// Add parameter
-	LOGD << "Rewriting contact with param [" << param << "]";
-	if (url_param_add(home, ct_url, param.c_str())) {
-		LOGE << "Cannot insert url param [" << param << "]";
-	}
+	const auto transportUri = SipUri{mAgent->getDefaultUri()};
+	uri = uri.replaceScheme(transportUri.getSchemeType());
+	uri = uri.replaceHost(transportUri.getHost());
+	uri = uri.replacePort(transportUri.getPort());
 
-	/*masquerade the contact, so that later requests (INVITEs) come to us */
-	const url_t* defaultUri = mAgent->getDefaultUri();
-	ct_url->url_host = defaultUri->url_host;
-	ct_url->url_port = defaultUri->url_port;
-	ct_url->url_scheme = defaultUri->url_scheme;
-	ct_url->url_params = url_strip_param_string(su_strdup(home, ct_url->url_params), "transport");
-	char tport_value[64];
-	if (url_param(defaultUri->url_params, "transport", tport_value, sizeof(tport_value)) > 0) {
-		char* lParam = su_sprintf(home, "transport=%s", tport_value);
-		url_param_add(home, ct_url, lParam);
-	}
-	LOGI << "Contact has been rewritten to " << url_as_string(home, ct_url);
+	if (transportUri.hasParam("transport")) uri = uri.setParameter("transport", transportUri.getParam("transport"));
+
+	uri = uri.setParameter(mCtRtParamName, param);
+
+	*contact->m_url = *url_hdup(home, uri.get());
+	LOGD << "Contact rewritten to: " << uri.str();
 }
 
-void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) {
-	const char* domain = insertDomain ? ms.getSip()->sip_from->a_url->url_host : NULL;
-	sip_contact_t* contact = ms.getSip()->sip_contact;
+void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) const {
+	auto* contact = ms.getSip()->sip_contact;
+	const string domain{insertDomain ? ms.getSip()->sip_from->a_url->url_host : ""};
+
 	while (contact) {
 		if (contact->m_expires && strcmp(contact->m_expires, "0") == 0 &&
 		    (contact != ms.getSip()->sip_contact || contact->m_next)) {
-			LOGD << "Removing one contact header: " << url_as_string(ms.getHome(), contact->m_url);
-			sip_contact_t* tmp = contact->m_next;
-			msg_header_remove(ms.getMsg(), (msg_pub_t*)ms.getSip(), (msg_header_t*)contact);
+			LOGD << "Removing contact header with 'expires=0': " << SipUri{contact->m_url}.str();
+			auto* tmp = contact->m_next;
+			msg_header_remove(ms.getMsg(), reinterpret_cast<msg_pub_t*>(ms.getSip()),
+			                  reinterpret_cast<msg_header_t*>(contact));
 			contact = tmp;
 		} else {
 			masquerade(ms.getHome(), contact, domain);
@@ -89,44 +80,36 @@ void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) {
 	}
 }
 
-void ContactMasquerader::restore(su_home_t* home, url_t* dest, char ctrt_param[64], const char* new_param) {
-	// first remove param
-	dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), mCtRtParamName.c_str());
-
-	// test and remove maddr param
-	if (url_has_param(dest, "maddr")) {
-		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "maddr");
-	}
-
-	// test and remove transport param
-	if (url_has_param(dest, "transport")) {
-		dest->url_params = url_strip_param_string(su_strdup(home, dest->url_params), "transport");
-	}
-
-	// second change dest to
-	char* tend = strchr(ctrt_param, ':');
-	if (!tend) {
-		LOGD << "Skipping url rewrite: first ':' not found";
+void ContactMasquerader::restore(su_home_t* home, url_t* dest, const string& param, const string& newParam) const {
+	SipUri uri{};
+	try {
+		uri = SipUri{dest};
+	} catch (const std::exception& exception) {
+		LOGD << "Provided URI is invalid (" << exception.what() << "): aborting";
 		return;
 	}
 
-	const char* transport = su_strndup(home, ctrt_param, tend - ctrt_param);
-	const url_t* paramurl = url_format(home, "sip:%s", tend + 1);
+	uri.removeParam(mCtRtParamName);
+	uri.removeParam("maddr");
+	uri.removeParam("transport");
 
-	if (!paramurl) {
-		LOGE << "Aborted";
+	const auto paramParsingResult = string_utils::split(param, ":");
+	if (paramParsingResult.size() != 3) {
+		LOGD << "Contact parameter '" << param << "' does not have the right format: aborting";
 		return;
 	}
-	dest->url_host = paramurl->url_host; // move ownership
-	dest->url_port = paramurl->url_port; // move ownership
-	if (strcasecmp(transport, "udp") != 0) {
-		char* t_param = su_sprintf(home, "transport=%s", transport);
-		url_param_add(home, dest, t_param);
-	}
 
-	if (new_param) {
-		url_param_add(home, dest, new_param);
-	}
+	const auto& transport = paramParsingResult[0];
+	const auto& host = paramParsingResult[1];
+	const auto& port = paramParsingResult[2];
 
-	LOGI << "Request url changed to " << url_as_string(home, dest);
+	if (!string_utils::iequals(transport, "udp")) uri = uri.setParameter("transport", transport);
+
+	uri = uri.replaceHost(host);
+	uri = uri.replacePort(port);
+
+	if (!newParam.empty()) uri = uri.setParameter(newParam, "");
+
+	*dest = *url_hdup(home, uri.get());
+	LOGD << "Request URI changed to: '" << uri.str() << "'";
 }

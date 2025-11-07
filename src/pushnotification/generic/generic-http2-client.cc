@@ -30,7 +30,7 @@ GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
                                        sofiasip::SuRoot& root,
                                        Service* pushService)
     : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")},
-      mHost{url.getHost()}, mPort{url.getPort(true)}, mPath(url.getPath()), mUrlParameters{url.getHeaders()},
+      mHost{url.getHost()}, mPort{url.getPortWithFallback()}, mPath(url.getPath()), mUrlParameters{url.getHeaders()},
       mMethod{method} {
 	LOGD << "Constructing client";
 
@@ -44,7 +44,7 @@ GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
                                        Service* pushService,
                                        const std::shared_ptr<Http2Client>& http2Client)
     : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")},
-      mHost{url.getHost()}, mPort{url.getPort(true)}, mUrlParameters{url.getHeaders()}, mApiKey(apiKey),
+      mHost{url.getHost()}, mPort{url.getPortWithFallback()}, mUrlParameters{url.getHeaders()}, mApiKey(apiKey),
       mMethod{Method::HttpPost}, mJsonBodyGenerationFunc(std::move(jsonBodyGeneratorFunc)) {
 	const auto urlPath = url.getPath();
 	mPath = !urlPath.empty() ? "/" + urlPath : "";

@@ -359,7 +359,7 @@ std::shared_ptr<BranchInfo> ForkCallContext::forward(int code) {
 	const auto voicemailServerUri = static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri;
 	const auto target = uri_utils::escape(url_as_string(home, sip->sip_to->a_url), uri_utils::sipUriParamValueReserved);
 	const auto cause = to_string(code);
-	const auto requestUri = voicemailServerUri.replaceParameter("target", target).replaceParameter("cause", cause);
+	const auto requestUri = voicemailServerUri.setParameter("target", target).setParameter("cause", cause);
 
 	const auto requestEvent = RequestSipEvent::makeRestored(mIncoming, request, std::weak_ptr<Module>{});
 	if (requestEvent == nullptr) {

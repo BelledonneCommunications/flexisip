@@ -96,7 +96,7 @@ Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
 	return Url{&url};
 }
 
-Url Url::replaceParam(const std::string& name, const std::string& value) const {
+Url Url::setParam(const std::string& name, const std::string& value) const {
 	auto url = Url{_url};
 	if (url.hasParam(name)) url.removeParam(name);
 	const auto parameter = name + "=" + value;
@@ -283,6 +283,16 @@ SipUri::SipUri(sofiasip::Url&& src) {
 	static_cast<sofiasip::Url*>(this)->operator=(std::move(src));
 }
 
+SipUri::Scheme SipUri::getSchemeType() const noexcept {
+	return static_cast<Scheme>(getType());
+}
+
+SipUri SipUri::replaceScheme(Scheme newScheme) const {
+	auto uri = SipUri{replace(&url_t::url_scheme, url_scheme(static_cast<url_type_e>(newScheme)))};
+	uri._url->url_type = static_cast<url_type_e>(newScheme);
+	return uri;
+}
+
 SipUri SipUri::replaceUser(std::string_view newUser) const {
 	return SipUri(Url::replace(&url_t::url_user, newUser));
 }
@@ -295,8 +305,8 @@ SipUri SipUri::replacePort(std::string_view newPort) const {
 	return SipUri(Url::replace(&url_t::url_port, newPort));
 }
 
-SipUri SipUri::replaceParameter(const std::string& name, const std::string& value) const {
-	return SipUri(Url::replaceParam(name, value));
+SipUri SipUri::setParameter(const std::string& name, const std::string& value) const {
+	return SipUri(Url::setParam(name, value));
 }
 
 void SipUri::checkUrl(const sofiasip::Url& url) {

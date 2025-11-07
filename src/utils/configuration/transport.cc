@@ -56,10 +56,10 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 		throw BadConfigurationValue{parameter, " invalid SIP URI ("s + exception.what() + ")"};
 	}
 
-	const auto scheme = transportUri.getScheme();
+	const auto scheme = transportUri.getSchemeType();
 	const auto transportUriParam = string_utils::toLower(transportUri.getParam("transport"));
 
-	const auto portText = transportUri.getPort(true);
+	const auto portText = transportUri.getPortWithFallback();
 	int listeningPort{};
 	if (std::from_chars(portText.data(), portText.data() + portText.size(), listeningPort).ec ==
 	    std::errc::invalid_argument) {
@@ -67,7 +67,7 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 	}
 	if (listeningPort == 0) listeningPort = LC_SIP_TRANSPORT_RANDOM;
 
-	if (scheme == "sip") {
+	if (scheme == SipUri::Scheme::sip) {
 		if (allowedSip.empty()) throw BadConfigurationValue{parameter, "'sip' scheme is not allowed"};
 
 		static map<string, const function<void(linphone::Transports&, int)>> sipSchemeTransports{
@@ -83,7 +83,7 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 
 		sipSchemeTransports.at(transportUriParam)(*transports, listeningPort);
 
-	} else if (scheme == "sips") {
+	} else if (scheme == SipUri::Scheme::sips) {
 		if (allowedSips.empty()) throw BadConfigurationValue{parameter, "'sips' scheme is not allowed"};
 
 		static const map<string, const function<void(linphone::Transports&, int)>> sipsSchemeTransports{

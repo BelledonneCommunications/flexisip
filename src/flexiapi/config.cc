@@ -72,7 +72,7 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
 			if (urlType != url_https) {
 				throw BadConfigurationValue{flexiApiUrlParameter, "URL scheme MUST be 'HTTPS'"};
 			}
-			return Http2Client::make(root, flexiApiUrl.getHost(), std::string{flexiApiUrl.getPort(true)});
+			return Http2Client::make(root, flexiApiUrl.getHost(), std::string{flexiApiUrl.getPortWithFallback()});
 		}
 	} catch (std::exception& e) {
 		throw BadConfigurationValue{flexiApiUrlParameter, "invalid URL ("s + e.what() + ")"};
