@@ -14,7 +14,9 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.4.3]
+## [2.4.3] - 2025-11-07 
+- **SDK version:** 5.3.112
+
 ### [Fixed]
 - **Proxy:**
   - **MediaRelay:**
