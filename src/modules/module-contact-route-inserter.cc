@@ -16,108 +16,95 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexisip/module.hh"
+#include "module-contact-route-inserter.hh"
 
 #include "agent.hh"
-#include "contact-masquerader.hh"
+#include "flexisip/module.hh"
 
 using namespace std;
-using namespace flexisip;
 
-class ContactRouteInserter : public NonStoppingModule {
-	friend std::shared_ptr<Module> ModuleInfo<ContactRouteInserter>::create(Agent*);
+namespace flexisip {
 
-public:
-	void onLoad(const GenericStruct* mc) override {
-		mCtRtParamName = string("CtRt") + getAgent()->getUniqueId();
-		mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
-		mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
-		mInsertDomain = mc->get<ConfigBoolean>("insert-domain")->read();
-		mContactMasquerader = unique_ptr<ContactMasquerader>(new ContactMasquerader(mAgent, mCtRtParamName));
-	}
-
-	void onRequest(RequestSipEvent& ev) override {
-		const shared_ptr<MsgSip>& ms = ev.getMsgSip();
-		sip_t* sip = ms->getSip();
-		const sip_method_t rq_method = sip->sip_request->rq_method;
-
-		if (mMasqueradeRegisters && rq_method == sip_method_register) {
-			LOGI << "Masquerading contact";
-			mContactMasquerader->masquerade(*ev.getMsgSip(), mInsertDomain);
-		} else if (mMasqueradeInvites && rq_method == sip_method_invite) {
-			LOGI << "Masquerading contact";
-			mContactMasquerader->masquerade(*ev.getMsgSip());
-		}
-
-		if (rq_method != sip_method_register) {
-			// check if request-uri contains a contact-route parameter,
-			// so that we can route back to the client
-			char ctrt[512];
-			url_t* dest = sip->sip_request->rq_url;
-			// now need to check if request uri has special param inserted
-			// by contact-route-inserter module
-			if (url_param(dest->url_params, mCtRtParamName.c_str(), ctrt, sizeof(ctrt))) {
-				LOGD << "Found a contact route parameter";
-				mContactMasquerader->restore(ms->getHome(), dest, ctrt, "doroute");
-			} else {
-				LOGD << "No contact route parameter found";
-			}
-		}
-	}
-
-	void onResponse(ResponseSipEvent& ev) override {
-		auto& ms = *ev.getMsgSip();
-		sip_t* sip = ms.getSip();
-		if (mMasqueradeInvites &&
-		    (sip->sip_cseq->cs_method == sip_method_invite || sip->sip_cseq->cs_method == sip_method_subscribe)) {
-			mContactMasquerader->masquerade(ms);
-		}
-	}
-
-	unique_ptr<ContactMasquerader> mContactMasquerader;
-	string mCtRtParamName;
-	bool mMasqueradeRegisters, mMasqueradeInvites;
-	bool mInsertDomain;
-
-private:
-	ContactRouteInserter(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo), mContactMasquerader() {
-	}
-
-	static ModuleInfo<ContactRouteInserter> sInfo;
-};
-
-ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo(
+ModuleInfo<ContactRouteInserter> ContactRouteInserter::sInfo{
     "ContactRouteInserter",
-    "The purpose of the ContactRouteInserter module is to masquerade the contact header of "
-    "incoming registers that are not handled locally "
-    "(think about flexisip used as a SBC gateway) in such a way that it is then possible "
-    "to route back outgoing invites to the original address. "
-    "It is a kind of similar mechanism as Record-Route, but for REGISTER.",
+    "Masquerade 'Contact' header fields of incoming REGISTER requests that are not handled locally (think about "
+    "flexisip used as a SBC gateway). Flexisip is then able to route back outgoing INVITE requests to the original "
+    "address. It is a sort of similar mechanism as Record-Route, but for REGISTER requests.",
     {"StatisticsCollector"},
     ModuleInfoBase::ModuleOid::ContactRouteInserter,
-
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
 	        {
 	            Boolean,
 	            "masquerade-contacts-on-registers",
-	            "Masquerade register contacts with proxy address.",
+	            "Masquerade 'Contact' header fields in REGISTER requests with the proxy address.",
 	            "true",
 	        },
 	        {
 	            Boolean,
 	            "masquerade-contacts-for-invites",
-	            "Masquerade invite-related messages with proxy address.",
+	            "Masquerade 'Contact' header fields in INVITE requests (and responses) with the proxy address.",
 	            "false",
 	        },
 	        {
 	            Boolean,
 	            "insert-domain",
-	            "Masquerade register with from domain.",
+	            "Use the domain read from the 'From' header field when masquerading.",
 	            "false",
 	        },
 	        config_item_end,
 	    };
 	    moduleConfig.addChildrenValues(items);
     },
-    ModuleClass::Experimental);
+    ModuleClass::Experimental,
+};
+
+void ContactRouteInserter::onLoad(const GenericStruct* mc) {
+	mInsertDomain = mc->get<ConfigBoolean>("insert-domain")->read();
+	mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
+	mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
+	mContactMasquerader = make_unique<ContactMasquerader>(mAgent, string("CtRt") + getAgent()->getUniqueId());
+}
+
+void ContactRouteInserter::onRequest(RequestSipEvent& ev) {
+	const auto& msg = ev.getMsgSip();
+	const auto method = msg->getSipMethod();
+
+	if (mMasqueradeRegisters && method == sip_method_register) {
+		LOGI << "Masquerading contact";
+		mContactMasquerader->masquerade(*ev.getMsgSip(), mInsertDomain);
+	} else if (mMasqueradeInvites && method == sip_method_invite) {
+		LOGI << "Masquerading contact";
+		mContactMasquerader->masquerade(*ev.getMsgSip());
+	}
+
+	if (method == sip_method_register) return;
+
+	auto* requestUri = msg->getSip()->sip_request->rq_url;
+	SipUri uri{};
+	try {
+		uri = SipUri{requestUri};
+	} catch (const std::exception& exception) {
+		LOGD << "Request URI is invalid (" << exception.what() << "): aborting";
+		return;
+	}
+
+	const auto& ctRtParamName = mContactMasquerader->getCtRtParamName();
+	if (!uri.hasParam(ctRtParamName)) {
+		LOGD << "No contact route parameter found in the request URI: nothing to do";
+		return;
+	}
+
+	LOGD << "Found a contact route parameter in the request URI: restoring";
+	mContactMasquerader->restore(msg->getHome(), requestUri, uri.getParam(ctRtParamName), "doroute");
+}
+
+void ContactRouteInserter::onResponse(ResponseSipEvent& ev) {
+	const auto& msg = ev.getMsgSip();
+	const auto cseqMethod = msg->getSip()->sip_cseq->cs_method;
+
+	if (mMasqueradeInvites && (cseqMethod == sip_method_invite || cseqMethod == sip_method_subscribe))
+		mContactMasquerader->masquerade(*msg);
+}
+
+} // namespace flexisip

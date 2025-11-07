@@ -26,7 +26,7 @@ target_sources(flexisip PRIVATE
 	module-auth-trusted-hosts.cc module-auth-trusted-hosts.hh
 	module-authorization.cc module-authorization.hh
 	module-capabilities.cc module-capabilities.hh
-	module-contact-route-inserter.cc
+	module-contact-route-inserter.cc module-contact-route-inserter.hh
 	module-forward.cc module-forward.hh
 	module-garbage-in.cc
 	module-gatewayadapter.cc

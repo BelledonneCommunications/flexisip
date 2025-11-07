@@ -58,6 +58,10 @@ public:
 	 */
 	void restore(su_home_t* home, url_t* dest, const std::string& param, const std::string& newParam = {}) const;
 
+	const std::string& getCtRtParamName() const {
+		return mCtRtParamName;
+	}
+
 private:
 	static constexpr std::string_view mLogPrefix{"ContactMasquerader"};
 
