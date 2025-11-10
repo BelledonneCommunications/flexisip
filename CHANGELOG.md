@@ -92,7 +92,7 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
 
 ## [2.5.0]
-- **SDK version:** 5.4.49
+- **SDK version:** 5.4.58
 
 ### [Added]
 - **Proxy:**
