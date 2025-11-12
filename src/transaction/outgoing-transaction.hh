@@ -32,50 +32,53 @@ namespace flexisip {
 class OutgoingTransaction : public Transaction,
                             public OutgoingAgent,
                             public std::enable_shared_from_this<OutgoingTransaction> {
+	friend class RequestSipEvent;
+
 public:
-	// the use of make_shared() requires the constructor to be public, but don't use it. Use
-	// RequestSipEvent::createOutgoingTransaction().
+	/**
+	 * @warning The use of make_shared() requires the constructor to be public, but do not use it. Use
+	 * RequestSipEvent::createOutgoingTransaction() instead.
+	 */
 	explicit OutgoingTransaction(std::weak_ptr<Agent> agent);
 	~OutgoingTransaction() override;
 
 	std::weak_ptr<Agent> getAgent() noexcept override {
 		return Transaction::getAgent();
 	}
-
 	std::shared_ptr<IncomingTransaction> getIncomingTransaction() const noexcept {
 		return mIncoming.lock();
 	}
+	const std::string& getBranchId() const {
+		return mBranchId;
+	}
 
-	const url_t* getRequestUri() const;
-	const std::string& getBranchId() const;
-	su_home_t* getHome();
 	int getResponseCode() const;
+	const url_t* getRequestUri() const;
 	std::shared_ptr<MsgSip> getRequestMsg();
 
 	void cancel();
-	void cancelWithReason(sip_reason_t* reason);
+	void cancelWithReason(const sip_reason_t* reason);
 
 private:
+	static int responseCallback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip) noexcept;
+	static void deinitializationCallback(nta_outgoing_t* outgoing, nta_outgoing_magic_t* magic) noexcept;
+
 	void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
-	/* Break self-reference on the next main loop iteration */
+
+	/**
+	 * @brief Break self-reference on the next main loop iteration.
+	 */
 	void queueFree();
 
-	static int _callback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip) noexcept;
-	static void _customDeinit(nta_outgoing_t* outgoing, nta_outgoing_magic_t* magic) noexcept;
-
 	template <typename... Tags>
-	void _cancel(Tags... tags);
-
-	static std::string getRandomBranch();
+	void cancel(Tags... tags);
 
 	Owned<nta_outgoing_t> mOutgoing{nullptr};
+	std::weak_ptr<IncomingTransaction> mIncoming{}; // The transaction from which the message comes from, if any.
 	std::shared_ptr<OutgoingTransaction> mSofiaRef{};
 	std::string mBranchId{};
-	std::weak_ptr<IncomingTransaction> mIncoming; // The incoming transaction from which the message comes from, if any.
-	std::string mLogPrefix;
-
-	friend class RequestSipEvent;
+	std::string mLogPrefix{};
 };
 
 } // namespace flexisip
