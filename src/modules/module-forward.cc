@@ -31,7 +31,6 @@
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "etchosts.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/module-router.hh"
 #include "flexisip/module.hh"
@@ -48,16 +47,122 @@ using namespace std;
 
 namespace flexisip {
 
-static char const* compute_branch(nta_agent_t* sa,
-                                  msg_t* msg,
-                                  sip_t const* sip,
-                                  char const* string_server,
-                                  const shared_ptr<OutgoingTransaction>& outTr);
+namespace {
+
+char const*
+computeBranch(msg_t* msg, sip_t const* sip, char const* string_server, const shared_ptr<OutgoingTransaction>& outTr) {
+	su_md5_t md5[1];
+	uint8_t digest[SU_MD5_DIGEST_SIZE];
+	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1] = {0};
+	sip_route_t const* r;
+
+	if (!outTr) {
+		su_md5_init(md5);
+
+		su_md5_str0update(md5, string_server);
+		// su_md5_str0update(md5, port);
+
+		url_update(md5, sip->sip_request->rq_url);
+		if (sip->sip_request->rq_url->url_params) {
+			// put url params in the hash too, because sofia does not do it in url_update().
+			su_md5_str0update(md5, sip->sip_request->rq_url->url_params);
+		}
+		if (sip->sip_call_id) {
+			su_md5_str0update(md5, sip->sip_call_id->i_id);
+		}
+		if (sip->sip_from) {
+			url_update(md5, sip->sip_from->a_url);
+			su_md5_stri0update(md5, sip->sip_from->a_tag);
+		}
+		if (sip->sip_to) {
+			url_update(md5, sip->sip_to->a_url);
+			/* XXX - some broken implementations include To tag in CANCEL */
+			/* su_md5_str0update(md5, sip->sip_to->a_tag); */
+		}
+		if (sip->sip_cseq) {
+			uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
+			su_md5_update(md5, &cseq, sizeof(cseq));
+		}
+
+		for (r = sip->sip_route; r; r = r->r_next)
+			url_update(md5, r->r_url);
+
+		su_md5_digest(md5, digest);
+		msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
+	} else {
+		strncpy(branch, outTr->getBranchId().c_str(), sizeof(branch) - 1);
+	}
+
+	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
+}
+
+bool isUs(Agent* ag, sip_route_t* r) {
+	msg_param_t param = msg_params_find(r->r_params, "fs-proxy-id");
+	if (param && strcmp(param, ag->getUniqueId().c_str()) == 0) {
+		return true;
+	}
+	char proxyid[32] = {0};
+	if (url_param(r->r_url->url_params, "fs-proxy-id", proxyid, sizeof(proxyid))) {
+		if (strcmp(proxyid, ag->getUniqueId().c_str()) == 0) {
+			return true;
+		}
+	}
+	return ag->isUs(r->r_url);
+}
+
+/**
+ * @return the number of 'Via' header fields.
+ */
+unsigned int countVia(const MsgSip& ms) {
+	uint32_t via_count = 0;
+	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next)
+		++via_count;
+	return via_count;
+}
+
+url_t* getDestinationFromRoute(su_home_t* home, sip_t* sip) {
+	sip_route_t* route = sip->sip_route;
+
+	if (route) {
+		char received[64] = {0};
+		char rport[8] = {0};
+		url_t* ret = url_hdup(home, sip->sip_route->r_url);
+
+		url_param(route->r_url->url_params, "fs-received", received, sizeof(received));
+		url_param(route->r_url->url_params, "fs-rport", rport, sizeof(rport));
+		if (received[0] != 0) {
+			module_toolbox::urlSetHost(home, ret, received);
+			ret->url_params = url_strip_param_string(su_strdup(home, route->r_url->url_params), "fs-received");
+		}
+		if (rport[0] != 0) {
+			ret->url_port = su_strdup(home, rport);
+			ret->url_params = url_strip_param_string(su_strdup(home, route->r_url->url_params), "fs-rport");
+		}
+		return ret;
+	}
+	return nullptr;
+}
+
+/**
+ * @warning Does not work for requests forwarded through transactions.
+ * @return 'true' if the request is intended for ourselves, 'false' otherwise.
+ */
+bool isLooping(const MsgSip& ms, const char* branch) {
+	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next) {
+		if (via->v_branch != nullptr && strcmp(via->v_branch, branch) == 0) {
+			LOGD_CTX("module::Forward") << "Loop detected: " << via->v_branch;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+} // namespace
 
 ModuleInfo<ForwardModule> ForwardModule::sInfo(
     "Forward",
-    "This module executes the basic routing task of SIP requests and pass them to the transport layer. "
-    "It must always be enabled.",
+    "Executes basic routing tasks on SIP requests and pass them to the transport layer. It MUST always be enabled.",
     {"Transcoder", "MediaRelay"},
     ModuleInfoBase::ModuleOid::Forward,
 
@@ -115,7 +220,7 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	        {
 	            String,
 	            "default-transport",
-	            "For SIP URIs, in asbsence of transport parameter, assume the given transport "
+	            "For SIP URIs, in absence of transport parameter, assume the given transport "
 	            "is to be used. Possible values are udp, tcp or tls.",
 	            "udp",
 	        },
@@ -145,8 +250,7 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	    }
     });
 
-ForwardModule::ForwardModule(Agent* ag, const ModuleInfoBase* moduleInfo)
-    : Module(ag, moduleInfo), mOutRoute(nullptr), mRewriteReqUri(false), mAddPath(false) {
+ForwardModule::ForwardModule(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	su_home_init(&mHome);
 }
 
@@ -177,10 +281,6 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	mDefaultTransport = mc->get<ConfigString>("default-transport")->read();
 	if (mDefaultTransport == "udp") mDefaultTransport.clear();
 	else mDefaultTransport = "transport=" + mDefaultTransport;
-	/* The forward module needs the help of the router module to determine whether
-	 * a gruu request uri is under control of this domain or not. */
-	mRouterModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByRole("Router"));
-	if (!mRouterModule.lock()) throw BadConfiguration{"could not find 'Router' module"};
 
 	const GenericStruct* clusterSection = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("cluster");
 	bool clusterEnabled = clusterSection->get<ConfigBoolean>("enabled")->read();
@@ -189,25 +289,10 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 	}
 }
 
-static bool isUs(Agent* ag, sip_route_t* r) {
-	msg_param_t param = msg_params_find(r->r_params, "fs-proxy-id");
-	if (param && strcmp(param, ag->getUniqueId().c_str()) == 0) {
-		return true;
-	}
-	char proxyid[32] = {0};
-	if (url_param(r->r_url->url_params, "fs-proxy-id", proxyid, sizeof(proxyid))) {
-		if (strcmp(proxyid, ag->getUniqueId().c_str()) == 0) {
-			return true;
-		}
-	}
-	return ag->isUs(r->r_url);
-}
-
 class RegistrarListener : public ContactUpdateListener {
 public:
 	RegistrarListener(ForwardModule* module, unique_ptr<RequestSipEvent>&& ev)
-	    : ContactUpdateListener(), mModule(module), mEv(std::move(ev)) {
-	}
+	    : ContactUpdateListener(), mModule(module), mEv(std::move(ev)) {}
 	~RegistrarListener() override = default;
 
 	void onRecordFound(const shared_ptr<Record>& r) override {
@@ -262,7 +347,7 @@ public:
 		// Duplicate filtered "Route" headers (converted from "Path" headers) into to the sip message.
 		msg_header_add_dup(msg, nullptr, reinterpret_cast<const msg_header_t*>(iterator));
 
-		// No reason to remove "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr"
+		// No reason to remove the "gr" parameter: the RegistrarDb provides a resolved uri (that may be an uri with "gr"
 		// parameter from another domain).
 		// request->rq_url->url_params = url_strip_param_string(su_strdup(home, request->rq_url->url_params), "gr");
 
@@ -277,7 +362,6 @@ public:
 
 	void onInvalid(const SipStatus&) override {
 		LOGE << "RegistrarListener invalid";
-		// do not use SipStatus, treat as an error
 		mEv->reply(500, "Internal Server Error", SIPTAG_SERVER_STR(mModule->getAgent()->getServerString()), TAG_END());
 	}
 
@@ -308,24 +392,25 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 		ev->reply(SIP_483_TOO_MANY_HOPS, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return {};
 	}
-	// Decrease max forward
+
+	// Decrease max forward.
 	if (sip->sip_max_forwards) --sip->sip_max_forwards->mf_count;
 
-	// Prepend conditional route if any
+	// Prepend conditional route if any.
 	const sip_route_t* route = mRoutesMap.resolveRoute(ms);
 	if (route && !ms->isInDialog()) {
 		LOGD << "Prepended route '" << url_as_string(ms->getHome(), route->r_url) << "'";
-		ModuleToolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
+		module_toolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
 	}
 
-	// Remove top route headers if they match us.
+	// Remove top "Route" header fields if they match us.
 	sip_route_t* lastRoute = nullptr;
 	while (sip->sip_route != nullptr && isUs(getAgent(), sip->sip_route)) {
 		LOGD << "Removed top route '" << url_as_string(ms->getHome(), sip->sip_route->r_url) << "'";
 		lastRoute = sip_route_remove(msg, sip);
 	}
 
-	// Remove P-Preferred-Identity header if present
+	// Remove the "P-Preferred-Identity" header field if present.
 	if (auto ppi = sip_p_preferred_identity(sip)) {
 		msg_header_remove_all(msg, (msg_pub_t*)sip, (msg_header_t*)ppi);
 	}
@@ -333,23 +418,24 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	// Remove the "fs-conn-id" internal parameter (if present).
 	msg_header_remove_param(reinterpret_cast<msg_common_t*>(sip->sip_request), "fs-conn-id");
 
-	auto dest = sip->sip_request->rq_url;
-	if (sip->sip_route != nullptr) {
-		dest = getDestinationFromRoute(ms->getHome(), sip);
+	auto* dest = sip->sip_request->rq_url;
+	if (sip->sip_route != nullptr) dest = getDestinationFromRoute(ms->getHome(), sip);
+
+	const SipUri destUri(dest);
+	const auto routerModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByRole("Router"));
+	if (routerModule == nullptr) {
+		LOGE << "Failed to get the 'Router' module (this SHOULD not happen!): aborting";
+		return std::move(ev);
 	}
-
-	SipUri destUri(dest);
-
-	auto routerModule = mRouterModule.lock(); // Used to be a basic pointer
-	// "gruu" processing in forward module is only done if dialog is established. In other cases, router module is
-	// involved instead
+	// This is only done here (in this module) if the dialog is established. Otherwise, this is the RouteModule that is
+	// in charge of this processing.
 	if (destUri.hasParam("gr") && ms->isInDialog() && routerModule->isManagedDomain(dest)) {
-		// gruu case, ask registrar db for AOR
 		ev->suspendProcessing();
-		auto listener = make_shared<RegistrarListener>(this, std::move(ev));
-		mAgent->getRegistrarDb().fetch(destUri, listener, false, false /*no recursivity for gruu*/);
+		const auto listener = make_shared<RegistrarListener>(this, std::move(ev));
+		mAgent->getRegistrarDb().fetch(destUri, listener, false, false);
 		return {};
 	}
+
 	dest = overrideDest(*ms, dest);
 	sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(*ev, lastRoute));
 	return std::move(ev);
@@ -380,21 +466,20 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 		return;
 	}
 
-	// Eventually add second record route with different transport to bridge to networks: for example, we'll end
-	// with UDP, TCP.
+	// Eventually add a second "Record-Route" header field with different transport to bridge to networks. For example,
+	// we'll end with UDP, TCP.
 	const auto method = ms->getSipMethod();
 	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe)) {
 		mAgent->getNatTraversalStrategy()->addRecordRouteForwardModule(*ev, tport, tportDest);
 	}
 
-	// Add path
 	if (ms->getSipMethod() == sip_method_register) {
 		if (mAddPath) {
 			mAgent->getNatTraversalStrategy()->addPathOnRegister(*ev, tport, mAgent->getUniqueId().c_str());
 		} else {
-			// Path headers are added for internal processing within Flexisip, and recorded into RegistrarDb.
-			// However, if Forward module has to send a REGISTER with path headers but add-path is set to false,
-			// they must be removed.
+			// "Path" header fields are added for internal processing within Flexisip and recorded into RegistrarDb.
+			// However, if the ForwardModule has to send a REGISTER with "Path" header fields, but "add-path" is set to
+			// "false", they must be removed.
 			while (sip->sip_path != nullptr && isUs(getAgent(), sip->sip_path)) {
 				LOGD << "Removed path '" << url_as_string(ms->getHome(), sip->sip_path->r_url) << "'";
 				msg_header_remove(msg, (msg_pub_t*)sip, (msg_header_t*)sip->sip_path);
@@ -402,101 +487,54 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 		}
 	}
 
-	// Clean push notifs params from contacts
+	// Clean push notifs params from "Contact" header fields.
 	if (sip->sip_contact && sip->sip_request->rq_method != sip_method_register) {
-		ModuleToolbox::removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
+		module_toolbox::removeParamsFromContacts(ms->getHome(), sip->sip_contact, mParamsToRemove);
 		LOGD << "Removed push params from contact";
 	}
-	ModuleToolbox::removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
+	module_toolbox::removeParamsFromUrl(ms->getHome(), sip->sip_request->rq_url, mParamsToRemove);
 
 	shared_ptr<OutgoingTransaction> outTr;
-	if (ev->getOutgoingAgent() != nullptr) { //== if message is to be forwarded
+	if (ev->getOutgoingAgent() != nullptr) { // If the message has to be forwarded.
 		outTr = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 		if (outTr == nullptr && dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent()) != nullptr) {
-			// If an incoming transaction has been created, then create automatically an outgoing transaction to forward
-			// the message.
-			// This is required because otherwise, any response to the message will not be routed back through the
-			// incoming transaction, leaving it unanswered, then stuck forever.
+			// If an incoming transaction has been created, then automatically create an outgoing transaction to forward
+			// the message. This is required because otherwise, any response to the message will not be routed back
+			// through the incoming transaction, leaving it unanswered, then stuck forever.
 			outTr = ev->createOutgoingTransaction();
 		}
 	}
 
-	// Compute branch, output branch=XXXXX
-	char const* branchStr = compute_branch(getSofiaAgent(), msg, sip, mAgent->getUniqueId().c_str(), outTr);
+	// Compute branch, output branch=XXXXX.
+	char const* branchStr = computeBranch(msg, sip, mAgent->getUniqueId().c_str(), outTr);
 
 	if (isLooping(*ev->getMsgSip(), branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
 	}
 
-	// Finally send message
-	ev->send(ms, (url_string_t*)dest, NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
+	ev->send(ms, reinterpret_cast<url_string_t*>(dest), NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
 }
 
-unsigned int ForwardModule::countVia(const MsgSip& ms) {
-	uint32_t via_count = 0;
-	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next)
-		++via_count;
-	return via_count;
-}
-
-url_t* ForwardModule::getDestinationFromRoute(su_home_t* home, sip_t* sip) {
-	sip_route_t* route = sip->sip_route;
-
-	if (route) {
-		char received[64] = {0};
-		char rport[8] = {0};
-		url_t* ret = url_hdup(home, sip->sip_route->r_url);
-
-		url_param(route->r_url->url_params, "fs-received", received, sizeof(received));
-		url_param(route->r_url->url_params, "fs-rport", rport, sizeof(rport));
-		if (received[0] != 0) {
-			ModuleToolbox::urlSetHost(home, ret, received);
-			ret->url_params = url_strip_param_string(su_strdup(home, route->r_url->url_params), "fs-received");
-		}
-		if (rport[0] != 0) {
-			ret->url_port = su_strdup(home, rport);
-			ret->url_params = url_strip_param_string(su_strdup(home, route->r_url->url_params), "fs-rport");
-		}
-		return ret;
-	}
-	return nullptr;
-}
-
-/*
- * Detects loops.
- * Warning: does not work for requests forwarded through transaction.
- */
-bool ForwardModule::isLooping(const MsgSip& ms, const char* branch) {
-	for (sip_via_t* via = ms.getSip()->sip_via; via != nullptr; via = via->v_next) {
-		if (via->v_branch != nullptr && strcmp(via->v_branch, branch) == 0) {
-			LOGD_CTX("module::Forward") << "Loop detected: " << via->v_branch;
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool ForwardModule::isAClusterNode(const url_t* url) {
+bool ForwardModule::isAClusterNode(const url_t* url) const {
 	for (const string& node : mClusterNodes) {
-		if (ModuleToolbox::urlHostMatch(url, node.c_str())) return true;
+		if (module_toolbox::urlHostMatch(url, node.c_str())) return true;
 	}
 	return false;
 }
 
 url_t* ForwardModule::overrideDest(MsgSip& ms, url_t* dest) {
-	if (!ModuleToolbox::urlIsResolved(dest)) {
+	if (!module_toolbox::urlIsResolved(dest)) {
 		if (mOutRoute) {
 			sip_t* sip = ms.getSip();
 			url_t* req_url = sip->sip_request->rq_url;
 			for (sip_via_t* via = sip->sip_via; via != nullptr; via = via->v_next) {
-				if (ModuleToolbox::urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
+				if (module_toolbox::urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
 					LOGD << "Found forced outgoing route in via, skipping";
 					return dest;
 				}
 			}
-			if (!ModuleToolbox::urlIsResolved(req_url)) {
+			if (!module_toolbox::urlIsResolved(req_url)) {
 				dest = mOutRoute->r_url;
 				if (mRewriteReqUri) {
 					*req_url = *dest;
@@ -509,15 +547,6 @@ url_t* ForwardModule::overrideDest(MsgSip& ms, url_t* dest) {
 	return dest;
 }
 
-/*
- * Find the right transport to use in order to correctly deliver the request to the destination.
- * It also sanitizes the destination url: "/etc/hosts" name resolution.
- *
- * @param[in] dest destination url of the request, used by default to find the transport.
- * @param[in] tportDest alternative destination url used to find the transport. Will not be sanitized.
- *
- * @return transport to be used to deliver the request to the destination.
- */
 tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, url_t* dest, url_t* tportDest) {
 	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	uintptr_t destConnId = 0;
@@ -563,56 +592,6 @@ tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, ur
 	}
 
 	return tport;
-}
-
-static char const* compute_branch([[maybe_unused]] nta_agent_t* sa,
-                                  msg_t* msg,
-                                  sip_t const* sip,
-                                  char const* string_server,
-                                  const shared_ptr<OutgoingTransaction>& outTr) {
-	su_md5_t md5[1];
-	uint8_t digest[SU_MD5_DIGEST_SIZE];
-	char branch[(SU_MD5_DIGEST_SIZE * 8 + 4) / 5 + 1] = {0};
-	sip_route_t const* r;
-
-	if (!outTr) {
-		su_md5_init(md5);
-
-		su_md5_str0update(md5, string_server);
-		// su_md5_str0update(md5, port);
-
-		url_update(md5, sip->sip_request->rq_url);
-		if (sip->sip_request->rq_url->url_params) {
-			// put url params in the hash too, because sofia does not do it in url_update().
-			su_md5_str0update(md5, sip->sip_request->rq_url->url_params);
-		}
-		if (sip->sip_call_id) {
-			su_md5_str0update(md5, sip->sip_call_id->i_id);
-		}
-		if (sip->sip_from) {
-			url_update(md5, sip->sip_from->a_url);
-			su_md5_stri0update(md5, sip->sip_from->a_tag);
-		}
-		if (sip->sip_to) {
-			url_update(md5, sip->sip_to->a_url);
-			/* XXX - some broken implementations include To tag in CANCEL */
-			/* su_md5_str0update(md5, sip->sip_to->a_tag); */
-		}
-		if (sip->sip_cseq) {
-			uint32_t cseq = htonl(sip->sip_cseq->cs_seq);
-			su_md5_update(md5, &cseq, sizeof(cseq));
-		}
-
-		for (r = sip->sip_route; r; r = r->r_next)
-			url_update(md5, r->r_url);
-
-		su_md5_digest(md5, digest);
-		msg_random_token(branch, sizeof(branch) - 1, digest, sizeof(digest));
-	} else {
-		strncpy(branch, outTr->getBranchId().c_str(), sizeof(branch) - 1);
-	}
-
-	return su_sprintf(msg_home(msg), "branch=z9hG4bK.%s", branch);
 }
 
 } // namespace flexisip
