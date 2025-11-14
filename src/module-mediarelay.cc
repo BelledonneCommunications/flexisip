@@ -429,23 +429,20 @@ void MediaRelay::onResponse(shared_ptr<ResponseSipEvent>& ev) {
 	shared_ptr<OutgoingTransaction> ot = dynamic_pointer_cast<OutgoingTransaction>(ev->getOutgoingAgent());
 	shared_ptr<IncomingTransaction> it = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
 
-	if (ot != NULL) {
+	if (ot != nullptr) {
 		c = ot->getProperty<RelayedCall>(getModuleName());
-		if (c) {
-			if (sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
-				ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
-				if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
-					processResponseWithSDP(c, ot, ev->getMsgSip());
-				} else if (sip->sip_status->st_status >= 300) {
-					c->removeBranch(ot->getBranchId());
-					auto hasActiveBranches =
-					    std::any_of(c->getSessions().begin(), c->getSessions().end(), [](const auto& session) {
-						    return session && (0 < session->getActiveBranchesCount());
-					    });
-					if (!hasActiveBranches) {
-						SLOGD << "RelayedCall[" << c << "] terminated: Last branch removed.";
-						mCalls->remove(c);
-					}
+		if (c && sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
+			ModuleToolbox::fixAuthChallengeForSDP(ms->getHome(), msg, sip);
+			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
+				processResponseWithSDP(c, ot, ev->getMsgSip());
+			} else if (sip->sip_status->st_status >= 300) {
+				c->removeBranch(ot->getBranchId());
+				const auto hasActiveBranches =
+				    std::any_of(c->getSessions().begin(), c->getSessions().end(),
+				                [](const auto& session) { return session && (0 < session->getActiveBranchesCount()); });
+				if (!hasActiveBranches) {
+					SLOGD << "RelayedCall[" << c << "] terminated: Last branch removed.";
+					mCalls->remove(c);
 				}
 			}
 		}

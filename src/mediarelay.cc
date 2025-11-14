@@ -269,21 +269,21 @@ void RelayChannel::setFilter(shared_ptr<MediaFilter> filter) {
 }
 
 RelaySession::RelaySession(MediaRelayServer* server, const string& frontId, const RelayTransport& rt)
-    : mServer(server), mFrontId(frontId) {
+    : mServer(server), mFrontChannelId(frontId) {
 	mLastActivityTime = getCurrentTime();
 	mUsed = true;
-	mFront = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
+	mFrontChannel = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
 }
 
 shared_ptr<RelayChannel> RelaySession::getChannel(const string& partyId, const string& trId) const {
-	if (partyId == mFrontId) return mFront;
-	if (mBack) return mBack;
+	if (partyId == mFrontChannelId) return mFrontChannel;
+	if (mSelectedBackChannel) return mSelectedBackChannel;
 
 	shared_ptr<RelayChannel> ret;
 
 	mMutex.lock();
-	auto it = mBacks.find(trId);
-	if (it != mBacks.end()) {
+	auto it = mPotentialBackChannels.find(trId);
+	if (it != mPotentialBackChannels.end()) {
 		ret = (*it).second;
 	}
 	mMutex.unlock();
@@ -296,7 +296,7 @@ RelaySession::createBranch(const std::string& trId, const RelayTransport& rt, bo
 	mMutex.lock();
 	ret = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
 	ret->setMultipleTargets(hasMultipleTargets);
-	mBacks.insert(make_pair(trId, ret));
+	mPotentialBackChannels.insert(make_pair(trId, ret));
 	mMutex.unlock();
 	LOGD("RelaySession [%p]: branch corresponding to transaction [%s] added.", this, trId.c_str());
 	return ret;
@@ -305,10 +305,10 @@ RelaySession::createBranch(const std::string& trId, const RelayTransport& rt, bo
 void RelaySession::removeBranch(const std::string& trId) {
 	bool removed = false;
 	mMutex.lock();
-	auto it = mBacks.find(trId);
-	if (it != mBacks.end()) {
+	auto it = mPotentialBackChannels.find(trId);
+	if (it != mPotentialBackChannels.end()) {
 		removed = true;
-		mBacks.erase(it);
+		mPotentialBackChannels.erase(it);
 	}
 	mMutex.unlock();
 	if (removed) {
@@ -319,22 +319,23 @@ void RelaySession::removeBranch(const std::string& trId) {
 int RelaySession::getActiveBranchesCount() const {
 	int count = 0;
 	mMutex.lock();
-	for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
+	for (auto it = mPotentialBackChannels.begin(); it != mPotentialBackChannels.end(); ++it) {
 		if ((*it).second->getRemoteRtpPort() > 0) count++;
 	}
+	if (mSelectedBackChannel && mSelectedBackChannel->getRemoteRtpPort() > 0) count++;
 	mMutex.unlock();
 	LOGD("getActiveBranchesCount(): %i", count);
 	return count;
 }
 
 void RelaySession::setEstablished(const std::string& tr_id) {
-	if (mBack) return;
+	if (mSelectedBackChannel) return;
 	shared_ptr<RelayChannel> winner = getChannel("", tr_id);
 	if (winner) {
 		LOGD("RelaySession [%p] is established.", this);
 		mMutex.lock();
-		mBack = winner;
-		mBacks.clear();
+		mSelectedBackChannel = winner;
+		mPotentialBackChannels.clear();
 		mMutex.unlock();
 	} else LOGE("RelaySession [%p] is with from an unknown branch [%s].", this, tr_id.c_str());
 }
@@ -342,10 +343,10 @@ void RelaySession::setEstablished(const std::string& tr_id) {
 void RelaySession::fillPollFd(PollFd* pfd) {
 	mMutex.lock();
 
-	if (mFront) mFront->fillPollFd(pfd);
-	if (mBack) mBack->fillPollFd(pfd);
+	if (mFrontChannel) mFrontChannel->fillPollFd(pfd);
+	if (mSelectedBackChannel) mSelectedBackChannel->fillPollFd(pfd);
 	else {
-		for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
+		for (auto it = mPotentialBackChannels.begin(); it != mPotentialBackChannels.end(); ++it) {
 			(*it).second->fillPollFd(pfd);
 		}
 	}
@@ -356,14 +357,14 @@ void RelaySession::checkPollFd(const PollFd* pfd, time_t curtime) {
 	int i;
 	mMutex.lock();
 	for (i = 0; i < 2; ++i) {
-		if (mFront && mFront->checkPollFd(pfd, i)) transfer(curtime, mFront, i);
-		if (!mBack) {
-			for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
+		if (mFrontChannel && mFrontChannel->checkPollFd(pfd, i)) transfer(curtime, mFrontChannel, i);
+		if (!mSelectedBackChannel) {
+			for (auto it = mPotentialBackChannels.begin(); it != mPotentialBackChannels.end(); ++it) {
 				shared_ptr<RelayChannel> chan = (*it).second;
 				if (chan->checkPollFd(pfd, i)) transfer(curtime, chan, i);
 			}
-		} else if (mBack->checkPollFd(pfd, i)) {
-			transfer(curtime, mBack, i);
+		} else if (mSelectedBackChannel->checkPollFd(pfd, i)) {
+			transfer(curtime, mSelectedBackChannel, i);
 		}
 	}
 	mMutex.unlock();
@@ -396,22 +397,22 @@ void RelaySession::unuse() {
 	mMutex.lock();
 	mUsed = false;
 	for (int componentID = 0; componentID < 2; ++componentID) {
-		if (mFront) {
-			front[componentID].port =
-			    componentID == 0 ? mFront->getRelayTransport().mRtpPort : mFront->getRelayTransport().mRtcpPort;
-			front[componentID].recv = mFront->getReceivedPackets(componentID);
-			front[componentID].sent = mFront->getSentPackets(componentID);
+		if (mFrontChannel) {
+			front[componentID].port = componentID == 0 ? mFrontChannel->getRelayTransport().mRtpPort
+			                                           : mFrontChannel->getRelayTransport().mRtcpPort;
+			front[componentID].recv = mFrontChannel->getReceivedPackets(componentID);
+			front[componentID].sent = mFrontChannel->getSentPackets(componentID);
 		}
-		if (mBack) {
-			back[componentID].port =
-			    componentID == 0 ? mBack->getRelayTransport().mRtpPort : mBack->getRelayTransport().mRtcpPort;
-			back[componentID].recv = mBack->getReceivedPackets(componentID);
-			back[componentID].sent = mBack->getSentPackets(componentID);
+		if (mSelectedBackChannel) {
+			back[componentID].port = componentID == 0 ? mSelectedBackChannel->getRelayTransport().mRtpPort
+			                                          : mSelectedBackChannel->getRelayTransport().mRtcpPort;
+			back[componentID].recv = mSelectedBackChannel->getReceivedPackets(componentID);
+			back[componentID].sent = mSelectedBackChannel->getSentPackets(componentID);
 		}
 	}
-	mFront.reset();
-	mBacks.clear();
-	mBack.reset();
+	mFrontChannel.reset();
+	mPotentialBackChannels.clear();
+	mSelectedBackChannel.reset();
 	mMutex.unlock();
 
 	if (front[0].port != 0) {
@@ -424,13 +425,13 @@ void RelaySession::unuse() {
 
 bool RelaySession::checkChannels() {
 	mMutex.lock();
-	for (auto itb = mBacks.begin(); itb != mBacks.end(); ++itb) {
+	for (auto itb = mPotentialBackChannels.begin(); itb != mPotentialBackChannels.end(); ++itb) {
 		if (!(*itb).second->checkSocketsValid()) {
 			mMutex.unlock();
 			return false;
 		}
 	}
-	if (!mFront->checkSocketsValid()) {
+	if (!mFrontChannel->checkSocketsValid()) {
 		mMutex.unlock();
 		return false;
 	}
@@ -446,17 +447,17 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel>& chan
 	mLastActivityTime = curtime;
 	recv_len = chan->recv(i, buf, maxsize, curtime);
 	if (recv_len > 0) {
-		if (chan == mFront) {
-			if (mBack) {
-				mBack->send(i, buf, recv_len);
+		if (chan == mFrontChannel) {
+			if (mSelectedBackChannel) {
+				mSelectedBackChannel->send(i, buf, recv_len);
 			} else {
-				for (auto it = mBacks.begin(); it != mBacks.end(); ++it) {
+				for (auto it = mPotentialBackChannels.begin(); it != mPotentialBackChannels.end(); ++it) {
 					shared_ptr<RelayChannel> dest = (*it).second;
 					dest->send(i, buf, recv_len);
 				}
 			}
 		} else {
-			mFront->send(i, buf, recv_len);
+			mFrontChannel->send(i, buf, recv_len);
 		}
 	}
 }
