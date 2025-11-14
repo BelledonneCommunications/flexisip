@@ -48,8 +48,9 @@ public:
 	static const CallAssertionInfo::MediaStateList kAudioSentReceived;
 	static const CallAssertionInfo::MediaStateList kVideoSentReceived;
 	static const CallAssertionInfo::MediaStateList kAllMediaSentReceived;
+	static const CallAssertionInfo::MediaStateList kNoMedia;
 
-	explicit CallAssert(CoreAssert<sleepBetweenIterations>& asserter) : mAsserter(asserter){};
+	explicit CallAssert(CoreAssert<sleepBetweenIterations>& asserter) : mAsserter(asserter) {};
 
 	[[nodiscard]] AssertionResult waitUntil(const CallAssertionInfoList& info,
 	                                        const std::chrono::duration<double>& timeout = std::chrono::seconds{
@@ -133,6 +134,14 @@ const CallAssertionInfo::MediaStateList CallAssert<>::kAllMediaSentReceived = {
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::Received},
     {linphone::StreamType::Video, CallAssertionInfo::MediaState::Sent},
     {linphone::StreamType::Video, CallAssertionInfo::MediaState::Received},
+};
+
+template <>
+const CallAssertionInfo::MediaStateList CallAssert<>::kNoMedia = {
+    {linphone::StreamType::Audio, CallAssertionInfo::MediaState::NotSent},
+    {linphone::StreamType::Audio, CallAssertionInfo::MediaState::NotReceived},
+    {linphone::StreamType::Video, CallAssertionInfo::MediaState::NotSent},
+    {linphone::StreamType::Video, CallAssertionInfo::MediaState::NotReceived},
 };
 
 } // namespace flexisip::tester
