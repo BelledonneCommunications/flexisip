@@ -198,7 +198,7 @@ MediaRelay::~MediaRelay() {
 }
 
 void MediaRelay::createServers() {
-	int cpuCount = ModuleToolbox::getCpuCount();
+	int cpuCount = module_toolbox::getCpuCount();
 	int i;
 	for (i = 0; i < cpuCount; ++i) {
 		mServers.push_back(make_shared<MediaRelayServer>(this));
@@ -266,9 +266,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 	string from_tag = sip->sip_from->a_tag;
 	string from_host;
 	sip_via_t* last_via =
-	    ModuleToolbox::getLastVia(sip); /*the last via of the message is the originator of the message.*/
-	if (last_via->v_received) from_host = ModuleToolbox::getHost(last_via->v_received);
-	else from_host = ModuleToolbox::getHost(last_via->v_host);
+	    module_toolbox::getLastVia(sip); /*the last via of the message is the originator of the message.*/
+	if (last_via->v_received) from_host = module_toolbox::getHost(last_via->v_received);
+	else from_host = module_toolbox::getHost(last_via->v_host);
 
 	string to_tag;
 	if (sip->sip_to->a_tag != NULL) to_tag = sip->sip_to->a_tag;
@@ -280,9 +280,9 @@ bool MediaRelay::processNewInvite(const shared_ptr<RelayedCall>& c,
 		route = route->r_next;
 	}
 	if (route) {
-		dest_host = ModuleToolbox::urlGetHost(route->r_url);
+		dest_host = module_toolbox::urlGetHost(route->r_url);
 	} else if (sip->sip_request != NULL && sip->sip_request->rq_url->url_host != NULL) {
-		dest_host = ModuleToolbox::urlGetHost(sip->sip_request->rq_url);
+		dest_host = module_toolbox::urlGetHost(sip->sip_request->rq_url);
 	}
 
 	if (m->hasAttribute(mSdpMangledParam.c_str())) {
@@ -401,7 +401,7 @@ unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& 
 	}
 	if (processNewInvite(relayedCall, outgoingTransaction, *ev)) {
 		// Be in the record-route
-		ModuleToolbox::addRecordRouteIncoming(getAgent(), *ev);
+		module_toolbox::addRecordRouteIncoming(getAgent(), *ev);
 		if (newContext) mCalls->store(relayedCall);
 		outgoingTransaction->setProperty(getModuleName(), weak_ptr<RelayedCall>{relayedCall});
 		// Let this transaction survive till it reaches the Forward module.
@@ -491,7 +491,7 @@ void MediaRelay::onResponse(ResponseSipEvent& ev) {
 	if (ot != nullptr) {
 		c = ot->getProperty<RelayedCall>(getModuleName());
 		if (c && sip->sip_cseq && isInviteOrUpdate(sip->sip_cseq->cs_method)) {
-			ModuleToolbox::fixAuthChallengeForSDP(ms.getHome(), msg, sip);
+			module_toolbox::fixAuthChallengeForSDP(ms.getHome(), msg, sip);
 			if (sip->sip_status->st_status == 200 || isEarlyMedia(sip)) {
 				processResponseWithSDP(c, ot, ms);
 			} else if (sip->sip_status->st_status >= 300) {

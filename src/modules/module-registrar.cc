@@ -19,20 +19,18 @@
 #include "flexisip/module-registrar.hh"
 
 #include <algorithm>
-
 #include <csignal>
 #include <fstream>
 #include <functional>
 #include <ostream>
 #include <regex>
 
-#include "flexisip/logmanager.hh"
-#include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
-
 #include "agent.hh"
 #include "domain-registrations.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/logmanager.hh"
+#include "flexisip/signal-handling/sofia-driven-signal-handler.hh"
 #include "modules/module-toolbox.hh"
 #include "nat/nat-traversal-strategy.hh"
 #include "registrar/binding-parameters.hh"
@@ -203,14 +201,11 @@ void OnStaticBindListener::onRecordFound([[maybe_unused]] const shared_ptr<Recor
 void OnStaticBindListener::onError(const SipStatus&) {
 	LOGE << "Cannot add static route for " << mFrom;
 }
-void OnStaticBindListener::onInvalid(const SipStatus&) {
-}
+void OnStaticBindListener::onInvalid(const SipStatus&) {}
 
-void OnStaticBindListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
-}
+void OnStaticBindListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {}
 
-FakeFetchListener::FakeFetchListener() {
-}
+FakeFetchListener::FakeFetchListener() {}
 
 void FakeFetchListener::onRecordFound(const shared_ptr<Record>& r) {
 	if (r != nullptr) {
@@ -219,15 +214,13 @@ void FakeFetchListener::onRecordFound(const shared_ptr<Record>& r) {
 		LOGD << "No record found";
 	}
 }
-void FakeFetchListener::onError(const SipStatus&) {
-}
+void FakeFetchListener::onError(const SipStatus&) {}
 
 void FakeFetchListener::onInvalid(const SipStatus&) {
 	LOGD << "Invalid";
 }
 
-void FakeFetchListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {
-}
+void FakeFetchListener::onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) {}
 
 ResponseContext::ResponseContext(unique_ptr<RequestSipEvent>&& ev, int globalDelta) : mRequestSipEvent{std::move(ev)} {
 	mRequestSipEvent->suspendProcessing();
@@ -1101,8 +1094,7 @@ void ModuleRegistrar::readStaticRecords() {
 			{ // Delete existing record
 				class ClearListener : public ContactUpdateListener {
 				public:
-					ClearListener(const std::string& uri) : mUri(uri) {
-					}
+					ClearListener(const std::string& uri) : mUri(uri) {}
 
 					void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
 						LOGI << "Cleared record " << mUri;

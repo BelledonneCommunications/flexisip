@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,12 +20,9 @@
 
 #include <memory>
 
-#include <sofia-sip/msg.h>
-#include <sofia-sip/tport.h>
+#include "sofia-sip/msg.h"
 
 #include "flexisip/logmanager.hh"
-
-#include "flexisip-tester-config.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "utils/flow-test-helper.hh"
 #include "utils/nat-test-helper.hh"
@@ -45,12 +42,10 @@ namespace {
 
 struct Helper : public NatTestHelper {
 	explicit Helper(const string& boolExpr)
-	    : NatTestHelper(),
-	      mStrategy(mAgent.get(), SipBooleanExpressionBuilder::get().parse(boolExpr), kHashKeyFilePath) {
-	}
+	    : mStrategy(mAgent.get(), SipBooleanExpressionBuilder::get().parse(boolExpr), kHashKeyFilePath) {}
 
 	static shared_ptr<MsgSip> getRegister(bool ob) {
-		StringFormatter formatter{
+		const StringFormatter formatter{
 		    "REGISTER sip:user@sip.example.org SIP/2.0\r\n"
 		    "Via: SIP/2.0/TCP 10.0.2.10:5678;branch=z9hG4bK-3908207663;rport=8765;received=82.65.220.100\r\n"
 		    "To: <sip:user@sip.example.org>\r\n"
@@ -59,7 +54,8 @@ struct Helper : public NatTestHelper {
 		    "Contact: <sip:user@sip.example.org;transport=tcp{parameter}>\r\n"
 		    "CSeq: 1 REGISTER\r\n"
 		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n"
-		    "Content-Type: application/sdp\r\n"};
+		    "Content-Type: application/sdp\r\n",
+		};
 
 		const auto request = formatter.format({{"parameter", (ob ? ";ob" : "")}});
 
@@ -73,7 +69,7 @@ struct Helper : public NatTestHelper {
 	}
 
 	static shared_ptr<MsgSip> getInvite(bool ob) {
-		StringFormatter formatter{
+		const StringFormatter formatter{
 		    "INVITE sip:callee@sip.example.org SIP/2.0\r\n"
 		    "Via: SIP/2.0/TCP 10.0.2.10:5678;branch=z9hG4bK-3908207663;rport=8765;received=82.65.220.100\r\n"
 		    "Max-Forwards: 70\r\n"
@@ -83,7 +79,8 @@ struct Helper : public NatTestHelper {
 		    "Contact: <sip:callee@sip.example.org;transport=tcp{parameter}>\r\n"
 		    "CSeq: 1 INVITE\r\n"
 		    "Accept: application/sdp\r\n"
-		    "Content-Length: 0\r\n"};
+		    "Content-Length: 0\r\n",
+		};
 
 		const auto request = formatter.format({{"parameter", (ob ? ";ob" : "")}});
 
@@ -99,8 +96,9 @@ struct Helper : public NatTestHelper {
 	FlowTokenStrategy mStrategy;
 };
 
-/*
- * Test successful "record-route" addition, test it matches the address of the server and generated flow-token is valid.
+/**
+ * Test the successful "Record-Route" header field addition, test it matches the address of the server and generated
+ * flow-token is valid.
  */
 void addRecordRouteNatHelper() {
 	const Helper helper{"false"};
@@ -124,9 +122,9 @@ void addRecordRouteNatHelper() {
 	BC_ASSERT(string(url_as_string(event.getHome(), recordRouteUrl)).find("transport=tcp"));
 }
 
-/*
- * Test successful "record-route" addition and url matches the address of the server.
- * Test it does not contain a flow-token since there are no information available in the "VIA" header.
+/**
+ * Test the successful "Record-Route" header field addition, and the url matches the address of the server.
+ * Test it does not contain a flow-token since there is no information available in the "VIA" header.
  */
 void addRecordRouteNatHelperNoVia() {
 	const Helper helper{"false"};
@@ -143,8 +141,8 @@ void addRecordRouteNatHelperNoVia() {
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test successful "record-route" addition and url matches the address of the server.
+/**
+ * Test the successful "Record-Route" header field addition, and the url matches the address of the server.
  * Test it does not contain a flow-token since the "Contact" header does not contain the "ob" parameter.
  */
 void addRecordRouteNatHelperNoObParameter() {
@@ -160,8 +158,8 @@ void addRecordRouteNatHelperNoObParameter() {
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test return value matches lastRoute with host:port corrected with information present in the flow-token.
+/**
+ * Test return value matches the 'lastRoute' with host:port corrected with information present in the flow-token.
  */
 void getTportDestFromLastRoute() {
 	const Helper helper{"false"};
@@ -184,7 +182,7 @@ void getTportDestFromLastRoute() {
 	BC_ASSERT_CPP_EQUAL(url_as_string(event.getHome(), dest), expected);
 }
 
-/*
+/**
  * Test an invalid flow-token in url should return nullptr.
  */
 void getTportDestFromLastRouteWithFalsifiedFlowToken() {
@@ -198,8 +196,8 @@ void getTportDestFromLastRouteWithFalsifiedFlowToken() {
 	BC_HARD_ASSERT(dest == nullptr);
 }
 
-/*
- * Test successful "record-route" addition and url matches the address of the server.
+/**
+ * Test the successful "Record-Route" header field addition, and the url matches the address of the server.
  * Test the flow-token is also present in the url.
  */
 void addRecordRouteForwardModule() {
@@ -219,8 +217,8 @@ void addRecordRouteForwardModule() {
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:stub-flow-token@127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test successful "record-route" addition and url matches the address of the server.
+/**
+ * Test the successful "Record-Route" header field addition, and the url matches the address of the server.
  */
 void addRecordRouteForwardModuleNoRouteUrl() {
 	const Helper helper{"false"};
@@ -234,8 +232,9 @@ void addRecordRouteForwardModuleNoRouteUrl() {
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test successful "Path" header addition, test it matches the address of the server and generated flow-token is valid.
+/**
+ * Test the successful "Path" header field addition, test it matches the address of the server and generated flow-token
+ * is valid.
  */
 void addPathOnRegister() {
 	const Helper helper{"false"};
@@ -260,8 +259,8 @@ void addPathOnRegister() {
 	BC_ASSERT(string(url_as_string(event.getHome(), pathUrl)).find("transport=tcp"));
 }
 
-/*
- * Test successful "Path" header addition and url matches the server address.
+/**
+ * Test successful "Path" header field addition and url matches the server address.
  */
 void addPathOnRegisterNotFirstHop() {
 	const Helper helper{"false"};
@@ -277,8 +276,8 @@ void addPathOnRegisterNotFirstHop() {
 	BC_ASSERT_CPP_EQUAL(pathUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test successful "Path" header addition and url matches the address of the server.
+/**
+ * Test the successful "Path" header field addition, and the url matches the address of the server.
  */
 void addPathOnRegisterNotFirstHopWithUniq() {
 	const Helper helper{"false"};
@@ -294,19 +293,21 @@ void addPathOnRegisterNotFirstHopWithUniq() {
 	BC_ASSERT_CPP_EQUAL(pathUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;fs-proxy-id=stub-uniq;lr");
 }
 
-TestSuite _("NatTraversalStrategy::FlowToken",
-            {
-                CLASSY_TEST(addRecordRouteNatHelper),
-                CLASSY_TEST(addRecordRouteNatHelperNoVia),
-                CLASSY_TEST(addRecordRouteNatHelperNoObParameter),
-                CLASSY_TEST(getTportDestFromLastRoute),
-                CLASSY_TEST(getTportDestFromLastRouteWithFalsifiedFlowToken),
-                CLASSY_TEST(addRecordRouteForwardModule),
-                CLASSY_TEST(addRecordRouteForwardModuleNoRouteUrl),
-                CLASSY_TEST(addPathOnRegister),
-                CLASSY_TEST(addPathOnRegisterNotFirstHop),
-                CLASSY_TEST(addPathOnRegisterNotFirstHopWithUniq),
-            });
+TestSuite _{
+    "NatTraversalStrategy::FlowToken",
+    {
+        CLASSY_TEST(addRecordRouteNatHelper),
+        CLASSY_TEST(addRecordRouteNatHelperNoVia),
+        CLASSY_TEST(addRecordRouteNatHelperNoObParameter),
+        CLASSY_TEST(getTportDestFromLastRoute),
+        CLASSY_TEST(getTportDestFromLastRouteWithFalsifiedFlowToken),
+        CLASSY_TEST(addRecordRouteForwardModule),
+        CLASSY_TEST(addRecordRouteForwardModuleNoRouteUrl),
+        CLASSY_TEST(addPathOnRegister),
+        CLASSY_TEST(addPathOnRegisterNotFirstHop),
+        CLASSY_TEST(addPathOnRegisterNotFirstHopWithUniq),
+    },
+};
 
 } // namespace
 

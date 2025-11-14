@@ -21,7 +21,7 @@
 #include <memory>
 
 #include "flexisip/logmanager.hh"
-
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;
@@ -225,20 +225,21 @@ void fixPathRport() {
 	BC_ASSERT_STRING_EQUAL(parameter, "tcp");
 }
 
-TestSuite _("NatTraversalStrategy::Helper",
-            {
-                TEST_NO_TAG_AUTO_NAMED(emptyWithNullptr),
-                TEST_NO_TAG_AUTO_NAMED(emptyWithNullTerminator),
-                TEST_NO_TAG_AUTO_NAMED(emptyWithNonEmptyData),
-                TEST_NO_TAG_AUTO_NAMED(fixTransportSipUdp),
-                TEST_NO_TAG_AUTO_NAMED(fixTransportSipTcp),
-                TEST_NO_TAG_AUTO_NAMED(fixTransportSipTls),
-                TEST_NO_TAG_AUTO_NAMED(fixTransportSips),
-                TEST_NO_TAG_AUTO_NAMED(fixPathReceivedAndRport),
-                TEST_NO_TAG_AUTO_NAMED(fixPathReceived),
-                TEST_NO_TAG_AUTO_NAMED(fixPathRport),
-            });
+TestSuite _{
+    "NatTraversalStrategy::Helper",
+    {
+        CLASSY_TEST(emptyWithNullptr),
+        CLASSY_TEST(emptyWithNullTerminator),
+        CLASSY_TEST(emptyWithNonEmptyData),
+        CLASSY_TEST(fixTransportSipUdp),
+        CLASSY_TEST(fixTransportSipTcp),
+        CLASSY_TEST(fixTransportSipTls),
+        CLASSY_TEST(fixTransportSips),
+        CLASSY_TEST(fixPathReceivedAndRport),
+        CLASSY_TEST(fixPathReceived),
+        CLASSY_TEST(fixPathRport),
+    },
+};
 
-}
-
+} // namespace
 } // namespace flexisip::tester

@@ -20,11 +20,10 @@
 
 #include <memory>
 
-#include <sofia-sip/msg.h>
-#include <sofia-sip/msg_addr.h>
+#include "sofia-sip/msg.h"
+#include "sofia-sip/msg_addr.h"
 
 #include "flexisip/logmanager.hh"
-
 #include "modules/module-nat-helper.hh"
 #include "utils/nat-test-helper.hh"
 #include "utils/string-formatter.hh"
@@ -43,7 +42,7 @@ namespace {
 
 struct Helper : public NatTestHelper {
 	static shared_ptr<MsgSip> getRegister(bool contactIsVerified) {
-		StringFormatter formatter{
+		const StringFormatter formatter{
 		    "REGISTER sip:user@sip.example.org SIP/2.0\r\n"
 		    "Via: SIP/2.0/TCP 10.0.2.10:5678;branch=z9hG4bK-3908207663;rport=8765;received=82.65.220.100\r\n"
 		    "To: <sip:user@sip.example.org>\r\n"
@@ -52,7 +51,8 @@ struct Helper : public NatTestHelper {
 		    "Contact: <sip:user@sip.example.org;transport=tcp{parameter}>\r\n"
 		    "CSeq: 1 REGISTER\r\n"
 		    "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO\r\n"
-		    "Content-Type: application/sdp\r\n"};
+		    "Content-Type: application/sdp\r\n",
+		};
 
 		const auto request = formatter.format({{"parameter", (contactIsVerified ? ";verified" : "")}});
 
@@ -60,7 +60,7 @@ struct Helper : public NatTestHelper {
 	}
 
 	static shared_ptr<MsgSip> getInvite(bool contactIsVerified) {
-		StringFormatter formatter{
+		const StringFormatter formatter{
 		    "INVITE sip:callee@sip.example.org SIP/2.0\r\n"
 		    "Via: SIP/2.0/TCP 10.0.2.10:5678;branch=z9hG4bK-3908207663;rport=8765;received=82.65.220.100\r\n"
 		    "Max-Forwards: 70\r\n"
@@ -70,7 +70,8 @@ struct Helper : public NatTestHelper {
 		    "Contact: <sip:callee@sip.example.org;transport=tcp{parameter}>\r\n"
 		    "CSeq: 1 INVITE\r\n"
 		    "Accept: application/sdp\r\n"
-		    "Content-Length: 0\r\n"};
+		    "Content-Length: 0\r\n",
+		};
 
 		const auto request = formatter.format({{"parameter", (contactIsVerified ? ";verified" : "")}});
 
@@ -86,8 +87,8 @@ struct Helper : public NatTestHelper {
 	ContactCorrectionStrategy mStrategy{mAgent.get(), "verified"};
 };
 
-/*
- * Test contact url from "Contact" header is fixed using information set in the "VIA" header.
+/**
+ * Test contact url from the "Contact" header field is fixed using information set in the "VIA" header field.
  */
 void preProcessOnRequestNatHelperFixContactFromVia() {
 	const Helper helper{};
@@ -101,8 +102,8 @@ void preProcessOnRequestNatHelperFixContactFromVia() {
 	BC_ASSERT_CPP_EQUAL(contact->m_url->url_port, "8765"s);
 }
 
-/*
- * Test contact url from "Contact" header is not fixed ("verified" contact url parameter is present).
+/**
+ * Test contact url from the "Contact" header field is not fixed (the "verified" contact url parameter is present).
  */
 void preProcessOnRequestNatHelperNoFixContactFromVia() {
 	const Helper helper{};
@@ -116,8 +117,8 @@ void preProcessOnRequestNatHelperNoFixContactFromVia() {
 	BC_ASSERT(contact->m_url->url_port == nullptr);
 }
 
-/*
- * Test successful "record-route" addition and url matches the address of the server.
+/**
+ * Test the successful "Record-Route" header field addition, and url matches the address of the server.
  */
 void addRecordRouteNatHelper() {
 	const Helper helper{};
@@ -130,7 +131,7 @@ void addRecordRouteNatHelper() {
 	BC_ASSERT_CPP_EQUAL(routeUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
+/**
  * Test successful addition of "verified" contact url parameter when request goes through NatHelper::onResponse.
  */
 void onResponseNatHelperAddVerified() {
@@ -151,7 +152,7 @@ void onResponseNatHelperAddVerified() {
 	BC_ASSERT(contact->m_url->url_port == nullptr);
 }
 
-/*
+/**
  * Test successful contact url correction and addition of "verified" contact url parameter when request goes through
  * NatHelper::onResponse.
  */
@@ -171,7 +172,7 @@ void onResponseNatHelperCorrectContactAndAddVerified() {
 	BC_ASSERT_CPP_EQUAL(contact->m_url->url_port, "8765"s);
 }
 
-/*
+/**
  * Test successful addition of "verified" contact url parameter when request goes through NatHelper::onResponse and that
  * contact url is correct.
  */
@@ -193,7 +194,7 @@ void onResponseNatHelperContactIsCorrectAndAddVerified() {
 	BC_ASSERT_CPP_EQUAL(contact->m_url->url_port, "8765"s);
 }
 
-/*
+/**
  * Test nullptr is returned.
  */
 void getTportDestFromLastRoute() {
@@ -203,8 +204,8 @@ void getTportDestFromLastRoute() {
 	BC_ASSERT(helper.mStrategy.getTportDestFromLastRoute(event, nullptr) == nullptr);
 }
 
-/*
- * Test successful "record-route" addition and url matches the address of the server.
+/**
+ * Test the successful "Record-Route" header field addition, and the url matches the address of the server.
  */
 void addRecordRouteForwardModule() {
 	const Helper helper{};
@@ -218,8 +219,8 @@ void addRecordRouteForwardModule() {
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test successful "Path" header addition and url matches the address of the server.
+/**
+ * Test the successful "Path" header field addition, and the url matches the address of the server.
  */
 void addPathOnRegister() {
 	const Helper helper{};
@@ -233,8 +234,8 @@ void addPathOnRegister() {
 	BC_ASSERT_CPP_EQUAL(pathString, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
-/*
- * Test successful "Path" header addition and url matches the address of the server.
+/**
+ * Test the successful "Path" header field addition, and url matches the address of the server.
  */
 void addPathOnRegisterWithUniq() {
 	const Helper helper{};
@@ -248,19 +249,21 @@ void addPathOnRegisterWithUniq() {
 	BC_ASSERT_CPP_EQUAL(pathString, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;fs-proxy-id=stub-uniq;lr");
 }
 
-TestSuite _("NatTraversalStrategy::ContactCorrection",
-            {
-                TEST_NO_TAG_AUTO_NAMED(preProcessOnRequestNatHelperFixContactFromVia),
-                TEST_NO_TAG_AUTO_NAMED(preProcessOnRequestNatHelperNoFixContactFromVia),
-                TEST_NO_TAG_AUTO_NAMED(addRecordRouteNatHelper),
-                TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperAddVerified),
-                TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperCorrectContactAndAddVerified),
-                TEST_NO_TAG_AUTO_NAMED(onResponseNatHelperContactIsCorrectAndAddVerified),
-                TEST_NO_TAG_AUTO_NAMED(getTportDestFromLastRoute),
-                TEST_NO_TAG_AUTO_NAMED(addRecordRouteForwardModule),
-                TEST_NO_TAG_AUTO_NAMED(addPathOnRegister),
-                TEST_NO_TAG_AUTO_NAMED(addPathOnRegisterWithUniq),
-            });
+TestSuite _{
+    "NatTraversalStrategy::ContactCorrection",
+    {
+        CLASSY_TEST(preProcessOnRequestNatHelperFixContactFromVia),
+        CLASSY_TEST(preProcessOnRequestNatHelperNoFixContactFromVia),
+        CLASSY_TEST(addRecordRouteNatHelper),
+        CLASSY_TEST(onResponseNatHelperAddVerified),
+        CLASSY_TEST(onResponseNatHelperCorrectContactAndAddVerified),
+        CLASSY_TEST(onResponseNatHelperContactIsCorrectAndAddVerified),
+        CLASSY_TEST(getTportDestFromLastRoute),
+        CLASSY_TEST(addRecordRouteForwardModule),
+        CLASSY_TEST(addPathOnRegister),
+        CLASSY_TEST(addPathOnRegisterWithUniq),
+    },
+};
 
 } // namespace
 

@@ -21,22 +21,17 @@
 #include <memory>
 #include <string>
 
+#include "agent.hh"
 #include "flexisip/event.hh"
 #include "flexisip/module.hh"
-
-#include "agent.hh"
 #include "modules/module-toolbox.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-ContactCorrectionStrategy::Helper::Helper(const std::string& parameter) : mContactCorrectionParameter(parameter) {
-}
+ContactCorrectionStrategy::Helper::Helper(const std::string& parameter) : mContactCorrectionParameter(parameter) {}
 
-/*
- * Fix "Contact" header field present in request response.
- */
 void ContactCorrectionStrategy::Helper::fixContactInResponse(su_home_t* home, msg_t* msg, sip_t* sip) {
 	const su_addrinfo_t* ai = msg_addrinfo(msg);
 	const sip_via_t* via = sip->sip_via;
@@ -52,10 +47,10 @@ void ContactCorrectionStrategy::Helper::fixContactInResponse(su_home_t* home, ms
 		} else {
 			sip_contact_t* ctt = sip->sip_contact;
 			if (ctt && ctt->m_url->url_host) {
-				if (!ModuleToolbox::urlHostMatch(ctt->m_url, ip) ||
-				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, port)) {
+				if (!module_toolbox::urlHostMatch(ctt->m_url, ip) ||
+				    !module_toolbox::sipPortEquals(ctt->m_url->url_port, port)) {
 					LOGD << "Response is coming from " << ip << ":" << port << ", fixing contact";
-					ModuleToolbox::urlSetHost(home, ctt->m_url, ip);
+					module_toolbox::urlSetHost(home, ctt->m_url, ip);
 					ctt->m_url->url_port = su_strdup(home, port);
 				} else LOGD << "Contact in response is correct";
 
@@ -66,9 +61,6 @@ void ContactCorrectionStrategy::Helper::fixContactInResponse(su_home_t* home, ms
 	}
 }
 
-/*
- * Fix "Contact" header field using "rport" and "received" information from the "VIA" header field.
- */
 void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t* msg, const sip_via_t* via) {
 	sip_contact_t* ctt = msg->sip_contact;
 	const char* received = via->v_received;
@@ -98,16 +90,16 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 			url_param(ctt->m_url->url_params, "transport", ct_transport, sizeof(ct_transport) - 1);
 			// If we have a single contact, and we are the front-end proxy, or if we found an ip:port in a contact
 			// that seems incorrect because the same appeared fixed in the via, then fix it.
-			if ((is_frontend && single_contact) || (ModuleToolbox::urlHostMatch(host, via->v_host) &&
-			                                        ModuleToolbox::sipPortEquals(ctt->m_url->url_port, via->v_port) &&
-			                                        ModuleToolbox::transportEquals(via_transport, ct_transport))) {
+			if ((is_frontend && single_contact) || (module_toolbox::urlHostMatch(host, via->v_host) &&
+			                                        module_toolbox::sipPortEquals(ctt->m_url->url_port, via->v_port) &&
+			                                        module_toolbox::transportEquals(via_transport, ct_transport))) {
 
-				if (!ModuleToolbox::urlHostMatch(host, received) ||
-				    !ModuleToolbox::sipPortEquals(ctt->m_url->url_port, rport)) {
+				if (!module_toolbox::urlHostMatch(host, received) ||
+				    !module_toolbox::sipPortEquals(ctt->m_url->url_port, rport)) {
 					LOGD << "Fixing contact header with " << ctt->m_url->url_host
 					     << (ctt->m_url->url_port ? ":"s + ctt->m_url->url_port : "") << " to " << received
 					     << (rport ? ":"s + rport : "");
-					ModuleToolbox::urlSetHost(home, ctt->m_url, received);
+					module_toolbox::urlSetHost(home, ctt->m_url, received);
 					ctt->m_url->url_port = rport;
 				}
 				NatTraversalStrategy::Helper::fixTransport(home, ctt->m_url, via_transport);
@@ -116,9 +108,6 @@ void ContactCorrectionStrategy::Helper::fixContactFromVia(su_home_t* home, sip_t
 	}
 }
 
-/*
- * Check whether the "Contact" header field needs to be fixed.
- */
 bool ContactCorrectionStrategy::Helper::contactNeedsToBeFixed(const tport_t* internalTport, const SipEvent& ev) const {
 	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
 	sip_contact_t* ct = ms->getSip()->sip_contact;
@@ -132,8 +121,7 @@ const std::string& ContactCorrectionStrategy::Helper::getContactCorrectionParame
 }
 
 ContactCorrectionStrategy::ContactCorrectionStrategy(Agent* agent, const std::string& contactCorrectionParameter)
-    : NatTraversalStrategy(agent), mHelper(contactCorrectionParameter) {
-}
+    : NatTraversalStrategy(agent), mHelper(contactCorrectionParameter) {}
 
 void ContactCorrectionStrategy::preProcessOnRequestNatHelper(const RequestSipEvent& ev) const {
 	const auto& ms = ev.getMsgSip();
@@ -147,10 +135,10 @@ void ContactCorrectionStrategy::preProcessOnRequestNatHelper(const RequestSipEve
 }
 
 void ContactCorrectionStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
-	ModuleToolbox::addRecordRouteIncoming(mAgent, ev);
+	module_toolbox::addRecordRouteIncoming(mAgent, ev);
 }
 
-/*
+/**
  * TODO: Fixing contacts in responses is unreliable: we can't know if we are the first hop of the response.
  * This feature should be removed from Flexisip.
  */

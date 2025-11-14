@@ -21,7 +21,6 @@
 #include <memory>
 
 #include "agent.hh"
-#include "sofia-sip/msg_header.h"
 #include "sofia-sip/tport.h"
 #include "utils/flow.hh"
 

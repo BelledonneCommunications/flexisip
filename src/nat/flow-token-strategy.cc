@@ -22,11 +22,9 @@
 #include <memory>
 #include <string>
 
+#include "agent.hh"
 #include "flexisip/event.hh"
 #include "flexisip/module.hh"
-
-#include "agent.hh"
-#include "flexisip-config.h"
 #include "modules/module-toolbox.hh"
 #include "utils/flow.hh"
 #include "utils/socket-address.hh"
@@ -39,9 +37,6 @@ FlowTokenStrategy::Helper::Helper(const std::shared_ptr<SipBooleanExpression>& f
                                   const std::filesystem::path& hashKeyFilePath)
     : mFlowFactory(hashKeyFilePath), mForceStrategyBoolExpr(forceStrategyBoolExpr) {}
 
-/*
- * Check whether the given url contains a valid flow-token.
- */
 bool FlowTokenStrategy::Helper::urlHasFlowToken(const url_t* url) const {
 	if (url == nullptr or url->url_user == nullptr) {
 		return false;
@@ -50,9 +45,6 @@ bool FlowTokenStrategy::Helper::urlHasFlowToken(const url_t* url) const {
 	return mFlowFactory.tokenIsValid(url->url_user);
 }
 
-/*
- * Make sure the given request meets requirements for this strategy.
- */
 bool FlowTokenStrategy::Helper::requestMeetsRequirements(const MsgSip& ms) const {
 	const auto* sip = ms.getSip();
 

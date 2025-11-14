@@ -18,33 +18,23 @@
 
 #include "nat-traversal-strategy.hh"
 
-#include <memory>
-
-#include <sofia-sip/sip.h>
-#include <sofia-sip/su_alloc.h>
-#include <sofia-sip/url.h>
+#include "sofia-sip/sip.h"
+#include "sofia-sip/su_alloc.h"
+#include "sofia-sip/url.h"
 
 #include "flexisip/module.hh"
-
 #include "modules/module-toolbox.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-NatTraversalStrategy::NatTraversalStrategy(Agent* agent) : mAgent(agent) {
-}
+NatTraversalStrategy::NatTraversalStrategy(Agent* agent) : mAgent(agent) {}
 
-/*
- * Check whether the pointer is empty or if pointed data is null terminator.
- */
 bool NatTraversalStrategy::Helper::empty(const char* value) {
 	return value == NULL || value[0] == '\0';
 }
 
-/*
- * Fix path url using "rport" and "received" from the first "VIA" header field.
- */
 void NatTraversalStrategy::Helper::fixPath(const std::shared_ptr<MsgSip>& ms) {
 	sip_t* sip = ms->getSip();
 	const sip_via_t* via = sip->sip_via;
@@ -61,9 +51,6 @@ void NatTraversalStrategy::Helper::fixPath(const std::shared_ptr<MsgSip>& ms) {
 	fixTransport(ms->getHome(), path, transport);
 }
 
-/*
- * Fix "transport" parameter value in provided url.
- */
 void NatTraversalStrategy::Helper::fixTransport(su_home_t* home, url_t* url, const char* transport) {
 	if (url_has_param(url, "transport")) {
 		url->url_params = url_strip_param_string(su_strdup(home, url->url_params), "transport");

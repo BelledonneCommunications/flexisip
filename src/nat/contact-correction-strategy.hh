@@ -21,20 +21,19 @@
 #include <memory>
 #include <string>
 
-#include "flexisip/event.hh"
-
 #include "agent.hh"
+#include "flexisip/event.hh"
 #include "nat-traversal-strategy.hh"
 
 namespace flexisip {
 
-/*
- * The aim of this strategy is to correct the url in the "Contact" header field. This header is corrected using "rport"
- * and "received" information present in the "VIA" header field.
+/**
+ * Correct the url in the "Contact" header field. This header is corrected using "rport" and "received" information
+ * present in the "VIA" header field.
  */
 class ContactCorrectionStrategy : public NatTraversalStrategy {
 public:
-	/*
+	/**
 	 * Utility methods for the strategy.
 	 */
 	class Helper {
@@ -42,9 +41,17 @@ public:
 		Helper() = delete;
 		explicit Helper(const std::string& parameter);
 
+		/**
+		 * Fix the "Contact" header field present in request response.
+		 */
 		static void fixContactInResponse(su_home_t* home, msg_t* msg, sip_t* sip);
+		/**
+		 * Fix the "Contact" header field using "rport" and "received" information from the "VIA" header field.
+		 */
 		static void fixContactFromVia(su_home_t* home, sip_t* msg, const sip_via_t* via);
-
+		/**
+		 * Check whether the "Contact" header field needs to be fixed.
+		 */
 		bool contactNeedsToBeFixed(const tport_t* internalTport, const SipEvent& ev) const;
 
 		const std::string& getContactCorrectionParameter() const;

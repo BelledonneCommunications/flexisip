@@ -22,8 +22,6 @@
 #include <memory>
 #include <string>
 
-#include "sofia-sip/tport.h"
-
 #include "agent.hh"
 #include "conditional-routes.hh"
 #include "domain-registrations.hh"

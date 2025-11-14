@@ -18,28 +18,26 @@
 
 #pragma once
 
-#include <array>
 #include <memory>
-#include <string>
+#include <string_view>
 
-#include <sofia-sip/tport.h>
-
-#include "flexisip/event.hh"
-#include "flexisip/sip-boolean-expressions.hh"
+#include "sofia-sip/tport.h"
 
 #include "agent.hh"
+#include "flexisip/event.hh"
+#include "flexisip/sip-boolean-expressions.hh"
 #include "nat-traversal-strategy.hh"
 #include "utils/flow-factory.hh"
 
 namespace flexisip {
 
-/*
+/**
  * The aim of this strategy is to add information in the record-routes about "connections" established between proxy
  * servers and UACs. Thus, requests are correctly routed to UACs hidden behind NATs.
  */
 class FlowTokenStrategy : public NatTraversalStrategy {
 public:
-	/*
+	/**
 	 * Utility methods for the strategy.
 	 */
 	class Helper {
@@ -48,7 +46,13 @@ public:
 		Helper(const std::shared_ptr<SipBooleanExpression>& forceStrategyBoolExpr,
 		       const std::filesystem::path& hashKeyFilePath);
 
+		/**
+		 * Check whether the given url contains a valid flow-token.
+		 */
 		bool urlHasFlowToken(const url_t* url) const;
+		/**
+		 * Make sure the given request meets requirements for this strategy.
+		 */
 		bool requestMeetsRequirements(const MsgSip& ms) const;
 
 		const FlowFactory& getFlowFactory() const;

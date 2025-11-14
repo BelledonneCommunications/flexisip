@@ -18,7 +18,6 @@
 
 #include "modules/module-forward.hh"
 
-#include <sstream>
 #include <utility>
 
 #include "sofia-sip/msg_types.h"

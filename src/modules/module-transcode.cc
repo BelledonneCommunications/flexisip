@@ -340,7 +340,7 @@ int Transcoder::processInvite(TranscodedCall* c, RequestSipEvent& ev) {
 	}
 	if (ret == 0) {
 		// be in the record-route
-		ModuleToolbox::addRecordRouteIncoming(getAgent(), ev);
+		module_toolbox::addRecordRouteIncoming(getAgent(), ev);
 		c->storeNewInvite(ms.getMsg());
 	} else {
 		ev.reply(415, "Unsupported codecs", TAG_END());
@@ -481,7 +481,7 @@ void Transcoder::onResponse(ResponseSipEvent& ev) {
 			return;
 		}
 
-		ModuleToolbox::fixAuthChallengeForSDP(ms.getHome(), msg, sip);
+		module_toolbox::fixAuthChallengeForSDP(ms.getHome(), msg, sip);
 
 		auto transaction = dynamic_pointer_cast<OutgoingTransaction>(ev.getOutgoingAgent());
 		if (transaction == NULL) {

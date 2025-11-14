@@ -43,7 +43,7 @@ void NatHelper::onRequest(RequestSipEvent& ev) {
 
 	// Processing of requests that may establish a dialog.
 	if ((rqMethod == sip_method_invite or rqMethod == sip_method_subscribe) and sip->sip_to->a_tag == nullptr) {
-		// Fix potential record-route from a "NATed" proxy added before us.
+		// Fix a potential "Record-Route" header field from a "NATed" proxy added before us.
 		if (mFixRecordRoutes) {
 			fixRecordRouteInRequest(ms);
 		}
@@ -51,7 +51,7 @@ void NatHelper::onRequest(RequestSipEvent& ev) {
 		strategy->addRecordRouteNatHelper(ev);
 	}
 
-	// Fix potential "Path" header inserted before us by a flexisip "NATed" proxy.
+	// Fix a potential "Path" header field inserted before us by a flexisip "NATed" proxy.
 	if (rqMethod == sip_method_register and path != nullptr and url_has_param(path->r_url, "fs-proxy-id")) {
 		// Note: why limiting this to Flexisip? It could fix any path header, even without fs-proxy-id param.
 		NatTraversalStrategy::Helper::fixPath(ms);
