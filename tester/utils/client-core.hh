@@ -324,6 +324,22 @@ public:
 	}
 
 	/**
+	 * Iterate and evaluates whether this client is in linphone::RegistrationState::Ok or not.
+	 *
+	 * @param[in] asserter asserter
+	 *
+	 * @return true if the client is registered aka linphone::RegistrationState::Ok
+	 */
+	[[nodiscard]] AssertionResult isRegistered(const BcAssert<>& asserter) const {
+		return asserter.waitUntil(mCallInviteReceivedDelay, [this] {
+			const auto& acc = mCore->getDefaultAccount();
+			FAIL_IF(acc == nullptr);
+			FAIL_IF(acc->getState() != linphone::RegistrationState::Ok);
+			return ASSERTION_PASSED();
+		});
+	}
+
+	/**
 	 * Invite another CoreClient but makes no asserts. Does not iterate any of the Cores.
 	 *
 	 * @param[in]	peer	the other client to call

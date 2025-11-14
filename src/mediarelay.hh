@@ -191,10 +191,10 @@ private:
 	mutable Mutex mMutex;
 	MediaRelayServer* mServer;
 	time_t mLastActivityTime;
-	std::string mFrontId;
-	std::shared_ptr<RelayChannel> mFront;
-	std::map<std::string, std::shared_ptr<RelayChannel>> mBacks;
-	std::shared_ptr<RelayChannel> mBack;
+	std::string mFrontChannelId;
+	std::shared_ptr<RelayChannel> mFrontChannel;
+	std::map<std::string, std::shared_ptr<RelayChannel>> mPotentialBackChannels;
+	std::shared_ptr<RelayChannel> mSelectedBackChannel;
 	bool_t mUsed;
 	std::string mLogPrefix;
 };
