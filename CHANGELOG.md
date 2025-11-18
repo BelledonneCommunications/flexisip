@@ -142,8 +142,7 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
 - **Plugin:** JweAuth.
 
 
-## [2.4.3] - 2025-11-07 
-- **SDK version:** 5.3.112
+## [2.4.4]
 
 ### [Fixed]
 - **Proxy:**
@@ -151,6 +150,12 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
     - The server was not updating the IP address inserted in the SDP response when a client's network
       changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
     - Memory leak on calls to offline iOS devices (INVITE/CANCEL scenario)
+
+## [2.4.3] - 2025-11-07 
+- **SDK version:** 5.3.112
+
+### [Fixed]
+- **Proxy:**
   - **PushNotifications:**
     - Apple push certificates could not contain '.dev' in their filename and be used in a production environment.
     - The HTTP client was not trying to reconnect in case of a "connection reset by peer" error before sending pending
