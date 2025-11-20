@@ -25,6 +25,7 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
+#include "utils/configuration/media.hh"
 #include "utils/configuration/transport.hh"
 #include "utils/digest.hh"
 
@@ -86,6 +87,11 @@ void VoicemailServer::_init() {
 	// No sound card shall be used in calls.
 	mCore->setUseFiles(true);
 	mCore->enableEchoCancellation(false);
+
+	const auto audioPortMin = config->get<ConfigIntRange>("audio-port")->readMin();
+	const auto audioPortMax = config->get<ConfigIntRange>("audio-port")->readMax();
+	configuration_utils::setMediaPort(audioPortMin, audioPortMax, *mCore, &linphone::Core::setAudioPort,
+	                                  &linphone::Core::setAudioPortRange);
 
 	// Create default account for the server.
 	const auto accountParams = mCore->createAccountParams();
@@ -220,6 +226,14 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Unique SIP URI on which the server is listening.\n"
 	        "Supported protocols: UDP and TCP.",
 	        "sip:127.0.0.1:6066;transport=tcp",
+	    },
+	    {
+	        IntegerRange,
+	        "audio-port",
+	        "Audio port to use for RTP and RTCP traffic. You can set a specific port, a range of ports or let the "
+	        "server ask the kernel for an available port (special value: 0).\n"
+	        "Examples: 'audio-port=0' or 'audio-port=12345' or 'audio-port=1024-65535'",
+	        "0",
 	    },
 	    {
 	        String,
