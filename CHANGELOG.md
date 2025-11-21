@@ -104,26 +104,24 @@ declined or not answered. Currently, the server accepts all incoming calls, play
           For more information, see the [configuration reference guide].
         - New module called `AuthOpenIDConnect` that enables authentication using OpenID Connect method.
           For more information, see the [module::AuthOpenIDConnect documentation].
-    - **PushNotification:**
-        - Send push notifications on NOTIFY requests receipt if the event type is 'message-summary'
-          ([RFC3842](https://datatracker.ietf.org/doc/html/rfc3842)).
-          It is managed by the new parameter `enable-message-summaries-pn`.
-    - **Registrar:**
-        - New parameter `redis-subscription-keep-alive-check-period` to periodically ping active Redis subscription
-          sessions in order to detect and mitigate connection issues (tries to reconnect if connection is closed).
+    - **PushNotification:** Send push notifications on NOTIFY requests receipt if the event type is 'message-summary'
+      ([RFC3842](https://datatracker.ietf.org/doc/html/rfc3842)). It is managed by the new parameter
+      `enable-message-summaries-pn`.
+    - **Registrar:** New parameter `redis-subscription-keep-alive-check-period` to periodically ping active Redis
+      subscription sessions to detect and mitigate connection issues (tries to reconnect if connection is closed).
 - **B2BUA server:**
     - Support for early media.
     - Support for blind and attended call transfers ([RFC5589](https://datatracker.ietf.org/doc/html/rfc5589)).
       Limitations: not supported in SIP-bridge mode with the 'Random' strategy.
     - New parameters `audio-codec` and `video-codec` to force the usage of a specific audio or video codec
-      (disables all other codecs). Using these parameters significantly improve performances of the server (number
+      (disables all other codecs). Using these parameters significantly improves the performances of the server (number
       of concurrent calls). Documentation is available in the [configuration reference guide].
     - New parameter `enable-ice` to enable ICE negotiation for RTP streams (enabled by default).
     - New parameter `nat-addresses` to specify public host name or IP addresses of the server. For more information, see
       the [configuration reference guide].
     - New parameter `max-calls` to specify the maximum number of concurrent calls an instance of the server can handle.
     - New parameter `enable-keepalive` (sends 'keepalive' packets to keep udp NAT association).
-    - **SIP-Bridge:**:
+    - **SIP-Bridge:**
         - Forwarding of SUBSCRIBE and NOTIFY requests.
         - **AccountPool:**
             - New parameter `mwiServerUri` to specify the URI of the MWI server.
@@ -144,7 +142,7 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 - **Conference:** Parameter `conference-focus-uris` is now mandatory.
 - **Proxy:**
     - TLS/SSL certificates MUST not be expired (or Flexisip will not start).
-    - **Authorization:** New behavior (check if the SIP domain is authorized and reject inter domain requests),
+    - **Authorization:** New behavior (check if the SIP domain is authorized and reject inter-domain requests),
       available in two modes (more information in the [configuration reference guide]):
         - `static`: Specify a list of authorized SIP domains in the configuration file (default behavior).
         - `dynamic`: Set up a connection to the [FlexisipAccountManager] server to dynamically get the list of
@@ -153,10 +151,8 @@ declined or not answered. Currently, the server accepts all incoming calls, play
     - **Trenscrypter:** Invalid values in `outgoing-enc-regex` and `outgoing-srtp-regex` parameters are now
       considered as errors and prevent the server from starting.
     - **SIP-Bridge:**: For detailed information, see the [SIP-Bridge documentation].
-        - **AccountPool:**
-            - Parameter `outbound_proxy` is now optional.
-        - **Account:**
-            - Parameter `outbound_proxy` can now contain a hostname or a full SIP URI.
+        - **AccountPool:** Parameter `outbound_proxy` is now optional.
+        - **Account:** Parameter `outbound_proxy` can now contain a hostname or a full SIP URI.
 
 ### [Deprecated]
 - **Debian 11:** Support will be discontinued in the next release, as distribution will reach its end-of-life (2026-08-31).
@@ -164,8 +160,8 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 ### [Fixed]
 - **Proxy:**
     - **Forward:**
-      - Contact paths were not properly processed for mid-dialog requests intended to GRUU addresses. Fetched
-        paths from database were not translated into 'Route' headers before forwarding the request.
+      - Contact paths were not properly processed for mid-dialog requests intended for GRUU addresses. Fetched
+        paths from the database were not translated into 'Route' headers before forwarding the request.
       - P-Preferred-Identity header is removed if present before forwarding the request.
       - When using `routes-config-path`, a 'Route' header is now added only to out-of-dialog requests.
     - **Router:** 
@@ -176,9 +172,8 @@ declined or not answered. Currently, the server accepts all incoming calls, play
       - Invite/Cancel (iOS devices) feature was not working properly when no response (503 or 408 to INVITE request) was
         received before CANCEL request receipt.
     - **Registrar:** A client that does not use '+sip.instance' could have duplicate entries in the registrar database.
-- **Conference server:**
-    - Set the default contact address (with identity address of the conference server) to fix issues when connection
-      to the Redis database is slow or broken.
+- **Conference server:** Set the default contact address (with identity address of the conference server) to fix issues
+  when connection to the Redis database is slow or broken.
 - **B2BUA server:**
     - Now properly resumes calls that were paused on both sides.
     - Performance issues (memory leaks due to linphone::Account accumulations).
@@ -186,22 +181,23 @@ declined or not answered. Currently, the server accepts all incoming calls, play
       properly).
     - **SIP Bridge:**
         - With `one-connection-per-account` enabled, the server now uses the correct port to answer to OPTION requests.
-        - Update accounts smoothly on full (re)load.
+        - Update accounts smoothly on a full (re)load.
           If the Redis connection was lost, we might have missed a notification of an account being
           created/updated/deleted. So we fetch all accounts from DB again, then run a diff to intelligently update what
           we already have (That update process is rate-limited in the same manner as that of loading all accounts on
-          first boot).
-        - Changes made to authentication information where not taken into account when the server was running. Now
+          the first boot).
+        - Changes made to authentication information were not taken into account when the server was running. Now
           ensures that a new REGISTER for the involved account is sent.
 - **Build:** Compilation on macOS.
-- **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and is now only added if the target is a domain name (and not an IPv4 or IPv6 address).
-This is more compliant with RFC 6066, and therefore more compatible with stricter HTTPS implementations.
+- **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and
+  is now only added if the target is a domain name (and not an IPv4 or IPv6 address). This is more compliant with
+  RFC6066, and therefore more compatible with stricter HTTPS implementations.
 - **Logger:** Some useful error logs were not printed during the startup phase.
 - **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
   configuration file.
  
 ### [Security]
-- **Sofia-sip:** Fixed multiple CVE: 
+- **Sofia-sip:** Fixed multiple CVE
   - https://nvd.nist.gov/vuln/detail/CVE-2022-47516
   - https://nvd.nist.gov/vuln/detail/CVE-2022-31001
   - https://nvd.nist.gov/vuln/detail/CVE-2022-31002
@@ -220,6 +216,7 @@ This is more compliant with RFC 6066, and therefore more compatible with stricte
 
 
 ## [2.4.4]
+- **SDK version:** 5.3.112
 
 ### [Fixed]
 - **Proxy:**
