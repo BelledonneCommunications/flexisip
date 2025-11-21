@@ -88,7 +88,7 @@ void BranchInfo::processResponse(ResponseSipEvent& event) {
 	forkCtx->onResponse(shared_from_this(), *mLastResponseEvent);
 
 	// The event may go through, but it will not be sent.
-	event.setIncomingAgent(nullptr);
+	event.doNotForward();
 
 	// A response has been submitted, else, it has been retained.
 	if (!mLastResponseEvent || !mLastResponseEvent->isSuspended()) {
@@ -103,11 +103,10 @@ int BranchInfo::getStatus() const {
 	return mLastResponse ? mLastResponse->getSip()->sip_status->st_status : 0;
 }
 
-bool BranchInfo::needsDelivery(FinalStatusMode mode) const {
+bool BranchInfo::needsDelivery(const FinalStatusMode mode) const {
 	if (mCanceled) return false;
 
 	const auto currentStatus = getStatus();
-
 	switch (mode) {
 		case FinalStatusMode::ForkLate:
 			return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
@@ -194,7 +193,7 @@ bool BranchInfo::sendResponse(bool forkContextHasIncomingTransaction) {
 	}
 
 	if (!forkContextHasIncomingTransaction) {
-		mLastResponseEvent->setIncomingAgent(nullptr);
+		mLastResponseEvent->doNotForward();
 		return false;
 	}
 
