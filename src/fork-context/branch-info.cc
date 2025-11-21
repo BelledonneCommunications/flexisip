@@ -85,7 +85,7 @@ void BranchInfo::processResponse(ResponseSipEvent& event) {
 	forkCtx->onResponse(shared_from_this(), *mLastResponseEvent);
 
 	// The event may go through, but it will not be sent.
-	event.setIncomingAgent(nullptr);
+	event.doNotForward();
 
 	// A response has been submitted, else, it has been retained.
 	if (!mLastResponseEvent || !mLastResponseEvent->isSuspended()) {
@@ -101,8 +101,9 @@ int BranchInfo::getStatus() {
 }
 
 bool BranchInfo::needsDelivery(FinalStatusMode mode) {
-	auto currentStatus = getStatus();
+	if (mCanceled) return false;
 
+	auto currentStatus = getStatus();
 	switch (mode) {
 		case FinalStatusMode::ForkLate:
 			return currentStatus < 200 || currentStatus == 503 || currentStatus == 408;
@@ -189,7 +190,7 @@ bool BranchInfo::forwardResponse(bool forkContextHasIncomingTransaction) {
 	}
 
 	if (!forkContextHasIncomingTransaction) {
-		mLastResponseEvent->setIncomingAgent(nullptr);
+		mLastResponseEvent->doNotForward();
 		return false;
 	}
 
@@ -218,11 +219,13 @@ void BranchInfo::cancel(const std::optional<CancelInfo>& information, bool keepA
 		return;
 	}
 
+	LOGD << "Canceling branch (status = '" << getStatus() << "')";
 	if (information && information->mReason) {
 		mTransaction->cancelWithReason(information->mReason);
 	} else {
 		mTransaction->cancel();
 	}
+	mCanceled = true;
 }
 
 } // namespace flexisip

@@ -263,6 +263,8 @@ public:
 	          ...) override;
 
 	void setOutgoingAgent(const std::shared_ptr<OutgoingAgent>& agent) override;
+	void doNotForward();
+	bool shouldBeForwarded() const;
 
 	~ResponseSipEvent();
 
@@ -270,6 +272,7 @@ private:
 	void checkContentLength(const std::shared_ptr<MsgSip>& msg, const sip_via_t* via);
 	bool mPopVia; // set to true if the response comes from an outgoing transaction.
     std::string mLogPrefix;
+	bool mShouldForward = true;
 };
 
 } // namespace flexisip

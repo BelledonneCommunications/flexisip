@@ -115,6 +115,7 @@ add_executable(flexisip_tester
 	tests/registrar/register-tester.cc
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
+	tests/response-sip-event-tester.cc
 	tests/router/fork/fork-call-tester.cc
 	tests/router/fork/fork-context-tester.cc
 	tests/router/module-router-tester.cc

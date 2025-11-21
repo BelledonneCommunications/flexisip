@@ -223,6 +223,7 @@ private:
 	std::weak_ptr<PushNotificationContext> mPushContext{};
 	bool mWaitingAppleClientResponse{};
 	std::string mLogPrefix{};
+	bool mCanceled{};
 };
 
 } // namespace flexisip

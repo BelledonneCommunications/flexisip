@@ -148,9 +148,9 @@ unique_ptr<ResponseSipEvent> Module::processResponse(unique_ptr<ResponseSipEvent
 			if (mFilter->canEnter(ms)) {
 				LOGD_CTX("Module") << "Execute onResponse() on module " << getModuleName();
 				return onResponse(std::move(ev));
-			} else
-				LOGD_CTX("Module") << "Skipped onResponse() on module " << getModuleName()
-				                   << ": filter evaluated to 'false'";
+			}
+			LOGD_CTX("Module") << "Skipped onResponse() on module " << getModuleName()
+			                   << ": filter evaluated to 'false'";
 		}
 	} catch (FlexisipException& fe) {
 		LOGD_CTX("Module") << "Skipped onResponse() on module " << getModuleName() << ": " << fe;

@@ -393,7 +393,9 @@ void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const s
 
 void ResponseSipEvent::send(
     const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
-	if (auto sharedIncomingAgent = getIncomingAgent()) {
+	if (!shouldBeForwarded()) {
+		LOGI << "Marked as 'do not forward', it is not sent";
+	} else if (auto sharedIncomingAgent = getIncomingAgent()) {
 		bool viaPopped = false;
 		if (mPopVia && msg == mMsgSip) {
 			sip_via_remove(msg->getMsg(), msg->getSip());
@@ -426,6 +428,15 @@ void ResponseSipEvent::send(
 void ResponseSipEvent::setOutgoingAgent([[maybe_unused]] const shared_ptr<OutgoingAgent>& agent) {
 	throw FlexisipException{"can't change outgoing agent in response sip event"};
 }
+
+void ResponseSipEvent::doNotForward() {
+	mShouldForward = false;
+}
+
+bool ResponseSipEvent::shouldBeForwarded() const {
+	return mShouldForward;
+}
+
 
 ResponseSipEvent::~ResponseSipEvent() {
 }

@@ -63,8 +63,10 @@ const string& OutgoingTransaction::getBranchId() const {
 template <typename... Tags>
 void OutgoingTransaction::_cancel(Tags... tags) {
 	if (mOutgoing) {
-		// NTATAG_CANCEL_2543(1) --> the stack generates a 487 response to the request internally
-		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_2543(1), TAG_END());
+		nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_3261(1), TAG_END());
+		// Prevent from calling the custom callback whenever a new response is being received for this outgoing
+		// transaction. From now on, we want to let sofia-sip manage transaction's end of life.
+		nta_outgoing_destroy(mOutgoing.borrow());
 	} else {
 		LOGD << "Transaction already destroyed";
 	}
