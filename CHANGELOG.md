@@ -126,6 +126,11 @@ Group changes to describe their impact on the project, as follows:
     - [`one-connection-per-account`](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/2.4.0/b2bua-server#HB2buaserver):
       Let the B2BUA use a separate connection (port) for each (external) account it manages. This can be used to work
       around DoS protection and rate-limiting systems on external proxies.
+    - Update accounts smoothly on a full (re)load.
+      If the Redis connection was lost, we might have missed a notification of an account being
+      created/updated/deleted. So we fetch all accounts from DB again, then run a diff to intelligently update what
+      we already have (That update process is rate-limited in the same manner as that of loading all accounts on
+      the first boot).
 - **Proxy/Router:** New parameter `module::Router/static-targets` that lists sip addresses which will always be added to
   the list of contacts fetched from the registrar database when routing INVITE and MESSAGE requests.
 - **Proxy/NatHelper:** New strategy to route requests through NATs called
