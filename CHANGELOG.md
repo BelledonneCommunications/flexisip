@@ -104,17 +104,9 @@ Group changes to describe their impact on the project, as follows:
       properly).
     - **SIP Bridge:**
         - With `one-connection-per-account` enabled, the server now uses the correct port to answer to OPTION requests.
-        - Update accounts smoothly on a full (re)load.
-          If the Redis connection was lost, we might have missed a notification of an account being
-          created/updated/deleted. So we fetch all accounts from DB again, then run a diff to intelligently update what
-          we already have (That update process is rate-limited in the same manner as that of loading all accounts on
-          the first boot).
         - Changes made to authentication information were not taken into account when the server was running. Now
           ensures that a new REGISTER for the involved account is sent.
 - **Build:** Compilation on macOS.
-- **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and
-  is now only added if the target is a domain name (and not an IPv4 or IPv6 address). This is more compliant with
-  RFC6066, and therefore more compatible with stricter HTTPS implementations.
 - **Logger:** Some useful error logs were not printed during the startup phase.
 - **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
   configuration file.
@@ -147,6 +139,9 @@ Group changes to describe their impact on the project, as follows:
     - The server was not updating the IP address inserted in the SDP response when a client's network
       changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
     - Memory leak on calls to offline iOS devices (INVITE/CANCEL scenario)
+- **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and
+  is now only added if the target is a domain name (and not an IPv4 or IPv6 address). This is more compliant with
+  RFC6066, and therefore more compatible with stricter HTTPS implementations.
 
 ## [2.4.3] - 2025-11-07 
 - **SDK version:** 5.3.112
@@ -247,6 +242,11 @@ Group changes to describe their impact on the project, as follows:
     - [`one-connection-per-account`](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/A.%20Configuration%20Reference%20Guide/2.4.0/b2bua-server#HB2buaserver):
       Let the B2BUA use a separate connection (port) for each (external) account it manages. This can be used to work
       around DoS protection and rate-limiting systems on external proxies.
+    - Update accounts smoothly on a full (re)load.
+      If the Redis connection was lost, we might have missed a notification of an account being
+      created/updated/deleted. So we fetch all accounts from DB again, then run a diff to intelligently update what
+      we already have (That update process is rate-limited in the same manner as that of loading all accounts on
+      the first boot).
 - **Proxy/Router:** New parameter `module::Router/static-targets` that lists sip addresses which will always be added to
   the list of contacts fetched from the registrar database when routing INVITE and MESSAGE requests.
 - **Proxy/NatHelper:** New strategy to route requests through NATs called
