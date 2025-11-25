@@ -21,10 +21,7 @@
 #include <future>
 #include <string>
 
-#include <pthread.h>
-#include <sys/un.h>
-
-#include <flexisip/configmanager.hh>
+#include "flexisip/configmanager.hh"
 
 namespace flexisip {
 
@@ -32,7 +29,7 @@ class CliHandler {
 public:
 	using HandlerTable = std::list<std::reference_wrapper<CliHandler>>;
 
-	~CliHandler();
+	virtual ~CliHandler();
 
 	/**
 	 * Handles the command and returns the answer, or empty string if it couldn't be handled and another handler should
@@ -120,11 +117,11 @@ public:
 	ProxyCommandLineInterface(const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<Agent>& agent);
 
 private:
-	void handleRegistrarClear(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleRegistrarDelete(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleRegistrarUpsert(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleRegistrarGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args);
-	void handleRegistrarDump(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args);
+	void handleRegistrarClear(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
+	void handleRegistrarDelete(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
+	void handleRegistrarUpsert(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
+	void handleRegistrarGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
+	void handleRegistrarDump(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
 	void parseAndAnswer(std::shared_ptr<SocketHandle> socket,
 	                    const std::string& command,
 	                    const std::vector<std::string>& args) override;

@@ -18,30 +18,32 @@
 
 #include "cli.hh"
 
+#include <poll.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <poll.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include <utility>
 
-#include <bctoolbox/ownership.hh>
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
-#include <sofia-sip/su_log.h>
+#include "bctoolbox/ownership.hh"
 
+#include "sofia-sip/su_log.h"
+#include "sofia-sip/url.h"
+
+#include "agent.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "flexisip/utils/sip-uri.hh"
-
-#include "agent.hh"
-#include "cJSON.h"
 #include "recordserializer.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/contact-key.hh"
 #include "registrar/registrar-db.hh"
-#include "sofia-sip/url.h"
 #include "utils/string-utils.hh"
 
 using namespace std;
@@ -465,7 +467,7 @@ public:
 	}
 };
 
-void ProxyCommandLineInterface::handleRegistrarGet(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+void ProxyCommandLineInterface::handleRegistrarGet(shared_ptr<SocketHandle> socket, const vector<string>& args) const {
 	if (args.empty()) {
 		socket->send("Error - 'REGISTRAR_GET' command expects 1 argument: <aor>");
 		return;
@@ -483,7 +485,8 @@ void ProxyCommandLineInterface::handleRegistrarGet(shared_ptr<SocketHandle> sock
 	mAgent->getRegistrarDb().fetch(aor, listener, false);
 }
 
-void ProxyCommandLineInterface::handleRegistrarUpsert(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+void ProxyCommandLineInterface::handleRegistrarUpsert(shared_ptr<SocketHandle> socket,
+                                                      const vector<string>& args) const {
 	if (args.size() < 3 or 4 < args.size()) {
 		socket->send("Error - 'REGISTRAR_UPSERT' command expects 3 to 4 arguments: <aor> <uri> <expire> [<uuid>]");
 		return;
@@ -551,7 +554,8 @@ public:
 	}
 };
 
-void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> socket,
+                                                      const vector<string>& args) const {
 	if (args.size() < 2) {
 		socket->send("Error - 'REGISTRAR_DELETE' command expects 2 arguments: <uri> <uuid>.");
 		return;
@@ -580,7 +584,8 @@ void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> s
 	                              make_shared<SerializeRecordEvenIfEmpty>(std::move(socket)));
 }
 
-void ProxyCommandLineInterface::handleRegistrarClear(shared_ptr<SocketHandle> socket, const vector<string>& args) {
+void ProxyCommandLineInterface::handleRegistrarClear(shared_ptr<SocketHandle> socket,
+                                                     const vector<string>& args) const {
 	if (args.empty()) {
 		socket->send("Error - 'REGISTRAR_CLEAR' command expects 1 argument: <aor>");
 		return;
@@ -626,23 +631,21 @@ void ProxyCommandLineInterface::handleRegistrarClear(shared_ptr<SocketHandle> so
 	                                    mAgent->getRegistrarDb()));
 }
 
-void ProxyCommandLineInterface::handleRegistrarDump(const shared_ptr<SocketHandle>& socket, const vector<string>&) {
+void ProxyCommandLineInterface::handleRegistrarDump(const shared_ptr<SocketHandle>& socket,
+                                                    const vector<string>&) const {
 	list<string> aorList;
 
 	mAgent->getRegistrarDb().getLocalRegisteredAors(aorList);
 
-	cJSON* root = cJSON_CreateObject();
-	cJSON* contacts = cJSON_CreateArray();
+	nlohmann::json output{};
+	// We need to initialize an empty array, so when the list of AORs is actually empty, the CLI returns an empty array.
+	output["aors"] = nlohmann::json::array();
 
-	cJSON_AddItemToObject(root, "aors", contacts);
 	for (const auto& aor : aorList) {
-		cJSON* pitem = cJSON_CreateString(aor.c_str());
-		cJSON_AddItemToArray(contacts, pitem);
+		output["aors"].push_back(aor);
 	}
-	auto* jsonOutput = cJSON_Print(root);
-	socket->send(jsonOutput);
-	free(jsonOutput);
-	cJSON_Delete(root);
+
+	socket->send(output.dump());
 }
 
 void ProxyCommandLineInterface::parseAndAnswer(shared_ptr<SocketHandle> socket,

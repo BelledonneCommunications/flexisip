@@ -14,6 +14,12 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.1]
+- **SDK version:** 5.4.58
+
+### [Fixed]
+- **CLI:** The REGISTRAR_DUMP command was always returning an empty set.
+
 ## [2.5.0]
 - **SDK version:** 5.4.58
 

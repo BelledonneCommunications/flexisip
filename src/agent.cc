@@ -589,6 +589,12 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	LOGI << "Agent public resolved hostname/ip: v4:" << mPublicResolvedIpV4 << " v6:" << mPublicResolvedIpV6;
 	LOGI << "Agent _default_ RTP bind ip address: v4:" << mRtpBindIp << " v6:" << mRtpBindIp6;
 
+	mRegistrarDb->setLatestExpirePredicate([weakAg = weak_from_this()](const url_t* url) {
+		auto agent = weakAg.lock();
+		if (agent == nullptr) return false;
+		return agent->isUs(url);
+	});
+
 	startLogWriter();
 
 	loadModules();
@@ -711,12 +717,6 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	for (const auto& alias : mAliases) {
 		LOGI << "\t" << alias;
 	}
-
-	mRegistrarDb->setLatestExpirePredicate([weakAg = weak_from_this()](const url_t* url) {
-		auto agent = weakAg.lock();
-		if (agent == nullptr) return false;
-		return agent->isUs(url);
-	});
 
 	initializePreferredRoute();
 }
