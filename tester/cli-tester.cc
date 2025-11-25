@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,34 +16,39 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "cli.hh"
+
+#include <sys/un.h>
+#include <sysexits.h>
+
 #include <cerrno>
 #include <chrono>
 #include <future>
 #include <memory>
 #include <string>
-#include <sysexits.h>
 
-#include <json/json.h>
-
-#include <sofia-sip/su_log.h>
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include "bctoolbox/tester.h"
-#include "registrar/record.hh"
-#include "utils/string-utils.hh"
-#include <flexisip/logmanager.hh>
+
+#include "sofia-sip/su_log.h"
 
 #include "flexisip-tester-config.hh"
+#include "registrar/record.hh"
+#include "registrardb-internal.hh"
+#include "sofia-wrapper/nta-agent.hh"
 #include "utils/asserts.hh"
+#include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/string-utils.hh"
 #include "utils/successful-bind-listener.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
-#include "cli.hh"
-
 using namespace std;
+using namespace sofiasip;
 using namespace std::string_literals;
 using namespace std::chrono_literals;
 
@@ -52,6 +57,16 @@ namespace {
 
 constexpr const auto socket_connect = ::connect;
 using CapturedCalls = vector<string>;
+
+nlohmann::json deserialize(const string& json) {
+	try {
+		return nlohmann::json::parse(json);
+	} catch (const std::exception& exception) {
+		bc_assert(__FILE__, __LINE__, false, json.c_str());
+		BC_HARD_FAIL(exception.what());
+		return {};
+	}
+}
 
 struct TestCli : public flexisip::CommandLineInterface {
 
@@ -192,9 +207,8 @@ auto callScript(const string& command, int expected_status, BcAssert<>& asserter
 		return output;
 	});
 
-	asserter
-	    .iterateUpTo(
-	        33, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == future_status::ready); }, 7s)
+	asserter.iterateUpTo(
+	            33, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == future_status::ready); }, 7s)
 	    .hard_assert_passed();
 
 	return fut.get();
@@ -237,24 +251,11 @@ void flexisipCliDotPy() {
 			return handle.recv(0xFFFF);
 		});
 
-		asserter
-		    .iterateUpTo(
-		        7, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == future_status::ready); }, 2s)
+		asserter.iterateUpTo(
+		            7, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == future_status::ready); }, 2s)
 		    .hard_assert_passed();
 
 		return fut.get();
-	};
-	const auto& deserialize = [reader = unique_ptr<Json::CharReader>([]() {
-		                           Json::CharReaderBuilder builder{};
-		                           return builder.newCharReader();
-	                           }())](const string& json_str) {
-		JSONCPP_STRING err;
-		Json::Value deserialized;
-		if (!reader->parse(&*json_str.begin(), &*json_str.end(), &deserialized, &err)) {
-			bc_assert(__FILE__, __LINE__, false, json_str.c_str());
-			BC_HARD_FAIL(err.c_str());
-		}
-		return deserialized;
 	};
 	ostringstream command{};
 
@@ -274,7 +275,7 @@ void flexisipCliDotPy() {
 			const auto& returned_contact = returned_contacts[0];
 			BC_ASSERT_CPP_EQUAL(returned_contact["call-id"], "fs-cli-upsert");
 			BC_ASSERT_CPP_EQUAL(returned_contact["contact"], contact);
-			uuid = returned_contact["unique-id"].asString();
+			uuid = returned_contact["unique-id"];
 			BC_ASSERT(StringUtils::startsWith(uuid, "fs-cli-gen"));
 		}
 
@@ -287,7 +288,7 @@ void flexisipCliDotPy() {
 			const auto& returned_contact = returned_contacts[0];
 			BC_ASSERT_CPP_EQUAL(returned_contact["call-id"], "fs-cli-upsert");
 			BC_ASSERT_CPP_EQUAL(returned_contact["contact"], contact);
-			uuid = returned_contact["unique-id"].asString();
+			uuid = returned_contact["unique-id"];
 			BC_ASSERT_CPP_EQUAL(returned_contact["unique-id"], uuid);
 		}
 
@@ -445,7 +446,7 @@ void flexisipCliDotPy() {
 		BC_HARD_ASSERT_CPP_EQUAL(returned_contacts.size(), 1);
 		const auto& returned_contact = returned_contacts[0];
 		BC_ASSERT_CPP_EQUAL(returned_contact["contact"], aor4);
-		const auto& uid = returned_contact["unique-id"].asString();
+		const auto uid = returned_contact["unique-id"].template get<string>();
 		BC_ASSERT(StringUtils::startsWith(uid, "fs-cli-gen"));
 
 		regDb.fetch(SipUri(aor4), listener);
@@ -553,14 +554,93 @@ void flexisipCliSetSofiaLogLevel() {
 	}
 }
 
+/*
+ * Test the REGISTRAR_DUMP command.
+ * It is expected to output the set of AORs that got registered to the registrar through this specific proxy instance
+ * (the one on which the CLI is executed). All other entries (inserted by other components) MUST not be present in the
+ * output.
+ */
+void registrarDump() {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "internal"},
+	    {"module::NatHelper/enabled", "false"},
+	}};
+	proxy.start();
+
+	struct Contact {
+		string mAor{};
+		string mUri{};
+	};
+
+	const Contact user1{.mAor = "user-1@localhost", .mUri = "sip:user-1@127.0.0.1"};
+	const Contact user2{.mAor = "user-2@localhost", .mUri = "sip:user-2@127.0.0.1"};
+	const Contact user3{.mAor = "user-3@localhost", .mUri = "sip:user-3@127.0.0.1"};
+	const vector locallyRegisteredUsers{user2, user3};
+
+	// Insert a contact in the registrar db. This one MUST not be present in the command output.
+	ContactInserter inserter{proxy.getAgent()->getRegistrarDb()};
+	inserter.setAor("sip:" + user1.mAor).setExpire(60s).withGruu(true).insert({user1.mUri, "user-1-unique-id"});
+
+	CoreAssert asserter{proxy};
+
+	// Test the command outputs an empty array when the list of locally registered users is empty.
+	const auto cmd = "REGISTRAR_DUMP 2>&1"s;
+	ProxyCommandLineInterface cli{proxy.getConfigManager(), proxy.getAgent()};
+	std::ignore = cli.start();
+	{
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json.items().begin().key() == "aors");
+		BC_HARD_ASSERT(json["aors"].is_array());
+		BC_HARD_ASSERT(json["aors"].empty());
+	}
+
+	// Insert user2 and user3 in the registrar db through the proxy (REGISTER requests).
+	ClientBuilder builder{*proxy.getAgent()};
+	const auto user2Client = builder.build(user2.mAor);
+	const auto user3Client = builder.build(user3.mAor);
+
+	const auto& regDb = proxy.getAgent()->getRegistrarDb();
+	const auto& records = dynamic_cast<const RegistrarDbInternal&>(regDb.getRegistrarBackend()).getAllRecords();
+
+	// Make sure the content of the database is correct.
+	BC_ASSERT_CPP_EQUAL(records.size(), 3);
+	for (const auto& [expectedAor, expectedUri] : {user1, user2, user3}) {
+		const auto recordIt = records.find(expectedAor);
+		BC_HARD_ASSERT(recordIt != records.end());
+		const auto& contacts = recordIt->second->getExtendedContacts();
+		BC_ASSERT_CPP_EQUAL(contacts.size(), 1);
+		const auto uri = contacts.begin()->get();
+		BC_HARD_ASSERT(string_utils::startsWith(uri->urlAsString(), expectedUri));
+	}
+
+	// Test the command when there are several users registered in the registrar through the proxy.
+	{
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json.items().begin().key() == "aors");
+		BC_HARD_ASSERT(json["aors"].is_array());
+		BC_HARD_ASSERT(json["aors"].size() == 2);
+		BC_ASSERT_CPP_EQUAL(json["aors"][0], locallyRegisteredUsers.front().mAor);
+		BC_ASSERT_CPP_EQUAL(json["aors"][1], locallyRegisteredUsers.back().mAor);
+	}
+}
+
 using namespace DbImplementation;
-TestSuite _("CLI",
-            {
-                CLASSY_TEST(handlerRegistrationAndDispatch),
-                CLASSY_TEST(flexisipCliDotPy<Internal>),
-                CLASSY_TEST(flexisipCliDotPy<Redis>),
-                CLASSY_TEST(flexisipCliSetSofiaLogLevel),
-            });
+
+TestSuite _{
+    "CLI",
+    {
+        CLASSY_TEST(handlerRegistrationAndDispatch),
+        CLASSY_TEST(flexisipCliDotPy<Internal>),
+        CLASSY_TEST(flexisipCliDotPy<Redis>),
+        CLASSY_TEST(flexisipCliSetSofiaLogLevel),
+        CLASSY_TEST(registrarDump),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester::cli_tests

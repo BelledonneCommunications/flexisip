@@ -91,6 +91,13 @@ declined or not answered. Currently, the server accepts all incoming calls, play
   each element.
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
 
+
+## [2.5.1]
+- **SDK version:** 5.4.58
+
+### [Fixed]
+- **CLI:** The REGISTRAR_DUMP command was always returning an empty set.
+
 ## [2.5.0]
 - **SDK version:** 5.4.58
 
