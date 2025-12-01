@@ -21,7 +21,7 @@ Group changes to describe their impact on the project, as follows:
 - **CLI:** The REGISTRAR_DUMP command was always returning an empty set.
 
 ## [2.5.0]
-- **SDK version:** 5.4.58
+- **SDK version:** 5.4.64
 
 ### [Added]
 - **Proxy:**
@@ -101,8 +101,10 @@ Group changes to describe their impact on the project, as follows:
       - Invite/Cancel (iOS devices) feature was not working properly when no response (503 or 408 to INVITE request) was
         received before CANCEL request receipt.
     - **Registrar:** A client that does not use '+sip.instance' could have duplicate entries in the registrar database.
-- **Conference server:** Set the default contact address (with identity address of the conference server) to fix issues
-  when connection to the Redis database is slow or broken.
+- **Conference server:** 
+    - Set the default contact address (with identity address of the conference server) to fix issues when connection to
+      the Redis database is slow or broken.
+    - Fix a crash that can occurred when a client sends a bad SDP.
 - **B2BUA server:**
     - Now properly resumes calls that were paused on both sides.
     - Performance issues (memory leaks due to linphone::Account accumulations).
