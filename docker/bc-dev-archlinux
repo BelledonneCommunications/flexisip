@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20250702_patch_cppjwt_for_gcc15
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20251203_add_curl
 ###############################################################################
 
 FROM archlinux:base
@@ -20,6 +20,7 @@ RUN pacman --noconfirm --noprogressbar --sync --refresh --sysupgrade \
         ccache \
         clang \
         cmake \
+        curl \
         doxygen \
         gcc \
         git \
@@ -76,20 +77,20 @@ RUN sudo pacman --noconfirm --noprogressbar --sync \
     # https://wiki.archlinux.org/title/AUR_helpers
       local AURL="https://aur.archlinux.org/cgit/aur.git/snapshot/${1}.tar.gz"; \
       local WDIR="$(mktemp --directory)"; \
-      cd "${WDIR}"; \
-      curl --remote-name --fail --silent "${AURL}"; \
-      tar --extract --file "${1}.tar.gz"; \
-      cd "${WDIR}/${1}"; \
+      cd "${WDIR}" \
+      && curl --remote-name --fail --silent "${AURL}" \
+      && tar --extract --file "${1}.tar.gz" \
+      && cd "${WDIR}/${1}" \
       # TODO: Remove the patch when it's fixed upstream
       # https://github.com/arun11299/cpp-jwt/issues/104
       # https://wiki.archlinux.org/title/Patching_packages#Creating_patches
-      makepkg --noconfirm --syncdeps --nobuild; \
-         pushd src/cpp-jwt-1.5 \
+      && makepkg --noconfirm --syncdeps --nobuild \
+      && pushd src/cpp-jwt-1.5 \
       && curl https://github.com/arun11299/cpp-jwt/commit/20086d7198a3636280ebb90b11b5a18495831c8a.patch \
        | git apply - \
-      && popd; \
-      makepkg --noconfirm --noextract --install --clean; \
-      rm -rf "${WDIR}"; \
+      && popd \
+      && makepkg --noconfirm --noextract --install --clean \
+      && rm -rf "${WDIR}" ; \
     } \
   # OpenID Connect dependency
  && aurinstall cpp-jwt \

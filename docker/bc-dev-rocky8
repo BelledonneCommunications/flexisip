@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20251020_redis6
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20251202_add_curl
 ###############################################################################
 
 FROM rockylinux/rockylinux:8
@@ -7,7 +7,7 @@ FROM rockylinux/rockylinux:8
 LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
 # Install common general tools
-RUN dnf install -y sudo vim wget
+RUN dnf install -y sudo vim wget curl
 
 # Configure additional repositories
 RUN dnf install -y epel-release && \

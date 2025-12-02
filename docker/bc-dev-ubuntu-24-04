@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20240916_add_cpp-jwt
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20251202_add_curl
 ###############################################################################
 
 FROM ubuntu:24.04
@@ -14,6 +14,7 @@ RUN apt-get -y update \
                        vim \
                        wget \
                        file \
+                       curl \
                      # Install development tools
                        ccache \
                        clang \

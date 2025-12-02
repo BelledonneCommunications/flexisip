@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20250930
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20251202_add_curl
 ###############################################################################
 
 FROM debian:trixie
@@ -14,6 +14,7 @@ RUN apt-get -y update \
       vim \
       wget \
       file \
+      curl \
     # Install development tools
       ccache \
       clang \

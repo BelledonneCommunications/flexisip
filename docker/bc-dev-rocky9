@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20251017_redis7
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20251202_add_curl
 ###############################################################################
 
 FROM rockylinux:9
@@ -7,7 +7,7 @@ FROM rockylinux:9
 MAINTAINER Thibault Lemaire <Thibault.lemaire@belledonne-communications.com>
 
 # Install common general tools
-RUN dnf install -y sudo vim wget
+RUN dnf install -y sudo vim wget curl-minimal
 
 # Configure additional repositories
 RUN dnf install -y \

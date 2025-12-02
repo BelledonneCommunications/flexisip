@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20240911_remove_protobuf
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20251202_add_curl
 ###############################################################################
 
 FROM debian:12
@@ -12,6 +12,7 @@ RUN apt-get -y update \
     # Install build deps
       ccache \
       cmake \
+      curl \
       g++ \
       git \
       make \

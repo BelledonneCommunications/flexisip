@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20240916_add_coverage
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20251202_add_curl
 ###############################################################################
 
 FROM debian:12
@@ -14,6 +14,7 @@ RUN apt-get -y update \
       vim \
       wget \
       file \
+      curl \
     # Install development tools
       ccache \
       clang \

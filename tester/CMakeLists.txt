@@ -22,7 +22,15 @@
 
 find_package(Threads REQUIRED)
 find_package(XercesC REQUIRED)
-find_package(Boost COMPONENTS system REQUIRED)
+
+find_package(Boost 1.69)
+if(Boost_FOUND)
+	set(BOOST_TARGET Boost::headers)
+else()
+	find_package(Boost COMPONENTS system REQUIRED)
+	set(BOOST_TARGET Boost::system)
+endif()
+
 # TODO Change back to lowercase `jsoncpp` when (if) the SDK decides to use it as well
 # https://linphone.atlassian.net/browse/SDK-184
 find_package(JsonCPP "1.1.0" REQUIRED)
@@ -295,7 +303,7 @@ endif()
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
-	Boost::system
+	${BOOST_TARGET}
 	OpenSSL::Crypto
 	OpenSSL::SSL
 	Threads::Threads
