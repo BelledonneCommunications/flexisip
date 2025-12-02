@@ -41,7 +41,7 @@ workflow:
       fi
     - |
       if [ "$SDK_NIGHTLY" == "1" ]; then
-        git -C linphone-sdk/ checkout "$SDK_BRANCH" && git -C linphone-sdk/ submodule update --recursive
+        git -C linphone-sdk/ checkout "$SDK_BRANCH" && git -C linphone-sdk/ submodule update --recursive --init
       fi
 
 before_script:
