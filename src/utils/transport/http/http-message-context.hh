@@ -20,8 +20,8 @@
 
 #include <memory>
 
-#include <sofia-sip/su_wait.h>
-
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "flexisip/sofia-wrapper/timer.hh"
 #include "http-message.hh"
 #include "http-response.hh"
 

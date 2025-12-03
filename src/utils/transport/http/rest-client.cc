@@ -35,7 +35,7 @@ void RestClient::httpCall(const string& path,
 	headers.add(":method", method);
 	headers.add(":scheme", "https");
 	headers.add(":authority", mHttp->getHost());
-	headers.add(":path", path);
+	headers.add(":path", mApiPathPrefix + path);
 	headers.concat(mCustomHeaders);
 	headers.add("content-length", bodySize);
 

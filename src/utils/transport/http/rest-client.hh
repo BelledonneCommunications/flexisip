@@ -20,9 +20,9 @@
 
 #include <optional>
 
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "lib/nlohmann-json-3-11-2/json.hpp"
+
+#include "exceptions/bad-configuration.hh"
 #include "utils/transport/http/http-message-context.hh"
 #include "utils/transport/http/http2client.hh"
 
@@ -34,9 +34,15 @@ public:
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
 
 	explicit RestClient(const std::shared_ptr<Http2Client>& http) : mHttp(http) {
+		if (!mHttp) throw BadConfiguration{"no Http2Client"};
 	}
 	RestClient(const std::shared_ptr<Http2Client>& http, const HttpHeaders& customsHeaders)
-	    : mHttp(http), mCustomHeaders(customsHeaders) {
+	    : RestClient(http, customsHeaders, "") {}
+	RestClient(const std::shared_ptr<Http2Client>& http,
+	           const HttpHeaders& customsHeaders,
+	           const std::string& pathPrefix)
+	    : mApiPathPrefix(pathPrefix), mHttp(http), mCustomHeaders(customsHeaders) {
+		if (!mHttp) throw BadConfiguration{"no Http2Client"};
 	}
 
 	void get(const std::string& path, const OnResponseCb& onResponseCb, const OnErrorCb& onErrorCb);
@@ -137,6 +143,7 @@ private:
 	              const OnResponseCb& onResponseCb,
 	              const OnErrorCb& onErrorCb);
 
+	std::string mApiPathPrefix{};
 	std::shared_ptr<Http2Client> mHttp;
 	HttpHeaders mCustomHeaders{};
 };

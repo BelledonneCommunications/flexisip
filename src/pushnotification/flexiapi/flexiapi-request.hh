@@ -24,7 +24,7 @@
 
 namespace flexisip::pushnotification {
 
-constexpr auto kFlexiApiPushNotificationPath = "/push_notification";
+constexpr auto* kFlexiApiPushNotificationPath = "/api/push_notification";
 
 std::string FlexiApiBodyGenerationFunc(PushType pushType, const std::shared_ptr<const PushInfo>& pushInfo);
 

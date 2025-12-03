@@ -38,8 +38,8 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    {
 	        String,
 	        "url",
-	        "HTTPS URL of the FlexiAPI server with the generic prefix of the API endpoints.\n"
-	        "Example: https://flexiapi.org/api",
+	        "HTTPS URL of the FlexiAPI server.\n"
+	        "Example: https://flexiapi.org",
 	        "",
 	    },
 	    {
