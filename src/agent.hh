@@ -57,11 +57,8 @@ class NatTraversalStrategy;
 class DomainRegistrationManager;
 
 /**
- * The agent class represents a SIP agent.
- * It listens on a UDP and TCP port, receives request and responses,
- * and injects them into the module chain.
- *
- * Refer to the flexisip.conf.sample installed by "make install" for documentation about what each module does.
+ * Represents a SIP agent which is in charge of receiving requests (through configured SIP transports), injecting them
+ * into the module chain and sending requests to destinations.
  **/
 class Agent : public AgentInterface,
               public IncomingAgent,
@@ -72,54 +69,6 @@ class Agent : public AgentInterface,
 	friend class OutgoingTransaction;
 	friend class Module;
 
-	void onDeclare(const GenericStruct& root);
-
-	StatCounter64* mCountIncomingRegister = nullptr;
-	StatCounter64* mCountIncomingInvite = nullptr;
-	StatCounter64* mCountIncomingAck = nullptr;
-	StatCounter64* mCountIncomingInfo = nullptr;
-	StatCounter64* mCountIncomingBye = nullptr;
-	StatCounter64* mCountIncomingCancel = nullptr;
-	StatCounter64* mCountIncomingMessage = nullptr;
-	StatCounter64* mCountIncomingNotify = nullptr;
-	StatCounter64* mCountIncomingOptions = nullptr;
-	StatCounter64* mCountIncomingDecline = nullptr;
-	StatCounter64* mCountIncomingReqUnknown = nullptr;
-
-	StatCounter64* mCountIncoming100 = nullptr; // trying
-	StatCounter64* mCountIncoming101 = nullptr;
-	StatCounter64* mCountIncoming180 = nullptr; // ringing
-	StatCounter64* mCountIncoming200 = nullptr; // ok
-	StatCounter64* mCountIncoming202 = nullptr;
-	StatCounter64* mCountIncoming401 = nullptr; // user auth.
-	StatCounter64* mCountIncoming404 = nullptr; // not found
-	StatCounter64* mCountIncoming486 = nullptr; // busy
-	StatCounter64* mCountIncoming487 = nullptr; // request canceled
-	StatCounter64* mCountIncoming488 = nullptr;
-	StatCounter64* mCountIncoming407 = nullptr; // proxy auth
-	StatCounter64* mCountIncoming408 = nullptr; // request timeout
-	StatCounter64* mCountIncoming603 = nullptr; // decline
-	StatCounter64* mCountIncomingResUnknown = nullptr;
-
-	StatCounter64* mCountReply100 = nullptr; // trying
-	StatCounter64* mCountReply101 = nullptr;
-	StatCounter64* mCountReply180 = nullptr; // ringing
-	StatCounter64* mCountReply200 = nullptr; // ok
-	StatCounter64* mCountReply202 = nullptr;
-	StatCounter64* mCountReply401 = nullptr; // user auth.
-	StatCounter64* mCountReply404 = nullptr; // not found
-	StatCounter64* mCountReply486 = nullptr; // busy
-	StatCounter64* mCountReply487 = nullptr; // request canceled
-	StatCounter64* mCountReply488 = nullptr;
-	StatCounter64* mCountReply407 = nullptr; // proxy auth
-	StatCounter64* mCountReply408 = nullptr; // request timeout
-	StatCounter64* mCountReplyResUnknown = nullptr;
-
-private:
-	template <typename SipEventT, typename ModuleIter>
-	std::unique_ptr<SipEventT>
-	processEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
-
 public:
 	static constexpr std::string_view mLogPrefix{"Agent"};
 
@@ -128,24 +77,70 @@ public:
 	      const std::shared_ptr<AuthDb>& authDb,
 	      const std::shared_ptr<RegistrarDb>& registrarDb);
 
-	void start(const std::string& transport_override, const std::string& passphrase);
-	void unloadConfig();
 	~Agent() override;
-	// Add agent and modules sections
+
+	/**
+	 * Add agent and modules sections.
+	 */
 	static void addConfigSections(ConfigManager& cfg);
-	// Load plugins and add their sections
+	/**
+	 * Load plugins and add their sections.
+	 */
 	static void addPluginsConfigSections(ConfigManager& cfg);
-	/// Returns a pair of ip addresses: < public-ip, bind-ip> suitable for destination.
-	std::pair<std::string, std::string> getPreferredIp(const std::string& destination) const;
-	/// Returns the _default_ bind address for RTP sockets.
-	const std::string& getRtpBindIp(bool ipv6 = false) const {
-		return ipv6 ? mRtpBindIp6 : mRtpBindIp;
+
+	void applyProxyToProxyTransportSettings(tport_t* tp);
+	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
+	void unloadConfig();
+
+	void start(const std::string& transport_override, const std::string& passphrase);
+	void idle();
+
+	void injectRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
+	std::unique_ptr<ResponseSipEvent> injectResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+	void processRequest(std::unique_ptr<RequestSipEvent>&& ev);
+	std::unique_ptr<ResponseSipEvent> processResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
+
+	void incrReplyStat(int status);
+	void sendTrap(const GenericEntry* source, const std::string& msg) const;
+
+	bool isUs(const char* host, const char* port, bool check_aliases) const;
+	bool isUs(const url_t* url, bool check_aliases = true) const;
+	int countUsInVia(sip_via_t* via) const;
+	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
+
+	/**
+	 * @return the module associated with the role (throws an exception if no module is found).
+	 */
+	std::shared_ptr<Module> findModuleByRole(const std::string& moduleRole) const;
+
+	EventLogWriter* getEventLogWriter() const {
+		return mLogWriter.get();
 	}
-	const std::string& getPublicIp(bool ipv6 = false) const {
-		return ipv6 ? mPublicIpV6 : mPublicIpV4;
+	void setEventLogWriter(std::unique_ptr<EventLogWriter>&& value) {
+		mLogWriter = std::move(value);
 	}
-	const std::string& getResolvedPublicIp(bool ipv6 = false) const {
-		return ipv6 ? mPublicResolvedIpV6 : mPublicResolvedIpV4;
+
+	std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept override {
+		return mFlexiApiClient;
+	}
+	void setFlexiApiClient(const std::shared_ptr<Http2Client>& flexiApiClient) noexcept {
+		mFlexiApiClient = flexiApiClient;
+	}
+
+	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
+		return mRoot;
+	}
+	const ConfigManager& getConfigManager() const {
+		return *mConfigManager;
+	}
+	AuthDb& getAuthDb() {
+		return *mAuthDb;
+	}
+	RegistrarDb& getRegistrarDb() {
+		return *mRegistrarDb;
+	}
+	nta_agent_t* getSofiaAgent() const override {
+		return mAgent;
 	}
 	std::weak_ptr<Agent> getAgent() noexcept override {
 		return weak_from_this();
@@ -156,20 +151,52 @@ public:
 	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
 		return shared_from_this();
 	}
-	AuthDb& getAuthDb() {
-		return *mAuthDb;
+	nth_engine_t* getHttpEngine() {
+		return mHttpEngine;
 	}
-	RegistrarDb& getRegistrarDb() {
-		return *mRegistrarDb;
+	DomainRegistrationManager* getDRM() {
+		return mDrm;
+	}
+	const std::shared_ptr<NatTraversalStrategy>& getNatTraversalStrategy() const {
+		return mNatTraversalStrategy;
+	}
+	const char* getServerString() const {
+		return mServerString.c_str();
+	}
+	/**
+	 * @return a network unique identifier for this Agent.
+	 */
+	const std::string& getUniqueId() const {
+		return mUniqueId;
 	}
 
-	// Preferred route for inter-proxy communication
+	tport_t* getIncomingTport(const msg_t* orig) const;
+	static sofiasip::TlsConfigInfo getTlsConfigInfo(const GenericStruct* global);
+	sip_via_t* getNextVia(sip_t* response) const;
+
+	/**
+	 * @return the _default_ bind address for RTP sockets.
+	 */
+	const std::string& getRtpBindIp(bool ipv6 = false) const {
+		return ipv6 ? mRtpBindIp6 : mRtpBindIp;
+	}
+	const std::string& getPublicIp(bool ipv6 = false) const {
+		return ipv6 ? mPublicIpV6 : mPublicIpV4;
+	}
+	const std::string& getResolvedPublicIp(bool ipv6 = false) const {
+		return ipv6 ? mPublicResolvedIpV6 : mPublicResolvedIpV4;
+	}
+
+	/**
+	 * @return a pair of ip addresses: <public-ip, bind-ip> suitable for destination.
+	 */
+	std::pair<std::string, std::string> getPreferredIp(const std::string& destination) const;
+	/**
+	 * @return preferred route for inter-proxy communication.
+	 */
 	std::string getPreferredRoute() const;
 	const url_t* getPreferredRouteUrl() const {
 		return mPreferredRouteV4;
-	}
-	tport_t* getInternalTport() const {
-		return mInternalTport;
 	}
 	/**
 	 * URI associated to this server specifically.
@@ -191,88 +218,37 @@ public:
 	const url_t* getDefaultUri() const {
 		return mDefaultUri;
 	}
-	/**
-	 * return a network unique identifier for this Agent.
-	 */
-	const std::string& getUniqueId() const;
-
-	const std::shared_ptr<NatTraversalStrategy>& getNatTraversalStrategy() const {
-		return mNatTraversalStrategy;
-	}
-
-	EventLogWriter* getEventLogWriter() const {
-		return mLogWriter.get();
-	}
-	void setEventLogWriter(std::unique_ptr<EventLogWriter>&& value) {
-		mLogWriter = std::move(value);
-	}
-	std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept override {
-		return mFlexiApiClient;
-	}
-	void setFlexiApiClient(const std::shared_ptr<Http2Client>& flexiApiClient) noexcept {
-		mFlexiApiClient = flexiApiClient;
-	}
-
-	void idle();
-	bool isUs(const url_t* url, bool check_aliases = true) const;
-	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
-		return mRoot;
-	}
-	nta_agent_t* getSofiaAgent() const override {
-		return mAgent;
-	}
-	int countUsInVia(sip_via_t* via) const;
-	bool isUs(const char* host, const char* port, bool check_aliases) const;
-	sip_via_t* getNextVia(sip_t* response);
-	const char* getServerString() const;
-	typedef void (*TimerCallback)(void* unused, su_timer_t* t, void* data);
-	su_timer_t* createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating = true);
-	void stopTimer(su_timer_t* t);
-	void injectRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-	std::unique_ptr<ResponseSipEvent> injectResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
-	void processRequest(std::unique_ptr<RequestSipEvent>&& ev);
-	std::unique_ptr<ResponseSipEvent> processResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
-	void incrReplyStat(int status);
-	bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state) override;
-
-	// Returns the module associated with the role. Throws an exception if no module is found.
-	std::shared_ptr<Module> findModuleByRole(const std::string& moduleRole) const;
-
-	nth_engine_t* getHttpEngine() {
-		return mHttpEngine;
-	}
-	DomainRegistrationManager* getDRM() {
-		return mDrm;
-	}
-	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
-	void applyProxyToProxyTransportSettings(tport_t* tp);
-	tport_t* getIncomingTport(const msg_t* orig);
-
-	static sofiasip::TlsConfigInfo getTlsConfigInfo(const GenericStruct* global);
-
-	const ConfigManager& getConfigManager() const {
-		return *mConfigManager;
+	tport_t* getInternalTport() const {
+		return mInternalTport;
 	}
 
 	void setNotifier(const std::weak_ptr<ISupervisorNotifier>& notifier) {
 		mNotifier = notifier;
-	};
-	void sendTrap(const GenericEntry* source, const std::string& msg) const;
+	}
+
+	typedef void (*TimerCallback)(void* unused, su_timer_t* t, void* data);
+	su_timer_t* createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating = true) const;
+	void stopTimer(su_timer_t* t);
 
 private:
-	// Private types
 	class Network {
-		struct sockaddr_storage mPrefix;
-		struct sockaddr_storage mMask;
-		std::string mIP;
-
 	public:
 		Network(const Network& net);
 		explicit Network(const struct ifaddrs* ifaddr);
+
 		bool isInNetwork(const struct sockaddr* addr) const;
-		const std::string getIP() const;
 		static std::string print(const struct ifaddrs* ifaddr);
+
+		const std::string& getIP() const {
+			return mIP;
+		}
+
+	private:
+		struct sockaddr_storage mPrefix {};
+		struct sockaddr_storage mMask {};
+		std::string mIP{};
 	};
+
 	class TlsTransportInfo {
 	public:
 		TlsTransportInfo(sofiasip::Url url,
@@ -281,8 +257,7 @@ private:
 		                 unsigned int tlsPolicy,
 		                 std::filesystem::file_time_type lastModificationTime)
 		    : url(std::move(url)), tlsConfigInfo(std::move(tlsConfigInfo)), ciphers(ciphers), policy(tlsPolicy),
-		      lastModificationTime(lastModificationTime) {
-		}
+		      lastModificationTime(lastModificationTime) {}
 
 		sofiasip::Url url;
 		sofiasip::TlsConfigInfo tlsConfigInfo;
@@ -294,9 +269,20 @@ private:
 	static constexpr const char* sInternalTransportIdent = "internal-transport";
 	static const std::string sEventSeparator;
 
-	// Private methods
+	static void printEventTailSeparator();
+	static int messageCallback(nta_agent_magic_t* context, nta_agent_t* agent, msg_t* msg, sip_t* sip);
+
+	void loadModules();
+	void initializePreferredRoute();
+	void onDeclare(const GenericStruct& root);
 	void updateTransport(TlsTransportInfo& info);
-	int onIncomingMessage(msg_t* msg, const sip_t* sip);
+
+	void startMdns();
+	void startLogWriter();
+
+	template <typename SipEventT, typename ModuleIter>
+	std::unique_ptr<SipEventT>
+	processEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
 	void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
 	void reply(const std::shared_ptr<MsgSip>& msg,
@@ -305,58 +291,97 @@ private:
 	           tag_type_t tag,
 	           tag_value_t value,
 	           ...) override;
-	void discoverInterfaces();
-	void startLogWriter();
-	std::string computeResolvedPublicIp(const std::string& host, int family = AF_UNSPEC) const;
-	void checkAllowedParams(const url_t* uri);
-	void initializePreferredRoute();
-	void loadModules();
-	void startMdns();
+	int onIncomingMessage(msg_t* msg, const sip_t* sip);
 
-	static int messageCallback(nta_agent_magic_t* context, nta_agent_t* agent, msg_t* msg, sip_t* sip);
-	static void printEventTailSeparator();
-
-	// Private attributes
-	std::string mServerString;
-	// Placing the SuRoot before the modules ensures it will outlive them, so it is always safe to get (and keep)
-	// references to it from within them
+	// Important: placing the SuRoot before the modules ensures it will outlive them, so it is always safe to get (and
+	// keep) references to it from within them.
 	std::shared_ptr<sofiasip::SuRoot> mRoot = nullptr;
 	const std::shared_ptr<ConfigManager> mConfigManager;
 	const std::shared_ptr<AuthDb> mAuthDb;
 	std::list<std::shared_ptr<Module>> mModules;
-	// Disconnecting the Redis registrar DB may trigger callbacks on mModules,
-	// so they must still be alive when dtor()ing it.
+	// Important: disconnecting the Redis registrar DB may trigger callbacks on mModules, so they must still be alive
+	// when destroying it.
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
-	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
+
+	su_home_t mHome{};
+	nta_agent_t* mAgent = nullptr;
+	nth_engine_t* mHttpEngine = nullptr;
+	DomainRegistrationManager* mDrm = nullptr;
+	std::unique_ptr<EventLogWriter> mLogWriter;
+	std::weak_ptr<ISupervisorNotifier> mNotifier;
 	std::shared_ptr<Http2Client> mFlexiApiClient = nullptr;
+	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
+#if ENABLE_MDNS
+	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;
+#endif
+
+	sofiasip::Timer mTimer;
+	std::optional<sofiasip::Timer> mCertificateUpdateTimer;
+
+	std::string mUniqueId;
+	std::string mPassphrase;
+	std::string mServerString;
 	std::list<std::string> mAliases;
+
+	bool mTerminating = false;
+	unsigned int mProxyToProxyKeepAliveInterval = 0;
+
+	std::list<Network> mNetworks;
+	std::vector<Transport> mTransports{};
+	std::vector<TlsTransportInfo> mTlsTransportsList{};
+	std::string mRtpBindIp = "0.0.0.0";
+	std::string mRtpBindIp6 = "::0";
+	std::string mPublicIpV4;
+	std::string mPublicIpV6;
+	std::string mPublicResolvedIpV4;
+	std::string mPublicResolvedIpV6;
 	url_t* mPreferredRouteV4 = nullptr;
 	url_t* mPreferredRouteV6 = nullptr;
 	const url_t* mNodeUri = nullptr;
 	const url_t* mClusterUri = nullptr;
 	const url_t* mDefaultUri = nullptr;
-	std::list<Network> mNetworks;
-	std::string mUniqueId;
-	std::string mRtpBindIp = "0.0.0.0";
-	std::string mRtpBindIp6 = "::0";
-	std::string mPublicIpV4, mPublicIpV6, mPublicResolvedIpV4, mPublicResolvedIpV6;
-	std::vector<Transport> mTransports{};
-	nta_agent_t* mAgent = nullptr;
-	nth_engine_t* mHttpEngine = nullptr;
-	su_home_t mHome;
-	sofiasip::Timer mTimer;
-	std::optional<sofiasip::Timer> mCertificateUpdateTimer;
-	unsigned int mProxyToProxyKeepAliveInterval = 0;
-	std::unique_ptr<EventLogWriter> mLogWriter;
-	DomainRegistrationManager* mDrm = nullptr;
-	std::string mPassphrase;
 	tport_t* mInternalTport = nullptr;
-	bool mTerminating = false;
-	std::vector<TlsTransportInfo> mTlsTransportsList{};
-#if ENABLE_MDNS
-	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;
-#endif
-	std::weak_ptr<ISupervisorNotifier> mNotifier;
+
+	StatCounter64* mCountIncomingRegister = nullptr;
+	StatCounter64* mCountIncomingInvite = nullptr;
+	StatCounter64* mCountIncomingAck = nullptr;
+	StatCounter64* mCountIncomingInfo = nullptr;
+	StatCounter64* mCountIncomingBye = nullptr;
+	StatCounter64* mCountIncomingCancel = nullptr;
+	StatCounter64* mCountIncomingMessage = nullptr;
+	StatCounter64* mCountIncomingNotify = nullptr;
+	StatCounter64* mCountIncomingOptions = nullptr;
+	StatCounter64* mCountIncomingDecline = nullptr;
+	StatCounter64* mCountIncomingReqUnknown = nullptr;
+
+	StatCounter64* mCountIncoming100 = nullptr;
+	StatCounter64* mCountIncoming101 = nullptr;
+	StatCounter64* mCountIncoming180 = nullptr;
+	StatCounter64* mCountIncoming200 = nullptr;
+	StatCounter64* mCountIncoming202 = nullptr;
+	StatCounter64* mCountIncoming401 = nullptr;
+	StatCounter64* mCountIncoming404 = nullptr;
+	StatCounter64* mCountIncoming486 = nullptr;
+	StatCounter64* mCountIncoming487 = nullptr;
+	StatCounter64* mCountIncoming488 = nullptr;
+	StatCounter64* mCountIncoming407 = nullptr;
+	StatCounter64* mCountIncoming408 = nullptr;
+	StatCounter64* mCountIncoming603 = nullptr;
+	StatCounter64* mCountIncomingResUnknown = nullptr;
+
+	StatCounter64* mCountReply100 = nullptr;
+	StatCounter64* mCountReply101 = nullptr;
+	StatCounter64* mCountReply180 = nullptr;
+	StatCounter64* mCountReply200 = nullptr;
+	StatCounter64* mCountReply202 = nullptr;
+	StatCounter64* mCountReply401 = nullptr;
+	StatCounter64* mCountReply404 = nullptr;
+	StatCounter64* mCountReply486 = nullptr;
+	StatCounter64* mCountReply487 = nullptr;
+	StatCounter64* mCountReply488 = nullptr;
+	StatCounter64* mCountReply407 = nullptr;
+	StatCounter64* mCountReply408 = nullptr;
+	StatCounter64* mCountReplyResUnknown = nullptr;
 };
 
 } // namespace flexisip

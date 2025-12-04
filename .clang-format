@@ -18,7 +18,7 @@
 Language:        Cpp
 BasedOnStyle:  LLVM
 AccessModifierOffset: -4
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: Empty
 AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AlwaysBreakTemplateDeclarations: Yes
 BinPackParameters: false

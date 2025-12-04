@@ -26,6 +26,7 @@
 #include <sstream>
 
 #include "bctoolbox/ownership.hh"
+
 #include "sofia-sip/nta_stateless.h"
 #include "sofia-sip/sip.h"
 #include "sofia-sip/su_md5.h"
@@ -53,7 +54,10 @@ using namespace sofiasip;
 
 namespace flexisip {
 
+const string Agent::sEventSeparator(100, '-');
+
 namespace {
+
 void createAgentCounters(GenericStruct& root) {
 	auto* globalConfig = root.get<GenericStruct>("global");
 	auto createCounter = [&globalConfig](string keyprefix, string helpprefix, string value) {
@@ -175,6 +179,87 @@ string getPrintableTransport(const tport_t* tport) {
 	return ss.str();
 }
 
+string computeResolvedPublicIp(const string& host, int family = AF_UNSPEC) {
+	int err;
+	struct addrinfo hints;
+	string dest;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = family;
+	struct addrinfo* result;
+
+	dest.clear();
+	if (host.empty()) return dest;
+	dest = (host[0] == '[') ? host.substr(1, host.size() - 2) : host;
+
+	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
+	if (err == 0) {
+		char ip[NI_MAXHOST];
+		err = getnameinfo(result->ai_addr, result->ai_addrlen, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
+		freeaddrinfo(result);
+		if (err == 0) {
+			return ip;
+		} else {
+			LOGE_CTX(Agent::mLogPrefix) << "getnameinfo error: " << gai_strerror(err) << " for host [" << host << "]";
+		}
+	} else if ((family == AF_INET && !uri_utils::isIpv4Address(dest.c_str())) ||
+	           (family == AF_INET6 && !uri_utils::isIpv6Address(dest.c_str()))) {
+		// Silently ignore IP 4/6 mismatch. This is useful to discover whether the same host string is IP4 or IP6 by
+		// calling this function twice and keeping the non-empty result
+	} else {
+		LOGW_CTX(Agent::mLogPrefix) << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host
+		                            << "] and family=[" << family << "]";
+	}
+	return "";
+}
+
+/**
+ * @brief Get the last time a file used for a TLS connection was modified.
+ *
+ * @param[in] tlsInfo Structure containing the path to the certificate files.
+ * @return The last time any of those file was modified.
+ */
+filesystem::file_time_type getLastCertUpdate(TlsConfigInfo& tlsInfo) {
+	auto lastUpdate = filesystem::last_write_time(tlsInfo.certifFile);
+	lastUpdate = max(lastUpdate, filesystem::last_write_time(tlsInfo.certifPrivateKey));
+	if (!tlsInfo.certifCaFile.empty()) {
+		lastUpdate = max(lastUpdate, filesystem::last_write_time(tlsInfo.certifCaFile));
+	}
+
+	return lastUpdate;
+}
+
+#if ENABLE_MDNS
+void mDnsRegisterCallback(void* data, int error) {
+	if (error != 0) LOGE_CTX(Agent::mLogPrefix) << "Error while registering a mDNS service";
+}
+#endif
+
+string absolutePath(const string& currdir, const string& file) {
+	if (file.empty()) return file;
+	if (file.at(0) == '/') return file;
+	return currdir + "/" + file;
+}
+
+void verifyAllowedParameters(const url_t* uri) {
+	sofiasip::Home home;
+	if (!uri->url_params) return;
+	char* params = su_strdup(home.home(), uri->url_params);
+	/*remove all the allowed params and see if something else is remaning at the end*/
+	params = url_strip_param_string(params, "tls-certificates-dir");
+	params = url_strip_param_string(params, "tls-certificates-file");
+	params = url_strip_param_string(params, "tls-certificates-private-key");
+	params = url_strip_param_string(params, "tls-certificates-ca-file");
+	params = url_strip_param_string(params, "require-peer-certificate");
+	params = url_strip_param_string(params, "maddr");
+	params = url_strip_param_string(params, "tls-verify-incoming");
+	params = url_strip_param_string(params, "tls-allow-missing-client-certificate");
+	params = url_strip_param_string(params, "tls-verify-outgoing");
+
+	// make sure that there is no misstyped params in the url:
+	if (params && strlen(params) > 0)
+		throw runtime_error{"bad parameters '"s + params + "' given in transports definition."};
+}
+
 } // namespace
 
 void Agent::onDeclare(const GenericStruct& root) {
@@ -254,31 +339,6 @@ void Agent::onDeclare(const GenericStruct& root) {
 	mRtpBindIp6 = rtpBindAddress.back();
 }
 
-static string absolutePath(const string& currdir, const string& file) {
-	if (file.empty()) return file;
-	if (file.at(0) == '/') return file;
-	return currdir + "/" + file;
-}
-
-void Agent::checkAllowedParams(const url_t* uri) {
-	sofiasip::Home home;
-	if (!uri->url_params) return;
-	char* params = su_strdup(home.home(), uri->url_params);
-	/*remove all the allowed params and see if something else is remaning at the end*/
-	params = url_strip_param_string(params, "tls-certificates-dir");
-	params = url_strip_param_string(params, "tls-certificates-file");
-	params = url_strip_param_string(params, "tls-certificates-private-key");
-	params = url_strip_param_string(params, "tls-certificates-ca-file");
-	params = url_strip_param_string(params, "require-peer-certificate");
-	params = url_strip_param_string(params, "maddr");
-	params = url_strip_param_string(params, "tls-verify-incoming");
-	params = url_strip_param_string(params, "tls-allow-missing-client-certificate");
-	params = url_strip_param_string(params, "tls-verify-outgoing");
-	// make sure that there is no misstyped params in the url:
-	if (params && strlen(params) > 0)
-		throw runtime_error{"bad parameters '"s + params + "' given in transports definition."};
-}
-
 void Agent::initializePreferredRoute() {
 	// Adding internal transport to transport in "cluster" case
 	const auto* cluster = mConfigManager->getRoot()->get<GenericStruct>("cluster");
@@ -317,12 +377,6 @@ void Agent::loadModules() {
 	if (mDrm) mDrm->load(mPassphrase);
 	mPassphrase = "";
 }
-
-#if ENABLE_MDNS
-static void mDnsRegisterCallback(void* data, int error) {
-	if (error != 0) LOGE << "Error while registering a mDNS service";
-}
-#endif
 
 void Agent::startMdns() {
 #if ENABLE_MDNS
@@ -368,22 +422,6 @@ void Agent::startMdns() {
 		}
 	}
 #endif
-}
-
-/**
- * @brief Get the last time a file used for a TLS connection was modified.
- *
- * @param[in] tlsInfo Structure containing the path to the certificate files.
- * @return The last time any of those file was modified.
- */
-static filesystem::file_time_type getLastCertUpdate(TlsConfigInfo& tlsInfo) {
-	auto lastUpdate = filesystem::last_write_time(tlsInfo.certifFile);
-	lastUpdate = max(lastUpdate, filesystem::last_write_time(tlsInfo.certifPrivateKey));
-	if (!tlsInfo.certifCaFile.empty()) {
-		lastUpdate = max(lastUpdate, filesystem::last_write_time(tlsInfo.certifCaFile));
-	}
-
-	return lastUpdate;
 }
 
 void Agent::start(const string& transport_override, const string& passphrase) {
@@ -461,7 +499,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
-			checkAllowedParams(url.get());
+			verifyAllowedParameters(url.get());
 			mPassphrase = passphrase;
 
 			auto uriTlsConfigInfo = url.getTlsConfigInfo();
@@ -716,8 +754,6 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 	ModuleInfoManager::get()->buildModuleChain();
 }
 
-// -----------------------------------------------------------------------------
-
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
              const std::shared_ptr<AuthDb>& authDb,
@@ -796,10 +832,6 @@ Agent::~Agent() {
 	su_home_deinit(&mHome);
 }
 
-const char* Agent::getServerString() const {
-	return mServerString.c_str();
-}
-
 string Agent::getPreferredRoute() const {
 	if (!mPreferredRouteV4) return string{};
 
@@ -822,39 +854,6 @@ void Agent::unloadConfig() {
 	for (const auto& module : mModules) {
 		module->unload();
 	}
-}
-
-string Agent::computeResolvedPublicIp(const string& host, int family) const {
-	int err;
-	struct addrinfo hints;
-	string dest;
-	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = family;
-	struct addrinfo* result;
-
-	dest.clear();
-	if (host.empty()) return dest;
-	dest = (host[0] == '[') ? host.substr(1, host.size() - 2) : host;
-
-	err = getaddrinfo(dest.c_str(), NULL, &hints, &result);
-	if (err == 0) {
-		char ip[NI_MAXHOST];
-		err = getnameinfo(result->ai_addr, result->ai_addrlen, ip, sizeof(ip), NULL, 0, NI_NUMERICHOST);
-		freeaddrinfo(result);
-		if (err == 0) {
-			return ip;
-		} else {
-			LOGE << "getnameinfo error: " << gai_strerror(err) << " for host [" << host << "]";
-		}
-	} else if ((family == AF_INET && !uri_utils::isIpv4Address(dest.c_str())) ||
-	           (family == AF_INET6 && !uri_utils::isIpv6Address(dest.c_str()))) {
-		// Silently ignore IP 4/6 mismatch. This is useful to discover whether the same host string is IP4 or IP6 by
-		// calling this function twice and keeping the non-empty result
-	} else {
-		LOGW << "getaddrinfo error: " << gai_strerror(err) << " for host [" << host << "] and family=[" << family
-		     << "]";
-	}
-	return "";
 }
 
 pair<string, string> Agent::getPreferredIp(const string& destination) const {
@@ -886,107 +885,6 @@ pair<string, string> Agent::getPreferredIp(const string& destination) const {
 	}
 	return isIpv6 ? make_pair(getResolvedPublicIp(true), getRtpBindIp(true))
 	              : make_pair(getResolvedPublicIp(), getRtpBindIp());
-}
-
-Agent::Network::Network(const Network& net) : mIP(net.mIP) {
-	memcpy(&mPrefix, &net.mPrefix, sizeof(mPrefix));
-	memcpy(&mMask, &net.mMask, sizeof(mMask));
-}
-
-Agent::Network::Network(const struct ifaddrs* ifaddr) {
-	int err = 0;
-	char ipAddress[IPADDR_SIZE];
-	memset(&mPrefix, 0, sizeof(mPrefix));
-	memset(&mMask, 0, sizeof(mMask));
-	if (ifaddr->ifa_addr->sa_family == AF_INET) {
-		typedef struct sockaddr_in sockt;
-		sockt* if_addr = (sockt*)ifaddr->ifa_addr;
-		sockt* if_mask = (sockt*)ifaddr->ifa_netmask;
-		sockt* prefix = (sockt*)&mPrefix;
-		sockt* mask = (sockt*)&mMask;
-
-		mPrefix.ss_family = AF_INET;
-		prefix->sin_addr.s_addr = if_addr->sin_addr.s_addr & if_mask->sin_addr.s_addr;
-		mask->sin_addr.s_addr = if_mask->sin_addr.s_addr; // 1 chunk of 32 bits
-		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	} else if (ifaddr->ifa_addr->sa_family == AF_INET6) {
-		typedef struct sockaddr_in6 sockt;
-		sockt* if_addr = (sockt*)ifaddr->ifa_addr;
-		sockt* if_mask = (sockt*)ifaddr->ifa_netmask;
-		sockt* prefix = (sockt*)&mPrefix;
-		sockt* mask = (sockt*)&mMask;
-
-		mPrefix.ss_family = AF_INET6;
-		for (int i = 0; i < 8; ++i) { // 8 chunks of 8 bits
-			prefix->sin6_addr.s6_addr[i] = if_addr->sin6_addr.s6_addr[i] & if_mask->sin6_addr.s6_addr[i];
-			mask->sin6_addr.s6_addr[i] = if_mask->sin6_addr.s6_addr[i];
-		}
-		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	}
-	if (err == 0) {
-		mIP = string(ipAddress);
-	} else {
-		LOGE << "getnameinfo error: " << strerror(errno);
-	}
-}
-
-const string Agent::Network::getIP() const {
-	return mIP;
-}
-
-bool Agent::Network::isInNetwork(const struct sockaddr* addr) const {
-	if (addr->sa_family != mPrefix.ss_family) {
-		return false;
-	}
-
-	if (addr->sa_family == AF_INET) {
-		typedef struct sockaddr_in sockt;
-		sockt* prefix = (sockt*)&mPrefix;
-		sockt* mask = (sockt*)&mMask;
-		sockt* if_addr = (sockt*)addr;
-
-		uint32_t test = if_addr->sin_addr.s_addr & mask->sin_addr.s_addr;
-		return test == prefix->sin_addr.s_addr;
-	} else if (addr->sa_family == AF_INET6) {
-		typedef struct sockaddr_in6 sockt;
-		sockt* prefix = (sockt*)&mPrefix;
-		sockt* mask = (sockt*)&mMask;
-		sockt* if_addr = (sockt*)addr;
-
-		for (int i = 0; i < 8; ++i) {
-			uint8_t test = if_addr->sin6_addr.s6_addr[i] & mask->sin6_addr.s6_addr[i];
-			if (test != prefix->sin6_addr.s6_addr[i]) return false;
-		}
-		return true;
-	} else {
-		throw runtime_error{"Network::isInNetwork: cannot happen"};
-	}
-
-	return false;
-}
-
-string Agent::Network::print(const struct ifaddrs* ifaddr) {
-	stringstream ss;
-	int err;
-	unsigned int size =
-	    (ifaddr->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
-	char result[IPADDR_SIZE];
-	ss << "Name: " << ifaddr->ifa_name;
-
-	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	if (err != 0) {
-		ss << "\tAddress: (Error)";
-	} else {
-		ss << "\tAddress: " << result;
-	}
-	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
-	if (err != 0) {
-		ss << "\tMask: (Error)";
-	} else {
-		ss << "\tMask: " << result;
-	}
-
-	return ss.str();
 }
 
 int Agent::countUsInVia(sip_via_t* via) const {
@@ -1025,7 +923,7 @@ bool Agent::isUs(const char* host, const char* port, bool check_aliases) const {
 	              [&matchedHost, &matchedPort](const auto& t) { return t.is(matchedHost, matchedPort); });
 }
 
-sip_via_t* Agent::getNextVia(sip_t* response) {
+sip_via_t* Agent::getNextVia(sip_t* response) const {
 	sip_via_t* via;
 	for (via = response->sip_via; via != NULL; via = via->v_next) {
 		if (!isUs(via->v_host, via->v_port, false)) return via;
@@ -1225,7 +1123,7 @@ unique_ptr<ResponseSipEvent> Agent::injectResponse(unique_ptr<ResponseSipEvent>&
  * So we prefer an early abort with a stack trace.
  * Indeed, incoming tport is global in sofia and will be overwritten
  */
-tport_t* Agent::getIncomingTport(const msg_t* orig) {
+tport_t* Agent::getIncomingTport(const msg_t* orig) const {
 	tport_t* primaries = nta_agent_tports(getSofiaAgent());
 	tport_t* tport = tport_delivered_by(primaries, orig);
 	if (!tport) {
@@ -1287,11 +1185,7 @@ void Agent::idle() {
 	}
 }
 
-const string& Agent::getUniqueId() const {
-	return mUniqueId;
-}
-
-su_timer_t* Agent::createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating) {
+su_timer_t* Agent::createTimer(int milliseconds, TimerCallback cb, void* data, bool repeating) const {
 	auto* timer = su_timer_create(mRoot->getTask(), milliseconds);
 	if (repeating) su_timer_set_for_ever(timer, (su_timer_f)cb, data);
 	else su_timer_set(timer, (su_timer_f)cb, data);
@@ -1374,8 +1268,6 @@ void Agent::applyProxyToProxyTransportSettings(tport_t* tp) {
 	}
 }
 
-const string Agent::sEventSeparator(100, '-');
-
 void Agent::printEventTailSeparator() {
 	STREAM_LOG(BCTBX_LOG_DEBUG);
 	STREAM_LOG(BCTBX_LOG_MESSAGE) << sEventSeparator;
@@ -1414,6 +1306,103 @@ void Agent::updateTransport(TlsTransportInfo& tlsTpInfo) {
 
 		tlsTpInfo.lastModificationTime = lastModificationTime;
 	}
+}
+
+Agent::Network::Network(const Network& net) : mIP(net.mIP) {
+	memcpy(&mPrefix, &net.mPrefix, sizeof(mPrefix));
+	memcpy(&mMask, &net.mMask, sizeof(mMask));
+}
+
+Agent::Network::Network(const struct ifaddrs* ifaddr) {
+	int err = 0;
+	char ipAddress[IPADDR_SIZE];
+	memset(&mPrefix, 0, sizeof(mPrefix));
+	memset(&mMask, 0, sizeof(mMask));
+	if (ifaddr->ifa_addr->sa_family == AF_INET) {
+		typedef struct sockaddr_in sockt;
+		sockt* if_addr = (sockt*)ifaddr->ifa_addr;
+		sockt* if_mask = (sockt*)ifaddr->ifa_netmask;
+		sockt* prefix = (sockt*)&mPrefix;
+		sockt* mask = (sockt*)&mMask;
+
+		mPrefix.ss_family = AF_INET;
+		prefix->sin_addr.s_addr = if_addr->sin_addr.s_addr & if_mask->sin_addr.s_addr;
+		mask->sin_addr.s_addr = if_mask->sin_addr.s_addr; // 1 chunk of 32 bits
+		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+	} else if (ifaddr->ifa_addr->sa_family == AF_INET6) {
+		typedef struct sockaddr_in6 sockt;
+		sockt* if_addr = (sockt*)ifaddr->ifa_addr;
+		sockt* if_mask = (sockt*)ifaddr->ifa_netmask;
+		sockt* prefix = (sockt*)&mPrefix;
+		sockt* mask = (sockt*)&mMask;
+
+		mPrefix.ss_family = AF_INET6;
+		for (int i = 0; i < 8; ++i) { // 8 chunks of 8 bits
+			prefix->sin6_addr.s6_addr[i] = if_addr->sin6_addr.s6_addr[i] & if_mask->sin6_addr.s6_addr[i];
+			mask->sin6_addr.s6_addr[i] = if_mask->sin6_addr.s6_addr[i];
+		}
+		err = getnameinfo(ifaddr->ifa_addr, sizeof(sockt), ipAddress, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+	}
+	if (err == 0) {
+		mIP = string(ipAddress);
+	} else {
+		LOGE << "getnameinfo error: " << strerror(errno);
+	}
+}
+
+bool Agent::Network::isInNetwork(const struct sockaddr* addr) const {
+	if (addr->sa_family != mPrefix.ss_family) {
+		return false;
+	}
+
+	if (addr->sa_family == AF_INET) {
+		typedef struct sockaddr_in sockt;
+		sockt* prefix = (sockt*)&mPrefix;
+		sockt* mask = (sockt*)&mMask;
+		sockt* if_addr = (sockt*)addr;
+
+		uint32_t test = if_addr->sin_addr.s_addr & mask->sin_addr.s_addr;
+		return test == prefix->sin_addr.s_addr;
+	} else if (addr->sa_family == AF_INET6) {
+		typedef struct sockaddr_in6 sockt;
+		sockt* prefix = (sockt*)&mPrefix;
+		sockt* mask = (sockt*)&mMask;
+		sockt* if_addr = (sockt*)addr;
+
+		for (int i = 0; i < 8; ++i) {
+			uint8_t test = if_addr->sin6_addr.s6_addr[i] & mask->sin6_addr.s6_addr[i];
+			if (test != prefix->sin6_addr.s6_addr[i]) return false;
+		}
+		return true;
+	} else {
+		throw runtime_error{"Network::isInNetwork: cannot happen"};
+	}
+
+	return false;
+}
+
+string Agent::Network::print(const struct ifaddrs* ifaddr) {
+	stringstream ss;
+	int err;
+	unsigned int size =
+	    (ifaddr->ifa_addr->sa_family == AF_INET) ? sizeof(struct sockaddr_in) : sizeof(struct sockaddr_in6);
+	char result[IPADDR_SIZE];
+	ss << "Name: " << ifaddr->ifa_name;
+
+	err = getnameinfo(ifaddr->ifa_addr, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+	if (err != 0) {
+		ss << "\tAddress: (Error)";
+	} else {
+		ss << "\tAddress: " << result;
+	}
+	err = getnameinfo(ifaddr->ifa_netmask, size, result, IPADDR_SIZE, NULL, 0, NI_NUMERICHOST);
+	if (err != 0) {
+		ss << "\tMask: (Error)";
+	} else {
+		ss << "\tMask: " << result;
+	}
+
+	return ss.str();
 }
 
 } // namespace flexisip
