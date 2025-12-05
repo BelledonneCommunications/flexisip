@@ -118,6 +118,7 @@ add_executable(flexisip_tester
 	tests/response-sip-event-tester.cc
 	tests/router/fork/fork-call-tester.cc
 	tests/router/fork/fork-context-tester.cc
+	tests/router/module-router-message-shared-tests.cc tests/router/module-router-message-shared-tests.hh
 	tests/router/module-router-tester.cc
 	tests/sofia-api/cve-fix-tester.cc
 	tests/sofia-api/nta-input.cc
@@ -162,7 +163,6 @@ add_executable(flexisip_tester
 	utils/nat-test-helper.cc utils/nat-test-helper.hh
 	utils/posix-process-tester.cc
 	utils/server/injected-module-info.cc utils/server/injected-module-info.hh
-	utils/server/mysql-server.cc utils/server/mysql-server.hh
 	utils/server/proxy-server.cc utils/server/proxy-server.hh
 	utils/server/redis-server.cc utils/server/redis-server.hh
 	utils/server/tls-tcp-server.cc utils/server/tls-tcp-server.hh
@@ -199,7 +199,9 @@ if(ENABLE_SOCI)
 		tests/presence/list-subscription/external-list-subscription-tester.cc
 		tests/router/fork/fork-context-mysql-tester.cc
 		tests/router/fork/fork-message-context-soci-repository-tester.cc
+		tests/router/module-router-sql-tester.cc
 		tests/utils/soci-helper-tester.cc
+		utils/server/mysql-server.cc utils/server/mysql-server.hh
 	)
 endif()
 

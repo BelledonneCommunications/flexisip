@@ -40,7 +40,6 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/server/redis-server.hh"
 #include "utils/server/test-conference-server.hh"
-#include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/uri-utils.hh"
@@ -52,6 +51,8 @@ using namespace flexisip;
 using namespace flexisip::tester;
 
 namespace {
+
+optional<MysqlServer> sDbServer{nullopt};
 
 class AllJoinedWaiter : public linphone::ChatRoomListener, public std::enable_shared_from_this<AllJoinedWaiter> {
 public:
@@ -87,7 +88,6 @@ private:
  * during its initialization.
  */
 void conferenceServerBindsChatroomsFromDBOnInit() {
-	const MysqlServer mysqlServer{};
 	const string confFactoryUri = "sip:conference-factory@sip.example.org";
 	const string confFocusUri = "sip:conference-focus@sip.example.org";
 	Server proxy{{// Requesting bind on port 0 to let the kernel find any available port
@@ -97,7 +97,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 
 	              // `mysql` to be as close to real-world deployments as possible
 	              {"conference-server/database-backend", "mysql"},
-	              {"conference-server/database-connection-string", mysqlServer.connectionString()},
+	              {"conference-server/database-connection-string", sDbServer->connectionString()},
 	              {"conference-server/conference-factory-uris", confFactoryUri},
 	              {"conference-server/conference-focus-uris", confFocusUri},
 	              {"conference-server/empty-chat-room-deletion", "false"},
@@ -124,7 +124,6 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 		return confServerCfg->get<ConfigString>("transport")->read();
 	};
 	{ // Populate conference server's DB
-		mysqlServer.waitReady();
 		const TestConferenceServer conferenceServer(agent, confMan, regDb);
 		BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2 /* users */ + 1 /* factory */ + 1 /* focus */);
 		const auto& inMyRoom = you.getMe();
@@ -370,11 +369,25 @@ void oldChatroomSupport() {
 	BC_ASSERT(asserter.iterateUpTo(10, [&listener] { return listener->updated; }));
 }
 
-TestSuite _("Conference",
-            {
-                CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit),
-                CLASSY_TEST(conferenceServerClearsOldBindingsOnInit),
-                CLASSY_TEST(inviteResentOnReconnect),
-                CLASSY_TEST(oldChatroomSupport),
-            });
+TestSuite _{
+    "Conference",
+    {
+        CLASSY_TEST(conferenceServerBindsChatroomsFromDBOnInit),
+        CLASSY_TEST(conferenceServerClearsOldBindingsOnInit),
+        CLASSY_TEST(inviteResentOnReconnect),
+        CLASSY_TEST(oldChatroomSupport),
+    },
+    Hooks{}
+        .beforeSuite([] {
+	        sDbServer.emplace();
+	        sDbServer->waitReady();
+	        return 0;
+        })
+        .beforeEach([] { sDbServer->clear(); })
+        .afterSuite([] {
+	        sDbServer.reset();
+	        return 0;
+        }),
+};
+
 } // namespace

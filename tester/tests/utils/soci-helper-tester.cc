@@ -22,7 +22,6 @@
 #include <fstream>
 
 #include "flexisip/logmanager.hh"
-
 #include "utils/server/mysql-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -32,47 +31,97 @@ using namespace std;
 
 namespace flexisip::tester {
 
+namespace {
+
+class ConnectionPool {
+public:
+	ConnectionPool(string_view dbName, string_view connectString, const unsigned int poolSize = 1) : mPool(poolSize) {
+		string backendName{dbName}, connectionString{connectString};
+		for (unsigned int sessionId = 0; sessionId < poolSize; ++sessionId) {
+			mPool.at(sessionId).open(backendName, connectionString);
+		}
+	}
+
+	soci::connection_pool& getPool() {
+		return mPool;
+	}
+
+private:
+	soci::connection_pool mPool;
+};
+
 class DatabaseBackend {
 public:
 	virtual ~DatabaseBackend() = default;
 
 	virtual void restart() = 0;
 	virtual void stop() = 0;
+	virtual void clear() = 0;
 	virtual string_view getName() const = 0;
 	virtual string getConnectionString() const = 0;
 };
 
-class MySqlDatabaseBackend : public DatabaseBackend {
+template <typename DbBackend>
+class TestHelper {
 public:
-	MySqlDatabaseBackend() {
-		mServer->waitReady();
+	explicit TestHelper(const shared_ptr<DbBackend>& backend, const unsigned int poolSize = 1)
+	    : mDbBackend(backend), mConnectionPool(mDbBackend->getName(), mDbBackend->getConnectionString(), poolSize) {
+		SociHelper client{mConnectionPool.getPool()};
+		client.execute([](soci::session& session) {
+			session << "CREATE TABLE " << kTableName << " (id int, value varchar(50));";
+			session << "INSERT INTO test VALUES (0, 'test');";
+		});
 	}
 
-	void restart() override {
-		mServer->restart();
-	}
+	static constexpr auto* kTableName{"test"};
 
-	void stop() override {
-		mServer.reset();
-	}
-
-	string_view getName() const override {
-		return kName;
-	}
-
-	string getConnectionString() const override {
-		return mServer->connectionString();
-	}
-
-private:
-	static constexpr string_view kName{"mysql"};
-	mutable string mConnectionString{};
-	unique_ptr<MysqlServer> mServer = make_unique<MysqlServer>();
+	shared_ptr<DbBackend> mDbBackend;
+	ConnectionPool mConnectionPool;
 };
+
+/**
+ * Test successful SQL query execution.
+ * @tparam DbBackend the type of database backend to use
+ */
+template <class DbBackend>
+void successfulExecution(const shared_ptr<DbBackend>& backend) {
+	string expectedResult{"test"};
+	string currentResult{"unexpected"};
+
+	TestHelper helper{backend};
+	SociHelper client{helper.mConnectionPool.getPool()};
+
+	client.execute(
+	    [&currentResult](soci::session& session) { session << "SELECT value FROM test;", soci::into(currentResult); });
+
+	BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
+}
+
+/**
+ * Test that an exception is thrown when there is an error in the SQL query.
+ * @tparam DbBackend the type of database backend to use
+ */
+template <class DbBackend>
+void error(const shared_ptr<DbBackend>& backend) {
+	string expectedResult{"expected"};
+	string currentResult{"expected"};
+
+	TestHelper helper{backend};
+	SociHelper client{helper.mConnectionPool.getPool()};
+
+	BC_ASSERT_THROWN(client.execute([&currentResult](soci::session& session) {
+		session << "SELECT unknown FROM test;", soci::into(currentResult);
+	}),
+	                 DatabaseException)
+
+	BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
+}
+
+namespace sqlite3 {
 
 class Sqlite3DatabaseBackend : public DatabaseBackend {
 public:
-	Sqlite3DatabaseBackend() : mDirectory(kDirectoryName.data()), mConnectionString(createDbFile().string()) {
+	Sqlite3DatabaseBackend() : mConnectionString(createDbFile().string()) {
 	}
 
 	void restart() override {
@@ -83,6 +132,10 @@ public:
 
 	void stop() override {
 		filesystem::remove_all(mDirectory.path());
+	}
+
+	void clear() override {
+		restart();
 	}
 
 	string_view getName() const override {
@@ -97,92 +150,102 @@ private:
 	static constexpr string_view kName{"sqlite3"};
 	static constexpr string_view kDirectoryName{"Sqlite3DatabaseBackend"};
 
-	filesystem::path createDbFile() {
+	filesystem::path createDbFile() const {
 		const auto filePath = mDirectory.path() / "database.db";
 		ofstream file{filePath};
 		file.close();
-		BC_HARD_ASSERT(filesystem::exists(filePath));
+		if (!filesystem::exists(filePath))
+			throw runtime_error{"failed to create sqlite3 database file ("s + filePath.string() + ")"};
 		return filePath;
 	}
 
-	TmpDir mDirectory;
+	TmpDir mDirectory{kDirectoryName.data()};
 	string mConnectionString;
 };
 
-class ConnectionPool {
+shared_ptr<Sqlite3DatabaseBackend> sBackend{};
+
+void successfulQueryExecution() {
+	successfulExecution(sBackend);
+}
+
+void errorInSqlQuery() {
+	error(sBackend);
+}
+
+TestSuite _{
+    "SociHelper::sqlite3",
+    {
+        CLASSY_TEST(successfulQueryExecution),
+        CLASSY_TEST(errorInSqlQuery),
+    },
+    Hooks{}
+        .beforeSuite([] {
+	        sBackend = make_shared<Sqlite3DatabaseBackend>();
+	        return 0;
+        })
+        .beforeEach([] { sBackend->clear(); })
+        .afterSuite([] {
+	        sBackend.reset();
+	        return 0;
+        }),
+};
+
+} // namespace sqlite3
+
+namespace mysql {
+
+class MySqlDatabaseBackend : public DatabaseBackend {
 public:
-	ConnectionPool(string_view dbName, string_view connectString, const unsigned int poolSize = 1) : mPool(poolSize) {
-		string backendName{dbName}, connectionString{connectString};
-		for (unsigned int sessionId = 0; sessionId < poolSize; ++sessionId) {
-			mPool.at(sessionId).open(backendName, connectionString);
+	MySqlDatabaseBackend() {
+		mServer->waitReady();
+	}
+
+	void restart() override {
+		if (isStopped()) {
+			mServer = make_unique<MysqlServer>();
+			mServer->waitReady();
+		} else {
+			mServer->restart();
 		}
 	}
 
-	soci::connection_pool& getPool() {
-		return mPool;
-	};
-
-private:
-	soci::connection_pool mPool;
-};
-
-namespace {
-
-template <typename Database>
-class TestHelper {
-public:
-	explicit TestHelper(const unsigned int poolSize = 1)
-	    : mDatabase(), mConnectionPool(mDatabase.getName(), mDatabase.getConnectionString(), poolSize) {
-		SociHelper client{mConnectionPool.getPool()};
-		client.execute([](soci::session& session) {
-			session << "CREATE TABLE test (id int, value varchar(50));";
-			session << "INSERT INTO test VALUES (0, 'test');";
-		});
+	void stop() override {
+		mServer.reset();
 	}
 
-	Database mDatabase;
-	ConnectionPool mConnectionPool;
+	void clear() override {
+		mServer->clear();
+	}
+
+	bool isStopped() const {
+		return !mServer;
+	}
+
+	string_view getName() const override {
+		return kName;
+	}
+
+	string getConnectionString() const override {
+		return mServer->connectionString();
+	}
+
+private:
+	static constexpr string_view kName{"mysql"};
+
+	unique_ptr<MysqlServer> mServer{make_unique<MysqlServer>()};
 };
 
-/**
- * Test successful SQL query execution.
- * @tparam Database type of database backend to use, must be one in: {MySqlDatabaseBackend, Sqlite3DatabaseBackend}
- */
-template <class Database>
-void successfulExecution() {
-	string expectedResult{"test"};
-	string currentResult{"unexpected"};
+// Shared instance of mysql process across all tests in the suite.
+shared_ptr<MySqlDatabaseBackend> backend{};
 
-	TestHelper<Database> helper{};
-	SociHelper client{helper.mConnectionPool.getPool()};
-
-	client.execute(
-	    [&currentResult](soci::session& session) { session << "SELECT value FROM test;", soci::into(currentResult); });
-
-	BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
+void successfulQueryExecution() {
+	successfulExecution(backend);
 }
 
-/**
- * Test that an exception is thrown when there is an error in the SQL query.
- * @tparam Database type of database backend to use, must be one in: {MySqlDatabaseBackend, Sqlite3DatabaseBackend}
- */
-template <class Database>
 void errorInSqlQuery() {
-	string expectedResult{"expected"};
-	string currentResult{"expected"};
-
-	TestHelper<Database> helper{};
-	SociHelper client{helper.mConnectionPool.getPool()};
-
-	BC_ASSERT_THROWN(client.execute([&currentResult](soci::session& session) {
-		session << "SELECT unknown FROM test;", soci::into(currentResult);
-	}),
-	                 DatabaseException)
-
-	BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
+	error(backend);
 }
-
-namespace mysql {
 
 /**
  * Test that an exception is thrown when the database becomes unavailable during execution.
@@ -191,10 +254,10 @@ void databaseBecomesUnavailableDuringExecution() {
 	string expectedResult{"expected"};
 	string currentResult{"expected"};
 
-	TestHelper<MySqlDatabaseBackend> helper{};
+	TestHelper helper{backend};
 	SociHelper client{helper.mConnectionPool.getPool()};
 
-	helper.mDatabase.stop();
+	helper.mDbBackend->stop();
 	BC_ASSERT_THROWN(client.execute([&currentResult](soci::session& session) {
 		session << "SELECT value FROM test;", soci::into(currentResult);
 	}),
@@ -211,12 +274,12 @@ void retryableError() {
 	string expectedResult{"test"};
 	string currentResult{"unexpected"};
 
-	TestHelper<MySqlDatabaseBackend> helper{};
+	TestHelper helper{backend};
 	SociHelper client{helper.mConnectionPool.getPool()};
 
-	client.execute([&database = helper.mDatabase, &currentResult, &restarted](soci::session& session) {
+	client.execute([&currentResult, &restarted](soci::session& session) {
 		if (!restarted) {
-			database.restart();
+			backend->restart(); // Trigger a "retryable" error.
 			restarted = true;
 		}
 		session << "SELECT value FROM test;", soci::into(currentResult);
@@ -225,17 +288,30 @@ void retryableError() {
 	BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
 }
 
-} // namespace mysql
+TestSuite _{
+    "SociHelper::mysql",
+    {
+        CLASSY_TEST(successfulQueryExecution),
+        CLASSY_TEST(errorInSqlQuery),
+        CLASSY_TEST(databaseBecomesUnavailableDuringExecution),
+        CLASSY_TEST(retryableError),
+    },
+    Hooks{}
+        .beforeSuite([] {
+	        backend = make_shared<MySqlDatabaseBackend>();
+	        return 0;
+        })
+        .beforeEach([] {
+	        if (backend->isStopped()) backend->restart();
+	        backend->clear();
+        })
+        .afterSuite([] {
+	        backend.reset();
+	        return 0;
+        }),
+};
 
-TestSuite _("SociHelper",
-            {
-                CLASSY_TEST(successfulExecution<MySqlDatabaseBackend>),
-                CLASSY_TEST(successfulExecution<Sqlite3DatabaseBackend>),
-                CLASSY_TEST(errorInSqlQuery<MySqlDatabaseBackend>),
-                CLASSY_TEST(errorInSqlQuery<Sqlite3DatabaseBackend>),
-                CLASSY_TEST(mysql::databaseBecomesUnavailableDuringExecution),
-                CLASSY_TEST(mysql::retryableError),
-            });
+} // namespace mysql
 
 } // namespace
 } // namespace flexisip::tester

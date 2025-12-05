@@ -16,6 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "mysql-server.hh"
+
+#include <unistd.h>
+
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -26,22 +30,29 @@
 #include <utility>
 #include <variant>
 
-#include <unistd.h>
-
-#include "flexisip/logmanager.hh"
+#include "soci/connection-pool.h"
+#include "soci/rowset.h"
+#include "soci/session.h"
 
 #include "flexisip-tester-config.hh"
+#include "flexisip/logmanager.hh"
 #include "utils/pipe.hh"
 #include "utils/posix-process.hh"
+#include "utils/string-utils.hh"
 #include "utils/sys-err.hh"
 #include "utils/variant-utils.hh"
-
-#include "mysql-server.hh"
 
 using namespace std;
 using namespace std::string_literals;
 
 namespace flexisip::tester {
+
+static constexpr string_view kGetAllDatabasesDropQuery{
+    "SELECT GROUP_CONCAT(CONCAT('DROP DATABASE ', schema_name, ';') SEPARATOR ' ') "
+    "FROM information_schema.schemata "
+    "WHERE schema_name "
+    "NOT IN ('mysql', 'information_schema', 'performance_schema');",
+};
 
 MysqlServer::MysqlServer()
     : mDatadir(".mysql.db.d"), mDaemon([this]() { startDaemon(); }),
@@ -62,6 +73,19 @@ void MysqlServer::restart() {
 	mDaemon = process::Process{[this]() { startDaemon(); }};
 	mReady = async(launch::async, [this]() { makeDaemonReady(); });
 	waitReady();
+}
+
+void MysqlServer::clear() {
+	waitReady();
+	if (!mSession.has_value()) {
+		mConnectionPool.at(0).open("mysql", connectionString());
+		mSession.emplace(mConnectionPool);
+	}
+	auto& session = *mSession;
+	string dropDatabasesQuery{};
+	session << kGetAllDatabasesDropQuery, soci::into(dropDatabasesQuery);
+	session << dropDatabasesQuery;
+	session << "CREATE DATABASE IF NOT EXISTS " << kDbName << ";";
 }
 
 string MysqlServer::connectionString() const {
@@ -203,6 +227,7 @@ void MysqlServer::stop() {
 		}
 	}
 	std::move(mDaemon).wait();
+	mSession.reset();
 }
 
 } // namespace flexisip::tester
