@@ -23,9 +23,11 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "sofia-sip/tport.h"
+#include "sofia-sip/url.h"
+
 #include "flexisip/flexisip-exception.hh"
 #include "flexisip/sofia-wrapper/home.hh"
-#include "sofia-sip/url.h"
 
 namespace sofiasip {
 
@@ -83,6 +85,10 @@ public:
 	 * Create an empty URL.
 	 */
 	Url() = default;
+	/**
+	 * Create and initialize from URL type.
+	 */
+	explicit Url(url_type_e type);
 	/**
 	 * Create an URL by parsing a string.
 	 * @exception InvalidUrlError Error while parsing the string.
@@ -304,6 +310,18 @@ public:
 		none = _url_none,
 	};
 
+	enum class SipScheme : std::underlying_type_t<Scheme> {
+		sip = static_cast<url_type_e>(Scheme::sip),
+		sips = static_cast<url_type_e>(Scheme::sips),
+	};
+
+	/**
+	 * @brief Build a SipUri from information contained in a sofia-sip tport name instance.
+	 *
+	 * @param name information to create the URI.
+	 */
+	static SipUri fromName(const tp_name_t* name);
+
 	SipUri() = default;
 	/**
 	 * @throw sofiasip::InvalidUrlError if str isn't a SIP or SIPS URI.
@@ -371,6 +389,11 @@ public:
 	}
 
 private:
+	/**
+	 * Create and initialize from a SIP scheme.
+	 */
+	explicit SipUri(SipScheme type);
+
 	static void checkUrl(const sofiasip::Url& url);
 };
 

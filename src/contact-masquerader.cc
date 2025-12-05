@@ -18,28 +18,42 @@
 
 #include "contact-masquerader.hh"
 
+#include "flexisip/logmanager.hh"
+#include "utils/string-utils.hh"
+
 using namespace std;
-using namespace flexisip;
 using namespace sofiasip;
 
-void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* contact, const string& domain) const {
+namespace flexisip::contact_masquerader {
+
+static constexpr string_view kLogPrefix{"ContactMasquerader"};
+
+void masquerade(su_home_t* home,
+                const string& ctrtParamName,
+                sip_contact_t* contact,
+                const tport_t* primary,
+                const string& domain) {
 	if (contact == nullptr) {
-		LOGD << "Contact is empty: aborting";
+		LOGD_CTX(kLogPrefix) << "Contact is empty: aborting";
 		return;
 	}
 	SipUri uri{};
 	try {
 		uri = SipUri{contact->m_url};
 	} catch (const std::exception& exception) {
-		LOGD << "Contact is invalid (" << exception.what() << "): aborting";
+		LOGD_CTX(kLogPrefix) << "Contact is invalid (" << exception.what() << "): aborting";
 		return;
 	}
 	if (uri.getSchemeType() == SipUri::Scheme::any) {
-		LOGD << "Contact is star '*': aborting";
+		LOGD_CTX(kLogPrefix) << "Contact is star '*': aborting";
 		return;
 	}
 
-	string param = (uri.hasParam("transport") ? uri.getParam("transport") : "udp") + ":";
+	string param{};
+	if (uri.getSchemeType() == SipUri::Scheme::sips) param += "tls:";
+	else if (uri.hasParam("transport")) param += uri.getParam("transport") + ":";
+	else param += "udp:";
+
 	if (!domain.empty()) {
 		// param=transport:domain
 		param += domain;
@@ -48,54 +62,54 @@ void ContactMasquerader::masquerade(su_home_t* home, sip_contact_t* contact, con
 		param += uri.getHost() + ":" + uri.getPortWithFallback().data();
 	}
 
-	const auto transportUri = SipUri{mAgent->getDefaultUri()};
+	const auto transportUri = SipUri::fromName(tport_name(primary));
 	uri = uri.replaceScheme(transportUri.getSchemeType());
 	uri = uri.replaceHost(transportUri.getHost());
 	uri = uri.replacePort(transportUri.getPort());
 
 	if (transportUri.hasParam("transport")) uri = uri.setParameter("transport", transportUri.getParam("transport"));
 
-	uri = uri.setParameter(mCtRtParamName, param);
+	uri = uri.setParameter(ctrtParamName, param);
 
 	*contact->m_url = *url_hdup(home, uri.get());
-	LOGD << "Contact rewritten to: " << uri.str();
+	LOGD_CTX(kLogPrefix) << "Contact rewritten to: " << uri.str();
 }
 
-void ContactMasquerader::masquerade(MsgSip& ms, bool insertDomain) const {
+void masquerade(MsgSip& ms, const string& ctrtParamName, const tport_t* primary, bool insertDomain) {
 	auto* contact = ms.getSip()->sip_contact;
 	const string domain{insertDomain ? ms.getSip()->sip_from->a_url->url_host : ""};
 
 	while (contact) {
 		if (contact->m_expires && strcmp(contact->m_expires, "0") == 0 &&
 		    (contact != ms.getSip()->sip_contact || contact->m_next)) {
-			LOGD << "Removing contact header with 'expires=0': " << SipUri{contact->m_url}.str();
+			LOGD_CTX(kLogPrefix) << "Removing contact header with 'expires=0': " << SipUri{contact->m_url}.str();
 			auto* tmp = contact->m_next;
 			msg_header_remove(ms.getMsg(), reinterpret_cast<msg_pub_t*>(ms.getSip()),
 			                  reinterpret_cast<msg_header_t*>(contact));
 			contact = tmp;
 		} else {
-			masquerade(ms.getHome(), contact, domain);
+			masquerade(ms.getHome(), ctrtParamName, contact, primary, domain);
 			contact = contact->m_next;
 		}
 	}
 }
 
-void ContactMasquerader::restore(su_home_t* home, url_t* dest, const string& param, const string& newParam) const {
+void restore(su_home_t* home, url_t* dest, const string& ctrtParamName, const string& param, const string& newParam) {
 	SipUri uri{};
 	try {
 		uri = SipUri{dest};
 	} catch (const std::exception& exception) {
-		LOGD << "Provided URI is invalid (" << exception.what() << "): aborting";
+		LOGD_CTX(kLogPrefix) << "Provided URI is invalid (" << exception.what() << "): aborting";
 		return;
 	}
 
-	uri.removeParam(mCtRtParamName);
+	uri.removeParam(ctrtParamName);
 	uri.removeParam("maddr");
 	uri.removeParam("transport");
 
 	const auto paramParsingResult = string_utils::split(param, ":");
 	if (paramParsingResult.size() != 3) {
-		LOGD << "Contact parameter '" << param << "' does not have the right format: aborting";
+		LOGD_CTX(kLogPrefix) << "Contact parameter '" << param << "' does not have the right format: aborting";
 		return;
 	}
 
@@ -111,5 +125,7 @@ void ContactMasquerader::restore(su_home_t* home, url_t* dest, const string& par
 	if (!newParam.empty()) uri = uri.setParameter(newParam, "");
 
 	*dest = *url_hdup(home, uri.get());
-	LOGD << "Request URI changed to: '" << uri.str() << "'";
+	LOGD_CTX(kLogPrefix) << "Request URI changed to: '" << uri.str() << "'";
 }
+
+} // namespace flexisip::contact_masquerader

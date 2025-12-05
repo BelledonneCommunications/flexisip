@@ -19,6 +19,7 @@
 #include "module-contact-route-inserter.hh"
 
 #include "agent.hh"
+#include "contact-masquerader.hh"
 #include "flexisip/module.hh"
 
 using namespace std;
@@ -63,7 +64,7 @@ void ContactRouteInserter::onLoad(const GenericStruct* mc) {
 	mInsertDomain = mc->get<ConfigBoolean>("insert-domain")->read();
 	mMasqueradeInvites = mc->get<ConfigBoolean>("masquerade-contacts-for-invites")->read();
 	mMasqueradeRegisters = mc->get<ConfigBoolean>("masquerade-contacts-on-registers")->read();
-	mContactMasquerader = make_unique<ContactMasquerader>(mAgent, string("CtRt") + getAgent()->getUniqueId());
+	mCtRtParamName = "CtRt" + getAgent()->getUniqueId();
 }
 
 void ContactRouteInserter::onRequest(RequestSipEvent& ev) {
@@ -71,11 +72,19 @@ void ContactRouteInserter::onRequest(RequestSipEvent& ev) {
 	const auto method = msg->getSipMethod();
 
 	if (mMasqueradeRegisters && method == sip_method_register) {
-		LOGI << "Masquerading contact";
-		mContactMasquerader->masquerade(*ev.getMsgSip(), mInsertDomain);
+		LOGD << "Postponing contact masquerading (for REGISTER): outgoing transport not yet determined";
+		ev.addBeforeSendCallback([paramName = mCtRtParamName, prefix = mLogPrefix, insertDomain = mInsertDomain](
+		                             const std::shared_ptr<MsgSip>& msg, const tport_t* primary) {
+			LOGD_CTX(prefix, "beforeSend") << "Masquerading contact";
+			contact_masquerader::masquerade(*msg, paramName, primary, insertDomain);
+		});
 	} else if (mMasqueradeInvites && method == sip_method_invite) {
-		LOGI << "Masquerading contact";
-		mContactMasquerader->masquerade(*ev.getMsgSip());
+		LOGD << "Postponing contact masquerading (for INVITE): outgoing transport not yet determined";
+		ev.addBeforeSendCallback([paramName = mCtRtParamName, prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg,
+		                                                                           const tport_t* primary) {
+			LOGD_CTX(prefix, "beforeSend") << "Masquerading contact";
+			contact_masquerader::masquerade(*msg, paramName, primary);
+		});
 	}
 
 	if (method == sip_method_register) return;
@@ -89,22 +98,22 @@ void ContactRouteInserter::onRequest(RequestSipEvent& ev) {
 		return;
 	}
 
-	const auto& ctRtParamName = mContactMasquerader->getCtRtParamName();
-	if (!uri.hasParam(ctRtParamName)) {
+	if (!uri.hasParam(mCtRtParamName)) {
 		LOGD << "No contact route parameter found in the request URI: nothing to do";
 		return;
 	}
 
 	LOGD << "Found a contact route parameter in the request URI: restoring";
-	mContactMasquerader->restore(msg->getHome(), requestUri, uri.getParam(ctRtParamName), "doroute");
+	contact_masquerader::restore(msg->getHome(), requestUri, uri.getParam(mCtRtParamName), "doroute");
 }
 
 void ContactRouteInserter::onResponse(ResponseSipEvent& ev) {
 	const auto& msg = ev.getMsgSip();
 	const auto cseqMethod = msg->getSip()->sip_cseq->cs_method;
 
+	// No need to postpone the operation here as the outgoing transport is already known.
 	if (mMasqueradeInvites && (cseqMethod == sip_method_invite || cseqMethod == sip_method_subscribe))
-		mContactMasquerader->masquerade(*msg);
+		contact_masquerader::masquerade(*msg, mCtRtParamName, tport_parent(ev.getIncomingTport().get()));
 }
 
 } // namespace flexisip

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,12 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "transaction/outgoing-transaction.hh"
+
 #include <chrono>
 #include <string>
 
 #include "registrardb-internal.hh"
 #include "sofia-sip/su_time.h"
-#include "transaction/outgoing-transaction.hh"
+#include "sofia-wrapper/nta-agent.hh"
+#include "transaction/incoming-transaction.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/override-static.hh"
@@ -32,6 +35,8 @@
 
 extern void (*_su_time)(su_time_t* tv);
 extern su_time64_t (*_su_nanotime)(su_time64_t*);
+
+using namespace sofiasip;
 
 namespace flexisip::tester {
 namespace {
@@ -142,9 +147,59 @@ Content-Length: 0)sip");
 	    .assert_passed();
 }
 
-TestSuite _("OutgoingTransaction",
-            {
-                CLASSY_TEST(resilienceToNetworkError),
-            });
+/**
+ * Test execution of custom "before send" callbacks.
+ * These are functions executed right before sofia-sip actually sends the request (happens after outgoing transport
+ * resolution).
+ */
+void beforeSendCallbacks() {
+	Server proxy{};
+	proxy.start();
+
+	bool firstCallbackCalled{};
+	bool secondCallbackCalled{};
+	const auto incoming = make_shared<IncomingTransaction>(proxy.getAgent());
+
+	stringstream request{};
+	request << "OPTIONS sip:user@127.0.0.1:1234 SIP/2.0\r\n"
+	        << "From: <sip:test@localhost>;tag=stub-tag\r\n"
+	        << "To: <sip:user@localhost>\r\n"
+	        << "Call-ID: stub-call-id.\r\n"
+	        << "CSeq: 1 OPTIONS\r\n";
+
+	const auto msg = make_shared<MsgSip>(0, request.str());
+	const auto event = RequestSipEvent::makeRestored(static_pointer_cast<IncomingAgent>(incoming), msg,
+	                                                 proxy.getAgent()->findModuleByRole("Router"));
+	BC_HARD_ASSERT(event != nullptr);
+
+	event->addBeforeSendCallback([&](const shared_ptr<MsgSip>&, const tport_t*) {
+		SLOGD << "Test: executing 1st callback";
+		firstCallbackCalled = true;
+		BC_HARD_ASSERT(secondCallbackCalled == false);
+	});
+	event->addBeforeSendCallback([&](const shared_ptr<MsgSip>&, const tport_t*) {
+		SLOGD << "Test: executing 2nd callback";
+		secondCallbackCalled = true;
+		BC_HARD_ASSERT(firstCallbackCalled == true);
+	});
+	const auto outgoing = event->createOutgoingTransaction();
+	event->send(msg, nullptr);
+
+	CoreAssert{proxy.getRoot()}
+	    .wait([&] {
+		    FAIL_IF(firstCallbackCalled == false || secondCallbackCalled == false);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+}
+
+TestSuite _{
+    "OutgoingTransaction",
+    {
+        CLASSY_TEST(resilienceToNetworkError),
+        CLASSY_TEST(beforeSendCallbacks),
+    },
+};
+
 } // namespace
 } // namespace flexisip::tester

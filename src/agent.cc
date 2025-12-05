@@ -1202,6 +1202,15 @@ void Agent::stopTimer(su_timer_t* t) {
 }
 
 void Agent::send(const shared_ptr<MsgSip>& ms, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
+	send(ms, u, {}, tag, value, TAG_END());
+}
+
+void Agent::send(const shared_ptr<MsgSip>& ms,
+                 url_string_t const* u,
+                 RequestSipEvent::BeforeSendCallbackList&&,
+                 tag_type_t tag,
+                 tag_value_t value,
+                 ...) {
 	ta_list ta;
 	ta_start(ta, tag, value);
 	msg_t* msg = msg_ref_create(ms->getMsg());

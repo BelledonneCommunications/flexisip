@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include "contact-masquerader.hh"
 #include "flexisip/module.hh"
 
 namespace flexisip {
@@ -32,6 +31,10 @@ public:
 	void onRequest(RequestSipEvent& ev) override;
 	void onResponse(ResponseSipEvent& ev) override;
 
+	std::string getContactRouteParamName() const {
+		return mCtRtParamName;
+	}
+
 private:
 	ContactRouteInserter(Agent* ag, const ModuleInfoBase* moduleInfo) : NonStoppingModule(ag, moduleInfo) {}
 
@@ -40,7 +43,7 @@ private:
 	bool mInsertDomain{};
 	bool mMasqueradeInvites{};
 	bool mMasqueradeRegisters{};
-	std::unique_ptr<ContactMasquerader> mContactMasquerader{};
+	std::string mCtRtParamName{};
 };
 
 } // namespace flexisip

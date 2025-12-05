@@ -54,7 +54,12 @@ struct Helper {
 		 * It intercepts the request before it is actually sent so that we can verify content of the request to be
 		 * forwarded.
 		 */
-		void send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t, tag_value_t, ...) override {
+		void send(const std::shared_ptr<MsgSip>& msg,
+		          url_string_t const* u,
+		          RequestSipEvent::BeforeSendCallbackList&&,
+		          tag_type_t,
+		          tag_value_t,
+		          ...) override {
 			auto* home = msg->getHome();
 
 			mMsgAsString = msg->msgAsString();

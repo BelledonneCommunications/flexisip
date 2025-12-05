@@ -285,6 +285,12 @@ private:
 	processEvent(std::unique_ptr<SipEventT>&& ev, const ModuleIter& begin, const ModuleIter& end);
 	void
 	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
+	void send(const std::shared_ptr<MsgSip>& msg,
+	          url_string_t const* u,
+	          RequestSipEvent::BeforeSendCallbackList&& callbacks,
+	          tag_type_t tag,
+	          tag_value_t value,
+	          ...) override;
 	void reply(const std::shared_ptr<MsgSip>& msg,
 	           int status,
 	           char const* phrase,

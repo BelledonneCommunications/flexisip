@@ -30,8 +30,19 @@ public:
 	OutgoingAgent(const OutgoingAgent&) = delete;
 	virtual ~OutgoingAgent() = default;
 
-	virtual void
-	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) = 0;
+	/**
+	 * @brief Send the provided request to the desired destination url.
+	 *
+	 * @param msg the request to be sent
+	 * @param u destination url
+	 * @param callbacks list of callback functions executed from sofia-sip once the outgoing transport is determined.
+	 */
+	virtual void send(const std::shared_ptr<MsgSip>& msg,
+	                  url_string_t const* u,
+	                  RequestSipEvent::BeforeSendCallbackList&& callbacks,
+	                  tag_type_t tag,
+	                  tag_value_t value,
+	                  ...) = 0;
 	virtual std::weak_ptr<Agent> getAgent() noexcept = 0;
 };
 

@@ -62,9 +62,14 @@ public:
 private:
 	static int responseCallback(nta_outgoing_magic_t* magic, nta_outgoing_t* irq, const sip_t* sip) noexcept;
 	static void deinitializationCallback(nta_outgoing_t* outgoing, nta_outgoing_magic_t* magic) noexcept;
+	static void beforeSendCallback(nta_outgoing_t* orq, nta_outgoing_magic_t* magic);
 
-	void
-	send(const std::shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) override;
+	void send(const std::shared_ptr<MsgSip>& msg,
+	          url_string_t const* u,
+	          RequestSipEvent::BeforeSendCallbackList&& callbacks,
+	          tag_type_t tag,
+	          tag_value_t value,
+	          ...) override;
 
 	/**
 	 * @brief Break self-reference on the next main loop iteration.
@@ -77,6 +82,7 @@ private:
 	Owned<nta_outgoing_t> mOutgoing{nullptr};
 	std::weak_ptr<IncomingTransaction> mIncoming{}; // The transaction from which the message comes from, if any.
 	std::shared_ptr<OutgoingTransaction> mSofiaRef{};
+	RequestSipEvent::BeforeSendCallbackList mBeforeSendCallbacks{};
 	std::string mBranchId{};
 	std::string mLogPrefix{};
 };

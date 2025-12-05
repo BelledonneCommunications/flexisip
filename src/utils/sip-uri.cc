@@ -33,6 +33,11 @@ using namespace std;
 
 namespace sofiasip {
 
+Url::Url(url_type_e type) {
+	_url = static_cast<url_t*>(su_alloc(_home.home(), sizeof(url_t)));
+	url_init(_url, type);
+}
+
 Url::Url(std::string_view str) {
 	if (str.empty()) return;
 	_url = url_make(_home.home(), str.data());
@@ -253,6 +258,20 @@ bool isValidSipUri(const url_t* url) {
 	return isValidSipUriWithMessage(sofiasip::Url(url)).first;
 }
 
+SipUri SipUri::fromName(const tp_name_t* name) {
+	SipUri uri{SipScheme::sip};
+	if (name == nullptr) return uri;
+
+	if (strcasecmp(name->tpn_proto, "tls") == 0) uri = SipUri{SipScheme::sips};
+	uri = uri.replaceHost(name->tpn_canon ? name->tpn_canon : name->tpn_host);
+	uri = uri.replacePort(name->tpn_port);
+	if (strcasecmp(name->tpn_proto, "tcp") == 0) uri = uri.setParameter("transport", "tcp");
+
+	return uri;
+}
+
+SipUri::SipUri(SipScheme scheme) : Url(static_cast<url_type_e>(scheme)) {}
+
 SipUri::SipUri(std::string_view str) : sofiasip::Url(str) {
 	checkUrl(*this);
 }
@@ -261,8 +280,7 @@ SipUri::SipUri(const url_t* src) : sofiasip::Url(src) {
 	checkUrl(*this);
 }
 
-SipUri::SipUri(const sofiasip::Url& src) : SipUri(src.get()) {
-}
+SipUri::SipUri(const sofiasip::Url& src) : SipUri(src.get()) {}
 
 SipUri::SipUri(std::string_view userInfo, std::string_view hostport, Params params)
     : SipUri([&]() {
@@ -275,8 +293,7 @@ SipUri::SipUri(std::string_view userInfo, std::string_view hostport, Params para
 
 	      if (string_utils::toLower(params.getParameter("transport")) == "udp") params.removeParameter("transport");
 	      return "sip:" + userInformation + hostport.data() + params.toString();
-      }()) {
-}
+      }()) {}
 
 SipUri::SipUri(sofiasip::Url&& src) {
 	checkUrl(src);

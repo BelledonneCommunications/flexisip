@@ -38,7 +38,12 @@ public:
 	OutgoingAgentMock(const OutgoingAgentMock&) = delete;
 	~OutgoingAgentMock() override = default;
 
-	void send(const std::shared_ptr<MsgSip>&, url_string_t const*, tag_type_t, tag_value_t, ...) override {
+	void send(const std::shared_ptr<MsgSip>&,
+	          url_string_t const*,
+	          RequestSipEvent::BeforeSendCallbackList&&,
+	          tag_type_t,
+	          tag_value_t,
+	          ...) override {
 		BC_HARD_FAIL("should not be called");
 	}
 	std::weak_ptr<Agent> getAgent() noexcept override {
@@ -90,9 +95,12 @@ void doNotForwardTest() {
 	responseSipEvent.send(responseSipEvent.getMsgSip());
 }
 
-TestSuite _("ResponseSipEvent",
-            {
-                CLASSY_TEST(doNotForwardTest),
-            });
+TestSuite _{
+    "ResponseSipEvent",
+    {
+        CLASSY_TEST(doNotForwardTest),
+    },
+};
+
 } // namespace
 } // namespace flexisip::tester

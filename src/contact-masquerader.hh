@@ -20,53 +20,52 @@
 
 #include <string>
 
-#include "agent.hh"
 #include "flexisip/event.hh"
 
-namespace flexisip {
+namespace flexisip::contact_masquerader {
 
-class ContactMasquerader {
-public:
-	ContactMasquerader(Agent* agent, const std::string& paramName) : mAgent(agent), mCtRtParamName(paramName) {}
+/**
+ * Add a parameter in the form "CtRt15.128.128.2=tcp:201.45.118.16:50025" into the contact header field. Thus, we know
+ * the transport to use to forward requests back to the client.
+ *
+ * @param home home to store the new contact url
+ * @param contact contact to masquerade
+ * @param ctrtParamName name of the custom contact route inserter parameter
+ * @param primary the primary transport that will be used to send the request
+ * @param domain SIP domain to insert into the contact route parameter
+ */
+void masquerade(su_home_t* home,
+                sip_contact_t* contact,
+                const std::string& ctrtParamName,
+                const tport_t* primary,
+                const std::string& domain);
 
-	/**
-	 * Add a parameter in the form "CtRt15.128.128.2=tcp:201.45.118.16:50025" into the contact header field. Thus, we
-	 * know the transport to use to forward requests back to the client.
-	 *
-	 * @param home home to store the new contact url
-	 * @param contact contact to masquerade
-	 * @param domain SIP domain to insert into the contact route parameter
-	 */
-	void masquerade(su_home_t* home, sip_contact_t* contact, const std::string& domain) const;
-	/**
-	 * @brief Masquerade each contact header field of the provided request except those which have an 'expires'
-	 * parameter with a null value. These contact header fields will be removed from the request. However, if
-	 * each contact header has a null 'expires' parameter, the last one will be preserved.
-	 *
-	 * @param ms the message containing header fields to masquerade
-	 * @param insertDomain if 'true', use the host part in the 'From' header field instead of 'host:port' in the
-	 * original 'Contact' header field to masquerade the provided message.
-	 */
-	void masquerade(MsgSip& ms, bool insertDomain = false) const;
-	/**
-	 * Parse the provided contact route parameter and modify the provided uri with parsed information.
-	 *
-	 * @param home home to store the restored uri
-	 * @param dest uri that will be set to the restored uri
-	 * @param param the contact route parameter
-	 * @param newParam a new parameter to add
-	 */
-	void restore(su_home_t* home, url_t* dest, const std::string& param, const std::string& newParam = {}) const;
+/**
+ * Masquerade each 'Contact' header field of the provided request except those which have an 'expires' parameter with a
+ * null value. These headers will be removed from the request. However, if each header has a null 'expires' parameter,
+ * the last one will be preserved.
+ *
+ * @param ms the message that contains the header fields to masquerade
+ * @param ctrtParamName name of the custom contact route inserter parameter
+ * @param primary the primary transport that will be used to send the request
+ * @param insertDomain if 'true', use the host part indicated in the 'From' header field (instead of 'Contact' header
+ * field 'host:port') to masquerade header fields.
+ */
+void masquerade(MsgSip& ms, const std::string& ctrtParamName, const tport_t* primary, bool insertDomain = false);
 
-	const std::string& getCtRtParamName() const {
-		return mCtRtParamName;
-	}
+/**
+ * Parse the provided contact route parameter and modify the provided uri with parsed information.
+ *
+ * @param home home to store the restored uri
+ * @param dest uri that will be set to the restored uri
+ * @param ctrtParamName name of the custom contact route inserter parameter
+ * @param param the contact route parameter
+ * @param newParam a new parameter to add
+ */
+void restore(su_home_t* home,
+             url_t* dest,
+             const std::string& ctrtParamName,
+             const std::string& param,
+             const std::string& newParam = {});
 
-private:
-	static constexpr std::string_view mLogPrefix{"ContactMasquerader"};
-
-	Agent* mAgent;
-	std::string mCtRtParamName;
-};
-
-} // namespace flexisip
+} // namespace flexisip::contact_masquerader

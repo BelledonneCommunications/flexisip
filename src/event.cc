@@ -240,7 +240,7 @@ void RequestSipEvent::send(
 
 		ta_list ta;
 		ta_start(ta, tag, value);
-		sharedOutgoingAgent->send(msg, u, ta_tags(ta));
+		sharedOutgoingAgent->send(msg, u, std::move(mBeforeSendCallbacks), ta_tags(ta));
 		ta_end(ta);
 	} else {
 		LOGI << "The SIP request is not sent";
@@ -320,6 +320,12 @@ void RequestSipEvent::unlinkTransactions() {
 			}
 		}
 	}
+}
+
+void RequestSipEvent::addBeforeSendCallback(BeforeSendCallback&& callback) {
+	createIncomingTransaction();
+	createOutgoingTransaction();
+	mBeforeSendCallbacks.emplace_back(callback);
 }
 
 void RequestSipEvent::suspendProcessing() {

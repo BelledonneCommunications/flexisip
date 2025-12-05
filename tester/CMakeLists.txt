@@ -77,7 +77,7 @@ add_executable(flexisip_tester
 	domain-registration-tester.cc
 	${CMAKE_CURRENT_BINARY_DIR}/flexisip-tester-config.hh flexisip-tester-config.hh.in
 	msg-sip-tester.cc
-	sip-uri-tests.cc
+	sip-uri-tester.cc
 	schedule-injector-tester.cc
 	tester.cc
 	tests/auth/auth-digest-tester.cc
@@ -98,6 +98,8 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/redis-reply-tester.cc
 	tests/libhiredis-wrapper/replication/redis-client-tester.cc
 	tests/main-tester.cc
+	tests/modules/contact-route-inserter/contact-masquerader-tester.cc
+	tests/modules/contact-route-inserter/module-contact-route-inserter-tester.cc
 	tests/modules/mediarelay-tester.cc
 	tests/modules/module-dos-tester.cc
 	tests/modules/module-forward-tester.cc

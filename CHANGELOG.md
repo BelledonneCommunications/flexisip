@@ -59,6 +59,9 @@ declined or not answered. Currently, the server accepts all incoming calls, play
     defined in `global/transports`.
 
 ### [Fixed]
+- **Proxy:**
+  - **ContactRouteInserter:** Incoherent 'Contact' header field(s) rewriting regarding the actual outgoing transport
+    used to send the request to the destination (when several transports are defined in `global/transports`).
 - **Redis client:**
   - Wait 1 second before retrying to connect when the connection to the server fails instead of retrying immediately.
 

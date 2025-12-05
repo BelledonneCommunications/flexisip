@@ -103,13 +103,17 @@ public:
 	template <typename UriT>
 	std::shared_ptr<NtaOutgoingTransaction> createOutgoingTransaction(std::unique_ptr<MsgSip> msg,
 	                                                                  const UriT& routeURI) {
-		auto* nativeOutgoingTr = nta_outgoing_mcreate(
-		    mNativePtr,
-		    [](auto* magic, auto* tr, auto* sip) {
-			    reinterpret_cast<NtaAgent*>(magic)->onOutgoingTransactionResponse(tr, sip);
-			    return 0;
-		    },
-		    reinterpret_cast<nta_outgoing_magic_t*>(this), toSofiaSipUrlUnion(routeURI), msg->getMsg(), TAG_END());
+		auto* nativeOutgoingTr =
+		    nta_outgoing_mcreate(mNativePtr,
+		                         {
+		                             .response =
+		                                 [](auto* magic, auto* tr, auto* sip) {
+			                                 reinterpret_cast<NtaAgent*>(magic)->onOutgoingTransactionResponse(tr, sip);
+			                                 return 0;
+		                                 },
+		                             .response_magic = reinterpret_cast<nta_outgoing_magic_t*>(this),
+		                         },
+		                         toSofiaSipUrlUnion(routeURI), msg->getMsg(), TAG_END());
 		if (nativeOutgoingTr == nullptr) {
 			throw std::runtime_error{"creating nta_outgoing_t failed"};
 		}

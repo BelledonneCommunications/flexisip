@@ -663,7 +663,8 @@ void DomainRegistration::sendRequest() {
 
 	mTimer.reset();
 
-	auto* msg = nta_msg_create(mManager.mAgent->getSofiaAgent(), 0);
+	auto* agent = mManager.mAgent->getSofiaAgent();
+	auto* msg = nta_msg_create(agent, 0);
 	if (nta_msg_request_complete(msg, mLeg, sip_method_register, nullptr, (url_string_t*)mProxy) != 0) {
 		LOGE << "nta_msg_request_complete() failed";
 	}
@@ -709,12 +710,12 @@ void DomainRegistration::sendRequest() {
 	if (mOutgoing) {
 		nta_outgoing_destroy(mOutgoing);
 	}
-	mOutgoing = nta_outgoing_mcreate(mManager.mAgent->getSofiaAgent(), sResponseCallback, (nta_outgoing_magic_t*)this,
-	                                 nullptr, msg, NTATAG_TPORT(tport), TAG_END());
-	if (!mOutgoing) {
-		LOGE << "Could not create outgoing transaction";
-		return;
-	}
+	const nta_outgoing_callbacks_t sofiaCallbacks{
+	    .response = sResponseCallback,
+	    .response_magic = reinterpret_cast<nta_outgoing_magic_t*>(this),
+	};
+	mOutgoing = nta_outgoing_mcreate(agent, sofiaCallbacks, nullptr, msg, NTATAG_TPORT(tport), TAG_END());
+	if (!mOutgoing) LOGE << "Could not create outgoing transaction";
 }
 
 void DomainRegistration::start() {

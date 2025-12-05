@@ -18,10 +18,13 @@
 
 #pragma once
 
+#include <regex.h>
+
+#include <functional>
 #include <list>
 #include <memory>
-#include <regex.h>
 #include <string>
+#include <vector>
 
 #include "sofia-sip/nta.h"
 #include "sofia-sip/sip.h"
@@ -156,6 +159,9 @@ private:
 
 class RequestSipEvent : public SipEvent {
 public:
+	using BeforeSendCallback = std::function<void(const std::shared_ptr<MsgSip>&, const tport_t*)>;
+	using BeforeSendCallbackList = std::vector<BeforeSendCallback>;
+
 	RequestSipEvent(std::shared_ptr<IncomingAgent> incomingAgent,
 	                const std::shared_ptr<MsgSip>& msgSip,
 	                tport_t* tport = nullptr);
@@ -195,8 +201,8 @@ public:
 		enum class Result { Invalid, Valid };
 		class ChallengeResult {
 		public:
-			explicit ChallengeResult(Type type) : mType(type) {
-			}
+			explicit ChallengeResult(Type type) : mType(type) {}
+
 			void setIdentity(const SipUri& sipUri) {
 				mIdentity = sipUri;
 			}
@@ -232,6 +238,18 @@ public:
 		return mAuthResult;
 	}
 
+	/**
+	 * @brief Add a new function that will be executed before the submission of the request.
+	 * @note Some operations require the outgoing transport to be determined. Thus, these functions are executed once
+	 * sofia-sip has completed this job.
+	 *
+	 * @warning This feature needs the request to be stateful, thus this method makes this request stateful (if not the
+	 * case yet).
+	 *
+	 * @param callback the function to execute
+	 */
+	void addBeforeSendCallback(BeforeSendCallback&& callback);
+
 private:
 	void checkContentLength(const url_t* url);
 	void linkTransactions();
@@ -240,6 +258,7 @@ private:
 	// keep ownership of transactions
 	std::shared_ptr<IncomingTransaction> mIncomingTransactionOwner;
 	std::shared_ptr<OutgoingTransaction> mOutgoingTransactionOwner;
+	BeforeSendCallbackList mBeforeSendCallbacks{};
 	std::string mLogPrefix;
 };
 

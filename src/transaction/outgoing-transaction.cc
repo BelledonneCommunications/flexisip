@@ -18,6 +18,7 @@
 
 #include "outgoing-transaction.hh"
 
+#include "sofia-sip/nta_tport.h"
 #include "sofia-sip/su_md5.h"
 #include "sofia-sip/su_random.h"
 #include "sofia-sip/su_tagarg.h"
@@ -117,9 +118,27 @@ void OutgoingTransaction::deinitializationCallback(nta_outgoing_t* outgoing, nta
 	}
 }
 
-void OutgoingTransaction::send(
-    const shared_ptr<MsgSip>& msg, url_string_t const* u, tag_type_t tag, tag_value_t value, ...) {
+void OutgoingTransaction::beforeSendCallback(nta_outgoing_t* orq, nta_outgoing_magic_t* magic) {
+	auto* transaction = reinterpret_cast<OutgoingTransaction*>(magic);
+	const auto msgSip = make_shared<MsgSip>(owned(nta_outgoing_getrequest(orq)));
+	const auto* transport = tport_parent(nta_outgoing_transport(orq));
+
+	for (const auto& callback : transaction->mBeforeSendCallbacks) {
+		callback(msgSip, transport);
+	}
+
+	// Callback functions MUST be executed only once.
+	transaction->mBeforeSendCallbacks.clear();
+}
+
+void OutgoingTransaction::send(const shared_ptr<MsgSip>& msg,
+                               url_string_t const* u,
+                               RequestSipEvent::BeforeSendCallbackList&& callbacks,
+                               tag_type_t tag,
+                               tag_value_t value,
+                               ...) {
 	LOGD << "Message is sent through an outgoing transaction";
+	mBeforeSendCallbacks = std::move(callbacks);
 
 	if (mOutgoing) {
 		// Sofia transaction already created, this happens when attempting to forward a cancel.
@@ -137,9 +156,16 @@ void OutgoingTransaction::send(
 	ta_start(ta, tag, value);
 
 	auto* msgRef = msg_ref_create(msg->getMsg());
-	mOutgoing =
-	    owned(nta_outgoing_mcreate(mAgent.lock()->mAgent, responseCallback,
-	                               reinterpret_cast<nta_outgoing_magic_t*>(this), u, msgRef, ta_tags(ta), TAG_END()));
+	auto* magic = reinterpret_cast<nta_outgoing_magic_t*>(this);
+	const nta_outgoing_callbacks_t sofiaCallbacks = {
+	    .response = responseCallback,
+	    .response_magic = magic,
+	    .custom_deinit = deinitializationCallback,
+	    .custom_deinit_magic = magic,
+	    .before_send = mBeforeSendCallbacks.empty() ? nullptr : beforeSendCallback,
+	    .before_send_magic = mBeforeSendCallbacks.empty() ? nullptr : magic,
+	};
+	mOutgoing = owned(nta_outgoing_mcreate(mAgent.lock()->mAgent, sofiaCallbacks, u, msgRef, ta_tags(ta), TAG_END()));
 
 	ta_end(ta);
 
@@ -151,8 +177,6 @@ void OutgoingTransaction::send(
 	}
 
 	mSofiaRef = shared_from_this();
-	nta_outgoing_add_custom_deinit(mOutgoing.borrow(), deinitializationCallback,
-	                               reinterpret_cast<nta_outgoing_magic_t*>(this));
 }
 
 void OutgoingTransaction::queueFree() {

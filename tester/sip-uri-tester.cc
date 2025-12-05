@@ -1,16 +1,29 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include "flexisip/utils/sip-uri.hh"
 
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
-#include <flexisip/utils/sip-uri.hh>
+namespace flexisip::tester {
 
-namespace flexisip {
-namespace tester {
-
-void url__rfc3261Compare() {
+void rfc3261Compare() {
 	/* https://www.rfc-editor.org/rfc/rfc3261.html#section-19.1.4
 	 *
 	 * Not testing identity (a == a), as that is trivially true;
@@ -208,11 +221,54 @@ void url__rfc3261Compare() {
 	}
 }
 
-namespace {
-TestSuite _("sip-uri-tests",
-            {
-                CLASSY_TEST(url__rfc3261Compare),
-            });
+void fromName() {
+	const auto* canon = "sip.example.org";
+	const auto* host = "127.0.0.1";
+	const auto* port = "5060";
+
+	{
+		const tp_name_t name{.tpn_proto = "uDp", .tpn_canon = canon, .tpn_host = host, .tpn_port = port};
+		const auto uri = SipUri::fromName(&name);
+		BC_ASSERT_ENUM_EQUAL(uri.getSchemeType(), SipUri::Scheme::sip);
+		BC_ASSERT_CPP_EQUAL(uri.getHost(), canon);
+		BC_ASSERT_CPP_EQUAL(uri.getPort(), port);
+		BC_ASSERT(uri.getParam("transport").empty());
+	}
+	{
+		const tp_name_t name{.tpn_proto = "udP", .tpn_canon = nullptr, .tpn_host = host, .tpn_port = port};
+		const auto uri = SipUri::fromName(&name);
+		BC_ASSERT_ENUM_EQUAL(uri.getSchemeType(), SipUri::Scheme::sip);
+		BC_ASSERT_CPP_EQUAL(uri.getHost(), host);
+		BC_ASSERT_CPP_EQUAL(uri.getPort(), port);
+		BC_ASSERT(uri.getParam("transport").empty());
+	}
+	{
+		const tp_name_t name{.tpn_proto = "tcP", .tpn_canon = canon, .tpn_host = host, .tpn_port = port};
+		const auto uri = SipUri::fromName(&name);
+		BC_ASSERT_ENUM_EQUAL(uri.getSchemeType(), SipUri::Scheme::sip);
+		BC_ASSERT_CPP_EQUAL(uri.getHost(), canon);
+		BC_ASSERT_CPP_EQUAL(uri.getPort(), port);
+		BC_ASSERT_CPP_EQUAL(uri.getParam("transport"), "tcp");
+	}
+	{
+		const tp_name_t name{.tpn_proto = "Tls", .tpn_canon = canon, .tpn_host = host, .tpn_port = port};
+		const auto uri = SipUri::fromName(&name);
+		BC_ASSERT_ENUM_EQUAL(uri.getSchemeType(), SipUri::Scheme::sips);
+		BC_ASSERT_CPP_EQUAL(uri.getHost(), canon);
+		BC_ASSERT_CPP_EQUAL(uri.getPort(), port);
+		BC_ASSERT(uri.getParam("transport").empty());
+	}
 }
-} // namespace tester
-} // namespace flexisip
+
+namespace {
+
+TestSuite _{
+    "SipUri",
+    {
+        CLASSY_TEST(rfc3261Compare),
+        CLASSY_TEST(fromName),
+    },
+};
+
+}
+} // namespace flexisip::tester
