@@ -18,6 +18,11 @@
 
 #pragma once
 
+#include <functional>
+#include <queue>
+#include <string>
+#include <unordered_set>
+
 #include "flexiapi/schemas/call/call.hh"
 #include "flexiapi/schemas/conference/conference.hh"
 #include "flexiapi/schemas/conference/participant-device-event.hh"
@@ -25,8 +30,7 @@
 #include "flexiapi/schemas/message/message.hh"
 #include "utils/transport/http/rest-client.hh"
 
-namespace flexisip {
-namespace flexiapi {
+namespace flexisip::flexiapi {
 
 class FlexiStats {
 public:
@@ -40,12 +44,14 @@ public:
 	void postMessage(const Message& message);
 	void notifyMessageDeviceResponse(const std::string& messageId,
 	                                 const ApiFormattedUri& sipUri,
-	                                 const std::string deviceId,
+	                                 const std::string& deviceId,
 	                                 const MessageDeviceResponse& messageDeviceResponse);
 
 	/********** CALLS **********/
 	void postCall(const Call& call);
-	void updateCallDeviceState(const std::string& callId, const std::string& deviceId, const CallDeviceState& call);
+	void updateCallDeviceState(const std::string& callId,
+	                           const std::string& deviceId,
+	                           const CallDeviceState& callDeviceState);
 	void updateCallState(const std::string& callId, const ISO8601Date& endedAt);
 
 	/********** CONFERENCES **********/
@@ -60,11 +66,53 @@ public:
 	                                         const ParticipantDeviceEvent& participantDeviceEvent);
 
 private:
-	std::string toApiPath(const std::string& methodPath);
+	static constexpr std::string_view mLogPrefix{"FlexiStats"};
+
+	std::string toApiPath(const std::string& methodPath) const;
+	static std::string getLogPrefix(const std::string& func) {
+		return std::string{mLogPrefix} + "::" + func;
+	}
+
+	/********** MESSAGES **********/
+	void notifyMessageDeviceResponsePatch(const std::string& messageId,
+	                                      const ApiFormattedUri& sipUri,
+	                                      const std::string& deviceId,
+	                                      const MessageDeviceResponse& messageDeviceResponse);
+
+	/********** CALLS **********/
+	void updateCallDeviceStatePatch(const std::string& callId,
+	                                const std::string& deviceId,
+	                                const CallDeviceState& callDeviceState);
+	void updateCallStatePatch(const std::string& callId, const ISO8601Date& endedAt);
+
+	/********** CONFERENCES **********/
+	void notifyConferenceEndedPatch(const std::string& conferenceId, const ISO8601Date& endedAt);
+	void conferenceAddParticipantEventPatch(const std::string& conferenceId,
+	                                        const ApiFormattedUri& sipUri,
+	                                        const ParticipantEvent& participantEvent);
+	void conferenceAddParticipantDeviceEventPatch(const std::string& conferenceId,
+	                                              const ApiFormattedUri& sipUri,
+	                                              const std::string& deviceId,
+	                                              const ParticipantDeviceEvent& participantDeviceEvent);
+
+	/**
+	 * Callback to call on request success. Sends the next patches if any are waiting for this ID.
+	 */
+	void successCallback(const std::string& id);
+	/**
+	 * Callback to call on request error. Next patches are dropped if any are waiting for this ID.
+	 */
+	void errorCallback(const std::string& id);
+	/**
+	 * Adds a patch to the waiting queue for processing. Queues are different for each resource (identified by id).
+	 */
+	void addPatchToWaitingQueue(const std::string& id, std::function<void()>&& patch);
+
+	std::unordered_map<std::string, std::queue<std::function<void()>>> mWaitingPatches;
+	std::unordered_set<std::string> mOngoingIds;
 
 	RestClient mRestClient;
 	std::string mApiPrefix;
 };
 
-} // namespace flexiapi
-} // namespace flexisip
+} // namespace flexisip::flexiapi
