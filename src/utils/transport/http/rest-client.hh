@@ -57,6 +57,24 @@ public:
 		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "post") << responseLog; },
 		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "post") << errorLog; });
 	}
+	template <class JsonObject>
+	void post(const std::string& path,
+	          const JsonObject& jsonObject,
+	          const OnResponseCb& customSuccessCallback,
+	          const OnErrorCb& customErrorCallback,
+	          const std::string& responseLog,
+	          const std::string& errorLog) {
+		post(
+		    path, jsonObject,
+		    [responseLog, customSuccessCallback](const auto& req, const auto& resp) {
+			    LOGI_CTX(mLogPrefix, "post") << responseLog;
+			    customSuccessCallback(req, resp);
+		    },
+		    [errorLog, customErrorCallback](const auto& req) {
+			    LOGE_CTX(mLogPrefix, "post") << errorLog;
+			    customErrorCallback(req);
+		    });
+	}
 
 	template <class JsonObject>
 	void put(const std::string& path,
@@ -90,6 +108,24 @@ public:
 		patch(
 		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "patch") << responseLog; },
 		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "patch") << errorLog; });
+	}
+	template <class JsonObject>
+	void patch(const std::string& path,
+	           const JsonObject& jsonObject,
+	           const OnResponseCb& customSuccessCallback,
+	           const OnErrorCb& customErrorCallback,
+	           const std::string& responseLog,
+	           const std::string& errorLog) {
+		patch(
+		    path, jsonObject,
+		    [responseLog, customSuccessCallback](const auto& req, const auto& resp) {
+			    LOGI_CTX(mLogPrefix, "patch") << responseLog;
+			    customSuccessCallback(req, resp);
+		    },
+		    [errorLog, customErrorCallback](const auto& req) {
+			    LOGE_CTX(mLogPrefix, "patch") << errorLog;
+			    customErrorCallback(req);
+		    });
 	}
 
 private:

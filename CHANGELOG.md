@@ -97,12 +97,6 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
 
 
-## [2.5.1]
-- **SDK version:** 5.4.58
-
-### [Fixed]
-- **CLI:** The REGISTRAR_DUMP command was always returning an empty set.
-
 ## [2.5.0]
 - **SDK version:** 5.4.64
 
@@ -159,6 +153,9 @@ declined or not answered. Currently, the server accepts all incoming calls, play
         - `static`: Specify a list of authorized SIP domains in the configuration file (default behavior).
         - `dynamic`: Set up a connection to the [FlexisipAccountManager] server to dynamically get the list of
           authorized SIP domains.
+      - **Event-logs:** Event-logs sent by the 'flexiapi' logger are now sent sequentially for each resource, identified
+        by id (waiting for the response of the previous request before sending updates).
+
 - **B2BUA server:**
     - **Trenscrypter:** Invalid values in `outgoing-enc-regex` and `outgoing-srtp-regex` parameters are now
       considered as errors and prevent the server from starting.
@@ -201,6 +198,7 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 - **Logger:** Some useful error logs were not printed during the startup phase.
 - **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
   configuration file.
+- **CLI:** The REGISTRAR_DUMP command was always returning an empty set.
  
 ### [Security]
 - **Sofia-sip:** Fixed multiple CVE
