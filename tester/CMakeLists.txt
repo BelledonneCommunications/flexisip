@@ -109,6 +109,7 @@ add_executable(flexisip_tester
 	tests/modules/module-toolbox-tester.cc
 	tests/modules/router/fork/fork-call-tester.cc
 	tests/modules/router/fork/fork-context-tester.cc
+	tests/modules/router/module-router-message-shared-tests.cc tests/modules/router/module-router-message-shared-tests.hh
 	tests/modules/router/module-router-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
 	tests/nat/contact-correction-strategy-tester.cc
@@ -173,7 +174,6 @@ add_executable(flexisip_tester
 	utils/nat-test-helper.cc utils/nat-test-helper.hh
 	utils/posix-process-tester.cc
 	utils/server/injected-module-info.cc utils/server/injected-module-info.hh
-	utils/server/mysql-server.cc utils/server/mysql-server.hh
 	utils/server/proxy-server.cc utils/server/proxy-server.hh
 	utils/server/redis-server.cc utils/server/redis-server.hh
 	utils/server/tls-tcp-server.cc utils/server/tls-tcp-server.hh
@@ -209,8 +209,10 @@ if(ENABLE_SOCI)
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
 		tests/modules/router/fork/fork-context-mysql-tester.cc
 		tests/modules/router/fork/fork-message-context-soci-repository-tester.cc
+		tests/modules/router/module-router-sql-tester.cc
 		tests/presence/list-subscription/external-list-subscription-tester.cc
 		tests/utils/soci-helper-tester.cc
+		utils/server/mysql-server.cc utils/server/mysql-server.hh
 	)
 endif()
 

@@ -19,15 +19,13 @@
 #include "auth/db/authdb.hh"
 
 #include <future>
-#include <optional>
 #include <tuple>
 #include <vector>
 
-#include <bctoolbox/tester.h>
+#include "bctoolbox/tester.h"
 
-#include <flexisip/configmanager.hh>
-#include <flexisip/module.hh>
-
+#include "flexisip/configmanager.hh"
+#include "flexisip/module.hh"
 #include "tester.hh"
 #include "utils/server/mysql-server.hh"
 #include "utils/string-utils.hh"
@@ -37,6 +35,15 @@
 using namespace std::chrono_literals;
 
 namespace flexisip::tester {
+namespace {
+
+class DbBackend {
+public:
+	virtual ~DbBackend() = default;
+
+	virtual void clear() const = 0;
+	virtual void setConfig(const GenericStruct& authModuleConfig) const = 0;
+};
 
 class PasswordRequestListener : public AuthDbListener {
 public:
@@ -55,60 +62,27 @@ private:
 	std::promise<std::tuple<AuthDbResult, std::vector<passwd_algo_t>>> mResult{};
 };
 
-std::optional<MysqlServer> sMysqlSuiteServer{std::nullopt};
-
-class MySqlBackend {
-public:
-	MySqlBackend() {
-		if (!sMysqlSuiteServer) {
-			sMysqlSuiteServer.emplace();
-		}
-	}
-
-	void waitReady() {
-		sMysqlSuiteServer->waitReady();
-	}
-
-	void setConfig(const GenericStruct& authModuleConfig) {
-		authModuleConfig.get<ConfigString>("soci-backend")->set("mysql");
-		authModuleConfig.get<ConfigString>("soci-connection-string")->set(sMysqlSuiteServer->connectionString());
-	}
-};
-
-class SqliteBackend {
-public:
-	void waitReady() {
-	}
-
-	void setConfig(const GenericStruct& authModuleConfig) {
-		authModuleConfig.get<ConfigString>("soci-backend")->set("sqlite3");
-		authModuleConfig.get<ConfigString>("soci-connection-string")->set("/dev/zero");
-	}
-};
-
-static const char domainAndAuthId[] = R"SQL(
+constexpr char kDomainAndAuthId[] = R"SQL(
 	SELECT :id, 'SHA-DDOCK'
 	UNION SELECT :domain, :authid;
 )SQL";
 
-static const char domain[] = R"SQL(
+constexpr char kDomain[] = R"SQL(
 	SELECT :id, 'SHA-DDOCK'
 	UNION SELECT :domain, "authid-stand-in";
 )SQL";
 
-static const char authId[] = R"SQL(
+constexpr char kAuthId[] = R"SQL(
 	SELECT :id, 'SHA-DDOCK'
 	UNION SELECT "domain-stand-in", :authid;
 )SQL";
 
-static const char none[] = R"SQL(
+constexpr char kNone[] = R"SQL(
 	SELECT :id, 'SHA-DDOCK'
 	UNION SELECT "domain-stand-in", "authid-stand-in";
 )SQL";
 
-template <typename Backend, const char request[]>
-void customPasswordRequestParamInjection() {
-	Backend backend{};
+void customPasswordRequestParamInjection(const std::unique_ptr<DbBackend>& backend, const std::string& request) {
 	Random random{tester::random::seed()};
 
 	const auto injectedPassword = random.string().generate(0x10);
@@ -128,9 +102,8 @@ void customPasswordRequestParamInjection() {
 	const auto& authModuleConfig = *configRoot.get<GenericStruct>("module::Authentication");
 	authModuleConfig.get<ConfigInt>("soci-poolsize")->set("1");
 	authModuleConfig.get<ConfigString>("soci-password-request")->set(request);
-	backend.setConfig(authModuleConfig);
+	backend->setConfig(authModuleConfig);
 	PasswordRequestListener listener{};
-	backend.waitReady();
 	SociAuthDB authDb{configRoot};
 
 	authDb.getPasswordFromBackend(injectedPassword, "domain-stand-in", "authid-stand-in", &listener);
@@ -155,21 +128,117 @@ void customPasswordRequestParamInjection() {
 	}
 }
 
-namespace {
-TestSuite _("SociAuthDB",
-            {
-                CLASSY_TEST((customPasswordRequestParamInjection<SqliteBackend, domainAndAuthId>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<SqliteBackend, domain>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<SqliteBackend, authId>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<SqliteBackend, none>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<MySqlBackend, domainAndAuthId>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<MySqlBackend, domain>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<MySqlBackend, authId>)),
-                CLASSY_TEST((customPasswordRequestParamInjection<MySqlBackend, none>)),
-            },
-            Hooks().afterSuite([] {
-	            sMysqlSuiteServer = std::nullopt;
-	            return 0;
-            }));
+namespace sqlite3 {
+
+class SqliteBackend : public DbBackend {
+public:
+	void clear() const override {}
+
+	void setConfig(const GenericStruct& authModuleConfig) const override {
+		authModuleConfig.get<ConfigString>("soci-backend")->set("sqlite3");
+		authModuleConfig.get<ConfigString>("soci-connection-string")->set("/dev/zero");
+	}
+};
+
+std::unique_ptr<DbBackend> sSqliteBackend{};
+
+void customPasswordRequestParamInjectionDomainAndAuthId() {
+	customPasswordRequestParamInjection(sSqliteBackend, kDomainAndAuthId);
+}
+
+void customPasswordRequestParamInjectionDomain() {
+	customPasswordRequestParamInjection(sSqliteBackend, kDomain);
+}
+
+void customPasswordRequestParamInjectionAuthId() {
+	customPasswordRequestParamInjection(sSqliteBackend, kAuthId);
+}
+
+void customPasswordRequestParamInjectionNone() {
+	customPasswordRequestParamInjection(sSqliteBackend, kNone);
+}
+
+TestSuite _{
+    "SociAuthDB::sqlite3",
+    {
+        CLASSY_TEST(customPasswordRequestParamInjectionDomainAndAuthId),
+        CLASSY_TEST(customPasswordRequestParamInjectionDomain),
+        CLASSY_TEST(customPasswordRequestParamInjectionAuthId),
+        CLASSY_TEST(customPasswordRequestParamInjectionNone),
+    },
+    Hooks{}
+        .beforeSuite([] {
+	        sSqliteBackend = std::make_unique<SqliteBackend>();
+	        return 0;
+        })
+        .beforeEach([] { sSqliteBackend->clear(); })
+        .afterSuite([] {
+	        sSqliteBackend.reset();
+	        return 0;
+        }),
+};
+
+} // namespace sqlite3
+
+namespace mysql {
+
+class MySqlBackend : public DbBackend {
+public:
+	MySqlBackend() : mServer(std::make_unique<MysqlServer>()) {
+		mServer->waitReady();
+	}
+
+	void clear() const override {
+		mServer->clear();
+	}
+
+	void setConfig(const GenericStruct& authModuleConfig) const override {
+		authModuleConfig.get<ConfigString>("soci-backend")->set("mysql");
+		authModuleConfig.get<ConfigString>("soci-connection-string")->set(mServer->connectionString());
+	}
+
+private:
+	std::unique_ptr<MysqlServer> mServer{};
+};
+
+std::unique_ptr<DbBackend> sMySqlBackend{};
+
+void customPasswordRequestParamInjectionDomainAndAuthId() {
+	customPasswordRequestParamInjection(sMySqlBackend, kDomainAndAuthId);
+}
+
+void customPasswordRequestParamInjectionDomain() {
+	customPasswordRequestParamInjection(sMySqlBackend, kDomain);
+}
+
+void customPasswordRequestParamInjectionAuthId() {
+	customPasswordRequestParamInjection(sMySqlBackend, kAuthId);
+}
+
+void customPasswordRequestParamInjectionNone() {
+	customPasswordRequestParamInjection(sMySqlBackend, kNone);
+}
+
+TestSuite _{
+    "SociAuthDB::mysql",
+    {
+        CLASSY_TEST(customPasswordRequestParamInjectionDomainAndAuthId),
+        CLASSY_TEST(customPasswordRequestParamInjectionDomain),
+        CLASSY_TEST(customPasswordRequestParamInjectionAuthId),
+        CLASSY_TEST(customPasswordRequestParamInjectionNone),
+    },
+    Hooks()
+        .beforeSuite([] {
+	        sMySqlBackend = std::make_unique<MySqlBackend>();
+	        return 0;
+        })
+        .beforeEach([] { sMySqlBackend->clear(); })
+        .afterSuite([] {
+	        sMySqlBackend.reset();
+	        return 0;
+        }),
+};
+
+} // namespace mysql
 } // namespace
 } // namespace flexisip::tester

@@ -16,21 +16,21 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/module-router.hh"
+
 #include <chrono>
 #include <memory>
 #include <string>
-#include <unistd.h>
 
 #include "belle-sip/types.h"
-#include "conference/chatroom-prefix.hh"
+
 #include "flexisip/logmanager.hh"
-#include "flexisip/module-router.hh"
+#include "module-router-message-shared-tests.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
-#include "utils/server/mysql-server.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
@@ -554,116 +554,9 @@ void statelessCancel() {
 	    .assert_passed();
 }
 
-/**
- * Test that a ForkMessageContext instance (with 'fork-late' enforced to false) is created for MESSAGE requests intended
- * for the conference server. This should be the case regardless of whether 'message-database-enabled' is "true" or
- * "false".
- */
-template <const bool messageDatabaseEnabled>
 void sipMessageRequestIntendedForChatroom() {
-	optional<MysqlServer> dbServer{};
-	if constexpr (messageDatabaseEnabled) {
-		dbServer.emplace();
-		dbServer->waitReady();
-	}
-
-	Server proxy{{
-	    {"module::Registrar/reg-domains", "sip.example.org"},
-	    {"module::Router/message-fork-late", "true"},
-	    {"module::Router/message-database-enabled", messageDatabaseEnabled ? "true" : "false"},
-	    {"module::Router/message-database-connection-string", dbServer.has_value() ? dbServer->connectionString() : ""},
-	}};
-	proxy.start();
-
-	const auto router = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
-	BC_HARD_ASSERT(router != nullptr);
-
-	auto isRequestReceived = false;
-	BellesipUtils senderClient{
-	    "127.0.0.1",
-	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
-	    "TCP",
-	    [&isRequestReceived](int status) {
-		    if (status != 100) {
-			    BC_HARD_ASSERT_CPP_EQUAL(status, 200);
-			    isRequestReceived = true;
-		    }
-	    },
-	};
-
-	ClientBuilder builder{*proxy.getAgent()};
-	auto oldSdkReceiver = builder.build("sip:chatroom-old-sdk@sip.example.org");
-	auto newSdkReceiver = builder.build("sip:chatroomNewSdk@sip.example.org");
-	CoreAssert asserter{proxy, senderClient, oldSdkReceiver, newSdkReceiver};
-
-	// Test for Flexisip-conference with SDK < 5.4
-	{
-		stringstream request{};
-		string body{"This is a test message.\r\n\r\n"};
-		const auto gr = "urn:uuid:"s + oldSdkReceiver.getUuid();
-		request << "MESSAGE sip:chatroom-old-sdk@sip.example.org;gr=" << gr << " SIP/2.0\r\n"
-		        << "Via: SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-		        << "From: <sip:sender@sip.example.org>;tag=stub-from-tag\r\n"
-		        << "To: <sip:chatroom-old-sdk@sip.example.org;gr=" << gr << ">\r\n"
-		        << "CSeq: 20 MESSAGE\r\n"
-		        << "Call-ID: stub-call-id" << "\r\n"
-		        << "Max-Forwards: 70\r\n"
-		        << "Route: <sip:127.0.0.1:" << proxy.getFirstPort() << ";transport=tcp;lr>\r\n"
-		        << "Supported: replaces, outbound, gruu\r\n"
-		        << "Content-Type: text/plain\r\n"
-		        << "Content-Length: " << body.size() << "\r\n\r\n";
-		senderClient.sendRawRequest(request.str(), body);
-
-		asserter.iterateUpTo(128, [&] { return LOOP_ASSERTION(isRequestReceived == true); }, 2s).hard_assert_passed();
-
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->finish->read(), 1);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageProxyForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageConferenceForks->start->read(), 1);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageConferenceForks->finish->read(), 1);
-	}
-
-	isRequestReceived = false;
-
-	// Test for Flexisip-conference with SDK >= 5.4
-	{
-		stringstream request{};
-		string body{"This is a test message.\r\n\r\n"};
-		request << "MESSAGE sip:chatroomNewSdk@sip.example.org;" << conference::CONFERENCE_ID << "=stubid SIP/2.0\r\n"
-		        << "Via: SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.PAWTmCZv1;rport=49828\r\n"
-		        << "From: <sip:sender@sip.example.org>;tag=stub-from-tag\r\n"
-		        << "To: <sip:chatroomNewSdk@sip.example.org;" << conference::CONFERENCE_ID << "=stubid>\r\n"
-		        << "CSeq: 20 MESSAGE\r\n"
-		        << "Call-ID: stub-call-id" << "\r\n"
-		        << "Max-Forwards: 70\r\n"
-		        << "Route: <sip:127.0.0.1:" << proxy.getFirstPort() << ";transport=tcp;lr>\r\n"
-		        << "Supported: replaces, outbound, gruu\r\n"
-		        << "Content-Type: text/plain\r\n"
-		        << "Content-Length: " << body.size() << "\r\n\r\n";
-		senderClient.sendRawRequest(request.str(), body);
-
-		asserter.iterateUpTo(128, [&] { return LOOP_ASSERTION(isRequestReceived == true); }, 2s).hard_assert_passed();
-
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->start->read(), 2);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->finish->read(), 2);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageProxyForks->start->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageProxyForks->finish->read(), 0);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageConferenceForks->start->read(), 2);
-		BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountMessageConferenceForks->finish->read(), 2);
-	}
+	router::sipMessageRequestIntendedForChatroom(false, "");
 }
-
-constexpr bool MessageStorageInDatabaseEnabled = true;
-constexpr bool MessageStorageInDatabaseDisabled = false;
 
 TestSuite _{
     "RouterModule",
@@ -676,8 +569,7 @@ TestSuite _{
         CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
         CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
         CLASSY_TEST(statelessCancel),
-        CLASSY_TEST(sipMessageRequestIntendedForChatroom<MessageStorageInDatabaseEnabled>),
-        CLASSY_TEST(sipMessageRequestIntendedForChatroom<MessageStorageInDatabaseDisabled>),
+        CLASSY_TEST(sipMessageRequestIntendedForChatroom),
     },
 };
 

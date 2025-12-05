@@ -20,8 +20,11 @@
 
 #include <future>
 
-#include "utils/tmp-dir.hh"
+#include "soci/connection-pool.h"
+#include "soci/session.h"
+
 #include "utils/posix-process.hh"
+#include "utils/tmp-dir.hh"
 
 namespace flexisip::tester {
 
@@ -43,7 +46,12 @@ public:
 	 */
 	void waitReady() const;
 
-    void restart();
+	void restart();
+
+	/**
+	 * Drop all databases except 'mysql', 'information_schema' and 'performance_schema'.
+	 */
+	void clear();
 
 	/**
 	 * @return SOCI connection string to use to connect to this instance
@@ -52,15 +60,17 @@ public:
 
 private:
 	constexpr static char kSocketFile[] = "/mysql.sock";
-	constexpr static char kDbName[] = "flexisip_messages";
+	constexpr static char kDbName[] = "default_test_database";
 
-    void startDaemon();
-    void makeDaemonReady();
-    void stop();
+	void startDaemon();
+	void makeDaemonReady();
+	void stop();
 
 	TmpDir mDatadir; // Mysql mandatory data directory, cleaned up if the tester didn't crash
 	process::Process mDaemon;
 	mutable std::future<void> mReady;
+	soci::connection_pool mConnectionPool{1};
+	std::optional<soci::session> mSession{std::nullopt};
 };
 
 } // namespace flexisip::tester

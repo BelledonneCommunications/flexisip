@@ -45,7 +45,7 @@ using namespace sofiasip;
 namespace flexisip::tester {
 namespace {
 
-optional<MysqlServer> mysqlServer = nullopt;
+optional<MysqlServer> sDbServer{nullopt};
 const weak_ptr<ForkContextListener> nullListener{};
 
 string rawRequest{R"sip(MESSAGE sip:francois.grisez@sip.test.org SIP/2.0
@@ -89,7 +89,7 @@ const map<string, string> configuration{
 
 void forkMessageContextSociRepositoryMysql() {
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
@@ -105,7 +105,6 @@ void forkMessageContextSociRepositoryMysql() {
 	ForkMessageContextDb fakeDbObject{1, 3, true, *gmtime(&targetTime), rawRequest, MsgSipPriority::NonUrgent};
 	fakeDbObject.dbKeys = vector<string>{"key1", "key2", "key3"};
 	auto expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
-	mysqlServer->waitReady();
 	const auto insertedUuid = forkMessageDatabase->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = forkMessageDatabase->findForkMessageByUuid(insertedUuid);
 	auto actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
@@ -129,7 +128,7 @@ void forkMessageContextSociRepositoryMysql() {
 
 void forkMessageContextWithBranchesSociRepositoryMysql() {
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
@@ -147,7 +146,6 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 	fakeDbObject.dbBranches = vector<BranchInfoDb>{branchInfoDb, branchInfoDb2, branchInfoDb3};
 	auto expectedFork = forkFactory->restoreForkMessageContext(fakeDbObject, nullListener);
 
-	mysqlServer->waitReady();
 	const auto insertedUuid = forkMessageDatabase->saveForkMessageContext(expectedFork->getDbObject());
 	auto dbFork = forkMessageDatabase->findForkMessageByUuid(insertedUuid);
 	auto actualFork = forkFactory->restoreForkMessageContext(dbFork, nullListener);
@@ -173,7 +171,7 @@ void forkMessageContextWithBranchesSociRepositoryMysql() {
 
 void forkMessageContextSociRepositoryFullLoadMysql() {
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
@@ -206,7 +204,6 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 			                                 rawRequest, rawResponse, random.boolean().generate());
 
 		const auto fork = forkFactory->restoreForkMessageContext(fakeFork, nullListener);
-		mysqlServer->waitReady();
 		const auto uuid = forkMessageDatabase->saveForkMessageContext(fork->getDbObject());
 		expectedForks.insert({uuid, fork});
 	}
@@ -255,7 +252,7 @@ void forkMessageContextSociRepositoryFullLoadMysql() {
 void globalTest() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -346,7 +343,7 @@ void globalTest() {
 void globalTestMultipleDevices() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
 	CoreAssert asserter{server};
@@ -508,7 +505,7 @@ void globalTestMultipleDevices() {
 void testDBAccessOptimization() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -735,7 +732,7 @@ static void globalTestMultipleMessages() {
 void globalTestDatabaseDeleted() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -825,7 +822,7 @@ void globalTestDatabaseDeleted() {
 void globalOrderTest() {
 	SLOGD << "Step 1: Setup";
 	Server server{configuration};
-	server.setConfigParameter({"module::Router/message-database-connection-string", mysqlServer->connectionString()});
+	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
 	const auto router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
@@ -951,12 +948,13 @@ TestSuite _{
     },
     Hooks()
         .beforeSuite([] {
-	        mysqlServer.emplace();
-	        mysqlServer->waitReady();
+	        sDbServer.emplace();
+	        sDbServer->waitReady();
 	        return 0;
         })
+        .beforeEach([] { sDbServer->clear(); })
         .afterSuite([] {
-	        mysqlServer.reset();
+	        sDbServer.reset();
 	        return 0;
         }),
 };

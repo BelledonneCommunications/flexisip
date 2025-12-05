@@ -29,19 +29,19 @@ using namespace std;
 namespace flexisip::tester {
 namespace {
 
+optional<MysqlServer> sDbServer{nullopt};
+
 /**
  * Test database creation (and that migration steps did work).
  */
 void databaseCreation() {
-	static constexpr size_t poolSize{10};
-	static const string backend{"mysql"};
-	static const vector<string> columNames{
+	constexpr size_t poolSize{10};
+	const string backend{"mysql"};
+	const vector<string> columNames{
 	    "uuid", "current_priority", "delivered_count", "is_finished", "expiration_date", "request", "msg_priority",
 	};
 
-	const MysqlServer dbServer{};
-	dbServer.waitReady();
-	const auto connection = dbServer.connectionString();
+	const auto connection = sDbServer->connectionString();
 
 	// First, test the database creation from nothing.
 	{ const ForkMessageContextSociRepository repo{backend, connection, poolSize}; }
@@ -55,7 +55,7 @@ void databaseCreation() {
 		sql.open(backend, connection);
 	}
 	SociHelper dbHelper{pool};
-	dbHelper.execute([](auto& sql) {
+	dbHelper.execute([&](auto& sql) {
 		const soci::rowset<string> set = sql.prepare << "SELECT column_name FROM information_schema.columns"
 		                                             << " WHERE table_name = 'fork_message_context'";
 
@@ -73,6 +73,17 @@ TestSuite _{
     {
         CLASSY_TEST(databaseCreation),
     },
+    Hooks{}
+        .beforeSuite([] {
+	        sDbServer.emplace();
+	        sDbServer->waitReady();
+	        return 0;
+        })
+        .beforeEach([] { sDbServer->clear(); })
+        .afterSuite([] {
+	        sDbServer.reset();
+	        return 0;
+        }),
 };
 
 } // namespace

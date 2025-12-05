@@ -23,12 +23,13 @@
 #include <regex>
 #include <unordered_map>
 
-#include "bctoolbox/tester.h"
-#include "flexisip/configmanager.hh"
-#include "flexisip/module-router.hh"
 #include "linphone++/enums.hh"
 
+#include "bctoolbox/tester.h"
+
 #include "flexiapi/schemas/iso-8601-date.hh"
+#include "flexisip/configmanager.hh"
+#include "flexisip/module-router.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/chat-room-builder.hh"
@@ -46,6 +47,8 @@ using namespace nlohmann;
 
 namespace flexisip::tester::eventlogs {
 using namespace flexisip::tester::http_mock;
+
+optional<MysqlServer> sDbServer{nullopt};
 
 void callStartedAndEnded() {
 	std::atomic_int eventLogRequestsReceivedCount{0};
@@ -419,7 +422,6 @@ void messageDeviceUnavailable() {
 }
 
 void messageToChatroomClearText() {
-	const MysqlServer mysqlServer{};
 	const string confFactoryUri = "sip:conference-factory@sip.example.org";
 	const string confFocusUri = "sip:conference-focus@sip.example.org";
 	const auto proxy = makeAndStartProxy({
@@ -427,7 +429,7 @@ void messageToChatroomClearText() {
 	    {"conference-server/conference-focus-uris", confFocusUri},
 	    // `mysql` to be as close to real-world deployments as possible
 	    {"conference-server/database-backend", "mysql"},
-	    {"conference-server/database-connection-string", mysqlServer.connectionString()},
+	    {"conference-server/database-connection-string", sDbServer->connectionString()},
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	});
 	const auto& agent = proxy->getAgent();
@@ -452,7 +454,6 @@ void messageToChatroomClearText() {
 	int port = flexiapiServer.serveAsync();
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
-	mysqlServer.waitReady();
 	const TestConferenceServer confServer(*proxy);
 	const auto before = chrono::system_clock::now();
 
@@ -523,14 +524,28 @@ void messageToChatroomClearText() {
 }
 
 namespace {
-TestSuite _("FlexiStatsEventLogWriter",
-            {
-                CLASSY_TEST(callStartedAndEnded),
-                CLASSY_TEST(callToConference),
-                CLASSY_TEST(messageSentAndReceived),
-                CLASSY_TEST(messageDeviceUnavailable),
-                CLASSY_TEST(messageToChatroomClearText),
-            });
-}
 
+TestSuite _{
+    "FlexiStatsEventLogWriter",
+    {
+        CLASSY_TEST(callStartedAndEnded),
+        CLASSY_TEST(callToConference),
+        CLASSY_TEST(messageSentAndReceived),
+        CLASSY_TEST(messageDeviceUnavailable),
+        CLASSY_TEST(messageToChatroomClearText),
+    },
+    Hooks{}
+        .beforeSuite([] {
+	        sDbServer.emplace();
+	        sDbServer->waitReady();
+	        return 0;
+        })
+        .beforeEach([] { sDbServer->clear(); })
+        .afterSuite([] {
+	        sDbServer.reset();
+	        return 0;
+        }),
+};
+
+} // namespace
 } // namespace flexisip::tester::eventlogs
