@@ -185,10 +185,6 @@ function(add_linphonesdk)
 		endif()
 	endif()
 
-	if(ENABLE_G729)
-		set(ENABLE_GPL_THIRD_PARTIES ON)
-	endif()
-
 	set(LINPHONESDK_BUILD_TYPE "Flexisip")
 
 	add_subdirectory("linphone-sdk")
