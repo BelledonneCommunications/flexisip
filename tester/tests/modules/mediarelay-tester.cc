@@ -87,7 +87,7 @@ void ice_candidates_in_response_only() {
 	};
 	Server server(CONFIG, &hooks);
 	server.start();
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto nelly = builder.build("sip:Nelly@sip.example.org");
 	auto lola = builder.build("sip:Lola@sip.example.org");
 
@@ -116,7 +116,7 @@ public:
 void ice_candidates_are_not_erased_in_a_valid_context() {
 	Server server(CONFIG);
 	server.start();
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	builder.setIce(OnOff::On);
 	auto nelly = builder.build("sip:Nelly@sip.example.org");
 	auto lola = builder.build("sip:Lola@sip.example.org");
@@ -155,7 +155,7 @@ void relay_candidates_should_not_be_added_to_ice_reinvites() {
 	};
 	auto server = Server(CONFIG, &hooks);
 	server.start();
-	auto builder = ClientBuilder(*server.getAgent());
+	auto builder = ClientBuilder(server.getAgent());
 	builder.setIce(OnOff::On).setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
 	auto inviter = builder.build("sip:inviter@sip.example.org");
 	auto recipient = builder.build("sip:recipient@sip.example.org");
@@ -266,7 +266,7 @@ void address_masquerading_in_sdp_with_call_update() {
 	// Instantiate server and clients.
 	auto server = Server(config, &hooks);
 	server.start();
-	auto builder = ClientBuilder(*server.getAgent());
+	auto builder = ClientBuilder(server.getAgent());
 	builder.setIce(OnOff::On).setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
 	auto inviter = builder.build("sip:inviter@sip.example.org");
 	auto recipient = builder.build("sip:recipient@sip.example.org");
@@ -312,7 +312,7 @@ void address_masquerading_in_sdp_with_call_update() {
 void early_media_video_sendrecv_takeover() {
 	Server server(CONFIG);
 	server.start();
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	const auto doorBell =
 	    builder.setVideoReceive(OnOff::Off).setVideoSend(OnOff::On).build("sip:door-bell@sip.example.org");
 	const auto appUri = "sip:app@sip.example.org";
@@ -376,7 +376,7 @@ void early_media_video_sendrecv_takeover() {
 void early_media_bidirectional_video() {
 	Server server(CONFIG);
 	server.start();
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
 	const auto caller = builder.build("sip:caller@sip.example.org");
 	const auto callee = "sip:callee@sip.example.org";
@@ -483,7 +483,7 @@ void updateIpFamilyOnReInvite() {
 	};
 	Server server(CONFIG, &hooks);
 	server.start();
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	builder.setVideoReceive(OnOff::Off).setVideoSend(OnOff::Off);
 	const auto caller = builder.build("sip:caller@sip.example.org");
 	const auto callee = builder.build("sip:callee@sip.example.org");

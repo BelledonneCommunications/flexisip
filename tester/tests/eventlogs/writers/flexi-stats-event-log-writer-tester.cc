@@ -63,7 +63,7 @@ void callStartedAndEnded() {
 	                                      {"event-logs/flexiapi-port", to_string(port)},
 	                                      {"event-logs/flexiapi-prefix", "api/stats"},
 	                                      {"event-logs/flexiapi-api-key", "aRandomApiToken"}});
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	auto tony = builder.build(expectedFrom);
@@ -157,7 +157,7 @@ void callToConference() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
 	                                                                    "", "aRandomApiToken"));
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	const auto johan = builder.build("sip:johan@sip.example.org");
 	const string expectedConferenceId = "expected-conf-id";
 	const auto chatroom = "sip:chatroom-" + expectedConferenceId + "@sip.example.org";
@@ -187,7 +187,7 @@ void messageSentAndReceived() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
 	                                                                    "/api/stats/", "aRandomApiToken"));
-	ClientBuilder builder{*proxy->getAgent()};
+	ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	const auto tony = builder.build(expectedFrom);
@@ -275,7 +275,7 @@ void messageDeviceUnavailable() {
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(
 	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
 	const auto tony = builder.build(expectedFrom);
@@ -433,7 +433,7 @@ void messageToChatroomClearText() {
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	});
 	const auto& agent = proxy->getAgent();
-	ClientBuilder builder{*agent};
+	ClientBuilder builder{agent};
 	builder.setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri));
 	builder.setLimeX3DH(OnOff::Off);
 	const string expectedFrom = "clemence@sip.example.org";

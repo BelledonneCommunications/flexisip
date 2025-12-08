@@ -108,7 +108,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	BC_HARD_ASSERT_TRUE(registrarBackend != nullptr);
 	const auto& records = registrarBackend->getAllRecords();
 	BC_HARD_ASSERT_CPP_EQUAL(records.size(), 0);
-	const auto& agent = *proxy.getAgent();
+	const auto& agent = proxy.getAgent();
 	ClientBuilder clientBuilder{agent};
 	clientBuilder.setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri))
 	    .setLimeX3DH(OnOff::Off);
@@ -124,7 +124,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 		return confServerCfg->get<ConfigString>("transport")->read();
 	};
 	{ // Populate conference server's DB
-		const TestConferenceServer conferenceServer(agent, confMan, regDb);
+		const TestConferenceServer conferenceServer(*agent, confMan, regDb);
 		BC_HARD_ASSERT_CPP_EQUAL(records.size(), 2 /* users */ + 1 /* factory */ + 1 /* focus */);
 		const auto& inMyRoom = you.getMe();
 		listener->setChatrooms({
@@ -149,7 +149,7 @@ void conferenceServerBindsChatroomsFromDBOnInit() {
 	(const_cast<RegistrarDbInternal*>(registrarBackend))->clearAll();
 
 	// Spin it up again
-	const TestConferenceServer conferenceServer(agent, confMan, regDb);
+	const TestConferenceServer conferenceServer(*agent, confMan, regDb);
 
 	// The conference server restored its chatrooms from DB and bound them back on the Registrar
 	// Chat rooms are now only identified by the parameter conf-id therefore the registrarDb doesn't grow anymore
@@ -236,9 +236,9 @@ void inviteResentOnReconnect() {
 	    {"conference-server/state-directory", testDir.path() / "conf-server"},
 	});
 	proxy.start();
-	auto& agent = *proxy.getAgent();
+	auto& agent = proxy.getAgent();
 	const auto& regDb = proxy.getRegistrarDb();
-	auto conferenceServer = TestConferenceServer(agent, proxy.getConfigManager(), regDb);
+	auto conferenceServer = TestConferenceServer(*agent, proxy.getConfigManager(), regDb);
 	auto clientBuilder = ClientBuilder(agent);
 	clientBuilder.setConferenceFactoryAddress(linphone::Factory::get()->createAddress(confFactoryUri))
 	    .setLimeX3DH(OnOff::Off);

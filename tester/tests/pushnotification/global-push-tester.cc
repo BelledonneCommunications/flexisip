@@ -113,8 +113,8 @@ private:
 class GenericHttp2PushMessage : public GlobalPushTest {
 protected:
 	void executeScenario() override {
-		auto sender = ClientBuilder(*mAgent).build("creme@sip.example.org");
-		auto receiver = ClientBuilder(*mAgent).setApplePushConfig().build("popo@sip.example.org");
+		auto sender = ClientBuilder(mAgent).build("creme@sip.example.org");
+		auto receiver = ClientBuilder(mAgent).setApplePushConfig().build("popo@sip.example.org");
 
 		auto chatroom = sender.chatroomBuilder().setSubject("TestPush").build({receiver.getMe()});
 		chatroom->createMessageFromUtf8("...")->send();
@@ -148,8 +148,8 @@ protected:
 class GenericHttp2PushCall : public GlobalPushTest {
 protected:
 	void executeScenario() override {
-		auto sender = ClientBuilder(*mAgent).build("creme@sip.example.org");
-		auto receiver = ClientBuilder(*mAgent).setApplePushConfig().build("popo@sip.example.org");
+		auto sender = ClientBuilder(mAgent).build("creme@sip.example.org");
+		auto receiver = ClientBuilder(mAgent).setApplePushConfig().build("popo@sip.example.org");
 
 		auto call = sender.call(receiver);
 		call->terminate();

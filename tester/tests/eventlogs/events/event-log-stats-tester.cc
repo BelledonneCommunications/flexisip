@@ -109,7 +109,7 @@ void callStartedAndEndedByCaller() {
 	                           });
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	auto tony = builder.build(expectedFrom);
 	auto mike = builder.build(expectedTo);
 	const auto before = chrono::system_clock::now();
@@ -169,7 +169,7 @@ void callStartedAndEndedByCallee() {
 	                           });
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	auto tony = builder.build(expectedFrom);
 	auto mike = builder.build(expectedTo);
 	const auto before = chrono::system_clock::now();
@@ -226,7 +226,7 @@ void callInviteStatuses() {
 	                               Ignore<RegistrationLog>(),
 	                           });
 	const string mike = "sip:mike@sip.example.org";
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	auto tony = builder.build("sip:tony@sip.example.org");
 	auto mikePhone = builder.build(mike);
 	auto mikeDesktop = builder.build(mike);
@@ -358,7 +358,7 @@ void callError() {
 	                               Ignore<CallRingingEventLog>(),
 	                               Ignore<RegistrationLog>(),
 	                           });
-	const ClientBuilder builder{*proxy->getAgent()};
+	const ClientBuilder builder{proxy->getAgent()};
 	auto republic = builder.build("sip:TheGalacticRepublic@sip.example.org");
 	auto federation = builder.build("sip:TheTradeFederation@sip.example.org");
 	const auto republicCore = republic.getCore();
@@ -398,7 +398,7 @@ void doubleForkContextStart() {
 	                               Ignore<RegistrationLog>(),
 	                           });
 	const string paul = "sip:paulvasquez@sip.example.org";
-	ClientBuilder builder{*proxy->getAgent()};
+	ClientBuilder builder{proxy->getAgent()};
 	auto lux = builder.build("sip:luxannacrownguard@sip.example.org");
 	// Registering a secondary contact with higher priority than the real one (>1) means a first round of fork(s)
 	// will fire (and fail) for this (unroutable) contact, before a _second_ round of fork(s) manages to reach the

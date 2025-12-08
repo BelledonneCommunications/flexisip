@@ -57,7 +57,7 @@ void basicCall() {
 	Server server{sDefaultConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 
@@ -76,7 +76,7 @@ void callWithEarlyCancel() {
 	Server server{sDefaultConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 
@@ -129,7 +129,7 @@ void callWithEarlyCancelCalleeOffline() {
 	Server server{sDefaultConfig, &hooks};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 	const auto calleeIdleClient = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org;device=iOS");
@@ -224,7 +224,7 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	server.setConfigParameter({"module::Router/call-fork-timeout", "1s"});
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	const auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	const auto calleeIdleClient = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
 
@@ -353,7 +353,7 @@ void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
 	Server server{sDefaultConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 	auto calleeIdleClientVoip = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
@@ -415,7 +415,7 @@ void calleeOfflineWithOneDevice() {
 	Server server{sDefaultConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 	auto calleeClientOfflineDevice = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
@@ -468,7 +468,7 @@ void calleeOfflineWithOneDeviceEarlyDecline() {
 	Server server{sDefaultConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 	auto calleeClientOfflineDevice = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
@@ -521,7 +521,7 @@ void calleeMultipleOnlineDevices() {
 	Server server{sDefaultConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 
@@ -679,7 +679,7 @@ struct CallForwardingHelper {
 	CallForwardingHelper() {
 		proxy.start();
 
-		ClientBuilder builder{*proxy.getAgent()};
+		ClientBuilder builder{proxy.getAgent()};
 		caller = make_unique<CoreClient>(builder.build("caller@sip.test.org"));
 		constexpr auto* calleeAddress = "sip:callee@sip.test.org";
 		callee1 = make_unique<CoreClient>(builder.build(calleeAddress));

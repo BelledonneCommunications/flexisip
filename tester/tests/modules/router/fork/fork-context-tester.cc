@@ -222,7 +222,7 @@ void globalOrderTestNoSql() {
 	Server server{kConfig};
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto receiver = builder.build("sip:receiver@sip.test.org");
 	receiver.disconnect();
 
@@ -325,7 +325,7 @@ void messageDeliveryTimeoutTest() {
 	server.setConfigParameter({"module::Router/message-delivery-timeout", "1"});
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 	const auto calleeIdleClientVoip = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");
@@ -372,7 +372,7 @@ void callForkTimeoutTest() {
 	server.setConfigParameter({"module::Router/call-fork-timeout", "1"});
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto callerClient = builder.build("sip:callerClient@sip.test.org");
 	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
 	const auto calleeIdleClientVoip = builder.setApplePushConfig().build("sip:calleeClient@sip.test.org");

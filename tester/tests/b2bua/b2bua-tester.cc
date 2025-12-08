@@ -75,7 +75,7 @@ void basicCall() {
 	server.start();
 
 	// Create clients and register them on the server
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	builder.setVideoSend(OnOff::On);
 	auto pauline = builder.build("sip:pauline@sip.example.org");
 	auto marie = builder.build("sip:marie@sip.example.org");
@@ -135,7 +135,7 @@ void basicCallWithEarlyMedia() {
 	configRoot.get<GenericStruct>("module::B2bua")->get<ConfigString>("b2bua-server")->set(b2buaUri);
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
-	ClientBuilder builder{*proxy.getAgent()};
+	ClientBuilder builder{proxy.getAgent()};
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto callee = builder.build("sip:callee@sip.example.org");
 
@@ -188,7 +188,7 @@ void basicCallDeclined() {
 	    {"module::MediaRelay/enabled", "false"},
 	}};
 
-	ClientBuilder builder{*B2buaAndProxy.getAgent()};
+	ClientBuilder builder{B2buaAndProxy.getAgent()};
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto callee = builder.build("sip:callee@sip.example.org");
 
@@ -235,7 +235,7 @@ void basicCallOnHoldThenResume() {
 		                          CallAssert<>::kVideoSentReceived.end());
 	}
 
-	ClientBuilder builder{*B2buaAndProxy.getAgent()};
+	ClientBuilder builder{B2buaAndProxy.getAgent()};
 	builder.setVideoSend(sendRecvVideo).setVideoReceive(sendRecvVideo);
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto callee = builder.build("sip:callee@sip.example.org");
@@ -322,7 +322,7 @@ void usesAORButNotContact() {
 	        },
 	};
 	B2buaAndProxyServer server{"config/flexisip_b2bua.conf", true, &hooks};
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto caller = builder.build("sip:caller@sip.example.org");
 	auto unexpected = builder.build(unexpectedRecipient);
 	const auto intendedRecipient = "sip:intended@sip.example.org";
@@ -364,7 +364,7 @@ void userAgentHeader() {
 	    ->set(expected);
 	server.start();
 
-	const auto caller = ClientBuilder(*server.getAgent()).build("sip:caller@sip.example.org");
+	const auto caller = ClientBuilder(server.getAgent()).build("sip:caller@sip.example.org");
 	CoreAssert asserter{caller, server};
 
 	caller.invite("sip:recipient@sip.example.org");
@@ -454,7 +454,7 @@ void videoRejectedByCallee() {
 	// Initialize and start the proxy and B2bua server
 	B2buaAndProxyServer server{"config/flexisip_b2bua.conf"};
 	// Create and register clients.
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto marie = builder.build("sip:marie@sip.example.org");
 	auto pauline = builder.build("sip:pauline@sip.example.org");
 	CoreAssert asserter{marie, pauline, server};
@@ -564,7 +564,7 @@ void pauseWithAudioInactive() {
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	auto pauser = builder.setInactiveAudioOnPause(OnOff::On).build("pauser@example.org");
 	auto pausee = builder.setInactiveAudioOnPause(OnOff::Off).build("pausee@example.org");
 	CoreAssert asserter{pauser, proxy, pausee};
@@ -661,7 +661,7 @@ void answerToPauseWithAudioInactive() {
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
 
 	// Instantiate clients and create call.
-	ClientBuilder builder{*proxy.getAgent()};
+	ClientBuilder builder{proxy.getAgent()};
 	auto pauser = builder.setInactiveAudioOnPause(OnOff::Off).build("pauser@example.org");
 	auto pausee = builder.setInactiveAudioOnPause(OnOff::On).build("pausee@example.org");
 	CoreAssert asserter{pauser, proxy, pausee};
@@ -722,7 +722,7 @@ void terminateCallPausedOnBothSides() {
 	}};
 
 	// Instantiate clients.
-	const auto builder = ClientBuilder(*b2buaAndProxy.getAgent());
+	const auto builder = ClientBuilder(b2buaAndProxy.getAgent());
 	auto pauser = builder.build("pauser@sip.example.org");
 	auto pausee = builder.build("pausee@sip.example.org");
 
@@ -815,7 +815,7 @@ void resumeCallPausedOnBothSides() {
 	}};
 
 	// Instantiate clients.
-	ClientBuilder builder{*b2buaAndProxy.getAgent()};
+	ClientBuilder builder{b2buaAndProxy.getAgent()};
 	auto pauser = builder.build("pauser@sip.example.org");
 	auto pausee = builder.setInactiveAudioOnPause(pauseeAnswersWithAudioInactive).build("pausee@sip.example.org");
 
@@ -984,7 +984,7 @@ void unknownMediaAttrAreFilteredOutOnReinvites() {
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
-	const auto& builder = ClientBuilder(*proxy.getAgent());
+	const auto& builder = ClientBuilder(proxy.getAgent());
 	const auto& caller = builder.build("sip:caller@example.org");
 	const auto& reinviter = builder.build("sip:reinviter@example.org");
 	auto asserter = CoreAssert{caller, proxy, reinviter};
@@ -1043,7 +1043,7 @@ void forcedAudioCodec() {
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	auto caller = builder.build("sip:caller@example.org");
 	const auto& callee = builder.build("sip:callee@example.org");
 	BC_HARD_ASSERT(1 < caller.getCore()->getAudioPayloadTypes().size());
@@ -1081,7 +1081,7 @@ void blindCallTransferSuccessful() {
 	}};
 
 	// Instantiate clients.
-	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto builder = ClientBuilder{B2buaAndProxy.getAgent()};
 	auto transferor = builder.build("transferor@sip.example.org");
 	auto transferee = builder.build("transferee@sip.example.org");
 	auto transferTarget = builder.build("transferTarget@sip.example.org");
@@ -1187,7 +1187,7 @@ void blindCallTransferDeclined() {
 	}};
 
 	// Instantiate clients.
-	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto builder = ClientBuilder{B2buaAndProxy.getAgent()};
 	auto transferor = builder.build("transferor@sip.example.org");
 	auto transferee = builder.build("transferee@sip.example.org");
 	auto transferTarget = builder.build("transferTarget@sip.example.org");
@@ -1296,7 +1296,7 @@ void attendedCallTransferSuccessful() {
 	}};
 
 	// Instantiate clients.
-	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto builder = ClientBuilder{B2buaAndProxy.getAgent()};
 	auto transferor = builder.build("transferor@sip.example.org");
 	auto transferee = builder.build("transferee@sip.example.org");
 	auto transferTarget = builder.build("transferTarget@sip.example.org");
@@ -1417,7 +1417,7 @@ void attendedCallTransferDeclined() {
 	}};
 
 	// Instantiate clients.
-	auto builder = ClientBuilder{*B2buaAndProxy.getAgent()};
+	auto builder = ClientBuilder{B2buaAndProxy.getAgent()};
 	builder.setAutoAnswerReplacingCalls(OnOff::Off);
 	auto transferor = builder.build("transferor@sip.example.org");
 	auto transferee = builder.build("transferee@sip.example.org");

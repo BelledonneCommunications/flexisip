@@ -660,7 +660,7 @@ protected:
 	}
 
 	void testExec() override {
-		ClientBuilder builder{*mAgent};
+		ClientBuilder builder{mAgent};
 		auto core1 = builder.build("sip:user1@sip.example.org");
 		auto core2 = make_shared<CoreClient>(
 		    builder.setPushParams(mPlatform->getContactPushParams()).build("sip:user2@sip.example.org"));
@@ -705,7 +705,7 @@ public:
 	}
 
 	void testExec() override {
-		ClientBuilder builder{*mAgent};
+		ClientBuilder builder{mAgent};
 		auto core1 = builder.build("sip:user1@sip.example.org");
 		auto core2 = builder.setPushParams(mPlatform->getContactPushParams()).build("sip:user2@sip.example.org");
 		core2.disconnect();
@@ -805,9 +805,9 @@ protected:
 
 		RFC8599PushParams devCalleePushParams{"apns.dev", calleePushParams.getParam(), calleePushParams.getPrid()};
 		auto calleeDevDevice =
-		    ClientBuilder(*mAgent).setPushParams(devCalleePushParams).build("sip:user2@sip.example.org");
+		    ClientBuilder(mAgent).setPushParams(devCalleePushParams).build("sip:user2@sip.example.org");
 		auto callee = make_shared<CoreClient>(
-		    ClientBuilder(*mAgent).setPushParams(calleePushParams).build("sip:user2@sip.example.org"));
+		    ClientBuilder(mAgent).setPushParams(calleePushParams).build("sip:user2@sip.example.org"));
 		callee->disconnect();
 		callee->setCallInviteReceivedDelay(callee->getCallInviteReceivedDelay() +
 		                                   mPNHandler->getCallInviteReceivedExtraDelay());

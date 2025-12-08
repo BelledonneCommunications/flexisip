@@ -374,14 +374,14 @@ private:
 	CoreClient(std::shared_ptr<linphone::Core>&& core,
 	           std::shared_ptr<linphone::Account>&& account,
 	           std::shared_ptr<const linphone::Address>&& me,
-	           const Agent& agent)
+	           const std::shared_ptr<Agent>& agent)
 	    : mCore(std::move(core)), mAccount(std::move(account)), mMe(std::move(me)), mAgent(agent) {
 	}
 
 	std::shared_ptr<linphone::Core> mCore;
 	std::shared_ptr<linphone::Account> mAccount;
 	std::shared_ptr<const linphone::Address> mMe;
-	const Agent& mAgent; /**< Agent we're registered to */
+	const std::shared_ptr<Agent> mAgent; /**< Agent we're registered to */
 	std::chrono::seconds mCallInviteReceivedDelay{5};
 };
 

@@ -36,9 +36,15 @@ struct CodecDescription {
 	int channels;
 };
 
-ClientBuilder::ClientBuilder(const Agent& agent)
+ClientBuilder::ClientBuilder(const std::shared_ptr<Agent>& agent)
     : mCoreTemplate(tester::minimalCore()), mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent) {
+	// If we use this constructor we expect an agent to be able to get the remote address.
+	BC_HARD_ASSERT_CPP_NOT_EQUAL(mAgent, nullptr);
 }
+
+ClientBuilder::ClientBuilder(const std::string& remoteAddress)
+    : mCoreTemplate(tester::minimalCore()), mAccountParams(mCoreTemplate->createAccountParams()), mRegister(OnOff::Off),
+      mRemoteAddress{remoteAddress} {}
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	const std::string& me = StringUtils::startsWith(baseAddress, "sip:") ? baseAddress : "sip:" + baseAddress;
@@ -58,9 +64,9 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 	auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(myAddress);
 	accountParams->enableRegister(bool(mRegister));
-	{
+	if (mAgent) {
 		// Clients register to the first of the list of transports read in the proxy configuration
-		auto route = mFactory->createAddress(mAgent.getConfigManager()
+		auto route = mFactory->createAddress(mAgent->getConfigManager()
 		                                         .getRoot()
 		                                         ->get<flexisip::GenericStruct>("global")
 		                                         ->get<flexisip::ConfigStringList>("transports")
@@ -68,9 +74,13 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		                                         .front());
 		// Fix port if auto-bound
 		if (route->getPort() == 0) {
-			route->setPort(std::atoi(getFirstPort(mAgent)));
+			if (mAgent) route->setPort(std::atoi(getFirstPort(*mAgent)));
 		}
 
+		accountParams->setServerAddress(route);
+		accountParams->setRoutesAddresses({route});
+	} else {
+		auto route = mFactory->createAddress(mRemoteAddress);
 		accountParams->setServerAddress(route);
 		accountParams->setRoutesAddresses({route});
 	}
@@ -185,6 +195,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 
 	core->start();
 	if (bool(mRegister)) {
+		BC_HARD_ASSERT_CPP_NOT_EQUAL(mAgent, nullptr);
 		CoreAssert(core, mAgent)
 		    .iterateUpTo(0x10,
 		                 [&account] {
@@ -321,7 +332,8 @@ ClientBuilder& ClientBuilder::setAudioCodec(AudioCodec codec) {
 }
 
 ClientBuilder& ClientBuilder::setMessageExpires(std::chrono::seconds delay) {
-	const auto paramName = mAgent.getConfigManager()
+	BC_HARD_ASSERT_CPP_NOT_EQUAL(mAgent, nullptr);
+	const auto paramName = mAgent->getConfigManager()
 	                           .getRoot()
 	                           ->get<GenericStruct>("module::Registrar")
 	                           ->get<ConfigString>("message-expires-param-name")

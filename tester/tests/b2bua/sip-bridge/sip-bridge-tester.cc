@@ -315,9 +315,9 @@ void bidirectionalBridging() {
 	    dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(jabiruRouterModule != nullptr);
 
-	auto felix = ClientBuilder(*flexisipProxy.getAgent()).build(felixUriOnFlexisip);
-	auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build(jasperUriOnJabiru);
-	auto emilie = ClientBuilder(*flexisipProxy.getAgent()).build(emilieUriOnFlexisip);
+	auto felix = ClientBuilder(flexisipProxy.getAgent()).build(felixUriOnFlexisip);
+	auto jasper = ClientBuilder(jabiruProxy.getAgent()).build(jasperUriOnJabiru);
+	auto emilie = ClientBuilder(flexisipProxy.getAgent()).build(emilieUriOnFlexisip);
 
 	CoreAssert asserter{flexisipProxy, jabiruProxy};
 	// Make sure B2BUA accounts are registered on external domain.
@@ -502,10 +502,10 @@ void externalAccountUsingCustomRegistrarAndOutboundProxy() {
 	// Instantiate clients.
 	const string internalUserUri{"sip:internal-user@sip.internal.example.org"};
 	const string internalUserUriOnExternal{"sip:internal-user@sip.external.example.org"};
-	auto internalUser = ClientBuilder{*b2buaAndProxy.getAgent()}.build(internalUserUri);
+	auto internalUser = ClientBuilder{b2buaAndProxy.getAgent()}.build(internalUserUri);
 	const string externalUserUri{"sip:external-user@sip.external.example.org"};
 	const string externalUserUriOnInternal{"sip:external-user@sip.internal.example.org"};
-	auto externalUser = ClientBuilder{*externalProxy.getAgent()}.build(externalUserUri);
+	auto externalUser = ClientBuilder{externalProxy.getAgent()}.build(externalUserUri);
 
 	ofstream{providersConfigPath} << jsonConfig.format({
 	    {"internalProxyPort", b2buaAndProxy.getFirstPort()},
@@ -754,7 +754,7 @@ void invalidUriTriggersDecline() {
 	    ->get<ConfigStringList>("static-targets")
 	    ->set("sip:127.0.0.1:" + std::to_string(b2buaServer->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModuleByRole("Router")->reload();
-	const auto caller = ClientBuilder(*proxy.getAgent()).build("caller@example.org");
+	const auto caller = ClientBuilder(proxy.getAgent()).build("caller@example.org");
 	CoreAssert asserter{proxy, b2buaLoop, caller};
 
 	caller.invite("b2bua-account@example.org");
@@ -1126,8 +1126,8 @@ void mwiBridging() {
 	        40ms)
 	    .assert_passed();
 
-	auto jabiruBuilder = ClientBuilder(*jabiruProxy.getAgent());
-	auto flexisipBuilder = ClientBuilder(*flexisipProxy.getAgent());
+	auto jabiruBuilder = ClientBuilder(jabiruProxy.getAgent());
+	auto flexisipBuilder = ClientBuilder(flexisipProxy.getAgent());
 
 	// Register subscribee account on jabiru proxy without MWI server address
 	const auto subscribee = jabiruBuilder.build("subscribee@jabiru.example.org");
@@ -1319,7 +1319,7 @@ void loadBalancing() {
 	    {"module::Registrar/reg-domains", "sip.provider1.com sip.company1.com"},
 	}};
 	proxy.start();
-	const ClientBuilder builder{*proxy.getAgent()};
+	const ClientBuilder builder{proxy.getAgent()};
 	const auto intercom = builder.build("sip:caller@sip.company1.com");
 	// Fake a call close enough to what the SipBridge will be taking as input
 	// Only incoming calls have a request address, so we need a stand-in client to receive it
@@ -1482,7 +1482,7 @@ void parseRegisterAuthenticate() {
 	    ->set("sip-bridge");
 	server->start();
 	auto& sipBridge = dynamic_cast<flexisip::b2bua::bridge::SipBridge&>(server->getModule());
-	ClientBuilder builder{*server->getAgent()};
+	ClientBuilder builder{server->getAgent()};
 
 	// Only one account is registered and available
 	InternalClient intercom = builder.build("sip:intercom@sip.company1.com");
@@ -1582,7 +1582,7 @@ void b2buaReceivesSeveralForks() {
 	// 1 Intended destination
 	auto address = "sip:app@sip.company1.com";
 	// 2 Bystanders used to register the same fallback contact twice.
-	auto app1 = ClientBuilder(*server->getAgent())
+	auto app1 = ClientBuilder(server->getAgent())
 	                // Whatever follows the @ in a `user=phone` contact has no importance. Only the username (which
 	                // should be a phone number) is used for bridging. It would be tempting, then, to set this to the
 	                // domain of the proxy, however that's a mistake. Doing so will flag the contact as an alias and the
@@ -1590,7 +1590,7 @@ void b2buaReceivesSeveralForks() {
 	                .setCustomContact("sip:phone@42.42.42.42:12345;user=phone")
 	                .build(address);
 	auto app2 =
-	    ClientBuilder(*server->getAgent()).setCustomContact("sip:phone@24.24.24.24:54321;user=phone").build(address);
+	    ClientBuilder(server->getAgent()).setCustomContact("sip:phone@24.24.24.24:54321;user=phone").build(address);
 	// 1 Client on an external domain that will answer one of the calls
 	auto phone = CoreClient("sip:phone@sip.provider1.com", server->getAgent());
 	auto phoneCore = phone.getCore();
@@ -1658,7 +1658,7 @@ void dtmfForwarding() {
 	// Instantiate and build clients.
 	// Note: added different port ranges to reduce the risk of selecting the same port.
 	server->configureExternalProviderBridge(std::move(providers));
-	auto builder = ClientBuilder{*server->getAgent()};
+	auto builder = ClientBuilder{server->getAgent()};
 	const auto intercomUri = "sip:intercom@sip.company1.com"s;
 	InternalClient intercom = builder.setAudioPort(port::Range{.min = 40000, .max = 49999}).build(intercomUri);
 	const auto phoneUri = "sip:+39064728917@sip.provider1.com;user=phone"s;
@@ -1712,7 +1712,7 @@ void overrideSpecialOptions() {
 
 	proxy.start();
 
-	const ClientBuilder builder{*proxy.getAgent()};
+	const ClientBuilder builder{proxy.getAgent()};
 	const auto caller = builder.build("sip:caller@sip.example.com");
 	// Fake a call close enough to what the SipBridge will be taking as input
 	// Only incoming calls have a request address, so we need a stand-in client to receive it
@@ -1777,7 +1777,7 @@ void maxCallDuration() {
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
-	ClientBuilder builder{*proxy.getAgent()};
+	ClientBuilder builder{proxy.getAgent()};
 	InternalClient caller = builder.build("sip:caller@sip.company1.com");
 	ExternalClient callee = builder.build("sip:callee@sip.provider1.com");
 	CoreAssert asserter{caller.getCore(), proxy, callee.getCore()};
@@ -1898,7 +1898,7 @@ void mwiB2buaSubscription() {
 	StringFormatter jabiruProxyUri{R"str(sip:127.0.0.1:%port%;transport=tcp)str", '%', '%'};
 
 	// Register subscribee account on jabiru proxy without MWI server address
-	auto jabiruBuilder = ClientBuilder(*jabiruProxy.getAgent());
+	auto jabiruBuilder = ClientBuilder(jabiruProxy.getAgent());
 	const auto subscribee = jabiruBuilder.build("subscribee@jabiru.example.org");
 	auto subscribeeMwiListener = std::make_shared<MwiListener>();
 	subscribee.addListener(std::static_pointer_cast<linphone::CoreListener>(subscribeeMwiListener));
@@ -1963,7 +1963,7 @@ void mwiB2buaSubscription() {
 
 	// Register subscriber account on flexisip proxy also without MWI server address, the subscription will be done by
 	// the B2BUA.
-	auto flexisipBuilder = ClientBuilder(*flexisipProxy.getAgent());
+	auto flexisipBuilder = ClientBuilder(flexisipProxy.getAgent());
 	const auto subscriber = flexisipBuilder.build("subscriber@flexisip.example.org");
 	auto subscriberMwiListener = std::make_shared<MwiListener>();
 	subscriber.addAccountListener(std::static_pointer_cast<linphone::AccountListener>(subscriberMwiListener));

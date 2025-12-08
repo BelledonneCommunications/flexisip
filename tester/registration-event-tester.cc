@@ -102,14 +102,14 @@ void basicSubscription() {
 	    {"conference-server/state-directory", bcTesterWriteDir().append("var/lib/flexisip")},
 	}};
 
-	const auto& agent = *proxy.getAgent();
+	const auto& agent = proxy.getAgent();
 	const auto& registrarDb = proxy.getRegistrarDb();
 	const auto& confMan = proxy.getConfigManager();
 
 	RegEventServer regEvent{registrarDb};
 	proxy.setConfigParameter({"module::RegEvent/regevent-server", regEvent.getTransport().str()});
 	proxy.start();
-	TestConferenceServer conferenceServer(agent, confMan, registrarDb);
+	TestConferenceServer conferenceServer(*agent, confMan, registrarDb);
 
 	// Client initialisation
 	const auto client = ClientBuilder(agent)

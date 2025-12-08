@@ -56,7 +56,7 @@ void test() {
 	    &hooks,
 	};
 	proxy.start();
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	builder.setRegistration(OnOff::Off);
 	const auto caller = builder.build("sip:expected-from@sip.example.org;custom-param=%40/From");
 	const auto b2bua = builder.build(expectedToAddress.str());

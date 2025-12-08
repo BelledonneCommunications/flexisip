@@ -65,7 +65,7 @@ void forcedAudioCodec() {
 	    ->get<ConfigString>("b2bua-server")
 	    ->set("sip:127.0.0.1:" + to_string(b2bua->getTcpPort()) + ";transport=tcp");
 	proxy.getAgent()->findModuleByRole("B2bua")->reload();
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	auto caller = builder.build("sip:caller@example.org");
 	const auto& callee = builder.build("sip:callee@example.org");
 	BC_HARD_ASSERT(1 < caller.getCore()->getAudioPayloadTypes().size());

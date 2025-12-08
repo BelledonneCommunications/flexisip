@@ -78,7 +78,7 @@ void mixedEncryption(const string& marieName,
                      const linphone::SrtpSuite expectedPaulineSuite = linphone::SrtpSuite::Invalid) {
 	// Initialize and start proxy and B2bua servers.
 	const auto server = make_shared<B2buaAndProxyServer>("config/flexisip_b2bua.conf");
-	ClientBuilder builder{*server->getAgent()};
+	ClientBuilder builder{server->getAgent()};
 	builder.setVideoSend(static_cast<OnOff>(video)).setVideoReceive(static_cast<OnOff>(video));
 	// Create and register clients.
 	auto marie = builder.build(marieName);
@@ -225,7 +225,7 @@ void videoCallWithForcedCodec() {
 	// Initialize and start the proxy and B2bua server.
 	B2buaAndProxyServer server{"config/flexisip_b2bua.conf"};
 	// Create and register clients.
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	builder.setVideoSend(OnOff::On);
 	auto pauline = builder.build("sip:pauline@sip.example.org");
 	auto marie = builder.build("sip:marie@sip.example.org");

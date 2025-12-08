@@ -48,7 +48,7 @@ void cancelReasonIsForwarded() {
 	    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
 	}};
 	proxy.start();
-	ClientBuilder builder{*proxy.getAgent()};
+	ClientBuilder builder{proxy.getAgent()};
 	// Prevent creation of ForkContext
 	builder.setRegistration(OnOff::Off);
 

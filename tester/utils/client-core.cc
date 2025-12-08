@@ -95,14 +95,16 @@ std::shared_ptr<linphone::Core> minimalCore() {
 }
 
 CoreClient::CoreClient(const std::string& me, const std::shared_ptr<Agent>& agent)
-    : CoreClient(ClientBuilder(*agent).build(me)) {
+    : CoreClient(ClientBuilder(agent).build(me)) {
 }
 
 CoreClient::~CoreClient() {
 	if (mAccount != nullptr) {
 		mCore->clearAccounts();
 		if (mAccount->getState() != linphone::RegistrationState::None) {
-			CoreAssert(mCore, mAgent)
+			CoreAssert asserter(mCore);
+			if (mAgent) asserter.registerSteppable(mAgent);
+			asserter
 			    .wait([&account = mAccount] {
 				    FAIL_IF(account->getState() != linphone::RegistrationState::Cleared);
 				    return ASSERTION_PASSED();
@@ -113,7 +115,9 @@ CoreClient::~CoreClient() {
 	if (mCore) {
 		mCore->stopAsync(); // stopAsync is not really async, we must clear the account first, or it will wait for the
 		                    // un-registration on server
-		CoreAssert(mCore, mAgent)
+		CoreAssert asserter(mCore);
+		if (mAgent) asserter.registerSteppable(mAgent);
+		asserter
 		    .wait([&core = mCore] {
 			    FAIL_IF(core->getGlobalState() != linphone::GlobalState::Off);
 			    return ASSERTION_PASSED();
@@ -162,10 +166,18 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		return nullptr;
 	}
 
-	CoreAssert asserter{mCore, mAgent, callee.mCore, callee.mAgent};
-	CoreAssert idleAsserter{mCore, mAgent, callee.mCore, callee.mAgent};
+	CoreAssert asserter{mCore, callee.mCore};
+	CoreAssert idleAsserter{mCore, callee.mCore};
 	for (const auto& calleeDevice : calleeIdleDevices) {
 		idleAsserter.registerSteppable(calleeDevice);
+	}
+	if (mAgent) {
+		asserter.registerSteppable(mAgent);
+		idleAsserter.registerSteppable(mAgent);
+	}
+	if (callee.mAgent) {
+		asserter.registerSteppable(callee.mAgent);
+		idleAsserter.registerSteppable(callee.mAgent);
 	}
 	if (externalProxy) {
 		asserter.registerSteppable(externalProxy);
@@ -286,7 +298,13 @@ std::shared_ptr<linphone::Call> CoreClient::callWithEarlyCancel(const CoreClient
 		return nullptr;
 	}
 
-	CoreAssert asserter{mCore, mAgent, callee.mCore, callee.mAgent};
+	CoreAssert asserter{mCore, callee.mCore};
+	if (mAgent) {
+		asserter.registerSteppable(mAgent);
+	}
+	if (callee.mAgent) {
+		asserter.registerSteppable(callee.mAgent);
+	}
 
 	// Wait for call to be received
 	if (!asserter
@@ -330,8 +348,14 @@ CoreClient::callWithEarlyDecline(const CoreClient& callee,
 		return nullptr;
 	}
 
-	CoreAssert asserter{mCore, mAgent, callee.mCore, callee.mAgent};
+	CoreAssert asserter{mCore, callee.mCore};
 	asserter.registerSteppable(callee);
+	if (mAgent) {
+		asserter.registerSteppable(mAgent);
+	}
+	if (callee.mAgent) {
+		asserter.registerSteppable(callee.mAgent);
+	}
 	if (externalProxy) {
 		asserter.registerSteppable(externalProxy);
 	}
@@ -387,7 +411,13 @@ bool CoreClient::callUpdate(const CoreClient& peer,
 		return false;
 	}
 
-	CoreAssert asserter{mCore, peer.mCore, mAgent, peer.mAgent};
+	CoreAssert asserter{mCore, peer.mCore};
+	if (mAgent) {
+		asserter.registerSteppable(mAgent);
+	}
+	if (peer.mAgent) {
+		asserter.registerSteppable(peer.mAgent);
+	}
 	if (externalProxy) {
 		asserter.registerSteppable(externalProxy);
 	}
@@ -423,7 +453,13 @@ bool CoreClient::endCurrentCall(const CoreClient& peer, const std::shared_ptr<Ag
 		return false;
 	}
 
-	CoreAssert asserter{mCore, peer.mCore, mAgent, peer.mAgent};
+	CoreAssert asserter{mCore, peer.mCore};
+	if (mAgent) {
+		asserter.registerSteppable(mAgent);
+	}
+	if (peer.mAgent) {
+		asserter.registerSteppable(peer.mAgent);
+	}
 	if (externalProxy) {
 		asserter.registerSteppable(externalProxy);
 	}

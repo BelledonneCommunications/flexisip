@@ -99,7 +99,7 @@ void callTestTemplate(const CallTestContext& ctx) {
 	server.start();
 
 	// Arrange clients
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
 	vector<CoreClient> callerDevices{};
 	for (size_t i = 0; i < ctx.numberOfCallerDevices; i++) {

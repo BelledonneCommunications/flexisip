@@ -163,8 +163,8 @@ void blindCallTransferSuccessful() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
-		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(internalDomain, std::move(ClientBuilder(b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
 		return map;
 	}();
 
@@ -331,8 +331,8 @@ void blindCallTransferDeclined() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
-		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(internalDomain, std::move(ClientBuilder(b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
 		return map;
 	}();
 
@@ -519,8 +519,8 @@ void attendedCallTransferSuccessful() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
-		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(internalDomain, std::move(ClientBuilder(b2buaAndProxy.getAgent()).setVideoSend(OnOff::Off)));
+		map.emplace(externalDomain, std::move(ClientBuilder(jabiruProxy.getAgent()).setVideoSend(OnOff::Off)));
 		return map;
 	}();
 
@@ -701,10 +701,10 @@ void attendedCallTransferDeclined() {
 
 	const auto clientBuilders = [&]() {
 		auto map = unordered_map<string, ClientBuilder>{2};
-		map.emplace(internalDomain, std::move(ClientBuilder(*b2buaAndProxy.getAgent())
+		map.emplace(internalDomain, std::move(ClientBuilder(b2buaAndProxy.getAgent())
 		                                          .setVideoSend(OnOff::Off)
 		                                          .setAutoAnswerReplacingCalls(OnOff::Off)));
-		map.emplace(externalDomain, std::move(ClientBuilder(*jabiruProxy.getAgent())
+		map.emplace(externalDomain, std::move(ClientBuilder(jabiruProxy.getAgent())
 		                                          .setVideoSend(OnOff::Off)
 		                                          .setAutoAnswerReplacingCalls(OnOff::Off)));
 		return map;

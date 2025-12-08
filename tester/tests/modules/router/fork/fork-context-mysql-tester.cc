@@ -255,7 +255,7 @@ void globalTest() {
 	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto receiverClient = builder.build("sip:provencal_le_gaulois@sip.test.org");
 	receiverClient.disconnect();
 
@@ -347,7 +347,7 @@ void globalTestMultipleDevices() {
 	server.start();
 
 	CoreAssert asserter{server};
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	vector<shared_ptr<CoreClient>> clientOnDevices{};
 	for (int i = 0; i < 3; ++i) {
 		asserter.registerSteppable(clientOnDevices.emplace_back(builder.make("sip:provencal_le_gaulois@sip.test.org")));
@@ -508,7 +508,7 @@ void testDBAccessOptimization() {
 	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto clientOnDevice = builder.build("sip:provencal_le_gaulois@sip.test.org;device=on");
 	auto clientOffDevice = builder.build("sip:provencal_le_gaulois@sip.test.org;device=off");
 	clientOffDevice.disconnect();
@@ -735,7 +735,7 @@ void globalTestDatabaseDeleted() {
 	server.setConfigParameter({"module::Router/message-database-connection-string", sDbServer->connectionString()});
 	server.start();
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto receiverClient = builder.build("sip:provencal_le_gaulois@sip.test.org");
 	receiverClient.disconnect();
 
@@ -828,7 +828,7 @@ void globalOrderTest() {
 	const auto router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	router->getForkManager()->setMaxPriorityHandled(MsgSipPriority::Emergency);
 
-	ClientBuilder builder{*server.getAgent()};
+	ClientBuilder builder{server.getAgent()};
 	auto receiverClient = builder.build("sip:provencal_le_gaulois@sip.test.org");
 	receiverClient.disconnect();
 

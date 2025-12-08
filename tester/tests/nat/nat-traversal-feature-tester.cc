@@ -137,7 +137,7 @@ void makeCall() {
 	};
 	proxy.start();
 
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	builder.setIce(OnOff::Off);
 	auto caller = builder.build("sip:caller@localhost");
 	auto callee = builder.build("sip:callee@localhost");
@@ -273,7 +273,7 @@ void makeCall() {
 	    &injectedModuleHooks};
 	proxy.start();
 
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	builder.setIce(OnOff::Off);
 	auto caller = builder.build("sip:caller@localhost");
 	auto callee = builder.build("sip:callee@localhost");
@@ -327,7 +327,7 @@ void makeCallNoNeedForNatHelper() {
 	    &injectedModuleHooks};
 	proxy.start();
 
-	auto builder = ClientBuilder(*proxy.getAgent());
+	auto builder = ClientBuilder(proxy.getAgent());
 	builder.setIce(OnOff::Off);
 	auto caller = builder.build("sip:caller@localhost");
 	auto callee = builder.build("sip:callee@localhost");

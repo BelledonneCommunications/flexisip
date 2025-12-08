@@ -599,7 +599,7 @@ void registrarDump() {
 	}
 
 	// Insert user2 and user3 in the registrar db through the proxy (REGISTER requests).
-	ClientBuilder builder{*proxy.getAgent()};
+	ClientBuilder builder{proxy.getAgent()};
 	const auto user2Client = builder.build(user2.mAor);
 	const auto user3Client = builder.build(user3.mAor);
 

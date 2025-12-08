@@ -72,7 +72,8 @@ enum class AudioCodec : std::uint8_t {
 
 class ClientBuilder {
 public:
-	explicit ClientBuilder(const Agent&);
+	explicit ClientBuilder(const std::shared_ptr<Agent>&);
+	explicit ClientBuilder(const std::string&);
 
 	ClientBuilder(ClientBuilder&&) = default;
 	// We don't want to share e.g. AccountParams between builders
@@ -127,7 +128,7 @@ private:
 	const std::shared_ptr<linphone::Factory> mFactory{linphone::Factory::get()};
 	const std::shared_ptr<linphone::Core> mCoreTemplate{};
 	const std::shared_ptr<linphone::AccountParams> mAccountParams{};
-	const Agent& mAgent;
+	const std::shared_ptr<Agent> mAgent;
 	OnOff mLimeX3DH{OnOff::On};
 	OnOff mSendVideo{OnOff::Off};
 	OnOff mReceiveVideo{OnOff::Off};
@@ -146,6 +147,7 @@ private:
 	std::string mPlayFilePath{bcTesterRes("sounds/hello8000.wav")};
 	std::string mUserAgentName{"Linphone (Flexisip tester)"};
 	std::string mUserAgentVersion{FLEXISIP_GIT_VERSION};
+	std::string mRemoteAddress{};
 };
 
 } // namespace tester

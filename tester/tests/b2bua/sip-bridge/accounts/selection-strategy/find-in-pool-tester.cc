@@ -62,7 +62,7 @@ void chooseAccountForThisCall() {
 	    &hooks,
 	};
 	proxy.start();
-	const auto& builder = ClientBuilder(*proxy.getAgent());
+	const auto& builder = ClientBuilder(proxy.getAgent());
 	const auto& caller = builder.build(incomingFrom);
 	const auto& b2buaStub = builder.build("stub@sip.example.org");
 	caller.invite(b2buaStub);

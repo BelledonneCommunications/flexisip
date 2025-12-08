@@ -59,7 +59,7 @@ void sipMessageRequestIntendedForChatroom(bool messageDatabaseEnabled, const str
 	    },
 	};
 
-	ClientBuilder builder{*proxy.getAgent()};
+	ClientBuilder builder{proxy.getAgent()};
 	auto oldSdkReceiver = builder.build("sip:chatroom-old-sdk@sip.example.org");
 	auto newSdkReceiver = builder.build("sip:chatroomNewSdk@sip.example.org");
 	CoreAssert asserter{proxy, senderClient, oldSdkReceiver, newSdkReceiver};
