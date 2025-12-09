@@ -94,7 +94,7 @@ static void makeDeviceTakeOverSendRecvCapabilities(const shared_ptr<RelayedCall>
 
 		const auto channel = call->getSessions()[sessionId]->getChannel("stub-party-id", trId);
 		BC_HARD_ASSERT(channel != nullptr);
-		BC_HARD_ASSERT_CPP_EQUAL(channel->getDirection(), RelayChannel::Dir::SendRecv);
+		BC_ASSERT_ENUM_EQUAL(channel->getDirection(), RelayChannel::Dir::SendRecv);
 	}
 }
 }; // namespace helper
@@ -120,7 +120,7 @@ void setChannelDestinationsTakesOverPreviousSendRecvTrId() {
 	// Verify that all media sessions of the first device now only have SendOnly capabilities.
 	for (int session = 0; session < nbMediaSessionsFirstDevice; session++) {
 		const auto& previousChannel = call->getSessions()[session]->getChannel("stub-party-id", fTrId);
-		BC_ASSERT_CPP_EQUAL(previousChannel->getDirection(), RelayChannel::Dir::SendOnly);
+		BC_ASSERT_ENUM_EQUAL(previousChannel->getDirection(), RelayChannel::Dir::SendOnly);
 	}
 
 	// Smoke test: passed if this doesn't crash

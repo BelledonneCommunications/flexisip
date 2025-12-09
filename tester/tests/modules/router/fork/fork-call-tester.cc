@@ -39,8 +39,22 @@ using namespace linphone;
 namespace flexisip::tester {
 namespace {
 
+std::map<std::string, std::string> sDefaultConfig = {{
+    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+    {"global/aliases", "localhost sip.test.org"},
+    {"module::Forward/enabled", "true"},
+    {"module::DoSProtection/enabled", "false"},
+    {"module::Router/enabled", "true"},
+    {"module::Router/fork-late", "true"},
+    {"module::PushNotification/enabled", "true"},
+    {"module::Registrar/enabled", "true"},
+    {"module::Registrar/reg-domains", "sip.test.org"},
+    {"module::MediaRelay/enabled", "false"},
+    {"module::MediaRelay/prevent-loops", "false"},
+}};
+
 void basicCall() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{sDefaultConfig};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -59,7 +73,7 @@ void basicCall() {
 }
 
 void callWithEarlyCancel() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{sDefaultConfig};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -112,17 +126,7 @@ void callWithEarlyCancelCalleeOffline() {
 		        return std::move(request);
 	        },
 	};
-	Server server{{
-	                  {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	                  {"module::Router/fork-late", "true"},
-	                  {"module::PushNotification/enabled", "true"},
-	                  {"module::Registrar/reg-domains", "sip.test.org"},
-
-	                  // Caused a leak on injection of the cancelled INVITE
-	                  // (A new incoming transaction was wrongly created)
-	                  {"module::MediaRelay/enabled", "true"},
-	              },
-	              &hooks};
+	Server server{sDefaultConfig, &hooks};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -216,7 +220,7 @@ void callWithEarlyCancelCalleeOffline() {
  */
 template <bool clientBecomesAvailable>
 void callWithEarlyCancelCalleeOnlyOffline() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{sDefaultConfig};
 	server.setConfigParameter({"module::Router/call-fork-timeout", "1s"});
 	server.start();
 
@@ -346,17 +350,7 @@ void callWithEarlyCancelCalleeOnlyOffline() {
  * Assert that only the device with voip push receive an INVITE+CANCEL on register.
  */
 void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
-	Server server{{
-	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	    {"global/aliases", "localhost sip.test.org"},
-	    {"module::Forward/enabled", "true"},
-	    {"module::DoSProtection/enabled", "false"},
-	    {"module::Router/fork-late", "true"},
-	    {"module::PushNotification/enabled", "true"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "sip.test.org"},
-	    {"module::MediaRelay/enabled", "true"},
-	}};
+	Server server{sDefaultConfig};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -418,7 +412,7 @@ void callWithEarlyCancelCalleeOfflineNoVOIPPush() {
 }
 
 void calleeOfflineWithOneDevice() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{sDefaultConfig};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -471,7 +465,7 @@ void calleeOfflineWithOneDevice() {
 }
 
 void calleeOfflineWithOneDeviceEarlyDecline() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{sDefaultConfig};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -524,7 +518,7 @@ void calleeOfflineWithOneDeviceEarlyDecline() {
 }
 
 void calleeMultipleOnlineDevices() {
-	Server server{"/config/flexisip_fork_call_context.conf"};
+	Server server{sDefaultConfig};
 	server.start();
 
 	ClientBuilder builder{*server.getAgent()};
@@ -556,12 +550,7 @@ struct BrCancelListener : public BranchInfoListener {
  * Verify that the cancellation status is linked to the cancellation reason.
  */
 void cancelStatusOnCancel() {
-	Server proxy{{
-	    {"global/transports", "sip:127.0.0.1:0"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "localhost"},
-	    {"module::Router/enabled", "true"},
-	}};
+	Server proxy{sDefaultConfig};
 	proxy.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
@@ -613,12 +602,7 @@ void cancelStatusOnCancel() {
  * Check that an accepted call on a branch leads to a cancel with AcceptedElseWhere status on another branch.
  */
 void cancelStatusOnResponse() {
-	Server proxy{{
-	    {"global/transports", "sip:127.0.0.1:0"},
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "localhost"},
-	    {"module::Router/enabled", "true"},
-	}};
+	Server proxy{sDefaultConfig};
 	proxy.start();
 	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 	const auto forkFactory = moduleRouter->getForkManager()->getFactory();
@@ -856,31 +840,45 @@ void callForwardingRejected() {
 
 } // namespace voicemail
 
-TestSuite _{
-    "ForkCallContext",
-    {
-        CLASSY_TEST(basicCall),
-        CLASSY_TEST(callWithEarlyCancel),
-        CLASSY_TEST(calleeOfflineWithOneDeviceEarlyDecline),
-        CLASSY_TEST(callWithEarlyCancelCalleeOffline),
-        CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline<true>),
-        CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline<false>),
-        CLASSY_TEST(calleeOfflineWithOneDevice),
-        CLASSY_TEST(calleeMultipleOnlineDevices),
-        CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
-        CLASSY_TEST(cancelStatusOnCancel),
-        CLASSY_TEST(cancelStatusOnResponse),
-        CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Declined>),
-        CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotAnswered>),
-        CLASSY_TEST(voicemail::callForwardingRejected<Reason::Declined>),
-        CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotAnswered>),
+const std::vector<test_t> sTestList = {
+    CLASSY_TEST(basicCall),
+    CLASSY_TEST(callWithEarlyCancel),
+    CLASSY_TEST(calleeOfflineWithOneDeviceEarlyDecline),
+    CLASSY_TEST(callWithEarlyCancelCalleeOffline),
+    CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline<true>),
+    CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline<false>),
+    CLASSY_TEST(calleeOfflineWithOneDevice),
+    CLASSY_TEST(calleeMultipleOnlineDevices),
+    CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),
+    CLASSY_TEST(cancelStatusOnCancel),
+    CLASSY_TEST(cancelStatusOnResponse),
+    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Declined>),
+    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotAnswered>),
+    CLASSY_TEST(voicemail::callForwardingRejected<Reason::Declined>),
+    CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotAnswered>),
 
-        // Tests that do not need to be executed every time as we are already testing similar cases. However, these
-        // tests are useful when comprehensive testing is required.
-        CLASSY_TEST(voicemail::callForwardingRejected<Reason::Busy>).tag("skip"),
-        CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Busy>).tag("skip"),
-    },
+    // Tests that do not need to be executed every time as we are already testing similar cases. However, these
+    // tests are useful when comprehensive testing is required.
+    CLASSY_TEST(voicemail::callForwardingRejected<Reason::Busy>).tag("skip"),
+    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Busy>).tag("skip"),
 };
 
+TestSuite _{
+    "ForkCallContext",
+    sTestList,
+    Hooks().beforeSuite([] {
+	    sDefaultConfig.insert_or_assign("module::MediaRelay/enabled", "false");
+	    return 0;
+    }),
+};
+
+TestSuite __{
+    "ForkCallContextWithMediaRelay",
+    sTestList,
+    Hooks().beforeSuite([] {
+	    sDefaultConfig.insert_or_assign("module::MediaRelay/enabled", "true");
+	    return 0;
+    }),
+};
 } // namespace
 } // namespace flexisip::tester

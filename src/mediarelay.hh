@@ -158,6 +158,7 @@ public:
 	void checkPollFd(const PollFd* pfd, time_t curtime);
 	void unuse();
 	int getActiveBranchesCount() const;
+	int getBranchesCount() const;
 
 	bool isUsed() const {
 		return mUsed;
@@ -211,9 +212,10 @@ public:
 
 class RelayChannel : public SdpMasqueradeContext {
 public:
-	enum Dir { SendOnly, SendRecv, Inactive };
+	enum class Dir { SendOnly, SendRecv, Inactive };
+	enum class Type { Front, Back };
 
-	RelayChannel(RelaySession* relaySession, const RelayTransport& rt, bool preventLoops);
+	RelayChannel(RelaySession* relaySession, const RelayTransport& rt, bool preventLoops, Type type);
 	~RelayChannel();
 	bool checkSocketsValid();
 	void setRemoteAddr(const std::string& ip, int port, int rtcp_port, Dir dir);
@@ -251,8 +253,12 @@ public:
 	}
 	void setDirection(Dir);
 	Dir getDirection() const;
+	const std::string& getLogPrefix() const {
+		return mLogPrefix;
+	}
 
 	static const char* dirToString(Dir dir);
+	static std::string typeToString(Type type);
 
 private:
 	static const int sMaxRecvErrors = 50;
@@ -270,6 +276,7 @@ private:
 	int mPfdIndex;
 	int mRecvErrorCount[2];
 	Dir mDir;
+	Type mType;
 	uint64_t mPacketsReceived[2];
 	uint64_t mPacketsSent[2];
 	bool mPreventLoop;

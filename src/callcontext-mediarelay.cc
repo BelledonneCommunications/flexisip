@@ -221,7 +221,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 	if (s == nullptr) return;
 
 	// Default direction is SendRecv.
-	auto dir = RelayChannel::SendRecv;
+	auto dir = RelayChannel::Dir::SendRecv;
 	const bool isEarlyMediaState = isEarlyMedia && !mIsEstablished && mServer->mModule->mEarlyMediaRelaySingle;
 
 	// Make sure that only one device can send media to the caller (caller POV: receive media from only one callee),
@@ -235,7 +235,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 			if (session == nullptr) break; // sentinel reached
 
 			if (const auto& channel = session->getChannel("", mSendRecvTrId))
-				channel->setDirection(RelayChannel::SendOnly);
+				channel->setDirection(RelayChannel::Dir::SendOnly);
 		}
 
 		mSendRecvTrId = trId;
@@ -260,7 +260,7 @@ void RelayedCall::setChannelDestinations(const shared_ptr<SdpModifier>& sdpModif
 					 */
 				} else if (s->getActiveBranchesCount() >= maxEarlyRelays) {
 					LOGW << "Maximum number of relayed early media streams reached";
-					dir = RelayChannel::Inactive;
+					dir = RelayChannel::Dir::Inactive;
 				}
 			}
 		}

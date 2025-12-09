@@ -81,6 +81,10 @@ public:
 		bc_tester_add_suite(&mSuite);
 	}
 
+	TestSuite(const char* name, const std::vector<test_t>& tests, const Hooks& hooks = {})
+	    : TestSuite(name, std::vector(tests), hooks) {
+	}
+
 	const char* getName() const {
 		return mSuite.name;
 	}
