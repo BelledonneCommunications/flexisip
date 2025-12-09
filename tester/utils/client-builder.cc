@@ -265,20 +265,21 @@ ClientBuilder& ClientBuilder::setVideoPort(port::PortSetting setting) {
 ClientBuilder& ClientBuilder::setApplePushConfig() {
 	const auto pushConfig = mAccountParams->getPushNotificationConfig();
 	pushConfig->setProvider("apns");
-	pushConfig->setPrid("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC18:remote&"
-	                    "8A499FF20722E0C47A4F52657554B22E2AE6BF45AC91AAAAAAAAAAAAAAAAAAAA:voip");
-	pushConfig->setParam("ABCD1234.org.linphone.phone.remote&voip");
+	pushConfig->setRemoteToken("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC18:remote");
+	pushConfig->setVoipToken("8A499FF20722E0C47A4F52657554B22E2AE6BF45AC91AAAAAAAAAAAAAAAAAAAA:voip");
+	pushConfig->setBundleIdentifier("org.linphone.phone");
 	mAccountParams->setPushNotificationAllowed(true);
-
+	mAccountParams->setRemotePushNotificationAllowed(true);
 	return *this;
 }
 
 ClientBuilder& ClientBuilder::setApplePushConfigRemoteOnly() {
 	const auto pushConfig = mAccountParams->getPushNotificationConfig();
 	pushConfig->setProvider("apns");
-	pushConfig->setPrid("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC19:remote");
-	pushConfig->setParam("ABCD1234.org.linphone.phone.remote");
-	mAccountParams->setPushNotificationAllowed(true);
+	pushConfig->setRemoteToken("AAAAAAAAAAAAAAAAAAAA7DF897B431746F49E271E66BBF655C13C2BBD70FFC19:remote");
+	pushConfig->setBundleIdentifier("org.linphone.phone");
+	mAccountParams->setPushNotificationAllowed(false);
+	mAccountParams->setRemotePushNotificationAllowed(true);
 
 	return *this;
 }
