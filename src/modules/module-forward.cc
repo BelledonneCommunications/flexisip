@@ -469,7 +469,7 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// Eventually add a second "Record-Route" header field with different transport to bridge to networks. For example,
 	// we'll end with UDP, TCP.
 	const auto method = ms->getSipMethod();
-	if (ev->mRecordRouteAdded && (method == sip_method_invite || method == sip_method_subscribe)) {
+	if (ev->getRecordRouteAdded() && (method == sip_method_invite || method == sip_method_subscribe)) {
 		mAgent->getNatTraversalStrategy()->addRecordRouteForwardModule(*ev, tport, tportDest);
 	}
 

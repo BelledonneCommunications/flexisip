@@ -20,106 +20,65 @@
 
 #include <algorithm>
 #include <array>
-#include <ostream>
 #include <string>
 #include <string_view>
 
-#include <sofia-sip/msg_addr.h>
-#include <sofia-sip/msg_types.h>
-#include <sofia-sip/sip_protos.h>
-#include <sofia-sip/su_alloc.h>
+#include "bctoolbox/ownership.hh"
 
-#include <bctoolbox/ownership.hh>
+#include "sofia-sip/msg_addr.h"
+#include "sofia-sip/sip_protos.h"
 
 #include "flexisip/sip-boolean-expressions.hh"
-
 #include "sip-header.hh"
 
 using namespace ownership;
 
+namespace flexisip {
+class SocketAddress;
+}
+
 namespace sofiasip {
 
 /**
- * Don't forget to update MsgSip::getPreviousPriority and MsgSip::getOrderedPrioritiesList if you update this enum.
+ * Remember to update MsgSip::getPreviousPriority and MsgSip::getOrderedPrioritiesList if you update this enum.
  */
 enum class MsgSipPriority { NonUrgent = 0, Normal = 1, Urgent = 2, Emergency = 3 };
 
 class MsgSip {
 public:
-	MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {
-	}
-	MsgSip(Owned<msg_t>&& msg) : mMsg(std::move(msg)) {
-	}
-	MsgSip(BorrowedMut<msg_t> msg) : mMsg(msg_ref_create(msg)) {
-	}
-	MsgSip(MsgSip&& other) : mMsg(std::move(other.mMsg)) {
-	}
+	MsgSip() : mMsg{msg_create(sip_default_mclass(), 0)} {}
+	MsgSip(Owned<msg_t>&& msg) : mMsg(std::move(msg)) {}
+	MsgSip(BorrowedMut<msg_t> msg) : mMsg(msg_ref_create(msg)) {}
+	MsgSip(MsgSip&& other) noexcept : mMsg(std::move(other.mMsg)) {}
+	/**
+	 * @warning Invoking the copy constructor of MsgSip implies the deep copy of the underlying msg_t
+	 */
 	MsgSip(const MsgSip& other);
 	/**
 	 * Construct a MsgSip parsing the string_view parameter.
 	 *
-	 * @throw Throw std::runtime_error if a parsing error occurred.
+	 * @throw std::runtime_error if a parsing error occurred.
 	 */
 	MsgSip(int flags, std::string_view msg);
 
 	~MsgSip() noexcept {
 		msg_destroy(mMsg.take());
 	}
-
 	MsgSip& operator=(MsgSip&& other) noexcept {
 		std::swap(mMsg, other.mMsg);
 		return *this;
 	}
 
-	static std::string toString(msg_t& msg);
-
-	Borrowed<msg_t> getMsg() const {
-		return {mMsg};
+	static std::array<MsgSipPriority, 4> getOrderedPrioritiesList() {
+		return {MsgSipPriority::Emergency, MsgSipPriority::Urgent, MsgSipPriority::Normal, MsgSipPriority::NonUrgent};
 	}
-	BorrowedMut<msg_t> getMsg() {
-		return mMsg.borrow();
-	}
-	const sip_t* getSip() const {
-		return (sip_t*)msg_object(mMsg);
-	}
-	sip_t* getSip() {
-		return (sip_t*)msg_object(mMsg);
-	}
-	su_home_t* getHome() {
-		return msg_home(static_cast<msg_t*>(mMsg.borrow()));
-	}
-	sockaddr* getSockAddr() {
-		return msg_addrinfo(mMsg.borrow())->ai_addr;
-	}
-
-	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
-	const msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false) const {
-		return const_cast<MsgSip*>(this)->findHeader(name, searchUnknowns);
-	}
-
-	sip_method_t getSipMethod() const {
-		const auto rq = getSip()->sip_request;
-		return rq != nullptr ? rq->rq_method : sip_method_unknown;
-	}
-
-	std::string getCallID() const;
-
-	MsgSipPriority getPriority() const;
-
-	void serialize() {
-		msg_serialize(mMsg.borrow(), (msg_pub_t*)getSip());
-	}
-	std::string msgAsString() const;
-	std::string contextAsString() const;
-
-	bool isGroupChatInvite() const noexcept;
-	bool isChatService() noexcept;
-
 	/**
-	 * @return 'true' if the SIP request contained in this instance is in-dialog, according to RFC3261
+	 * Return the priority just before the one in the parameter;
+	 * @throw logic_error if current == MsgSipPriority::NonUrgent
 	 */
-	bool isInDialog() const noexcept;
+	static MsgSipPriority getPreviousPriority(MsgSipPriority current);
 
+	static std::shared_ptr<flexisip::SipBooleanExpression>& getShowBodyForFilter();
 	/**
 	 * Change the sip filter used by Flexisip to show or not request's body in logs.
 	 *
@@ -128,36 +87,34 @@ public:
 	 */
 	static void setShowBodyFor(const std::string& filterString);
 
-	static std::shared_ptr<flexisip::SipBooleanExpression>& getShowBodyForFilter() {
-		if (!sShowBodyFor) {
-			sShowBodyFor = flexisip::SipBooleanExpressionBuilder::get().parse("content-type == 'application/sdp'");
-		}
-		return sShowBodyFor;
-	}
+	static std::string toString(msg_t& msg);
 
+	void serialize();
+
+	msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false);
+	const msg_header_t* findHeader(const std::string& name, bool searchUnknowns = false) const;
+
+	std::string msgAsString() const;
+	std::string contextAsString() const;
+
+	bool isGroupChatInvite() const noexcept;
+	bool isChatService() noexcept;
 	/**
-	 * Return the priority just before the one in parameter;
-	 * @throw logic_error if current == MsgSipPriority::NonUrgent
+	 * @return 'true' if the SIP request contained in this instance is in-dialog, according to RFC3261.
 	 */
-	static MsgSipPriority getPreviousPriority(MsgSipPriority current);
+	bool isInDialog() const noexcept;
 
-	static std::array<MsgSipPriority, 4> getOrderedPrioritiesList() {
-		return {MsgSipPriority::Emergency, MsgSipPriority::Urgent, MsgSipPriority::Normal, MsgSipPriority::NonUrgent};
-	};
 	/**
-	 * Insert or add a SIP header in the SIP message.
-	 * If the header already exists in the message and is to be unique, then the new header replace the old one.
+	 * Insert or add a SIP header in the SIP message.
+	 * If the header already exists in the message and is to be unique, then the new header replaces the old one.
 	 * If the header already exists in the message and isn't to be unique, then the new header is inserted after
-	 * or before the current headers according the kind of the header.
+	 * or before the current headers according to the kind of the header.
 	 */
-	void insertHeader(SipHeader&& header) {
-		su_home_move(getHome(), header.mHome.home());
-		msg_header_insert(mMsg.borrow(), nullptr, header.mNativePtr);
-		header.mNativePtr = nullptr;
-	}
+	void insertHeader(SipHeader&& header);
+
 	/**
-	 * Create and insert a header in a SIP message.
-	 * @param HeaderT The header type.
+	 * Create and insert a header in a SIP message.
+	 * @tparam HeaderT The header type.
 	 * @param args The arguments to give to the header constructor.
 	 */
 	template <typename HeaderT, typename... ArgsT>
@@ -165,14 +122,32 @@ public:
 		insertHeader(HeaderT{std::forward<ArgsT>(args)...});
 	}
 
-private:
-	// Private attributes
-	Owned<msg_t> mMsg{nullptr};
+	Borrowed<msg_t> getMsg() const {
+		return {mMsg};
+	}
+	BorrowedMut<msg_t> getMsg() {
+		return mMsg.borrow();
+	}
+	const sip_t* getSip() const;
+	sip_t* getSip();
+	su_home_t* getHome();
+	sockaddr* getSockAddr();
+	sip_method_t getSipMethod() const;
+	std::string getCallID() const;
+	MsgSipPriority getPriority() const;
+	/**
+	 * @return a copy of the socket address associated with the message or nullptr if it failed to make the
+	 * SocketAddress.
+	 */
+	std::shared_ptr<flexisip::SocketAddress> getAddress();
 
+private:
 	static std::shared_ptr<flexisip::SipBooleanExpression> sShowBodyFor;
-	std::string mLogPrefix;
+
+	Owned<msg_t> mMsg{nullptr};
+	std::string mLogPrefix{};
 };
 
-std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept;
+std::ostream& operator<<(std::ostream& strm, const MsgSip& obj) noexcept;
 
 }; // namespace sofiasip

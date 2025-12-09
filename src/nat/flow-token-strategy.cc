@@ -37,8 +37,7 @@ namespace flexisip {
 
 FlowTokenStrategy::Helper::Helper(const std::shared_ptr<SipBooleanExpression>& forceStrategyBoolExpr,
                                   const std::filesystem::path& hashKeyFilePath)
-    : mFlowFactory(hashKeyFilePath), mForceStrategyBoolExpr(forceStrategyBoolExpr) {
-}
+    : mFlowFactory(hashKeyFilePath), mForceStrategyBoolExpr(forceStrategyBoolExpr) {}
 
 /*
  * Check whether the given url contains a valid flow-token.
@@ -76,11 +75,9 @@ const std::shared_ptr<SipBooleanExpression>& FlowTokenStrategy::Helper::getForce
 FlowTokenStrategy::FlowTokenStrategy(Agent* agent,
                                      const std::shared_ptr<BooleanExpression<sip_s>>& forceStrategyBoolExpr,
                                      const std::filesystem::path& hashKeyFilePath)
-    : NatTraversalStrategy(agent), mHelper(forceStrategyBoolExpr, hashKeyFilePath) {
-}
+    : NatTraversalStrategy(agent), mHelper(forceStrategyBoolExpr, hashKeyFilePath) {}
 
-void FlowTokenStrategy::preProcessOnRequestNatHelper(const RequestSipEvent&) const {
-}
+void FlowTokenStrategy::preProcessOnRequestNatHelper(const RequestSipEvent&) const {}
 
 void FlowTokenStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
 	// If request does not meet requirements to add a flow-token, add a simple record-route.
@@ -95,7 +92,7 @@ void FlowTokenStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
 		const auto* tport = ev.getIncomingTport().get();
 		const auto* localAddrInfo = reinterpret_cast<su_sockaddr_t*>(tport_get_address(tport_parent(tport))->ai_addr);
 
-		const auto remoteAddress = ev.getMsgAddress();
+		const auto remoteAddress = ev.getMsgSip()->getAddress();
 		const auto localAddress = SocketAddress::make(localAddrInfo);
 
 		const auto flow = mHelper.getFlowFactory().create(localAddress, remoteAddress, tport_name(tport)->tpn_proto);
@@ -109,8 +106,7 @@ void FlowTokenStrategy::addRecordRouteNatHelper(RequestSipEvent& ev) const {
 	ModuleToolbox::addRecordRouteIncoming(mAgent, ev);
 }
 
-void FlowTokenStrategy::onResponseNatHelper(const ResponseSipEvent&) const {
-}
+void FlowTokenStrategy::onResponseNatHelper(const ResponseSipEvent&) const {}
 
 url_t* FlowTokenStrategy::getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const {
 	if (!mHelper.requestMeetsRequirements(*ev.getMsgSip())) return nullptr;
@@ -125,7 +121,7 @@ url_t* FlowTokenStrategy::getTportDestFromLastRoute(const RequestSipEvent& ev, c
 	if (tport == nullptr) {
 		return nullptr;
 	}
-	const auto remoteAddress = ev.getMsgAddress();
+	const auto remoteAddress = ev.getMsgSip()->getAddress();
 	if (remoteAddress == nullptr) {
 		return nullptr;
 	}
@@ -188,7 +184,7 @@ void FlowTokenStrategy::addPathOnRegister(RequestSipEvent& ev, tport_t* tport, c
 	tport = (tport == (tport_t*)-1) ? nullptr : tport;
 
 	if (sip->sip_via != nullptr and sip->sip_via->v_next == nullptr) {
-		const auto remoteAddr = ev.getMsgAddress();
+		const auto remoteAddr = ev.getMsgSip()->getAddress();
 		const auto* primaryTport = tport_parent(ev.getIncomingTport().get());
 		const auto* localSuSockAddr = reinterpret_cast<su_sockaddr_t*>(tport_get_address(primaryTport)->ai_addr);
 		const auto localAddr = SocketAddress::make(localSuSockAddr);

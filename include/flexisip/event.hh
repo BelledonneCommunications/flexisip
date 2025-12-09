@@ -43,7 +43,6 @@ class IncomingTransaction;
 class OutgoingTransaction;
 class EventLog;
 class EventLogWriteDispatcher;
-class SocketAddress;
 
 using MsgSip = sofiasip::MsgSip;
 
@@ -121,7 +120,6 @@ public:
 	std::shared_ptr<OutgoingTransaction> getOutgoingTransaction();
 
 	const std::shared_ptr<tport_t>& getIncomingTport() const;
-	std::shared_ptr<SocketAddress> getMsgAddress() const;
 
 	int getStatusCode() const;
 
@@ -187,14 +185,13 @@ public:
 
 	void setIncomingAgent(const std::shared_ptr<IncomingAgent>& agent) override;
 
-	~RequestSipEvent();
+	~RequestSipEvent() override;
 
 	/** Find if incoming tport TLS client certificate contains a given entry */
 	bool findIncomingSubject(const char* searched) const;
 	const char* findIncomingSubject(const std::list<std::string>& in) const;
 	bool matchIncomingSubject(regex_t* regex);
 	void unlinkTransactions();
-	bool mRecordRouteAdded;
 
 	struct AuthResult {
 		enum class Type { Bearer, Digest, TLS };
@@ -250,12 +247,20 @@ public:
 	 */
 	void addBeforeSendCallback(BeforeSendCallback&& callback);
 
+	bool getRecordRouteAdded() const {
+		return mRecordRouteAdded;
+	}
+	void setRecordRouteAdded() {
+		mRecordRouteAdded = true;
+	}
+
 private:
 	void checkContentLength(const url_t* url);
 	void linkTransactions();
 
 	AuthResult mAuthResult{};
 	// keep ownership of transactions
+	bool mRecordRouteAdded{};
 	std::shared_ptr<IncomingTransaction> mIncomingTransactionOwner;
 	std::shared_ptr<OutgoingTransaction> mOutgoingTransactionOwner;
 	BeforeSendCallbackList mBeforeSendCallbacks{};
@@ -279,7 +284,7 @@ public:
 	void doNotForward();
 	bool shouldBeForwarded() const;
 
-	~ResponseSipEvent();
+	~ResponseSipEvent() override;
 
 private:
 	void checkContentLength(const std::shared_ptr<MsgSip>& msg, const sip_via_t* via);

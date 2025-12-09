@@ -199,15 +199,12 @@ void registerUser() {
 	public:
 		~ContactInfoGetter() override = default;
 
-		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
-		}
+		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {}
 		void onRecordFound(const std::shared_ptr<Record>& r) override {
 			mPath = r->getExtendedContacts().latest()->get()->mPath.front();
 		};
-		void onError(const SipStatus&) override {
-		}
-		void onInvalid(const SipStatus&) override {
-		}
+		void onError(const SipStatus&) override {}
+		void onInvalid(const SipStatus&) override {}
 
 		string mPath;
 	};
@@ -265,7 +262,7 @@ void makeCall() {
 			        auto const* rr = ev->getMsgSip()->getSip()->sip_record_route;
 			        auto const* rrUrl = rr->r_url;
 			        recordRoute.url_user = rrUrl ? rrUrl->url_user : "expected";
-			        callerTcpPort = ev->getMsgAddress()->getPortStr();
+			        callerTcpPort = ev->getMsgSip()->getAddress()->getPortStr();
 			        firstInvite = false;
 		        }
 		        return std::move(ev);

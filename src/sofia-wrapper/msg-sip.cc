@@ -16,22 +16,25 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/sofia-wrapper/msg-sip.hh"
+
 #include <vector>
 
 #include "flexisip/logmanager.hh"
+#include "utils/socket-address.hh"
 #include "utils/string-utils.hh"
 
-#include "flexisip/sofia-wrapper/msg-sip.hh"
-
 using namespace std;
+using namespace flexisip;
 using namespace string_literals;
 
 namespace sofiasip {
 
-/*Invoking the copy constructor of MsgSip implies the deep copy of the underlying msg_t */
+shared_ptr<SipBooleanExpression> MsgSip::sShowBodyFor{};
+
 MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
 	serialize();
-	mLogPrefix = flexisip::LogManager::makeLogPrefixForInstance(this, "MsgSip");
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "MsgSip");
 	LOGD << "Copied from MsgSip " << &msgSip;
 }
 
@@ -53,6 +56,10 @@ std::string MsgSip::toString(msg_t& msg) {
 	size_t msg_size{};
 	unique_ptr<char, rawMsg_deleter> raw{msg_as_string(nullptr, &msg, nullptr, 0, &msg_size)};
 	return string{raw.get(), msg_size};
+}
+
+void MsgSip::serialize() {
+	msg_serialize(mMsg.borrow(), reinterpret_cast<msg_pub_t*>(getSip()));
 }
 
 msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
@@ -78,6 +85,10 @@ msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) {
 	return nullptr;
 }
 
+const msg_header_t* MsgSip::findHeader(const std::string& name, bool searchUnknowns) const {
+	return const_cast<MsgSip*>(this)->findHeader(name, searchUnknowns);
+}
+
 std::string MsgSip::msgAsString() const {
 	// Here we hack out the constness.
 	// msg_as_string is non const as it will modify the internal buffers of msg_t during serialization.
@@ -89,16 +100,16 @@ std::string MsgSip::contextAsString() const {
 	auto* sip = getSip();
 	vector<char> buffer(4096);
 
-	sip_from_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_from, 0);
+	sip_from_e(buffer.data(), buffer.size(), reinterpret_cast<msg_header_t*>(sip->sip_from), 0);
 	os << "From: " << buffer.data() << endl;
 
-	sip_to_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_to, 0);
+	sip_to_e(buffer.data(), buffer.size(), reinterpret_cast<msg_header_t*>(sip->sip_to), 0);
 	os << "To: " << buffer.data() << endl;
 
-	sip_call_id_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_call_id, 0);
+	sip_call_id_e(buffer.data(), buffer.size(), reinterpret_cast<msg_header_t*>(sip->sip_call_id), 0);
 	os << "Call-ID: " << buffer.data() << endl;
 
-	sip_cseq_e(buffer.data(), buffer.size(), (msg_header_t*)sip->sip_cseq, 0);
+	sip_cseq_e(buffer.data(), buffer.size(), reinterpret_cast<msg_header_t*>(sip->sip_cseq), 0);
 	os << "CSeq: " << buffer.data();
 
 	return os.str();
@@ -135,37 +146,60 @@ bool MsgSip::isInDialog() const noexcept {
 	return sip != nullptr && sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr;
 }
 
-shared_ptr<flexisip::SipBooleanExpression> MsgSip::sShowBodyFor{nullptr};
-
 void MsgSip::setShowBodyFor(const string& filterString) {
 	if (filterString.empty()) {
 		throw invalid_argument("show_body-for-filter can't be empty. Use true to see all body, false to see none.");
 	}
-	sShowBodyFor = flexisip::SipBooleanExpressionBuilder::get().parse(filterString);
+	sShowBodyFor = SipBooleanExpressionBuilder::get().parse(filterString);
+}
+
+std::shared_ptr<SipBooleanExpression>& MsgSip::getShowBodyForFilter() {
+	if (!sShowBodyFor) sShowBodyFor = SipBooleanExpressionBuilder::get().parse("content-type == 'application/sdp'");
+	return sShowBodyFor;
+}
+
+void MsgSip::insertHeader(SipHeader&& header) {
+	su_home_move(getHome(), header.mHome.home());
+	msg_header_insert(mMsg.borrow(), nullptr, header.mNativePtr);
+	header.mNativePtr = nullptr;
+}
+
+const sip_t* MsgSip::getSip() const {
+	return reinterpret_cast<const sip_t*>(msg_object(mMsg));
+}
+
+sip_t* MsgSip::getSip() {
+	return reinterpret_cast<sip_t*>(msg_object(mMsg));
+}
+
+su_home_t* MsgSip::getHome() {
+	return msg_home(static_cast<msg_t*>(mMsg.borrow()));
+}
+
+sockaddr* MsgSip::getSockAddr() {
+	return msg_addrinfo(mMsg.borrow())->ai_addr;
+}
+
+sip_method_t MsgSip::getSipMethod() const {
+	return getSip()->sip_request ? getSip()->sip_request->rq_method : sip_method_unknown;
+}
+
+std::string MsgSip::getCallID() const {
+	return getSip()->sip_call_id ? getSip()->sip_call_id->i_id : std::string{};
 }
 
 MsgSipPriority MsgSip::getPriority() const {
-	using namespace flexisip::string_utils;
+	using namespace string_utils;
 
 	const auto sip = getSip();
 	const auto priorityString = sip->sip_priority && sip->sip_priority->g_string ? sip->sip_priority->g_string : ""s;
 
-	if (iequals(priorityString, "") || iequals(priorityString, "normal")) {
-		return MsgSipPriority::Normal;
-	} else if (iequals(priorityString, "non-urgent")) {
-		return MsgSipPriority::NonUrgent;
-	} else if (iequals(priorityString, "urgent")) {
-		return MsgSipPriority::Urgent;
-	} else if (iequals(priorityString, "emergency")) {
-		return MsgSipPriority::Emergency;
-	}
+	if (iequals(priorityString, "") || iequals(priorityString, "normal")) return MsgSipPriority::Normal;
+	if (iequals(priorityString, "non-urgent")) return MsgSipPriority::NonUrgent;
+	if (iequals(priorityString, "urgent")) return MsgSipPriority::Urgent;
+	if (iequals(priorityString, "emergency")) return MsgSipPriority::Emergency;
 
 	return MsgSipPriority::Normal;
-}
-
-std::string MsgSip::getCallID() const {
-	const auto sipCallId = getSip()->sip_call_id;
-	return sipCallId != nullptr ? sipCallId->i_id : ""s;
 }
 
 MsgSipPriority MsgSip::getPreviousPriority(MsgSipPriority current) {
@@ -184,11 +218,18 @@ MsgSipPriority MsgSip::getPreviousPriority(MsgSipPriority current) {
 	}
 }
 
+std::shared_ptr<SocketAddress> MsgSip::getAddress() {
+	su_sockaddr_t suSocketAddress;
+	socklen_t socklen = sizeof(su_sockaddr_t);
+	msg_get_address(getMsg(), &suSocketAddress, &socklen);
+	return SocketAddress::make(&suSocketAddress);
+}
+
 std::ostream& operator<<(std::ostream& strm, const sofiasip::MsgSip& obj) noexcept {
 	auto messageString = obj.msgAsString();
 
 	if (!MsgSip::getShowBodyForFilter()->eval(*obj.getSip())) {
-		// If message method is not in the "show body" whitelist, remove body.
+		// If the message method is not in the "show body" whitelist, remove the body.
 		const auto endOfHeaders = messageString.find("\r\n\r\n");
 		const auto removedBodySize = endOfHeaders != std::string::npos ? messageString.size() - (endOfHeaders + 4) : 0;
 		if (removedBodySize != 0) {

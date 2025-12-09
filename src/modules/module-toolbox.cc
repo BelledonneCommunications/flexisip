@@ -128,11 +128,11 @@ void addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t* tport, const 
 	}
 
 	LOGD_CTX(kPrefix) << "Record route added";
-	ev.mRecordRouteAdded = true;
+	ev.setRecordRouteAdded();
 }
 
 void addRecordRouteIncoming(Agent* ag, RequestSipEvent& ev, const Flow::Token& token) {
-	if (ev.mRecordRouteAdded) return;
+	if (ev.getRecordRouteAdded()) return;
 
 	const auto tport = ev.getIncomingTport();
 	if (!tport) {
