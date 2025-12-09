@@ -20,8 +20,6 @@
 #include <poll.h>
 #include <sys/resource.h>
 
-#include "flexisip-config.h"
-
 #include "agent.hh"
 #include "mediarelay.hh"
 
@@ -59,8 +57,9 @@ unsigned int PollFd::getREvents(int index) const {
 	return mPfd[index].revents;
 }
 
-RelayChannel::RelayChannel(RelaySession* relaySession, const RelayTransport& rt, bool preventLoops)
-    : mRelayTransport(rt), mRemoteIp(std::string("undefined")), mDir(SendRecv), mPacketsReceived{}, mPacketsSent{} {
+RelayChannel::RelayChannel(RelaySession* relaySession, const RelayTransport& rt, bool preventLoops, Type type)
+    : mRelayTransport(rt), mRemoteIp(std::string("undefined")), mDir(Dir::SendRecv), mType(type), mPacketsReceived{},
+      mPacketsSent{} {
 	mPfdIndex = -1;
 	initializeRtpSession(relaySession);
 	mSockAddrSize[0] = mSockAddrSize[1] = 0;
@@ -70,7 +69,7 @@ RelayChannel::RelayChannel(RelaySession* relaySession, const RelayTransport& rt,
 	mRecvErrorCount[0] = mRecvErrorCount[1] = 0;
 	mRemotePort[0] = mRemotePort[1] = -1;
 	mIsOpen = false;
-	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "RelayChannel");
+	mLogPrefix = LogManager::makeLogPrefixForInstance(this, typeToString(mType) + ".RelayChannel");
 }
 
 void RelayChannel::initializeRtpSession(RelaySession* relaySession) {
@@ -98,12 +97,22 @@ RelayChannel::~RelayChannel() {
 
 const char* RelayChannel::dirToString(Dir dir) {
 	switch (dir) {
-		case SendOnly:
+		case Dir::SendOnly:
 			return "SendOnly";
-		case SendRecv:
+		case Dir::SendRecv:
 			return "SendRecv";
-		case Inactive:
+		case Dir::Inactive:
 			return "Inactive";
+	}
+	return "invalid";
+}
+
+string RelayChannel::typeToString(Type type) {
+	switch (type) {
+		case Type::Back:
+			return "Back";
+		case Type::Front:
+			return "Front";
 	}
 	return "invalid";
 }
@@ -221,7 +230,7 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 			mSockAddrLastUseTime[i] = curTime;
 		}
 
-		if (!mIsOpen || mDir == SendOnly || mDir == Inactive) {
+		if (!mIsOpen || mDir == Dir::SendOnly || mDir == Dir::Inactive) {
 			return 0;
 		}
 		if (mFilter &&
@@ -241,7 +250,7 @@ int RelayChannel::recv(int i, uint8_t* buf, size_t buflen, time_t curTime) {
 int RelayChannel::send(int i, uint8_t* buf, size_t buflen) {
 	int err = 0;
 	/*if destination address is working mSockAddrSize>0*/
-	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Inactive && mRecvErrorCount[i] < sMaxRecvErrors &&
+	if (mRemotePort[i] > 0 && mSockAddrSize[i] > 0 && mDir != Dir::Inactive && mRecvErrorCount[i] < sMaxRecvErrors &&
 	    mIsOpen) {
 		if (!mFilter || mFilter->onOutgoingTransfer(buf, buflen, (struct sockaddr*)&mSockAddr[i], mSockAddrSize[i])) {
 			int localPort = (i == 0) ? mRelayTransport.mRtpPort : mRelayTransport.mRtcpPort;
@@ -267,7 +276,7 @@ RelaySession::RelaySession(MediaRelayServer* server, const string& frontId, cons
     : mServer(server), mFrontChannelId(frontId) {
 	mLastActivityTime = getCurrentTime();
 	mUsed = true;
-	mFrontChannel = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
+	mFrontChannel = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled(), RelayChannel::Type::Front);
 	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "RelaySession");
 }
 
@@ -290,11 +299,11 @@ std::shared_ptr<RelayChannel>
 RelaySession::createBranch(const std::string& trId, const RelayTransport& rt, bool hasMultipleTargets) {
 	shared_ptr<RelayChannel> ret;
 	mMutex.lock();
-	ret = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled());
+	ret = make_shared<RelayChannel>(this, rt, mServer->loopPreventionEnabled(), RelayChannel::Type::Back);
 	ret->setMultipleTargets(hasMultipleTargets);
 	mPotentialBackChannels.insert(make_pair(trId, ret));
 	mMutex.unlock();
-	LOGD << "Branch corresponding to transaction [" << trId << "] added";
+	LOGD << ret->getLogPrefix() << " corresponding to transaction [" << trId << "] added";
 	return ret;
 }
 
@@ -314,13 +323,21 @@ void RelaySession::removeBranch(const std::string& trId) {
 
 int RelaySession::getActiveBranchesCount() const {
 	int count = 0;
-	mMutex.lock();
+	std::scoped_lock lock{mMutex};
 	for (auto it = mPotentialBackChannels.begin(); it != mPotentialBackChannels.end(); ++it) {
 		if ((*it).second->getRemoteRtpPort() > 0) count++;
 	}
 	if (mSelectedBackChannel && mSelectedBackChannel->getRemoteRtpPort() > 0) count++;
-	mMutex.unlock();
 	LOGD << "getActiveBranchesCount(): " << count;
+	return count;
+}
+
+int RelaySession::getBranchesCount() const {
+	int count = 0;
+	std::scoped_lock lock{mMutex};
+	count = mPotentialBackChannels.size();
+	if (mSelectedBackChannel) count++;
+	LOGD << "getBranchesCount(): " << count;
 	return count;
 }
 

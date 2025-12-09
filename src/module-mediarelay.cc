@@ -494,10 +494,10 @@ unique_ptr<ResponseSipEvent> MediaRelay::onResponse(unique_ptr<ResponseSipEvent>
 				processResponseWithSDP(c, ot, ev->getMsgSip());
 			} else if (sip->sip_status->st_status >= 300) {
 				c->removeBranch(ot->getBranchId());
-				const auto hasActiveBranches =
+				const auto hasBranches =
 				    std::any_of(c->getSessions().begin(), c->getSessions().end(),
-				                [](const auto& session) { return session && (0 < session->getActiveBranchesCount()); });
-				if (!hasActiveBranches) {
+				                [](const auto& session) { return session && 0 < session->getBranchesCount(); });
+				if (!hasBranches) {
 					LOGD << "RelayedCall[" << c << "] terminated: Last branch removed.";
 					mCalls->remove(c);
 				}

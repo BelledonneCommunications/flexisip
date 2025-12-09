@@ -39,19 +39,24 @@ using namespace std;
 namespace flexisip::tester {
 namespace {
 
+std::map<std::string, std::string> sServerConfig = {
+    {"global/transports", "sip:127.0.0.1:0 sip:[::1]:0"},
+    {"module::MediaRelay/enabled", "false"},
+    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
+    {"module::Registrar/enabled", "true"},
+    {"module::Registrar/reg-domains", "sip.example.org"},
+};
+
 class CallTestContext {
 public:
-	using ConfigMap = std::map<std::string, std::string>;
 	CallTestContext() = default;
-	CallTestContext(ConfigMap&& serverConfig,
-	                const uint numberOfCallerDevices,
+	CallTestContext(const uint numberOfCallerDevices,
 	                const uint numberOfCalleeDevices,
 	                const std::string& callerUri,
 	                const std::string& calleeUri,
 	                const OnOff videoCall)
-	    : serverConfig(std::move(serverConfig)), numberOfCallerDevices(numberOfCallerDevices),
-	      numberOfCalleeDevices(numberOfCalleeDevices), callerUri(callerUri), calleeUri(calleeUri),
-	      videoCall(videoCall) {
+	    : numberOfCallerDevices(numberOfCallerDevices), numberOfCalleeDevices(numberOfCalleeDevices),
+	      callerUri(callerUri), calleeUri(calleeUri), videoCall(videoCall) {
 	}
 
 	CallTestContext enableVideoCall() {
@@ -69,21 +74,19 @@ public:
 		return *this;
 	}
 
+	CallTestContext setNumberOfCalleeIdleDevices(const uint pNumberOfCalleeIdleDevices) {
+		this->numberOfCalleeIdleDevices = pNumberOfCalleeIdleDevices;
+		return *this;
+	}
+
 	CallTestContext setInCallMediaState(const CallAssertionInfo::MediaStateList& pInCallMediaState) {
 		this->inCallMediaState = pInCallMediaState;
 		return *this;
 	}
 
-	ConfigMap serverConfig = {
-	    {"global/transports", "sip:127.0.0.1:0 sip:[::1]:0"},
-	    {"module::MediaRelay/enabled", "true"},
-	    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
-	    {"module::Registrar/enabled", "true"},
-	    {"module::Registrar/reg-domains", "sip.example.org"},
-	};
-
 	size_t numberOfCallerDevices = 1;
 	size_t numberOfCalleeDevices = 1;
+	size_t numberOfCalleeIdleDevices = 1;
 	std::string callerUri = "sip:caller@sip.example.org";
 	std::string calleeUri = "sip:callee@sip.example.org";
 	OnOff videoCall = OnOff::Off;
@@ -92,7 +95,7 @@ public:
 
 void callTestTemplate(const CallTestContext& ctx) {
 	// Arrange server
-	Server server(ctx.serverConfig);
+	Server server(sServerConfig);
 	server.start();
 
 	// Arrange clients
@@ -104,14 +107,19 @@ void callTestTemplate(const CallTestContext& ctx) {
 	}
 	const auto callee = "sip:callee@sip.example.org";
 	vector<CoreClient> calleeDevices;
-	for (size_t i = 0; i < ctx.numberOfCallerDevices; i++) {
+	for (size_t i = 0; i < ctx.numberOfCalleeDevices; i++) {
 		calleeDevices.push_back(builder.build(callee + ";device=n"s + to_string(i)));
+	}
+	vector<CoreClient> calleeIdleDevices;
+	for (size_t i = 0; i < ctx.numberOfCalleeIdleDevices; i++) {
+		calleeIdleDevices.push_back(builder.build(callee + ";device=idle-n"s + to_string(i)));
 	}
 
 	// Arrange asserter
 	CoreAssert asserter(server);
 	asserter.registerSteppables(callerDevices);
 	asserter.registerSteppables(calleeDevices);
+	asserter.registerSteppables(calleeIdleDevices);
 
 	// Assert all clients registered without issue
 	for (const auto& calleeDevice : calleeDevices) {
@@ -119,6 +127,10 @@ void callTestTemplate(const CallTestContext& ctx) {
 	}
 	for (const auto& callerDevice : callerDevices) {
 		BC_HARD_ASSERT_TRUE(callerDevice.isRegistered(asserter));
+	}
+	for (const auto& calleeIdleDevice : calleeIdleDevices) {
+		BC_HARD_ASSERT_TRUE(calleeIdleDevice.isRegistered(asserter));
+		calleeIdleDevice.disconnect();
 	}
 
 	// Actually start the call
@@ -168,13 +180,36 @@ void videoCallWithMultipleDevices() {
 	callTestTemplate(CallTestContext{}.enableVideoCall().setNumberOfCallerDevices(10).setNumberOfCalleeDevices(10));
 }
 
+void videoCallWithMultipleDevicesAndIdleDevices() {
+	callTestTemplate(CallTestContext{}
+	                     .enableVideoCall()
+	                     .setNumberOfCallerDevices(10)
+	                     .setNumberOfCalleeDevices(5)
+	                     .setNumberOfCalleeIdleDevices(5));
+}
+
+const std::vector<test_t> sTestList = {
+    CLASSY_TEST(basicCall),
+    CLASSY_TEST(videoCall),
+    CLASSY_TEST(videoCallWithMultipleDevices),
+    CLASSY_TEST(videoCallWithMultipleDevicesAndIdleDevices),
+};
+
 TestSuite _{
     "Call",
-    {
-        CLASSY_TEST(basicCall),
-        CLASSY_TEST(videoCall),
-        CLASSY_TEST(videoCallWithMultipleDevices),
-    },
+    sTestList,
+    Hooks().beforeSuite([] {
+	    sServerConfig.insert_or_assign("module::MediaRelay/enabled", "false");
+	    return 0;
+    }),
+};
+TestSuite __{
+    "CallWithMediaRelay",
+    sTestList,
+    Hooks().beforeSuite([] {
+	    sServerConfig.insert_or_assign("module::MediaRelay/enabled", "true");
+	    return 0;
+    }),
 };
 } // namespace
 } // namespace flexisip::tester
