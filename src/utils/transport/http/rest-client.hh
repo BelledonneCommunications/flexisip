@@ -52,7 +52,7 @@ public:
 	          const JsonObject& jsonObject,
 	          const OnResponseCb& onResponseCb,
 	          const OnErrorCb& onErrorCb) {
-		httpCall(path, "POST", jsonObject, onResponseCb, onErrorCb);
+		httpCallWithJson(path, "POST", jsonObject, onResponseCb, onErrorCb);
 	}
 	template <class JsonObject>
 	void post(const std::string& path,
@@ -81,13 +81,20 @@ public:
 			    customErrorCallback(req);
 		    });
 	}
+	void post(const std::string& path,
+	          const std::string& body,
+	          const std::string& contentType,
+	          const OnResponseCb& onResponseCb,
+	          const OnErrorCb& onErrorCb) {
+		httpCall(path, "POST", body, contentType, onResponseCb, onErrorCb);
+	}
 
 	template <class JsonObject>
 	void put(const std::string& path,
 	         const JsonObject& jsonObject,
 	         const OnResponseCb& onResponseCb,
 	         const OnErrorCb& onErrorCb) {
-		httpCall(path, "PUT", jsonObject, onResponseCb, onErrorCb);
+		httpCallWithJson(path, "PUT", jsonObject, onResponseCb, onErrorCb);
 	}
 	template <class JsonObject>
 	void put(const std::string& path,
@@ -104,7 +111,7 @@ public:
 	           const JsonObject& jsonObject,
 	           const OnResponseCb& onResponseCb,
 	           const OnErrorCb& onErrorCb) {
-		httpCall(path, "PATCH", jsonObject, onResponseCb, onErrorCb);
+		httpCallWithJson(path, "PATCH", jsonObject, onResponseCb, onErrorCb);
 	}
 	template <class JsonObject>
 	void patch(const std::string& path,
@@ -137,9 +144,15 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"RestClient"};
 
+	void httpCallWithJson(const std::string& path,
+	                      const std::string& method,
+	                      const std::optional<nlohmann::json>& jsonObject,
+	                      const OnResponseCb& onResponseCb,
+	                      const OnErrorCb& onErrorCb);
 	void httpCall(const std::string& path,
 	              const std::string& method,
-	              const std::optional<nlohmann::json>& jsonObject,
+	              const std::string& body,
+	              const std::string& contentType,
 	              const OnResponseCb& onResponseCb,
 	              const OnErrorCb& onErrorCb);
 

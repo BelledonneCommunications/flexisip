@@ -126,7 +126,6 @@ ModuleAuthorization::DynamicDomainManager::DynamicDomainManager(const shared_ptr
     : mLogPrefix(sAuthorizationInfo.getLogPrefix()), mFAMClient(Http2Client::make(*root, host, port),
                                                                 HttpHeaders{
                                                                     {"accept", "application/json"},
-                                                                    {"content-type", "application/json"},
                                                                     {"x-api-key", apiKey},
                                                                 }),
       mTimer(root, delay) {

@@ -33,7 +33,6 @@ FlexiStats::FlexiStats(sofiasip::SuRoot& root,
     : mRestClient(Http2Client::make(root, host, port),
                   HttpHeaders{
                       {"accept", "application/json"},
-                      {"content-type", "application/json"},
                       {"x-api-key"s, token},
                   }),
       mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()} {

@@ -22,12 +22,21 @@ using namespace std;
 using namespace nlohmann;
 using namespace flexisip;
 
+void RestClient::httpCallWithJson(const string& path,
+                                  const string& method,
+                                  const optional<json>& jsonObject,
+                                  const OnResponseCb& onResponseCb,
+                                  const OnErrorCb& onErrorCb) {
+	const auto body = jsonObject ? to_string(jsonObject.value()) : "";
+	httpCall(path, method, body, "application/json", onResponseCb, onErrorCb);
+}
+
 void RestClient::httpCall(const string& path,
                           const string& method,
-                          const optional<json>& jsonObject,
+                          const string& body,
+                          const string& contentType,
                           const OnResponseCb& onResponseCb,
                           const OnErrorCb& onErrorCb) {
-	const auto body = jsonObject ? to_string(jsonObject.value()) : "";
 	const auto bodySize = to_string(body.size());
 
 	// RFC 7540 https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.3
@@ -37,6 +46,7 @@ void RestClient::httpCall(const string& path,
 	headers.add(":authority", mHttp->getHost());
 	headers.add(":path", mApiPathPrefix + path);
 	headers.concat(mCustomHeaders);
+	headers.add("content-type", contentType);
 	headers.add("content-length", bodySize);
 
 	auto request = make_shared<Http2Client::HttpRequest>(headers, body);
@@ -47,5 +57,5 @@ void RestClient::httpCall(const string& path,
 void RestClient::get(const string& path,
                      const RestClient::OnResponseCb& onResponseCb,
                      const RestClient::OnErrorCb& onErrorCb) {
-	httpCall(path, "GET", nullopt, onResponseCb, onErrorCb);
+	httpCallWithJson(path, "GET", nullopt, onResponseCb, onErrorCb);
 }
