@@ -24,8 +24,10 @@
 #include <string>
 #include <vector>
 
-#include "flexisip/event.hh"
+#include "sofia-sip/nta_stateless.h"
 
+#include "flexisip/event.hh"
+#include "sofia-wrapper/nta-agent.hh"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
@@ -46,8 +48,7 @@ namespace {
 struct Helper {
 	class MockedOutgoingTransaction : public OutgoingTransaction {
 	public:
-		explicit MockedOutgoingTransaction(const std::shared_ptr<Agent>& agent) : OutgoingTransaction(agent) {
-		}
+		explicit MockedOutgoingTransaction(const std::shared_ptr<Agent>& agent) : OutgoingTransaction(agent) {}
 
 		/*
 		 * Code executed when the request is being sent.
@@ -418,15 +419,139 @@ void routeConfigForwarding() {
 	BC_ASSERT_CPP_EQUAL(byeTransaction->mRoutes.empty(), true);
 }
 
-TestSuite _("ForwardModule",
-            {
-                CLASSY_TEST(forwardMidDialogRequestRouteIsNotUs),
-                CLASSY_TEST(forwardMidDialogRequestPathIsNextHop),
-                CLASSY_TEST(forwardMidDialogRequestPathIsUsSoUseContactUrl),
-                CLASSY_TEST(ppiHeaderRemoval),
-                CLASSY_TEST(routeConfigForwarding),
-            });
+struct HeaderInsertionTest {
+	explicit HeaderInsertionTest(
+	    const function<int(nta_agent_magic_t*, nta_agent_t*, msg_t*, sip_t*)>& responseCallback)
+	    : mResponseCallback{responseCallback},
+	      mBackend{
+	          mProxy.getRoot(),
+	          "sip:" + mBackendHost + ":0;transport=tcp",
+	          [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		          SLOGD << "Received:\n" << MsgSip{BorrowedMut(msg)}.msgAsString();
+		          return reinterpret_cast<HeaderInsertionTest*>(magic)->mResponseCallback(magic, agent, msg, sip);
+	          },
+	          reinterpret_cast<nta_agent_magic_t*>(this),
+	      } {
+		mProxy.start();
+		mExpectedHeader = SipUri{"sip:" + mProxyPrivateHost + ":" + mProxy.getFirstPort() + ";transport=tcp;lr"};
+	}
+
+	SipUri mHeader{};
+	SipUri mExpectedHeader{};
+	const string mBackendDomain{"sip.backend.example.org"};
+	const string mUserIdentity{"sip:user@" + mBackendDomain};
+	const string mBackendHost{"127.1.0.1"};
+	const string mProxyPrivateHost{"127.0.0.1"};
+	function<int(nta_agent_magic_t*, nta_agent_t*, msg_t*, sip_t*)> mResponseCallback{};
+
+	Server mProxy{{
+	    {"global/transports", "sip:" + mProxyPrivateHost +
+	                              ":0;network=127.1.0.0/8;transport=tcp "
+	                              "sip:sip.proxy.example.org:0;transport=tcp;maddr=" +
+	                              mProxyPrivateHost},
+	    {"module::Forward/enabled", "true"},
+	}};
+
+	NtaAgent mBackend;
+};
+
+/**
+ * The 'Path' header field inserted by Flexisip MUST be coherent (same scheme, host, IP address and transport protocol)
+ * with the outgoing transport used to send the request to the destination.
+ */
+void insertCoherentPathHeader() {
+	HeaderInsertionTest test{[](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		auto* helper = reinterpret_cast<HeaderInsertionTest*>(magic);
+		BC_HARD_ASSERT(sip != nullptr);
+		BC_HARD_ASSERT(sip->sip_path != nullptr);
+		helper->mHeader = SipUri{sip->sip_path->r_url};
+		helper->mHeader.removeParam("fs-proxy-id");
+
+		nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
+		return 0;
+	}};
+
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderVia>("SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.B7fbFxUnN");
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:" + test.mBackendDomain);
+	request->makeAndInsert<SipHeaderFrom>(test.mUserIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(test.mUserIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderContact>("<" + test.mUserIdentity + ";transport=tcp>");
+	request->makeAndInsert<SipHeaderRoute>("<sip:"s + test.mBackendHost + ":" + test.mBackend.getFirstPort() +
+	                                       ";transport=tcp>");
+
+	SLOGD << "Received request: " << *request;
+
+	const auto transaction = make_shared<OutgoingTransaction>(test.mProxy.getAgent());
+	auto event = make_unique<RequestSipEvent>(test.mProxy.getAgent(), std::move(request), nullptr);
+	event->setOutgoingAgent(transaction);
+
+	const auto module = dynamic_pointer_cast<ForwardModule>(test.mProxy.getAgent()->findModuleByRole("Forward"));
+	module->onRequest(std::move(event));
+
+	CoreAssert{test.mProxy.getRoot()}
+	    .wait([&test] { return LOOP_ASSERTION(test.mHeader.empty() == false); })
+	    .hard_assert_passed();
+	BC_ASSERT_CPP_EQUAL(test.mHeader.str(), test.mExpectedHeader.str());
+}
+
+/**
+ * The 'Record-Route' header field inserted by Flexisip MUST be coherent (same scheme, host, IP address and transport
+ * protocol) with the outgoing transport used to send the request to the destination.
+ */
+void insertCoherentRecordRouteHeader() {
+	HeaderInsertionTest test{[](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		auto* helper = reinterpret_cast<HeaderInsertionTest*>(magic);
+		BC_HARD_ASSERT(sip != nullptr);
+		BC_HARD_ASSERT(sip->sip_record_route != nullptr);
+		helper->mHeader = SipUri{sip->sip_record_route->r_url};
+		helper->mHeader.removeParam("fs-proxy-id");
+
+		nta_msg_treply(agent, msg, 202, "Accepted", TAG_END());
+		return 0;
+	}};
+
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderVia>("SIP/2.0/TCP 127.0.0.1:1234;branch=z9hG4bK.B7fbFxUnN");
+	request->makeAndInsert<SipHeaderRequest>(sip_method_invite, "sip:" + test.mBackendDomain);
+	request->makeAndInsert<SipHeaderFrom>(test.mUserIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>("sip:callee@" + test.mBackendDomain);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_invite);
+	request->makeAndInsert<SipHeaderContact>("<" + test.mUserIdentity + ";transport=tcp>");
+	request->makeAndInsert<SipHeaderRoute>("<sip:"s + test.mBackendHost + ":" + test.mBackend.getFirstPort() +
+	                                       ";transport=tcp>");
+
+	SLOGD << "Received request: " << *request;
+
+	const auto transaction = make_shared<OutgoingTransaction>(test.mProxy.getAgent());
+	auto event = make_unique<RequestSipEvent>(test.mProxy.getAgent(), std::move(request), nullptr);
+	event->setOutgoingAgent(transaction);
+	event->setRecordRouteAdded(); // This is required to trigger the 'RecordRoute' header insertion.
+
+	const auto module = dynamic_pointer_cast<ForwardModule>(test.mProxy.getAgent()->findModuleByRole("Forward"));
+	module->onRequest(std::move(event));
+
+	CoreAssert{test.mProxy.getRoot()}
+	    .wait([&test] { return LOOP_ASSERTION(test.mHeader.empty() == false); })
+	    .hard_assert_passed();
+	BC_ASSERT_CPP_EQUAL(test.mHeader.str(), test.mExpectedHeader.str());
+}
+
+TestSuite _{
+    "ForwardModule",
+    {
+        CLASSY_TEST(forwardMidDialogRequestRouteIsNotUs),
+        CLASSY_TEST(forwardMidDialogRequestPathIsNextHop),
+        CLASSY_TEST(forwardMidDialogRequestPathIsUsSoUseContactUrl),
+        CLASSY_TEST(ppiHeaderRemoval),
+        CLASSY_TEST(routeConfigForwarding),
+        CLASSY_TEST(insertCoherentPathHeader),
+        CLASSY_TEST(insertCoherentRecordRouteHeader),
+    },
+};
 
 } // namespace
-
 } // namespace flexisip::tester

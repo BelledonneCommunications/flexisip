@@ -54,7 +54,7 @@ void NatHelper::onRequest(RequestSipEvent& ev) {
 	// Fix a potential "Path" header field inserted before us by a flexisip "NATed" proxy.
 	if (rqMethod == sip_method_register and path != nullptr and url_has_param(path->r_url, "fs-proxy-id")) {
 		// Note: why limiting this to Flexisip? It could fix any path header, even without fs-proxy-id param.
-		NatTraversalStrategy::Helper::fixPath(ms);
+		NatTraversalStrategy::Helper::fixPath(*ms);
 	}
 
 	// Idea for future: for the case where a "NATed" proxy forwards a REGISTER (which can be detected), we could

@@ -76,76 +76,67 @@ void cleanAndPrependRoute(Agent* ag, msg_t* msg, sip_t* sip, sip_route_t* r) {
 	if (r) prependNewRoutable(msg, sip, sip->sip_route, r);
 }
 
-void addRecordRoute(Agent* ag, RequestSipEvent& ev, const tport_t* tport, const Flow::Token& token) {
-	msg_t* msg = ev.getMsgSip()->getMsg();
-	sip_t* sip = ev.getMsgSip()->getSip();
-	su_home_t* home = ev.getMsgSip()->getHome();
-	url_t* url = NULL;
+bool addRecordRoute(Agent* agent, MsgSip& msg, const tport_t* tport, const Flow::Token& token) {
+	SipUri uri{};
+	auto* sip = msg.getSip();
+	auto* home = msg.getHome();
 
-	if (tport) {
-		DomainRegistrationManager* drm = ag->getDRM();
-		if (drm) { // this finds public contact information for request received via domain registration connections.
-			const url_t* reg_uri = drm->getPublicUri(tport);
-			if (reg_uri) {
-				url = url_hdup(home, reg_uri);
-				LOGD_CTX(kPrefix) << "Public uri found from domain registration manager";
-			}
+	// This finds public contact information for requests received via domain.
+	if (const auto* drm = agent->getDRM()) {
+		if (const auto* regUri = drm->getPublicUri(tport)) {
+			uri = SipUri{regUri};
+			LOGD_CTX(kPrefix) << "Public URI found from domain registration manager: " << uri;
 		}
-		if (!url) {
-			tport = tport_parent(tport); // get primary transport, to get the public (server socket) ip/port
-			const tp_name_t* name = tport_name(tport); // primary transport name
-
-			url = ag->urlFromTportName(home, name);
-			if (!url) {
-				LOGE_CTX(kPrefix) << "urlFromTportName() returned NULL";
-				return;
-			}
-		}
-	} else {
-		// default to Agent's default address.
-		url = url_hdup(home, ag->getNodeUri());
 	}
 
-	url_param_add(home, url, "lr");
+	if (tport && uri.empty()) {
+		// Get the primary transport, to get the 'public' (server socket) ip/port.
+		try {
+			uri = SipUri::fromName(tport_name(tport_parent(tport)));
+		} catch (const exception& exception) {
+			LOGD_CTX(kPrefix) << "Failed to add 'Record-Route' header field: " << exception.what();
+			return false;
+		}
+	} else {
+		LOGD_CTX(kPrefix) << "Failed to add 'Record-Route' header field: provided tport_t pointer is empty";
+		return false;
+	}
+
+	uri = uri.setParameter("lr", "");
 
 	if (!token.empty()) {
-		if (url->url_user == nullptr) {
-			url->url_user = su_strdup(home, token.data());
-		} else {
-			LOGD_CTX(kPrefix) << "Failed to add flow-token in sip uri, url_user is not empty";
-		}
+		if (uri.getUser().empty()) uri = uri.replaceUser(token);
+		else LOGD_CTX(kPrefix) << "Failed to add flow-token in 'Record-Route' header field: user info is not empty";
 	}
 
-	sip_record_route_t* rr = sip_record_route_create(home, url, NULL);
-	if (!rr) {
-		LOGE_CTX(kPrefix) << "sip_record_route_create() returned NULL";
-		return;
+	auto* header = sip_record_route_create(home, uri.get(), nullptr);
+	if (!header) {
+		LOGD_CTX(kPrefix) << "Failed to add 'Record-Route' header field (" << uri << "): creation failed";
+		return false;
+	}
+	if (!prependNewRoutable(msg.getMsg(), sip, sip->sip_record_route, header)) {
+		LOGD_CTX(kPrefix) << "Skipping addition of 'Record-Route' header field: identical to top one";
+		return false;
 	}
 
-	if (!prependNewRoutable(msg, sip, sip->sip_record_route, rr)) {
-		LOGD_CTX(kPrefix) << "Skipping addition of record route identical to top one";
-		return;
-	}
-
-	LOGD_CTX(kPrefix) << "Record route added";
-	ev.setRecordRouteAdded();
+	LOGD_CTX(kPrefix) << "'Record-Route' header field added: " << uri;
+	return true;
 }
 
-void addRecordRouteIncoming(Agent* ag, RequestSipEvent& ev, const Flow::Token& token) {
-	if (ev.getRecordRouteAdded()) return;
-
-	const auto tport = ev.getIncomingTport();
-	if (!tport) {
-		LOGE_CTX(kPrefix) << "Cannot find incoming tport, cannot add a Record-Route";
+void addRecordRouteIncoming(Agent* agent, RequestSipEvent& ev, const Flow::Token& token) {
+	const auto* incoming = ev.getIncomingTport().get();
+	auto& msg = *ev.getMsgSip();
+	if (!incoming) {
+		LOGD_CTX(kPrefix) << "Cannot add a 'Record-Route' header field: provided incoming transport is empty";
 		return;
-	} else {
-		// We have a tport, check if we are in a case of proxy to proxy communication.
-		if (ev.getMsgSip()->getSip()->sip_record_route != NULL) { // There is already a record route.
-			ag->applyProxyToProxyTransportSettings(tport.get());
-		}
 	}
 
-	addRecordRoute(ag, ev, tport.get(), token);
+	// Note: proxy-to-proxy communication is detected if there is already at least one 'Record-Route' header field.
+	// Warning: hacking constness for the moment as this feature ("proxy-to-proxy-keepalive-interval") would need a
+	// refactor to clarify what it does and how.
+	if (msg.getSip()->sip_record_route) agent->applyProxyToProxyTransportSettings(const_cast<tport_t*>(incoming));
+
+	if (addRecordRoute(agent, msg, incoming, token)) ev.setRecordRouteAdded();
 }
 
 bool fromMatch(const sip_from_t* from1, const sip_from_t* from2) {
@@ -389,7 +380,7 @@ void addRoutingParam(su_home_t* home, sip_contact_t* c, const string& routingPar
 
 sip_route_t* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value) {
 	if (sipr == NULL) {
-		sipr = value;
+		msg_header_insert(msg, (msg_pub_t*)sip, (msg_header_t*)value);
 		return value;
 	}
 
@@ -403,57 +394,54 @@ sip_route_t* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_
 	return value;
 }
 
-void addPathHeader(Agent* ag, MsgSip& ms, tport_t* tport, const char* uniq, const Flow::Token& token) {
-	su_home_t* home = ms.getHome();
-	msg_t* msg = ms.getMsg();
-	sip_t* sip = ms.getSip();
-	url_t* url;
+void addPathHeader(Agent* agent, MsgSip& msg, const tport_t* tport, const char* uniq, const Flow::Token& token) {
+	auto* sip = msg.getSip();
+	auto* home = msg.getHome();
 	bool proxyToProxy = false;
 
-	if (tport) {
-		// check for proxy to proxy communication
-		if (sip->sip_path != NULL) { // there was already a path
-			proxyToProxy = true;
-		}
-		tport_t* primary_tport = tport_parent(tport);      // get primary transport
-		const tp_name_t* name = tport_name(primary_tport); // primary transport name
+	if (!tport) {
+		LOGD_CTX(kPrefix) << "Cannot add 'Path' header field: provided tport_t pointer is empty";
+		return;
+	}
 
-		url = ag->urlFromTportName(home, name);
-		if (!url) {
-			LOGE_CTX(kPrefix) << "urlFromTportName() returned NULL";
-			return;
-		}
-	} else {
-		// default to Agent's default address.
-		url = url_hdup(home, ag->getDefaultUri());
+	// Check for proxy-to-proxy communication (if there was already a 'Path' header field).
+	if (sip->sip_path) proxyToProxy = true;
+
+	// Get the primary transport, to get the 'public' (server socket) ip/port.
+	SipUri uri{};
+	try {
+		uri = SipUri::fromName(tport_name(tport_parent(tport)));
+	} catch (const exception& exception) {
+		LOGD_CTX(kPrefix) << "Failed to add 'Path' header field: " << exception.what();
+		return;
 	}
-	if (uniq && (ag->getDefaultUri() != ag->getClusterUri())) {
-		char* lParam = su_sprintf(home, "fs-proxy-id=%s", uniq);
-		url_param_add(home, url, lParam);
-	}
-	url_param_add(home, url, "lr");
-	sip_path_t* path = (sip_path_t*)su_alloc(home, sizeof(sip_path_t));
-	sip_path_init(path);
+
+	if (uniq) uri = uri.setParameter("fs-proxy-id", uniq);
+	uri = uri.setParameter("lr", "");
 
 	if (!token.empty()) {
-		if (url->url_user == nullptr) {
-			url->url_user = su_strdup(home, token.data());
-			url_param_add(home, url, "ob");
+		if (uri.getUser().empty()) {
+			uri = uri.replaceUser(token);
+			uri = uri.setParameter("ob", "");
 		} else {
-			LOGD_CTX(kPrefix) << "Failed to add flow-token in sip uri, url_user is not empty";
+			LOGD_CTX(kPrefix) << "Failed to add flow-token in 'Path' header field: user info is not empty";
 		}
 	}
 
-	path->r_url[0] = *url;
-
-	if (!prependNewRoutable(msg, sip, sip->sip_path, path)) {
-		LOGD_CTX(kPrefix) << "Identical path already existing: " << url_as_string(home, url);
-	} else {
-		LOGI_CTX(kPrefix) << "Path added to: " << url_as_string(home, url);
-		if (tport && proxyToProxy) {
-			ag->applyProxyToProxyTransportSettings(tport);
-		}
+	auto* header = sip_path_format(home, "<%s>", uri.str().c_str());
+	if (header == nullptr) {
+		LOGD_CTX(kPrefix) << "Failed to add 'Path' header field (" << uri << "): header creation failed";
+		return;
 	}
+	if (!prependNewRoutable(msg.getMsg(), sip, sip->sip_path, header)) {
+		LOGD_CTX(kPrefix) << "Skipping addition of 'Path' header field: identical path already existing";
+		return;
+	}
+	// Note: proxy-to-proxy communication is detected if there is already at least one 'Path' header field.
+	// Warning: hacking constness for the moment as this feature ("proxy-to-proxy-keepalive-interval") would need a
+	// refactor to clarify what it does and how.
+	if (proxyToProxy) agent->applyProxyToProxyTransportSettings(const_cast<tport_t*>(tport));
+	LOGI_CTX(kPrefix) << "'Path' header field added: " << uri;
 }
 
 const url_t* getNextHop(Agent* ag, const sip_t* sip, bool* isRoute) {

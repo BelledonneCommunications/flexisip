@@ -185,7 +185,7 @@ void fixPathReceivedAndRport() {
 	const auto& ms = helper::createMsgSip();
 	auto* sip = ms->getSip();
 
-	NatTraversalStrategy::Helper::fixPath(ms);
+	NatTraversalStrategy::Helper::fixPath(*ms);
 
 	BC_ASSERT_STRING_EQUAL(sip->sip_path->r_url[0].url_host, "y.y.y.y");
 	BC_ASSERT_STRING_EQUAL(sip->sip_path->r_url[0].url_port, "yyyy");
@@ -200,7 +200,7 @@ void fixPathReceived() {
 	const auto* sip = ms->getSip();
 	sip->sip_via->v_rport = nullptr;
 
-	NatTraversalStrategy::Helper::fixPath(ms);
+	NatTraversalStrategy::Helper::fixPath(*ms);
 
 	BC_ASSERT_STRING_EQUAL(sip->sip_path->r_url[0].url_host, "y.y.y.y");
 	BC_ASSERT_STRING_EQUAL(sip->sip_path->r_url[0].url_port, "xxxx");
@@ -215,7 +215,7 @@ void fixPathRport() {
 	const auto* sip = ms->getSip();
 	sip->sip_via->v_received = nullptr;
 
-	NatTraversalStrategy::Helper::fixPath(ms);
+	NatTraversalStrategy::Helper::fixPath(*ms);
 
 	BC_ASSERT_STRING_EQUAL(sip->sip_path->r_url[0].url_host, "x.x.x.x");
 	BC_ASSERT_STRING_EQUAL(sip->sip_path->r_url[0].url_port, "yyyy");

@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <memory>
 #include <optional>
 
 #include "sofia-sip/su_alloc.h"
@@ -53,7 +52,7 @@ public:
 		/**
 		 * Fix the path url using "rport" and "received" from the first "VIA" header field.
 		 */
-		static void fixPath(const std::shared_ptr<MsgSip>& ms);
+		static void fixPath(MsgSip& ms);
 		/**
 		 * Fix "transport" parameter value in provided url.
 		 */
@@ -80,19 +79,27 @@ public:
 	virtual void onResponseNatHelper(const ResponseSipEvent& ev) const = 0;
 
 	/**
-	 * Compute the destination url (request URI) from information contained in the last "Route" header field.
+	 * Compute the destination url (request URI) from information that may be contained in the last "Route" header
+	 * field.
+	 * @return nullptr in case no destination could be determined from the header
 	 */
-	virtual url_t* getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const = 0;
+	virtual url_t*
+	getDestinationUrl(MsgSip& msg, const tport_t* incoming, const std::optional<SipUri>& lastRoute) const = 0;
 
 	/**
 	 * Add a "Record-Route" header field to the request when it goes through the Forward module.
 	 */
-	virtual void addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t* lastRouteUrl) const = 0;
+	virtual void addRecordRouteForwardModule(MsgSip& msg,
+	                                         const tport_t* incoming,
+	                                         const tport_t* outgoing,
+	                                         const std::optional<SipUri>& lastRoute) const = 0;
 
 	/**
 	 * Add a "Path" header field to the REGISTER request.
+	 * @note 'outgoing' is mandatory whereas 'incoming' is optional.
 	 */
-	virtual void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const = 0;
+	virtual void
+	addPathOnRegister(MsgSip& msg, const tport_t* incoming, const tport_t* outgoing, const char* uniq) const = 0;
 
 protected:
 	Agent* mAgent;

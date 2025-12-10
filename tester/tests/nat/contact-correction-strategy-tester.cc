@@ -126,6 +126,8 @@ void addRecordRouteNatHelper() {
 
 	helper.mStrategy.addRecordRouteNatHelper(event);
 
+	BC_HARD_ASSERT(event.getRecordRouteAdded() == true);
+
 	BC_HARD_ASSERT(event.getMsgSip()->getSip()->sip_record_route != nullptr);
 	const auto* routeUrlStr = url_as_string(event.getHome(), event.getMsgSip()->getSip()->sip_record_route->r_url);
 	BC_ASSERT_CPP_EQUAL(routeUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
@@ -197,11 +199,10 @@ void onResponseNatHelperContactIsCorrectAndAddVerified() {
 /**
  * Test nullptr is returned.
  */
-void getTportDestFromLastRoute() {
+void getDestinationUrl() {
 	const Helper helper{};
-	RqSipEv event{helper.mAgent, Helper::getInvite(false), helper.mTport};
 
-	BC_ASSERT(helper.mStrategy.getTportDestFromLastRoute(event, nullptr) == nullptr);
+	BC_ASSERT(helper.mStrategy.getDestinationUrl(*Helper::getInvite(false), helper.mTport, nullopt) == nullptr);
 }
 
 /**
@@ -209,13 +210,13 @@ void getTportDestFromLastRoute() {
  */
 void addRecordRouteForwardModule() {
 	const Helper helper{};
-	RqSipEv event{helper.mAgent, Helper::getInvite(false), helper.mTport};
+	const auto msg = Helper::getInvite(false);
 
-	helper.mStrategy.addRecordRouteForwardModule(event, helper.mTport, nullptr);
+	helper.mStrategy.addRecordRouteForwardModule(*msg, nullptr, helper.mTport, nullopt);
 
-	const auto* recordRoute = event.getSip()->sip_record_route;
+	const auto* recordRoute = msg->getSip()->sip_record_route;
 	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
-	const auto* recordRouteUrlStr = url_as_string(event.getHome(), recordRoute->r_url);
+	const auto* recordRouteUrlStr = url_as_string(msg->getHome(), recordRoute->r_url);
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
@@ -224,13 +225,13 @@ void addRecordRouteForwardModule() {
  */
 void addPathOnRegister() {
 	const Helper helper{};
-	RqSipEv event{helper.mAgent, Helper::getInvite(false), helper.mTport};
+	const auto msg = Helper::getInvite(false);
 
-	helper.mStrategy.addPathOnRegister(event, helper.mTport, nullptr);
+	helper.mStrategy.addPathOnRegister(*msg, nullptr, helper.mTport, nullptr);
 
-	const auto* path = event.getSip()->sip_path;
+	const auto* path = msg->getSip()->sip_path;
 	BC_HARD_ASSERT(path != nullptr);
-	const auto* pathString = url_as_string(event.getHome(), path->r_url);
+	const auto* pathString = url_as_string(msg->getHome(), path->r_url);
 	BC_ASSERT_CPP_EQUAL(pathString, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
@@ -239,13 +240,13 @@ void addPathOnRegister() {
  */
 void addPathOnRegisterWithUniq() {
 	const Helper helper{};
-	RqSipEv event{helper.mAgent, Helper::getInvite(false), helper.mTport};
+	const auto msg = Helper::getInvite(false);
 
-	helper.mStrategy.addPathOnRegister(event, helper.mTport, "stub-uniq");
+	helper.mStrategy.addPathOnRegister(*msg, nullptr, helper.mTport, "stub-uniq");
 
-	const auto* path = event.getSip()->sip_path;
+	const auto* path = msg->getSip()->sip_path;
 	BC_HARD_ASSERT(path != nullptr);
-	const auto* pathString = url_as_string(event.getHome(), path->r_url);
+	const auto* pathString = url_as_string(msg->getHome(), path->r_url);
 	BC_ASSERT_CPP_EQUAL(pathString, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;fs-proxy-id=stub-uniq;lr");
 }
 
@@ -258,7 +259,7 @@ TestSuite _{
         CLASSY_TEST(onResponseNatHelperAddVerified),
         CLASSY_TEST(onResponseNatHelperCorrectContactAndAddVerified),
         CLASSY_TEST(onResponseNatHelperContactIsCorrectAndAddVerified),
-        CLASSY_TEST(getTportDestFromLastRoute),
+        CLASSY_TEST(getDestinationUrl),
         CLASSY_TEST(addRecordRouteForwardModule),
         CLASSY_TEST(addPathOnRegister),
         CLASSY_TEST(addPathOnRegisterWithUniq),
@@ -266,5 +267,4 @@ TestSuite _{
 };
 
 } // namespace
-
 } // namespace flexisip::tester

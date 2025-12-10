@@ -159,7 +159,7 @@ bool isLooping(const MsgSip& ms, const char* branch) {
 
 } // namespace
 
-ModuleInfo<ForwardModule> ForwardModule::sInfo(
+ModuleInfo<ForwardModule> ForwardModule::sInfo{
     "Forward",
     "Executes basic routing tasks on SIP requests and pass them to the transport layer. It MUST always be enabled.",
     {"Transcoder", "MediaRelay"},
@@ -193,24 +193,6 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	            "",
 	        },
 	        {
-	            String,
-	            "route",
-	            "A route header value where to send all requests not already resolved by the Router module "
-	            "(ie for which contact information has been found from the registrar database). This is "
-	            "the typical way to setup a Flexisip proxy server acting as a front-end for backend SIP server."
-	            "Beware: that is not just a SIP URI, but a route. As a result, when the URI has parameters, "
-	            "brackets must enclose the URI, otherwise the parameters will be parsed as route parameters.\n"
-	            "For example:\n"
-	            "route=<sip:192.168.0.10;transport=tcp>",
-	            "",
-	        },
-	        {
-	            Boolean,
-	            "rewrite-req-uri",
-	            "Rewrite request-uri's host and port according to prepended route.",
-	            "false",
-	        },
-	        {
 	            Boolean,
 	            "add-path",
 	            "Add a path header of this proxy",
@@ -234,20 +216,8 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo(
 	        config_item_end,
 	    };
 	    moduleConfig.addChildrenValues(items);
-
-	    // deprecated since 2022-04-19 (2.2.0)
-	    {
-		    const char* depDate = "2022-04-19";
-		    const char* depVersion = "2.2.0";
-
-		    moduleConfig.get<ConfigString>("route")->setDeprecated(
-		        {depDate, depVersion, "route parameter isn't supported anymore. Use 'routes-config-path' instead."});
-		    moduleConfig.get<ConfigBoolean>("rewrite-req-uri")
-		        ->setDeprecated(
-		            {depDate, depVersion,
-		             "rewrite-req-uri parameter isn't supported anymore. Use 'routes-config-path' instead."});
-	    }
-    });
+    },
+};
 
 ForwardModule::ForwardModule(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
 	su_home_init(&mHome);
@@ -266,15 +236,7 @@ void ForwardModule::onLoad(const GenericStruct* mc) {
 		throw BadConfigurationValue{routesConfigPathParam,
 		                            "error while loading routes configuration ("s + e.what() + ")"};
 	}
-	const auto* routeParam = mc->get<ConfigString>("route");
-	const auto route = routeParam->read();
-	mRewriteReqUri = mc->get<ConfigBoolean>("rewrite-req-uri")->read();
-	if (!route.empty()) {
-		mOutRoute = sip_route_make(&mHome, route.c_str());
-		if (mOutRoute == nullptr || mOutRoute->r_url->url_host == nullptr) {
-			throw BadConfigurationValue{routeParam};
-		}
-	}
+
 	mAddPath = mc->get<ConfigBoolean>("add-path")->read();
 	mParamsToRemove = mc->get<ConfigStringList>("params-to-remove")->read();
 	mDefaultTransport = mc->get<ConfigString>("default-transport")->read();
@@ -318,7 +280,7 @@ public:
 
 		// If there are no routes, which means there are no paths set, send the request to contact url.
 		if (routesFromPath == nullptr) {
-			mModule->sendRequest(mEv, request->rq_url, nullptr);
+			mModule->sendRequest(mEv, request->rq_url);
 			return;
 		}
 
@@ -350,7 +312,7 @@ public:
 		// parameter from another domain).
 		// request->rq_url->url_params = url_strip_param_string(su_strdup(home, request->rq_url->url_params), "gr");
 
-		mModule->sendRequest(mEv, dest ? dest : request->rq_url, nullptr);
+		mModule->sendRequest(mEv, dest ? dest : request->rq_url);
 	}
 
 	void onError(const SipStatus& response) override {
@@ -374,9 +336,9 @@ private:
 };
 
 unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>&& ev) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
-	msg_t* msg = ms->getMsg();
+	auto& ms = *ev->getMsgSip();
+	sip_t* sip = ms.getSip();
+	msg_t* msg = ms.getMsg();
 
 	// Check max forwards
 	if (sip->sip_max_forwards != nullptr && sip->sip_max_forwards->mf_count <= countVia(*ev->getMsgSip())) {
@@ -397,16 +359,16 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 
 	// Prepend conditional route if any.
 	const sip_route_t* route = mRoutesMap.resolveRoute(ms);
-	if (route && !ms->isInDialog()) {
-		LOGD << "Prepended route '" << url_as_string(ms->getHome(), route->r_url) << "'";
-		module_toolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms->getHome(), route));
+	if (route && !ms.isInDialog()) {
+		LOGD << "Prepended route '" << url_as_string(ms.getHome(), route->r_url) << "'";
+		module_toolbox::cleanAndPrependRoute(getAgent(), msg, sip, sip_route_dup(ms.getHome(), route));
 	}
 
 	// Remove top "Route" header fields if they match us.
-	sip_route_t* lastRoute = nullptr;
+	optional<SipUri> lastRoute{};
 	while (sip->sip_route != nullptr && isUs(getAgent(), sip->sip_route)) {
-		LOGD << "Removed top route '" << url_as_string(ms->getHome(), sip->sip_route->r_url) << "'";
-		lastRoute = sip_route_remove(msg, sip);
+		lastRoute.emplace(sip_route_remove(msg, sip)->r_url);
+		LOGD << "Removed top route: " << *lastRoute;
 	}
 
 	// Remove the "P-Preferred-Identity" header field if present.
@@ -417,26 +379,37 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	// Remove the "fs-conn-id" internal parameter (if present).
 	msg_header_remove_param(reinterpret_cast<msg_common_t*>(sip->sip_request), "fs-conn-id");
 
-	auto* dest = sip->sip_request->rq_url;
-	if (sip->sip_route != nullptr) dest = getDestinationFromRoute(ms->getHome(), sip);
+	// If the destination could be determined with the NAT traversal strategy, then we MUST rely on it to forward.
+	if (auto* dest =
+	        mAgent->getNatTraversalStrategy()->getDestinationUrl(ms, ev->getIncomingTport().get(), lastRoute)) {
+		sendRequest(ev, dest, lastRoute);
+		return std::move(ev);
+	}
 
-	const SipUri destUri(dest);
 	const auto routerModule = dynamic_pointer_cast<ModuleRouter>(getAgent()->findModuleByRole("Router"));
 	if (routerModule == nullptr) {
 		LOGE << "Failed to get the 'Router' module (this SHOULD not happen!): aborting";
 		return std::move(ev);
 	}
+
+	url_t* dest{nullptr};
+	if (sip->sip_route != nullptr) dest = getDestinationFromRoute(ms.getHome(), sip);
+	else dest = sip->sip_request->rq_url;
+
 	// This is only done here (in this module) if the dialog is established. Otherwise, this is the RouteModule that is
 	// in charge of this processing.
-	if (destUri.hasParam("gr") && ms->isInDialog() && routerModule->isManagedDomain(dest)) {
+	if (SipUri destUri{dest}; destUri.hasParam("gr") && ms.isInDialog() && routerModule->isManagedDomain(dest)) {
 		ev->suspendProcessing();
 		const auto listener = make_shared<RegistrarListener>(this, std::move(ev));
 		mAgent->getRegistrarDb().fetch(destUri, listener, false, false);
 		return {};
 	}
 
-	dest = overrideDest(*ms, dest);
-	sendRequest(ev, dest, mAgent->getNatTraversalStrategy()->getTportDestFromLastRoute(*ev, lastRoute));
+	// If set, force Flexisip to use another custom default transport (instead of UDP as defined in RFC3261).
+	if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport"))
+		url_param_add(ms.getHome(), dest, mDefaultTransport.c_str());
+
+	sendRequest(ev, dest);
 	return std::move(ev);
 }
 
@@ -444,21 +417,21 @@ void ForwardModule::onResponse(ResponseSipEvent& ev) {
 	ev.send(ev.getMsgSip());
 }
 
-/*
- * Send the request to the desired destination url.
- *
- * @param[in]	ev
- * @param[in]	dest		destination url of the request
- * @param[in]	tportDest	destination url eventually used to find the transport (optional)
- */
-void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, url_t* tportDest) {
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
-	sip_t* sip = ms->getSip();
-	msg_t* msg = ms->getMsg();
+void ForwardModule::sendRequest(const unique_ptr<RequestSipEvent>& ev,
+                                url_t* dest,
+                                const std::optional<SipUri>& lastRoute) {
+	const auto& ms = ev->getMsgSip();
+	auto* sip = ms->getSip();
 
-	auto* tport = findTransportToDestination(*ev, dest, tportDest);
+	string ip;
+	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
+		LOGD << "Found " << dest->url_host << " in /etc/hosts";
+		// Duplicate "dest" because we don't want to modify the message with our name resolution result.
+		dest = url_hdup(ms->getHome(), dest);
+		dest->url_host = ip.c_str();
+	}
 
-	// Check self-forwarding
+	// Check self-forwarding.
 	if (ev->getOutgoingAgent() != nullptr && getAgent()->isUs(dest, true)) {
 		LOGD << "Stop request to us (" << url_as_string(ms->getHome(), dest) << ")";
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
@@ -469,19 +442,32 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	// we'll end with UDP, TCP.
 	const auto method = ms->getSipMethod();
 	if (ev->getRecordRouteAdded() && (method == sip_method_invite || method == sip_method_subscribe)) {
-		mAgent->getNatTraversalStrategy()->addRecordRouteForwardModule(*ev, tport, tportDest);
+		LOGD << "Postponing 'Record-Route' header field insertion: outgoing transport not yet determined";
+		ev->addBeforeSendCallback([lastRoute, strategy = mAgent->getNatTraversalStrategy(),
+		                           incoming = ev->getIncomingTport().get(),
+		                           prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* primary) {
+			LOGD_CTX(prefix, "beforeSend") << "Adding 'Record-Route' header field";
+			strategy->addRecordRouteForwardModule(*msg, incoming, primary, lastRoute);
+		});
 	}
 
-	if (ms->getSipMethod() == sip_method_register) {
+	if (method == sip_method_register) {
 		if (mAddPath) {
-			mAgent->getNatTraversalStrategy()->addPathOnRegister(*ev, tport, mAgent->getUniqueId().c_str());
+			LOGD << "Postponing 'Path' header field insertion: outgoing transport not yet determined";
+			ev->addBeforeSendCallback(
+			    [strategy = mAgent->getNatTraversalStrategy(), incoming = ev->getIncomingTport().get(),
+			     uniqueId = mAgent->getUniqueId(),
+			     prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* primary) {
+				    LOGD_CTX(prefix, "beforeSend") << "Adding 'Path' header field";
+				    strategy->addPathOnRegister(*msg, incoming, primary, uniqueId.c_str());
+			    });
 		} else {
 			// "Path" header fields are added for internal processing within Flexisip and recorded into RegistrarDb.
 			// However, if the ForwardModule has to send a REGISTER with "Path" header fields, but "add-path" is set to
 			// "false", they must be removed.
 			while (sip->sip_path != nullptr && isUs(getAgent(), sip->sip_path)) {
 				LOGD << "Removed path '" << url_as_string(ms->getHome(), sip->sip_path->r_url) << "'";
-				msg_header_remove(msg, (msg_pub_t*)sip, (msg_header_t*)sip->sip_path);
+				msg_header_remove(ms->getMsg(), (msg_pub_t*)sip, (msg_header_t*)sip->sip_path);
 			}
 		}
 	}
@@ -505,11 +491,22 @@ void ForwardModule::sendRequest(unique_ptr<RequestSipEvent>& ev, url_t* dest, ur
 	}
 
 	// Compute branch, output branch=XXXXX.
-	char const* branchStr = computeBranch(msg, sip, mAgent->getUniqueId().c_str(), outTr);
+	char const* branchStr = computeBranch(ms->getMsg(), sip, mAgent->getUniqueId().c_str(), outTr);
 
 	if (isLooping(*ev->getMsgSip(), branchStr + 7)) {
 		ev->reply(SIP_482_LOOP_DETECTED, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return;
+	}
+
+	// Legacy outgoing transport selection algorithm.
+	// Future developments should get rid of it (only rely on the 'network' URI parameter and sofia-sip algorithm).
+	tport_t* tport = nullptr;
+	if (ev->getOutgoingAgent() != nullptr) {
+		if (isAClusterNode(dest) && (tport = getAgent()->getInternalTport()) != nullptr) {
+			LOGD << "Using internal transport to route message to a node of the cluster";
+		} else if ((tport = getAgent()->getDRM()->lookupTport(dest)) != nullptr) {
+			LOGD << "Found outgoing transport from domain registration manager";
+		}
 	}
 
 	ev->send(ms, reinterpret_cast<url_string_t*>(dest), NTATAG_BRANCH_KEY(branchStr), NTATAG_TPORT(tport), TAG_END());
@@ -520,77 +517,6 @@ bool ForwardModule::isAClusterNode(const url_t* url) const {
 		if (module_toolbox::urlHostMatch(url, node.c_str())) return true;
 	}
 	return false;
-}
-
-url_t* ForwardModule::overrideDest(MsgSip& ms, url_t* dest) {
-	if (!module_toolbox::urlIsResolved(dest)) {
-		if (mOutRoute) {
-			sip_t* sip = ms.getSip();
-			url_t* req_url = sip->sip_request->rq_url;
-			for (sip_via_t* via = sip->sip_via; via != nullptr; via = via->v_next) {
-				if (module_toolbox::urlViaMatch(mOutRoute->r_url, sip->sip_via, false)) {
-					LOGD << "Found forced outgoing route in via, skipping";
-					return dest;
-				}
-			}
-			if (!module_toolbox::urlIsResolved(req_url)) {
-				dest = mOutRoute->r_url;
-				if (mRewriteReqUri) {
-					*req_url = *dest;
-				}
-			}
-		} else if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport")) {
-			url_param_add(ms.getHome(), dest, mDefaultTransport.c_str());
-		}
-	}
-	return dest;
-}
-
-tport_t* ForwardModule::findTransportToDestination(const RequestSipEvent& ev, url_t* dest, url_t* tportDest) {
-	const shared_ptr<MsgSip>& ms = ev.getMsgSip();
-	uintptr_t destConnId = 0;
-
-	string ip;
-	if (EtcHostsResolver::get()->resolve(dest->url_host, &ip)) {
-		LOGD << "Found " << dest->url_host << " in /etc/hosts";
-		// Duplicate "dest" because we don't want to modify the message with our name resolution result.
-		dest = url_hdup(ms->getHome(), dest);
-		dest->url_host = ip.c_str();
-	}
-
-	// If given, "tportDest" will be used to find the transport instead of "dest".
-	auto* destToFindTport = (tportDest == nullptr) ? dest : tportDest;
-
-	// "tport" is the transport which will be used by sofia to send message.
-	tp_name_t name{};
-	tport_t* tport = nullptr;
-	const auto* destToFindTportUrlStr = url_as_string(ms->getHome(), destToFindTport);
-	if (ev.getOutgoingAgent() != nullptr) {
-		if (isAClusterNode(destToFindTport) && (tport = getAgent()->getInternalTport()) != nullptr) {
-			LOGD << "Using internal transport to route message to a node of the cluster";
-		} else if ((tport = getAgent()->getDRM()->lookupTport(destToFindTport)) != nullptr) {
-			LOGD << "Found outgoing tport from domain registration manager";
-		} else if (tport_name_by_url(ms->getHome(), &name, reinterpret_cast<url_string_t*>(destToFindTport)) == 0) {
-			// tport_by_name can only work for IP addresses.
-			tport = tport_by_name(nta_agent_tports(getSofiaAgent()), &name);
-			if (!tport) {
-				LOGD << "Could not find existing tport to send message to " << destToFindTportUrlStr;
-			} else if (tport_get_user_data(tport) != nullptr && destConnId != 0 &&
-			           (uintptr_t)tport_get_user_data(tport) != destConnId) {
-				LOGD << "Stopping request ConnId(" << hex << destConnId << " ) is different than tport ConnId("
-				     << (uintptr_t)tport_get_user_data(tport) << ")";
-
-				// Set tport at -1 for sofia.
-				tport = (tport_t*)-1;
-			}
-		} else if (UriUtils::isIpAddress(dest->url_host)) {
-			LOGE << "tport_name_by_url() failed for url " << destToFindTportUrlStr;
-		} else {
-			LOGD << "This URI [" << destToFindTportUrlStr << "] does not match a tport";
-		}
-	}
-
-	return tport;
 }
 
 } // namespace flexisip

@@ -106,7 +106,6 @@ public:
 	bool isUs(const char* host, const char* port, bool check_aliases) const;
 	bool isUs(const url_t* url, bool check_aliases = true) const;
 	int countUsInVia(sip_via_t* via) const;
-	url_t* urlFromTportName(su_home_t* home, const tp_name_t* name);
 
 	/**
 	 * @return the module associated with the role (throws an exception if no module is found).
@@ -197,26 +196,6 @@ public:
 	std::string getPreferredRoute() const;
 	const url_t* getPreferredRouteUrl() const {
 		return mPreferredRouteV4;
-	}
-	/**
-	 * URI associated to this server specifically.
-	 */
-	const url_t* getNodeUri() const {
-		return mNodeUri;
-	}
-	/**
-	 * URI associated to the cluster. It is computed basing on
-	 * the cluster domain declared in the cluster section in settings.
-	 */
-	const url_t* getClusterUri() const {
-		return mClusterUri;
-	}
-	/**
-	 * Equal to the node or cluster URI depending on whether cluster mode has
-	 * been enabled in settings and a cluster domain has been declared.
-	 */
-	const url_t* getDefaultUri() const {
-		return mDefaultUri;
 	}
 	tport_t* getInternalTport() const {
 		return mInternalTport;
@@ -343,9 +322,6 @@ private:
 	std::string mPublicResolvedIpV6;
 	url_t* mPreferredRouteV4 = nullptr;
 	url_t* mPreferredRouteV6 = nullptr;
-	const url_t* mNodeUri = nullptr;
-	const url_t* mClusterUri = nullptr;
-	const url_t* mDefaultUri = nullptr;
 	tport_t* mInternalTport = nullptr;
 
 	StatCounter64* mCountIncomingRegister = nullptr;

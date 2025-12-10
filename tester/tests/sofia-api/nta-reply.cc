@@ -123,6 +123,9 @@ void outgoingTransportSelection() {
 	const auto clientsSuRoot = make_shared<SuRoot>();
 	const auto cb = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) -> int {
 		Home home{};
+
+		SLOGD << "Received:\n" << msg_as_string(home.home(), msg, nullptr, 0, nullptr);
+
 		auto* helper = reinterpret_cast<Helper*>(magic);
 		// The topmost "RecordRoute" header in the list is the last one added by the server.
 		const auto* recordRoute = sip->sip_record_route->r_url;
@@ -183,7 +186,9 @@ void outgoingTransportSelection() {
 			        return ASSERTION_PASSED();
 		        },
 		        100ms)
-		    .hard_assert_passed();
+		    .assert_passed();
+		BC_ASSERT_CPP_EQUAL(h.host, expectedHostInVia);
+		BC_ASSERT_CPP_EQUAL(h.recordRoute, expectedRecordRoute);
 
 		h.host.clear();
 		h.recordRoute.clear();

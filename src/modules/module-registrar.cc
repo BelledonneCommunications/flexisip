@@ -866,7 +866,11 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			LOGD << "Identical path already existing: " << getAgent()->getPreferredRoute();
 		}
 	} else {
-		mAgent->getNatTraversalStrategy()->addPathOnRegister(*ev, ev->getIncomingTport().get(), nullptr);
+		// Here we are trying to insert the 'Path' header for the current incoming REGISTER request. We provide the
+		// incoming transport for both transport parameters as only incoming transport information is required to be
+		// recorded in this header.
+		const auto* incoming = ev->getIncomingTport().get();
+		mAgent->getNatTraversalStrategy()->addPathOnRegister(*ms, incoming, incoming, nullptr);
 	}
 
 	/* Initialize a connection ID, so that registration can be matched with the tport,

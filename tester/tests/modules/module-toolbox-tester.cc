@@ -18,10 +18,13 @@
 
 #include "modules/module-toolbox.hh"
 
+#include <functional>
 
 #include "flexisip/module-router.hh"
+#include "flexisip/utils/sip-uri.hh"
 #include "tester.hh"
 #include "utils/bellesip-utils.hh"
+#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
 #include "utils/tls/certificate.hh"
@@ -37,79 +40,50 @@ using namespace flexisip::tester;
 namespace flexisip::tester {
 namespace {
 
-////////////////// START OF ModuleToolbox::addRecordRoute TESTS /////////////////////////
+void addRecordRoute(SipUri::Scheme scheme) {
+	const auto dir = TmpDir("certs-");
+	const auto keyPath = dir.path() / "key.pem";
+	const auto certPath = dir.path() / "cert.pem";
+	const TlsPrivateKey privateKey{};
+	const TlsCertificate certificate{privateKey};
+	privateKey.writeToFile(keyPath);
+	certificate.writeToFile(certPath);
 
-class AddRecordRouteTest : public AgentTest {
-protected:
-	AddRecordRouteTest(const string& mTransport, const string& mRecordRouteExpected)
-	    : mTransport(mTransport), mRecordRouteExpected(mRecordRouteExpected), mTmpDir{"AddRecordRouteTest"} {
-	}
+	Server proxy{{
+	    {"global/transports", scheme == SipUri::Scheme::sips ? "sips:127.0.0.1:0" : "sip:127.0.0.1:0"},
+	    {"global/tls-certificates-file", certPath},
+	    {"global/tls-certificates-private-key", keyPath},
+	}};
+	proxy.start();
+	const auto& agent = proxy.getAgent();
+	auto* transport = proxy.getFirstTransport(AF_INET);
 
-	string mTransport;
-	string mRecordRouteExpected;
+	stringstream request{};
+	request << "INVITE sip:user@localhost SIP/2.0\r\n"
+	        << "To: <sip:user@localhost>\r\n"
+	        << "From: <sip:anthony@localhost>;tag=stub-tag\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 20 INVITE\r\n"
+	        << "Contact: <sip:user@localhost>\r\n"
+	        << "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n\r\n";
+	const auto msg = make_shared<MsgSip>(0, request.str());
 
-private:
-	string rawSipInvite = "INVITE sip:participant1@127.0.0.1:5360 SIP/2.0\r\n"
-	                      "To: <sip:participant1@127.0.0.1>\r\n"
-	                      "From: <sip:anthony@127.0.0.1>;tag=465687829\r\n"
-	                      "Call-ID: Y2NlNzg0ODc0ZGIxODU1MWI5MzhkNDVkNDZhOTQ4YWU.\r\n"
-	                      "CSeq: 1 INVITE\r\n"
-	                      "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE, REFER, NOTIFY, MESSAGE, SUBSCRIBE, INFO, PRACK\r\n"
-	                      "Content-Type: application/sdp\r\n"
-	                      "\r\n"
-	                      // Request body
-	                      "v=0\r\n";
+	SLOGD << "Before:\n" << *msg;
+	module_toolbox::addRecordRoute(agent.get(), *msg, transport);
+	SLOGD << "After:\n" << *msg;
 
-	void onAgentConfiguration(ConfigManager& cfg) override {
-		AgentTest::onAgentConfiguration(cfg);
+	const auto expected = "Record-Route: <"s + url_scheme(static_cast<url_type_e>(scheme)) +
+	                      ":127.0.0.1:" + proxy.getFirstPort() + ";lr>";
+	BC_ASSERT(msg->msgAsString().find(expected) != std::string::npos);
+}
 
-		filesystem::path pemPath = mTmpDir.path() / "agent.pem";
-		const TlsPrivateKey privateKey{};
-		const TlsCertificate certificate{privateKey};
-		privateKey.writeToFile(pemPath);
-		certificate.appendToFile(pemPath);
-		cfg.getRoot()->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->set(mTmpDir.path());
+void sipAddRecordRoute() {
+	addRecordRoute(SipUri::Scheme::sip);
+}
 
-		const auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigStringList>("transports")->set(mTransport);
-
-		cfg.getRoot()->get<GenericStruct>("module::DoSProtection")->get<ConfigBoolean>("enabled")->set("false");
-	}
-
-	void testExec() override {
-		const auto msgSip = make_shared<MsgSip>(0, rawSipInvite);
-		const auto requestSipEvent = RequestSipEvent::makeRestored(mAgent, msgSip, mAgent->findModuleByRole("Router"));
-
-		SLOGD << "############# REQUEST WITHOUT RECORD-ROUTE #############";
-		SLOGD << requestSipEvent->getMsgSip()->msgAsString();
-		SLOGD << "########################################################";
-
-		ModuleToolbox::addRecordRoute(mAgent.get(), *requestSipEvent, nullptr);
-
-		SLOGD << "############# REQUEST WITH RECORD-ROUTE #############";
-		SLOGD << requestSipEvent->getMsgSip()->msgAsString();
-		SLOGD << "########################################################";
-
-		BC_ASSERT_TRUE(requestSipEvent->getMsgSip()->msgAsString().find(mRecordRouteExpected) != std::string::npos);
-	}
-
-	TmpDir mTmpDir;
-};
-
-class SipAddRecordRouteTest : public AddRecordRouteTest {
-public:
-	SipAddRecordRouteTest() : AddRecordRouteTest("sip:127.0.0.1:6060", "Record-Route: <sip:127.0.0.1:6060;lr>") {
-	}
-};
-
-class SipsAddRecordRouteTest : public AddRecordRouteTest {
-public:
-	SipsAddRecordRouteTest()
-	    : AddRecordRouteTest("sips:127.0.0.1:6061", "Record-Route: <sips:127.0.0.1:6061;lr>") {
-	}
-};
-
-////////////////// END OF ModuleToolbox::addRecordRoute TESTS /////////////////////////
+void sipsAddRecordRoute() {
+	addRecordRoute(SipUri::Scheme::sips);
+}
 
 void isPrivateAddress() {
 	BC_ASSERT(module_toolbox::isPrivateAddress("10.0.0.1") == true);
@@ -131,10 +105,11 @@ void isPrivateAddress() {
 TestSuite _{
     "module_toolbox",
     {
-        CLASSY_TEST(SipAddRecordRouteTest),
-        CLASSY_TEST(SipsAddRecordRouteTest),
+        CLASSY_TEST(sipAddRecordRoute),
+        CLASSY_TEST(sipsAddRecordRoute),
         CLASSY_TEST(isPrivateAddress),
     },
 };
+
 } // namespace
 } // namespace flexisip::tester

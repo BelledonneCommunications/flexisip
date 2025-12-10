@@ -53,14 +53,14 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 - **EventLogs (`flexistats` backend):** Call event data sent to [`/statistics/calls`](https://subscribe.linphone.org/api#post-statisticscalls)
       now also include a `sip_call_id` field with the value of the Call-ID header.
 - **Proxy:**
-  - The server now uses the content of the 'network' parameter in `global/transports` to determine the "public"
-    transport (used for 'Path' and 'RecordRoute' headers computation). It selects the first transport for which the
-    'network' parameter is set to "0.0.0.0/0". The previous behavior was to arbitrarily select the first transport
-    defined in `global/transports`.
+  - **Cluster:** The parameter `cluster/cluster-domain` no longer has any effect for 'Path' and 'Record-Router' header
+    fields.
 
 ### [Fixed]
 - **Proxy:**
   - **ContactRouteInserter:** Incoherent 'Contact' header field(s) rewriting regarding the actual outgoing transport
+    used to send the request to the destination (when several transports are defined in `global/transports`).
+  - **Forward:** Incoherent 'Path' and 'Record-Route' header fields insertions regarding the actual outgoing transport
     used to send the request to the destination (when several transports are defined in `global/transports`).
 - **Redis client:**
   - Wait 1 second before retrying to connect when the connection to the server fails instead of retrying immediately.
@@ -85,6 +85,8 @@ declined or not answered. Currently, the server accepts all incoming calls, play
     - Parameter `module::Router/generate-contact-even-on-filled-aor` (deprecated in 2.0.0)
     - Parameter `module::Router/preroute` (deprecated in 2.0.0)
     - Parameter `module::Router/call-push-response-timeout` (deprecated in 2.2.0)
+    - Parameter `module::Forward/route` (deprecated in 2.2.0)
+    - Parameter `module::Forward/rewrite-req-uri` (deprecated in 2.2.0)
 - **Conference:**
     - Parameter `conference-server/conference-factory-uri` (deprecated in 2.1.0)
 - **EventLogs:**

@@ -35,8 +35,8 @@ bool NatTraversalStrategy::Helper::empty(const char* value) {
 	return value == NULL || value[0] == '\0';
 }
 
-void NatTraversalStrategy::Helper::fixPath(const std::shared_ptr<MsgSip>& ms) {
-	sip_t* sip = ms->getSip();
+void NatTraversalStrategy::Helper::fixPath(MsgSip& ms) {
+	sip_t* sip = ms.getSip();
 	const sip_via_t* via = sip->sip_via;
 	const char* received = via->v_received;
 	const char* rport = via->v_rport;
@@ -46,9 +46,9 @@ void NatTraversalStrategy::Helper::fixPath(const std::shared_ptr<MsgSip>& ms) {
 	if (empty(received)) received = via->v_host;
 	if (!rport) rport = via->v_port;
 	if (!transport) transport = "udp";
-	ModuleToolbox::urlSetHost(ms->getHome(), path, received);
+	ModuleToolbox::urlSetHost(ms.getHome(), path, received);
 	path->url_port = rport;
-	fixTransport(ms->getHome(), path, transport);
+	fixTransport(ms.getHome(), path, transport);
 }
 
 void NatTraversalStrategy::Helper::fixTransport(su_home_t* home, url_t* url, const char* transport) {

@@ -107,6 +107,8 @@ void addRecordRouteNatHelper() {
 
 	helper.mStrategy.addRecordRouteNatHelper(event);
 
+	BC_HARD_ASSERT(event.getRecordRouteAdded() == true);
+
 	const auto* recordRoute = event.getSip()->sip_record_route;
 	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
 
@@ -129,12 +131,16 @@ void addRecordRouteNatHelper() {
 void addRecordRouteNatHelperNoVia() {
 	const Helper helper{"false"};
 	RqSipEv event{helper.mAgent, Helper::getRegister(true), helper.mTport};
+	auto* sip = event.getSip();
 	// Remove "VIA" header from request.
-	su_free(event.getHome(), event.getSip()->sip_via);
+	msg_header_remove(event.getMsgSip()->getMsg(), reinterpret_cast<msg_pub_t*>(sip),
+	                  reinterpret_cast<msg_header_t*>(sip->sip_via));
 
 	helper.mStrategy.addRecordRouteNatHelper(event);
 
-	const auto* recordRoute = event.getSip()->sip_record_route;
+	BC_HARD_ASSERT(event.getRecordRouteAdded() == true);
+
+	const auto* recordRoute = sip->sip_record_route;
 	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
 
 	const auto* recordRouteUrlStr = url_as_string(event.getHome(), recordRoute[0].r_url);
@@ -151,6 +157,8 @@ void addRecordRouteNatHelperNoObParameter() {
 
 	helper.mStrategy.addRecordRouteNatHelper(event);
 
+	BC_HARD_ASSERT(event.getRecordRouteAdded() == true);
+
 	const auto* recordRoute = event.getSip()->sip_record_route;
 	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
 
@@ -161,37 +169,30 @@ void addRecordRouteNatHelperNoObParameter() {
 /**
  * Test return value matches the 'lastRoute' with host:port corrected with information present in the flow-token.
  */
-void getTportDestFromLastRoute() {
+void getDestinationUrl() {
 	const Helper helper{"false"};
-	RqSipEv event{helper.mAgent, Helper::getInvite(true), helper.mTport};
-	sip_route_t lastRoute{};
-	lastRoute.r_url->url_type = url_sip;
-	lastRoute.r_url->url_scheme = "sip";
-	lastRoute.r_url->url_user = "eM5HfG6l5y7nYAJ/AAABE8RSQdxkIj0="; // {local=?, remote=82.65.220.100:8765, tcp}
-	lastRoute.r_url->url_host = "sip.example.org";
-	lastRoute.r_url->url_port = "5060";
-	lastRoute.r_url->url_params = "ob";
+	const auto msg = Helper::getInvite(true);
+	// Encoded information: {local=?, remote=82.65.220.100:8765, tcp}
+	SipUri lastRoute{"sip:eM5HfG6l5y7nYAJ/AAABE8RSQdxkIj0=@sip.example.org:5060;ob"};
 
-	SLOGD << url_as_string(event.getHome(), lastRoute.r_url);
+	SLOGD << lastRoute;
 
-	const auto* dest = helper.mStrategy.getTportDestFromLastRoute(event, &lastRoute);
+	const auto* dest = helper.mStrategy.getDestinationUrl(*msg, helper.mTport, lastRoute);
 
 	BC_HARD_ASSERT(dest != nullptr);
-	BC_ASSERT(dest != lastRoute.r_url);
 	const auto expected = "sip:eM5HfG6l5y7nYAJ/AAABE8RSQdxkIj0=@82.65.220.100:8765;transport=tcp"s;
-	BC_ASSERT_CPP_EQUAL(url_as_string(event.getHome(), dest), expected);
+	BC_ASSERT_CPP_EQUAL(url_as_string(msg->getHome(), dest), expected);
 }
 
 /**
  * Test an invalid flow-token in url should return nullptr.
  */
-void getTportDestFromLastRouteWithFalsifiedFlowToken() {
+void getDestinationUrlWithFalsifiedFlowToken() {
 	const Helper helper{"false"};
-	RqSipEv event{helper.mAgent, Helper::getInvite(false), helper.mTport};
-	sip_route_t lastRoute{};
-	lastRoute.r_url[0].url_user = "this++ipv4++token++is+falsified=";
+	const auto msg = Helper::getInvite(false);
+	SipUri lastRoute{"sip:this++ipv4++token++is+falsified=@sip.example.org:5060;ob"};
 
-	const auto* dest = helper.mStrategy.getTportDestFromLastRoute(event, &lastRoute);
+	const auto* dest = helper.mStrategy.getDestinationUrl(*msg, helper.mTport, lastRoute);
 
 	BC_HARD_ASSERT(dest == nullptr);
 }
@@ -202,18 +203,14 @@ void getTportDestFromLastRouteWithFalsifiedFlowToken() {
  */
 void addRecordRouteForwardModule() {
 	const Helper helper{"false"};
-	RqSipEv event{helper.mAgent, Helper::getInvite(true), helper.mTport};
-	url_t lastRouteUrl{};
-	lastRouteUrl.url_user = "stub-flow-token";
-	lastRouteUrl.url_host = "sip.proxy.example.org";
-	lastRouteUrl.url_port = "5060";
-	lastRouteUrl.url_params = "ob";
+	const auto msg = Helper::getInvite(true);
+	SipUri lastRoute{"sip:stub-flow-token@sip.proxy.example.org:5060;ob"};
 
-	helper.mStrategy.addRecordRouteForwardModule(event, helper.mTport, &lastRouteUrl);
+	helper.mStrategy.addRecordRouteForwardModule(*msg, helper.mTport, helper.mTport, lastRoute);
 
-	const auto* recordRoute = event.getSip()->sip_record_route;
+	const auto* recordRoute = msg->getSip()->sip_record_route;
 	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
-	const auto* recordRouteUrlStr = url_as_string(event.getHome(), recordRoute[0].r_url);
+	const auto* recordRouteUrlStr = url_as_string(msg->getHome(), recordRoute[0].r_url);
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:stub-flow-token@127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
@@ -222,13 +219,13 @@ void addRecordRouteForwardModule() {
  */
 void addRecordRouteForwardModuleNoRouteUrl() {
 	const Helper helper{"false"};
-	RqSipEv event{helper.mAgent, Helper::getInvite(true), helper.mTport};
+	const auto msg = Helper::getInvite(true);
 
-	helper.mStrategy.addRecordRouteForwardModule(event, helper.mTport, nullptr);
+	helper.mStrategy.addRecordRouteForwardModule(*msg, helper.mTport, helper.mTport, nullopt);
 
-	const auto* recordRoute = event.getSip()->sip_record_route;
+	const auto* recordRoute = msg->getSip()->sip_record_route;
 	BC_HARD_ASSERT(&recordRoute[0] != nullptr);
-	const auto* recordRouteUrlStr = url_as_string(event.getHome(), recordRoute[0].r_url);
+	const auto* recordRouteUrlStr = url_as_string(msg->getHome(), recordRoute[0].r_url);
 	BC_ASSERT_CPP_EQUAL(recordRouteUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
@@ -239,11 +236,11 @@ void addRecordRouteForwardModuleNoRouteUrl() {
 void addPathOnRegister() {
 	const Helper helper{"false"};
 	const FlowFactory flowFactory{kHashKeyFilePath};
-	RqSipEv event{helper.mAgent, Helper::getRegister(true), helper.mTport};
+	const auto msg = Helper::getRegister(true);
 
-	helper.mStrategy.addPathOnRegister(event, helper.mTport, nullptr);
+	helper.mStrategy.addPathOnRegister(*msg, helper.mTport, helper.mTport, nullptr);
 
-	const auto* path = event.getSip()->sip_path;
+	const auto* path = msg->getSip()->sip_path;
 	BC_HARD_ASSERT(path != nullptr);
 	BC_HARD_ASSERT(path->r_url->url_user != nullptr);
 
@@ -256,7 +253,7 @@ void addPathOnRegister() {
 	BC_ASSERT_CPP_EQUAL(flow.getData().getLocalAddress()->str(), "127.0.0.1:" + helper.mProxyPort);
 	BC_ASSERT_CPP_EQUAL(flow.getData().getRemoteAddress()->str(), "1.2.3.4:5678");
 	BC_ASSERT(flow.getData().getTransportProtocol() == FlowData::Transport::Protocol::tcp);
-	BC_ASSERT(string(url_as_string(event.getHome(), pathUrl)).find("transport=tcp"));
+	BC_ASSERT(string(url_as_string(msg->getHome(), pathUrl)).find("transport=tcp"));
 }
 
 /**
@@ -264,15 +261,16 @@ void addPathOnRegister() {
  */
 void addPathOnRegisterNotFirstHop() {
 	const Helper helper{"false"};
-	RqSipEv event{helper.mAgent, Helper::getRegister(true), helper.mTport};
+	const auto msg = Helper::getRegister(true);
+	auto* sip = msg->getSip();
 	// Remove "VIA" header in request.
-	su_free(event.getHome(), event.getSip()->sip_via);
+	msg_header_remove(msg->getMsg(), reinterpret_cast<msg_pub_t*>(sip), reinterpret_cast<msg_header_t*>(sip->sip_via));
 
-	helper.mStrategy.addPathOnRegister(event, helper.mTport, nullptr);
+	helper.mStrategy.addPathOnRegister(*msg, helper.mTport, helper.mTport, nullptr);
 
-	const auto* path = event.getSip()->sip_path;
+	const auto* path = sip->sip_path;
 	BC_HARD_ASSERT(path != nullptr);
-	const auto* pathUrlStr = url_as_string(event.getHome(), path->r_url);
+	const auto* pathUrlStr = url_as_string(msg->getHome(), path->r_url);
 	BC_ASSERT_CPP_EQUAL(pathUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;lr");
 }
 
@@ -281,15 +279,16 @@ void addPathOnRegisterNotFirstHop() {
  */
 void addPathOnRegisterNotFirstHopWithUniq() {
 	const Helper helper{"false"};
-	RqSipEv event{helper.mAgent, Helper::getRegister(true), helper.mTport};
+	const auto msg = Helper::getRegister(true);
+	auto* sip = msg->getSip();
 	// Remove "VIA" header in request.
-	su_free(event.getHome(), event.getSip()->sip_via);
+	msg_header_remove(msg->getMsg(), reinterpret_cast<msg_pub_t*>(sip), reinterpret_cast<msg_header_t*>(sip->sip_via));
 
-	helper.mStrategy.addPathOnRegister(event, helper.mTport, "stub-uniq");
+	helper.mStrategy.addPathOnRegister(*msg, helper.mTport, helper.mTport, "stub-uniq");
 
-	const auto* path = event.getSip()->sip_path;
+	const auto* path = sip->sip_path;
 	BC_HARD_ASSERT(path != nullptr);
-	const auto* pathUrlStr = url_as_string(event.getHome(), path->r_url);
+	const auto* pathUrlStr = url_as_string(msg->getHome(), path->r_url);
 	BC_ASSERT_CPP_EQUAL(pathUrlStr, "sip:127.0.0.1:" + helper.mProxyPort + ";transport=tcp;fs-proxy-id=stub-uniq;lr");
 }
 
@@ -299,8 +298,8 @@ TestSuite _{
         CLASSY_TEST(addRecordRouteNatHelper),
         CLASSY_TEST(addRecordRouteNatHelperNoVia),
         CLASSY_TEST(addRecordRouteNatHelperNoObParameter),
-        CLASSY_TEST(getTportDestFromLastRoute),
-        CLASSY_TEST(getTportDestFromLastRouteWithFalsifiedFlowToken),
+        CLASSY_TEST(getDestinationUrl),
+        CLASSY_TEST(getDestinationUrlWithFalsifiedFlowToken),
         CLASSY_TEST(addRecordRouteForwardModule),
         CLASSY_TEST(addRecordRouteForwardModuleNoRouteUrl),
         CLASSY_TEST(addPathOnRegister),
@@ -310,5 +309,4 @@ TestSuite _{
 };
 
 } // namespace
-
 } // namespace flexisip::tester

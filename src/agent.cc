@@ -609,7 +609,6 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 	LOGI << "Agent primaries are:";
 	Home home{};
-	const tport_t* publicTransport{};
 	for (const auto* tport = primaries; tport != nullptr; tport = tport_next(tport)) {
 		// The public IP address and the bound IP address are different. This is the case for transports with
 		// "sip:public_address;maddr=binding_address" where "public_address" is the hostname or IP address publicly
@@ -621,33 +620,12 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 		if (isIpv6 && mPublicIpV6.empty()) mPublicIpV6 = formatedHost;
 		else if (!isIpv6 && mPublicIpV4.empty()) mPublicIpV4 = formatedHost;
 
-		// Hypothesis: the first transport with network set to the "0.0.0.0/0" is the public transport.
-		if (!publicTransport && tport_has_network(tport) && tport_network_str(home.home(), tport) == "0.0.0.0/0"s)
-			publicTransport = tport;
-
 		mTransports.emplace_back(formatedHost, name->tpn_port, name->tpn_proto,
 		                         computeResolvedPublicIp(formatedHost, AF_INET),
 		                         computeResolvedPublicIp(formatedHost, AF_INET6), name->tpn_host);
 
 		LOGI << "\t" << getPrintableTransport(tport);
 	}
-
-	// If no public transport was found, take the first primary transport as public transport.
-	if (!publicTransport) publicTransport = primaries;
-	mNodeUri = urlFromTportName(&mHome, tport_name(publicTransport));
-
-	LOGI << "The 'public' transport: " << getPrintableTransport(publicTransport);
-
-	const auto* clusterConfig = mConfigManager->getRoot()->get<GenericStruct>("cluster");
-	const auto clusterDomain = clusterConfig->get<ConfigString>("cluster-domain")->read();
-	if (mNodeUri && !clusterDomain.empty()) {
-		auto name = *tport_name(publicTransport);
-		name.tpn_canon = clusterDomain.c_str();
-		name.tpn_port = nullptr;
-		mClusterUri = urlFromTportName(&mHome, &name);
-	}
-
-	mDefaultUri = (clusterConfig->get<ConfigBoolean>("enabled")->read() && mClusterUri) ? mClusterUri : mNodeUri;
 
 	mPublicResolvedIpV4 = computeResolvedPublicIp(mPublicIpV4, AF_INET);
 	if (mPublicResolvedIpV4.empty()) {
@@ -1158,22 +1136,6 @@ int Agent::onIncomingMessage(msg_t* msg, const sip_t* sip) {
 	}
 	printEventTailSeparator();
 	return 0;
-}
-
-url_t* Agent::urlFromTportName(su_home_t* home, const tp_name_t* name) {
-	url_t* url = NULL;
-	url_type_e ut = url_sip;
-
-	if (strcasecmp(name->tpn_proto, "tls") == 0) ut = url_sips;
-
-	url = (url_t*)su_alloc(home, sizeof(url_t));
-	url_init(url, ut);
-
-	if (strcasecmp(name->tpn_proto, "tcp") == 0) url_param_add(home, url, "transport=tcp");
-
-	url->url_port = su_strdup(home, name->tpn_port);
-	url->url_host = su_strdup(home, name->tpn_canon);
-	return url;
 }
 
 int Agent::messageCallback(nta_agent_magic_t* context, [[maybe_unused]] nta_agent_t* agent, msg_t* msg, sip_t* sip) {

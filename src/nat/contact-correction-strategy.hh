@@ -68,9 +68,14 @@ public:
 	void preProcessOnRequestNatHelper(const RequestSipEvent& ev) const override;
 	void addRecordRouteNatHelper(RequestSipEvent& ev) const override;
 	void onResponseNatHelper(const ResponseSipEvent& ev) const override;
-	url_t* getTportDestFromLastRoute(const RequestSipEvent& ev, const sip_route_t* lastRoute) const override;
-	void addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t* lastRouteUrl) const override;
-	void addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const override;
+	url_t*
+	getDestinationUrl(MsgSip& msg, const tport_t* incoming, const std::optional<SipUri>& lastRoute) const override;
+	void addRecordRouteForwardModule(MsgSip& msg,
+	                                 const tport_t* incoming,
+	                                 const tport_t* outgoing,
+	                                 const std::optional<SipUri>& lastRoute) const override;
+	void
+	addPathOnRegister(MsgSip& msg, const tport_t* incoming, const tport_t* outgoing, const char* uniq) const override;
 
 private:
 	static constexpr std::string_view mLogPrefix{"ContactCorrectionStrategy"};

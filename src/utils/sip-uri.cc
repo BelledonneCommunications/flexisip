@@ -104,7 +104,7 @@ Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
 Url Url::setParam(const std::string& name, const std::string& value) const {
 	auto url = Url{_url};
 	if (url.hasParam(name)) url.removeParam(name);
-	const auto parameter = name + "=" + value;
+	const auto parameter = name + (value.empty() ? "" : ("=" + value));
 	url_param_add(url._home.home(), url._url, parameter.c_str());
 	return Url{url._url};
 }

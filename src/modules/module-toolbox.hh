@@ -33,7 +33,7 @@ namespace module_toolbox {
 msg_auth_t* findAuthorizationForRealm(su_home_t* home, msg_auth_t* au, const char* realm);
 
 void addRecordRouteIncoming(Agent* agent, RequestSipEvent& ev, const Flow::Token& token = "");
-void addRecordRoute(Agent* agent, RequestSipEvent& ev, const tport_t* tport, const Flow::Token& token = "");
+bool addRecordRoute(Agent* agent, MsgSip& msg, const tport_t* tport, const Flow::Token& token = "");
 
 void cleanAndPrependRoute(Agent* agent, msg_t* msg, sip_t* sip, sip_route_t* route);
 
@@ -49,7 +49,8 @@ bool isNumeric(const char* host);
 bool isManagedDomain(const Agent* agent, const std::list<std::string>& domains, const url_t* url);
 void addRoutingParam(su_home_t* home, sip_contact_t* contacts, const std::string& routingParam, const char* domain);
 sip_route_s* prependNewRoutable(msg_t* msg, sip_t* sip, sip_route_t*& sipr, sip_route_t* value);
-void addPathHeader(Agent* agent, MsgSip& ms, tport_t* tport, const char* uniq = nullptr, const Flow::Token& token = "");
+void addPathHeader(
+    Agent* agent, MsgSip& msg, const tport_t* tport, const char* uniq = nullptr, const Flow::Token& token = "");
 
 /**
  * @note takes into account that each argument could be an ipv6 address enclosed in brackets

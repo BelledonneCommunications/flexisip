@@ -176,16 +176,22 @@ void ContactCorrectionStrategy::onResponseNatHelper(const ResponseSipEvent& ev) 
 	}
 }
 
-url_t* ContactCorrectionStrategy::getTportDestFromLastRoute(const RequestSipEvent&, const sip_route_t*) const {
+url_t* ContactCorrectionStrategy::getDestinationUrl(MsgSip&, const tport_t*, const std::optional<SipUri>&) const {
 	return nullptr;
 }
 
-void ContactCorrectionStrategy::addRecordRouteForwardModule(RequestSipEvent& ev, tport_t* tport, url_t*) const {
-	ModuleToolbox::addRecordRoute(mAgent, ev, (tport == (tport_t*)-1) ? nullptr : tport);
+void ContactCorrectionStrategy::addRecordRouteForwardModule(MsgSip& msg,
+                                                            const tport_t*,
+                                                            const tport_t* outgoing,
+                                                            const std::optional<SipUri>&) const {
+	module_toolbox::addRecordRoute(mAgent, msg, outgoing);
 }
 
-void ContactCorrectionStrategy::addPathOnRegister(RequestSipEvent& ev, tport_t* tport, const char* uniq) const {
-	ModuleToolbox::addPathHeader(mAgent, *ev.getMsgSip(), (tport == (tport_t*)-1) ? nullptr : tport, uniq);
+void ContactCorrectionStrategy::addPathOnRegister(MsgSip& msg,
+                                                  const tport_t*,
+                                                  const tport_t* outgoing,
+                                                  const char* uniq) const {
+	module_toolbox::addPathHeader(mAgent, msg, outgoing, uniq);
 }
 
 } // namespace flexisip

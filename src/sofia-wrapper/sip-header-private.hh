@@ -343,8 +343,7 @@ public:
 	 * @note Example of a well-formatted header: "Display Name <sip:contact@host:port;transport=tcp>;expires=0"
 	 */
 	template <typename UriT>
-	explicit SipHeaderContact(const UriT& uri) : SipHeaderContact{uri, nullptr} {
-	}
+	explicit SipHeaderContact(const UriT& uri) : SipHeaderContact{uri, nullptr} {}
 
 	/**
 	 * Create a Contact header.
@@ -470,6 +469,23 @@ public:
 
 	std::string_view getType() const {
 		return getStrAttribute(reinterpret_cast<SofiaType*>(mNativePtr), ac_type);
+	}
+};
+
+/**
+ * Represent a 'Via' header field.
+ */
+class SipHeaderVia : public SipHeader {
+public:
+	using SofiaType = sip_via_t;
+
+	/**
+	 * Create a 'Via' header field.
+	 *
+	 * @param via content of the header
+	 */
+	SipHeaderVia(const std::string& via) {
+		setNativePtr(sip_via_make(mHome.home(), via.data()));
 	}
 };
 
