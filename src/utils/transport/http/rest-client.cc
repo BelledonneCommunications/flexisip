@@ -18,6 +18,8 @@
 
 #include "rest-client.hh"
 
+#include "form-data.hh"
+
 using namespace std;
 using namespace nlohmann;
 using namespace flexisip;
@@ -58,4 +60,13 @@ void RestClient::get(const string& path,
                      const RestClient::OnResponseCb& onResponseCb,
                      const RestClient::OnErrorCb& onErrorCb) {
 	httpCallWithJson(path, "GET", nullopt, onResponseCb, onErrorCb);
+}
+
+void RestClient::post(const std::string& path,
+                      const http::MultiPartForm& form,
+                      const OnResponseCb& onResponseCb,
+                      const OnErrorCb& onErrorCb) {
+	const string body = http::constructMultipartBody(form, http::kSimpleBoundary);
+	httpCall(path, "POST", body, "multipart/form-data; boundary=\""s + http::kSimpleBoundary + "\"", onResponseCb,
+	         onErrorCb);
 }

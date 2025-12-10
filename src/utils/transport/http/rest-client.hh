@@ -23,6 +23,7 @@
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include "exceptions/bad-configuration.hh"
+#include "utils/transport/http/form-data.hh"
 #include "utils/transport/http/http-message-context.hh"
 #include "utils/transport/http/http2client.hh"
 
@@ -88,6 +89,11 @@ public:
 	          const OnErrorCb& onErrorCb) {
 		httpCall(path, "POST", body, contentType, onResponseCb, onErrorCb);
 	}
+
+	void post(const std::string& path,
+	          const http::MultiPartForm& form,
+	          const OnResponseCb& onResponseCb,
+	          const OnErrorCb& onErrorCb);
 
 	template <class JsonObject>
 	void put(const std::string& path,

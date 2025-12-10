@@ -18,9 +18,12 @@
 
 #include "tester.hh"
 
+#include <regex>
+
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 #include "utils/asserts.hh"
 #include "utils/http-mock/http-mock.hh"
+#include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/transport/http/rest-client.hh"
@@ -59,18 +62,19 @@ public:
 		BC_HARD_ASSERT(actualRequest != nullptr);
 
 		customAssert(actualRequest);
-		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 3);
+		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 4);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("custom_header"), 1);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header")->second.value, "custom_header_value");
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("custom_header2"), 1);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header2")->second.value, "custom_header_value2");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("content-type"), 1);
 	}
 
 protected:
 	virtual void sendRequest(RestClient& restClient) = 0;
 	virtual void customAssert(const shared_ptr<Request>& actualRequest) = 0;
 
-	bool mRequestReceived;
+	bool mRequestReceived{};
 	sofiasip::SuRoot mRoot{};
 };
 
@@ -93,6 +97,37 @@ protected:
 	}
 };
 
+class PostMultipartRestTest : public RestTest {
+protected:
+	void sendRequest(RestClient& restClient) override {
+		const HttpHeaders headers{{"Content-Disposition", {R"(form-data; name="file"; filename="filename.wav")"}}};
+		const http::MultiPartForm form{{headers, "some data in the file"}};
+		restClient.post(
+		    "/api/test", form, [this](const auto&, const auto&) { mRequestReceived = true; },
+		    [](const auto&) { BC_HARD_FAIL("Request must succeed"); });
+	}
+
+	void customAssert(const shared_ptr<Request>& actualRequest) override {
+		BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
+
+		string boundary{};
+		for (const auto& header : actualRequest->headers) {
+			if (string_utils::iequals(header.first, "content-type")) {
+				const auto contentTypeRegex = regex(R"r(multipart/form-data; ?boundary="([ a-zA-Z0-9\\:\\-]+)")r");
+				std::smatch matches;
+				regex_search(header.second.value, matches, contentTypeRegex);
+				BC_HARD_ASSERT_CPP_NOT_EQUAL(matches.length(), 0);
+				boundary = matches[1].str();
+				break;
+			}
+		}
+		LOGD_CTX("boundary") << boundary;
+		const auto bodyRegex = regex("^|(\r\n)--" + boundary + "*\r\n*\r\n--" + boundary + "--*");
+		std::smatch matches;
+		BC_ASSERT_CPP_EQUAL(regex_search(actualRequest->body, matches, bodyRegex), true);
+	}
+};
+
 class PutRestTest : public RestTest {
 protected:
 	void sendRequest(RestClient& restClient) override {
@@ -112,8 +147,7 @@ class PatchRestTest : public RestTest {
 protected:
 	class JsonObject {
 	public:
-		JsonObject(const string& string, int integer) : aString(string), integer(integer) {
-		}
+		JsonObject(const string& string, int integer) : aString(string), integer(integer) {}
 
 	private:
 		string aString;
@@ -151,6 +185,7 @@ namespace {
 TestSuite _("RestClient",
             {
                 CLASSY_TEST(PostRestTest),
+                CLASSY_TEST(PostMultipartRestTest),
                 CLASSY_TEST(PutRestTest),
                 CLASSY_TEST(PatchRestTest),
                 CLASSY_TEST(GetRestTest),
