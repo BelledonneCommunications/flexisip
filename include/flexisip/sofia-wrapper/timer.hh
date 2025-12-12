@@ -50,7 +50,7 @@ public:
 	[[deprecated]] Timer(su_root_t* root, NativeDuration interval);
 	[[deprecated]] Timer(const sofiasip::SuRoot& root, NativeDuration interval);
 
-	[[deprecated]] explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs = 0);
+	explicit Timer(const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	explicit Timer(const std::shared_ptr<SuRoot>& root, NativeDuration interval);
 

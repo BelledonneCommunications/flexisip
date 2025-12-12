@@ -63,6 +63,7 @@ namespace {
 
 const Script FETCH_EXPIRING_CONTACTS_SCRIPT{
 #include "fetch-expiring-contacts.lua.hh"
+
     , // ❯ sed -n '/R"lua(/,/)lua"/p' fetch-expiring-contacts.lua.hh | sed 's/R"lua(//' | head -n-1 | sha1sum
     "8f26674ebf2a65c4eee45d2ae9b98c121cf6ff43"};
 
@@ -81,8 +82,7 @@ RegistrarDbRedisAsync::RegistrarDbRedisAsync(
     std::function<void(bool)> notifyState)
     : mRoot{root}, mRecordConfig{recordConfig}, mLocalRegExpire{localRegExpire},
       mNotifyContactListener{std::move(notifyContact)}, mNotifyStateListener{std::move(notifyState)},
-      mRedisClient{mRoot, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {
-}
+      mRedisClient{mRoot, params, SoftPtr<SessionListener>::fromObjectLivingLongEnough(*this)} {}
 
 bool RegistrarDbRedisAsync::isConnected() const {
 	return mRedisClient.isConnected();
@@ -300,7 +300,7 @@ void RegistrarDbRedisAsync::handleBind(Reply reply, std::unique_ptr<RedisRegiste
 			    log << "retrying in " << bindRetryTimeout.count() << "ms";
 			    auto leaked = context.release();
 			    leaked->mRetryCount += 1;
-			    leaked->mRetryTimer = make_unique<sofiasip::Timer>(root, bindRetryTimeout.count());
+			    leaked->mRetryTimer = make_unique<sofiasip::Timer>(root, bindRetryTimeout);
 			    leaked->mRetryTimer->set([leaked]() { sBindRetry(leaked); });
 		    } else {
 			    log << "unrecoverable, no further attempt will be made";

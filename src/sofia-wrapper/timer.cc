@@ -41,8 +41,7 @@ Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) {
 	if (mTimer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
-Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root, su_duration_t intervalMs)
-    : Timer{root, std::chrono::milliseconds(intervalMs)} {
+Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root) : Timer{root, std::chrono::milliseconds(0)} {
 }
 
 Timer::Timer(const shared_ptr<SuRoot>& root, NativeDuration interval) {
