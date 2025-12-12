@@ -53,15 +53,13 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
                          SessionSettings&& sessionSettings)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, true), nullptr, std::move(sessionSettings)) {
-}
+    : Http2Client(root, make_unique<TlsConnection>(host, port, true), nullptr, std::move(sessionSettings)) {}
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
                          std::shared_ptr<AuthenticationManager>&& authManager)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, true), std::move(authManager), SessionSettings()) {
-}
+    : Http2Client(root, make_unique<TlsConnection>(host, port, true), std::move(authManager), SessionSettings()) {}
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
@@ -72,8 +70,7 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
     : Http2Client(root,
                   make_unique<TlsConnection>(host, port, trustStorePath, certPath, true),
                   nullptr,
-                  std::move(sessionSettings)) {
-}
+                  std::move(sessionSettings)) {}
 
 void Http2Client::sendAllPendingRequests() {
 	for (auto it = mPendingHttpContexts.begin(); it != mPendingHttpContexts.end();
@@ -587,6 +584,9 @@ ostream& operator<<(ostream& os, const nghttp2_frame& frame) noexcept {
 			} else {
 				os << "<empty>" << endl;
 			}
+			break;
+		case NGHTTP2_WINDOW_UPDATE:
+			os << "window_size_increment: " << frame.window_update.window_size_increment;
 			break;
 		default:
 			break;

@@ -34,8 +34,14 @@ using namespace boost::asio::ssl;
 
 namespace flexisip::tester::http_mock {
 
-namespace {
-constexpr auto kDefaultResponse = "200 OK";
+HttpMock::HttpMock(const std::map<std::string, HttpMockHandler>& handlers) : mCtx(ssl::context::tls) {
+	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
+	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
+
+	std::map<string, std::function<void(HttpMock&, const request& req, const response& res)>> endpoints;
+	for (const auto& kv : handlers) {
+		mServer.handle(kv.first, [this, &kv](const request& req, const response& res) { kv.second(*this, req, res); });
+	}
 }
 
 HttpMock::HttpMock(const std::initializer_list<std::string> endpoints, std::atomic_int* requestReceivedCount)
@@ -96,7 +102,7 @@ int HttpMock::serveAsync(const std::string& port) {
 		SLOGE << "error: " << ec.message() << std::endl;
 		return -1;
 	}
-	return mServer.ports().size() != 0 ? mServer.ports().front() : -1;
+	return !mServer.ports().empty() ? mServer.ports().front() : -1;
 }
 
 void HttpMock::forceCloseServer() {
@@ -121,6 +127,11 @@ bool HttpMock::addResponseToGET(const std::string& endpoint, const std::string& 
 	if (mGETResponse.find(endpoint) == mGETResponse.cend()) return false;
 	mGETResponse[endpoint] = response;
 	return true;
+}
+
+int HttpMock::getFirstPort() const {
+	const auto ports = mServer.ports();
+	return ports.empty() ? -1 : ports.front();
 }
 
 } // namespace flexisip::tester::http_mock

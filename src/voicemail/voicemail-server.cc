@@ -22,32 +22,59 @@
 
 #include "call-handler.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexiapi/config.hh"
+#include "flexiapi/schemas/voicemail/slot-creation.hh"
+#include "flexisip-config.h"
 #include "flexisip/configmanager.hh"
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/configuration/media.hh"
 #include "utils/configuration/transport.hh"
 #include "utils/digest.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 
 namespace flexisip {
 
 namespace {
+
 string getCallKey(const std::shared_ptr<linphone::Call>& call) {
 	return Sha256{}.compute<string>(call->getCallLog()->getCallId() + call->getRemoteAddress()->asString());
 }
+
 } // namespace
+
+VoicemailServer::VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root,
+                                 const std::shared_ptr<ConfigManager>& cfg)
+    : ServiceServer(root), mConfigManager(cfg), mFlexiApiClient(flexiapi::createRestClient(mConfigManager, *mRoot)) {}
 
 void VoicemailServer::_init() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("voicemail-server");
 
-	const auto* announcementParam = config->get<ConfigString>("announcement-file-path");
-	const auto announcementParamName = announcementParam->getCompleteName();
-	mAnnouncementFile = announcementParam->read();
-	if (mAnnouncementFile.empty()) throw BadConfigurationEmpty{announcementParam};
-	if (!exists(mAnnouncementFile))
-		throw BadConfiguration{announcementParamName + " (" + mAnnouncementFile.string() + ") does not exists"};
+	const auto* defaultAnnouncementParam = config->get<ConfigString>("default-announcement-path");
+	mAnnouncementsPaths.defaultAnnounce = defaultAnnouncementParam->read();
+	if (!filesystem::exists(mAnnouncementsPaths.defaultAnnounce))
+		throw BadConfigurationValue{defaultAnnouncementParam, "The file does not exist"};
+
+	const auto* voicemailAnnouncementParam = config->get<ConfigString>("voicemail-announcement-path");
+	mAnnouncementsPaths.voicemailAnnounce = voicemailAnnouncementParam->read();
+	if (!filesystem::exists(mAnnouncementsPaths.voicemailAnnounce))
+		throw BadConfigurationValue{voicemailAnnouncementParam, "The file does not exist"};
+
+	const auto* voicemailStorageParam = config->get<ConfigString>("voicemail-storage-path");
+	mRecordingParameters.voicemailStoragePath = voicemailStorageParam->read();
+	if (filesystem::exists(mRecordingParameters.voicemailStoragePath) &&
+	    !filesystem::is_empty(mRecordingParameters.voicemailStoragePath)) {
+		LOGD << "Voicemail storage is not empty, removing remaining voicemails from "
+		     << mRecordingParameters.voicemailStoragePath;
+		filesystem::remove_all(mRecordingParameters.voicemailStoragePath);
+	}
+	if (!filesystem::exists(mRecordingParameters.voicemailStoragePath))
+		filesystem::create_directories(mRecordingParameters.voicemailStoragePath);
+
+	mRecordingParameters.callMaxDuration =
+	    config->get<ConfigDuration<chrono::seconds>>("max-voicemail-duration")->readAndCast();
 
 	const auto factory = linphone::Factory::get();
 
@@ -55,7 +82,6 @@ void VoicemailServer::_init() {
 	const auto* transportParam = config->get<ConfigString>("transport");
 	if (transportParam->read().empty()) throw BadConfigurationEmpty{transportParam};
 	configuration_utils::configureTransport(transport, transportParam, {"", "udp", "tcp"});
-	mTransport = SipUri{transportParam->read()};
 
 	// Linphone-sdk configuration.
 	auto configLinphone = factory->createConfig("");
@@ -73,6 +99,7 @@ void VoicemailServer::_init() {
 	mCore = factory->createCoreWithConfig(configLinphone, nullptr);
 	// Disable DB storage to avoid memory accumulation
 	mCore->enableDatabase(false);
+
 	// Maximum number of calls the server can answer simultaneously.
 	const auto* maxCallsParameter = config->get<ConfigInt>("max-calls");
 	const auto maxCalls = maxCallsParameter->read();
@@ -140,13 +167,13 @@ void VoicemailServer::_run() {
 }
 
 unique_ptr<AsyncCleanup> VoicemailServer::_stop() {
+	mCore->removeListener(shared_from_this());
 	for (const auto& [_, callHandler] : mCallHandlers)
 		callHandler->terminateCall();
 	mCallHandlers.clear();
 
 	if (mCore == nullptr) return nullptr;
 
-	mCore->removeListener(shared_from_this());
 	mCore->stop();
 	return nullptr;
 }
@@ -167,20 +194,16 @@ void VoicemailServer::onCallStateChanged(const std::shared_ptr<linphone::Core>&,
 		case linphone::Call::State::OutgoingRinging:
 		case linphone::Call::State::OutgoingEarlyMedia:
 		case linphone::Call::State::Connected:
-			break;
 		case linphone::Call::State::StreamsRunning:
-			onCallStateStreamsRunning(call);
-			break;
 		case linphone::Call::State::Pausing:
 		case linphone::Call::State::Paused:
 		case linphone::Call::State::Resuming:
 		case linphone::Call::State::Referred:
 			break;
-			// When call is in error state we shall do as in linphone::Call::State::End.
 		case linphone::Call::State::Error:
-		case linphone::Call::State::End:
-			onCallStateEnd(call);
+			onCallStateError(call);
 			break;
+		case linphone::Call::State::End:
 		case linphone::Call::State::PausedByRemote:
 		case linphone::Call::State::UpdatedByRemote:
 		case linphone::Call::State::IncomingEarlyMedia:
@@ -197,25 +220,31 @@ void VoicemailServer::onCallStateIncomingReceived(const std::shared_ptr<linphone
 	const auto remoteAddress = call->getRemoteAddress()->asString();
 	LOGD << "Incoming call received from " << remoteAddress << " [" << call << "]";
 
-	// Accept the call only if the handler was created and stored
-	if (mCallHandlers.emplace(getCallKey(call), make_shared<CallHandler>(call)).second) {
-		call->accept();
-	} else {
+	auto callKey = getCallKey(call);
+	auto callHandlerInserted =
+	    mCallHandlers
+	        .emplace(callKey, make_shared<voicemail::CallHandler>(call, mCore, mRoot, mFlexiApiClient,
+	                                                              mAnnouncementsPaths, mRecordingParameters))
+	        .second;
+	if (!callHandlerInserted) {
+		LOGE << "Could not create handler for call [" << call << "]: declining call";
+
 		const auto errorInfo = linphone::Factory::get()->createErrorInfo();
 		errorInfo->setReason(linphone::Reason::Busy);
 		call->declineWithErrorInfo(errorInfo);
+		return;
 	}
+
+	mCallHandlers.at(callKey)->start();
 }
 
-void VoicemailServer::onCallStateStreamsRunning(const std::shared_ptr<linphone::Call>& call) {
-	LOGD << "Call stream running [" << call << "]";
-
-	if (const auto callHandler = mCallHandlers.find(getCallKey(call)); callHandler != mCallHandlers.end())
-		callHandler->second->playAnnounce(mAnnouncementFile);
+void VoicemailServer::onCallStateError(const std::shared_ptr<linphone::Call>& call) {
+	LOGD << "Call error [" << call << "]";
+	mCallHandlers.erase(getCallKey(call));
 }
 
-void VoicemailServer::onCallStateEnd(const std::shared_ptr<linphone::Call>& call) {
-	LOGD << "Call end [" << call << "]";
+void VoicemailServer::onCallHandled(const std::shared_ptr<linphone::Call>& call) noexcept {
+	LOGD << "Call handling finished [" << call << "]";
 	mCallHandlers.erase(getCallKey(call));
 }
 
@@ -246,22 +275,50 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "true",
 	    },
 	    {
-	        String,
-	        "announcement-file-path",
-	        "Path to the audio file that will be played right after call establishment.\n"
-	        "Supports WAV and MKA/MKV files.",
-	        "",
-	    },
-	    {
 	        Integer,
 	        "max-calls",
 	        "Maximum number of calls the server can answer simultaneously.",
 	        "1000",
 	    },
+	    {
+	        String,
+	        "default-announcement-path",
+	        "Path to the audio file that will be played after call establishment when recording a voicemail is not "
+	        "possible.\n"
+	        "The file must exists to start the voicemail server.\n"
+	        "Supports WAV and MKA/MKV files.",
+	        VOICEMAIL_ANNOUNCES_DIR "/default-announce.wav",
+	    },
+	    {
+	        String,
+	        "voicemail-announcement-path",
+	        "Path to the audio file that will be played after call establishment when recording a voicemail is "
+	        "possible.\n"
+	        "The file must exists to start the voicemail server.\n"
+	        "Supports WAV and MKA/MKV files.",
+	        VOICEMAIL_ANNOUNCES_DIR "/leave-a-message.wav",
+	    },
+	    {
+	        String,
+	        "voicemail-storage-path",
+	        "Path to the folder where the voicemail recordings will be stored before being uploaded.\n"
+	        "Warning: All remaining voicemails are deleted when restarting the server.",
+	        DEFAULT_VOICEMAIL_DIR,
+	    },
+	    {
+	        DurationS,
+	        "max-voicemail-duration",
+	        "Maximum duration of the recorded voice mails.",
+	        "120s",
+	    },
 	    config_item_end,
 	};
 
-	root.addChild(make_unique<GenericStruct>(voicemail::configSection, "Flexisip voicemail server parameters.", 0))
+	root.addChild(
+	        make_unique<GenericStruct>(voicemail::configSection,
+	                                   "Flexisip voicemail server parameters.\n"
+	                                   "The 'global::flexiapi' section must be configured for the server to start.",
+	                                   0))
 	    ->addChildrenValues(items);
 });
 

@@ -38,11 +38,20 @@ public:
 	nghttp2::asio_http2::header_map headers;
 };
 
+class HttpMock;
+
+using HttpMockHandler = std::function<void(HttpMock& httpMock,
+                                           const nghttp2::asio_http2::server::request& req,
+                                           const nghttp2::asio_http2::server::response& res)>;
 /**
  * A simple HTTP2/2 mock server
  */
 class HttpMock {
 public:
+	static constexpr auto kDefaultResponse = "200 OK";
+	static constexpr auto kDefaultError = "404 NotFound";
+
+	HttpMock(const std::map<std::string, HttpMockHandler>& handlers);
 	HttpMock(const std::initializer_list<std::string> endpoints, std::atomic_int* requestReceivedCount = nullptr);
 	~HttpMock() {
 		forceCloseServer();
@@ -60,6 +69,8 @@ public:
 	 * return false if the endpoint is unknown and the response cannot be added
 	 */
 	bool addResponseToGET(const std::string& endpoint, const std::string& response);
+
+	int getFirstPort() const;
 
 private:
 	void handleRequest(const nghttp2::asio_http2::server::request&,

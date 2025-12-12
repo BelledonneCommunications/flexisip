@@ -81,7 +81,6 @@ option(ENABLE_MDNS "Build with multicast DNS support" OFF)
 option(ENABLE_OPENID_CONNECT "Build with OpenID Connect support" ON)
 option(ENABLE_EXTERNAL_AUTH_PLUGIN "Enable ExternalAuth plugin support" ON)
 option(ENABLE_UNIT_TESTS "Enable Flexisip unit tests (low level tests)" OFF)
-option(ENABLE_VOICEMAIL "Build with voicemail server support" ON)
 add_ccache_option(ON)
 option(ENABLE_COVERAGE "Enable flexisip clang test coverage reports (add instrumentation)" OFF)
 option(ENABLE_MSGPACK "[Deprecated] Build with support for MessagePack for Record serializing" OFF)
@@ -97,6 +96,7 @@ cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "EN
 cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio" ON "ENABLE_UNIT_TESTS" ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 cmake_dependent_option(ENABLE_EKT_SERVER "Enable Encrypted Key Transport server. For customers under a proprietary license, this functionality is under a specific license." OFF "ENABLE_CONFERENCE" OFF)
+cmake_dependent_option(ENABLE_VOICEMAIL "Build with voicemail server support" ON "ENABLE_FLEXIAPI" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING
@@ -120,6 +120,10 @@ if(ENABLE_SOCI OR LIBLINPHONE_REQUIRED)
 	set(SOCI_REQUIRED ON)
 else()
 	set(SOCI_REQUIRED OFF)
+endif()
+
+if(ENABLE_VOICEMAIL)
+	set(VOICEMAIL_ANNOUNCES_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/flexisip/voicemail")
 endif()
 
 # It seems -fsanitize=address and -Wuninitialized don't play well together

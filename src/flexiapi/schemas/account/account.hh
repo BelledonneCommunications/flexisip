@@ -18,25 +18,24 @@
 
 #pragma once
 
-#include "flexisip/configmanager.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
-#include "utils/transport/http/http2client.hh"
-#include "utils/transport/http/rest-client.hh"
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
 namespace flexisip::flexiapi {
 
-/**
- * Create a Http2Client based on the content of the global::flexiapi section of the configuration.
- *
- * @throws BadConfiguration if the configuration fields contains invalid values.
- */
-std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root);
+class Account {
+public:
+	// Do not use default constructor, here only for nlohmann json serialization.
+	Account() = default;
+	Account(const int id) : id(id) {}
 
-/**
- * Create a RestClient based on the content of the global::flexiapi section of the configuration.
- *
- * @throws BadConfiguration if the configuration fields contains invalid or empty values.
- */
-RestClient createRestClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root);
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(Account, id);
+
+	int getId() const {
+		return id;
+	}
+
+private:
+	int id{};
+};
 
 } // namespace flexisip::flexiapi

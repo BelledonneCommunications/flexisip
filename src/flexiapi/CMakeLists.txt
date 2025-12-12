@@ -23,6 +23,7 @@
 target_sources(flexisip PRIVATE
 	config.cc config.hh
 	flexi-stats.cc flexi-stats.hh
+	schemas/account/account.hh
 	schemas/api-formatted-uri.hh
 	schemas/call/call.hh
 	schemas/call/call-device-state.hh
@@ -35,4 +36,6 @@ target_sources(flexisip PRIVATE
 	schemas/message/message-device-response.hh
 	schemas/optional-json.hh
 	schemas/pushnotification/pushnotification.hh
+	schemas/voicemail/slot.hh
+	schemas/voicemail/slot-creation.hh
 )

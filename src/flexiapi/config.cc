@@ -25,12 +25,14 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/transport/http/http2client.hh"
+#include "utils/transport/http/rest-client.hh"
 
 using namespace std::string_literals;
 
 namespace flexisip::flexiapi {
 namespace {
 constexpr auto configSection = "global::flexiapi";
+constexpr std::string_view kLogPrefix{"FlexiAPI"};
 
 // Statically define default configuration items.
 auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
@@ -54,7 +56,8 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	auto uS = std::make_unique<GenericStruct>(
 	    configSection,
 	    "Configuration parameters for establishing a connection to the HTTP server that implements the FlexiAPI "
-	    "interface. For now, these settings are exclusively used for the push notification gateway functionality.",
+	    "interface. For now, these settings are used for the push notification gateway functionality and the voicemail "
+	    "server.",
 	    0);
 	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
@@ -67,17 +70,39 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
 	const auto* flexiApiUrlParameter = flexiApiConfigSection->get<ConfigString>("url");
 	try {
 		const sofiasip::Url flexiApiUrl{flexiApiUrlParameter->read()};
-		if (!flexiApiUrl.empty()) {
-			auto urlType = flexiApiUrl.getType();
-			if (urlType != url_https) {
-				throw BadConfigurationValue{flexiApiUrlParameter, "URL scheme MUST be 'HTTPS'"};
-			}
-			return Http2Client::make(root, flexiApiUrl.getHost(), std::string{flexiApiUrl.getPortWithFallback()});
+		if (flexiApiUrl.empty()) {
+			LOGD_CTX(kLogPrefix) << "No flexiapi URL defined";
+			return nullptr;
 		}
+
+		if (flexiApiUrl.getType() != url_https) {
+			throw BadConfigurationValue{flexiApiUrlParameter, "URL scheme MUST be 'HTTPS'"};
+		}
+		return Http2Client::make(root, flexiApiUrl.getHost(), std::string{flexiApiUrl.getPortWithFallback()});
 	} catch (std::exception& e) {
 		throw BadConfigurationValue{flexiApiUrlParameter, "invalid URL ("s + e.what() + ")"};
 	}
-	return nullptr;
+}
+
+RestClient createRestClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root) {
+	// Create the HTTP Client that should be used for the FlexiAPI
+	auto httpClient = createClient(cfg, root);
+	if (!httpClient)
+		throw BadConfiguration(
+		    "failed to create a HTTP client, please check the fields of the 'global::flexiapi' section");
+
+	const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>(configSection);
+	const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
+	const auto* flexiApiUrlParameter = flexiApiConfigSection->get<ConfigString>("url");
+	const sofiasip::Url flexiApiUrl{flexiApiUrlParameter->read()};
+
+	const auto pathPrefix = flexiApiUrl.getPath();
+
+	HttpHeaders httpHeaders{};
+	httpHeaders.add("accept", "application/json");
+	if (!flexiApiKey.empty()) httpHeaders.add("x-api-key", flexiApiKey);
+
+	return {httpClient, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
 }
 
 } // namespace flexisip::flexiapi

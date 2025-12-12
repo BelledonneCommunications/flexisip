@@ -18,25 +18,28 @@
 
 #pragma once
 
-#include "flexisip/configmanager.hh"
-#include "flexisip/sofia-wrapper/su-root.hh"
-#include "utils/transport/http/http2client.hh"
-#include "utils/transport/http/rest-client.hh"
+#include <string>
+
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
+#undef sip_from
 
 namespace flexisip::flexiapi {
 
-/**
- * Create a Http2Client based on the content of the global::flexiapi section of the configuration.
- *
- * @throws BadConfiguration if the configuration fields contains invalid values.
- */
-std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root);
+class SlotCreation {
 
-/**
- * Create a RestClient based on the content of the global::flexiapi section of the configuration.
- *
- * @throws BadConfiguration if the configuration fields contains invalid or empty values.
- */
-RestClient createRestClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root);
+public:
+	SlotCreation() = default;
+	SlotCreation(const std::string& sip_from, const std::string& content_type)
+	    : sip_from(sip_from), content_type(content_type) {}
+
+	NLOHMANN_DEFINE_TYPE_INTRUSIVE(SlotCreation, sip_from, content_type);
+
+private:
+	// SIP URI of the caller
+	std::string sip_from{};
+	// Content type of the audio file to upload (`audio/opus` or `audio/wav`)
+	std::string content_type{};
+};
 
 } // namespace flexisip::flexiapi

@@ -1,6 +1,6 @@
 /*
 	Flexisip, a flexible SIP proxy server with media capabilities.
-	Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+	Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 	
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU Affero General Public License as
@@ -69,6 +69,12 @@
 
 /* Default directory for Flexisip's plugins */
 #define DEFAULT_PLUGINS_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/flexisip/plugins"
+
+/* Default directory to store voicemails */
+#define DEFAULT_VOICEMAIL_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/tmp/flexisip"
+
+/* Directory to store the default announces played by the voicemail server */
+#define VOICEMAIL_ANNOUNCES_DIR "${VOICEMAIL_ANNOUNCES_DIR}"
 
 #define BELR_GRAMMARS_DIR "${BELR_GRAMMARS_DIR}"
 

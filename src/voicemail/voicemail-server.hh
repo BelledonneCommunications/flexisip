@@ -26,6 +26,7 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "service-server/service-server.hh"
+#include "utils/transport/http/rest-client.hh"
 
 namespace flexisip {
 
@@ -36,36 +37,41 @@ inline constexpr auto configSection = "voicemail-server";
 
 class VoicemailServer : public ServiceServer,
                         public std::enable_shared_from_this<VoicemailServer>,
-                        public linphone::CoreListener {
+                        public linphone::CoreListener,
+                        public voicemail::CallHandlerObserver {
 public:
-	VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
-	    : ServiceServer(root), mConfigManager(cfg) {
-	}
-	~VoicemailServer() = default;
+	VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
+	~VoicemailServer() override = default;
+
+	void _init() override;
+	void _run() override;
+	std::unique_ptr<AsyncCleanup> _stop() override;
 
 	void onCallStateChanged(const std::shared_ptr<linphone::Core>& core,
 	                        const std::shared_ptr<linphone::Call>& call,
 	                        linphone::Call::State state,
 	                        const std::string& message) override;
 
-protected:
-	void _init() override;
-	void _run() override;
-	std::unique_ptr<AsyncCleanup> _stop() override;
+	void onCallStateError(const std::shared_ptr<linphone::Call>& call);
+	void onCallHandled(const std::shared_ptr<linphone::Call>& call) noexcept override;
 
-	SipUri mTransport{};
+	int getTcpPort() const {
+		return mCore->getTransportsUsed()->getTcpPort();
+	}
 
 private:
 	static constexpr std::string_view mLogPrefix{"VoicemailServer"};
 
 	void onCallStateIncomingReceived(const std::shared_ptr<linphone::Call>& call);
-	void onCallStateStreamsRunning(const std::shared_ptr<linphone::Call>& call);
-	void onCallStateEnd(const std::shared_ptr<linphone::Call>& call);
 
 	std::shared_ptr<linphone::Core> mCore{};
+
 	std::shared_ptr<ConfigManager> mConfigManager{};
-	std::filesystem::path mAnnouncementFile{};
-	std::map<std::string, const std::shared_ptr<CallHandler>> mCallHandlers{};
+	RestClient mFlexiApiClient;
+	voicemail::CallHandler::RecordingParameters mRecordingParameters;
+	voicemail::CallHandler::AnnouncementPaths mAnnouncementsPaths{};
+
+	std::map<std::string, const std::shared_ptr<voicemail::CallHandler>> mCallHandlers{};
 };
 
 } // namespace flexisip

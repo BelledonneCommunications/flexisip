@@ -43,9 +43,9 @@ Group changes to describe their impact on the project, as follows:
       linphone-sdk < 5.4). Some behaviors of the presence server previously violated RFC standards (e.g., using "Event:
       Presence" instead of "Event: presence"). Setting this parameter to false enforces RFC compliance but may break
       compatibility with older clients.
-- **[Experimental] Voicemail server:** This new server is designed to store voice messages left by users when a call is 
-declined or not answered. Currently, the server accepts all incoming calls, plays the provided audio file
-(announcement), and automatically hangs up once the audio playback is complete.
+- **Voicemail server:** New server for recording voice messages intended for the recipient of the call when a call is 
+  declined or not answered. See [Voicemail Server](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Voicemail%20server/)
+  for more information.
 
 ### [Changed]
 - **Pusher:**

@@ -356,12 +356,9 @@ void ConferenceServer::bindAddresses() {
 
 void ConferenceServer::bindFactoryUris() {
 	class FakeListener : public ContactUpdateListener {
-		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {
-		}
-		void onError(const SipStatus&) override {
-		}
-		void onInvalid(const SipStatus&) override {
-		}
+		void onRecordFound([[maybe_unused]] const shared_ptr<Record>& r) override {}
+		void onError(const SipStatus&) override {}
+		void onInvalid(const SipStatus&) override {}
 		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
 			LOGD << "ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
@@ -400,8 +397,7 @@ void ConferenceServer::bindFactoryUris() {
 void ConferenceServer::bindFocusUris() {
 	class FocusListener : public ContactUpdateListener {
 	public:
-		FocusListener(const shared_ptr<Account>& account, const string& uuid) : mAccount(account), mUuid(uuid) {
-		}
+		FocusListener(const shared_ptr<Account>& account, const string& uuid) : mAccount(account), mUuid(uuid) {}
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			if (r->getExtendedContacts().empty()) throw FlexisipException{"focus address bind failed"};
 
@@ -415,10 +411,8 @@ void ConferenceServer::bindFocusUris() {
 			LOGI << "Focus address [" << gruuAddr->asStringUriOnly() << "] is bound";
 			mAccount->setContactAddress(gruuAddr);
 		}
-		void onError(const SipStatus&) override {
-		}
-		void onInvalid(const SipStatus&) override {
-		}
+		void onError(const SipStatus&) override {}
+		void onInvalid(const SipStatus&) override {}
 		void onContactUpdated(const shared_ptr<ExtendedContact>& ec) override {
 			LOGD << "ExtendedContact contactId=" << ec->contactId() << " callId=" << ec->callId();
 		}
@@ -617,7 +611,7 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "encryption",
 	        "Type of media encryption the server will offer when calling participants to an audio or video "
 	        "conference.\n"
-	        "Valid values: none, sdes, zrtp, dtls.",
+	        "Valid values: none, sdes, zrtp, dtls-srtp.",
 	        "none",
 	    },
 	    {

@@ -327,12 +327,6 @@ if(ENABLE_B2BUA)
 	endif()
 endif()
 
-if(ENABLE_VOICEMAIL)
-	target_sources(flexisip_tester PRIVATE
-		tests/voicemail/voicemail-server-tester.cc
-	)
-endif()
-
 if(ENABLE_OPENID_CONNECT)
 	target_sources(flexisip_tester PRIVATE
 		tests/auth/auth-openid-connect-tester.cc
@@ -376,6 +370,11 @@ endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
+	if(ENABLE_VOICEMAIL)
+		target_sources(flexisip_tester PRIVATE
+			tests/integration/voicemail/voicemail-server-tester.cc
+		)
+	endif()
 endif()
 
 target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
