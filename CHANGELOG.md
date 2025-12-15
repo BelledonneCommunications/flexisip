@@ -79,6 +79,10 @@ Group changes to describe their impact on the project, as follows:
     - **SIP-Bridge:**: For detailed information, see the [SIP-Bridge documentation].
         - **AccountPool:** Parameter `outbound_proxy` is now optional.
         - **Account:** Parameter `outbound_proxy` can now contain a hostname or a full SIP URI.
+- **Files permissions:**
+    - Access right to the configuration folder and files as well as the log folder were removed for 'others' when
+      installing Flexisip from a package.
+    - The log files will not be readable by 'others' anymore when running Flexisip as a service.
 
 ### [Deprecated]
 - **Debian 11:** Support will be discontinued in the next release, as distribution will reach its end-of-life (2026-08-31).

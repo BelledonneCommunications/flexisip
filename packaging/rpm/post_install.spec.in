@@ -1,4 +1,7 @@
-mkdir --parents @FLEXISIP_LOGDIR@ || :
+#  Set configuration directory permissions
+chmod 750 @FLEXISIP_CONFIGURATION_FOLDER_INSTALL_LOCATION@ || :
+# Create log folder
+mkdir --parents @FLEXISIP_LOGDIR@ --mode 750 || :
 semanage fcontext -a -t var_log_t '@FLEXISIP_LOGDIR@(/.*)?' 2>/dev/null || :
 restorecon -R @FLEXISIP_LOGDIR@ || :
 

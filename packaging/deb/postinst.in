@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Create configuration directory along with default configuration file
-mkdir -p /etc/flexisip
+# Set configuration directory permissions
+chmod 750 @FLEXISIP_CONFIGURATION_FOLDER_INSTALL_LOCATION@
 # Try to restart daemon after upgrade
 systemctl try-restart @FLEXISIP_SERVICES@  >/dev/null 2>&1 || :

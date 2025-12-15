@@ -107,12 +107,11 @@ job-rocky9-rpm:
       optional: true
       artifacts: false
 
-# Test installation of the RPM package and check its feature list
-job-rocky9-rpm-check-features:
+# Test installation of the RPM package, check its feature list and files permissions
+job-rocky9-rpm-check-package:
   stage: check-package 📤
   tags: [ "docker" ]
-  extends:
-    - .rocky9-image-variables
+  image: rockylinux/rockylinux:9
   rules:
     - !reference [job-rocky9-rpm, rules]
   needs:
@@ -120,8 +119,10 @@ job-rocky9-rpm-check-features:
   variables:
     GIT_STRATEGY: none
   script:
-    - sudo yum -y --nogpgcheck localinstall ./build/*.rpm
+    - yum -y install epel-release
+    - yum -y --nogpgcheck localinstall ./build/*.rpm
     - !reference [.script-check-features, script]
+    - !reference [.script-check-permissions, script]
 
 job-rocky9-rpm-deploy:
   extends:

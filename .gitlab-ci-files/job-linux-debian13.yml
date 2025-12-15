@@ -129,8 +129,8 @@ job-debian13-deb:
       optional: true
       artifacts: false
 
-# Test installation of the DEB package and check its feature list
-job-debian13-deb-check-features:
+# Test installation of the DEB package, check its feature list and files permissions
+job-debian13-deb-check-package:
   stage: check-package 📤
   tags: [ "docker" ]
   image: debian:13
@@ -144,6 +144,7 @@ job-debian13-deb-check-features:
     - apt update
     - apt install -y ./build/*.deb
     - !reference [.script-check-features, script]
+    - !reference [.script-check-permissions, script]
 
 job-debian13-deb-deploy:
   extends:

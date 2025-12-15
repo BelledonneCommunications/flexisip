@@ -14,3 +14,12 @@
     - echo $VERSION_STRING | grep Soci
     # No graphical dependencies
     - "! ldd $FLEXISIP_BIN | grep --extended-regexp 'X|GL'"
+
+# Check the permissions of the configuration and log folders and files
+.script-check-permissions:
+  script:
+    - FLEXISIP_CONF_DIR=/etc/flexisip
+    - FLEXISIP_LOG_DIR=/var/opt/belledonne-communications/log/flexisip
+    - echo $(stat -c "%n %a" ${FLEXISIP_CONF_DIR}) | grep 750
+    - echo $(stat -c "%n %a" ${FLEXISIP_CONF_DIR}/flexisip.conf) | grep 640
+    - if [ -d "${FLEXISIP_LOG_DIR}" ]; then echo $(stat -c "%n %a" ${FLEXISIP_LOG_DIR}) | grep 750; fi
