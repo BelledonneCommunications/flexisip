@@ -71,12 +71,11 @@ job-rocky8-rpm:
       optional: true
       artifacts: false
 
-# Test installation of the RPM package and check its feature list
-job-rocky8-rpm-check-features:
+# Test installation of the RPM package, check its feature list and files permissions
+job-rocky8-rpm-check-package:
   stage: check-package 📤
   tags: [ "docker-flat" ]
-  extends:
-    - .rocky8-image-variables
+  image: rockylinux/rockylinux:8
   rules:
     - !reference [job-rocky8-rpm, rules]
   needs:
@@ -84,7 +83,8 @@ job-rocky8-rpm-check-features:
   variables:
     GIT_STRATEGY: none
   script:
-    - !reference [job-rocky9-rpm-check-features, script]
+    - yum -y install findutils
+    - !reference [job-rocky9-rpm-check-package, script]
 
 job-rocky8-rpm-deploy:
   extends:
