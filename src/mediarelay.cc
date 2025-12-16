@@ -318,13 +318,21 @@ void RelaySession::removeBranch(const std::string& trId) {
 
 int RelaySession::getActiveBranchesCount() const {
 	int count = 0;
-	mMutex.lock();
+	std::scoped_lock lock{mMutex};
 	for (auto it = mPotentialBackChannels.begin(); it != mPotentialBackChannels.end(); ++it) {
 		if ((*it).second->getRemoteRtpPort() > 0) count++;
 	}
 	if (mSelectedBackChannel && mSelectedBackChannel->getRemoteRtpPort() > 0) count++;
-	mMutex.unlock();
 	LOGD("getActiveBranchesCount(): %i", count);
+	return count;
+}
+
+int RelaySession::getBranchesCount() const {
+	int count = 0;
+	std::scoped_lock lock{mMutex};
+	count = mPotentialBackChannels.size();
+	if (mSelectedBackChannel) count++;
+	SLOGD << "getBranchesCount(): " << count;
 	return count;
 }
 

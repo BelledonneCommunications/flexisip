@@ -151,6 +151,7 @@ public:
 	void checkPollFd(const PollFd* pfd, time_t curtime);
 	void unuse();
 	int getActiveBranchesCount() const;
+	int getBranchesCount() const;
 
 	bool isUsed() const {
 		return mUsed;
