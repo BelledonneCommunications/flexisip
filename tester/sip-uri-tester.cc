@@ -48,6 +48,15 @@ void parsingError() {
 	errorMessage = SipUri::hasParsingError(url).value_or("");
 	BC_ASSERT_CPP_EQUAL(errorMessage, "forbidden '@' character found in host part");
 
+	url = sofiasip::Url("sip:user@sip.ex\\ample.org");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "forbidden '\\' character found in host part");
+
+	// User
+	url = sofiasip::Url("sip:us\\er@sip.example.org");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "forbidden '\\' character found in user part");
+
 	// Other reserved characters not filtered out
 	std::vector<std::string> reserved{";", "/", "?", ":", "&", "=", "+", "$", ","};
 	for (const std::string& reserved_char : reserved) {

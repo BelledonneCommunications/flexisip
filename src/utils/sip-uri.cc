@@ -320,6 +320,13 @@ optional<std::string> SipUri::hasParsingError(const sofiasip::Url& url) noexcept
 	if (strchr(pUrl->url_host, '@') != nullptr) {
 		return "forbidden '@' character found in host part";
 	}
+	// SIP URIs with '\' results in part being truncated
+	if (strchr(pUrl->url_host, '\\') != nullptr) {
+		return "forbidden '\\' character found in host part";
+	}
+	if ((pUrl->url_user) && strchr(pUrl->url_user, '\\') != nullptr) {
+		return "forbidden '\\' character found in user part";
+	}
 	return nullopt;
 }
 
