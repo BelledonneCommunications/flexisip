@@ -122,6 +122,7 @@ add_executable(flexisip_tester
 	tests/module-forward-tester.cc
 	tests/main-tester.cc
 	tests/module-nat-helper-tester.cc
+	tests/module-sanitychecker-tester.cc
 	tests/module-registrar-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
 	tests/nat/contact-correction-strategy-tester.cc

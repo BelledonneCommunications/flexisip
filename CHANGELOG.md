@@ -145,6 +145,7 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Fixed]
 - **Proxy:**
+  - **SanityChecker:** check that the From and To URI do not contain extra '@' or '\\' character.
   - **MediaRelay:**
     - The server was not updating the IP address inserted in the SDP response when a client's network
       changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
