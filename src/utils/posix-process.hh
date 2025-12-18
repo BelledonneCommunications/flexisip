@@ -108,7 +108,13 @@ class Process {
 	friend std::ostream& operator<<(std::ostream&, Process&&);
 
 public:
-	Process(std::function<void()>&&);
+	explicit Process(std::function<void()>&&);
+
+	// no copy only move
+	Process(const Process&) = delete;
+	Process& operator=(const Process&) = delete;
+	Process(Process&&) noexcept = default;
+	Process& operator=(Process&&) noexcept = default;
 
 	// Checks and updates the state of the Process and returns a ref to it.
 	// Depending on that state, you can then interact further with the process, such as writing to stdin, reading from

@@ -19,7 +19,7 @@
 #include "fork-context/fork-message-context-soci-repository.hh"
 
 #include "tester.hh"
-#include "utils/server/mysql-server.hh"
+#include "utils/server/mysql/mysql-server.hh"
 #include "utils/soci-helper.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

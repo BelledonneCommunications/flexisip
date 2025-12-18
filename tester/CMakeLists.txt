@@ -39,20 +39,46 @@ set(FLEXISIP_ROOT_DIR "${CMAKE_SOURCE_DIR}")
 set(FLEXISIP_BIN_DIR "${CMAKE_BINARY_DIR}")
 set(FLEXISIP_TESTER_DATA_SRCDIR "${CMAKE_CURRENT_SOURCE_DIR}")
 find_program(REDIS_SERVER_EXEC NAMES redis-server REQUIRED)
-find_program(MYSQL_SERVER_EXEC NAMES mysqld
-	PATHS /usr/libexec # CentOS, Rocky
-	REQUIRED
-)
 
-get_filename_component(MYSQL_BIN_DIR "${MYSQL_SERVER_EXEC}" DIRECTORY)
-find_file(MYSQL_SYSTEM_TABLES_SETUP
-	NAMES "mariadb_system_tables.sql" "mysql_system_tables.sql"
-	HINTS "${MYSQL_BIN_DIR}/.."
-	PATHS ${CMAKE_SYSTEM_PREFIX_PATH}
-	PATH_SUFFIXES "share/mysql" "share/mariadb"
-	REQUIRED
-	NO_DEFAULT_PATH
+# Search first for mariadb
+find_program(MYSQL_SERVER_EXEC NAMES mariadbd
+		PATHS /usr/libexec # CentOS, Rocky
 )
+# Then search for mysqld if mariadbd was not found
+if(NOT MYSQL_SERVER_EXEC)
+	find_program(MYSQL_SERVER_EXEC NAMES mysqld
+		PATHS /usr/libexec # CentOS, Rocky
+		REQUIRED
+	)
+	# With some versions, mariadb-server only comes with a mysqld executable file, so we need to check "--version"
+	execute_process(
+			COMMAND ${MYSQL_SERVER_EXEC} --version
+			OUTPUT_VARIABLE MYSQL_VERSION_OUTPUT
+			ERROR_VARIABLE MYSQL_VERSION_OUTPUT
+	)
+	if(MYSQL_VERSION_OUTPUT MATCHES "MariaDB")
+		set(IS_MARIADB TRUE)
+	else()
+		set(IS_MARIADB FALSE)
+	endif()
+else()
+	set(IS_MARIADB TRUE)
+endif()
+
+if(IS_MARIADB)
+	add_compile_definitions(MARIADB_SERVER)
+
+	# Only check for system_tables files with mariadb, this is not used for MySQL.
+	get_filename_component(MYSQL_BIN_DIR "${MYSQL_SERVER_EXEC}" DIRECTORY)
+	find_file(MYSQL_SYSTEM_TABLES_SETUP
+			NAMES "mariadb_system_tables.sql" "mysql_system_tables.sql"
+			HINTS "${MYSQL_BIN_DIR}/.."
+			PATHS ${CMAKE_SYSTEM_PREFIX_PATH}
+			PATH_SUFFIXES "share/mysql" "share/mariadb"
+			REQUIRED
+			NO_DEFAULT_PATH
+	)
+endif()
 
 find_program(CAT_EXEC NAMES cat REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
@@ -201,8 +227,20 @@ if(ENABLE_SOCI)
 		tests/router/fork/fork-message-context-soci-repository-tester.cc
 		tests/router/module-router-sql-tester.cc
 		tests/utils/soci-helper-tester.cc
-		utils/server/mysql-server.cc utils/server/mysql-server.hh
+		utils/server/mysql/db-server-configurer.hh
+		utils/server/mysql/mysql-server.cc utils/server/mysql/mysql-server.hh
 	)
+	if(IS_MARIADB)
+		target_sources(flexisip_tester PRIVATE
+				utils/server/mysql/mariadb-configurer.cc
+				utils/server/mysql/mariadb-configurer.hh
+		)
+	else()
+		target_sources(flexisip_tester PRIVATE
+				utils/server/mysql/mysql-configurer.cc
+				utils/server/mysql/mysql-configurer.hh
+		)
+	endif()
 endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)

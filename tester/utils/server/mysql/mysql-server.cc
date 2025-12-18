@@ -20,7 +20,6 @@
 
 #include <unistd.h>
 
-#include <cstdint>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -38,6 +37,7 @@
 #include "flexisip/logmanager.hh"
 #include "utils/pipe.hh"
 #include "utils/posix-process.hh"
+#include "utils/rand.hh"
 #include "utils/string-utils.hh"
 #include "utils/sys-err.hh"
 #include "utils/variant-utils.hh"
@@ -51,12 +51,12 @@ static constexpr string_view kGetAllDatabasesDropQuery{
     "SELECT GROUP_CONCAT(CONCAT('DROP DATABASE ', schema_name, ';') SEPARATOR ' ') "
     "FROM information_schema.schemata "
     "WHERE schema_name "
-    "NOT IN ('mysql', 'information_schema', 'performance_schema');",
+    "NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys');",
 };
 
 MysqlServer::MysqlServer()
-    : mDatadir(".mysql.db.d"), mDaemon([this]() { startDaemon(); }),
-      mReady(async(launch::async, [this]() { makeDaemonReady(); })) {
+    : mConfigurer{DbServerConfigurer::getConfigurer(*this)}, mDatadir(".mysql.db.d"),
+      mDaemon([this]() { startDaemon(true); }), mReady(async(launch::async, [this]() { makeDaemonReady(); })) {
 }
 
 MysqlServer::~MysqlServer() {
@@ -77,96 +77,53 @@ void MysqlServer::restart() {
 
 void MysqlServer::clear() {
 	waitReady();
-	if (!mSession.has_value()) {
-		mConnectionPool.at(0).open("mysql", connectionString());
-		mSession.emplace(mConnectionPool);
-	}
-	auto& session = *mSession;
-	string dropDatabasesQuery{};
-	session << kGetAllDatabasesDropQuery, soci::into(dropDatabasesQuery);
-	session << dropDatabasesQuery;
-	session << "CREATE DATABASE IF NOT EXISTS " << kDbName << ";";
+	resetDatabase();
 }
 
 string MysqlServer::connectionString() const {
 	return "unix_socket='" + mDatadir.path().string() + kSocketFile + "' db='" + kDbName + "'";
 }
 
-void MysqlServer::startDaemon() {
-	auto datadirArg = "--datadir=" + mDatadir.path().string();
-	process::Process setup([&datadirArg] {
-		::execl(MYSQL_SERVER_EXEC, MYSQL_SERVER_EXEC,
-		        // Some distros pack default install configurations (like default user), ignore that
-		        "--no-defaults",
-		        // Bypass mysql_install_db to speedup database setup
-		        "--bootstrap",
-		        // Skip InnoDB startup
-		        "--innodb=OFF", "--default-storage-engine=MEMORY",
-		        //
-		        datadirArg.c_str(), nullptr);
-	});
+void MysqlServer::startDaemon(bool initialize) {
+	const auto datadirArg = "--datadir=" + mDatadir.path().string();
 
-	{
-		auto setupStdin = visit(
-		    [](auto& state) -> pipe::WriteOnly {
-			    if constexpr (is_same_v<decay_t<decltype(state)>, process::Running>) {
-				    return visit(
-				        [](auto&& pipe) -> pipe::WriteOnly {
-					        if constexpr (is_same_v<decay_t<decltype(pipe)>, pipe::WriteOnly>) {
-						        return std::move(pipe);
-					        } else {
-						        cerr << "Stdin pipe to mysql setup process in unexpected state: " << pipe << endl;
-						        ::exit(EXIT_FAILURE);
-						        throw runtime_error{"unreachable"};
-					        }
-				        },
-				        exchange(state.mStdin, pipe::Closed()));
+	if (initialize) {
+		auto setup = mConfigurer->initialSetup(datadirArg);
+
+		visit(
+		    [](auto&& state) {
+			    using T = decay_t<decltype(state)>;
+			    if constexpr (is_same_v<T, process::ExitedNormally>) {
+				    if (state.mExitCode != 0) {
+					    cerr << "Mysql datadir install failed";
+					    if (auto* out = get_if<pipe::ReadOnly>(&state.mStdout))
+						    cerr << StreamableVariant(out->readUntilDataReceptionOrTimeout(0xFFFF));
+					    if (auto* err = get_if<pipe::ReadOnly>(&state.mStderr))
+						    cerr << StreamableVariant(err->readUntilDataReceptionOrTimeout(0xFFFF));
+					    ::exit(state.mExitCode);
+				    }
+			    } else {
+				    cerr << "Mysql setup process finished in unexpected state";
+				    ::exit(EXIT_FAILURE);
 			    }
-
-			    cerr << "Mysql setup process unexpectedly quit";
-			    ::exit(EXIT_FAILURE);
-			    throw runtime_error{"unreachable"};
 		    },
-		    setup.state());
+		    std::move(setup).wait());
+	}
 
-		ostringstream sql{};
-		sql << "CREATE DATABASE IF NOT EXISTS mysql;\n";
-		sql << "USE mysql;\n";
-		sql << ifstream(MYSQL_SYSTEM_TABLES_SETUP).rdbuf();
-		sql << "CREATE DATABASE IF NOT EXISTS " << kDbName << ";\n";
-		if (auto err = setupStdin.write(sql.str())) {
-			cerr << "Failed to write to mysql setup process stdin: " << *err << endl;
-			::exit(EXIT_FAILURE);
-		}
-	} // closing stdin
+	std::vector<string> args = {
+	    MYSQL_SERVER_EXEC,     "--no-defaults", "--skip-networking",
+	    "--skip-grant-tables", datadirArg,      "--socket=" + mDatadir.path().string() + kSocketFile,
+	};
+	const auto extraArgs = mConfigurer->getExecArgs();
+	args.insert(args.end(), extraArgs.begin(), extraArgs.end());
 
-	visit(
-	    [](auto&& state) {
-		    using T = decay_t<decltype(state)>;
-		    if constexpr (is_same_v<T, process::ExitedNormally>) {
-			    if (state.mExitCode != 0) {
-				    cerr << "Mysql datadir install failed";
-				    if (auto* out = get_if<pipe::ReadOnly>(&state.mStdout))
-					    cerr << StreamableVariant(out->readUntilDataReceptionOrTimeout(0xFFFF));
-				    if (auto* err = get_if<pipe::ReadOnly>(&state.mStderr))
-					    cerr << StreamableVariant(err->readUntilDataReceptionOrTimeout(0xFFFF));
-				    ::exit(state.mExitCode);
-			    }
-		    } else {
-			    cerr << "Mysql setup process finished in unexpected state";
-			    ::exit(EXIT_FAILURE);
-		    }
-	    },
-	    std::move(setup).wait());
+	std::vector<char*> cArgs;
+	for (auto& arg : args) {
+		cArgs.push_back(arg.data());
+	}
+	cArgs.push_back(nullptr);
 
-	::execl(MYSQL_SERVER_EXEC, MYSQL_SERVER_EXEC, "--no-defaults",
-	        // Avoid port opening conflicts altogether. Everything will go through the unix socket
-	        "--skip-networking",
-	        // Do not check privileges (insecure). Required for old versions of mysql that do not support
-	        // --auth-root-authentication-method=socket (CentOS 7, Debian 11, Ubuntu 18.04)
-	        "--skip-grant-tables",
-	        //
-	        datadirArg.c_str(), ("--socket=" + mDatadir.path().string() + kSocketFile).c_str(), nullptr);
+	::execv(MYSQL_SERVER_EXEC, cArgs.data());
 }
 
 void MysqlServer::makeDaemonReady() {
@@ -192,7 +149,7 @@ void MysqlServer::makeDaemonReady() {
 		}
 
 		auto chunk =
-		    Match(standardError->readUntilDataReceptionOrTimeout(0xFF, 5s))
+		    Match(standardError->readUntilDataReceptionOrTimeout(0xFF, 10s))
 		        .against([](string&& chunk) { return std::move(chunk); },
 		                 [&fullLog](const SysErr& err) -> string {
 			                 throw system_error{err.number(), generic_category(),
@@ -211,6 +168,7 @@ void MysqlServer::makeDaemonReady() {
 		                 });
 		auto concatenated = previousChunk + chunk;
 		if (concatenated.find("ready for connections") != string::npos) {
+			mConfigurer->onReady();
 			SLOGD << chunk;
 			return;
 		}
@@ -228,6 +186,29 @@ void MysqlServer::stop() {
 	}
 	std::move(mDaemon).wait();
 	mSession.reset();
+	mConnectionPool.at(0).close();
+}
+
+void MysqlServer::createDatabaseIfNotExists() {
+	if (!mSession.has_value()) {
+		// Do not use connectionString() as the database might not have been created yet.
+		mConnectionPool.at(0).open("mysql", "unix_socket='" + mDatadir.path().string() + kSocketFile + "'");
+		mSession.emplace(mConnectionPool);
+	}
+	*mSession << "CREATE DATABASE IF NOT EXISTS " << kDbName << ";";
+}
+
+void MysqlServer::resetDatabase() {
+	if (!mSession.has_value()) {
+		// Do not use connectionString() as the database might not have been created yet.
+		mConnectionPool.at(0).open("mysql", "unix_socket='" + mDatadir.path().string() + kSocketFile + "'");
+		mSession.emplace(mConnectionPool);
+	}
+	auto& session = *mSession;
+	string dropDatabasesQuery{};
+	session << kGetAllDatabasesDropQuery, soci::into(dropDatabasesQuery);
+	session << dropDatabasesQuery;
+	createDatabaseIfNotExists();
 }
 
 } // namespace flexisip::tester

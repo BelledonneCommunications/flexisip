@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20240912_cpp-jwt_no_protobuf
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20251218_use_mysql
 ###############################################################################
 
 FROM rockylinux:9
@@ -53,7 +53,7 @@ RUN dnf makecache --refresh \
         jansson-devel \
         libsqlite3x-devel \
         libpq-devel \
-        mariadb-devel \
+        mysql-devel \
         nghttp2 \
         libnghttp2-devel \
         net-snmp-devel \
@@ -69,7 +69,7 @@ RUN dnf makecache --refresh \
         libvpx-devel  \
         jsoncpp-devel \
       # Dependencies of the tester
-        mariadb-server \
+        mysql-server \
         rsync \
  && dnf -y clean all
 
@@ -82,6 +82,10 @@ RUN ./cmake_install.sh 3.22.6 \
 # Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .
 RUN ./libnghttp2_asio_install.sh 1.39.2
+
+# Set rights to mysqld binary. For some unkown reason, mysqld is not executable even by root.
+# Resetting the ownership solves the problem.
+RUN chown root:root /usr/sbin/mysqld
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \
@@ -111,6 +115,6 @@ RUN git config --global --add safe.directory *
 # export CXX=g++
 # export BUILD_DIR_NAME="build.rocky9"
 # cd flexisip/
-# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DENABLE_UNIT_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
+# cmake -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install" -DINTERNAL_LIBHIREDIS=ON -DENABLE_UNIT_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
 # cd $BUILD_DIR_NAME
 # cmake --build . --target install

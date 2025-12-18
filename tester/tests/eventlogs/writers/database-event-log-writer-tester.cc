@@ -28,7 +28,7 @@
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "utils/asserts.hh"
-#include "utils/server/mysql-server.hh"
+#include "utils/server/mysql/mysql-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
