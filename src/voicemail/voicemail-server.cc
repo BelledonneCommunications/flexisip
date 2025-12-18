@@ -122,6 +122,10 @@ void VoicemailServer::_init() {
 	videoActivationPolicy->setAutomaticallyInitiate(false);
 	mCore->setVideoActivationPolicy(videoActivationPolicy);
 
+	const auto natPolicy = mCore->createNatPolicy();
+	natPolicy->enableIce(config->get<ConfigBoolean>("enable-ice")->read());
+	mCore->setNatPolicy(natPolicy);
+
 	mCore->setUserAgent("Flexisip-voicemail", FLEXISIP_GIT_VERSION);
 	mCore->setTransports(transport);
 
@@ -234,6 +238,12 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "server ask the kernel for an available port (special value: 0).\n"
 	        "Examples: 'audio-port=0' or 'audio-port=12345' or 'audio-port=1024-65535'",
 	        "0",
+	    },
+	    {
+	        Boolean,
+	        "enable-ice",
+	        "Enable interactive connectivity establishment (ICE).",
+	        "true",
 	    },
 	    {
 	        String,
