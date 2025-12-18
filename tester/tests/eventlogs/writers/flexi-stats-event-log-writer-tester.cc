@@ -37,7 +37,7 @@
 #include "utils/core-assert.hh"
 #include "utils/eventlogs/event-logs.hh"
 #include "utils/http-mock/http-mock.hh"
-#include "utils/server/mysql-server.hh"
+#include "utils/server/mysql/mysql-server.hh"
 #include "utils/server/test-conference-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"

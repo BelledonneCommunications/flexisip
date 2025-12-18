@@ -16,46 +16,33 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "module-router-message-shared-tests.hh"
+#pragma once
 
-#include <optional>
+#include <memory>
 #include <string>
+#include <vector>
 
-#include "utils/server/mysql/mysql-server.hh"
-#include "utils/test-patterns/registrardb-test.hh"
-#include "utils/test-patterns/test.hh"
-#include "utils/test-suite.hh"
-
-using namespace std;
-using namespace std::chrono;
-using namespace sofiasip;
+#include "utils/posix-process.hh"
 
 namespace flexisip::tester {
-namespace {
 
-optional<MysqlServer> sDbServer{nullopt};
+class MysqlServer;
 
-void sipMessageRequestIntendedForChatroom() {
-	router::sipMessageRequestIntendedForChatroom(true, sDbServer->connectionString());
-}
+class DbServerConfigurer {
+public:
+	explicit DbServerConfigurer(MysqlServer& server) : mServer(server) {}
+	virtual ~DbServerConfigurer() = default;
+	virtual process::Process initialSetup(const std::string& dataDirArg) = 0;
+	virtual std::vector<std::string> getExecArgs() {
+		return {};
+	}
+	virtual void onReady() {}
 
-TestSuite _{
-    "RouterModule::mysql",
-    {
-        CLASSY_TEST(sipMessageRequestIntendedForChatroom),
-    },
-    Hooks{}
-        .beforeSuite([] {
-	        sDbServer.emplace();
-	        sDbServer->waitReady();
-	        return 0;
-        })
-        .beforeEach([] { sDbServer->clear(); })
-        .afterSuite([] {
-	        sDbServer.reset();
-	        return 0;
-        }),
+	// Implemented in subclass cc file
+	static std::unique_ptr<DbServerConfigurer> getConfigurer(MysqlServer& server);
+
+protected:
+	MysqlServer& mServer;
 };
 
-} // namespace
 } // namespace flexisip::tester

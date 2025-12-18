@@ -23,6 +23,7 @@
 #include "soci/connection-pool.h"
 #include "soci/session.h"
 
+#include "db-server-configurer.hh"
 #include "utils/posix-process.hh"
 #include "utils/tmp-dir.hh"
 
@@ -35,6 +36,8 @@ namespace flexisip::tester {
  */
 class MysqlServer {
 public:
+	constexpr static char kDbName[] = "default_test_database";
+
 	MysqlServer();
 	~MysqlServer();
 
@@ -58,14 +61,22 @@ public:
 	 */
 	std::string connectionString() const;
 
+	void createDatabaseIfNotExists();
+
+	[[nodiscard]] std::filesystem::path getDatadirPath() const {
+		return mDatadir.path();
+	}
+
 private:
 	constexpr static char kSocketFile[] = "/mysql.sock";
-	constexpr static char kDbName[] = "default_test_database";
 
-	void startDaemon();
+	void startDaemon(bool initialize = false);
 	void makeDaemonReady();
 	void stop();
 
+	void resetDatabase();
+
+	std::unique_ptr<DbServerConfigurer> mConfigurer;
 	TmpDir mDatadir; // Mysql mandatory data directory, cleaned up if the tester didn't crash
 	process::Process mDaemon;
 	mutable std::future<void> mReady;

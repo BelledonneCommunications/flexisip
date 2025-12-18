@@ -24,6 +24,8 @@
 #cmakedefine MYSQL_SERVER_EXEC "${MYSQL_SERVER_EXEC}"
 // Path to mysql system tables setup commands
 #cmakedefine MYSQL_SYSTEM_TABLES_SETUP "${MYSQL_SYSTEM_TABLES_SETUP}"
+// Tells if mariadb is used instead of mysql
+#cmakedefine MARIADB_SERVER
 // Path to cat
 #cmakedefine CAT_EXEC "${CAT_EXEC}"
 

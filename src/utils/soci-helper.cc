@@ -75,9 +75,10 @@ void SociHelper::execute(const function<void(soci::session&)>& requestLambda) {
 				 *                At this time we don't know if it is a soci or mysql bug, or bug with the sql request
 				 *                being executed.
 				 *  - code=2006: "MySQL server has gone away".
+				 *  - code=2013: "Lost connection to MySQL server during query"
 				 */
-				retry = (trials < kMaxTrials) &&
-				        (mysqlError->err_num_ == 4031 || mysqlError->err_num_ == 2014 || mysqlError->err_num_ == 2006);
+				retry = (trials < kMaxTrials) && (mysqlError->err_num_ == 4031 || mysqlError->err_num_ == 2014 ||
+				                                  mysqlError->err_num_ == 2006 || mysqlError->err_num_ == 2013);
 
 				// Log with warning level if the error can be fixed quickly (retryable error).
 				(retry ? LOGW : LOGE) << "MySQL error after " << duration(start, stop).count() << "ms ["

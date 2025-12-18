@@ -70,7 +70,10 @@ ForkMessageContextSociRepository::ForkMessageContextSociRepository(const string&
 		PRIMARY KEY (fork_uuid, key_value),
 		FOREIGN KEY (fork_uuid) REFERENCES fork_message_context(uuid) ON DELETE CASCADE))sql";
 
-		sql << R"sql(CREATE OR REPLACE FUNCTION UuidToBin(_uuid BINARY(36))
+		// See https://mariadb.com/kb/en/guiduuid-performance/ for more info about those two functions. We use "DROP
+		// FUNCTION IF EXISTS" because "CREATE OR REPLACE FUNCTION" is not available in MariaDB 5.5 (centos7) nor in MySQL.
+		sql << R"sql(DROP FUNCTION IF EXISTS UuidToBin;)sql";
+		sql << R"sql(CREATE FUNCTION UuidToBin(_uuid BINARY(36))
 			RETURNS BINARY(16)
 			LANGUAGE SQL  DETERMINISTIC  CONTAINS SQL  SQL SECURITY INVOKER
 		RETURN

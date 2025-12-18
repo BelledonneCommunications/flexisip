@@ -441,7 +441,8 @@ void requestIsAlsoRoutedToStaticTargets() {
 	const auto sTarget = Contact{"sip:sTarget@localhost", "sip:sTarget@127.0.0.1:0"};
 	const auto sTargetBis = Contact{"sip:sTargetBis@localhost", "sip:sTargetBis@127.0.0.1:0"};
 
-	RoutingWithStaticTargets helper{{callee}, {sTarget.uri, sTargetBis.uri}};
+	vector<Contact> contacts = {callee};
+	RoutingWithStaticTargets helper{contacts, {sTarget.uri, sTargetBis.uri}};
 	vector<string> expectedTargets = {sTarget.uri, sTargetBis.uri, callee.uri};
 	const auto routeUri = "sip:127.0.0.1:"s + helper.mProxy.getFirstPort();
 
