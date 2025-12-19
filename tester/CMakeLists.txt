@@ -128,9 +128,6 @@ add_executable(flexisip_tester
 	tests/nat/flow-token-strategy-tester.cc
 	tests/nat/nat-traversal-feature-tester.cc
 	tests/nat/nat-traversal-strategy-helper-tester.cc
-	tests/presence/presence-pidf-tester.cc
-	tests/presence/presence-publish-tester.cc
-	tests/presence/xsd-utils-tester.cc
 	tests/pushnotification/access-token-provider-tester.cc
 	tests/pushnotification/authentication-manager-tester.cc
 	tests/pushnotification/rfc8599-push-params-tester.cc
@@ -193,7 +190,6 @@ add_executable(flexisip_tester
 	utils/server/redis-server.cc utils/server/redis-server.hh
 	utils/server/tls-tcp-server.cc utils/server/tls-tcp-server.hh
 	utils/test-patterns/agent-test.hh
-	utils/test-patterns/presence-test.hh
 	utils/test-patterns/test.hh
 	utils/tls/private-key.cc utils/tls/private-key.hh
 	utils/tls/certificate.cc utils/tls/certificate.hh
@@ -218,11 +214,19 @@ if(ENABLE_CONFERENCE)
 	)
 endif()
 
+if(ENABLE_PRESENCE)
+	target_sources(flexisip_tester PRIVATE
+		tests/presence/presence-pidf-tester.cc
+		tests/presence/presence-publish-tester.cc
+		tests/presence/xsd-utils-tester.cc
+		utils/test-patterns/presence-test.hh
+	)
+endif()
+
 if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
 		tests/auth/db/authdb-soci-tester.cc
 		tests/eventlogs/writers/database-event-log-writer-tester.cc
-		tests/presence/list-subscription/external-list-subscription-tester.cc
 		tests/router/fork/fork-context-mysql-tester.cc
 		tests/router/fork/fork-message-context-soci-repository-tester.cc
 		tests/router/module-router-sql-tester.cc
@@ -239,6 +243,11 @@ if(ENABLE_SOCI)
 		target_sources(flexisip_tester PRIVATE
 				utils/server/mysql/mysql-configurer.cc
 				utils/server/mysql/mysql-configurer.hh
+		)
+	endif()
+	if(ENABLE_PRESENCE)
+		target_sources(flexisip_tester PRIVATE
+			tests/presence/list-subscription/external-list-subscription-tester.cc
 		)
 	endif()
 endif()
