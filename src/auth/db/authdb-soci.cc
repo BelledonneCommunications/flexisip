@@ -207,7 +207,6 @@ void SociAuthDB::declareConfig(GenericStruct* mc) {
 
 SociAuthDB::SociAuthDB(const RootConfigStruct& cr) : AuthDbBackend(cr) {
 	const auto* ma = cr.getModuleSectionByRole("Authentication");
-	auto* ps = cr.get<GenericStruct>("presence-server");
 
 	poolSize = ma->get<ConfigInt>("soci-poolsize")->read();
 	connection_string = ma->get<ConfigString>("soci-connection-string")->read();
@@ -217,10 +216,11 @@ SociAuthDB::SociAuthDB(const RootConfigStruct& cr) : AuthDbBackend(cr) {
 
 	auto max_queue_size = (unsigned int)ma->get<ConfigInt>("soci-max-queue-size")->read();
 
+#if ENABLE_PRESENCE
+	auto* ps = cr.get<GenericStruct>("presence-server");
 	get_user_with_phone_request = ps->get<ConfigString>("soci-user-with-phone-request")->read();
 	get_users_with_phones_request = ps->get<ConfigString>("soci-users-with-phones-request")->read();
 
-#if ENABLE_PRESENCE
 	const auto* mp = cr.getModuleSectionByRole("Presence");
 	check_domain_in_presence_results = mp->get<ConfigBoolean>("check-domain-in-presence-results")->read();
 #endif
