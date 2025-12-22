@@ -98,7 +98,7 @@ declined or not answered. Currently, the server accepts all incoming calls, play
 
 
 ## [2.5.0]
-- **SDK version:** 5.4.64
+- **SDK version:** 5.4.68
 
 ### [Added]
 - **Proxy:**
