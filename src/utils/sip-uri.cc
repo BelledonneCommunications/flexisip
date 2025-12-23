@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/utils/sip-uri.hh"
+
 #include <cstring>
 #include <sstream>
 #include <stdexcept>
@@ -25,7 +27,6 @@
 
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/configmanager.hh"
-#include "flexisip/utils/sip-uri.hh"
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 

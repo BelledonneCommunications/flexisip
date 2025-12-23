@@ -37,6 +37,7 @@
 #include "sofia-sip/nth.h"
 #include "sofia-sip/sip.h"
 
+#include "accounts-store/accounts-store.hh"
 #include "agent-interface.hh"
 #include "auth/db/authdb.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -137,6 +138,9 @@ public:
 	}
 	RegistrarDb& getRegistrarDb() {
 		return *mRegistrarDb;
+	}
+	std::optional<AccountsStore>& getAccountsStore() {
+		return mAccountsStore;
 	}
 	nta_agent_t* getSofiaAgent() const override {
 		return mAgent;
@@ -287,6 +291,7 @@ private:
 	// Important: disconnecting the Redis registrar DB may trigger callbacks on mModules, so they must still be alive
 	// when destroying it.
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
+	std::optional<AccountsStore> mAccountsStore;
 
 	su_home_t mHome{};
 	nta_agent_t* mAgent = nullptr;

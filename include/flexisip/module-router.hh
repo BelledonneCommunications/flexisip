@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,8 +19,10 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <vector>
 
+#include "accounts-store/accounts-store.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -99,6 +101,7 @@ protected:
 
 	static std::vector<std::string> split(const char* data, const char* delim);
 
+	void fetchRequestUri(std::unique_ptr<RequestSipEvent>&& ev, const SipUri& requestUri);
 	/**
 	 * Allows executing the 'dispatch' function (creation of a new branch) under specific conditions.
 	 */
@@ -110,6 +113,7 @@ protected:
 	std::list<std::string> mDomains{};
 	bool mFallbackParentDomain{};
 	bool mAllowDomainRegistrations{};
+	bool mEnableCallDiversions{};
 
 private:
 	static ModuleInfo<ModuleRouter> sInfo;
@@ -117,6 +121,7 @@ private:
 	std::vector<SipUri> mStaticTargets{};
 	std::shared_ptr<ForkManager> mForkManager{};
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter{};
+	std::optional<AccountsStore> mAccountsStore;
 };
 
 } // namespace flexisip

@@ -25,6 +25,9 @@
 #######################################################################################################################
 
 add_library(flexisip SHARED
+	accounts-store/accounts-data-manager.hh
+	accounts-store/accounts-store.cc accounts-store/accounts-store.hh
+	accounts-store/file-data.cc accounts-store/file-data.hh
 	agent.cc agent.hh
 	agent-startlogwriter.cc
 	auth/auth-scheme.hh
@@ -117,7 +120,6 @@ if(ENABLE_FLEXIAPI)
 	target_sources(flexisip PRIVATE
 		eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
 	)
-	add_subdirectory(flexiapi)
 endif()
 
 if(ENABLE_OPENID_CONNECT)
@@ -126,6 +128,7 @@ if(ENABLE_OPENID_CONNECT)
 	)
 endif()
 
+add_subdirectory(flexiapi)
 add_subdirectory(modules)
 add_subdirectory(pushnotification)
 add_subdirectory(router)

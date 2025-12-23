@@ -24,6 +24,7 @@ target_sources(flexisip PRIVATE
 	config.cc config.hh
 	flexi-stats.cc flexi-stats.hh
 	schemas/account/account.hh
+	schemas/advanced-account/advanced-account.cc schemas/advanced-account/advanced-account.hh
 	schemas/api-formatted-uri.hh
 	schemas/call/call.hh
 	schemas/call/call-device-state.hh

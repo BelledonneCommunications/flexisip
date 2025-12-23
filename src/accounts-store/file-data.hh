@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,26 +18,27 @@
 
 #pragma once
 
-#include <fstream>
-#include <string>
 #include <filesystem>
+#include <string>
+#include <string_view>
+#include <vector>
 
-#include "flexisip/flexisip-exception.hh"
+#include "accounts-data-manager.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip {
 
-static std::string loadFromFile(const std::filesystem::path& path) {
-	std::ifstream ifs(path);
-	if (!ifs.is_open()) {
-		throw FlexisipException{std::string{"failed to open file '"} + path.string() + "'"};
-	}
-	std::stringstream sstr;
-	sstr << ifs.rdbuf();
+class FileData : public IDataManager {
+public:
+	FileData(const std::filesystem::path& filePath);
+	void fetchAccount(const SipUri& uri) override;
+	void findCallDiversions(
+	    const SipUri& uri,
+	    stl_backports::move_only_function<void(const std::vector<flexiapi::CallDiversion>&)>&& callback) override;
 
-	if (sstr.bad() || sstr.fail()) {
-		throw FlexisipException{std::string{"failed to read from file '"} + path.string() + "'"};
-	}
-	return sstr.str();
-}
+private:
+	static constexpr std::string_view mLogPrefix{"AccountsStore::FileData"};
+	AccountsData mData;
+};
 
 } // namespace flexisip

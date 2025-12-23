@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -259,6 +259,20 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "Available values: 408, 486, 603",
 	        "408 486 603",
 	    },
+	    {
+	        Boolean,
+	        "enable-call-diversions",
+	        "Consideration of user-defined call diversion settings when processing a call.\n"
+	        "Activating this option requires to set the 'advanced-account-data' option in 'global' section.",
+	        "false",
+	    },
+	    {
+	        Integer,
+	        "max-call-diversions",
+	        "Maximum number of call diversions allowed when 'enable-call-diversions' option is set.\n"
+	        "This prevents loops during successive call diversions.",
+	        "10",
+	    },
 	    config_item_end,
 	};
 	moduleConfig.addChildrenValues(configs);
@@ -308,6 +322,13 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	for (const auto& uri : mc->get<ConfigStringList>("static-targets")->read())
 		mStaticTargets.emplace_back(uri);
+
+	const auto* enableCallDiversionsParam = mc->get<ConfigBoolean>("enable-call-diversions");
+	mEnableCallDiversions = enableCallDiversionsParam->read();
+	if (mEnableCallDiversions) {
+		if (!mAgent->getAccountsStore()) throw BadConfigurationValue{enableCallDiversionsParam};
+		mAgent->getAccountsStore()->setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
+	}
 }
 
 void ModuleRouter::sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code, const char* warning) {
@@ -689,29 +710,46 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		if (sip->sip_request->rq_method == sip_method_ack || sip->sip_to == NULL || sip->sip_to->a_tag != NULL)
 			return std::move(ev);
 
-		LOGD << "Fetch for url " << requestUri.str();
-
 		// Go stateful to stop retransmissions
 		ev->createIncomingTransaction();
 		sendReply(*ev, SIP_100_TRYING);
 
 		// The non-standard "X-Target-Uris" header gives us a list of SIP uri. The request has to be forked to
 		// all of them.
-		const auto* targetUrisHeader = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris");
-		const auto listener = make_shared<OnFetchForRoutingListener>(this, std::move(ev), requestUri, mStaticTargets);
-
-		if (!targetUrisHeader) {
-			mAgent->getRegistrarDb().fetch(requestUri, listener, mAllowDomainRegistrations, true);
-		} else {
+		if (const auto* targetUrisHeader = ModuleToolbox::getCustomHeaderByName(ev->getSip(), "X-Target-Uris")) {
+			const auto listener =
+			    make_shared<OnFetchForRoutingListener>(this, std::move(ev), requestUri, mStaticTargets);
 			const auto fetcher =
 			    make_shared<TargetUriListFetcher>(this, listener->getEvent(), listener, targetUrisHeader);
 			fetcher->fetch(mAllowDomainRegistrations, true);
+			return {};
 		}
+
+		if (sip->sip_request->rq_method == sip_method_invite && mEnableCallDiversions) {
+			mAgent->getAccountsStore()->checkCallDiversions(
+			    requestUri, flexiapi::CallDiversion::Type::Always,
+			    [this, event = std::move(ev)](const SipUri& target) mutable {
+				    if (target.empty()) {
+					    return sendReply(*event, SIP_482_LOOP_DETECTED);
+				    }
+				    fetchRequestUri(std::move(event), target);
+			    });
+			return {};
+		}
+
+		fetchRequestUri(std::move(ev), requestUri);
+
 	} catch (const InvalidUrlError& e) {
 		LOGD << "The request URI [" << e.getUrl()
 		     << "] is not valid (skipping fetching from registrar database): " << e.getReason();
 	}
 	return std::move(ev);
+}
+
+void ModuleRouter::fetchRequestUri(unique_ptr<RequestSipEvent>&& ev, const SipUri& requestUri) {
+	LOGD << "Fetch for url " << requestUri.str();
+	const auto listener = make_shared<OnFetchForRoutingListener>(this, std::move(ev), requestUri, mStaticTargets);
+	mAgent->getRegistrarDb().fetch(requestUri, listener, mAllowDomainRegistrations, true);
 }
 
 std::unique_ptr<ResponseSipEvent> flexisip::ModuleRouter::onResponse(std::unique_ptr<ResponseSipEvent>&& ev) {

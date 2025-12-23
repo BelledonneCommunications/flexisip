@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -106,6 +106,7 @@ add_executable(flexisip_tester
 	sip-uri-tester.cc
 	schedule-injector-tester.cc
 	tester.cc
+	tests/accounts-store/accounts-store-tester.cc
 	tests/auth/auth-digest-tester.cc
 	tests/auth/auth-domains-tester.cc
 	tests/auth/auth-tls-client-tester.cc
@@ -136,6 +137,7 @@ add_executable(flexisip_tester
 	tests/modules/module-toolbox-tester.cc
 	tests/modules/router/fork/fork-call-tester.cc
 	tests/modules/router/fork/fork-context-tester.cc
+	tests/modules/router/module-router-diverted-calls-tester.cc
 	tests/modules/router/module-router-message-shared-tests.cc tests/modules/router/module-router-message-shared-tests.hh
 	tests/modules/router/module-router-tester.cc
 	tests/nat/contact-correction-strategy-helper-tester.cc
