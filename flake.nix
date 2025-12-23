@@ -44,7 +44,6 @@
               sqlite
               speex
               libmysqlclient
-              msgpack
               ninja # Optional. You can use "Unix makefiles" instead
             ];
         };

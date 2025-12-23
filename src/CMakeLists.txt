@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -38,7 +38,6 @@ add_library(flexisip SHARED
 	callcontext-mediarelay.cc callcontext-mediarelay.hh
 	callstore.cc callstore.hh
 	cli.cc cli.hh
-	cJSON.c
 	common.cc
 	conditional-routes.cc conditional-routes.hh
 	configdumper.cc configdumper.hh
@@ -90,7 +89,6 @@ add_library(flexisip SHARED
 	nat/flow-token-strategy.cc nat/flow-token-strategy.hh
 	nat/nat-traversal-strategy.hh nat/nat-traversal-strategy.cc
 	plugin/plugin-loader.cc plugin/plugin-loader.hh
-	recordserializer-c.cc
 	recordserializer-json.cc
 	recordserializer.cc
 	registrar/change-set.cc
@@ -136,10 +134,6 @@ add_subdirectory(transaction)
 add_subdirectory(utils)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
-		set_source_files_properties(cJSON.c PROPERTIES COMPILE_OPTIONS "-Wno-error=misleading-indentation")
-	endif()
-
 	set(stun_c_compile_options "-Wno-error=sign-compare")
 	if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 8.0.0)
 		list(APPEND stun_c_compile_options "-Wno-stringop-truncation")
@@ -203,11 +197,6 @@ endif()
 
 add_dependencies(flexisip flexisip-git-version)
 
-if(ENABLE_MSGPACK)
-	message(STATUS "Enabling MSGPACK with includes at ${MSGPACK_INCLUDE_DIRS}")
-	target_sources(flexisip PRIVATE recordserializer-msgpack.cc)
-	target_include_directories(flexisip PRIVATE ${MSGPACK_INCLUDE_DIRS})
-endif()
 if(ENABLE_SNMP)
 	add_subdirectory(snmp)
 	target_include_directories(flexisip PRIVATE "mib" ${NET_SNMP_INCLUDE_DIRS})
@@ -360,15 +349,6 @@ install(TARGETS flexisip flexisip_server
 add_executable(flexisip_pusher tools/pusher.cc)
 target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
 install(TARGETS flexisip_pusher
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-)
-
-add_executable(flexisip_serializer tools/serializer.cc)
-target_link_libraries(flexisip_serializer flexisip)
-install(TARGETS flexisip_serializer
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}

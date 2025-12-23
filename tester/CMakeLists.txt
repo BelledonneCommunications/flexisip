@@ -153,6 +153,7 @@ add_executable(flexisip_tester
 	tests/registrar/register-tester.cc
 	tests/registrar/registrardb-tester.cc
 	tests/registrar/registrardb-redis-tester.cc
+	tests/recordserializer-json-tester.cc
 	tests/response-sip-event-tester.cc
 	tests/sofia-api/cve-fix-tester.cc
 	tests/sofia-api/nta-input.cc

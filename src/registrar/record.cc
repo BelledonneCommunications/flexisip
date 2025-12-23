@@ -375,7 +375,8 @@ void Record::update(const ExtendedContactCommon& ecc,
 		return;
 	}
 
-	auto exct = make_unique<ExtendedContact>(ecc, contact, expireAt, cseq, updated_time, alias, accept, "",
+	auto global_expire = static_cast<int>(expireAt - updated_time);
+	auto exct = make_unique<ExtendedContact>(ecc, contact, global_expire, cseq, updated_time, alias, accept, "",
 	                                         mConfig.messageExpiresName());
 	exct->mUsedAsRoute = usedAsRoute;
 	try {
@@ -436,13 +437,11 @@ void Record::print(ostream& stream) const {
 	clang-format on */
 }
 
-Record::Record(const SipUri& aor, const Config& recordConfig) : Record(SipUri(aor), recordConfig) {
-}
+Record::Record(const SipUri& aor, const Config& recordConfig) : Record(SipUri(aor), recordConfig) {}
 
 Record::Record(SipUri&& aor, const Config& recordConfig)
     : mAor(std::move(aor)), mKey(mAor, recordConfig.useGlobalDomain()), mIsDomain(mAor.getUser().empty()),
-      mConfig{recordConfig} {
-}
+      mConfig{recordConfig} {}
 
 url_t* Record::getPubGruu(const std::shared_ptr<ExtendedContact>& ec, su_home_t* home) const {
 	char gr_value[256] = {0};

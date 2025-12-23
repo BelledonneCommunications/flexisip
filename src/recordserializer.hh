@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 
 #include "registrar/record.hh"
@@ -27,46 +28,25 @@ namespace flexisip {
 class RecordSerializer {
 	static constexpr std::string_view mLogPrefix{"RecordSerializer"};
 
-	static RecordSerializer* sInstance;
-
 public:
+	static std::shared_ptr<RecordSerializer> create(const std::string& name);
+
 	virtual ~RecordSerializer() = default;
-	static RecordSerializer* create(const std::string& name);
-	virtual bool parse(const char* str, int len, Record* r) = 0;
-	bool parse(const std::string& str, Record* r) {
-		return parse(str.c_str(), str.length(), r);
-	}
-	virtual bool serialize(Record* r, std::string& serialized, bool log) = 0;
-	bool serialize(Record* r, std::string& serialized) {
+
+	virtual bool parse(std::string_view str, Record& r) = 0;
+	virtual bool serialize(const Record& r, std::string& serialized, bool log) = 0;
+	bool serialize(const Record& r, std::string& serialized) {
 		return serialize(r, serialized, false);
 	}
 };
 
-class RecordSerializerC : public RecordSerializer {
-public:
-	bool parse(const char* str, int len, Record* r) override;
-	bool serialize(Record* r, std::string& serialized, bool log) override;
-
-private:
-	static constexpr std::string_view mLogPrefix{"RecordSerializerC"};
-};
-
 class RecordSerializerJson : public RecordSerializer {
 public:
-	bool parse(const char* str, int len, Record* r) override;
-	bool serialize(Record* r, std::string& serialized, bool log) override;
+	bool parse(std::string_view str, Record& r) override;
+	bool serialize(const Record& r, std::string& serialized, bool log) override;
 
 private:
-    static constexpr std::string_view mLogPrefix{"RecordSerializerJson"};
+	static constexpr std::string_view mLogPrefix{"RecordSerializerJson"};
 };
-
-#ifdef ENABLE_MSGPACK
-class RecordSerializerMsgPack : public RecordSerializer {
-public:
-	RecordSerializerMsgPack();
-	virtual bool parse(const char* str, int len, Record* r);
-	virtual bool serialize(Record* r, std::string& serialized, bool log);
-};
-#endif
 
 } // namespace flexisip

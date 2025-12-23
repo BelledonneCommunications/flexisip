@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -57,7 +57,7 @@ constexpr const auto socket_recv = recv;
 
 void serializeRecord(SocketHandle& socket, Record* record) {
 	string serialized;
-	RecordSerializerJson().serialize(record, serialized, false);
+	RecordSerializerJson().serialize(*record, serialized, false);
 	socket.send(serialized);
 }
 
@@ -258,8 +258,7 @@ void CommandLineInterface::handleConfigSet(const shared_ptr<SocketHandle>& socke
 	}
 }
 
-SocketHandle::SocketHandle(int handle) : mHandle(handle) {
-}
+SocketHandle::SocketHandle(int handle) : mHandle(handle) {}
 
 SocketHandle::SocketHandle(SocketHandle&& other) : mHandle(other.mHandle) {
 	other.mHandle = 0;
@@ -429,13 +428,11 @@ void* CommandLineInterface::threadFunc(void* arg) {
 
 ProxyCommandLineInterface::ProxyCommandLineInterface(const shared_ptr<ConfigManager>& cfg,
                                                      const shared_ptr<Agent>& agent)
-    : CommandLineInterface("proxy", cfg, agent->getRoot()), mAgent(agent) {
-}
+    : CommandLineInterface("proxy", cfg, agent->getRoot()), mAgent(agent) {}
 
 class CommandListener : public ContactUpdateListener {
 public:
-	explicit CommandListener(shared_ptr<SocketHandle> socket) : mSocket(std::move(socket)) {
-	}
+	explicit CommandListener(shared_ptr<SocketHandle> socket) : mSocket(std::move(socket)) {}
 
 	void onError(const SipStatus&) override {
 		mSocket->send("Error - Failed to connect to the registrar database");
@@ -445,8 +442,7 @@ public:
 		mSocket->send("Error - Invalid record");
 	}
 
-	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
-	}
+	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {}
 
 protected:
 	shared_ptr<SocketHandle> mSocket;
@@ -594,8 +590,7 @@ void ProxyCommandLineInterface::handleRegistrarClear(shared_ptr<SocketHandle> so
 	class ClearListener : public CommandListener {
 	public:
 		ClearListener(shared_ptr<SocketHandle> socket, Record::Key&& uri, RegistrarDb& registrarDb)
-		    : CommandListener(std::move(socket)), mUri(std::move(uri)), mRegistrarDb(registrarDb) {
-		}
+		    : CommandListener(std::move(socket)), mUri(std::move(uri)), mRegistrarDb(registrarDb) {}
 
 		void onRecordFound(const shared_ptr<Record>& r) override {
 			mRegistrarDb.publish(r->getKey(), "");

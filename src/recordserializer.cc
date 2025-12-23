@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,27 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <flexisip/logmanager.hh>
-
 #include "recordserializer.hh"
+
+#include <memory>
+
+#include <flexisip/logmanager.hh>
 
 using namespace std;
 
 namespace flexisip {
 
-RecordSerializer* RecordSerializer::create(const string& name) {
-	if (name == "c") {
-		return new RecordSerializerC();
-	} else if (name == "json") {
-		return new RecordSerializerJson();
-	}
-#if ENABLE_MSGPACK
-	else if (name == "msgpack") {
-		return new RecordSerializerMsgPack();
-	}
-#endif
-	else {
-		return nullptr;
-	}
+shared_ptr<RecordSerializer> RecordSerializer::create(const string& name) {
+	if (name == "json") return make_shared<RecordSerializerJson>();
+	return nullptr;
 }
 } // namespace flexisip

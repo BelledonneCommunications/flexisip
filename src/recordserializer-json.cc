@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,127 +18,108 @@
 
 #include "recordserializer.hh"
 
-#include <sofia-sip/sip_protos.h>
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
-#include <flexisip/common.hh>
-
-#include "cJSON.h"
+#include "flexisip/logmanager.hh"
 #include "registrar/extended-contact.hh"
 
 using namespace std;
 using namespace flexisip;
 
-#define CHECK(msg, test)                                                                                               \
-	if (test) {                                                                                                        \
-		LOGE << "Invalid serialized contact " << i << "\n" << str << msg;                                              \
-		cJSON_Delete(root);                                                                                            \
-		return false;                                                                                                  \
-	}
+using json = nlohmann::json;
 
-static inline char* parseOptionalField(cJSON* json, const char* field) {
-	cJSON* cObj = cJSON_GetObjectItem(json, field);
-	return cObj ? cObj->valuestring : NULL;
+static json normalizeKeys(const json& j) {
+	json normalized;
+	for (auto it = j.begin(); it != j.end(); ++it) {
+		normalized[string_utils::toLower(it.key())] = it.value();
+	}
+	return normalized;
 }
 
-bool RecordSerializerJson::parse(const char* str, [[maybe_unused]] int len, Record* r) {
-	if (!str) return true;
-
-	cJSON* root = cJSON_Parse(str);
-	if (!root) {
-		LOGE << "Error parsing JSON contact: [" << cJSON_GetErrorPtr() << "]";
+bool RecordSerializerJson::parse(string_view str, Record& r) {
+	if (str.empty()) return true;
+	json root{};
+	try {
+		root = json::parse(str);
+	} catch (const json::parse_error& e) {
+		LOGE << "Error while parsing JSON contact (" << e.what() << ")";
 		return false;
 	}
-	cJSON* contact = cJSON_GetObjectItem(root, "contacts");
+	try {
+		// The access to the item must be case-insensitive
+		root = normalizeKeys(root);
+		int itemId = 0;
+		for (auto& jsonData : root.at("contacts")) {
+			jsonData = normalizeKeys(jsonData);
+			const string sipContact{jsonData["contact"]};
+			if (sipContact.empty()) throw invalid_argument("missing SIP contact URI");
+			const string callId{jsonData["call-id"]};
+			if (callId.empty()) throw invalid_argument("missing call-id");
+			const time_t expire{jsonData["expires-at"]};
+			const time_t updateTime{jsonData["update-time"]};
+			const int cseq{jsonData["cseq"]};
 
-	int i = 0;
-	while (contact && contact->child) {
-		const char* sip_contact = cJSON_GetObjectItem(contact->child, "contact")->valuestring;
-		time_t expire = cJSON_GetObjectItem(contact->child, "expires-at")->valuedouble;
-		float q = cJSON_GetObjectItem(contact->child, "q")->valuedouble;
-		const char* lineValue = parseOptionalField(contact->child, "unique-id");
-		const char* route = parseOptionalField(contact->child, "path");
-		const char* contactId = cJSON_GetObjectItem(contact->child, "contact-id")->valuestring;
-		time_t update_time = cJSON_GetObjectItem(contact->child, "update-time")->valuedouble;
-		char* call_id = cJSON_GetObjectItem(contact->child, "call-id")->valuestring;
-		int cseq = cJSON_GetObjectItem(contact->child, "cseq")->valueint;
-		bool alias = cJSON_GetObjectItem(contact->child, "alias")->valueint != 0;
-		cJSON* path = cJSON_GetObjectItem(contact->child, "path");
-		cJSON* accept = cJSON_GetObjectItem(contact->child, "accept");
+			// Optional attributes
+			const bool alias{static_cast<bool>(jsonData.value<int>("alias", 0))};
+			const list<string> acceptHeaders{jsonData["accept"].cbegin(), jsonData["accept"].cend()};
+			const string userAgent{jsonData.value<string>("user-agent", "")};
+			const float q{jsonData.value<float>("q", 1.0)};
+			const string lineValue{jsonData.value<string>("unique-id", "")};
+			const list<string> stlpath{jsonData["path"].cbegin(), jsonData["path"].cend()};
 
-		CHECK(" no sip_contact", !sip_contact || sip_contact[0] == 0);
-		CHECK(" no contactId", !contactId || contactId[0] == 0);
-		// CHECK_VAL("malformed sip contact", sip_contact[0] != '<', sip_contact);
-		CHECK("no expire", !expire);
-		CHECK("no updatetime", !update_time);
-		CHECK("no callid", !call_id || call_id[0] == 0);
-		CHECK("no callid", !call_id || call_id[0] == 0);
+			ExtendedContactCommon ec(stlpath, callId, lineValue);
+			r.update(ec, sipContact.c_str(), expire, q, cseq, updateTime, alias, acceptHeaders, false, nullptr);
 
-		std::list<std::string> stlpath;
-		if (route) stlpath.push_back(route);
-		for (int p = 0; p < cJSON_GetArraySize(path); p++) {
-			stlpath.push_back(cJSON_GetArrayItem(path, p)->valuestring);
+			if (r.count() < itemId + 1) {
+				LOGE << "Cannot update record for contact " << sipContact;
+				return false;
+			}
+			r.getExtendedContacts().latest()->get()->mUserAgent = userAgent;
+			if (jsonData.contains("q")) {
+				const auto currentQ = r.getExtendedContacts().latest()->get()->mQ;
+				if (currentQ != q) {
+					LOGW << "Priority parameter q in contact is not updated to given value (" << q
+					     << "), keep current one (" << currentQ << ")";
+				}
+			}
+			itemId++;
 		}
+	} catch (const json::parse_error& e) {
+		LOGE << "Error while parsing JSON contact (" << e.what() << ")";
+		return false;
+	} catch (const json::type_error& e) {
+		LOGE << "Error while getting data from JSON contact (" << e.what() << ")";
+		return false;
+	} catch (const exception& e) {
+		LOGE << "Error while getting JSON contact (" << e.what() << ")";
 
-		std::list<std::string> acceptHeaders;
-		for (int p = 0; p < cJSON_GetArraySize(accept); p++) {
-			acceptHeaders.push_back(cJSON_GetArrayItem(accept, p)->valuestring);
-		}
-
-		ExtendedContactCommon ecc(stlpath, call_id, lineValue);
-		r->update(ecc, sip_contact, expire, q, cseq, update_time, alias, acceptHeaders, false, NULL);
-		contact = contact->next;
-		++i;
+		return false;
 	}
 
-	cJSON_Delete(root);
 	return true;
 }
 
-bool RecordSerializerJson::serialize(Record* r, string& serialized, bool log) {
-	if (!r) return true;
+bool RecordSerializerJson::serialize(const Record& r, string& serialized, bool log) {
 
-	auto ecs = r->getExtendedContacts();
-	cJSON* root = cJSON_CreateObject();
-	cJSON* contacts = cJSON_CreateArray();
-	cJSON_AddItemToObject(root, "contacts", contacts);
-	for (auto it = ecs.begin(); it != ecs.end(); ++it) {
-		cJSON* c = cJSON_CreateObject();
-		cJSON_AddItemToArray(contacts, c);
-		cJSON* path = cJSON_CreateArray();
-
-		cJSON* acceptHeaders = cJSON_CreateArray();
-
-		shared_ptr<ExtendedContact> ec = *it;
-		cJSON_AddStringToObject(c, "contact", ExtendedContact::urlToString(ec->mSipContact->m_url).c_str());
-		cJSON_AddItemToObject(c, "path", path);
-		cJSON_AddNumberToObject(c, "expires-at", ec->getSipExpireTime());
-		cJSON_AddNumberToObject(c, "q", ec->mQ ? ec->mQ : 0);
-		cJSON_AddStringToObject(c, "unique-id", ec->mKey.str().c_str());
-
-		cJSON_AddStringToObject(c, "user-agent", ec->getUserAgent().c_str());
-
-		cJSON_AddStringToObject(c, "call-id", ec->callId());
-		cJSON_AddNumberToObject(c, "cseq", ec->mCSeq);
-		cJSON_AddItemToObject(c, "accept", acceptHeaders);
-		cJSON_AddNumberToObject(c, "alias", ec->mAlias ? 1 : 0);
-		cJSON_AddNumberToObject(c, "update-time", ec->getRegisterTime());
-
-		for (auto pit = ec->mPath.cbegin(); pit != ec->mPath.cend(); ++pit) {
-			cJSON* pitem = cJSON_CreateString(pit->c_str());
-			cJSON_AddItemToArray(path, pitem);
-		}
-		for (auto pit = ec->mAcceptHeader.cbegin(); pit != ec->mAcceptHeader.cend(); ++pit) {
-			cJSON* pitem = cJSON_CreateString(pit->c_str());
-			cJSON_AddItemToArray(acceptHeaders, pitem);
-		}
+	nlohmann::json root{};
+	root["contacts"] = nlohmann::json::array();
+	for (const auto& ec : r.getExtendedContacts()) {
+		nlohmann::json jsonContact{};
+		jsonContact["contact"] = ExtendedContact::urlToString(ec->mSipContact->m_url);
+		jsonContact["expires-at"] = ec->getSipExpireTime();
+		jsonContact["q"] = ec->mQ;
+		jsonContact["unique-id"] = ec->mKey.str();
+		jsonContact["user-agent"] = ec->getUserAgent();
+		jsonContact["call-id"] = ec->callId();
+		jsonContact["cseq"] = ec->mCSeq;
+		jsonContact["alias"] = ec->mAlias ? 1 : 0;
+		jsonContact["update-time"] = ec->getRegisterTime();
+		jsonContact["path"] = ec->mPath;
+		jsonContact["accept"] = ec->mAcceptHeader;
+		root["contacts"].push_back(jsonContact);
 	}
-
-	char* contacts_str = cJSON_Print(root);
-	if (!contacts_str) return false;
-	serialized.assign(contacts_str);
+	serialized = root.dump(1, '\t');
+	if (serialized.empty()) return false;
 	if (log) LOGI << "Serialized contact: " << serialized;
-
-	cJSON_Delete(root);
-	free(contacts_str);
 	return true;
 }

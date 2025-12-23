@@ -78,7 +78,6 @@ debian13-coverage:
       -instr-profile=default.profdata
       include/flexisip
       src
-      --ignore-filename-regex=cJSON
       --ignore-filename-regex=libxsd
       --ignore-filename-regex=linphone-sdk
       --ignore-filename-regex=src/lib/

@@ -96,7 +96,9 @@ Group changes to describe their impact on the project, as follows:
 - **Configuration:** Parameters of type `StringList` can no longer be declared using the character `','` to separate
   each element.
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
-
+- **Registrar:** 
+    - Unused `ctdumper` and `serializer` tools.
+    - MSGPACK feature (deprecated in 2.4.0).
 
 ## [2.5.0]
 - **SDK version:** 5.4.74
