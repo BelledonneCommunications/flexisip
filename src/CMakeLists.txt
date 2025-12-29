@@ -188,7 +188,6 @@ endif()
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip
 	PRIVATE
-	bctoolbox
 	belr
 	LibNgHttp2
 	ortp
@@ -196,6 +195,7 @@ target_link_libraries(flexisip
 	Threads::Threads
 	PUBLIC
 	sofia-sip-ua
+	bctoolbox
 )
 if(ENABLE_UNIT_TESTS)
 	target_link_libraries(flexisip PRIVATE bctoolbox-tester)
@@ -358,7 +358,7 @@ install(TARGETS flexisip flexisip_server
 )
 
 add_executable(flexisip_pusher tools/pusher.cc)
-target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2 bctoolbox)
+target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
 install(TARGETS flexisip_pusher
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -367,7 +367,7 @@ install(TARGETS flexisip_pusher
 )
 
 add_executable(flexisip_serializer tools/serializer.cc)
-target_link_libraries(flexisip_serializer flexisip bctoolbox)
+target_link_libraries(flexisip_serializer flexisip)
 install(TARGETS flexisip_serializer
 	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
