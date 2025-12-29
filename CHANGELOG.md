@@ -15,7 +15,7 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.5.0]
-- **SDK version:** 5.4.68
+- **SDK version:** 5.4.72
 
 ### [Added]
 - **Proxy:**
@@ -141,7 +141,7 @@ Group changes to describe their impact on the project, as follows:
 
 
 ## [2.4.4]
-- **SDK version:** 5.3.112
+- **SDK version:** 5.3.113
 
 ### [Fixed]
 - **Proxy:**
