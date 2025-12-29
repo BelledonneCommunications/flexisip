@@ -318,6 +318,7 @@ Group changes to describe their impact on the project, as follows:
       (An explanatory message will be logged.)
     - Configuration values (anything to the right of an `=` sign in the config file) can now be 10x larger (up to
       20KiB = 20480 ASCII characters), allowing for e.g. long and complex filter expressions.
+    - The TLS certificates of the transports MUST not be expired (or Flexisip will not start).
 - **Proxy/PushNotification:** Invite/Cancel feature is now only used for Apple voip push notifications.
 - **Proxy/NatHelper:** Parameter `module::NatHelper/contact-verified-param` is
   renamed `module::NatHelper/contact-correction-param`.
