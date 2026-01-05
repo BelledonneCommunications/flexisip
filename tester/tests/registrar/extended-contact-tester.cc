@@ -60,7 +60,8 @@ void qValueConstructorTests() {
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105;transport=udp"},
 	                      msgExpiresName, 0.55555555, 0.556);
 	qValueConstructorTest(
-	    SipUri{"sip:kijou@sip.linphone.org;maddr=192.0.0.1;transport=tls;tls-certificates-dir=path_a "},
+	    SipUri{"sip:kijou@sip.linphone.org;maddr=192.0.0.1;transport=tls;tls-certificates-file=path_a/"
+	           "agent.pem;tls-certificates-private-key=path_a/agent.pem;tls-certificates-ca-file=path_a/cafile.pem "},
 	    string{"sip:185.11.220.105;transport=udp"}, msgExpiresName, 0.5, 0.5);
 	qValueConstructorTest(SipUri{"sip:kijou@sip.linphone.org:4242"}, string{"sip:185.11.220.105:420;transport=udp"},
 	                      msgExpiresName, 1.42, 1.0);

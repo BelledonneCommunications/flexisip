@@ -97,11 +97,8 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	        " where:\n"
 	        " <local domain name> is a domain name managed locally by this proxy\n"
 	        " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
-	        "parameters are understood but are ALL deprecated, it is advised to use 'global/transports' section to "
+	        "parameters are understood but are deprecated, it is advised to use 'global/transports' section to "
 	        "specify the TLS configuration:\n"
-	        " - 'tls-certificates-dir': specify a TLS client certificate to present to the remote proxy. This is "
-	        "deprecated and will be removed in 2.6.0, you may use 'tls-certificates-file', "
-	        "'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.\n"
 	        " - 'tls-certificates-file': file path, certificate file to present to the remote proxy.\n"
 	        " - 'tls-certificates-private-key': file path containing the private key.\n"
 	        " - 'tls-certificates-ca-file': file path, Certificate Authoity to verify the certificates received from "
@@ -291,7 +288,6 @@ int DomainRegistrationManager::load(const string& passphrase) {
 		if (clientTlsConf.mode != TlsMode::NONE) {
 			LOGW << "Be careful you are using a deprecated config by specifying certificates in the domain "
 			        "registrations file. Use the global section instead.";
-			url.removeParam("tls-certificates-dir");
 			url.removeParam("tls-certificates-file");
 			url.removeParam("tls-certificates-private-key");
 			url.removeParam("tls-certificates-ca-file");
@@ -417,19 +413,12 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 				auto* tportUri = url_format(mHome.home(), "sips:%s:0;maddr=%s", name->tpn_canon, name->tpn_host);
 
 				// Need to add a new tport because we want to use a specific certificate for this connection.
-				if (clientCertConf.mode == TlsMode::OLD) {
-					nta_agent_add_tport(agent, (url_string_t*)tportUri,
-					                    TPTAG_CERTIFICATE(clientCertConf.certifDir.c_str()),
-					                    TPTAG_TLS_PASSPHRASE(passphrase.c_str()), TPTAG_IDENT(localDomain.c_str()),
-					                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
-				} else {
-					nta_agent_add_tport(agent, (url_string_t*)tportUri,
-					                    TPTAG_CERTIFICATE_FILE(clientCertConf.certifFile.c_str()),
-					                    TPTAG_CERTIFICATE_PRIVATE_KEY(clientCertConf.certifPrivateKey.c_str()),
-					                    TPTAG_CERTIFICATE_CA_FILE(clientCertConf.certifCaFile.c_str()),
-					                    TPTAG_TLS_PASSPHRASE(passphrase.c_str()), TPTAG_IDENT(localDomain.c_str()),
-					                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
-				}
+				nta_agent_add_tport(agent, (url_string_t*)tportUri,
+				                    TPTAG_CERTIFICATE_FILE(clientCertConf.certifFile.c_str()),
+				                    TPTAG_CERTIFICATE_PRIVATE_KEY(clientCertConf.certifPrivateKey.c_str()),
+				                    TPTAG_CERTIFICATE_CA_FILE(clientCertConf.certifCaFile.c_str()),
+				                    TPTAG_TLS_PASSPHRASE(passphrase.c_str()), TPTAG_IDENT(localDomain.c_str()),
+				                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
 
 				tpn.tpn_ident = localDomain.c_str();
 				mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);

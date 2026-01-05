@@ -898,9 +898,6 @@ ConfigManager::ConfigManager()
 	        "transports).\n"
 	        "\n"
 	        "The 'sips' transport definition accepts some optional parameters:\n"
-	        " - 'tls-certificates-dir': path, has the same meaning as the 'tls-certificates-dir' parameter of this "
-	        "section (overriding only applies for the current SIP URI). Deprecated since Flexisip 2.5, use "
-	        "'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.\n"
 	        " - 'tls-certificates-file': file path, has the same meaning as the 'tls-certificates-file' parameter of "
 	        "this section (overriding only applies for the current SIP URI).\n"
 	        " - 'tls-certificates-private-key': file path, has the same meaning as the 'tls-certificates-private-key' "
@@ -1012,17 +1009,6 @@ ConfigManager::ConfigManager()
 
 	    // TLS settings.
 	    {
-	        String,
-	        "tls-certificates-dir",
-	        "Path to the directory where TLS server certificates and private keys can be found.\n"
-	        "Certificates must be concatenated inside an 'agent.pem' file. Any chain certificates must be put into a "
-	        "file named 'cafile.pem'. The setup of 'agent.pem', and eventually 'cafile.pem' is required for TLS "
-	        "transport to work.\n"
-	        "Deprecated, use 'tls-certificates-file', 'tls-certificates-private-key' and "
-	        "'tls-certificates-ca-file' instead.",
-	        "/etc/flexisip/tls/",
-	    },
-	    {
 	        DurationMIN,
 	        "tls-certificates-check-interval",
 	        "Interval at which the server will check if TLS certificates have been updated. Apply update once "
@@ -1035,14 +1021,14 @@ ConfigManager::ConfigManager()
 	        "Path to the file containing the server certificate chain.\n"
 	        "The file must be in PEM format, see OpenSSL SSL_CTX_use_certificate_chain_file documentation. If used, "
 	        "'tls-certificates-private-key' MUST be set.",
-	        "",
+	        "/etc/flexisip/tls/agent.pem",
 	    },
 	    {
 	        String,
 	        "tls-certificates-private-key",
 	        "Path to the file containing the private key.\n"
 	        "See OpenSSL SSL_CTX_use_PrivateKey_file documentation. If used, 'tls-certificates-file' MUST be set.",
-	        "",
+	        "/etc/flexisip/tls/agent.pem",
 	    },
 	    {
 	        String,
@@ -1197,10 +1183,6 @@ ConfigManager::ConfigManager()
 	auto uGlobal = make_unique<GenericStruct>("global", "Some global settings of the flexisip proxy.", 2);
 	auto global = mConfigRoot.addChild(std::move(uGlobal));
 	global->addChildrenValues(global_conf);
-	global->get<ConfigString>("tls-certificates-dir")
-	    ->setDeprecated({"2022-01-04", "2.2.0",
-	                     "Prefer the new way of declaring TLS certificate with 'tls-certificates-file', "
-	                     "'tls-certificates-private-key' and 'tls-certificates-ca-file'. "});
 	global->setConfigListener(this);
 
 	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);

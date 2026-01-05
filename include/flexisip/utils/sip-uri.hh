@@ -68,9 +68,8 @@ public:
 	using logic_error::logic_error;
 };
 
-enum class TlsMode : uint8_t { NONE, OLD, NEW };
+enum class TlsMode : uint8_t { NONE, FILES };
 struct TlsConfigInfo {
-	std::string certifDir{};
 	std::string certifFile{};
 	std::string certifPrivateKey{};
 	std::string certifCaFile{};
@@ -191,7 +190,7 @@ public:
 	 *
 	 * @throw UrlModificationError if the Url is empty
 	 */
-	Url replace(const char* url_t::*attribute, std::string_view value) const;
+	Url replace(const char* url_t::* attribute, std::string_view value) const;
 	/**
 	 * Replace or insert a URI parameter.
 	 */

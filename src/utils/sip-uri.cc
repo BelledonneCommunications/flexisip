@@ -181,31 +181,16 @@ bool Url::compareAll(const Url& other) const {
 
 TlsConfigInfo Url::getTlsConfigInfo() const {
 	TlsConfigInfo tlsConfigInfo{};
-	tlsConfigInfo.certifDir = getParam("tls-certificates-dir");
-
 	tlsConfigInfo.certifFile = getParam("tls-certificates-file");
 	tlsConfigInfo.certifPrivateKey = getParam("tls-certificates-private-key");
 	tlsConfigInfo.certifCaFile = getParam("tls-certificates-ca-file");
 
-	if (!tlsConfigInfo.certifDir.empty() && !tlsConfigInfo.certifFile.empty()) {
-		throw flexisip::BadConfiguration{
-		    "transport can't use tls-certificates-dir AND tls-certificates-file/tls-certificates-private-key"};
-	}
 	if (tlsConfigInfo.certifFile.empty() != tlsConfigInfo.certifPrivateKey.empty()) {
 		throw flexisip::BadConfiguration{"if you specified tls-certificates-file in transport you MUST specify "
 		                                 "tls-certificates-private-key too and vice versa"};
 	}
-	if (!tlsConfigInfo.certifDir.empty()) {
-		tlsConfigInfo.mode = TlsMode::OLD;
-		LOGW_CTX("Url::getTlsConfigInfo")
-		    << "Be careful you are using a deprecated config 'tls-certificates-dir', it will be removed in Flexisip "
-		       "2.6. Use 'tls-certificates-file','tls-certificates-private-key' and 'tls-certificates-ca-file' "
-		       "instead.";
-
-		return tlsConfigInfo;
-	}
 	if (!tlsConfigInfo.certifFile.empty()) {
-		tlsConfigInfo.mode = TlsMode::NEW;
+		tlsConfigInfo.mode = TlsMode::FILES;
 
 		return tlsConfigInfo;
 	}
@@ -220,12 +205,7 @@ void Url::removeParam(const string& paramName) {
 bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs) {
 	if (lhs.mode == TlsMode::NONE && rhs.mode == TlsMode::NONE) {
 		return true;
-	} else if (lhs.mode == TlsMode::OLD && rhs.mode == TlsMode::OLD) {
-		if (lhs.certifDir == rhs.certifDir) {
-			return true;
-		}
-		return false;
-	} else if (lhs.mode == TlsMode::NEW && rhs.mode == TlsMode::NEW) {
+	} else if (lhs.mode == TlsMode::FILES && rhs.mode == TlsMode::FILES) {
 		if (lhs.certifFile == rhs.certifFile && lhs.certifPrivateKey == rhs.certifPrivateKey &&
 		    lhs.certifCaFile == rhs.certifCaFile) {
 			return true;

@@ -57,7 +57,9 @@ private:
 		certificate.appendToFile(pemPath);
 
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigString>("tls-certificates-dir")->set(mTmpDir.path());
+		globalCfg->get<ConfigString>("tls-certificates-file")->set(mTmpDir.path() / "agent.pem");
+		globalCfg->get<ConfigString>("tls-certificates-private-key")->set(mTmpDir.path() / "agent.pem");
+		globalCfg->get<ConfigString>("tls-certificates-ca-file")->set(mTmpDir.path() / "cafile.pem");
 		globalCfg->get<ConfigStringList>("transports")->set("sips:localhost:6060;maddr=127.0.0.2 sips:localhost:6062");
 		globalCfg->get<ConfigStringList>("aliases")->set("localhost aRandomAlias 8.8.8.8");
 
@@ -129,8 +131,7 @@ public:
 
 protected:
 	template <typename T>
-	TransportConfig(T&& protoName) : mProtoName{std::forward<T>(protoName)} {
-	}
+	TransportConfig(T&& protoName) : mProtoName{std::forward<T>(protoName)} {}
 
 	string mHost{"127.0.0.1"}; /**< Listening address of the Agent */
 	string mPort{"6060"};      /**< Listening port of the Agent */
@@ -143,8 +144,7 @@ protected:
  */
 class TcpConfig : public TransportConfig {
 public:
-	TcpConfig() : TransportConfig("TCP") {
-	}
+	TcpConfig() : TransportConfig("TCP") {}
 
 	unique_ptr<TlsConnection> makeConnection() override {
 		return make_unique<TlsConnection>(mHost, mPort, "", "");
@@ -163,6 +163,8 @@ public:
  */
 class TlsConfig : public TransportConfig {
 public:
+	TlsConfig() : TransportConfig("TLS") {}
+
 	unique_ptr<TlsConnection> makeConnection() override {
 		return make_unique<TlsConnection>(mHost, mPort);
 	}
@@ -173,45 +175,12 @@ public:
 
 		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigStringList>("transports")->set(transport.str());
-	}
-
-protected:
-	TlsConfig() : TransportConfig("TLS") {
-	}
-};
-
-/**
- * Config to test TLS transport by using the new parameters to set the certificate and the private key.
- */
-class NewTlsConfig : public TlsConfig {
-public:
-	using TlsConfig::TlsConfig;
-
-	void configureAgent(ConfigManager& cfg) override {
-		TlsConfig::configureAgent(cfg);
 
 		auto certfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.cert.test.pem";
 		auto keyfile = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.key.test.pem";
 
-		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
 		globalCfg->get<ConfigString>("tls-certificates-file")->set(certfile);
 		globalCfg->get<ConfigString>("tls-certificates-private-key")->set(keyfile);
-	}
-};
-
-/**
- * Same as #NewTlsConfig but use the legacy parameters.
- */
-class LegacyTlsConfig : public TlsConfig {
-public:
-	using TlsConfig::TlsConfig;
-
-	void configureAgent(ConfigManager& cfg) override {
-		TlsConfig::configureAgent(cfg);
-
-		auto certDir = static_cast<string>(bc_tester_get_resource_dir_prefix()) + "/cert/self.signed.legacy";
-		auto* globalCfg = cfg.getRoot()->get<GenericStruct>("global");
-		globalCfg->get<ConfigString>("tls-certificates-dir")->set(certDir);
 	}
 };
 
@@ -220,8 +189,7 @@ public:
  */
 class InternalTransportConfig : public TransportConfig {
 public:
-	InternalTransportConfig() : TransportConfig("TCP") {
-	}
+	InternalTransportConfig() : TransportConfig("TCP") {}
 
 	unique_ptr<TlsConnection> makeConnection() override {
 		return make_unique<TlsConnection>(mHost, mPort, "", "");
@@ -254,8 +222,7 @@ class TransportTest : public AgentTest {
 protected:
 	unique_ptr<TransportConfig> mConfig;
 
-	TransportTest(unique_ptr<TransportConfig>&& config) : mConfig(std::move(config)) {
-	}
+	TransportTest(unique_ptr<TransportConfig>&& config) : mConfig(std::move(config)) {}
 
 	unique_ptr<TlsConnection> connect() {
 		auto conn = mConfig->makeConnection();
@@ -331,8 +298,7 @@ private:
  */
 class RFC5626KeepAliveWithCRLFBase : public TransportTest {
 protected:
-	RFC5626KeepAliveWithCRLFBase(unique_ptr<TransportConfig>&& config) : TransportTest(std::move(config)) {
-	}
+	RFC5626KeepAliveWithCRLFBase(unique_ptr<TransportConfig>&& config) : TransportTest(std::move(config)) {}
 
 private:
 	// Private methods
@@ -376,8 +342,7 @@ private:
 
 class CSeqIsCheckedOnRegisterWithoutInstanceId : public TransportTest {
 public:
-	CSeqIsCheckedOnRegisterWithoutInstanceId() : TransportTest(make_unique<TcpConfig>()) {
-	}
+	CSeqIsCheckedOnRegisterWithoutInstanceId() : TransportTest(make_unique<TcpConfig>()) {}
 
 private:
 	void testExec() override {
@@ -417,8 +382,7 @@ private:
 template <typename ConfigT>
 class RFC5626KeepAliveWithCRLF : public RFC5626KeepAliveWithCRLFBase {
 public:
-	RFC5626KeepAliveWithCRLF() : RFC5626KeepAliveWithCRLFBase{make_unique<ConfigT>()} {
-	}
+	RFC5626KeepAliveWithCRLF() : RFC5626KeepAliveWithCRLFBase{make_unique<ConfigT>()} {}
 };
 
 class ReplyToOptionRequestTest : public AgentTest {
@@ -600,8 +564,7 @@ void validNetworkParameterUsage() {
 }
 
 using TCP = TcpConfig;
-using NewTLS = NewTlsConfig;
-using LegacyTLS = LegacyTlsConfig;
+using TLS = TlsConfig;
 using InternalTransport = InternalTransportConfig;
 
 TestSuite _{
@@ -612,8 +575,7 @@ TestSuite _{
 #endif
         CLASSY_TEST(CSeqIsCheckedOnRegisterWithoutInstanceId),
         CLASSY_TEST(RFC5626KeepAliveWithCRLF<TCP>),
-        CLASSY_TEST(RFC5626KeepAliveWithCRLF<NewTLS>),
-        CLASSY_TEST(RFC5626KeepAliveWithCRLF<LegacyTLS>),
+        CLASSY_TEST(RFC5626KeepAliveWithCRLF<TLS>),
         CLASSY_TEST(RFC5626KeepAliveWithCRLF<InternalTransport>),
         CLASSY_TEST(RFC5626KeepAliveWithCRLF<OutboundNotSupported>),
         CLASSY_TEST(ReplyToOptionRequestTest),

@@ -250,7 +250,6 @@ void verifyAllowedParameters(const url_t* url) {
 
 	// Remove all the allowed params and see if something else is remaining at the end.
 	char* params = su_strdup(home.home(), url->url_params);
-	params = url_strip_param_string(params, "tls-certificates-dir");
 	params = url_strip_param_string(params, "tls-certificates-file");
 	params = url_strip_param_string(params, "tls-certificates-private-key");
 	params = url_strip_param_string(params, "tls-certificates-ca-file");
@@ -526,17 +525,6 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				    TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize),
 				    TPTAG_SERVER(0), TPTAG_PUBLIC(tport_type_client), TAG_END());
-			} else if (finalTlsConfigInfo.mode == TlsMode::OLD) {
-				finalTlsConfigInfo.certifDir = absolutePath(currDir, finalTlsConfigInfo.certifDir);
-
-				err = nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
-				                          TPTAG_CERTIFICATE(finalTlsConfigInfo.certifDir.c_str()),
-				                          TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
-				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
-				                          TPTAG_QUEUESIZE(queueSize), TPTAG_NETWORK(networkParameter.c_str()),
-				                          TPTAG_SERVER(!isClientTport), TPTAG_PUBLIC(publicTag), TAG_END());
 			} else {
 				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
 				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
@@ -699,7 +687,6 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 	TlsConfigInfo tlsConfigInfoFromConf{};
-	tlsConfigInfoFromConf.certifDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	tlsConfigInfoFromConf.certifFile = global->get<ConfigString>("tls-certificates-file")->read();
 	tlsConfigInfoFromConf.certifPrivateKey = global->get<ConfigString>("tls-certificates-private-key")->read();
 	tlsConfigInfoFromConf.certifCaFile = global->get<ConfigString>("tls-certificates-ca-file")->read();
@@ -708,17 +695,11 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 		    "if you specified tls-certificates-file you MUST specify tls-certificates-private-key too and vice versa"};
 	}
 	if (!tlsConfigInfoFromConf.certifFile.empty()) {
-		tlsConfigInfoFromConf.mode = TlsMode::NEW;
+		tlsConfigInfoFromConf.mode = TlsMode::FILES;
 		LOGI << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
 		     << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file [" << tlsConfigInfoFromConf.certifCaFile
 		     << "]";
 
-	} else if (!tlsConfigInfoFromConf.certifDir.empty()) {
-		tlsConfigInfoFromConf.mode = TlsMode::OLD;
-		LOGI << "Main tls certs dir: " << tlsConfigInfoFromConf.certifDir;
-		LOGW << "Be careful you are using a deprecated config 'tls-certificates-dir', it will be removed in Flexisip "
-		        "2.6. Use 'tls-certificates-file','tls-certificates-private-key' and 'tls-certificates-ca-file' "
-		        "instead.";
 	}
 
 	return tlsConfigInfoFromConf;

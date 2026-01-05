@@ -101,6 +101,9 @@ Group changes to describe their impact on the project, as follows:
 - **Configuration:** Parameters of type `StringList` can no longer be declared using the character `','` to separate
   each element.
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
+- **Global:**
+  - Parameter `global/tls-certificates-dir` (deprecated in 2.2.0)
+  - `tls-certificates-dir` was removed from transports parameters (deprecated in 2.2.0)
 - **Registrar:** 
     - Unused `ctdumper` and `serializer` tools.
     - MSGPACK feature (deprecated in 2.4.0).

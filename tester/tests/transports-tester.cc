@@ -49,7 +49,6 @@ void mandatoryCertificatesForServer() {
 
 	Server proxyExplicitlyWithoutCertificates({
 	    {"global/transports", "sips:127.0.0.1:0"},
-	    {"global/tls-certificates-dir", ""},
 	    {"global/tls-certificates-file", ""},
 	    {"global/tls-certificates-private-key", ""},
 	});
@@ -76,7 +75,6 @@ void clientTransport() {
 	Server clientProxy{
 	    {
 	        {"global/transports", "sips:127.0.0.1:0;tls-client-connection=1"},
-	        {"global/tls-certificates-dir", ""},
 	        {"global/tls-certificates-file", ""},
 	        {"global/tls-certificates-private-key", ""},
 	    },
