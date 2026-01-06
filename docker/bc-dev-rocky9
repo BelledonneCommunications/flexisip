@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20251218_use_mysql
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260106_use_mariadb_for_build
 ###############################################################################
 
 FROM rockylinux:9
@@ -53,7 +53,7 @@ RUN dnf makecache --refresh \
         jansson-devel \
         libsqlite3x-devel \
         libpq-devel \
-        mysql-devel \
+        mariadb-devel \
         nghttp2 \
         libnghttp2-devel \
         net-snmp-devel \
