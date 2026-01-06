@@ -210,6 +210,7 @@ void Agent::checkAllowedParams(const url_t* uri) {
 	params = url_strip_param_string(params, "tls-verify-incoming");
 	params = url_strip_param_string(params, "tls-allow-missing-client-certificate");
 	params = url_strip_param_string(params, "tls-verify-outgoing");
+	params = url_strip_param_string(params, "tls-client-connection");
 	// make sure that there is no misstyped params in the url:
 	if (params && strlen(params) > 0)
 		throw runtime_error{"bad parameters '"s + params + "' given in transports definition."};
@@ -398,13 +399,27 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				tls_policy |= TPTLS_VERIFY_OUTGOING | TPTLS_VERIFY_SUBJECTS_OUT;
 			}
 
+			bool isClientTport{};
+			auto publicTag = tport_type_local;
+			if (isClientTport = url.getBoolParam("tls-client-connection", false); isClientTport) {
+				publicTag = tport_type_client;
+			}
+
 			checkAllowedParams(url.get());
 			mPassphrase = passphrase;
 
 			auto uriTlsConfigInfo = url.getTlsConfigInfo();
-			auto finalTlsConfigInfo =
-			    uriTlsConfigInfo.mode != TlsMode::NONE ? std::move(uriTlsConfigInfo) : mainTlsConfigInfo;
-			if (finalTlsConfigInfo.mode == TlsMode::OLD) {
+			auto finalTlsConfigInfo = uriTlsConfigInfo.mode != TlsMode::NONE || isClientTport
+			                              ? std::move(uriTlsConfigInfo)
+			                              : mainTlsConfigInfo;
+			if (isClientTport && finalTlsConfigInfo.mode == TlsMode::NONE) {
+				err = nta_agent_add_tport(
+				    mAgent, reinterpret_cast<const url_string_t*>(url.get()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
+				    TPTAG_TLS_CIPHERS(ciphers.c_str()), TPTAG_TLS_VERIFY_POLICY(tls_policy),
+				    TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize),
+				    TPTAG_SERVER(0), TPTAG_PUBLIC(tport_type_client), TAG_END());
+			} else if (finalTlsConfigInfo.mode == TlsMode::OLD) {
 				finalTlsConfigInfo.certifDir = absolutePath(currDir, finalTlsConfigInfo.certifDir);
 
 				err = nta_agent_add_tport(
@@ -412,7 +427,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				    TPTAG_CERTIFICATE(finalTlsConfigInfo.certifDir.c_str()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
 				    TPTAG_TLS_CIPHERS(ciphers.c_str()), TPTAG_TLS_VERIFY_POLICY(tls_policy),
 				    TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TAG_END());
+				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize),
+				    TPTAG_SERVER(!isClientTport), TPTAG_PUBLIC(publicTag), TAG_END());
 			} else {
 				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
 				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
@@ -426,7 +442,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
 				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
-				                          TPTAG_QUEUESIZE(queueSize), TAG_END());
+				                          TPTAG_QUEUESIZE(queueSize), TPTAG_SERVER(!isClientTport),
+				                          TPTAG_PUBLIC(publicTag), TAG_END());
 				if (!err) {
 					try {
 						auto lastUpdateTime = getLastCertUpdate(finalTlsConfigInfo);
@@ -617,7 +634,7 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 		     << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file [" << tlsConfigInfoFromConf.certifCaFile
 		     << "]";
 
-	} else {
+	} else if (!tlsConfigInfoFromConf.certifDir.empty()) {
 		tlsConfigInfoFromConf.mode = TlsMode::OLD;
 		LOGI << "Main tls certs dir: " << tlsConfigInfoFromConf.certifDir
 		     << " (be careful you are using a deprecated config tls-certificates-dir)";

@@ -151,6 +151,10 @@ Group changes to describe their impact on the project, as follows:
 ## [2.4.4]
 - **SDK version:** 5.3.113
 
+### [Added]:
+- **Configuration:** New SIPS URI parameter `tls-client-connection` in `global/transports` for creating TLS client 
+  connections. Certificates are optional for these transports.
+
 ### [Fixed]
 - **Proxy:**
   - **SanityChecker:** check that the From and To URI do not contain extra '@' or '\\' character.
