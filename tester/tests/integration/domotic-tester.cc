@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,8 @@
 
 #include "sofia-wrapper/nta-agent.hh"
 #include "tester.hh"
+#include "utils/client-builder.hh"
+#include "utils/client-call.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/server/redis-server.hh"
@@ -53,12 +55,27 @@ namespace {
  *                       |                                 | ------------------------------> |
  */
 
-// REGISTER a mobile user and check that a doorbell INVITE is correctly sent to the user
+/*
+ * Register a client at home which may be a doorbell and another one outside.
+ * Ensure that calls may be established both ways.
+ *
+ * It checks:
+ *  - domain-registrations on client and remote sides
+ *  - reg-on-response
+ *  - Record-Route insertion in the domain registration case
+ *  - TLS client transport
+ */
 void localAndPublicProxies() {
+	auto root = make_shared<sofiasip::SuRoot>();
 	RedisServer redis{};
 	const string domain = "sip.example.org";
+	const auto certFilePath = bcTesterRes("cert/self.signed.cert.test.pem");
+	const auto keyFilePath = bcTesterRes("cert/self.signed.key.test.pem");
 
 	Server cloudProxy({
+	    {"global/transports", "sips:127.0.0.1:0"},
+	    {"global/tls-certificates-file", certFilePath},
+	    {"global/tls-certificates-private-key", keyFilePath},
 	    {"inter-domain-connections/accept-domain-registrations", "true"},
 	    {"inter-domain-connections/relay-reg-to-domains", "true"},
 	    {"inter-domain-connections/relay-reg-to-domains-regex", domain},
@@ -69,9 +86,11 @@ void localAndPublicProxies() {
 	});
 	cloudProxy.start();
 
-	TempFile domainFile(domain + " <sip:127.0.0.1:"s + cloudProxy.getFirstPort() + ">\n");
+	TempFile domainFile(domain + " <sips:127.0.0.1:"s + cloudProxy.getFirstPort() + ">\n");
+
 	Server homeProxy{
 	    {
+	        {"global/transports", "sip:127.0.0.1:0 sips:127.0.0.1:0;tls-client-connection=1;tls-verify-outgoing=0"},
 	        {"inter-domain-connections/domain-registrations", domainFile.getFilename()},
 	        {"module::Registrar/reg-domains", domain},
 	        {"module::Registrar/enable-gruu", "true"},
@@ -85,65 +104,48 @@ void localAndPublicProxies() {
 	};
 	homeProxy.start();
 
-	CoreAssert asserter{cloudProxy, homeProxy};
-
-	const string sipUri("sip:user@" + domain);
-	const string gruu = "urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6";
+	ClientBuilder homeBuilder{*homeProxy.getAgent()};
+	ClientBuilder cloudBuilder{*cloudProxy.getAgent()};
+	auto homeClient = homeBuilder.build("sip:home@sip.example.org");
+	auto cloudClient = cloudBuilder.build("sip:remote@sip.example.org;transport=tls");
+	CoreAssert asserter{cloudProxy, homeProxy, homeClient, cloudClient};
 
 	{
-		// clang-format off
-		const std::string registerRequest(
-			"REGISTER sip:" + domain + " SIP/2.0\r\n"
-			"From: <" + sipUri + ">;tag=465687829\r\n"
-			"To: <" + sipUri + ">\r\n"
-			"Call-ID: 1053183492" + "\r\n"
-			"CSeq: 20 REGISTER\r\n"
-			"Contact: <sip:user@127.0.0.1>;+sip.instance=\"<" + gruu + ">\"\r\n"
-			"Supported: gruu\r\n"
-			"Expires: 600\r\n"
-			"Content-Length: 0\r\n\r\n");
-		// clang-format on
+		auto homeCall = homeClient.call(cloudClient, cloudClient.getCore()->createAddress("sip:remote@sip.example.org"),
+		                                nullptr, nullptr, {}, cloudProxy.getAgent());
+		auto cloudClientCall = cloudClient.getCurrentCall();
 
-		sofiasip::NtaAgent client{cloudProxy.getRoot(), "sip:127.0.0.1:0"};
-		auto transaction =
-		    client.createOutgoingTransaction(registerRequest, "sip:127.0.0.1:"s + cloudProxy.getFirstPort());
+		ASSERT_PASSED(asserter.iterateUpTo(
+		    50, [&cloudClientCall] { return cloudClientCall->getState() == linphone::Call::State::StreamsRunning; },
+		    1s));
 
-		BC_ASSERT_TRUE(asserter.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 2s));
-
-		auto response = transaction->getResponse();
-		BC_HARD_ASSERT(response != nullptr);
-
-		const auto rawResponse = response->msgAsString();
-		SLOGD << "Server response:\n" << rawResponse;
-		BC_HARD_ASSERT(transaction->getStatus() == 200);
+		BC_ASSERT_CPP_EQUAL(cloudClientCall->terminate(), 0);
+		ASSERT_PASSED(asserter.iterateUpTo(
+		    5,
+		    [&cloudClientCall, &homeCall] {
+			    FAIL_IF(homeCall->getState() != linphone::Call::State::End);
+			    return LOOP_ASSERTION(cloudClientCall->getState() == linphone::Call::State::End);
+		    },
+		    1s));
 	}
 
 	{
+		auto cloudClientCall =
+		    cloudClient.call(homeClient, homeClient.getCore()->createAddress("sip:home@sip.example.org"), nullptr,
+		                     nullptr, {}, homeProxy.getAgent());
+		auto homeClientCall = homeClient.getCurrentCall();
 
-		const string bell("sip:bell@" + domain);
-		// clang-format off
-		string request(
-		    "INVITE "s + sipUri + " SIP/2.0\r\n"
-			"Max-Forwards: 5\r\n"
-			"To: user <" + sipUri + ">\r\n"
-			"From: bell <" + bell + ">;tag=465687829\r\n"
-			"Call-ID: 1053183492\r\n"
-			"CSeq: 10 INVITE\r\n"
-			"Contact: <" + bell + ";transport=tcp>\r\n"
-			"Supported: gruu\r\n"
-			"Content-Type: application/sdp\r\n"
-			"Content-Length: 0\r\n");
-		// clang-format on
-		sofiasip::NtaAgent client{homeProxy.getRoot(), "sip:127.0.0.1:0"};
-		auto transaction = client.createOutgoingTransaction(request, "sip:127.0.0.1:"s + homeProxy.getFirstPort());
-		BC_ASSERT_TRUE(asserter.iterateUpTo(5, [&transaction] { return transaction->isCompleted(); }, 2s));
+		ASSERT_PASSED(asserter.iterateUpTo(
+		    50, [&homeClientCall] { return homeClientCall->getState() == linphone::Call::State::StreamsRunning; }, 1s));
 
-		auto response = transaction->getResponse();
-		BC_HARD_ASSERT(response != nullptr);
-
-		const auto rawResponse = response->msgAsString();
-		SLOGD << "Server response:\n" << rawResponse;
-		BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 503);
+		BC_ASSERT_CPP_EQUAL(homeClientCall->terminate(), 0);
+		ASSERT_PASSED(asserter.iterateUpTo(
+		    5,
+		    [&homeClientCall, &cloudClientCall] {
+			    FAIL_IF(cloudClientCall->getState() != linphone::Call::State::End);
+			    return LOOP_ASSERTION(homeClientCall->getState() == linphone::Call::State::End);
+		    },
+		    1s));
 	}
 }
 
