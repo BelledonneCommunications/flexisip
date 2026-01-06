@@ -1012,10 +1012,15 @@ void ModuleRouter::onRequest(shared_ptr<RequestSipEvent>& ev) {
 		if (!isManagedDomain(requestUri.get())) return;
 
 		if (sip->sip_request->rq_method == sip_method_cancel) {
-			// Handle SipEvent associated with a Stateful transaction
+			// Handle stateless CANCEL requests.
+			const auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+			if (transaction == nullptr) {
+				sendReply(ev, SIP_481_NO_TRANSACTION);
+				return;
+			}
+			// Handle SipEvent associated with a Stateful transaction.
 			ForkContext::processCancel(ev);
-			if (!ev->isTerminated()) sendReply(ev, SIP_481_NO_TRANSACTION);
-			return;
+			if (ev->isTerminated()) return;
 		}
 
 		/*unless in a specific case, REGISTER don't go into the router logic*/

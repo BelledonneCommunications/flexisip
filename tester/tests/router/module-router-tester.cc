@@ -31,10 +31,10 @@
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/string-utils.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/string-utils.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -552,17 +552,64 @@ void statelessCancel() {
 	    .assert_passed();
 }
 
-TestSuite _("RouterModule",
-            {
-                CLASSY_TEST(fallbackRouteFilter),
-                CLASSY_TEST(selfRouteHeaderRemoving),
-                CLASSY_TEST(otherRouteHeaderNotRemoved),
-                CLASSY_TEST(messageExpires<DbImplementation::Internal>),
-                CLASSY_TEST(messageExpires<DbImplementation::Redis>),
-                CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
-                CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
-                CLASSY_TEST(statelessCancel),
-            });
+/**
+ * Test that a CANCEL request received by the proxy during the modification of an existing session (re-INVITE) is not
+ * affected by any specific CANCEL request processing and executes contact fetching.
+ */
+void statefulCancelOnReInvite() {
+	InjectedHooks injectedModule{
+	    .injectAfterModule = {"SanityChecker"},
+	    .onRequest =
+	        [](std::shared_ptr<RequestSipEvent>& ev) {
+		        if (ev->getMsgSip()->getSipMethod() != sip_method_cancel) return;
+		        // Go stateful to simulate a CANCEL in a dialog under modification (no fork context and stateful).
+		        ev->createIncomingTransaction();
+	        },
+	};
+	Server proxy{
+	    {
+	        {"global/aliases", "sip.example.org"},
+	        {"module::DoSProtection/enabled", "false"},
+	        {"module::Registrar/reg-domains", "sip.example.org"},
+	    },
+	    &injectedModule,
+	};
+	proxy.start();
+
+	NtaAgent caller{proxy.getRoot(), "sip:127.0.0.1:0;transport=tcp"};
+
+	stringstream request{};
+	request << "CANCEL sip:caller@sip.example.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:5678\r\n"
+	        << "To: <sip:caller@sip.example.org>\r\n"
+	        << "From: <sip:callee@sip.example.org>;tag=465687829\r\n"
+	        << "Call-ID: 1053183492\r\n"
+	        << "CSeq: 10 CANCEL\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Content-Length: 0\r\n";
+
+	const auto transaction =
+	    caller.createOutgoingTransaction(request.str(), "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp");
+
+	CoreAssert asserter{proxy};
+	asserter.wait([&transaction] { return LOOP_ASSERTION(transaction->isCompleted()); }).hard_assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 404); // User isn't found in the registrar (expected).
+}
+
+TestSuite _{
+    "RouterModule",
+    {
+        CLASSY_TEST(fallbackRouteFilter),
+        CLASSY_TEST(selfRouteHeaderRemoving),
+        CLASSY_TEST(otherRouteHeaderNotRemoved),
+        CLASSY_TEST(messageExpires<DbImplementation::Internal>),
+        CLASSY_TEST(messageExpires<DbImplementation::Redis>),
+        CLASSY_TEST(requestIsAlsoRoutedToStaticTargets),
+        CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
+        CLASSY_TEST(statelessCancel),
+        CLASSY_TEST(statefulCancelOnReInvite),
+    },
+};
 
 } // namespace
 } // namespace flexisip::tester
