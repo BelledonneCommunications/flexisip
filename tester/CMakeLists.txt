@@ -167,6 +167,7 @@ add_executable(flexisip_tester
 	tests/sofia-wrapper/sip-header-tester.cc
 	tests/sofia-wrapper/su-root-tester.cc
 	tests/transaction/outgoing-transaction-tester.cc
+	tests/transports-tester.cc
 	tests/transaction/transaction-tester.cc
 	tests/utils/cast-to-const-tester.cc
 	tests/utils/flow-data-tester.cc
