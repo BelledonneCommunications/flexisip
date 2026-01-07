@@ -217,7 +217,7 @@ void RedisClient::handleReplicationInfoReply(const redis::reply::String& reply) 
 	if (replyMap.find("role") != replyMap.end()) {
 		if (string role = replyMap["role"]; role == "master") {
 			// We are speaking to the master, set the DB as writable and update the list of slaves
-			LOGI << "Redis server is a master";
+			LOGD << "Redis server is a master";
 			if (auto listener = mSessionListener.lock()) {
 				listener->onConnect(REDIS_OK); // TODO should this be called only on first connection ?
 			}
@@ -339,13 +339,13 @@ void RedisClient::handlePingReply(const redis::async::Reply& reply) {
 	mSubSessionState = SubSessionState::ACTIVE;
 
 	if (reply == reply::Status("PONG")) {
-		LOGI << prefix << "PONG (Command-style)";
+		LOGD << prefix << "PONG (Command-style)";
 		return;
 	}
 
 	const auto* array = std::get_if<reply::Array>(&reply);
 	if (array && (*array)[0] == reply::String("pong")) {
-		LOGI << prefix << "PONG (Subscription-style)";
+		LOGD << prefix << "PONG (Subscription-style)";
 		return;
 	}
 
