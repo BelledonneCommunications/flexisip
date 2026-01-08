@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2022 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,7 +21,6 @@
 #include <stdexcept>
 #include <string_view>
 
-#include "sofia-sip/sip_extra.h"
 #include "sofia-sip/url.h"
 
 #include "flexisip/configmanager.hh"
@@ -166,42 +165,14 @@ bool operator==(const TlsConfigInfo& lhs, const TlsConfigInfo& rhs) {
 
 namespace flexisip {
 
-namespace {
-std::pair<bool, std::string> isValidSipUriWithMessage(const sofiasip::Url& url) noexcept {
-	const auto* pUrl = url.get();
-	if (pUrl == nullptr) return std::pair(true, "");
-	if (pUrl->url_scheme == nullptr) return std::pair(false, "no scheme found");
-	std::string scheme = pUrl->url_scheme;
-	std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
-	if (scheme != "sip" && scheme != "sips") {
-		ostringstream os;
-		os << "invalid scheme (" << pUrl->url_scheme << ")";
-		return std::pair(false, os.str());
-	}
-	if (pUrl->url_host == nullptr || pUrl->url_host[0] == '\0') {
-		return std::pair(false, "no host found");
-	}
-	// SIP URIs with two '@' results in host part being "something@somewhere"
-	if (strchr(pUrl->url_host, '@') != nullptr) {
-		return std::pair(false, "forbidden '@' character found in host part");
-	}
-	return std::pair(true, "");
-}
-} // namespace
-
-bool isValidSipUri(const url_t* url) {
-	return isValidSipUriWithMessage(sofiasip::Url(url)).first;
+SipUri::SipUri(std::string_view str) : SipUri(sofiasip::Url(str)) {
 }
 
-SipUri::SipUri(std::string_view str) : sofiasip::Url(str) {
-	checkUrl(*this);
+SipUri::SipUri(const url_t* src) : SipUri(sofiasip::Url(src)) {
 }
 
-SipUri::SipUri(const url_t* src) : sofiasip::Url(src) {
-	checkUrl(*this);
-}
-
-SipUri::SipUri(const sofiasip::Url& src) : SipUri(src.get()) {
+SipUri::SipUri(const sofiasip::Url& src) : sofiasip::Url(src) {
+	checkUrl(src);
 }
 
 SipUri::SipUri(sofiasip::Url&& src) {
@@ -215,8 +186,29 @@ SipUri SipUri::replaceUser(const std::string& newUser) const {
 }
 
 void SipUri::checkUrl(const sofiasip::Url& url) {
-	auto [ok, msg] = isValidSipUriWithMessage(url);
-	if (!ok) throw sofiasip::InvalidUrlError(url.str(), msg);
+	auto parsingError = hasParsingError(url);
+	if (parsingError) throw sofiasip::InvalidUrlError(url.str(), parsingError.value());
+}
+
+optional<std::string> SipUri::hasParsingError(const sofiasip::Url& url) noexcept {
+	const auto* pUrl = url.get();
+	if (pUrl == nullptr) return nullopt;
+	if (pUrl->url_scheme == nullptr) return "no scheme found";
+	std::string scheme = pUrl->url_scheme;
+	std::transform(scheme.begin(), scheme.end(), scheme.begin(), ::tolower);
+	if (scheme != "sip" && scheme != "sips") {
+		ostringstream os;
+		os << "invalid scheme (" << pUrl->url_scheme << ")";
+		return os.str();
+	}
+	if (pUrl->url_host == nullptr || pUrl->url_host[0] == '\0') {
+		return "no host found";
+	}
+	// SIP URIs with two '@' results in host part being "something@somewhere"
+	if (strchr(pUrl->url_host, '@') != nullptr) {
+		return "forbidden '@' character found in host part";
+	}
+	return nullopt;
 }
 
 SipUri::Params::Params(const char* c) {
