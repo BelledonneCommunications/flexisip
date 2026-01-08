@@ -1,14 +1,62 @@
-/** Copyright (C) 2010-2022 Belledonne Communications SARL
- *  SPDX-License-Identifier: AGPL-3.0-or-later
- */
+/*
+    Flexisip, a flexible SIP proxy server with media capabilities.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as
+    published by the Free Software Foundation, either version 3 of the
+    License, or (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include "flexisip/utils/sip-uri.hh"
 
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
-#include <flexisip/utils/sip-uri.hh>
-
 namespace flexisip {
 namespace tester {
+
+void url__parsingError() {
+
+	// Valid uri
+	sofiasip::Url url{"sip:user@sip.example.org"};
+	auto parsingError = SipUri::hasParsingError(url);
+	BC_ASSERT_FALSE(parsingError.has_value());
+
+	// Scheme
+	url = sofiasip::Url(":user@sip.example.org");
+	std::string errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "no scheme found");
+
+	url = sofiasip::Url("sip");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "no scheme found");
+
+	url = sofiasip::Url("soap:user@sip.example.org");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "invalid scheme (soap)");
+
+	// Host
+	url = sofiasip::Url("sip:us@er@sip.example.org");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "forbidden '@' character found in host part");
+
+	// Other reserved characters not filtered out
+	std::vector<std::string> reserved{";", "/", "?", ":", "&", "=", "+", "$", ","};
+	for (const std::string& reserved_char : reserved) {
+		url = sofiasip::Url("sip:us" + reserved_char + "er@sip.example.org");
+		parsingError = SipUri::hasParsingError(url);
+		BC_ASSERT_FALSE(parsingError.has_value());
+	}
+}
 
 void url__rfc3261Compare() {
 	/* https://www.rfc-editor.org/rfc/rfc3261.html#section-19.1.4
@@ -211,6 +259,7 @@ void url__rfc3261Compare() {
 namespace {
 TestSuite _("sip-uri-tests",
             {
+                CLASSY_TEST(url__parsingError),
                 CLASSY_TEST(url__rfc3261Compare),
             });
 }
