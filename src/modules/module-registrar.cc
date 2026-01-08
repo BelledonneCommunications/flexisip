@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -832,7 +832,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 
 	// Reject malformed registrations
 	for (auto* contact = sip->sip_contact; contact != nullptr; contact = contact->m_next) {
-		if (isValidSipUri(contact->m_url) || isValidWildcardContact(contact)) continue;
+		if (!SipUri::hasParsingError(contact->m_url) || isValidWildcardContact(contact)) continue;
 
 		LOGD << "Request rejected, invalid 'Contact' header: '"
 		     << sip_header_as_string(ms->getHome(), reinterpret_cast<sip_header_t const*>(contact)) << "'";

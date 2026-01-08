@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -103,7 +103,7 @@ void validToken() {
 	auto onResult = [](RequestSipEvent::AuthResult::ChallengeResult&& challResult) {
 		BC_ASSERT(challResult.getType() == RequestSipEvent::AuthResult::Type::Bearer);
 		BC_ASSERT(challResult.getResult() == RequestSipEvent::AuthResult::Result::Valid);
-		BC_ASSERT(isValidSipUri(challResult.getIdentity().get()));
+		BC_ASSERT(!SipUri::hasParsingError(challResult.getIdentity()));
 	};
 	auto result = generateAndCheckToken(obj, onResult);
 	BC_ASSERT(result == AuthScheme::State::Done);
@@ -245,7 +245,7 @@ void tokenExpiration() {
 		auto onResult = [](RequestSipEvent::AuthResult::ChallengeResult&& challResult) {
 			BC_ASSERT(challResult.getType() == RequestSipEvent::AuthResult::Type::Bearer);
 			BC_ASSERT(challResult.getResult() == RequestSipEvent::AuthResult::Result::Invalid);
-			BC_ASSERT(isValidSipUri(challResult.getIdentity().get()));
+			BC_ASSERT(!SipUri::hasParsingError(challResult.getIdentity()));
 		};
 		auto result = generateAndCheckToken(obj, onResult);
 		BC_ASSERT(result == AuthScheme::State::Done);
@@ -259,7 +259,7 @@ void verifySignature() {
 	auto onResult = [](RequestSipEvent::AuthResult::ChallengeResult&& challResult) {
 		BC_ASSERT(challResult.getType() == RequestSipEvent::AuthResult::Type::Bearer);
 		BC_ASSERT(challResult.getResult() == RequestSipEvent::AuthResult::Result::Invalid);
-		BC_ASSERT(isValidSipUri(challResult.getIdentity().get()));
+		BC_ASSERT(!SipUri::hasParsingError(challResult.getIdentity()));
 	};
 	auto result = generateAndCheckToken(obj, onResult);
 	BC_ASSERT(result == AuthScheme::State::Done);
@@ -339,13 +339,13 @@ void bearerAuthWithWellknown() {
 	auto onValidResult = [&receivedValidResult](RequestSipEvent::AuthResult::ChallengeResult&& challResult) {
 		BC_ASSERT(challResult.getType() == RequestSipEvent::AuthResult::Type::Bearer);
 		BC_ASSERT(challResult.getResult() == RequestSipEvent::AuthResult::Result::Valid);
-		BC_ASSERT(isValidSipUri(challResult.getIdentity().get()));
+		BC_ASSERT(!SipUri::hasParsingError(challResult.getIdentity()));
 		receivedValidResult = true;
 	};
 	auto onInvalidResult = [&receivedInvalidResult](RequestSipEvent::AuthResult::ChallengeResult&& challResult) {
 		BC_ASSERT(challResult.getType() == RequestSipEvent::AuthResult::Type::Bearer);
 		BC_ASSERT(challResult.getResult() == RequestSipEvent::AuthResult::Result::Invalid);
-		BC_ASSERT(isValidSipUri(challResult.getIdentity().get()));
+		BC_ASSERT(!SipUri::hasParsingError(challResult.getIdentity()));
 		receivedInvalidResult = true;
 	};
 	BC_ASSERT(generateAndCheckMsg("testCert", onValidResult) == AuthScheme::State::Pending);

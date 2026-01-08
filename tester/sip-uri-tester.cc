@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -14,7 +14,7 @@
 
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+*/
 
 #include "flexisip/utils/sip-uri.hh"
 
@@ -22,6 +22,40 @@
 #include "utils/test-suite.hh"
 
 namespace flexisip::tester {
+
+void parsingError() {
+
+	// Valid uri
+	sofiasip::Url url{"sip:user@sip.example.org"};
+	auto parsingError = SipUri::hasParsingError(url);
+	BC_ASSERT_FALSE(parsingError.has_value());
+
+	// Scheme
+	url = sofiasip::Url(":user@sip.example.org");
+	std::string errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "no scheme found");
+
+	url = sofiasip::Url("sip");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "no scheme found");
+
+	url = sofiasip::Url("soap:user@sip.example.org");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "invalid scheme (soap)");
+
+	// Host
+	url = sofiasip::Url("sip:us@er@sip.example.org");
+	errorMessage = SipUri::hasParsingError(url).value_or("");
+	BC_ASSERT_CPP_EQUAL(errorMessage, "forbidden '@' character found in host part");
+
+	// Other reserved characters not filtered out
+	std::vector<std::string> reserved{";", "/", "?", ":", "&", "=", "+", "$", ","};
+	for (const std::string& reserved_char : reserved) {
+		url = sofiasip::Url("sip:us" + reserved_char + "er@sip.example.org");
+		parsingError = SipUri::hasParsingError(url);
+		BC_ASSERT_FALSE(parsingError.has_value());
+	}
+}
 
 void rfc3261Compare() {
 	/* https://www.rfc-editor.org/rfc/rfc3261.html#section-19.1.4
@@ -265,10 +299,10 @@ namespace {
 TestSuite _{
     "SipUri",
     {
+        CLASSY_TEST(parsingError),
         CLASSY_TEST(rfc3261Compare),
         CLASSY_TEST(fromName),
     },
 };
-
 }
 } // namespace flexisip::tester

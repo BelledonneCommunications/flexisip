@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -388,6 +389,12 @@ public:
 		return rfc3261Compare(other._url);
 	}
 
+	// Check validity of a sip uri raw url and return an error message when it is invalid.
+	static std::optional<std::string> hasParsingError(const url_t* url) noexcept {
+		return hasParsingError(sofiasip::Url(url));
+	}
+	static std::optional<std::string> hasParsingError(const sofiasip::Url& url) noexcept;
+
 private:
 	/**
 	 * Create and initialize from a SIP scheme.
@@ -396,9 +403,6 @@ private:
 
 	static void checkUrl(const sofiasip::Url& url);
 };
-
-// Enable to check validity of a sip uri raw url (use SipUri rather than raw url whenever possible)
-bool isValidSipUri(const url_t* url);
 
 /*
  * Nice << operator to serialize sofia-sip 's url_t */

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -294,7 +294,7 @@ ChangeSet Record::removeInvalidContacts() {
 	ChangeSet changeSet{};
 	for (auto it = mContacts.begin(); it != mContacts.end();) {
 		auto contact = *it;
-		if (!isValidSipUri(contact->mSipContact->m_url)) {
+		if (SipUri::hasParsingError(contact->mSipContact->m_url)) {
 			changeSet.mDelete.push_back(contact);
 			LOGD << "Removing invalid contact: " << contact->urlAsString();
 			it = mContacts.erase(it);
