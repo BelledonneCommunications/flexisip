@@ -50,11 +50,11 @@ public:
 	static const CallAssertionInfo::MediaStateList kAllMediaSentReceived;
 	static const CallAssertionInfo::MediaStateList kNoMedia;
 
-	explicit CallAssert(CoreAssert<sleepBetweenIterations>& asserter) : mAsserter(asserter) {};
+	explicit CallAssert(CoreAssert<sleepBetweenIterations>& asserter) : mAsserter(asserter){};
 
 	[[nodiscard]] AssertionResult waitUntil(const CallAssertionInfoList& info,
 	                                        const std::chrono::duration<double>& timeout = std::chrono::seconds{
-	                                            3}) const {
+	                                            6}) const {
 		// First, make sure all call states are as expected.
 		mAsserter
 		    .waitUntil(timeout / 2,

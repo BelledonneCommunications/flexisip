@@ -150,6 +150,8 @@ public:
 	std::shared_ptr<linphone::CallStats> getVideoStats() const;
 	std::optional<rtp_stats> getVideoRtpStats() const;
 
+	std::string getCallId() const;
+
 	std::shared_ptr<linphone::Core> getCore() const;
 
 	void setStaticPictureFps(float fps);

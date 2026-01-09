@@ -40,159 +40,223 @@ namespace flexisip::tester {
 namespace {
 
 std::map<std::string, std::string> sServerConfig = {
-    {"global/transports", "sip:127.0.0.1:0 sip:[::1]:0"},
+    {"global/transports", "sip:127.0.0.1:0;transport=tcp sip:[::1]:0;transport=tcp"},
     {"module::MediaRelay/enabled", "false"},
-    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to localnetwork
+    {"module::MediaRelay/prevent-loops", "false"}, // Allow loopback to the local network
     {"module::Registrar/enabled", "true"},
     {"module::Registrar/reg-domains", "sip.example.org"},
 };
 
-class CallTestContext {
-public:
-	CallTestContext() = default;
-	CallTestContext(const uint numberOfCallerDevices,
-	                const uint numberOfCalleeDevices,
-	                const std::string& callerUri,
-	                const std::string& calleeUri,
-	                const OnOff videoCall)
-	    : numberOfCallerDevices(numberOfCallerDevices), numberOfCalleeDevices(numberOfCalleeDevices),
-	      callerUri(callerUri), calleeUri(calleeUri), videoCall(videoCall) {
-	}
-
-	CallTestContext enableVideoCall() {
-		this->videoCall = OnOff::On;
-		return setInCallMediaState(CallAssert<>::kAllMediaSentReceived);
-	}
-
-	CallTestContext setNumberOfCallerDevices(const uint pNumberOfCallerDevices) {
-		this->numberOfCallerDevices = pNumberOfCallerDevices;
-		return *this;
-	}
-
-	CallTestContext setNumberOfCalleeDevices(const uint pNumberOfCalleeDevices) {
-		this->numberOfCalleeDevices = pNumberOfCalleeDevices;
-		return *this;
-	}
-
-	CallTestContext setNumberOfCalleeIdleDevices(const uint pNumberOfCalleeIdleDevices) {
-		this->numberOfCalleeIdleDevices = pNumberOfCalleeIdleDevices;
-		return *this;
-	}
-
-	CallTestContext setInCallMediaState(const CallAssertionInfo::MediaStateList& pInCallMediaState) {
-		this->inCallMediaState = pInCallMediaState;
-		return *this;
-	}
-
-	size_t numberOfCallerDevices = 1;
-	size_t numberOfCalleeDevices = 1;
-	size_t numberOfCalleeIdleDevices = 1;
-	std::string callerUri = "sip:caller@sip.example.org";
-	std::string calleeUri = "sip:callee@sip.example.org";
-	OnOff videoCall = OnOff::Off;
-	CallAssertionInfo::MediaStateList inCallMediaState = CallAssert<>::kAudioSentReceived;
+struct ContextSettings {
+	size_t numberOfCallerDevices{1};
+	size_t numberOfCalleeDevices{1};
+	size_t numberOfCalleeIdleDevices{1};
+	string callerUri{"sip:caller@sip.example.org"};
+	string calleeUri{"sip:callee@sip.example.org"};
+	string customModuleInjectAfter{"SanityChecker"};
+	OnOff videoCall{OnOff::On};
+	CallAssertionInfo::MediaStateList inCallMediaState{CallAssert<>::kAllMediaSentReceived};
 };
 
-void callTestTemplate(const CallTestContext& ctx) {
-	// Arrange server
-	Server server(sServerConfig);
-	server.start();
+class CallTestContext {
+public:
+	explicit CallTestContext(const ContextSettings& settings = {})
+	    : params(settings),
+	      customModule(InjectedHooks{
+	          params.customModuleInjectAfter,
+	          [&](std::unique_ptr<RequestSipEvent>&& ev) { return customModuleRequestCallback(std::move(ev)); },
+	      }),
+	      server(sServerConfig, &customModule) {
+		server.start();
 
-	// Arrange clients
-	ClientBuilder builder{*server.getAgent()};
-	builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
-	vector<CoreClient> callerDevices{};
-	for (size_t i = 0; i < ctx.numberOfCallerDevices; i++) {
-		callerDevices.push_back(builder.build("sip:caller@sip.example.org;device=n"s + to_string(i)));
-	}
-	const auto callee = "sip:callee@sip.example.org";
-	vector<CoreClient> calleeDevices;
-	for (size_t i = 0; i < ctx.numberOfCalleeDevices; i++) {
-		calleeDevices.push_back(builder.build(callee + ";device=n"s + to_string(i)));
-	}
-	vector<CoreClient> calleeIdleDevices;
-	for (size_t i = 0; i < ctx.numberOfCalleeIdleDevices; i++) {
-		calleeIdleDevices.push_back(builder.build(callee + ";device=idle-n"s + to_string(i)));
-	}
+		ClientBuilder builder{*server.getAgent()};
+		builder.setVideoReceive(OnOff::On).setVideoSend(OnOff::On);
+		for (size_t i = 0; i < params.numberOfCallerDevices; i++) {
+			callerDevices.push_back(builder.make(params.callerUri + ";device=n"s + to_string(i)));
+		}
+		for (size_t i = 0; i < params.numberOfCalleeDevices; i++) {
+			calleeDevices.push_back(builder.make(params.calleeUri + ";device=n"s + to_string(i)));
+		}
+		for (size_t i = 0; i < params.numberOfCalleeIdleDevices; i++) {
+			calleeIdleDevices.push_back(builder.make(params.calleeUri + ";device=idle-n"s + to_string(i)));
+		}
 
-	// Arrange asserter
-	CoreAssert asserter(server);
-	asserter.registerSteppables(callerDevices);
-	asserter.registerSteppables(calleeDevices);
-	asserter.registerSteppables(calleeIdleDevices);
+		asserter.registerSteppable(server);
+		asserter.registerSteppables(callerDevices);
+		asserter.registerSteppables(calleeDevices);
+		asserter.registerSteppables(calleeIdleDevices);
 
-	// Assert all clients registered without issue
-	for (const auto& calleeDevice : calleeDevices) {
-		BC_HARD_ASSERT_TRUE(calleeDevice.isRegistered(asserter));
-	}
-	for (const auto& callerDevice : callerDevices) {
-		BC_HARD_ASSERT_TRUE(callerDevice.isRegistered(asserter));
-	}
-	for (const auto& calleeIdleDevice : calleeIdleDevices) {
-		BC_HARD_ASSERT_TRUE(calleeIdleDevice.isRegistered(asserter));
-		calleeIdleDevice.disconnect();
-	}
-
-	// Actually start the call
-	const auto callBuilder = callerDevices.front().callBuilder().setVideo(ctx.videoCall);
-	auto callerCall = callBuilder.call(callee);
-
-	// Assert that every callee received the call, choose a device to answer the call
-	BC_HARD_ASSERT(callerCall.has_value());
-	optional<ClientCall> answeringCall;
-	vector<ClientCall> otherDevicesCalls;
-	for (const auto& calleeDevice : calleeDevices) {
-		BC_HARD_ASSERT_TRUE(calleeDevice.hasReceivedCallFrom(callerDevices.front(), asserter));
-		auto calleeCall = calleeDevice.getCurrentCall();
-		BC_HARD_ASSERT(calleeCall.has_value());
-		if (!answeringCall.has_value()) {
-			answeringCall = std::move(calleeCall);
-		} else {
-			otherDevicesCalls.push_back(std::move(calleeCall.value()));
+		// Assert all clients registered without issue.
+		for (const auto& calleeDevice : calleeDevices) {
+			BC_HARD_ASSERT(calleeDevice != nullptr);
+			BC_HARD_ASSERT_TRUE(calleeDevice->isRegistered(asserter));
+		}
+		for (const auto& callerDevice : callerDevices) {
+			BC_HARD_ASSERT(callerDevice != nullptr);
+			BC_HARD_ASSERT_TRUE(callerDevice->isRegistered(asserter));
+		}
+		for (const auto& calleeIdleDevice : calleeIdleDevices) {
+			BC_HARD_ASSERT(calleeIdleDevice != nullptr);
+			BC_HARD_ASSERT_TRUE(calleeIdleDevice->isRegistered(asserter));
+			calleeIdleDevice->disconnect();
 		}
 	}
 
-	// Accept the call
-	auto callStatus = answeringCall->accept();
+	InjectedHooks::OnRequestCallback customModuleRequestCallback = [](std::unique_ptr<RequestSipEvent>&& ev) {
+		return std::move(ev);
+	};
+
+	ContextSettings params;
+	InjectedHooks customModule;
+	Server server;
+	CoreAssert<> asserter{};
+	vector<shared_ptr<CoreClient>> callerDevices{};
+	vector<shared_ptr<CoreClient>> calleeDevices{};
+	vector<shared_ptr<CoreClient>> calleeIdleDevices{};
+	optional<ClientCall> answeringCall{};
+	vector<ClientCall> otherDevicesCalls{};
+};
+
+CallTestContext&& basicCallTemplate(CallTestContext&& ctx) {
+	const auto callBuilder = ctx.callerDevices.front()->callBuilder().setVideo(ctx.params.videoCall);
+	auto callerCall = callBuilder.call(ctx.params.calleeUri);
+	BC_HARD_ASSERT(callerCall.has_value());
+
+	// Assert that every callee received the call, then choose a device to answer the call.
+	for (const auto& calleeDevice : ctx.calleeDevices) {
+		BC_HARD_ASSERT_TRUE(calleeDevice->hasReceivedCallFrom(*ctx.callerDevices.front(), ctx.asserter));
+		auto calleeCall = calleeDevice->getCurrentCall();
+		BC_HARD_ASSERT(calleeCall.has_value());
+
+		if (!ctx.answeringCall.has_value()) ctx.answeringCall = std::move(calleeCall);
+		else ctx.otherDevicesCalls.push_back(std::move(calleeCall.value()));
+	}
+
+	// Accept the call.
+	auto callStatus = ctx.answeringCall->accept();
 	BC_HARD_ASSERT_CPP_EQUAL(callStatus, 0);
 
-	// Assert the call is running fine
-	CallAssert callAsserter{asserter};
-	CallAssert<>::CallAssertionInfoList info = {
-	    {*callerCall, linphone::Call::State::StreamsRunning, ctx.inCallMediaState},
-	    {*answeringCall, linphone::Call::State::StreamsRunning, ctx.inCallMediaState},
+	// Assert the call is running fine.
+	CallAssert<>::CallAssertionInfoList callStates = {
+	    {*callerCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
+	    {*ctx.answeringCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
 	};
-	for (const auto& otherDevicesCall : otherDevicesCalls) {
-		info.push_back({otherDevicesCall, linphone::Call::State::Released, CallAssert<>::kNoMedia});
+	for (const auto& otherDevicesCall : ctx.otherDevicesCalls) {
+		callStates.push_back({otherDevicesCall, linphone::Call::State::Released, CallAssert<>::kNoMedia});
 	}
-	callAsserter.waitUntil(info).hard_assert_passed();
+	CallAssert{ctx.asserter}.waitUntil(callStates).hard_assert_passed();
+
+	return std::move(ctx);
 }
 
-void basicCall() {
-	callTestTemplate(CallTestContext{});
+/**
+ * From an ongoing call, trigger a call update from the caller, then immediately ask to cancel it because of a network
+ * change. In the end, the call is running fine as the caller sent again a call update and everything went back to
+ * normal (see RFC 6141 5.5).
+ */
+CallTestContext&& cancelCallUpdateTemplate(CallTestContext&& ctx) {
+	class DeferCallUpdateListener : public linphone::CallListener {
+	public:
+		using CallListener::CallListener;
+
+		void onStateChanged(const std::shared_ptr<linphone::Call>& call,
+		                    linphone::Call::State state,
+		                    const std::string&) override {
+			if (state == linphone::Call::State::UpdatedByRemote) {
+				call->deferUpdate(); // Do not update immediately so the CANCEL request can reach the callee.
+				sessionUpdateReceived = true;
+			}
+		}
+
+		bool sessionUpdateReceived{};
+	};
+
+	const auto calleeListener = make_shared<DeferCallUpdateListener>();
+	const auto calleeCall = ctx.answeringCall;
+	BC_HARD_ASSERT(calleeCall.has_value());
+	calleeCall->addListener(calleeListener);
+
+	const auto caller = ctx.callerDevices.front();
+	BC_HARD_ASSERT(caller != nullptr);
+	const auto callerCall = caller->getCurrentCall();
+	BC_HARD_ASSERT(callerCall.has_value());
+
+	// Try to update the current call...
+	callerCall->update([](shared_ptr<linphone::CallParams>&& params) {
+		params->addCustomHeader("Contact", "sip:new-contact-to-trigger-call-update@sip.example.org");
+		return std::move(params);
+	});
+	// ... but then, trigger a cancellation of the call update.
+	caller->getCore()->setNetworkReachable(false);
+	caller->getCore()->setNetworkReachable(true);
+
+	optional<bool> eventTerminated{nullopt};
+	optional<bool> cancelRequestPassedRouterModule{nullopt};
+	ctx.customModuleRequestCallback = [&](unique_ptr<RequestSipEvent>&& ev) {
+		if (const auto& msg = ev->getMsgSip(); msg->getSipMethod() != sip_method_cancel ||
+		                                       msg->getCallID() != callerCall->getCallId() || !msg->isInDialog()) {
+
+			return std::move(ev);
+		}
+
+		cancelRequestPassedRouterModule = true;
+		eventTerminated = ev->isTerminated();
+
+		return std::move(ev);
+	};
+
+	ctx.asserter
+	    .wait([&] {
+		    // The re-INVITE request is received by the callee.
+		    FAIL_IF(calleeListener->sessionUpdateReceived == false);
+		    // The CANCEL request was not replied by the module::Router.
+		    FAIL_IF(cancelRequestPassedRouterModule.has_value() == false);
+		    FAIL_IF(cancelRequestPassedRouterModule == false);
+		    // The associated event is not terminated.
+		    FAIL_IF(eventTerminated.has_value() == false);
+		    FAIL_IF(eventTerminated == true);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+
+	// Assert the call is running fine.
+	CallAssert{ctx.asserter}
+	    .waitUntil({
+	        {*callerCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
+	        {*calleeCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
+	    })
+	    .hard_assert_passed();
+
+	return std::move(ctx);
 }
 
-void videoCall() {
-	callTestTemplate(CallTestContext{}.enableVideoCall());
+void audioOnlyCall() {
+	basicCallTemplate(CallTestContext{{.videoCall = OnOff::Off, .inCallMediaState = CallAssert<>::kAudioSentReceived}});
 }
 
-void videoCallWithMultipleDevices() {
-	callTestTemplate(CallTestContext{}.enableVideoCall().setNumberOfCallerDevices(10).setNumberOfCalleeDevices(10));
+void call() {
+	basicCallTemplate(CallTestContext{});
 }
 
-void videoCallWithMultipleDevicesAndIdleDevices() {
-	callTestTemplate(CallTestContext{}
-	                     .enableVideoCall()
-	                     .setNumberOfCallerDevices(10)
-	                     .setNumberOfCalleeDevices(5)
-	                     .setNumberOfCalleeIdleDevices(5));
+void cancelCallUpdate() {
+	cancelCallUpdateTemplate(basicCallTemplate(CallTestContext{{.customModuleInjectAfter = "Router"}}));
 }
 
-const std::vector<test_t> sTestList = {
-    CLASSY_TEST(basicCall),
-    CLASSY_TEST(videoCall),
-    CLASSY_TEST(videoCallWithMultipleDevices),
-    CLASSY_TEST(videoCallWithMultipleDevicesAndIdleDevices),
+void callWithMultipleDevices() {
+	basicCallTemplate(CallTestContext{{.numberOfCallerDevices = 10, .numberOfCalleeDevices = 10}});
+}
+
+void callWithMultipleDevicesAndIdleDevices() {
+	basicCallTemplate(
+	    CallTestContext{{.numberOfCallerDevices = 10, .numberOfCalleeDevices = 5, .numberOfCalleeIdleDevices = 5}});
+}
+
+const std::vector<test_t> sTestList{
+    CLASSY_TEST(audioOnlyCall),
+    CLASSY_TEST(call),
+    CLASSY_TEST(cancelCallUpdate),
+    CLASSY_TEST(callWithMultipleDevices),
+    CLASSY_TEST(callWithMultipleDevicesAndIdleDevices),
 };
 
 TestSuite _{
@@ -203,6 +267,7 @@ TestSuite _{
 	    return 0;
     }),
 };
+
 TestSuite __{
     "CallWithMediaRelay",
     sTestList,
@@ -211,5 +276,6 @@ TestSuite __{
 	    return 0;
     }),
 };
+
 } // namespace
 } // namespace flexisip::tester
