@@ -6,9 +6,9 @@
 # Ninja
 #################################################
 
-job-minimal-ninja-gcc:
+job-minimal-ninja-clang:
   extends:
-    - .job-ninja-gcc
+    - .job-ninja-clang
     - .minimal-image
     - .rules-dev  # ⚠ See `rules.yml`
   variables:

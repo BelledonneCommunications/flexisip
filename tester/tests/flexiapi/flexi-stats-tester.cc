@@ -73,7 +73,7 @@ void flexiStatTestFunc(const SendReqFunc& sendRequest,
                        const CustomAssertFunc& customAssert,
                        int requestReceivedExpectedCount = 1) {
 	sofiasip::SuRoot mRoot{};
-	std::atomic_int mRequestReceivedCount = 0;
+	std::atomic_int mRequestReceivedCount{0};
 
 	HttpMock httpMock{{"/"}, &mRequestReceivedCount};
 	int port = httpMock.serveAsync();

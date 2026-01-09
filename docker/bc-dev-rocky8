@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20251202_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260114_upgrade_gcc
 ###############################################################################
 
 FROM rockylinux/rockylinux:8
@@ -25,9 +25,10 @@ RUN sudo dnf -y install \
                    cmake \
                    c-ares-devel \
                    doxygen \
-                   gcc \
-                   gcc-c++ \
-                   gdb \
+                   gcc-toolset-15 \
+                   gcc-toolset-15-libasan-devel \
+                   gcc-toolset-15-libubsan-devel \
+                   gcc-toolset-15-gdb \
                    git \
                    libasan \
                    libev-devel \
@@ -96,6 +97,11 @@ WORKDIR /home/bc
 # the modules in /home/bc/.local/bin.
 RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
+
+# Load gcc-toolset-15 environment on starting
+RUN echo 'source /opt/rh/gcc-toolset-15/enable' >> /home/bc/.bashrc && \
+    echo 'source /opt/rh/gcc-toolset-15/enable' >> /home/bc/.shrc
+
 
 ENV PS1='\[\e[34m\]\u@bc-dev-rocky8>\[\e[0m\] '
 

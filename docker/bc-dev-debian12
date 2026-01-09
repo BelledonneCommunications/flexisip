@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20251202_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian12:20260121_upgrade_gcc_clang
 ###############################################################################
 
 FROM debian:12
@@ -15,12 +15,12 @@ RUN apt-get -y update \
       wget \
       file \
       curl \
+      software-properties-common \
     # Install development tools
       ccache \
-      clang \
+      clang-19 \
       cmake \
       doxygen \
-      g++ \
       gdb \
       git \
       make \
@@ -66,6 +66,10 @@ RUN apt-get -y update \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Update gcc and clang alternatives
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 10 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 10
 
 # Install libnghttp2_asio
 # Downloading the gz source and not bz2 to avoid installing bzip2.

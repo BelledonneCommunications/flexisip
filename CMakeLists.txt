@@ -27,9 +27,16 @@ cmake_policy(SET CMP0076 NEW)
 # CMP0077 is required to correctly force the value of subprojects' cache variables.
 cmake_policy(SET CMP0077 NEW)
 
-# Require C++17
-set(CMAKE_CXX_STANDARD 17)
+# Require C++20
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Force the compiler version to be at least what is used in our docker images with the lowest versions.
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
+	message(FATAL_ERROR "Flexisip requires at least gcc 13")
+elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.0)
+	message(FATAL_ERROR "Flexisip requires at least clang 19")
+endif()
 
 # -O0 disables optimizations. Any level of optimization (higher than 0) will throw off debuggers while stepping through source code.
 # With sanitizers enabled, fortifying source requires some optimizations. This is unwanted in Debug builds.

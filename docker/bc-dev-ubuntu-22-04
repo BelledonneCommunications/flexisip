@@ -1,26 +1,29 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20251202_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20260114_upgrade_gcc_clang
 ###############################################################################
 
 FROM ubuntu:22.04
 
 MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
 
-  # Update
+# Add repo for newer gcc
 RUN apt-get -y update \
-  # Install common tools
- && apt-get -y install sudo \
+    && apt-get -y install software-properties-common \
+    && add-apt-repository -y ppa:ubuntu-toolchain-r/test
+
+# Install common tools
+RUN apt-get -y install sudo \
                        vim \
                        wget \
                        file \
                        curl \
                      # Install development tools
                        ccache \
-                       clang \
                        cmake \
                        doxygen \
                        elfutils \
-                       g++ \
+                       gcc-13 \
+                       g++-13 \
                        gdb \
                        git \
                        llvm \
@@ -58,6 +61,17 @@ RUN apt-get -y update \
   # Clean
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Install newer clang
+RUN wget https://apt.llvm.org/llvm.sh \
+    && chmod +x llvm.sh \
+    && ./llvm.sh 21
+
+# Update gcc and clang alternatives
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 10 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 10 \
+    && update-alternatives --install /usr/bin/clang clang /usr/bin/clang-21 10 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-21 10
 
 # Install libnghttp2_asio 1.43.0
 COPY libnghttp2_asio_install.sh .

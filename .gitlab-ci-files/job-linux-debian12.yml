@@ -11,11 +11,12 @@ variables:
 # Makefile
 #################################################
 
-job-debian12-makefile-gcc:
-  extends:
-    - .job-makefile-gcc
-    - .debian12-image
-    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+# Disable gcc jobs as gcc is too old for a full c++20 support
+#job-debian12-makefile-gcc:
+#  extends:
+#    - .job-makefile-gcc
+#    - .debian12-image
+#    - .rules-manual  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
 
 
 job-debian12-makefile-clang:
@@ -28,15 +29,16 @@ job-debian12-makefile-clang:
 # Ninja
 #################################################
 
-job-debian12-ninja-gcc:
-  extends:
-    - .job-ninja-gcc
-    - .debian12-image
-    # Debian 12 packages GCC 12 (fitting!) for which our cmake has special-caseing,
-    # so let's override the .job-ninja-gcc rules to run it in dev pipelines
-    - .rules-dev  # ⚠ See `rules.yml`
-  variables:
-    CMAKE_OPTIONS: ${DEBIAN12_CMAKE_OPTIONS}
+# Disable gcc jobs as gcc is too old for a full c++20 support
+#job-debian12-ninja-gcc:
+#  extends:
+#    - .job-ninja-gcc
+#    - .debian12-image
+#    # Debian 12 packages GCC 12 (fitting!) for which our cmake has special-caseing,
+#    # so let's override the .job-ninja-gcc rules to run it in dev pipelines
+#    - .rules-dev  # ⚠ See `rules.yml`
+#  variables:
+#    CMAKE_OPTIONS: ${DEBIAN12_CMAKE_OPTIONS}
 
 
 job-debian12-ninja-clang:
@@ -82,6 +84,10 @@ job-debian12-deb:
     - job: job-debian12-ninja-clang
       optional: true
       artifacts: false
+  variables:
+    # Only use clang for debian 12 to fully support C++20
+    CC: clang
+    CXX: clang++
 
 # Test installation of the DEB package, check its feature list and files permissions
 job-debian12-deb-check-package:

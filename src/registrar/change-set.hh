@@ -28,8 +28,7 @@ struct ExtendedContact;
 
 class ChangeSet {
 public:
-	std::list<std::shared_ptr<ExtendedContact>> mDelete{};
-	std::list<std::shared_ptr<ExtendedContact>> mUpsert{};
+	ChangeSet() = default;
 
 	ChangeSet(const ChangeSet& other) = delete;
 	ChangeSet& operator=(const ChangeSet& other) = delete;
@@ -41,6 +40,9 @@ public:
 		mUpsert.merge(other.mUpsert);
 		return *this;
 	}
+
+	std::list<std::shared_ptr<ExtendedContact>> mDelete{};
+	std::list<std::shared_ptr<ExtendedContact>> mUpsert{};
 };
 
 std::ostream& operator<<(std::ostream&, const ChangeSet&);

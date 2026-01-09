@@ -46,6 +46,7 @@ Group changes to describe their impact on the project, as follows:
 - **Voicemail server:** New server for recording voice messages intended for the recipient of the call when a call is 
   declined or not answered. See [Voicemail Server](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Voicemail%20server/)
   for more information.
+- **Build:** Add support for C++20
 
 ### [Changed]
 - **Pusher:**

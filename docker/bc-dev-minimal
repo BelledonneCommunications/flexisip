@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20251202_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20260121_upgrade_gcc_clang
 ###############################################################################
 
 FROM debian:12
@@ -9,11 +9,13 @@ MAINTAINER Thibault Lemaire <thibault.lemaire@belledonne-communications.com>
   # Update
 RUN apt-get -y update \
  && apt-get -y install \
+      wget \
+      software-properties-common \
     # Install build deps
       ccache \
+      clang-19 \
       cmake \
       curl \
-      g++ \
       git \
       make \
       ninja-build \
@@ -27,6 +29,10 @@ RUN apt-get -y update \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Update gcc and clang alternatives
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 10 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 10
 
 # Configure user 'bc'
 RUN useradd -ms /bin/bash bc && \

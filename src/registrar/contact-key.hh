@@ -72,6 +72,10 @@ public:
 		return mValue == other;
 	}
 
+	bool operator==(const ContactKey& other) const {
+		return mValue == other.mValue;
+	}
+
 	static std::string generateUniqueId();
 
 private:

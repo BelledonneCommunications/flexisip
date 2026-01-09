@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20251202_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260121_upgrade_gcc_clang
 ###############################################################################
 
 FROM ubuntu:24.04
@@ -15,13 +15,15 @@ RUN apt-get -y update \
                        wget \
                        file \
                        curl \
+                       software-properties-common \
                      # Install development tools
                        ccache \
-                       clang \
+                       clang-20 \
                        cmake \
                        doxygen \
                        elfutils \
-                       g++ \
+                       gcc-14 \
+                       g++-14 \
                        gdb \
                        git \
                        llvm \
@@ -61,6 +63,12 @@ RUN apt-get -y update \
   # Clean
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Update gcc and clang alternatives
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 10 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 10 \
+    &&update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 10 \
+    && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 10
 
 # Install libnghttp2_asio 1.51.0
 COPY libnghttp2_asio_install.sh .

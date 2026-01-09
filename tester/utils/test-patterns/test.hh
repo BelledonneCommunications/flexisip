@@ -77,10 +77,20 @@ inline void bc_hard_assert(const char* file, int line, int predicate, const char
 			equal = value == static_cast<std::decay_t<decltype(value)>>(expected);                                     \
 		else equal = value == expected;                                                                                \
                                                                                                                        \
+		/* C++20 explicitly deletes operators that stream wide characters (wchar_t, char16_t, char32_t) */             \
+		/* into narrow streams (std::ostream). Cast them to their numeric value to maintain compatibility. */          \
+		auto formatValue = [](const auto& v) -> decltype(auto) {                                                       \
+			if constexpr (std::is_same_v<std::decay_t<decltype(v)>, wchar_t> ||                                        \
+						  std::is_same_v<std::decay_t<decltype(v)>, char16_t> ||                                        \
+						  std::is_same_v<std::decay_t<decltype(v)>, char32_t>)                                         \
+				return static_cast<uint32_t>(v);                                                                       \
+			else return (v);                                                                                           \
+		};                                                                                                             \
+                                                                                                                       \
 		std::ostringstream os{};                                                                                       \
 		if (!equal)                                                                                                    \
-			os << "BC_ASSERT_CPP_EQUAL(" #valueExpr ", " #expectedExpr "), value: \"" << value << "\", expected: \""   \
-			   << expected << "\"";                                                                                    \
+			os << "BC_ASSERT_CPP_EQUAL(" #valueExpr ", " #expectedExpr "), value: \"" << formatValue(value)            \
+               << "\", expected: \"" << expected << "\"";                                                              \
 		assertFunction(__FILE__, __LINE__, equal, os.str().c_str());                                                   \
 	}((valueExpr), (expectedExpr))
 

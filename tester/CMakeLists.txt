@@ -347,6 +347,11 @@ if(ENABLE_REDIS_TLS)
 	)
 endif()
 
+# C++ 20 adds the support for char8_t which adds a lot of backward compatibility problems.
+# See: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1423r3.html
+# So for now disable it until we need it.
+list(APPEND CXX_BUILD_FLAGS "-fno-char8_t")
+
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
 	${BOOST_TARGET}

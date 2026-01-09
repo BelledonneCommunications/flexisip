@@ -96,7 +96,7 @@ public:
 	}
 
 private:
-	std::atomic_int mRequestReceivedCount = 0;
+	std::atomic_int mRequestReceivedCount{0};
 	HttpMock mHttpMock;
 	int mMockPort;
 };
