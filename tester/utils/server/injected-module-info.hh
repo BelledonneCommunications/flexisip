@@ -18,13 +18,12 @@ namespace flexisip::tester {
  * Inject custom behaviour into the Agent's requests and responses handling.
  */
 struct InjectedHooks {
+	using OnRequestCallback = std::function<std::unique_ptr<RequestSipEvent>(std::unique_ptr<RequestSipEvent>&&)>;
+	using OnResponseCallback = std::function<std::unique_ptr<ResponseSipEvent>(std::unique_ptr<ResponseSipEvent>&&)>;
+
 	std::string injectAfterModule{};
-	std::function<std::unique_ptr<RequestSipEvent>(std::unique_ptr<RequestSipEvent>&&)> onRequest = [](auto&& ev) {
-		return std::move(ev);
-	};
-	std::function<std::unique_ptr<ResponseSipEvent>(std::unique_ptr<ResponseSipEvent>&&)> onResponse = [](auto&& ev) {
-		return std::move(ev);
-	};
+	OnRequestCallback onRequest = [](auto&& ev) { return std::move(ev); };
+	OnResponseCallback onResponse = [](auto&& ev) { return std::move(ev); };
 };
 
 /**
@@ -43,8 +42,7 @@ public:
 	          [](GenericStruct&) {},
 	          ModuleClass::Production,
 	          ""),
-	      mModuleHooks(moduleHooks) {
-	}
+	      mModuleHooks(moduleHooks) {}
 
 private:
 	/**
@@ -53,8 +51,7 @@ private:
 	class InjectedModule : public Module {
 	public:
 		InjectedModule(Agent* ag, const ModuleInfoBase* moduleInfo, const InjectedHooks& hooks)
-		    : Module(ag, moduleInfo), mHooks(hooks) {
-		}
+		    : Module(ag, moduleInfo), mHooks(hooks) {}
 
 	private:
 		std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override {

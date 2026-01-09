@@ -627,16 +627,18 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 		if (!isManagedDomain(requestUri.get())) return std::move(ev);
 
 		if (sip->sip_request->rq_method == sip_method_cancel) {
-			// Handle SipEvent associated with a Stateful transaction
-			if (const auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent())) {
-				if (const auto forkContext = ForkContext::getFork(transaction)) {
-					forkContext->onCancel(*ev->getMsgSip());
-					ev->terminateProcessing();
-					return std::move(ev);
-				}
+			// Handle stateless CANCEL requests (no incoming transaction).
+			const auto transaction = dynamic_pointer_cast<IncomingTransaction>(ev->getIncomingAgent());
+			if (transaction == nullptr) {
+				sendReply(*ev, SIP_481_NO_TRANSACTION);
+				return std::move(ev);
 			}
-			sendReply(*ev, SIP_481_NO_TRANSACTION);
-			return std::move(ev);
+			// Handle CANCEL requests associated with a stateful transaction.
+			if (const auto forkContext = ForkContext::getFork(transaction)) {
+				forkContext->onCancel(*ev->getMsgSip());
+				ev->terminateProcessing();
+				return std::move(ev);
+			}
 		}
 
 		/*unless in a specific case, REGISTER don't go into the router logic*/

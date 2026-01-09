@@ -31,8 +31,7 @@ using namespace std;
 
 namespace flexisip::tester {
 
-ClientCall::ClientCall(std::shared_ptr<linphone::Call>&& call) : mCall(std::move(call)) {
-}
+ClientCall::ClientCall(std::shared_ptr<linphone::Call>&& call) : mCall(std::move(call)) {}
 
 std::optional<ClientCall> ClientCall::tryFrom(std::shared_ptr<linphone::Call>&& maybeCall) {
 	if (!maybeCall) return {};
@@ -185,6 +184,10 @@ std::optional<rtp_stats> ClientCall::getVideoRtpStats() const {
 	const auto rtpStats = linphone_call_stats_get_rtp_stats(callStats);
 	if (!rtpStats) return std::nullopt;
 	return *rtpStats;
+}
+
+string ClientCall::getCallId() const {
+	return mCall->getCallLog()->getCallId();
 }
 
 std::shared_ptr<linphone::Core> ClientCall::getCore() const {

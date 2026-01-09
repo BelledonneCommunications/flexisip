@@ -233,6 +233,7 @@ Group changes to describe their impact on the project, as follows:
     - The server was not updating the IP address inserted in the SDP response when a client's network
       changed (e.g., if a client now proposes an IPv4 address instead of an IPv6 address on an existing channel).
     - Memory leak on calls to offline iOS devices (INVITE/CANCEL scenario)
+  - **Router:** Fixed a regression on processing of CANCEL requests intended for re-INVITE requests.
 - **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and
   is now only added if the target is a domain name (and not an IPv4 or IPv6 address). This is more compliant with
   RFC6066, and therefore more compatible with stricter HTTPS implementations.
