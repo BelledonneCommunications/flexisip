@@ -42,8 +42,7 @@ namespace schedule_injector_suite {
 class FakeModule : public Module {
 public:
 	explicit FakeModule(Agent* agent, std::unique_ptr<ModuleInfoBase>&& moduleInfo)
-	    : Module(agent, moduleInfo.get()), mInfoKeeper(std::move(moduleInfo)) {
-	}
+	    : Module(agent, moduleInfo.get()), mInfoKeeper(std::move(moduleInfo)) {}
 
 	void injectRequestEvent(unique_ptr<RequestSipEvent>&& ev) override {
 		mOrderedInjectedRequests.push_back(ev->getMsgSip());
@@ -62,7 +61,7 @@ public:
 	          "FakeModule",
 	          "",
 	          {}, // empty module will not register
-	          static_cast<ModuleInfoBase::ModuleOid>(0xdead),
+	          Plugin,
 	          [](GenericStruct&) {},
 	          ModuleClass::Experimental,
 	          "") {

@@ -462,7 +462,7 @@ string messageRequestWithPPI(const string& fromUri, const string& CSeq, const st
 		"Contact: <" + sipUri + ";transport=udp>\r\n"
 		+ authHdr +
 		"Content-Type: text/plain\r\n"
-		"P-Preferred-Identity: " + userName + " <" + sipUri + ">\r\n"
+		"P-Preferred-Identity: \"" + userName + "\" <" + sipUri + ">\r\n"
 		"Content-Length: 11\r\n\r\n"
 		"Who am I?\r\n");
 	// clang-format on

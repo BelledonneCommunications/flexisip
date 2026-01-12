@@ -38,7 +38,7 @@ public:
 	          "A module injected as high up in the module chain as possible to mangle requests and "
 	          "responses before they reach other modules",
 	          {moduleHooks.injectAfterModule},
-	          static_cast<ModuleInfoBase::ModuleOid>(0xdead),
+	          Plugin,
 	          [](GenericStruct&) {},
 	          ModuleClass::Production,
 	          ""),

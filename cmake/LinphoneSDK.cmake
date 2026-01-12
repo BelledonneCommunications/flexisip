@@ -64,7 +64,7 @@ function(add_linphonesdk)
 	set(ENABLE_TESTS_COMPONENT ON)
 	set(ENABLE_TOOLS OFF)
 	set(ENABLE_UNIT_TESTS ${ENABLE_LIBLINPHONE_TESTER})
-	set(ENABLE_SANITIZER ${ENABLE_SANITIZERS})
+	set(ENABLE_SANITIZER OFF) # Handled by us
 
 	# Global features activation
 	set(BUILD_GSM OFF)

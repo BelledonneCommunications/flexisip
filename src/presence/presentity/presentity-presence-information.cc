@@ -118,16 +118,16 @@ PresentityPresenceInformation::findPresenceInfoListener(const shared_ptr<Present
 }
 
 string PresentityPresenceInformation::putTuples(Xsd::Pidf::Presence::TupleSequence& tuples,
-                                                Xsd::DataModel::Person& person,
+                                                Xsd::DataModel::Person* person,
                                                 int expires) {
-	return setOrUpdate(&tuples, &person, nullopt, expires);
+	return setOrUpdate(&tuples, person, nullopt, expires);
 }
 
 string PresentityPresenceInformation::updateTuples(Xsd::Pidf::Presence::TupleSequence& tuples,
-                                                   Xsd::DataModel::Person& person,
+                                                   Xsd::DataModel::Person* person,
                                                    const std::string& eTag,
                                                    int expires) {
-	return setOrUpdate(&tuples, &person, eTag, expires);
+	return setOrUpdate(&tuples, person, eTag, expires);
 }
 
 string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequence* tuples,

@@ -204,8 +204,9 @@ string PresentityManager::handlePublishFor(const belle_sip_uri_t* entityUri,
 	} else {
 		LOGD << "Presentity [" << *presenceInfo << "] found";
 	}
-	return eTag.empty() ? presenceInfo->putTuples(presence->getTuple(), presence->getPerson().get(), expires)
-	                    : presenceInfo->updateTuples(presence->getTuple(), presence->getPerson().get(), eTag, expires);
+	auto person = presence->getPerson().present() ? &presence->getPerson().get() : nullptr;
+	return eTag.empty() ? presenceInfo->putTuples(presence->getTuple(), person, expires)
+	                    : presenceInfo->updateTuples(presence->getTuple(), person, eTag, expires);
 }
 
 std::string PresentityManager::handlePublishRefreshedFor(const string& eTag, int expires) {

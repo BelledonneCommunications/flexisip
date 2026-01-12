@@ -73,6 +73,7 @@ else()
 endif()
 
 option(ENABLE_SANITIZERS "Turn on sanitizers, like the LSAN memory leak detector" ${IS_DEBUG})
+option(ENABLE_SUBMODULES_UBSAN "Turn on UBSAN on submodule code" OFF)
 option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
 option(ENABLE_STRICT_LINPHONESDK "Pass strict flags to the compiler for all Linphone SDK submodules" OFF)
 option(ENABLE_DATEHANDLER "Build DateHandler module" OFF)
@@ -192,7 +193,10 @@ endfunction()
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 if(ENABLE_SANITIZERS)
-	set(SANITIZERS_FLAG "-fsanitize=address,undefined")
+	set(SANITIZERS_FLAG "-fsanitize=address")
+	if (ENABLE_SUBMODULES_UBSAN)
+		list(APPEND SANITIZERS_FLAG "-fsanitize=undefined")
+	endif ()
 	add_compile_options(
 			${SANITIZERS_FLAG}
 			"-fno-omit-frame-pointer"
@@ -204,6 +208,12 @@ endif()
 set(INTERNAL_MBEDTLS ON)
 include("cmake/ExternalDependencies.cmake")
 include("cmake/LinphoneSDK.cmake")
+
+if(ENABLE_SANITIZERS)
+	set(MORE_SANITIZERS_FLAG "-fsanitize=undefined" "-fno-sanitize-recover=undefined")
+	add_compile_options(${MORE_SANITIZERS_FLAG})
+	add_link_options(${MORE_SANITIZERS_FLAG})
+endif()
 
 # Required packages
 

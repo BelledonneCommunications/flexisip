@@ -52,7 +52,7 @@ public:
 	 * store tuples a new tupple;
 	 * @return new eTag
 	 * */
-	std::string putTuples(Xsd::Pidf::Presence::TupleSequence& tuples, Xsd::DataModel::Person& person, int expires);
+	std::string putTuples(Xsd::Pidf::Presence::TupleSequence& tuples, Xsd::DataModel::Person* person, int expires);
 
 	void setDefaultElement();
 
@@ -72,7 +72,7 @@ public:
 	 * @return new eTag
 	 * */
 	std::string updateTuples(Xsd::Pidf::Presence::TupleSequence& tuples,
-	                         Xsd::DataModel::Person& person,
+	                         Xsd::DataModel::Person* person,
 	                         const std::string& eTag,
 	                         int expires);
 
