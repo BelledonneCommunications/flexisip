@@ -181,6 +181,8 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy/MediaRelay:** parameters `module::MediaRelay/sdp-port-range-min` and `module::MediaRelay/sdp-port-range-max` are 
   merged into unique parameter `module::MediaRelay/sdp-port-range`. They still work but are deprecated, please use the new 
   parameter.
+- **Configuration:** Parameter 'tls-certificates-dir' in global config and transports URI will be removed in 2.6.
+      Use 'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.
 
 ### [Fixed]
 - **Proxy:**
@@ -219,7 +221,7 @@ Group changes to describe their impact on the project, as follows:
 - **Sofia-sip:**
     - When selecting tport after NATPR requests, only check for preferences if orders are equal.
     - Disable SRV records graylisting for now as it is not working as it should.
- 
+
 ### [Security]
 - **Sofia-sip:** Fixed multiple CVE
   - https://nvd.nist.gov/vuln/detail/CVE-2022-47516

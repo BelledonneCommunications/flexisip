@@ -715,8 +715,10 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 
 	} else if (!tlsConfigInfoFromConf.certifDir.empty()) {
 		tlsConfigInfoFromConf.mode = TlsMode::OLD;
-		LOGI << "Main tls certs dir: " << tlsConfigInfoFromConf.certifDir
-		     << " (be careful you are using a deprecated config tls-certificates-dir)";
+		LOGI << "Main tls certs dir: " << tlsConfigInfoFromConf.certifDir;
+		LOGW << "Be careful you are using a deprecated config 'tls-certificates-dir', it will be removed in Flexisip "
+		        "2.6. Use 'tls-certificates-file','tls-certificates-private-key' and 'tls-certificates-ca-file' "
+		        "instead.";
 	}
 
 	return tlsConfigInfoFromConf;

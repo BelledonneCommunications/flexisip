@@ -899,7 +899,8 @@ ConfigManager::ConfigManager()
 	        "\n"
 	        "The 'sips' transport definition accepts some optional parameters:\n"
 	        " - 'tls-certificates-dir': path, has the same meaning as the 'tls-certificates-dir' parameter of this "
-	        "section (overriding only applies for the current SIP URI).\n"
+	        "section (overriding only applies for the current SIP URI). Deprecated since Flexisip 2.5, use "
+	        "'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.\n"
 	        " - 'tls-certificates-file': file path, has the same meaning as the 'tls-certificates-file' parameter of "
 	        "this section (overriding only applies for the current SIP URI).\n"
 	        " - 'tls-certificates-private-key': file path, has the same meaning as the 'tls-certificates-private-key' "
@@ -933,8 +934,9 @@ ConfigManager::ConfigManager()
 	        " - listen only a specific IPv6 interface, on standard ports, with UDP, TCP and TLS\n"
 	        "\ttransports=sip:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083] sips:[2a01:e34:edc3:4d0:7dac:4a4f:22b6:2083]\n"
 	        " - listen on TLS localhost with 2 different ports and SSL certificates:\n"
-	        "\ttransports=sips:localhost:5061;tls-certificates-dir=path_a "
-	        "sips:localhost:5062;tls-certificates-dir=path_b\n"
+	        "\ttransports=sips:localhost:5061;tls-certificates-file=path_a/"
+	        "cert.pem;tls-certificates-private-key=path_a/key.pem "
+	        "sips:localhost:5062;tls-certificates-file=path_b/cert.pem;tls-certificates-private-key=path_b/key.pem\n"
 	        " - listen on TLS localhost with 2 peer certificate requirements:\n"
 	        "\ttransports=sips:localhost:5061;tls-verify-incoming=0 sips:localhost:5062;tls-verify-incoming=1\n"
 	        " - listen on 192.168.0.29:6060 with TLS, but public hostname is 'sip.linphone.org' used in SIP requests. "
@@ -1015,7 +1017,9 @@ ConfigManager::ConfigManager()
 	        "Path to the directory where TLS server certificates and private keys can be found.\n"
 	        "Certificates must be concatenated inside an 'agent.pem' file. Any chain certificates must be put into a "
 	        "file named 'cafile.pem'. The setup of 'agent.pem', and eventually 'cafile.pem' is required for TLS "
-	        "transport to work.",
+	        "transport to work.\n"
+	        "Deprecated, use 'tls-certificates-file', 'tls-certificates-private-key' and "
+	        "'tls-certificates-ca-file' instead.",
 	        "/etc/flexisip/tls/",
 	    },
 	    {

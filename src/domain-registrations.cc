@@ -97,15 +97,22 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	        " where:\n"
 	        " <local domain name> is a domain name managed locally by this proxy\n"
 	        " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
-	        "parameter"
-	        " 'tls-certificates-dir' is understood in order to specify a TLS client certificate to present to the "
-	        "remote "
-	        "proxy.\n"
+	        "parameters are understood:\n"
+	        " - 'tls-certificates-dir': specify a TLS client certificate to present to the remote proxy. This is "
+	        "deprecated and will be removed in 2.6.0, you may use 'tls-certificates-file', "
+	        "'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.\n"
+	        " - 'tls-certificates-file': file path, certificate file to present to the remote proxy.\n"
+	        " - 'tls-certificates-private-key': file path containing the private key.\n"
+	        " - 'tls-certificates-ca-file': file path, Certificate Authoity to verify the certificates received from "
+	        "the remote proxy.\n"
 	        " [password] is the password to use if the remote proxy/registrar requests a digest authentication. It is "
 	        "optional.\n"
 	        " If the file is absent or empty, no registrations are done."
 	        "An example of such line is:\n"
-	        "belledonne.linphone.org <sips:sip.linphone.org;tls-certificates-dir=/etc/flexisip/client-cert> gghhiioozz",
+	        "belledonne.linphone.org "
+	        "<sips:sip.linphone.org;tls-certificates-file=/etc/flexisip/client-cert/"
+	        "cert.pem;tls-certificates-private-key=/etc/flexisip/client-cert/key.pem> "
+	        "gghhiioozz",
 	        "/etc/flexisip/domain-registrations.conf",
 	    },
 	    {
@@ -273,6 +280,10 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 		Url url{uri};
 		auto clientTlsConf = url.getTlsConfigInfo();
+		if (clientTlsConf.mode == TlsMode::OLD) {
+			LOGW << "Be careful you are using a deprecated config 'tls-certificates-dir'. Use 'global/transports' "
+			        "to configure your transports and certificates instead.";
+		}
 		if (clientTlsConf.mode != TlsMode::NONE) {
 			url.removeParam("tls-certificates-dir");
 			url.removeParam("tls-certificates-file");

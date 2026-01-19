@@ -95,7 +95,7 @@ const std::string& Url::str() const noexcept {
 	return _urlAsStr;
 }
 
-Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
+Url Url::replace(const char* url_t::* attribute, std::string_view value) const {
 	if (empty()) throw UrlModificationError{"url is empty, cannot replace attribute"};
 	auto url = *_url;
 	url.*attribute = value.empty() ? nullptr : value.data();
@@ -190,14 +190,21 @@ TlsConfigInfo Url::getTlsConfigInfo() const {
 	if (!tlsConfigInfo.certifDir.empty() && !tlsConfigInfo.certifFile.empty()) {
 		throw flexisip::BadConfiguration{
 		    "transport can't use tls-certificates-dir AND tls-certificates-file/tls-certificates-private-key"};
-	} else if (tlsConfigInfo.certifFile.empty() != tlsConfigInfo.certifPrivateKey.empty()) {
+	}
+	if (tlsConfigInfo.certifFile.empty() != tlsConfigInfo.certifPrivateKey.empty()) {
 		throw flexisip::BadConfiguration{"if you specified tls-certificates-file in transport you MUST specify "
 		                                 "tls-certificates-private-key too and vice versa"};
-	} else if (!tlsConfigInfo.certifDir.empty()) {
+	}
+	if (!tlsConfigInfo.certifDir.empty()) {
 		tlsConfigInfo.mode = TlsMode::OLD;
+		LOGW_CTX("Url::getTlsConfigInfo")
+		    << "Be careful you are using a deprecated config 'tls-certificates-dir', it will be removed in Flexisip "
+		       "2.6. Use 'tls-certificates-file','tls-certificates-private-key' and 'tls-certificates-ca-file' "
+		       "instead.";
 
 		return tlsConfigInfo;
-	} else if (!tlsConfigInfo.certifFile.empty()) {
+	}
+	if (!tlsConfigInfo.certifFile.empty()) {
 		tlsConfigInfo.mode = TlsMode::NEW;
 
 		return tlsConfigInfo;
