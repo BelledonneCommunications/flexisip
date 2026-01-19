@@ -73,7 +73,7 @@ The following requirements must be met before merging:
 <td>...From the corresponding branch</td>
 </tr>
 <tr>
-<td rowspan="2">docs</td>
+<td rowspan="3">docs</td>
 <td>
 
 - [ ] done
@@ -98,6 +98,19 @@ The following requirements must be met before merging:
 
 </td>
 <td>wiki (public documentation) up to date</td>
+</tr>
+<tr>
+<td>
+
+- [ ] done
+
+</td>
+<td>
+
+- [ ] N.A.
+
+</td>
+<td>internal specifications up to date</td>
 </tr>
 </tbody>
 </table>
