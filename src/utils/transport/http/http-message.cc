@@ -32,7 +32,7 @@ string HttpMessage::toString() const noexcept {
 	os << "    HttpMessage header: " << endl;
 	os << this->mHeaders.toString() << endl;
 	os << "    HttpMessage body: " << endl;
-	const auto sizeToPrint = std::min(mBody.size(), 2048UL);
+	const auto sizeToPrint = std::min(mBody.size(), static_cast<size_t>(2048));
 	os << std::string_view{mBody.data(), sizeToPrint};
 	const auto diff = mBody.size() - sizeToPrint;
 	if (0 < diff) {
