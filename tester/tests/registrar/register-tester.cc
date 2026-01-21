@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -58,8 +58,7 @@ int expectedFetchingDone = 0;
 
 class RegisterBindListener : public ContactUpdateListener {
 public:
-	RegisterBindListener(const string& user) : mExpectedUser(user) {
-	}
+	RegisterBindListener(const string& user) : mExpectedUser(user) {}
 	void onRecordFound(const shared_ptr<Record>&) override {
 		doneBindings++;
 	}
@@ -133,7 +132,7 @@ private:
  */
 void insertUserContact(Agent& agent, const SipUri& user, const sip_contact_t* contact) {
 	BindingParameters parameter{};
-	parameter.globalExpire = 1000;
+	parameter.globalExpire = chrono::seconds{1000};
 	parameter.callId = "random_id_necessary_to_bind_" + to_string(notSoRandomId++);
 	parameter.withGruu = true;
 

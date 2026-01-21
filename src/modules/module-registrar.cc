@@ -19,6 +19,7 @@
 #include "flexisip/module-registrar.hh"
 
 #include <algorithm>
+#include <chrono>
 #include <csignal>
 #include <fstream>
 #include <functional>
@@ -928,7 +929,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 			LOGD << "Updating binding";
 			listener->addStatCounter(mStats.mCountBind->finish);
 			parameter.alias = false;
-			parameter.globalExpire = mainDelta;
+			parameter.globalExpire = chrono::seconds{mainDelta};
 			parameter.version = 0;
 			parameter.isAliasFunction = [this, ms](const url_t* ct) -> bool {
 				return isAdjacentRegistration(ms->getSip()) && isManagedDomain(ct);
@@ -1019,7 +1020,7 @@ unique_ptr<ResponseSipEvent> ModuleRegistrar::onResponse(unique_ptr<ResponseSipE
 			mStats.mCountBind->incrStart();
 			LOGD << "Updating binding";
 			parameter.alias = false;
-			parameter.globalExpire = maindelta;
+			parameter.globalExpire = chrono::seconds{maindelta};
 			parameter.version = 0;
 			parameter.isAliasFunction = [this, request](const url_t* ct) -> bool {
 				return isAdjacentRegistration(request->getSip()) && isManagedDomain(ct);
@@ -1134,7 +1135,7 @@ void ModuleRegistrar::readStaticRecords() {
 
 				parameter.callId = fakeCallId;
 				parameter.path.add(path);
-				parameter.globalExpire = expire;
+				parameter.globalExpire = chrono::seconds{expire};
 				parameter.alias = alias;
 				parameter.version = mStaticRecordsVersion;
 

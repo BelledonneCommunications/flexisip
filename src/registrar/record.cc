@@ -330,9 +330,9 @@ ChangeSet Record::update(const sip_t* sip,
 
 		ExtendedContactCommon ecc(stlPath, sip->sip_call_id->i_id, uniqueId);
 		bool alias = parameters.isAliasFunction ? parameters.isAliasFunction(contacts->m_url) : parameters.alias;
-		auto exc = make_unique<ExtendedContact>(ecc, contacts, parameters.globalExpire,
-		                                        (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, getCurrentTime(), alias,
-		                                        acceptHeaders, userAgent, mConfig.messageExpiresName());
+		auto exc = make_unique<ExtendedContact>(ecc, contacts, parameters.globalExpire, getCurrentTime(),
+		                                        (sip->sip_cseq) ? sip->sip_cseq->cs_seq : 0, alias, acceptHeaders,
+		                                        userAgent, mConfig.messageExpiresName());
 		exc->mUsedAsRoute = sip->sip_from->a_url->url_user == nullptr;
 		extendedContacts.push_back(std::move(exc));
 		contacts = contacts->m_next;
@@ -354,12 +354,12 @@ ChangeSet Record::update(const sip_t* sip,
 
 void Record::update(const ExtendedContactCommon& ecc,
                     const char* sipuri,
-                    long expireAt,
+                    time_t expireAt,
+                    time_t updateTime,
                     [[maybe_unused]] float q,
                     uint32_t cseq,
-                    time_t updated_time,
                     bool alias,
-                    const list<string> accept,
+                    const list<string>& accept,
                     bool usedAsRoute,
                     const shared_ptr<ContactUpdateListener>& listener) {
 	sofiasip::Home home;
@@ -375,8 +375,8 @@ void Record::update(const ExtendedContactCommon& ecc,
 		return;
 	}
 
-	auto global_expire = static_cast<int>(expireAt - updated_time);
-	auto exct = make_unique<ExtendedContact>(ecc, contact, global_expire, cseq, updated_time, alias, accept, "",
+	auto globalExpire = chrono::seconds(expireAt - updateTime);
+	auto exct = make_unique<ExtendedContact>(ecc, contact, globalExpire, updateTime, cseq, alias, accept, "",
 	                                         mConfig.messageExpiresName());
 	exct->mUsedAsRoute = usedAsRoute;
 	try {

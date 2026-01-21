@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -68,8 +68,7 @@ class OperationFailedListener : public ContactUpdateListener {
 public:
 	bool finished = false;
 
-	OperationFailedListener() {
-	}
+	OperationFailedListener() {}
 
 	void onRecordFound(const std::shared_ptr<Record>&) override {
 		BC_HARD_FAIL("unexpected call to onRecordFound");
@@ -124,7 +123,7 @@ void mContext_should_be_checked_on_serializeAndSendToRedis() {
 
 	const auto placeholder = "sip:placeholder@example.org";
 	BindingParameters bindParams;
-	bindParams.globalExpire = 3001;
+	bindParams.globalExpire = std::chrono::seconds{3001};
 	bindParams.callId = __FUNCTION__;
 	sofiasip::Home home{};
 	auto listener = std::make_shared<OperationFailedListener>();
@@ -162,7 +161,7 @@ void bindRetryOnBrokenConnection() {
 
 	const auto aor = "sip:bind-retry@example.org";
 	BindingParameters bindParams;
-	bindParams.globalExpire = 3125;
+	bindParams.globalExpire = std::chrono::seconds{3125};
 	bindParams.callId = __FUNCTION__;
 	sofiasip::Home home{};
 	auto listener = std::make_shared<SuccessfulBindListener>();

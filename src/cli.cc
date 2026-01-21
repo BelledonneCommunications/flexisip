@@ -18,6 +18,7 @@
 
 #include "cli.hh"
 
+#include <chrono>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -531,7 +532,7 @@ void ProxyCommandLineInterface::handleRegistrarUpsert(shared_ptr<SocketHandle> s
 	}
 
 	BindingParameters params{};
-	params.globalExpire = expire;
+	params.globalExpire = std::chrono::seconds{expire};
 	params.callId = "fs-cli-upsert";
 	mAgent->getRegistrarDb().bind(aor, contact, params, make_shared<SerializeRecordWhenFound>(std::move(socket)));
 }
@@ -567,7 +568,7 @@ void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> s
 	const auto& contactKey = args.at(1);
 
 	BindingParameters parameter;
-	parameter.globalExpire = 0; // un-REGISTER <=> delete
+	parameter.globalExpire = chrono::seconds{0}; // un-REGISTER <=> delete
 	parameter.callId = "fs-cli-delete";
 
 	// Force binding logic to match the target contact based on this key (even if it is an auto-generated placeholder).

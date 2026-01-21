@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
 
 #include "conference-server.hh"
 
+#include <chrono>
 #include <fstream>
 
 #include "belle-sip/utils.h"
@@ -378,7 +379,7 @@ void ConferenceServer::bindFactoryUris() {
 
 			parameter.callId = "CONFERENCE";
 			parameter.path.add(mPath);
-			parameter.globalExpire = numeric_limits<int>::max();
+			parameter.globalExpire = chrono::seconds{numeric_limits<int>::max()};
 			parameter.alias = false;
 			parameter.version = 0;
 			parameter.withGruu = true;
@@ -438,7 +439,7 @@ void ConferenceServer::bindFocusUris() {
 
 		parameter.callId = "CONFERENCE";
 		parameter.path.add(mPath);
-		parameter.globalExpire = numeric_limits<int>::max();
+		parameter.globalExpire = chrono::seconds{numeric_limits<int>::max()};
 		parameter.alias = false;
 		parameter.version = 0;
 		parameter.withGruu = true;
@@ -463,7 +464,7 @@ void ConferenceServer::bindChatRoom(const string& bindingUrl,
 	BindingParameters parameter;
 	parameter.callId = "dummy-call-id"; // Mandatory parameter but useless in our case.
 	parameter.path.add(mPath);
-	parameter.globalExpire = numeric_limits<int>::max();
+	parameter.globalExpire = chrono::seconds{numeric_limits<int>::max()};
 	parameter.alias = false;
 	parameter.version = 0;
 	parameter.withGruu = true;

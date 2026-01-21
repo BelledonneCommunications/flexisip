@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,8 +47,7 @@ using namespace std;
 namespace flexisip::tester {
 
 class IgnoreUpdatesListener : public SuccessfulBindListener {
-	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {
-	}
+	void onContactUpdated(const shared_ptr<ExtendedContact>&) override {}
 };
 
 // Base class for testing UNSUBSCRIBE/SUBSCRIBE scenario.
@@ -178,8 +177,7 @@ void MaxContactsByAorIsHonored(TDatabase& dbImpl, const SipUri& aor) {
 
 	auto insert = [&](string_view uri) {
 		inserter.insert({uri.data()});
-		BC_ASSERT_TRUE(rootStepFor(
-		    root, [&inserter] { return inserter.finished(); }, 1s));
+		BC_ASSERT_TRUE(rootStepFor(root, [&inserter] { return inserter.finished(); }, 1s));
 	};
 	insert("sip:existing1@example.org");
 	insert("sip:existing2@example.org");
@@ -188,8 +186,8 @@ void MaxContactsByAorIsHonored(TDatabase& dbImpl, const SipUri& aor) {
 
 	auto listener = make_shared<SuccessfulBindListener>();
 	regDb.fetch(aor, listener);
-	BC_ASSERT_TRUE(rootStepFor(
-	    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
+	BC_ASSERT_TRUE(
+	    rootStepFor(proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 	{
 		auto& contacts = listener->mRecord->getExtendedContacts();
 		BC_ASSERT_EQUAL(contacts.size(), 3, int, "%d");
@@ -212,8 +210,7 @@ void RedisMaxContactsByAorIsHonored() {
 
 	auto insert = [](const std::shared_ptr<sofiasip::SuRoot>& root, ContactInserter& inserter, string_view uri) {
 		inserter.insert({uri.data()});
-		BC_ASSERT_TRUE(rootStepFor(
-		    root, [&inserter] { return inserter.finished(); }, 1s));
+		BC_ASSERT_TRUE(rootStepFor(root, [&inserter] { return inserter.finished(); }, 1s));
 	};
 
 	{
@@ -233,8 +230,8 @@ void RedisMaxContactsByAorIsHonored() {
 
 		auto listener = make_shared<SuccessfulBindListener>();
 		regDb.fetch(aor, listener);
-		BC_ASSERT_TRUE(rootStepFor(
-		    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
+		BC_ASSERT_TRUE(
+		    rootStepFor(proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 5, int, "%d");
@@ -257,8 +254,8 @@ void RedisMaxContactsByAorIsHonored() {
 
 		auto listener = make_shared<SuccessfulBindListener>();
 		regDb.fetch(aor, listener);
-		BC_ASSERT_TRUE(rootStepFor(
-		    proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
+		BC_ASSERT_TRUE(
+		    rootStepFor(proxyServer.getRoot(), [&record = listener->mRecord]() { return record != nullptr; }, 1s));
 		{
 			auto& contacts = listener->mRecord->getExtendedContacts();
 			BC_ASSERT_EQUAL(contacts.size(), 2, int, "%d");
@@ -280,7 +277,7 @@ class ContactsAreCorrectlyUpdatedWhenMatchedOnUri : public RegistrarDbTest<DbImp
 		    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()), nullptr);
 		const SipUri aor(contactStr);
 		BindingParameters params{};
-		params.globalExpire = 96;
+		params.globalExpire = chrono::seconds{96};
 		params.callId = "insert";
 		const auto listener = make_shared<IgnoreUpdatesListener>();
 		regDb.bind(aor, contact, params, listener);
@@ -359,7 +356,7 @@ protected:
 
 		SipUri from("sip:bob@example.org");
 		BindingParameters params;
-		params.globalExpire = 5;
+		params.globalExpire = chrono::seconds{5};
 		params.callId = "bob";
 		params.cSeq = 0;
 
@@ -482,7 +479,7 @@ class InstanceIDFeatureParamIsSerializedToRedis : public RegistrarDbTest<DbImple
 		                                  instanceIdFeatureParam, nullptr);
 		const SipUri aor(contactStr);
 		BindingParameters params{};
-		params.globalExpire = 231;
+		params.globalExpire = chrono::seconds{231};
 		params.callId = "instance-id-test";
 		const auto listener = make_shared<SuccessfulBindListener>();
 		regDb.bind(aor, contact, params, listener);
@@ -523,7 +520,7 @@ class CallIDsPreviouslyUsedAsKeysAreInterpretedAsUniqueIDs : public RegistrarDbT
 		    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()), nullptr);
 		const SipUri aor(contactStr);
 		BindingParameters params{};
-		params.globalExpire = 231;
+		params.globalExpire = chrono::seconds{231};
 		params.callId = callId;
 		const auto listener = make_shared<SuccessfulBindListener>();
 		regDb.bind(aor, contact, params, listener);
@@ -571,7 +568,7 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		    sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()), nullptr);
 		const SipUri aor(contactStr);
 		BindingParameters params{};
-		params.globalExpire = 239;
+		params.globalExpire = chrono::seconds{239};
 		params.callId = "expiration-test";
 		const auto listener = make_shared<SuccessfulBindListener>();
 		regDb.bind(aor, contact, params, listener);
@@ -585,8 +582,9 @@ class ExpiredContactsArePurgedFromRedis : public RegistrarDbTest<DbImplementatio
 		const auto contactKey = reply->element[0]->str;
 		BC_ASSERT_EQUAL(reply->element[1]->type, REDIS_REPLY_STRING, int, "%i");
 		char* serializedContact = reply->element[1]->str;
-		BC_ASSERT_PTR_NULL(std::strstr(
-		    serializedContact, contactKey)); // The key is auto generated and is not serialized as part of the contact
+		BC_ASSERT_PTR_NULL(
+		    std::strstr(serializedContact,
+		                contactKey)); // The key is auto generated and is not serialized as part of the contact
 		SLOGD << "serializedContact: " << serializedContact;
 
 		// Mangle contact update timestamp inside Redis
@@ -640,7 +638,7 @@ class FetchAndClearInstance : public RegistrarDbTest<DbImplementation::Redis> {
 		auto contact = sip_contact_create(home.home(), reinterpret_cast<const url_string_t*>(contactStr.c_str()),
 		                                  instanceIdFeatureParam, nullptr);
 		BindingParameters params{};
-		params.globalExpire = 231;
+		params.globalExpire = chrono::seconds{231};
 		params.callId = "fetch-and-clear-test";
 		const auto listener = make_shared<SuccessfulBindListener>();
 		regDb.bind(SipUri(contactStr), contact, params, listener);

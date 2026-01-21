@@ -125,7 +125,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, uniqueId);
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
 		compareRecords(record, recordRef);
@@ -140,7 +140,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, uniqueId);
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
 		compareRecords(record, recordRef);
@@ -155,7 +155,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, uniqueId);
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, {}, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, {}, false, nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
 		compareRecords(record, recordRef);
@@ -170,7 +170,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, uniqueId);
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 		compareRecords(record, recordRef);
 	}
 	// Valid without optional q
@@ -183,7 +183,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, uniqueId);
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
 		compareRecords(record, recordRef);
@@ -198,7 +198,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, "");
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
 		compareRecords(record, recordRef, false);
@@ -213,7 +213,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc({}, callId, uniqueId);
-		recordRef.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+		recordRef.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
 		compareRecords(record, recordRef);
@@ -230,7 +230,7 @@ void parseValidContact() {
 
 		auto recordRef = createRecord();
 		ExtendedContactCommon ecc(paths, callId, uniqueId);
-		recordRef.update(ecc, sipContactUppercase.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false,
+		recordRef.update(ecc, sipContactUppercase.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false,
 		                 nullptr);
 		const auto& contacts = recordRef.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent;
@@ -407,7 +407,7 @@ void recordAndStrForContactWithMultipleDevices(Record& record, string& str) {
 	list paths = {path};
 	for (size_t i = 0; i < sipContact.size(); i++) {
 		ExtendedContactCommon ecc(paths, callId.at(i), uniqueId.at(i));
-		record.update(ecc, sipContact.at(i), expire.at(i), q, cseq, updateTime.at(i), alias, acceptHeaders.at(i), false,
+		record.update(ecc, sipContact.at(i), expire.at(i), updateTime.at(i), q, cseq, alias, acceptHeaders.at(i), false,
 		              nullptr);
 		const auto& contacts = record.getExtendedContacts();
 		contacts.latest()->get()->mUserAgent = userAgent.at(i);
@@ -453,7 +453,7 @@ void serializeValidContactWithoutOptionalAttributes() {
 	// Record without path nor user agent
 	auto record = createRecord();
 	ExtendedContactCommon ecc(path, callId, uniqueId);
-	record.update(ecc, sipContact.c_str(), expire, 1.0, 21, update, false, acceptHeaders, false, nullptr);
+	record.update(ecc, sipContact.c_str(), expire, update, 1.0, 21, false, acceptHeaders, false, nullptr);
 	RecordSerializerJson recordSerializer;
 	string serializedContact{};
 	BC_ASSERT_TRUE(recordSerializer.serialize(record, serializedContact, true));

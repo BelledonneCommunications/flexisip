@@ -55,7 +55,7 @@ bool RecordSerializerJson::parse(string_view str, Record& r) {
 			if (sipContact.empty()) throw invalid_argument("missing SIP contact URI");
 			const string callId{jsonData["call-id"]};
 			if (callId.empty()) throw invalid_argument("missing call-id");
-			const time_t expire{jsonData["expires-at"]};
+			const time_t expireAt{jsonData["expires-at"]};
 			const time_t updateTime{jsonData["update-time"]};
 			const int cseq{jsonData["cseq"]};
 
@@ -68,7 +68,7 @@ bool RecordSerializerJson::parse(string_view str, Record& r) {
 			const list<string> stlpath{jsonData["path"].cbegin(), jsonData["path"].cend()};
 
 			ExtendedContactCommon ec(stlpath, callId, lineValue);
-			r.update(ec, sipContact.c_str(), expire, q, cseq, updateTime, alias, acceptHeaders, false, nullptr);
+			r.update(ec, sipContact.c_str(), expireAt, updateTime, q, cseq, alias, acceptHeaders, false, nullptr);
 
 			if (r.count() < itemId + 1) {
 				LOGE << "Cannot update record for contact " << sipContact;

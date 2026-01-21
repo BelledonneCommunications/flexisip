@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -32,7 +33,7 @@ struct BindingParameters {
 	bool alias = false; /* < Indicates whether the Contact supplied is an alias, which means it has to be recursed
 	           during fetch() operations. */
 	bool withGruu = false;
-	int globalExpire = 0;
+	std::chrono::seconds globalExpire{0};
 	int version = 0;
 	int32_t cSeq = -1; // Negative means no CSeq
 	std::string callId = "";

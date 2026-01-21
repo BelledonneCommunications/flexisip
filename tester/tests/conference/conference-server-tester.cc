@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -188,7 +188,7 @@ void conferenceServerClearsOldBindingsOnInit() {
 	sofiasip::Home home{};
 	const SipUri aor(confFactoryUri);
 	BindingParameters params{};
-	params.globalExpire = 0xdead;
+	params.globalExpire = chrono::seconds{0xdead};
 	params.callId = "CONFERENCE";
 	const auto unexpectedContact = "sip:unexpected@127.0.0.1";
 	const auto contact =
@@ -329,10 +329,8 @@ void oldChatroomSupport() {
 		void onRecordFound(const std::shared_ptr<Record>&) override {
 			recorded = true;
 		}
-		void onError(const SipStatus&) override {
-		}
-		void onInvalid(const SipStatus&) override {
-		}
+		void onError(const SipStatus&) override {}
+		void onInvalid(const SipStatus&) override {}
 		void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
 			updated = true;
 		}
@@ -347,7 +345,7 @@ void oldChatroomSupport() {
 
 	BindingParameters parameter;
 	parameter.callId = "dummy";
-	parameter.globalExpire = 100;
+	parameter.globalExpire = chrono::seconds{100};
 	parameter.alias = false;
 	parameter.version = 0;
 	parameter.withGruu = true;

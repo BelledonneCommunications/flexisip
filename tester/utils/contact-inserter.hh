@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -52,8 +52,7 @@ public:
 };
 
 class AcceptUpdatesListener : public ContactInsertedListener {
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {
-	}
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>&) override {}
 };
 
 // Insert Contacts into the Registrar
@@ -79,7 +78,7 @@ public:
 		return *this;
 	}
 	ContactInserter& setExpire(std::chrono::seconds expire) {
-		mParameters.globalExpire = expire.count();
+		mParameters.globalExpire = expire;
 		return *this;
 	}
 	ContactInserter& setPath(const std::vector<std::string>& path) {

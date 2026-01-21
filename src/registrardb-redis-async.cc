@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -495,7 +495,8 @@ void RegistrarDbRedisAsync::handleFetch(redis::async::Reply reply, const RedisRe
 			    // This is a workaround required in case of unregister (expire set to 0) because
 			    // if there is only one entry, it will be deleted first so the fetch will come back empty
 			    // and flexisip will answer 480 instead of 200.
-			    if (listener) listener->onRecordFound(context.mBindingParameters.globalExpire == 0 ? record : nullptr);
+			    if (listener)
+				    listener->onRecordFound(context.mBindingParameters.globalExpire.count() == 0 ? record : nullptr);
 		    }
 	    },
 
