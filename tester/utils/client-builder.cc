@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -37,11 +37,13 @@ struct CodecDescription {
 };
 
 ClientBuilder::ClientBuilder(const Agent& agent)
-    : mCoreTemplate(tester::minimalCore()), mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent) {
-}
+    : mCoreTemplate(tester::minimalCore()), mAccountParams(mCoreTemplate->createAccountParams()), mAgent(agent) {}
 
 CoreClient ClientBuilder::build(const std::string& baseAddress, const std::string& displayName) const {
-	const std::string& me = StringUtils::startsWith(baseAddress, "sip:") ? baseAddress : "sip:" + baseAddress;
+	const std::string& me =
+	    string_utils::startsWith(baseAddress, "sip:") || string_utils::startsWith(baseAddress, "sips:")
+	        ? baseAddress
+	        : "sip:" + baseAddress;
 	auto myAddress = mFactory->createAddress(me);
 	if (!myAddress) {
 		std::ostringstream msg{};

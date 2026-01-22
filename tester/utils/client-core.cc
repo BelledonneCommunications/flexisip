@@ -88,6 +88,8 @@ std::shared_ptr<linphone::Core> minimalCore() {
 	auto clientTransport = factory->createTransports();
 	clientTransport->setTcpPort(LC_SIP_TRANSPORT_DONTBIND);
 	clientTransport->setUdpPort(LC_SIP_TRANSPORT_DONTBIND);
+	clientTransport->setTlsPort(LC_SIP_TRANSPORT_DONTBIND);
+	core->verifyServerCertificates(false);
 	core->setTransports(clientTransport);
 	core->setZrtpSecretsFile(":memory:");
 	core->enableLimeX3Dh(false);
