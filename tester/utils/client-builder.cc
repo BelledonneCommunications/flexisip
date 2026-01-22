@@ -40,7 +40,10 @@ ClientBuilder::ClientBuilder(const Agent& agent)
 }
 
 CoreClient ClientBuilder::build(const std::string& baseAddress) const {
-	const std::string& me = StringUtils::startsWith(baseAddress, "sip:") ? baseAddress : "sip:" + baseAddress;
+	const std::string& me =
+	    string_utils::startsWith(baseAddress, "sip:") || string_utils::startsWith(baseAddress, "sips:")
+	        ? baseAddress
+	        : "sip:" + baseAddress;
 	auto myAddress = mFactory->createAddress(me);
 	if (!myAddress) {
 		std::ostringstream msg{};
