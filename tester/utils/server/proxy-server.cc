@@ -99,9 +99,12 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 
 	// add minimal config if not present
 	auto config = customConfig;
-	config.merge(map<string, string>{// Requesting bind on port 0 to let the kernel find any available port
-	                                 {"global/transports", "sip:127.0.0.1:0"},
-	                                 {"module::Registrar/reg-domains", "*.example.org"}});
+	config.merge(map<string, string>{
+	    // Requesting bind on port 0 to let the kernel find any available port
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/reg-domains", "*.example.org"},
+	    {"module::MediaRelay/prevent-loops", "false"},
+	});
 
 	for (const auto& kv : config)
 		setConfigParameter(kv);
