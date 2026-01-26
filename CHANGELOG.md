@@ -206,6 +206,7 @@ Group changes to describe their impact on the project, as follows:
 - **Command line:** The `--rewrite-config` option was not working if there were unknown sections or items in the
   configuration file.
 - **CLI:** The REGISTRAR_DUMP command was always returning an empty set.
+- **Sofia-sip:** When selecting tport after NATPR requests, only check for preferences if orders are equal.
  
 ### [Security]
 - **Sofia-sip:** Fixed multiple CVE
