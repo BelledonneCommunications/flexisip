@@ -46,7 +46,7 @@ ClientBuilder::ClientBuilder(const std::string& remoteAddress)
     : mCoreTemplate(tester::minimalCore()), mAccountParams(mCoreTemplate->createAccountParams()), mRegister(OnOff::Off),
       mRemoteAddress{remoteAddress} {}
 
-CoreClient ClientBuilder::build(const std::string& baseAddress) const {
+CoreClient ClientBuilder::build(const std::string& baseAddress, const std::string& displayName) const {
 	const std::string& me = StringUtils::startsWith(baseAddress, "sip:") ? baseAddress : "sip:" + baseAddress;
 	auto myAddress = mFactory->createAddress(me);
 	if (!myAddress) {
@@ -55,6 +55,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress) const {
 		bc_assert(__FILE__, __LINE__, false, msg.str().c_str());
 		throw std::invalid_argument{msg.str()};
 	}
+	myAddress->setDisplayName(displayName);
 
 	auto core = minimalCore();
 	core->setLabel(me);

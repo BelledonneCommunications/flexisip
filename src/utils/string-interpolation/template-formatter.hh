@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include <functional>
+#include <cassert>
 #include <sstream>
-#include <unordered_set>
+#include <vector>
 
 #include "utils/string-interpolation/template-string.hh"
 #include "utils/string-interpolation/variable-substitution.hh"
@@ -51,8 +51,7 @@ public:
 
 	// Convenience ctor
 	explicit TemplateFormatter(std::string templateStr, const FieldsOf<Context...>& fields)
-	    : TemplateFormatter(TemplateString(std::move(templateStr), "{", "}"), resolve(fields)) {
-	}
+	    : TemplateFormatter(TemplateString(std::move(templateStr), "{", "}"), resolve(fields)) {}
 
 	std::string format(const Context&... context) const {
 		assert(mPieces.size() == mSubstitutions.size() + 1);

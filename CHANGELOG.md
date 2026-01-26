@@ -141,6 +141,7 @@ Group changes to describe their impact on the project, as follows:
               user should register (optional).
             - Parameter `protocol` (which is used with `outbound_proxy` and `registrar`) to indicate which transport
               protocol to use (optional, default: udp).
+        - New field `displayName` in template strings (see [SIP-Bridge documentation] for more information).
 - **Conference:**
     - New parameters `audio-engine-mode` and `video-engine-mode` to specify the media engine to use (`mixer`, `semi-sfu`
       and `sfu`). Documentation is available in the [configuration reference guide].
