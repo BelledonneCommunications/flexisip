@@ -120,7 +120,7 @@ public:
 	ClientBuilder& setMessageExpires(std::chrono::seconds delay);
 	ClientBuilder& setUserAgent(const std::string& userAgent, const std::string& version = FLEXISIP_GIT_VERSION);
 
-	CoreClient build(const std::string&) const;
+	CoreClient build(const std::string&, const std::string& displayName = {}) const;
 	std::shared_ptr<CoreClient> make(const std::string&) const;
 
 private:

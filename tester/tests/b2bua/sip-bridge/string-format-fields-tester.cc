@@ -24,6 +24,8 @@
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
+using namespace std;
+
 namespace flexisip::tester {
 namespace {
 
@@ -80,12 +82,68 @@ void missingClosingDelim() {
 	}
 }
 
+void linphoneAddressFields() {
+	const string expectedDisplayName{"Expected DisplayName"};
+	const string expectedUserInfo{"expected-user-info"};
+	const string expectedHostPort{"expected-hostport.com"};
+	const string expectedUriParams{";transport=tcp;device=phone"};
+	const auto factory = linphone::Factory::get();
+	const auto addr = factory->createAddress("sip:" + expectedUserInfo + "@" + expectedHostPort + expectedUriParams);
+
+	{
+		const TemplateFormatter formatter{"{displayName}", kLinphoneAddressFields};
+
+		const auto result = formatter.format(addr);
+
+		BC_ASSERT(result.empty());
+	}
+
+	addr->setDisplayName(expectedDisplayName);
+	{
+		const TemplateFormatter formatter{"{displayName}", kLinphoneAddressFields};
+
+		const auto result = formatter.format(addr);
+
+		BC_ASSERT_CPP_EQUAL(result, R"(")" + expectedDisplayName + R"(")");
+	}
+	{
+		const TemplateFormatter formatter{"{user}", kLinphoneAddressFields};
+
+		const auto result = formatter.format(addr);
+
+		BC_ASSERT_CPP_EQUAL(result, expectedUserInfo);
+	}
+	{
+		const TemplateFormatter formatter{"{hostport}", kLinphoneAddressFields};
+
+		const auto result = formatter.format(addr);
+
+		BC_ASSERT_CPP_EQUAL(result, expectedHostPort);
+	}
+	{
+		const TemplateFormatter formatter{"{uriParameters}", kLinphoneAddressFields};
+
+		const auto result = formatter.format(addr);
+
+		BC_ASSERT_CPP_EQUAL(result, expectedUriParams);
+	}
+	{
+		const string templateStr{"{displayName} <sip:{user}@{hostport}{uriParameters}>"};
+		const TemplateFormatter formatter{templateStr, kLinphoneAddressFields};
+
+		const auto result = formatter.format(addr);
+
+		BC_ASSERT_CPP_EQUAL(result, addr->asString());
+	}
+}
+
 TestSuite _{
     "b2bua::sip-bridge::variable_substitution",
     {
         CLASSY_TEST(knownFields),
         CLASSY_TEST(unknownFields),
         CLASSY_TEST(missingClosingDelim),
+        CLASSY_TEST(linphoneAddressFields),
     },
 };
 

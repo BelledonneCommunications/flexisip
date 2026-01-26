@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,13 +18,16 @@
 
 #pragma once
 
+#include <map>
 #include <string>
+
+#include "linphone++/address.hh"
+#include "linphone++/call.hh"
 
 #include "b2bua/sip-bridge/accounts/account.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "linphone++/address.hh"
-#include "linphone++/call.hh"
 #include "utils/string-interpolation/variable-substitution.hh"
+#include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
 namespace flexisip::b2bua::bridge {
@@ -35,8 +38,13 @@ using utils::string_interpolation::resolve;
 
 const auto kLinphoneAddressFields = FieldsOf<std::shared_ptr<const linphone::Address>>{
     {"", leaf([](const auto& address) { return address->asStringUriOnly(); })},
+    {"displayName", leaf([](const std::shared_ptr<const linphone::Address>& address) {
+	     static const std::map<char, std::string> kDisplayNameEscapedCharacters{{'"', R"(\")"}, {'\\', R"(\\)"}};
+	     const std::string value{string_utils::transform({address->getDisplayName()}, kDisplayNameEscapedCharacters)};
+	     return value.empty() ? "" : R"(")" + value + R"(")";
+     })},
     {"user", leaf([](const std::shared_ptr<const linphone::Address>& address) {
-	     return UriUtils::escape(address->getUsername(), UriUtils::sipUserReserved);
+	     return uri_utils::escape(address->getUsername(), uri_utils::sipUserReserved);
      })},
     {"hostport", leaf([](const auto& address) {
 	     auto hostport = address->getDomain();

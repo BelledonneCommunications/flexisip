@@ -71,8 +71,7 @@ class InternalClient {
 
 public:
 	template <typename... _Args>
-	InternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
-	}
+	InternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {}
 
 	std::shared_ptr<linphone::Call> invite(const ExternalClient& external) const;
 
@@ -94,11 +93,9 @@ class ExternalClient {
 	}
 
 public:
-	ExternalClient(CoreClient&& client) : client(std::move(client)) {
-	}
+	ExternalClient(CoreClient&& client) : client(std::move(client)) {}
 	template <typename... _Args>
-	ExternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {
-	}
+	ExternalClient(_Args&&... __args) : client(std::forward<_Args>(__args)...) {}
 
 	[[nodiscard]] auto hasReceivedCallFrom(const InternalClient& internal, const BcAssert<>& asserter) const {
 		return client.hasReceivedCallFrom(internal.client, asserter);
@@ -192,7 +189,7 @@ void bidirectionalBridging() {
                 "onAccountNotFound": "nextProvider",
                 "outgoingInvite": {
                     "to": "sip:{incoming.to.user}@{account.uri.hostport}{incoming.to.uriParameters}",
-                    "from": "{account.uri}"
+                    "from": "{incoming.from.displayName} {account.uri}"
                 },
                 "accountPool": "FlockOfJabirus"
             },
@@ -209,7 +206,7 @@ void bidirectionalBridging() {
                 "onAccountNotFound": "nextProvider",
                 "outgoingInvite": {
                     "to": "{account.alias}",
-                    "from": "sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
+                    "from": "{incoming.from.displayName} sip:{incoming.from.user}@{account.alias.hostport}{incoming.from.uriParameters}",
                     "outboundProxy": "<sip:127.0.0.1:#flexisipPort#;transport=#flexisipTransport#>"
                 },
                 "accountPool": "FlockOfJabirus"
@@ -281,10 +278,12 @@ void bidirectionalBridging() {
 	};
 	jabiruProxy.start();
 
+	const auto felixDisplayName = R"(Fel"ix)"s;
 	const auto felixUriOnJabiru = "sip:felix@jabiru.example.org"s;
 	const auto felixUriOnFlexisip = "sip:felix@flexisip.example.org"s;
 	const auto jasperUriOnJabiru = "sip:jasper@jabiru.example.org"s;
 	const auto jasperUriOnFlexisip = "sip:jasper@flexisip.example.org"s;
+	const auto emilieDisplayName = R"(Emil\ie)"s;
 	const auto emilieUriOnJabiru = "sip:emilie@jabiru.example.org"s;
 	const auto emilieUriOnFlexisip = "sip:emilie@flexisip.example.org"s;
 	providersJson.writeStream() << jsonConfig.format({
@@ -315,9 +314,9 @@ void bidirectionalBridging() {
 	    dynamic_pointer_cast<ModuleRouter>(jabiruProxy.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(jabiruRouterModule != nullptr);
 
-	auto felix = ClientBuilder(*flexisipProxy.getAgent()).build(felixUriOnFlexisip);
+	auto felix = ClientBuilder(*flexisipProxy.getAgent()).build(felixUriOnFlexisip, felixDisplayName);
 	auto jasper = ClientBuilder(*jabiruProxy.getAgent()).build(jasperUriOnJabiru);
-	auto emilie = ClientBuilder(*flexisipProxy.getAgent()).build(emilieUriOnFlexisip);
+	auto emilie = ClientBuilder(*flexisipProxy.getAgent()).build(emilieUriOnFlexisip, emilieDisplayName);
 
 	CoreAssert asserter{flexisipProxy, jabiruProxy};
 	// Make sure B2BUA accounts are registered on external domain.
@@ -339,42 +338,51 @@ void bidirectionalBridging() {
 	asserter.registerSteppable(emilie);
 
 	// Flexisip -> Jabiru
-	BC_HARD_ASSERT(felix.call(jasper, jasper.getCore()->createAddress(jasperUriOnFlexisip)) != nullptr);
-	const auto& jasperCall = jasper.getCurrentCall();
-	// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
-	BC_ASSERT_CPP_EQUAL(toUriOnJabiru, jasperUriOnJabiru);
-	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
-	BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->asStringUriOnly(), felixUriOnJabiru);
-	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 1);
-	BC_ASSERT(jasper.endCurrentCall(felix));
+	{
+		BC_HARD_ASSERT(felix.call(jasper, jasper.getCore()->createAddress(jasperUriOnFlexisip)) != nullptr);
+		const auto& jasperCall = jasper.getCurrentCall();
+		// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+		BC_ASSERT_CPP_EQUAL(toUriOnJabiru, jasperUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->asStringUriOnly(), felixUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->getDisplayName(), felixDisplayName);
+		// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 1);
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 1);
+		BC_ASSERT(jasper.endCurrentCall(felix));
+	}
 	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
 
 	// Jabiru -> Flexisip
-	BC_HARD_ASSERT(jasper.call(felix, felix.getCore()->createAddress(felixUriOnJabiru)) != nullptr);
-	const auto& felixCall = felix.getCurrentCall();
-	// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
-	BC_ASSERT_CPP_EQUAL(toUriOnJabiru, felixUriOnJabiru);
-	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, jasperUriOnJabiru);
-	BC_ASSERT_CPP_EQUAL(felixCall->getRemoteAddress()->asStringUriOnly(), jasperUriOnFlexisip);
-	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 2);
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 2);
-	BC_ASSERT(felix.endCurrentCall(jasper));
+	{
+		BC_HARD_ASSERT(jasper.call(felix, felix.getCore()->createAddress(felixUriOnJabiru)) != nullptr);
+		const auto& felixCall = felix.getCurrentCall();
+		// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+		BC_ASSERT_CPP_EQUAL(toUriOnJabiru, felixUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, jasperUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(felixCall->getRemoteAddress()->asStringUriOnly(), jasperUriOnFlexisip);
+		BC_ASSERT(felixCall->getRemoteAddress()->getDisplayName().empty());
+		// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 2);
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 2);
+		BC_ASSERT(felix.endCurrentCall(jasper));
+	}
 	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
 
 	// Flexisip -> Flexisip
-	BC_HARD_ASSERT(felix.call(emilie, jabiruProxy) != nullptr);
-	const auto& emilieCall = emilie.getCurrentCall();
-	// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
-	BC_ASSERT_CPP_EQUAL(toUriOnJabiru, emilieUriOnJabiru);
-	BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
-	BC_ASSERT_CPP_EQUAL(emilieCall->getRemoteAddress()->asStringUriOnly(), felixUriOnFlexisip);
-	// Verify that Jabiru proxy actually created a ForkCallContext for this call.
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 3);
-	BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 3);
-	BC_ASSERT(felix.endCurrentCall(emilie, jabiruProxy));
+	{
+		BC_HARD_ASSERT(emilie.call(felix, jabiruProxy) != nullptr);
+		const auto& felixCall = felix.getCurrentCall();
+		// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+		BC_ASSERT_CPP_EQUAL(toUriOnJabiru, felixUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, emilieUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(felixCall->getRemoteAddress()->asStringUriOnly(), emilieUriOnFlexisip);
+		BC_ASSERT_CPP_EQUAL(felixCall->getRemoteAddress()->getDisplayName(), emilieDisplayName);
+		// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 3);
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 3);
+		BC_ASSERT(felix.endCurrentCall(emilie, jabiruProxy));
+	}
 
 	std::ignore = b2buaServer->stop();
 }
