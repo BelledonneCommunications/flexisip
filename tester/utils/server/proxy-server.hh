@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -47,7 +47,15 @@ public:
 	 * @param injectedModule a module to be injected into the Agent's module chain to mangle requests before they reach
 	 * other modules
 	 */
-	explicit Server(const std::string& configFilePath = "", InjectedHooks* injectedHooks = nullptr);
+	[[deprecated]] explicit Server(const std::string& configFilePath, InjectedHooks* injectedHooks = nullptr);
+
+	/**
+	 * @brief Create a SofiaSip root and an Agent with default config except for
+	 *
+	 * transport set to 127.0.0.1 and port 0
+	 * reg-domain set to *.example.org.
+	 */
+	explicit Server() : Server(std::map<std::string, std::string>{}) {}
 
 	/**
 	 * @brief Same as before but use a map instead of a file to configure the agent.
