@@ -95,8 +95,6 @@ function(add_linphonesdk)
 	set(ENABLE_G729 ${ENABLE_G729})
 	set(ENABLE_G729B_CNG OFF) # Disabled for license conformity
 	set(ENABLE_GSM ON)
-	set(ENABLE_ILBC OFF)
-	set(ENABLE_ISAC OFF)
 	set(ENABLE_JAVA_WRAPPER OFF)
 	set(ENABLE_JAZZY_DOC OFF)
 	set(ENABLE_JPEG OFF)
@@ -116,6 +114,7 @@ function(add_linphonesdk)
 	set(ENABLE_OPUS ON)
 	set(ENABLE_QRCODE OFF)
 	set(ENABLE_RELATIVE_PREFIX OFF)
+	set(ENABLE_RNNOISE OFF)
 	set(ENABLE_SPEEX_CODEC ON)
 	set(ENABLE_SPEEX_DSP ON)
 	set(ENABLE_SRTP ON)
@@ -144,8 +143,10 @@ function(add_linphonesdk)
 
 	if(BUILD_MEDIASTREAMER2)
 		# Mediastreamer specific config
+		set(ENABLE_BAUDOT OFF)
 		set(ENABLE_FIXED_POINT OFF)
 		set(ENABLE_PCAP OFF)
+		set(ENABLE_SCREENSHARING OFF)
 		set(ENABLE_SOUND OFF) # Disable all sound card backends.
 		set(ENABLE_V4L OFF) # Disable video capture
 		# Disable video rendering
