@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,12 +16,14 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "mediarelay.hh"
+
 #include <list>
 #include <poll.h>
 #include <sys/resource.h>
+#include <utility>
 
 #include "agent.hh"
-#include "mediarelay.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -478,7 +480,27 @@ void RelaySession::transfer(time_t curtime, const shared_ptr<RelayChannel>& chan
 	}
 }
 
-MediaRelayServer::MediaRelayServer(MediaRelay* module) : mModule(module) {
+PortHelper::PortHelper(int minPort, const vector<int>& evenPortOffsets)
+    : mMinPort(minPort), mEvenPortOffsets(evenPortOffsets) {
+	mEvenPortCount = static_cast<int>(mEvenPortOffsets.size());
+	auto gen = mt19937{random_device{}()};
+	std::uniform_int_distribution<> distrib(0, mEvenPortCount - 1);
+	mCurrentIndex = distrib(gen);
+}
+
+int PortHelper::getCurrentIndex() const {
+	return mCurrentIndex;
+}
+
+int PortHelper::getRandomPort(int index) {
+	mCurrentIndex = index % mEvenPortCount;
+	int port = mMinPort + mEvenPortOffsets.at(mCurrentIndex) * 2;
+	mCurrentIndex = (mCurrentIndex + 1) % mEvenPortCount;
+	return port;
+}
+
+MediaRelayServer::MediaRelayServer(MediaRelay* module)
+    : mModule(module), mPortHelper(module->mMinPort, module->mEvenPortOffsets) {
 	mRunning = false;
 	mSessionsCount = 0;
 	if (pipe(mCtlPipe) == -1) throw FlexisipException{"could not create MediaRelayServer control pipe"};
@@ -493,9 +515,12 @@ RtpSession* MediaRelayServer::createRtpSession(const std::string& bindIp) {
 #if ORTP_HAS_REUSEADDR
 	rtp_session_set_reuseaddr(session, FALSE);
 #endif
-	for (int i = 0; i < 100; ++i) {
-		int port = ((rand() % (mModule->mMaxPort - mModule->mMinPort)) + mModule->mMinPort) & 0xfffe;
 
+	// For UDP and similar protocols, RTP SHOULD use an even port number and the corresponding RTCP stream SHOULD use
+	// the next higher (odd) port number according to the RFC 3550-11.
+	int startIndex = mPortHelper.getCurrentIndex();
+	for (int i = 0; i < 100; ++i) {
+		int port = mPortHelper.getRandomPort(startIndex + i);
 #if ORTP_ABI_VERSION >= 9
 		if (rtp_session_set_local_addr(session, bindIp.c_str(), port, port + 1) == 0) {
 #else

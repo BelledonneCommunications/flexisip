@@ -23,6 +23,7 @@
 #include "sofia-sip/nta_stateless.h"
 
 #include "callcontext-mediarelay.hh"
+#include "exceptions/bad-configuration.hh"
 #include "fork-context/fork-context.hh"
 #include "modules/module-toolbox.hh"
 #include "sdp-modifier.hh"
@@ -250,7 +251,27 @@ void MediaRelay::onLoad(const GenericStruct* modconf) {
 	mInactivityPeriod = chrono::duration_cast<chrono::seconds>(
 	                        modconf->get<ConfigDuration<chrono::seconds>>("inactivity-period")->read())
 	                        .count();
+	generateEvenPortIndexRange();
 	createServers();
+}
+
+void MediaRelay::generateEvenPortIndexRange() {
+	if (mMinPort % 2) {
+		LOGW << "min port " << mMinPort << " cannot be used for RTP session as it is odd";
+		++mMinPort;
+	}
+	if (mMaxPort % 2 == 0) {
+		LOGW << "max port " << mMaxPort << " cannot be used for RTCP session as it is even";
+		--mMaxPort;
+	}
+	size_t rangeSize = (mMaxPort - 1 - mMinPort) / 2 + 1;
+	if (rangeSize < 1) {
+		throw BadConfiguration{"empty port range for rtp and rtcp session (min = " + to_string(mMinPort) +
+		                       ", max = " + to_string(mMaxPort) + ")"};
+	}
+	mEvenPortOffsets = vector<int>(rangeSize);
+	iota(mEvenPortOffsets.begin(), mEvenPortOffsets.end(), 0);
+	shuffle(mEvenPortOffsets.begin(), mEvenPortOffsets.end(), mt19937{random_device{}()});
 }
 
 void MediaRelay::onUnload() {

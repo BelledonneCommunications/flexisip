@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "bctoolbox/tester.h"
 #include "linphone++/call.hh"
@@ -26,6 +27,9 @@
 
 #include "flexisip/sofia-wrapper/sdp-parser.hh"
 
+#include "exceptions/bad-configuration.hh"
+#include "mediarelay.hh"
+#include "ortp/rtpsession.h"
 #include "sdp-modifier.hh"
 #include "utils/asserts.hh"
 #include "utils/call-builder.hh"
@@ -51,6 +55,70 @@ const std::map<std::string, std::string> CONFIG{
     {"module::Registrar/enabled", "true"},
     {"module::Registrar/reg-domains", "sip.example.org"},
 };
+
+/**
+ * Set the RTP and RTCP ports range and start the proxy if the range contains at least 2 values. An exception is thrown
+ * otherwise.
+ */
+void startServerWithPortRange(const int minPort, const int maxPort, bool isValid) {
+	auto configWithPorts = CONFIG;
+	configWithPorts.emplace("module::MediaRelay/sdp-port-range", to_string(minPort) + "-" + to_string(maxPort));
+	Server server(configWithPorts);
+	if (!isValid) {
+		BC_ASSERT_THROWN(server.start(), BadConfiguration);
+		return;
+	}
+	server.start();
+}
+
+/**
+ * Check the bounds of the RTP and RTCP ports range depending on the configuration.
+ */
+void serverDoesNotStartIfInvalidRtpPortRange() {
+
+	// Invalid range is empty because maxPort < minPort.
+	startServerWithPortRange(2048, 2047, false);
+
+	// Valid port range set to [2048, 2049].
+	startServerWithPortRange(2048, 2049, true);
+
+	// Valid port range set to [2048, 2049].
+	startServerWithPortRange(2048, 2050, true);
+
+	// Valid port range set to [2048, 2049].
+	startServerWithPortRange(2047, 2049, true);
+
+	// Invalid range is empty because the minimal even value is minPort + 1 and the maximal odd value is maxPort -1.
+	startServerWithPortRange(2047, 2048, false);
+}
+
+/**
+ * Iterate on port offsets and check that all even ports are drawn in the range [minPort, maxPort[.
+ */
+void checkPossibleRtpPorts() {
+	int minPort{48};
+	int maxPort{57};
+	vector<int> shuffledOffsets{2, 0, 4, 1, 3};
+	PortHelper portHelper(minPort, shuffledOffsets);
+	int startIndex = portHelper.getCurrentIndex();
+	set<int> evenPorts;
+	// Check that all even ports are drawn.
+	for (int i = 0; i < static_cast<int>(shuffledOffsets.size()); ++i) {
+		evenPorts.insert(portHelper.getRandomPort(startIndex + i));
+		BC_ASSERT_LOWER(portHelper.getCurrentIndex(), static_cast<int>(shuffledOffsets.size()) - 1, int, "%d");
+	}
+	BC_ASSERT_CPP_EQUAL(evenPorts.size(), shuffledOffsets.size());
+	BC_ASSERT_GREATER(*evenPorts.begin(), minPort, int, "%d");
+	BC_ASSERT_LOWER_STRICT(*evenPorts.rbegin(), maxPort, int, "%d");
+	// Check that the current index loops and no ports are drawn outside the range.
+	for (int i = 0; i < 3; ++i) {
+		evenPorts.insert(portHelper.getRandomPort(startIndex + i));
+		BC_ASSERT_LOWER(portHelper.getCurrentIndex(), static_cast<int>(shuffledOffsets.size()) - 1, int, "%d");
+	}
+	BC_ASSERT_CPP_EQUAL(evenPorts.size(), shuffledOffsets.size());
+	BC_ASSERT_GREATER(*evenPorts.begin(), minPort, int, "%d");
+	BC_ASSERT_LOWER_STRICT(*evenPorts.rbegin(), maxPort, int, "%d");
+}
 
 /**
  * Freeswitch has been witnessed to provide ICE candidates in its responses (183 & 200) even when the INVITE did *not*
@@ -534,6 +602,8 @@ TestSuite _{
         CLASSY_TEST(early_media_video_sendrecv_takeover),
         CLASSY_TEST(early_media_bidirectional_video),
         CLASSY_TEST(updateIpFamilyOnReInvite),
+        CLASSY_TEST(serverDoesNotStartIfInvalidRtpPortRange),
+        CLASSY_TEST(checkPossibleRtpPorts),
     },
 };
 
