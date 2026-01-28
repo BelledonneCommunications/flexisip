@@ -178,6 +178,9 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Deprecated]
 - **Debian 11:** Support will be discontinued in the next release, as distribution will reach its end-of-life (2026-08-31).
+- **Proxy/MediaRelay:** parameters `module::MediaRelay/sdp-port-range-min` and `module::MediaRelay/sdp-port-range-max` are 
+  merged into unique parameter `module::MediaRelay/sdp-port-range`. They still work but are deprecated, please use the new 
+  parameter.
 
 ### [Fixed]
 - **Proxy:**

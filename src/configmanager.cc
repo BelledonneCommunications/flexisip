@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -559,11 +559,42 @@ ConfigIntRange::RangeBounds ConfigIntRange::parse(const string& value) {
 	return bounds;
 }
 
+void ConfigIntRange::setFallbackMin(const ConfigInt& fallbackValue) {
+	mFallbackMin = &fallbackValue;
+}
+
+void ConfigIntRange::setFallbackMax(const ConfigInt& fallbackValue) {
+	mFallbackMax = &fallbackValue;
+}
+
+const string& ConfigIntRange::get() const {
+	if (mIsDefault && mFallback && !mFallback->isDefault()) {
+		LOGW << "'" << getCompleteName() << "' is not set but its old name is, falling back on '"
+		     << mFallback->getCompleteName() << "'";
+
+		return mFallback->get();
+	}
+	return mValue;
+}
+
 int ConfigIntRange::readMin() {
+	if (mIsDefault && mFallbackMin && !mFallbackMin->isDefault()) {
+		LOGW << "'" << getCompleteName() << "' is not set but its old name for min bound is, falling back on '"
+		     << mFallbackMin->getCompleteName() << "'";
+		return mFallbackMin->read();
+	}
 	return parse(get()).min;
 }
 int ConfigIntRange::readMax() {
+	if (mIsDefault && mFallbackMax && !mFallbackMax->isDefault()) {
+		LOGW << "'" << getCompleteName() << "' is not set but its old name for max bound is, falling back on '"
+		     << mFallbackMax->getCompleteName() << "'";
+		return mFallbackMax->read();
+	}
 	return parse(get()).max;
+}
+std::pair<int, int> ConfigIntRange::read() {
+	return std::pair<int, int>{readMin(), readMax()};
 }
 
 void ConfigIntRange::write(int min, int max) {
