@@ -86,7 +86,7 @@ private:
 	static int sResponseCallback(nta_outgoing_magic_t* ctx, nta_outgoing_t* orq, const sip_t* resp);
 	void responseCallback(nta_outgoing_t* orq, const sip_t* resp);
 	void onConnectionBroken(tport_t* tport, msg_t* msg, int error);
-	void setCurrentTport(tport_t* tport);
+	void setCurrentTport(nta_outgoing_t* orq);
 	void cleanCurrentTport();
 	void sendRequest();
 	int generateUuid(const std::string& uniqueId);

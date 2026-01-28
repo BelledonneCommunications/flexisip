@@ -535,7 +535,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 			nextSchedule = 0s;
 		}
 		mLastResponseWas401 = true;
-		setCurrentTport(nta_outgoing_transport(orq));
+		setCurrentTport(orq);
 		/* will retry immediately */
 	} else if (resp->sip_status->st_status != 200) {
 		/*the registration failed for whatever reason. Retry shortly.*/
@@ -563,7 +563,7 @@ void DomainRegistration::responseCallback(nta_outgoing_t* orq, const sip_t* resp
 			}
 		}
 		mPongsExpected = !!sip_has_supported(resp->sip_supported, "outbound");
-		setCurrentTport(nta_outgoing_transport(orq));
+		setCurrentTport(orq);
 		nextSchedule = ((expire * 90) / 100) + 1s;
 		LOGI << "Scheduling next domain register refresh for " << mFrom->url_host << " in " << nextSchedule.count()
 		     << " seconds";
@@ -722,11 +722,14 @@ void DomainRegistration::start() {
 	sendRequest();
 }
 
-void DomainRegistration::setCurrentTport(tport_t* tport) {
+void DomainRegistration::setCurrentTport(nta_outgoing_t* orq) {
 	using namespace std::chrono;
-
+	tport_t* tport = nta_outgoing_transport(orq); // Takes a reference on tport
 	if (!tport) return;
-	if (mCurrentTport == tport) return;
+	if (mCurrentTport == tport) {
+		tport_unref(tport);
+		return;
+	}
 
 	/*
 	 * We cast the duration here because SofiaSip requires that those be express in milliseconds. Thus, the code
