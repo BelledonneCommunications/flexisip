@@ -96,11 +96,12 @@ void nullMaxForwardAndForkBasicContext() {
 	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountBasicForks->finish->read(), 1);
 }
 
-void notRtpPortAndForkCallContext() {
+void notEnoughRtpPortAndForkCallContext() {
 	Server proxy{kConfig};
 	proxy.setConfigParameter({"module::Router/fork-late", "false"});
 	proxy.setConfigParameter({"module::MediaRelay/enabled", "true"});
-	proxy.setConfigParameter({"module::MediaRelay/sdp-port-range", "1023-1024"});
+	// Only 2 ports are given but 4 are needed.
+	proxy.setConfigParameter({"module::MediaRelay/sdp-port-range", "1024-1026"});
 	proxy.start();
 
 	const auto& registrarDb = proxy.getRegistrarDb();
@@ -561,7 +562,7 @@ TestSuite _{
     "ForkContext",
     {
         CLASSY_TEST(nullMaxForwardAndForkBasicContext),
-        CLASSY_TEST(notRtpPortAndForkCallContext),
+        CLASSY_TEST(notEnoughRtpPortAndForkCallContext),
         CLASSY_TEST(referRequestUsesForkBasicContext),
         CLASSY_TEST(globalOrderTestNoSql),
         CLASSY_TEST(messageDeliveryTimeoutTest),

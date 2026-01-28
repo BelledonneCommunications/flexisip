@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -55,8 +55,10 @@ private:
 	                            const std::shared_ptr<OutgoingTransaction>& transaction,
 	                            const std::shared_ptr<MsgSip>& msgSip);
 	void configureContext(std::shared_ptr<RelayedCall>& c);
+	void generateEvenPortIndexRange();
 
 	CallStore* mCalls;
+	std::vector<int> mEvenPortOffsets;
 	std::vector<std::shared_ptr<MediaRelayServer>> mServers;
 	size_t mCurServer;
 	std::string mSdpMangledParam;
@@ -102,6 +104,23 @@ private:
 	int mCurSize;
 };
 
+/*
+ * Utility methods for the port attribution of RTP session.
+ */
+class PortHelper {
+public:
+	PortHelper() = delete;
+	PortHelper(int minPort, const std::vector<int>& evenPortOffsets);
+	int getCurrentIndex() const;
+	int getRandomPort(int index);
+
+private:
+	int mCurrentIndex;
+	int mEvenPortCount;
+	const int mMinPort;
+	const std::vector<int> mEvenPortOffsets;
+};
+
 class MediaRelayServer {
 	friend class RelayedCall;
 
@@ -129,6 +148,7 @@ private:
 	size_t mSessionsCount; /* since std::list::size() is O(n), we use our own counter*/
 	MediaRelay* mModule;
 	pthread_t mThread;
+	PortHelper mPortHelper;
 	int mCtlPipe[2];
 	bool mRunning;
 	friend class RelayChannel;
