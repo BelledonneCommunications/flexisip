@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -35,6 +35,7 @@
 #include <tuple>
 #include <typeinfo>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 // WARNING: keep flexisip-config.h included before any other
@@ -385,8 +386,7 @@ private:
 struct StatPair {
 	StatCounter64* const start;
 	StatCounter64* const finish;
-	StatPair(StatCounter64* istart, StatCounter64* ifinish) : start(istart), finish(ifinish) {
-	}
+	StatPair(StatCounter64* istart, StatCounter64* ifinish) : start(istart), finish(ifinish) {}
 
 	inline void incrStart() const {
 		start->incr();
@@ -512,11 +512,18 @@ public:
 	               const std::string& help,
 	               const std::string& default_value,
 	               std::uint64_t oid_index);
+	std::pair<int, int> read();
 	int readMin();
 	int readMax();
 	void write(int min, int max);
+	const std::string& get() const override;
 
 	void acceptVisit(ConfigManagerVisitor& visitor) override;
+	void setFallbackMin(const ConfigInt& fallbackValue);
+	void setFallbackMax(const ConfigInt& fallbackValue);
+
+	const ConfigInt* mFallbackMin = nullptr;
+	const ConfigInt* mFallbackMax = nullptr;
 
 private:
 	struct RangeBounds {
@@ -555,8 +562,7 @@ public:
 	               const std::string& help,
 	               const std::string& default_value,
 	               std::uint64_t oid_index)
-	    : ConfigValue(name, DurationInfo<DurationType>::kValueType, help, default_value, oid_index) {
-	}
+	    : ConfigValue(name, DurationInfo<DurationType>::kValueType, help, default_value, oid_index) {}
 
 	std::string_view getDefaultUnit() const override {
 		return DurationInfo<DurationType>::kUnit;

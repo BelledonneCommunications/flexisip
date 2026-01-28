@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -270,8 +270,7 @@ void NotificationEntry::mibFragment(ostream& ost, const string& spacing) const {
 }
 
 NotificationEntry::NotificationEntry(const std::string& name, const std::string& help, uint64_t oid_index)
-    : GenericEntry(name, Notification, help, oid_index) {
-}
+    : GenericEntry(name, Notification, help, oid_index) {}
 
 /* ConfigValue */
 
@@ -377,8 +376,7 @@ void ConfigValue::setParent(GenericEntry* parent) {
 }
 
 GenericStruct::GenericStruct(const string& name, const string& help, uint64_t oid_index)
-    : GenericEntry(name, Struct, help, oid_index) {
-}
+    : GenericEntry(name, Struct, help, oid_index) {}
 
 void GenericStruct::deprecateChild(const string& name, const DeprecationInfo& info) const {
 	GenericEntry* e = find(name);
@@ -474,8 +472,7 @@ unique_ptr<StatPair> GenericStruct::getStatPairPtr(const string& name) const {
 
 struct matchEntryNameApprox {
 	const string mName;
-	explicit matchEntryNameApprox(const string& name) : mName(name) {
-	}
+	explicit matchEntryNameApprox(const string& name) : mName(name) {}
 	bool operator()(const unique_ptr<GenericEntry>& e) {
 		auto min_required = mName.size() - 2;
 		decltype(min_required) count = 0;
@@ -504,8 +501,7 @@ const list<unique_ptr<GenericEntry>>& GenericStruct::getChildren() const {
 }
 
 ConfigBoolean::ConfigBoolean(const string& name, const string& help, const string& default_value, uint64_t oid_index)
-    : ConfigValue(name, Boolean, help, default_value, oid_index) {
-}
+    : ConfigValue(name, Boolean, help, default_value, oid_index) {}
 
 bool ConfigBoolean::parse(const string& value) {
 	if (value == "true" || value == "1") return true;
@@ -526,8 +522,7 @@ void ConfigBoolean::write(bool value) {
 }
 
 ConfigInt::ConfigInt(const string& name, const string& help, const string& default_value, uint64_t oid_index)
-    : ConfigValue(name, Integer, help, default_value, oid_index) {
-}
+    : ConfigValue(name, Integer, help, default_value, oid_index) {}
 
 int ConfigInt::read() const {
 	return stoi(get());
@@ -543,8 +538,7 @@ ConfigIntRange::ConfigIntRange(const std::string& name,
                                const std::string& help,
                                const std::string& default_value,
                                uint64_t oid_index)
-    : ConfigValue(name, IntegerRange, help, default_value, oid_index) {
-}
+    : ConfigValue(name, IntegerRange, help, default_value, oid_index) {}
 
 ConfigIntRange::RangeBounds ConfigIntRange::parse(const string& value) {
 	auto bounds = RangeBounds();
@@ -565,11 +559,42 @@ ConfigIntRange::RangeBounds ConfigIntRange::parse(const string& value) {
 	return bounds;
 }
 
+void ConfigIntRange::setFallbackMin(const ConfigInt& fallbackValue) {
+	mFallbackMin = &fallbackValue;
+}
+
+void ConfigIntRange::setFallbackMax(const ConfigInt& fallbackValue) {
+	mFallbackMax = &fallbackValue;
+}
+
+const string& ConfigIntRange::get() const {
+	if (mIsDefault && mFallback && !mFallback->isDefault()) {
+		LOGW << "'" << getCompleteName() << "' is not set but its old name is, falling back on '"
+		     << mFallback->getCompleteName() << "'";
+
+		return mFallback->get();
+	}
+	return mValue;
+}
+
 int ConfigIntRange::readMin() {
+	if (mIsDefault && mFallbackMin && !mFallbackMin->isDefault()) {
+		LOGW << "'" << getCompleteName() << "' is not set but its old name for min bound is, falling back on '"
+		     << mFallbackMin->getCompleteName() << "'";
+		return mFallbackMin->read();
+	}
 	return parse(get()).min;
 }
 int ConfigIntRange::readMax() {
+	if (mIsDefault && mFallbackMax && !mFallbackMax->isDefault()) {
+		LOGW << "'" << getCompleteName() << "' is not set but its old name for max bound is, falling back on '"
+		     << mFallbackMax->getCompleteName() << "'";
+		return mFallbackMax->read();
+	}
 	return parse(get()).max;
+}
+std::pair<int, int> ConfigIntRange::read() {
+	return std::pair<int, int>{readMin(), readMax()};
 }
 
 void ConfigIntRange::write(int min, int max) {
@@ -588,8 +613,7 @@ StatCounter64::StatCounter64(const string& name, const string& help, uint64_t oi
 }
 
 ConfigString::ConfigString(const string& name, const string& help, const string& default_value, uint64_t oid_index)
-    : ConfigValue(name, String, help, default_value, oid_index) {
-}
+    : ConfigValue(name, String, help, default_value, oid_index) {}
 ConfigString::~ConfigString() = default;
 
 ConfigRuntimeError::ConfigRuntimeError(const string& name, const string& help, uint64_t oid_index)
@@ -603,8 +627,7 @@ const string& ConfigString::read() const {
 }
 
 ConfigByteSize::ConfigByteSize(const string& name, const string& help, const string& default_value, uint64_t oid_index)
-    : ConfigValue(name, String, help, default_value, oid_index) {
-}
+    : ConfigValue(name, String, help, default_value, oid_index) {}
 uint64_t ConfigByteSize::read() const {
 	string str = get();
 	if (str.find('K') != string::npos) {
@@ -645,8 +668,7 @@ ConfigStringList::ConfigStringList(const string& name,
                                    const string& help,
                                    const string& default_value,
                                    uint64_t oid_index)
-    : ConfigValue(name, StringList, help, default_value, oid_index) {
-}
+    : ConfigValue(name, StringList, help, default_value, oid_index) {}
 
 #define DELIMITERS " \n,"
 
@@ -676,8 +698,7 @@ ConfigBooleanExpression::ConfigBooleanExpression(const string& name,
                                                  const string& help,
                                                  const string& default_value,
                                                  uint64_t oid_index)
-    : ConfigValue(name, BooleanExpr, help, default_value, oid_index) {
-}
+    : ConfigValue(name, BooleanExpr, help, default_value, oid_index) {}
 
 shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
 	return SipBooleanExpressionBuilder::get().parse(get());
@@ -696,8 +717,7 @@ RootConfigStruct::RootConfigStruct(const string& name,
 	mOid.emplace(std::move(oid_root_path), 1);
 }
 
-RootConfigStruct::~RootConfigStruct() {
-}
+RootConfigStruct::~RootConfigStruct() {}
 
 const GenericStruct* RootConfigStruct::getModuleSectionByRole(const std::string& moduleRole) const {
 	const auto& modules = ModuleInfoManager::get()->getModuleChain();
@@ -1360,8 +1380,7 @@ int FileConfigReader::read2(GenericEntry* entry, int level) {
 	return 0;
 }
 
-FileConfigReader::FileConfigReader(GenericStruct* root) : mRoot(root), mHaveUnreads(false) {
-}
+FileConfigReader::FileConfigReader(GenericStruct* root) : mRoot(root), mHaveUnreads(false) {}
 
 FileConfigReader::~FileConfigReader() = default;
 

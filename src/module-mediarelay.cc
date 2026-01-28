@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -69,16 +69,12 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo(
 	            "nortpproxy",
 	        },
 	        {
-	            Integer,
-	            "sdp-port-range-min",
-	            "The minimal value of SDP port range",
-	            "1024",
-	        },
-	        {
-	            Integer,
-	            "sdp-port-range-max",
-	            "The maximal value of SDP port range",
-	            "65535",
+	            IntegerRange,
+	            "sdp-port-range",
+	            "The minimal and maximal values of SDP port range. According to RFC 3550-11, for UDP and similar "
+	            "protocols, RTP SHOULD use an even port number and the corresponding RTCP stream SHOULD use the next "
+	            "higher (odd) port number.",
+	            "1024-65535",
 	        },
 	        {
 	            Boolean,
@@ -178,10 +174,29 @@ ModuleInfo<MediaRelay> MediaRelay::sInfo(
 	            "false",
 	        },
 #endif
+	        // Deprecated parameters.
+	        {
+	            Integer,
+	            "sdp-port-range-min",
+	            "The minimal value of SDP port range",
+	            "1024",
+	        },
+	        {
+	            Integer,
+	            "sdp-port-range-max",
+	            "The maximal value of SDP port range",
+	            "65535",
+	        },
 	        config_item_end,
 	    };
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.createStatPair("count-calls", "Number of relayed calls.");
+	    auto* sdpPortMin = moduleConfig.get<ConfigInt>("sdp-port-range-min");
+	    sdpPortMin->setDeprecated("2026-01-28", "2.5.0", "This parameter is replaced by \"sdp-port-range\".");
+	    moduleConfig.get<ConfigIntRange>("sdp-port-range")->setFallbackMin(*sdpPortMin);
+	    auto* sdpPortMax = moduleConfig.get<ConfigInt>("sdp-port-range-max");
+	    sdpPortMax->setDeprecated("2026-01-28", "2.5.0", "This parameter is replaced by \"sdp-port-range\".");
+	    moduleConfig.get<ConfigIntRange>("sdp-port-range")->setFallbackMax(*sdpPortMax);
     });
 
 MediaRelay::MediaRelay(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo), mCalls(NULL) {
@@ -223,8 +238,8 @@ void MediaRelay::onLoad(const GenericStruct* modconf) {
 	mDropTelephoneEvent = false;
 	mH264DecimOnlyIfLastProxy = true;
 #endif
-	mMinPort = modconf->get<ConfigInt>("sdp-port-range-min")->read();
-	mMaxPort = modconf->get<ConfigInt>("sdp-port-range-max")->read();
+	mMinPort = modconf->get<ConfigIntRange>("sdp-port-range")->readMin();
+	mMaxPort = modconf->get<ConfigIntRange>("sdp-port-range")->readMax();
 	mPreventLoop = modconf->get<ConfigBoolean>("prevent-loops")->read();
 	mMaxCalls = modconf->get<ConfigInt>("max-calls")->read();
 	mMaxRelayedEarlyMedia = modconf->get<ConfigInt>("max-early-media-per-call")->read();

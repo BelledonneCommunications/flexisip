@@ -561,8 +561,8 @@ static void set_high_prio() {
 			/*
 			    The linux kernel has
 			    sched_get_priority_max(SCHED_OTHER)=sched_get_priority_max(SCHED_OTHER)=0.
-			    As long as we can't use SCHED_RR or SCHED_FIFO, the only way to increase priority of a calling thread
-			    is to use setpriority().
+			    As long as we can't use SCHED_RR or SCHED_FIFO, the only way to increase priority of a calling thread is
+			   to use setpriority().
 			*/
 			if (setpriority(PRIO_PROCESS, 0, -20) == -1) {
 				LOGD_CTX("MediaRelayServer") << "setpriority() failed: " << strerror(errno) << ", nevermind";

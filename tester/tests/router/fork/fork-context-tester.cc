@@ -100,8 +100,7 @@ void notRtpPortAndForkCallContext() {
 	Server proxy{kConfig};
 	proxy.setConfigParameter({"module::Router/fork-late", "false"});
 	proxy.setConfigParameter({"module::MediaRelay/enabled", "true"});
-	proxy.setConfigParameter({"module::MediaRelay/sdp-port-range-min", "1023"});
-	proxy.setConfigParameter({"module::MediaRelay/sdp-port-range-max", "1024"});
+	proxy.setConfigParameter({"module::MediaRelay/sdp-port-range", "1023-1024"});
 	proxy.start();
 
 	const auto& registrarDb = proxy.getRegistrarDb();
@@ -422,8 +421,7 @@ public:
 	nta_agent_t* getSofiaAgent() const override {
 		return nullptr;
 	}
-	void injectRequestEvent(unique_ptr<RequestSipEvent>&&) override {
-	}
+	void injectRequestEvent(unique_ptr<RequestSipEvent>&&) override {}
 	unique_ptr<ResponseSipEvent> injectResponseEvent(unique_ptr<ResponseSipEvent>&& ev) override {
 		return std::move(ev);
 	}
@@ -478,8 +476,7 @@ class FindBestBranchTest : public Test {
 public:
 	FindBestBranchTest(bool brFound, int statusCodeExpected, const vector<int>& statusList, bool avoid503And408 = true)
 	    : mBrFound(brFound), mStatusCodeExpected(statusCodeExpected), mStatusList(statusList),
-	      mAvoid503And408(avoid503And408) {
-	}
+	      mAvoid503And408(avoid503And408) {}
 	void operator()() override {
 		ForkContextForTest fork{mAgentMock.get()};
 		for_each(mStatusList.begin(), mStatusList.end(), [&fork](auto i) {
