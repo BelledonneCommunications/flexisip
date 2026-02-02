@@ -23,6 +23,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <thread>
@@ -62,6 +63,14 @@ public:
 	using PwList = std::vector<passwd_algo_t>;
 	using ResultCb = std::function<void(AuthDbResult, const PwList&)>;
 
+	struct PasswordCacheEntry {
+		std::string domain;
+		std::string user;
+		std::string authUsername;
+		time_t expiresAt = 0;
+		PwList passwords;
+	};
+
 	virtual ~AuthDbBackend();
 	// warning: listener may be invoked on authdb backend thread, so listener must be threadsafe somehow!
 	void getPassword(const std::string& user,
@@ -81,6 +90,11 @@ public:
 	                           const std::string& password,
 	                           int expires,
 	                           const std::string& phone_alias = "");
+
+	std::vector<PasswordCacheEntry> listPasswordCache(const std::optional<std::string>& domainFilter = {});
+	std::optional<PasswordCacheEntry>
+	findPasswordCacheEntry(const std::string& user, const std::string& domain, const std::string& auth_username);
+	bool erasePasswordCacheEntry(const std::string& user, const std::string& domain, const std::string& auth_username);
 
 	/* called by module_auth so that backends can declare their configuration to the ConfigurationManager */
 	static void declareConfig(GenericStruct* mc);
@@ -121,16 +135,14 @@ private:
 	struct CachedPassword {
 		std::vector<passwd_algo_t> pass;
 		time_t expire_date;
-		CachedPassword(const std::vector<passwd_algo_t>& ipass, time_t idate) : pass(ipass), expire_date(idate) {
-		}
+		CachedPassword(const std::vector<passwd_algo_t>& ipass, time_t idate) : pass(ipass), expire_date(idate) {}
 	};
 
 	struct ListenerToFunctionWrapper : public AuthDbListener {
 	public:
 		ListenerToFunctionWrapper() = default;
 		ListenerToFunctionWrapper(const ListenerToFunctionWrapper& src) = default;
-		ListenerToFunctionWrapper(const ResultCb& cb) : mCb(cb) {
-		}
+		ListenerToFunctionWrapper(const ResultCb& cb) : mCb(cb) {}
 
 		void onResult(AuthDbResult result, const std::string& passwd) override;
 		void onResult(AuthDbResult result, const std::vector<passwd_algo_t>& passwd) override;
@@ -150,8 +162,7 @@ private:
  **/
 class AuthDb {
 public:
-	AuthDb(const std::shared_ptr<ConfigManager>& cfg) : mConfigManager{cfg} {
-	}
+	AuthDb(const std::shared_ptr<ConfigManager>& cfg) : mConfigManager{cfg} {}
 	// Accessor to the database backend
 	AuthDbBackend& db() {
 		if (!mBackend) createAuthDbBackend();

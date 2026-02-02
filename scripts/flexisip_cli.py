@@ -17,6 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
+import json
 import os
 import os.path
 import sys
@@ -46,6 +47,15 @@ def parse_args():
 	)
 
 	commands = {
+		'AUTH_CACHE_LIST': {
+			'help': 'List all cached authentication credentials (no password is returned).'
+		},
+		'AUTH_CACHE_GET': {
+			'help': 'Get information on the state of cached credentials for the provided user (no password is returned).'
+		},
+		'AUTH_CACHE_DELETE': {
+			'help': 'Remove cached credentials for the provided user.'
+		},
 		'CONFIG_GET': {
 			'help': 'Get the value of an internal variable of Flexisip.'
 		},
@@ -92,6 +102,37 @@ def parse_args():
 
 	pathDocumentation = "Parameter name formatted as '<section_name>/<param_name>'."
 
+	commands['AUTH_CACHE_LIST']['parser'].add_argument(
+		'domain',
+		nargs='?',
+		help='Optionally filter by domain.'
+	)
+	commands['AUTH_CACHE_GET']['parser'].add_argument(
+		'user',
+		help='Username of the user to search.'
+	)
+	commands['AUTH_CACHE_GET']['parser'].add_argument(
+		'domain',
+		help='Domain to which the user is registered.'
+	)
+	commands['AUTH_CACHE_GET']['parser'].add_argument(
+		'auth_username',
+		nargs='?',
+		help='Optional authentication username (defaults to user).'
+	)
+	commands['AUTH_CACHE_DELETE']['parser'].add_argument(
+		'user',
+		help='Username of the user to search.'
+	)
+	commands['AUTH_CACHE_DELETE']['parser'].add_argument(
+		'domain',
+		help='Domain to which the user is registered.'
+	)
+	commands['AUTH_CACHE_DELETE']['parser'].add_argument(
+		'auth_username',
+		nargs='?',
+		help='Optional authentication username (defaults to user).'
+	)
 	commands['CONFIG_GET']['parser'].add_argument(
 		'path',
 		help=pathDocumentation
@@ -176,7 +217,16 @@ def formatMessage(args):
 		sys.exit(2)
 
 	messageArgs = [args.command]
-	if args.command == 'CONFIG_GET':
+	if args.command == 'AUTH_CACHE_LIST':
+		if args.domain:
+			messageArgs.append(args.domain)
+	elif args.command == 'AUTH_CACHE_GET':
+		auth_username = args.auth_username if args.auth_username else args.user
+		messageArgs.extend([args.user, args.domain, auth_username])
+	elif args.command == 'AUTH_CACHE_DELETE':
+		auth_username = args.auth_username if args.auth_username else args.user
+		messageArgs.extend([args.user, args.domain, auth_username])
+	elif args.command == 'CONFIG_GET':
 		messageArgs.append(args.path)
 	elif args.command == 'CONFIG_SET':
 		messageArgs += [args.path, args.value]
@@ -210,8 +260,14 @@ def sendMessage(remote_socket, message):
 			s.connect(remote_socket)
 			s.send(message.encode())
 			received = s.recv(65535).decode()
-			print(received)
-			if received.startswith('Error'):
+			raw_response = received.strip()
+			try:
+				parsed = json.loads(raw_response)
+			except json.JSONDecodeError:
+				print(raw_response)
+			else:
+				print(json.dumps(parsed, indent=2))
+			if raw_response.startswith('Error'):
 				# The server reports an error, it probably has to do with the arguments passed, so USAGE seems appropriate
 				return os.EX_USAGE
 			else:

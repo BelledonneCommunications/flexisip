@@ -71,8 +71,7 @@ nlohmann::json deserialize(const string& json) {
 struct TestCli : public flexisip::CommandLineInterface {
 
 	TestCli(const shared_ptr<ConfigManager>& cfg, const shared_ptr<sofiasip::SuRoot>& root)
-	    : flexisip::CommandLineInterface("cli-tests", cfg, root) {
-	}
+	    : flexisip::CommandLineInterface("cli-tests", cfg, root) {}
 
 	void send(const string& command) {
 		parseAndAnswer(make_shared<SocketHandle>(0), command, {});
@@ -83,8 +82,7 @@ struct TestHandler : public flexisip::CliHandler {
 	string output;
 	CapturedCalls calls;
 
-	explicit TestHandler(string&& output) : output(output) {
-	}
+	explicit TestHandler(string&& output) : output(output) {}
 
 	string handleCommand(const string& command, const vector<string>&) override {
 		calls.push_back(command);
@@ -94,8 +92,7 @@ struct TestHandler : public flexisip::CliHandler {
 
 class SocketClientHandle : public SocketHandle {
 public:
-	SocketClientHandle() : SocketHandle(socket(AF_UNIX, SOCK_STREAM, 0)) {
-	}
+	SocketClientHandle() : SocketHandle(socket(AF_UNIX, SOCK_STREAM, 0)) {}
 
 	int connect(sockaddr_un& address) {
 		return socket_connect(mHandle, (sockaddr*)&address, sizeof(address));
@@ -629,6 +626,174 @@ void registrarDump() {
 	}
 }
 
+void flexisipCliAuthCache() {
+	Server proxy{{
+	    {"module::Authentication/enabled", "true"},
+	    {"module::Authentication/auth-domains", "sip.example.org sip.otherexample.org"},
+	    // Trick to avoid creating an authdb file
+	    {"module::Authentication/db-implementation", "fixed"},
+	}};
+	proxy.start();
+
+	struct Entry {
+		std::string user{};
+		std::string domain{};
+		std::string authUsername{};
+		std::string password{};
+		int expires{numeric_limits<int>::max()};
+	};
+
+	const Entry user1{.user = "user1", .domain = "sip.example.org", .authUsername = "user1", .password = "stub"};
+	const Entry user2{.user = "user2", .domain = "sip.otherexample.org", .authUsername = "user2", .password = "stub2"};
+	const Entry user3{.user = "user3", .domain = "sip.example.org", .authUsername = "awesomeuser", .password = "stub3"};
+
+	// Create users in cache to test the CLI.
+	auto* authDb = &proxy.getAgent()->getAuthDb().db();
+	authDb->createAccount(user1.user, user1.domain, user1.authUsername, user1.password, user1.expires);
+	authDb->createAccount(user2.user, user2.domain, user2.authUsername, user2.password, user2.expires);
+	authDb->createAccount(user3.user, user3.domain, user3.authUsername, user3.password, user3.expires);
+
+	CoreAssert asserter{proxy};
+
+	ProxyCommandLineInterface cli{proxy.getConfigManager(), proxy.getAgent()};
+	std::ignore = cli.start();
+
+	// Test the command outputs nothing when entering a user not present in the auth DB.
+	{
+		const auto& result = callScript("AUTH_CACHE_GET user42 sip.example.org"s, EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
+	}
+
+	// Test that no results are returned when searching for an unknown domain.
+	{
+		auto json = deserialize(callScript("AUTH_CACHE_LIST sip.notanexample.org"s, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json.items().begin().key() == "entries");
+		BC_HARD_ASSERT(json["entries"].is_array());
+		BC_HARD_ASSERT(json["entries"].empty());
+	}
+
+	// Test then that the delete does nothing for a non-existent user.
+	{
+		const auto& result = callScript("AUTH_CACHE_DELETE user42 sip.example.org"s, EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
+	}
+
+	// Now test the result for user1.
+	{
+		const auto& cmd = "AUTH_CACHE_GET " + user1.user + " " + user1.domain;
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 5);
+
+		auto it = json.items().begin();
+		BC_HARD_ASSERT(it++.key() == "auth_username");
+		BC_HARD_ASSERT(json["auth_username"].is_string());
+		BC_HARD_ASSERT(json["auth_username"] == user1.authUsername);
+
+		BC_HARD_ASSERT(it++.key() == "domain");
+		BC_HARD_ASSERT(json["domain"].is_string());
+		BC_HARD_ASSERT(json["domain"] == user1.domain);
+
+		BC_HARD_ASSERT(it++.key() == "expires_at");
+		BC_HARD_ASSERT(json["expires_at"].is_number_integer());
+
+		BC_HARD_ASSERT(it++.key() == "expires_in");
+		BC_HARD_ASSERT(json["expires_in"].is_number_integer());
+
+		BC_HARD_ASSERT(it++.key() == "user");
+		BC_HARD_ASSERT(json["user"].is_string());
+		BC_HARD_ASSERT(json["user"] == user1.user);
+	}
+
+	// Get the list of entries for the sip.example.org domain.
+	{
+		const auto& cmd = "AUTH_CACHE_LIST " + user1.domain;
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json["entries"].is_array());
+		BC_HARD_ASSERT(json["entries"].size() == 2);
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"].is_string());
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"] == user1.authUsername);
+		BC_HARD_ASSERT(json["entries"][1]["auth_username"].is_string());
+		BC_HARD_ASSERT(json["entries"][1]["auth_username"] == user3.authUsername);
+	}
+
+	// Get the list of entries for the sip.otherexample.org domain.
+	{
+		const auto& cmd = "AUTH_CACHE_LIST " + user2.domain;
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json["entries"].is_array());
+		BC_HARD_ASSERT(json["entries"].size() == 1);
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"].is_string());
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"] == user2.authUsername);
+	}
+
+	// Delete the entry for user1.
+	{
+		const auto& cmd = "AUTH_CACHE_DELETE " + user1.user + " " + user1.domain;
+		const auto& result = callScript(cmd, EX_OK, asserter);
+		const auto& expectedResult = "Done - Removed cached credential for '" + user1.user + "' in domain '" +
+		                             user1.domain + "' using auth '" + user1.authUsername + "'\n";
+		BC_ASSERT_CPP_EQUAL(result, expectedResult);
+	}
+
+	// The entry should not be present anymore.
+	{
+		const auto& cmd = "AUTH_CACHE_GET " + user1.user + " " + user1.domain;
+		const auto& result = callScript(cmd, EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
+	}
+
+	// The list for sip.example.org should not have user1 anymore.
+	{
+		const auto& cmd = "AUTH_CACHE_LIST " + user1.domain;
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json["entries"].is_array());
+		BC_HARD_ASSERT(json["entries"].size() == 1);
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"].is_string());
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"] == user3.authUsername);
+	}
+
+	// The list for sip.otherexample.org domain should not have changed.
+	{
+		const auto& cmd = "AUTH_CACHE_LIST " + user2.domain;
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json["entries"].is_array());
+		BC_HARD_ASSERT(json["entries"].size() == 1);
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"].is_string());
+		BC_HARD_ASSERT(json["entries"][0]["auth_username"] == user2.authUsername);
+	}
+
+	// Test that deleting user3 without specifying his auth_username does not work since it's not the same.
+	{
+		const auto& cmd = "AUTH_CACHE_DELETE " + user3.user + " " + user3.domain;
+		const auto& result = callScript(cmd, EX_OK, asserter);
+		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
+	}
+
+	// Then provide the auth_username.
+	{
+		const auto& cmd = "AUTH_CACHE_DELETE " + user3.user + " " + user3.domain + " " + user3.authUsername;
+		const auto& result = callScript(cmd, EX_OK, asserter);
+		const auto& expectedResult = "Done - Removed cached credential for '" + user3.user + "' in domain '" +
+		                             user3.domain + "' using auth '" + user3.authUsername + "'\n";
+		BC_ASSERT_CPP_EQUAL(result, expectedResult);
+	}
+
+	// The list for sip.example.org should now be empty.
+	{
+		const auto& cmd = "AUTH_CACHE_LIST " + user1.domain;
+		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		BC_HARD_ASSERT(json.size() == 1);
+		BC_HARD_ASSERT(json.items().begin().key() == "entries");
+		BC_HARD_ASSERT(json["entries"].is_array());
+		BC_HARD_ASSERT(json["entries"].empty());
+	}
+}
+
 using namespace DbImplementation;
 
 TestSuite _{
@@ -639,6 +804,7 @@ TestSuite _{
         CLASSY_TEST(flexisipCliDotPy<Redis>),
         CLASSY_TEST(flexisipCliSetSofiaLogLevel),
         CLASSY_TEST(registrarDump),
+        CLASSY_TEST(flexisipCliAuthCache),
     },
 };
 

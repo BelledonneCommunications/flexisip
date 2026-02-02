@@ -117,10 +117,13 @@ public:
 	ProxyCommandLineInterface(const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<Agent>& agent);
 
 private:
-	void handleRegistrarClear(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
-	void handleRegistrarDelete(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
-	void handleRegistrarUpsert(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
-	void handleRegistrarGet(std::shared_ptr<SocketHandle> socket, const std::vector<std::string>& args) const;
+	void handleAuthCacheList(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
+	void handleAuthCacheGet(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
+	void handleAuthCacheDelete(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
+	void handleRegistrarClear(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
+	void handleRegistrarDelete(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
+	void handleRegistrarUpsert(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
+	void handleRegistrarGet(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
 	void handleRegistrarDump(const std::shared_ptr<SocketHandle>& socket, const std::vector<std::string>& args) const;
 	void parseAndAnswer(std::shared_ptr<SocketHandle> socket,
 	                    const std::string& command,

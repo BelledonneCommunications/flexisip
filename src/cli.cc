@@ -27,6 +27,8 @@
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
+#include <optional>
 #include <utility>
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
@@ -60,6 +62,18 @@ void serializeRecord(SocketHandle& socket, Record* record) {
 	string serialized;
 	RecordSerializerJson().serialize(*record, serialized, false);
 	socket.send(serialized);
+}
+
+nlohmann::json serializePasswordCacheEntry(const AuthDbBackend::PasswordCacheEntry& entry) {
+	nlohmann::json serialized;
+	serialized["user"] = entry.user;
+	serialized["auth_username"] = entry.authUsername;
+	serialized["domain"] = entry.domain;
+	serialized["expires_at"] = static_cast<long long>(entry.expiresAt);
+	const auto now = std::time(nullptr);
+	const auto ttl = entry.expiresAt - now;
+	serialized["expires_in"] = ttl > 0 ? static_cast<long long>(ttl) : 0;
+	return serialized;
 }
 
 } // namespace
@@ -291,7 +305,7 @@ void CommandLineInterface::run() {
 	const auto& pid = getpid();
 	const auto& path = "/tmp/flexisip-" + mName + "-" + to_string(pid);
 	LOGI << "CLI socket is at " << path;
-	struct sockaddr_un local {};
+	struct sockaddr_un local{};
 	local.sun_family = AF_UNIX;
 	strcpy(local.sun_path, path.c_str());
 	unlink(local.sun_path);
@@ -327,7 +341,7 @@ void CommandLineInterface::run() {
 		}
 		// Otherwise we have something to accept on our server_socket
 
-		struct sockaddr_un remote {};
+		struct sockaddr_un remote{};
 		auto remote_length = (socklen_t)sizeof(remote);
 		const auto& child_handle = accept(server_socket, (struct sockaddr*)&remote, &remote_length);
 		if (child_handle == -1) {
@@ -464,7 +478,8 @@ public:
 	}
 };
 
-void ProxyCommandLineInterface::handleRegistrarGet(shared_ptr<SocketHandle> socket, const vector<string>& args) const {
+void ProxyCommandLineInterface::handleRegistrarGet(const shared_ptr<SocketHandle>& socket,
+                                                   const vector<string>& args) const {
 	if (args.empty()) {
 		socket->send("Error - 'REGISTRAR_GET' command expects 1 argument: <aor>");
 		return;
@@ -482,7 +497,7 @@ void ProxyCommandLineInterface::handleRegistrarGet(shared_ptr<SocketHandle> sock
 	mAgent->getRegistrarDb().fetch(aor, listener, false);
 }
 
-void ProxyCommandLineInterface::handleRegistrarUpsert(shared_ptr<SocketHandle> socket,
+void ProxyCommandLineInterface::handleRegistrarUpsert(const shared_ptr<SocketHandle>& socket,
                                                       const vector<string>& args) const {
 	if (args.size() < 3 or 4 < args.size()) {
 		socket->send("Error - 'REGISTRAR_UPSERT' command expects 3 to 4 arguments: <aor> <uri> <expire> [<uuid>]");
@@ -551,7 +566,7 @@ public:
 	}
 };
 
-void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> socket,
+void ProxyCommandLineInterface::handleRegistrarDelete(const shared_ptr<SocketHandle>& socket,
                                                       const vector<string>& args) const {
 	if (args.size() < 2) {
 		socket->send("Error - 'REGISTRAR_DELETE' command expects 2 arguments: <uri> <uuid>.");
@@ -581,7 +596,7 @@ void ProxyCommandLineInterface::handleRegistrarDelete(shared_ptr<SocketHandle> s
 	                              make_shared<SerializeRecordEvenIfEmpty>(std::move(socket)));
 }
 
-void ProxyCommandLineInterface::handleRegistrarClear(shared_ptr<SocketHandle> socket,
+void ProxyCommandLineInterface::handleRegistrarClear(const shared_ptr<SocketHandle>& socket,
                                                      const vector<string>& args) const {
 	if (args.empty()) {
 		socket->send("Error - 'REGISTRAR_CLEAR' command expects 1 argument: <aor>");
@@ -644,10 +659,67 @@ void ProxyCommandLineInterface::handleRegistrarDump(const shared_ptr<SocketHandl
 	socket->send(output.dump());
 }
 
+void ProxyCommandLineInterface::handleAuthCacheList(const shared_ptr<SocketHandle>& socket,
+                                                    const vector<string>& args) const {
+	if (args.size() > 1) {
+		socket->send("Error - 'AUTH_CACHE_LIST' command expects 0 or 1 argument: [<domain>]");
+		return;
+	}
+	optional<string> domainFilter;
+	if (!args.empty()) domainFilter = args.front();
+	auto entries = mAgent->getAuthDb().db().listPasswordCache(domainFilter);
+	nlohmann::json payload;
+	payload["entries"] = nlohmann::json::array();
+	for (const auto& entry : entries) {
+		payload["entries"].push_back(serializePasswordCacheEntry(entry));
+	}
+	socket->send(payload.dump());
+}
+
+void ProxyCommandLineInterface::handleAuthCacheGet(const shared_ptr<SocketHandle>& socket,
+                                                   const vector<string>& args) const {
+	if (args.size() < 2 || args.size() > 3) {
+		socket->send("Error - 'AUTH_CACHE_GET' command expects 2 or 3 arguments: <user> <domain> [<auth_username>]");
+		return;
+	}
+	const auto& user = args.at(0);
+	const auto& domain = args.at(1);
+	const auto authUsername = (args.size() == 3) ? args.at(2) : user;
+	auto entry = mAgent->getAuthDb().db().findPasswordCacheEntry(user, domain, authUsername);
+	if (!entry.has_value()) {
+		socket->send("Nothing to do - Cache entry does not exist");
+		return;
+	}
+	socket->send(serializePasswordCacheEntry(*entry).dump());
+}
+
+void ProxyCommandLineInterface::handleAuthCacheDelete(const shared_ptr<SocketHandle>& socket,
+                                                      const vector<string>& args) const {
+	if (args.size() < 2 || args.size() > 3) {
+		socket->send("Error - 'AUTH_CACHE_DELETE' command expects 2 or 3 arguments: <user> <domain> [<auth_username>]");
+		return;
+	}
+	const auto& user = args.at(0);
+	const auto& domain = args.at(1);
+	const auto authUsername = (args.size() == 3) ? args.at(2) : user;
+	if (!mAgent->getAuthDb().db().erasePasswordCacheEntry(user, domain, authUsername)) {
+		socket->send("Nothing to do - Cache entry does not exist");
+		return;
+	}
+	socket->send("Done - Removed cached credential for '" + user + "' in domain '" + domain + "' using auth '" +
+	             authUsername + "'");
+}
+
 void ProxyCommandLineInterface::parseAndAnswer(shared_ptr<SocketHandle> socket,
                                                const string& command,
                                                const vector<string>& args) {
-	if (command == "REGISTRAR_CLEAR") {
+	if (command == "AUTH_CACHE_LIST") {
+		handleAuthCacheList(std::move(socket), args);
+	} else if (command == "AUTH_CACHE_GET") {
+		handleAuthCacheGet(std::move(socket), args);
+	} else if (command == "AUTH_CACHE_DELETE") {
+		handleAuthCacheDelete(std::move(socket), args);
+	} else if (command == "REGISTRAR_CLEAR") {
 		handleRegistrarClear(std::move(socket), args);
 	} else if (command == "REGISTRAR_GET") {
 		handleRegistrarGet(std::move(socket), args);

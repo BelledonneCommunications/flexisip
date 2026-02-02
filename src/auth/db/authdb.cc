@@ -19,10 +19,12 @@
 #include "authdb.hh"
 
 #include <stdexcept>
+#include <utility>
 
 #include "flexisip/common.hh"
 #include "flexisip/configmanager.hh"
 #include "utils/digest.hh"
+#include "utils/string-utils.hh"
 
 using namespace std;
 
@@ -38,13 +40,11 @@ void AuthDbBackend::ListenerToFunctionWrapper::onResult(AuthDbResult result, con
 	delete this;
 }
 
-AuthDbListener::~AuthDbListener() {
-}
+AuthDbListener::~AuthDbListener() {}
 
 class FixedAuthDb : public AuthDbBackend {
 public:
-	FixedAuthDb(const RootConfigStruct& root) : AuthDbBackend(root) {
-	}
+	FixedAuthDb(const RootConfigStruct& root) : AuthDbBackend(root) {}
 
 	void getUserWithPhoneFromBackend([[maybe_unused]] const string& phone,
 	                                 [[maybe_unused]] const string& domain,
@@ -85,8 +85,7 @@ AuthDbBackend::AuthDbBackend(const RootConfigStruct& root) {
 	        .count();
 }
 
-AuthDbBackend::~AuthDbBackend() {
-}
+AuthDbBackend::~AuthDbBackend() {}
 
 void AuthDbBackend::declareConfig(GenericStruct* mc) {
 	FileAuthDb::declareConfig(mc);
@@ -105,6 +104,67 @@ string AuthDbBackend::urlUnescape(string_view str) {
 
 string AuthDbBackend::createPasswordKey(string_view user, string_view auth_username) {
 	return urlUnescape(user) + "#" + urlUnescape(auth_username);
+}
+
+vector<AuthDbBackend::PasswordCacheEntry> AuthDbBackend::listPasswordCache(const optional<string>& domainFilter) {
+	vector<PasswordCacheEntry> entries{};
+	const auto now = getCurrentTime();
+	lock_guard<mutex> guard(mCachedPasswordMutex);
+
+	for (const auto& [domain, caches] : mCachedPasswords) {
+		if (domainFilter.has_value() && domainFilter != domain) continue;
+
+		for (const auto& [identifier, password] : caches) {
+			if (now >= password.expire_date) continue;
+
+			const auto split = string_utils::split(identifier, "#");
+
+			PasswordCacheEntry entry{.domain = domain,
+			                         .user = split.at(0),
+			                         .authUsername = split.at(1),
+			                         .expiresAt = password.expire_date,
+			                         .passwords = password.pass};
+
+			// For some reason, XCode 13.4.1 does not like emplace_back.
+			entries.push_back(entry);
+		}
+	}
+
+	return entries;
+}
+
+optional<AuthDbBackend::PasswordCacheEntry>
+AuthDbBackend::findPasswordCacheEntry(const string& user, const string& domain, const string& authUsername) {
+	lock_guard<mutex> guard(mCachedPasswordMutex);
+	auto domainIt = mCachedPasswords.find(domain);
+	if (domainIt == mCachedPasswords.end()) return nullopt;
+	const auto key = createPasswordKey(user, authUsername);
+	auto cacheIt = domainIt->second.find(key);
+	if (cacheIt == domainIt->second.end()) return nullopt;
+	const auto now = getCurrentTime();
+	if (now >= cacheIt->second.expire_date) {
+		return nullopt;
+	}
+	PasswordCacheEntry entry;
+	entry.domain = domain;
+	auto identifiers = string_utils::split(cacheIt->first, "#");
+	entry.user = std::move(identifiers.at(0));
+	entry.authUsername = std::move(identifiers.at(1));
+	entry.passwords = cacheIt->second.pass;
+	entry.expiresAt = cacheIt->second.expire_date;
+	return entry;
+}
+
+bool AuthDbBackend::erasePasswordCacheEntry(const string& user, const string& domain, const string& auth_username) {
+	lock_guard<mutex> guard(mCachedPasswordMutex);
+	auto domainIt = mCachedPasswords.find(domain);
+	if (domainIt == mCachedPasswords.end()) return false;
+	const auto key = createPasswordKey(user, auth_username);
+	auto cacheIt = domainIt->second.find(key);
+	if (cacheIt == domainIt->second.end()) return false;
+	domainIt->second.erase(cacheIt);
+	if (domainIt->second.empty()) mCachedPasswords.erase(domainIt);
+	return true;
 }
 
 AuthDbBackend::CacheResult

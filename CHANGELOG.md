@@ -47,6 +47,11 @@ Group changes to describe their impact on the project, as follows:
   declined or not answered. See [Voicemail Server](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Voicemail%20server/)
   for more information.
 - **Build:** Add support for C++20
+- **CLI:** Add three new commands to manage entries in the passwords cache.
+    - `AUTH_CACHE_LIST`: list all entries in the cache (optional: filter by domain)
+    - `AUTH_CACHE_GET`: get the entry of a specific user
+    - `AUTH_CACHE_DELETE`: remove the entry for a specific user
+
 
 ### [Changed]
 - **Pusher:**
