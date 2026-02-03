@@ -227,8 +227,8 @@ const TestSuite _{
     {
         // Smoke tests
         CLASSY_TEST((loadManyAccounts<3, 1'000>)).tag("benchmark"),
-        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 220, WithAuth::No>)).tag("benchmark"),
-        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 400, WithAuth::Yes>)).tag("benchmark"),
+        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 440, WithAuth::No>)).tag("benchmark"),
+        CLASSY_TEST((reRegisterManyAccounts<3, 10, 1, 800, WithAuth::Yes>)).tag("benchmark"),
         // Keep benchmarking out of the default (regression tests) runs
         CLASSY_TEST((loadManyAccounts<300, 2'100>)).tag("benchmark").tag("Skip"),
         CLASSY_TEST((loadManyAccounts<3000, 90'000>)).tag("benchmark").tag("Skip"),
