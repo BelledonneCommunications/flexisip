@@ -746,8 +746,7 @@ ConfigManager::ConfigManager()
 	        StringList,
 	        "default-servers",
 	        "Servers started by default when '--server' is not specified in the command line. Possible values are: "
-	        "'proxy', 'presence', 'conference', 'regevent', 'b2bua' and 'voicemail'. Each value must be separated by a "
-	        "whitespace.",
+	        "'proxy', 'presence', 'regevent', 'b2bua' and 'voicemail'. Each value must be separated by a whitespace.",
 	        "proxy",
 	    },
 	    {
@@ -1302,6 +1301,14 @@ GenericStruct* ConfigManager::getEditableRoot() {
 	return &mConfigRoot;
 }
 
+void ConfigManager::setDeprecatedSections(const std::map<std::string, GenericEntry::DeprecationInfo>& sections) {
+	for (const auto& [name, info] : sections) {
+		auto deprecatedSection = make_unique<GenericStruct>(name, "", 0);
+		deprecatedSection->setDeprecated(info);
+		mConfigRoot.addChild(std::move(deprecatedSection));
+	}
+}
+
 const GenericStruct* ConfigManager::getGlobal() const {
 	return mConfigRoot.get<GenericStruct>("global");
 }
@@ -1345,11 +1352,22 @@ bool FileConfigReader::containsInactiveModuleSections() const {
 }
 
 bool FileConfigReader::containsUnreadItems() {
+	std::vector<std::string> warnedSections{}; // This is to make sure we only warn one time each section.
 	auto onUnreadItem = [&](const string& secname, const string& key, int lineno) {
+		GenericEntry* sec = mRoot->find(secname);
+		if (sec && sec->isDeprecated() &&
+		    std::find(warnedSections.cbegin(), warnedSections.cend(), secname) == warnedSections.cend()) {
+			const auto& info = sec->getDeprecationInfo();
+			LOGE << "Deprecated section [" << sec->getCompleteName() << "]:\n"
+			     << "\tDeprecated since " << info.getDate() << " (Flexisip v" << info.getVersion() << ")\n"
+			     << "\t" << info.getText() << "\n";
+			warnedSections.push_back(secname);
+			return;
+		}
+
 		ostringstream ss;
 		ss << "Unsupported parameter '" << key << "' in section [" << secname << "] at line " << lineno << ".";
 		mHaveUnreads = true;
-		GenericEntry* sec = mRoot->find(secname);
 		if (sec == nullptr) {
 			sec = mRoot->findApproximate(secname);
 			if (sec != nullptr) {
@@ -1372,7 +1390,7 @@ bool FileConfigReader::containsUnreadItems() {
 		}
 		LOGE_CTX(mLogPrefix, "containsUnreadItems") << ss.str();
 	};
-	mCfg->processUnread(std::function<void(const string& secname, const string& key, int lineo)>(onUnreadItem));
+	mCfg->processUnread(onUnreadItem);
 	return mHaveUnreads;
 }
 

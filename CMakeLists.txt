@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2026  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -73,6 +73,7 @@ else()
 	set(IS_DEBUG FALSE)
 endif()
 
+option(BUILD_AS_LIB "Build a library of Flexisip" OFF)
 option(ENABLE_SYSTEMD "Build with systemD support" ON)
 option(ENABLE_SANITIZERS "Turn on sanitizers (LSAN and UBSAN)" ${IS_DEBUG})
 option(ENABLE_RECOVERY_FOR_UBSAN "Allow UBSAN to recover from errors (continue execution)" OFF)
@@ -100,12 +101,11 @@ option(ENABLE_VOICEMAIL "Build with voicemail server support" ON)
 
 cmake_dependent_option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF "ENABLE_REDIS" OFF)
 cmake_dependent_option(ENABLE_REDIS_TLS "Enable TLS connections with Redis servers. Libhiredis may need to be compiled internally, depending on the version of the library available on your system" ON "ENABLE_REDIS" OFF)
-cmake_dependent_option(ENABLE_CONFERENCE "Build conference support" ON "ENABLE_SOCI" OFF)
+cmake_dependent_option(ENABLE_REGEVENT "Build with RegEvent server support (is in charge of processing and responding to SIP SUBSCRIBE requests with 'reg' event types)" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio" ON "ENABLE_UNIT_TESTS" ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
-cmake_dependent_option(ENABLE_EKT_SERVER "Enable Encrypted Key Transport server. For customers under a proprietary license, this functionality is under a specific license." OFF "ENABLE_CONFERENCE" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")
 set(SYSCONF_INSTALL_DIR "" CACHE STRING
@@ -115,7 +115,7 @@ set(FLEXISIP_SYSTEMD_INSTALL_DIR "" CACHE STRING
 	"Where to install the SystemD units. Always equal to '${CMAKE_INSTALL_FULL_DATAROOTDIR}/systemd/system' if empty."
 )
 
-if(ENABLE_CONFERENCE OR ENABLE_B2BUA OR ENABLE_VOICEMAIL)
+if(ENABLE_REGEVENT OR ENABLE_B2BUA OR ENABLE_VOICEMAIL)
 	set(LIBLINPHONE_REQUIRED ON)
 	set(HAVE_LIBLINPHONE YES)
 	set(HAVE_LIBLINPHONECXX YES)
@@ -123,6 +123,12 @@ elseif(ENABLE_UNIT_TESTS)
 	set(LIBLINPHONE_REQUIRED ON)
 else()
 	set(LIBLINPHONE_REQUIRED OFF)
+endif()
+
+if(BUILD_AS_LIB)
+	set(LIBLINPHONE_REQUIRED ON)
+	set(HAVE_LIBLINPHONE YES)
+	set(HAVE_LIBLINPHONECXX YES)
 endif()
 
 if(ENABLE_SOCI OR LIBLINPHONE_REQUIRED)
@@ -183,7 +189,7 @@ if(NOT CMAKE_INSTALL_RPATH AND CMAKE_INSTALL_PREFIX)
 	message(STATUS "Setting install rpath to ${CMAKE_INSTALL_RPATH}")
 endif()
 
-set(CONFIG_DIR "${SYSCONF_INSTALL_DIR}/flexisip")
+set(CONFIG_DIR "${SYSCONF_INSTALL_DIR}/flexisip" CACHE STRING "Default Flexisip configuration directory")
 message(STATUS "Config dir: ${CONFIG_DIR}")
 
 set(INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
@@ -213,7 +219,10 @@ endif()
 
 set(INTERNAL_MBEDTLS ON)
 include("cmake/ExternalDependencies.cmake")
-include("cmake/LinphoneSDK.cmake")
+
+if(NOT BUILD_AS_LIB)
+	include("cmake/LinphoneSDK.cmake")
+endif()
 
 if(ENABLE_SANITIZERS)
 	set(MORE_SANITIZERS_FLAG "-fsanitize=undefined")
@@ -350,8 +359,11 @@ add_compile_options(${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 
 add_subdirectory(include)
 add_subdirectory(src)
-add_subdirectory(scripts)
-add_subdirectory(share)
+
+if(NOT BUILD_AS_LIB)
+	add_subdirectory(scripts)
+	add_subdirectory(share)
+endif()
 
 if(ENABLE_UNIT_TESTS)
 	add_subdirectory(tester)

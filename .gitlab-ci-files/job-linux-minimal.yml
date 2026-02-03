@@ -14,7 +14,7 @@ job-minimal-ninja-clang:
   variables:
     CMAKE_OPTIONS: >
       -DENABLE_B2BUA=OFF
-      -DENABLE_CONFERENCE=OFF
+      -DENABLE_REGEVENT=OFF
       -DENABLE_EXTERNAL_AUTH_PLUGIN=OFF
       -DENABLE_G729=OFF
       -DENABLE_MDNS=OFF

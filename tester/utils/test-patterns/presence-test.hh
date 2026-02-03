@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,22 +20,20 @@
 
 #include <memory>
 
-#include "flexisip/configmanager.hh"
-
 #include "agent.hh"
+#include "bc-utils.hh"
+#include "flexisip/configmanager.hh"
 #include "presence/observers/presence-auth-db-listener.hh"
 #include "presence/observers/presence-longterm.hh"
 #include "presence/presence-server.hh"
 #include "registrardb-test.hh"
-#include "tester.hh"
-#include "utils/test-patterns/registrardb-test.hh"
+#include "test-patterns/registrardb-test.hh"
 
 namespace flexisip::tester {
 
 class PresenceTest : public RegistrarDbTest<DbImplementation::Internal> {
 public:
-	PresenceTest() noexcept : RegistrarDbTest<DbImplementation::Internal>(false) {
-	}
+	PresenceTest() noexcept : RegistrarDbTest<DbImplementation::Internal>(false) {}
 
 	~PresenceTest() override = default;
 

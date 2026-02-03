@@ -16,14 +16,42 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "random.hh"
 
-#include <linphone++/core.hh>
+#include <iostream>
 
-#include "server/proxy-server.hh"
+namespace flexisip::tester {
 
-namespace flexisip::tester::eventlogs {
+namespace {
 
-std::shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customConfigs = {});
+const auto sSeed = [] {
+	auto seed = std::random_device{}();
+	try {
+		if (auto envVar = std::getenv("FLEXISEED")) seed = std::stoul(envVar, nullptr, 0 /* Autodect base */);
+	} catch (const std::invalid_argument&) {
+		// leave sSeed untouched
+	} catch (const std::out_of_range&) {
+		// leave sSeed untouched
+	}
+	std::cerr << "FLEXISEED=" << seed << "\n";
+	return seed;
+}();
 
-} // namespace flexisip::tester::eventlogs
+} // namespace
+
+namespace random {
+
+std::random_device::result_type seed() {
+	return sSeed;
+}
+
+std::default_random_engine engine() {
+	return std::default_random_engine{seed()};
+}
+
+Random random() {
+	return Random{seed()};
+}
+
+} // namespace random
+} // namespace flexisip::tester

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,9 +22,8 @@
 #include <regex>
 #include <thread>
 
-#include <flexisip/logmanager.hh>
-
-#include "tester.hh"
+#include "bc-utils.hh"
+#include "flexisip/logmanager.hh"
 
 using namespace std;
 using namespace flexisip::tester;
@@ -32,8 +31,7 @@ using namespace nghttp2::asio_http2;
 using namespace nghttp2::asio_http2::server;
 using namespace boost::asio::ssl;
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 PnsMock::PnsMock() : mCtx(ssl::context::tls) {
 	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
@@ -105,5 +103,4 @@ void PnsMock::forceCloseServer() {
 	mServer.stop();
 }
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

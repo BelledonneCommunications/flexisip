@@ -1,11 +1,7 @@
-variables:
-  DEBIAN13_CMAKE_OPTIONS: -DENABLE_EKT_SERVER=ON
 
 .debian13-image:
   image:
     name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:$DEBIAN_13_IMAGE_VERSION
-  variables:
-    CMAKE_OPTIONS: ${DEBIAN13_CMAKE_OPTIONS}
 
 #################################################
 # Makefile
@@ -32,9 +28,6 @@ job-debian13-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .debian13-image
-  variables:
-    CMAKE_OPTIONS: ${DEBIAN13_CMAKE_OPTIONS}
-
 
 job-debian13-ninja-clang:
   extends:
@@ -42,7 +35,7 @@ job-debian13-ninja-clang:
     - .debian13-image
     - .tester-artifacts
   variables:
-    CMAKE_OPTIONS: ${DEBIAN13_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON
 
 #################################################
 # UNIT TESTS
@@ -140,10 +133,7 @@ job-debian13-deb-check-package:
   variables:
     GIT_STRATEGY: none
   script:
-    - apt update
-    - apt install -y ./build/*.deb
-    - !reference [.script-check-features, script]
-    - !reference [.script-check-permissions, script]
+    - !reference [.job-deb-check-package, script]
 
 job-debian13-deb-deploy:
   extends:

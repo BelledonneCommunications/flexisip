@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,10 +18,11 @@
 
 #include "wave.hh"
 
-#include "tester.hh"
-#include "utils/test-patterns/test.hh"
-
 #include <fstream>
+#include <vector>
+
+#include "bc-utils.hh"
+#include "test-patterns/test.hh"
 
 using namespace std;
 
@@ -59,4 +60,5 @@ filesystem::path createShortAudioFile(const TmpDir& tmpDir) {
 	clippedAudioStream.write(buffer.data(), buffer.size());
 
 	return audioFilePath;
-}}
+}
+} // namespace flexisip::tester

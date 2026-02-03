@@ -28,16 +28,6 @@ Group changes to describe their impact on the project, as follows:
         - New parameter `voicemail-server` to indicate the SIP URI of the voicemail server to which calls should be
           forwarded. The call forwarding is based on the status code received from the callee or timeout of the call.
         - New parameter `redirecting-status-codes` to list the supported status codes for call forwarding.
-- **Conference server:**
-    - Add the 'no-rtp-timeout' parameter that allows to set the delay before the call is automatically hung up because
-      no RTP data is received.
-    - Add parameter 'cleanup-expired-conferences' to enable periodic removal of expired conferences.
-    - Add parameter 'conferences-availability-before-start' to set how long before the start time of a conference it is
-      possible to join it.
-    - Add parameter 'conferences-expiry-time' to set how long after the end of a conference it is still possible to
-      join it.
-    - Add support for end-to-end conference encryption by installing the EKT server plugin. For customers under a
-      proprietary license, this functionality is under a specific license.
 - **Presence server:**
     - Add the parameter 'support-legacy-client' (default: true) to maintain compatibility with legacy clients (
       linphone-sdk < 5.4). Some behaviors of the presence server previously violated RFC standards (e.g., using "Event:
@@ -57,7 +47,8 @@ Group changes to describe their impact on the project, as follows:
     - `AUTH_CACHE_LIST`: list all entries in the cache (optional: filter by domain)
     - `AUTH_CACHE_GET`: get the entry of a specific user
     - `AUTH_CACHE_DELETE`: remove the entry for a specific user
-- **Global:** Parameter `global/watchdog-notify-interval` set the interval between notifications of a flexisip service to the watchdog of SystemD.
+- **Global:** Parameter `global/watchdog-notify-interval` set the interval between notifications of a flexisip service
+  to the watchdog of SystemD.
 - **All servers:** Option `--disable-stdout` in command line to not display the log in standard output.
 
 
@@ -71,7 +62,13 @@ Group changes to describe their impact on the project, as follows:
     fields.
 - **B2BUA/SIP-Bridge:** Improved the error message when an account pool's database schema and/or init query is not as
     expected (wrong type or column name).
-- **Service:** The Flexisip services are now managed and started directly by SystemD. Service behavior is configured in the SystemD unit files. By default, a service notifies SystemD once startup is complete (using `Type=notify`). The SystemD watchdog is then enabled, and the service's main loop periodically notifies the watchdog to confirm that the process is alive and not blocked. The watchdog timeout is configured in the service's unit file by `WatchdogSec`, while the main loop notification interval is set via the global parameter `watchdog-notify-interval`. Flexisip now uses `Restart=on-failure` in its SystemD service units. This ensures that if a service crashes, exits with a non-zero status or fails to notify the watchdog before the timeout, SystemD automatically restarts it.
+- **Service:** The Flexisip services are now managed and started directly by SystemD. Service behavior is configured in
+  the SystemD unit files. By default, a service notifies SystemD once startup is complete (using `Type=notify`). The
+  SystemD watchdog is then enabled, and the service's main loop periodically notifies the watchdog to confirm that the
+  process is alive and not blocked. The watchdog timeout is configured in the service's unit file by `WatchdogSec`,
+  while the main loop notification interval is set via the global parameter `watchdog-notify-interval`. Flexisip now
+  uses `Restart=on-failure` in its SystemD service units. This ensures that if a service crashes, exits with a non-zero
+  status or fails to notify the watchdog before the timeout, SystemD automatically restarts it.
 
 ### [Deprecated]
 - **Global:** Parameter `global/auto-respawn` no longer has any effect.
@@ -88,6 +85,8 @@ Group changes to describe their impact on the project, as follows:
   - Check that a server has an snmp agent before sending notification.
 
 ### [Removed]
+- **Conference server:** The conference server has been split from Flexisip to ease the release process of all other
+  servers. It now has its own repository [here](https://gitlab.linphone.org/BC/public/flexisip-conference).
 - **Proxy:**
     - Old Firebase API as it is not supported anymore to send push notifications.
     - `$api-key` is not supported anymore in `module::PushNotification/external-push-uri`. Old Firebase is thus not 
@@ -109,8 +108,6 @@ Group changes to describe their impact on the project, as follows:
     - Parameter `module::Router/call-push-response-timeout` (deprecated in 2.2.0)
     - Parameter `module::Forward/route` (deprecated in 2.2.0)
     - Parameter `module::Forward/rewrite-req-uri` (deprecated in 2.2.0)
-- **Conference:**
-    - Parameter `conference-server/conference-factory-uri` (deprecated in 2.1.0)
 - **EventLogs:**
     - Parameter `event-logs/dir` (deprecated in 2.0.0)
     - Parameter `event-logs/flexiapi-token` (deprecated in 2.3.3)
@@ -125,7 +122,8 @@ Group changes to describe their impact on the project, as follows:
 - **Registrar:** 
     - Unused `ctdumper` and `serializer` tools.
     - MSGPACK feature (deprecated in 2.4.0).
-- **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its watchdog.
+- **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its
+  watchdog.
 
 ## [2.5.1]
 - **SDK version:** 5.4.111
@@ -221,7 +219,8 @@ Group changes to describe their impact on the project, as follows:
       Use 'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.
     - Defining TLS certificates in the file specified in inter-domain-connections/domain-registrations is now
       deprecated. The TLS certificates should always be configured in the global section or global/transports parameter.
-- **All servers:** Option `--daemon` to launch the Flexisip services in daemon mode will be replaced by the use of the watchdog of SystemD in the future.
+- **All servers:** Option `--daemon` to launch the Flexisip services in daemon mode will be replaced by the use of the
+  watchdog of SystemD in the future.
 
 ### [Fixed]
 - **Proxy:**

@@ -16,17 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "fork-context/fork-context-impl.hh"
+
 #include <chrono>
 
 #include "belle-sip/belle-sip.h"
 
 #include "agent.hh"
 #include "flexisip/module-router.hh"
-#include "fork-context/fork-context-impl.hh"
 #include "fork-context/fork-strategy/basic-fork-strategy.hh"
 #include "fork-context/message-kind.hh"
 #include "registrar/binding-parameters.hh"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-core.hh"
@@ -471,7 +472,7 @@ public:
 	void addFakeBranch(const std::shared_ptr<BranchInfoTest>& br) {
 		mWaitingBranches.push_back(br);
 	}
-	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override{};
+	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override {};
 	shared_ptr<BranchInfo> pubFindBestBranch(bool avoid503And408) {
 		return this->findBestBranch(avoid503And408);
 	}

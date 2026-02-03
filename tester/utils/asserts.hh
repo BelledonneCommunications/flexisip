@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,7 +28,7 @@
 
 #include "bctoolbox/tester.h"
 #include "linphone++/linphone.hh"
-#include "utils/test-patterns/test.hh"
+#include "test-patterns/test.hh"
 
 namespace flexisip::tester {
 
@@ -51,13 +51,11 @@ struct AssertionResult {
 	}
 
 	AssertionResult(const char* const file, const int line, const char* const reason)
-	    : file(file), line(line), reason(reason == nullptr ? "" : reason) {
-	}
+	    : file(file), line(line), reason(reason == nullptr ? "" : reason) {}
 
 	AssertionResult(const bool b) // Convert from bool for seemless integration with existing code
 	    : file(__FILE__), line(__LINE__),
-	      reason(b ? "" : "Context Missing. Please rewrite your test to use AssertionResult instead of bool.") {
-	}
+	      reason(b ? "" : "Context Missing. Please rewrite your test to use AssertionResult instead of bool.") {}
 };
 
 #define ASSERTION_FAILED(reason) AssertionResult(__FILE__, __LINE__, "ASSERTION_FAILED(" reason ")")
@@ -80,8 +78,7 @@ template <const std::chrono::nanoseconds& sleepBetweenIterations = kDefaultSleep
 class BcAssert {
 public:
 	BcAssert() = default;
-	BcAssert(const std::initializer_list<std::function<void()>>& mIterateFuncs) : mIterateFuncs(mIterateFuncs) {
-	}
+	BcAssert(const std::initializer_list<std::function<void()>>& mIterateFuncs) : mIterateFuncs(mIterateFuncs) {}
 	void addCustomIterate(const std::function<void()>& iterate) {
 		mIterateFuncs.push_back(iterate);
 	}

@@ -19,7 +19,7 @@
 #include <string>
 
 #include "sofia-wrapper/nta-agent.hh"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/core-assert.hh"

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,11 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <sofia-sip/msg_addr.h>
-
-#include <flexisip/module.hh>
+#include "sofia-sip/msg_addr.h"
 
 #include "agent.hh"
+#include "flexisip/module.hh"
 
 using namespace std;
 using namespace flexisip;
@@ -29,8 +28,7 @@ class DateHandler : public Module {
 	friend std::shared_ptr<Module> ModuleInfo<DateHandler>::create(Agent*);
 
 public:
-	~DateHandler() {
-	}
+	~DateHandler() override = default;
 
 	unique_ptr<RequestSipEvent> onRequest(unique_ptr<RequestSipEvent>&& ev) override {
 		if (mCommand.empty()) return std::move(ev);
@@ -57,22 +55,19 @@ protected:
 	}
 
 private:
-	DateHandler(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
-	}
+	DateHandler(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {}
+
+	static ModuleInfo<DateHandler> sInfo;
 
 	string mCommand;
-	static ModuleInfo<DateHandler> sInfo;
 };
 
-ModuleInfo<DateHandler> DateHandler::sInfo(
+ModuleInfo<DateHandler> DateHandler::sInfo{
     "DateHandler",
-    "The purpose of the DateHandler module is to catch 'Date' "
-    "headers from sip requests, and call config-defined script "
-    "passing it the date value. The typical use case "
-    "is for deploying a Flexisip proxy in an embedded system "
-    "that doesn't have time information when booting up. The "
-    "command can be used to assign the date to the system.",
-    {"Authentication, Authorization"},
+    "The purpose of the DateHandler module is to catch 'Date' headers from sip requests, and call config-defined "
+    "script passing it the date value. The typical use case is for deploying a Flexisip proxy in an embedded system "
+    "that doesn't have time information when booting up. The command can be used to assign the date to the system.",
+    {"Authentication", "Authorization"},
     ModuleInfoBase::ModuleOid::DateHandler,
 
     [](GenericStruct& moduleConfig) {
@@ -88,8 +83,8 @@ ModuleInfo<DateHandler> DateHandler::sInfo(
 	    };
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 	    moduleConfig.get<ConfigBooleanExpression>("filter")->setDefault(
-	        "i_request && request.method-name == 'REGISTER'");
+	        "is_request && request.method-name == 'REGISTER'");
 	    moduleConfig.addChildrenValues(items);
     },
-
-    ModuleClass::Experimental);
+    ModuleClass::Experimental,
+};

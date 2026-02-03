@@ -11,10 +11,9 @@ if [[ $@ == *"--server"* ]]; then
   echo "--server param found, starting only one Flexisip instance"
   "$@" &
 else
-  echo "Server param not found, starting 3 Flexisip instances (proxy, presence, conference)"
+  echo "Server param not found, starting 2 Flexisip instances (proxy, presence)"
   ( "$@" --server proxy 2>&1| tee /var/opt/belledonne-communications/log/flexisip/flexisip_proxy_stdout.log ) &
-  ( "$@" --server presence 2>&1| tee /var/opt/belledonne-communications/log/flexisip/flexisip_presence_stdout.log ) &
-  ( "$@" --server conference 2>&1| tee /var/opt/belledonne-communications/log/flexisip/flexisip_conference_stdout.log ) &
+  ( "$@" --server presence 2>&1| tee /var/opt/belledonne-communications/log/flexisip/flexisip_presence_stdout.log )
 fi
 
 wait -n

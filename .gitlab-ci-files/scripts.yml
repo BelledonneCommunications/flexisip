@@ -7,13 +7,11 @@
     - FLEXISIP_BIN=${FLEXISIP_INSTALL_DIR}/bin/flexisip
     - VERSION_STRING=$($FLEXISIP_BIN --version)
     - echo $VERSION_STRING | grep B2BUA
-    - echo $VERSION_STRING | grep Conference
     - echo $VERSION_STRING | grep Presence
     - echo $VERSION_STRING | grep Redis
     - echo $VERSION_STRING | grep RegEvent
     - echo $VERSION_STRING | grep Transcoder
     - echo $VERSION_STRING | grep Soci
-    - find $FLEXISIP_INSTALL_DIR -type d -name "liblinphone" -exec ls {}/plugins \; | grep "ektserver.so"
     # No graphical dependencies
     - "! ldd $FLEXISIP_BIN | grep --extended-regexp 'X|GL'"
 
@@ -25,3 +23,52 @@
     - echo $(stat -c "%n %a" ${FLEXISIP_CONF_DIR}) | grep 750
     - echo $(stat -c "%n %a" ${FLEXISIP_CONF_DIR}/flexisip.conf) | grep 640
     - if [ -d "${FLEXISIP_LOG_DIR}" ]; then echo $(stat -c "%n %a" ${FLEXISIP_LOG_DIR}) | grep 750; fi
+
+# Temporary workaround (on RPM-based systems) to satisfy the
+# bc-flexisip-conference dependency without having to import the flexisip
+# repository.
+# This is meant to be removed in a few releases.
+.job-rpm-dummy-package:
+  script:
+    - dnf -y install rpm-build
+    - mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+    - |
+      cat > ~/rpmbuild/SPECS/bc-flexisip-conference-dummy.spec <<'EOF'
+      Name: bc-flexisip-conference-dummy
+      Version: 9999
+      Release: 1%{?dist}
+      Summary: Dummy package providing bc-flexisip-conference for CI package installation checks
+      License: AGPLv3
+      BuildArch: noarch
+      Provides: bc-flexisip-conference = 9999
+
+      %description
+      Dummy package used only in CI to satisfy the bc-flexisip-conference dependency.
+
+      %files
+      EOF
+    - rpmbuild -bb ~/rpmbuild/SPECS/bc-flexisip-conference-dummy.spec
+    - yum -y --nogpgcheck localinstall ~/rpmbuild/RPMS/noarch/bc-flexisip-conference-dummy-*.rpm
+
+# Temporary workaround (on debian-based systems) to satisfy the
+# bc-flexisip-conference dependency without having to import the flexisip
+# repository.
+# This is meant to be removed in a few releases.
+.job-deb-dummy-package:
+  script:
+    - apt install -y equivs
+    - |
+      cat > bc-flexisip-conference-dummy.control <<'EOF'
+      Section: misc
+      Priority: optional
+      Standards-Version: 3.9.2
+
+      Package: bc-flexisip-conference-dummy
+      Version: 9999
+      Maintainer: CI <ci@example.invalid>
+      Architecture: all
+      Provides: bc-flexisip-conference
+      Description: Dummy package providing bc-flexisip-conference for CI.
+      EOF
+    - equivs-build bc-flexisip-conference-dummy.control
+    - apt install -y ./bc-flexisip-conference-dummy_9999_all.deb

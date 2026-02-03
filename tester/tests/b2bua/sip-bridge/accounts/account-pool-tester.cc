@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,13 +20,13 @@
 
 #include "b2bua/sip-bridge/accounts/account-pool.hh"
 
-#include <soci/session.h>
-#include <soci/sqlite3/soci-sqlite3.h>
+#include "soci/session.h"
+#include "soci/sqlite3/soci-sqlite3.h"
 
 #include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/lazy.hh"
 #include "utils/override-static.hh"
@@ -574,8 +574,7 @@ public:
 	using AccountCollection = decltype(std::declval<Loader>().loadAll());
 	class MockAccountLoader : public Loader {
 	public:
-		explicit MockAccountLoader(AccountCollection& accounts) : mAccounts(accounts) {
-		}
+		explicit MockAccountLoader(AccountCollection& accounts) : mAccounts(accounts) {}
 
 	private:
 		vector<config::v2::Account> loadAll() override {

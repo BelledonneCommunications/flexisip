@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,7 @@
 #include "flexisip/logmanager.hh"
 #include "utils/pipe.hh"
 #include "utils/posix-process.hh"
-#include "utils/rand.hh"
+#include "utils/random.hh"
 #include "utils/string-utils.hh"
 #include "utils/sys-err.hh"
 #include "utils/variant-utils.hh"
@@ -56,8 +56,7 @@ static constexpr string_view kGetAllDatabasesDropQuery{
 
 MysqlServer::MysqlServer()
     : mConfigurer{DbServerConfigurer::getConfigurer(*this)}, mDatadir(".mysql.db.d"),
-      mDaemon([this]() { startDaemon(true); }), mReady(async(launch::async, [this]() { makeDaemonReady(); })) {
-}
+      mDaemon([this]() { startDaemon(true); }), mReady(async(launch::async, [this]() { makeDaemonReady(); })) {}
 
 MysqlServer::~MysqlServer() {
 	stop();

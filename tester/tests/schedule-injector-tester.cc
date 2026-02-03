@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,13 +16,13 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "router/schedule-injector.hh"
+
 #include "flexisip/module-router.hh"
-#include "flexisip/module.hh"
 #include "fork-context/fork-context-factory.hh"
 #include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
 #include "router/fork-manager.hh"
 #include "router/inject-context.hh"
-#include "router/schedule-injector.hh"
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-patterns/test.hh"
 

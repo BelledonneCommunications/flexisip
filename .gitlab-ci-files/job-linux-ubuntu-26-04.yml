@@ -83,10 +83,7 @@ job-ubuntu-26-04-deb-check-package:
   variables:
     GIT_STRATEGY: none
   script:
-    - apt update
-    - apt install -y ./build/*.deb
-    - !reference [.script-check-features, script]
-    - !reference [.script-check-permissions, script]
+    - !reference [.job-deb-check-package, script]
 
 
 job-ubuntu-26-04-deb-deploy:

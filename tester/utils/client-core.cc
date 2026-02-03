@@ -21,7 +21,12 @@
 #include <optional>
 
 #include "asserts.hh"
+#include "bc-utils.hh"
 #include "bctoolbox/tester.h"
+#include "call-builder.hh"
+#include "chat-room-builder.hh"
+#include "client-builder.hh"
+#include "client-call.hh"
 #include "client-core.hh"
 #include "core-assert.hh"
 #include "flexisip/module-router.hh"
@@ -29,11 +34,6 @@
 #include "linphone++/call.hh"
 #include "linphone++/call_params.hh"
 #include "linphone/misc.h"
-#include "tester.hh"
-#include "utils/call-builder.hh"
-#include "utils/chat-room-builder.hh"
-#include "utils/client-builder.hh"
-#include "utils/client-call.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -97,8 +97,7 @@ std::shared_ptr<linphone::Core> minimalCore() {
 }
 
 CoreClient::CoreClient(const std::string& me, const std::shared_ptr<Agent>& agent)
-    : CoreClient(ClientBuilder(agent).build(me)) {
-}
+    : CoreClient(ClientBuilder(agent).build(me)) {}
 
 CoreClient::~CoreClient() {
 	if (mAccount != nullptr) {

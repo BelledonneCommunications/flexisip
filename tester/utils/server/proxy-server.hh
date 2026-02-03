@@ -23,12 +23,11 @@
 #include <memory>
 #include <string>
 
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
 #include "registrar/registrar-db.hh"
-#include "utils/server/injected-module-info.hh"
+#include "server/injected-module-info.hh"
 
 namespace flexisip::tester {
 

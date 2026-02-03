@@ -18,12 +18,27 @@
 
 #pragma once
 
-#include <linphone++/core.hh>
+#include <random>
 
-#include "server/proxy-server.hh"
+#include "utils/rand.hh"
 
-namespace flexisip::tester::eventlogs {
+namespace flexisip::tester::random {
 
-std::shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customConfigs = {});
+/**
+ * Get seed for the currently running instance.
+ * @return seed
+ */
+std::random_device::result_type seed();
 
-} // namespace flexisip::tester::eventlogs
+/**
+ * Get default random engine initialized with the seed of the currently running instance.
+ * @return default random engine
+ */
+[[deprecated("Use random() instead")]] std::default_random_engine engine();
+
+/**
+ * Creates a 'Random' instance seeded with random::seed().
+ */
+Random random();
+
+} // namespace flexisip::tester::random

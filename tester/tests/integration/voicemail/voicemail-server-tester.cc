@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "voicemail/voicemail-server.hh"
+
 #include <nghttp2/asio_http2_server.h>
 
 #include "flexiapi/config.hh"
@@ -23,9 +25,9 @@
 #include "flexiapi/schemas/schemas-json.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "sofia-wrapper/nta-agent.hh"
-#include "tester.hh"
 #include "utils/asserts.hh"
 #include "utils/audio/wave.hh"
+#include "utils/bc-utils.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
@@ -33,7 +35,6 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "voicemail/voicemail-server.hh"
 
 using namespace std;
 namespace flexisip::tester {

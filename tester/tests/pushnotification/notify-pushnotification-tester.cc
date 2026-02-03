@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,13 +18,12 @@
 
 #include <memory>
 
+#include "modules/module-pushnotification.hh"
 #include "sofia-wrapper/nta-agent.hh"
+#include "utils/bc-utils.hh"
 #include "utils/test-patterns/agent-test.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
-
-#include "modules/module-pushnotification.hh"
-#include "tester.hh"
 
 using namespace std;
 
@@ -53,8 +52,7 @@ public:
 	 * Make a dummy push client running on the given main loop.
 	 * @param root The main loop.
 	 */
-	DummyPushClient(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {
-	}
+	DummyPushClient(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {}
 
 	/**
 	 * Return a counter that holds the number of PN requests the dummy client has sent.
@@ -121,8 +119,7 @@ protected:
 	 * Construct a PushNotificationTest by specifying a custom PN client.
 	 */
 	template <typename PushClientPtr>
-	PushNotificationTest(PushClientPtr&& aPushClient) : mPushClient{std::forward<PushClientPtr>(aPushClient)} {
-	}
+	PushNotificationTest(PushClientPtr&& aPushClient) : mPushClient{std::forward<PushClientPtr>(aPushClient)} {}
 
 	// Protected methods
 	void onAgentConfiguration(ConfigManager& cfg) override {

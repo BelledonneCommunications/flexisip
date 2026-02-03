@@ -18,7 +18,7 @@
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "sofia-wrapper/nta-agent.hh"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/injected-module-info.hh"
 #include "utils/server/proxy-server.hh"

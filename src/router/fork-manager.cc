@@ -19,9 +19,6 @@
 #include "fork-manager.hh"
 
 #include "agent-injector.hh"
-#include "conference/chatroom-prefix.hh"
-#include "flexisip/fork-stats.hh"
-#include "flexisip/module-router.hh"
 #include "inject-context.hh"
 #include "modules/module-toolbox.hh"
 

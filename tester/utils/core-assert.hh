@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,14 +20,13 @@
 
 #include <memory>
 
-#include "flexisip/sofia-wrapper/su-root.hh"
-
 #include "agent.hh"
 #include "asserts.hh"
+#include "bellesip-utils.hh"
 #include "client-core.hh"
+#include "flexisip/sofia-wrapper/su-root.hh"
+#include "server/proxy-server.hh"
 #include "service-server/service-server.hh"
-#include "utils/bellesip-utils.hh"
-#include "utils/server/proxy-server.hh"
 
 namespace flexisip::tester {
 
@@ -35,8 +34,7 @@ template <const std::chrono::nanoseconds& sleepBetweenIterations = kDefaultSleep
 class CoreAssert : public BcAssert<sleepBetweenIterations> {
 public:
 	template <class... Steppables>
-	CoreAssert(Steppables&&... steppables) : BcAssert<sleepBetweenIterations>({stepperFrom(steppables)...}) {
-	}
+	CoreAssert(Steppables&&... steppables) : BcAssert<sleepBetweenIterations>({stepperFrom(steppables)...}) {}
 
 	static std::function<void()> stepperFrom(linphone::Core& core) {
 		return [&core] { core.iterate(); };

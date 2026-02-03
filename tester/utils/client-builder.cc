@@ -21,10 +21,10 @@
 #include <memory>
 #include <stdexcept>
 
+#include "client-core.hh"
+#include "core-assert.hh"
 #include "linphone/core.h"
 #include "pushnotification/rfc8599-push-params.hh"
-#include "utils/client-core.hh"
-#include "utils/core-assert.hh"
 #include "utils/string-utils.hh"
 #include "utils/variant-utils.hh"
 

@@ -7,5 +7,4 @@ leak:bctbx_libc_malloc
 leak:dblk_alloc
 
 leak:LinphonePrivate
-leak:ConferenceServer
 leak:linphone::Factory::createCoreWithConfig

@@ -7,7 +7,6 @@ functionalities, including:
     * **Push Notification Service**: delivers SIP notifications (in-calls, messages) to mobile devices even when the app
       is not actively running.
 * **Presence Server**: enables users to see the online status of others and their availability for calls.
-* **Conference Server**: enables group voice and video calls.
 * **Back-to-Back User Agent (B2BUA) Server**: enables caller identity translation, media-level transcoding and SIP
   trunking.
 * **RegEvent Server**: notify tier domains of user registration.

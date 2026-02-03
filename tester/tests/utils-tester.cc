@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,15 +16,16 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
+
 #include <list>
 
-#include <bctoolbox/tester.h>
+#include "bctoolbox/tester.h"
 
-#include "utils/rand.hh"
-#include "utils/string-utils.hh"
+#include "utils/random.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/uri-utils.hh"
 
 using namespace std;
 
@@ -239,8 +240,8 @@ TestSuite _("Utils",
             {
                 CLASSY_TEST(uri_utils::isIPv4),
                 CLASSY_TEST(uri_utils::isIPv6Hex),
-            	CLASSY_TEST(uri_utils::isIPv6Ref),
-            	CLASSY_TEST(uri_utils::isIPv6),
+                CLASSY_TEST(uri_utils::isIPv6Ref),
+                CLASSY_TEST(uri_utils::isIPv6),
                 CLASSY_TEST(uri_utils::isIP),
                 CLASSY_TEST(string_utils::searchAndReplace),
                 CLASSY_TEST(string_utils::join),

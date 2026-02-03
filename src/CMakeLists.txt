@@ -24,7 +24,10 @@
 # Build the Flexisip library
 #######################################################################################################################
 
-add_library(flexisip SHARED
+add_library(flexisip
+	accounts-store/accounts-data-manager.hh
+	accounts-store/accounts-store.cc accounts-store/accounts-store.hh
+	accounts-store/file-data.cc accounts-store/file-data.hh
 	agent.cc agent.hh
 	agent-startlogwriter.cc
 	auth/auth-scheme.hh
@@ -202,7 +205,7 @@ if(ENABLE_TRANSCODER)
 	target_link_libraries(flexisip PRIVATE mediastreamer2)
 endif()
 if(ENABLE_DATEHANDLER)
-	target_sources(flexisip PRIVATE module-datehandler.cc)
+	target_sources(flexisip PRIVATE modules/module-datehandler.cc)
 endif()
 if(ENABLE_REDIS)
 	add_subdirectory(libhiredis-wrapper)
@@ -210,10 +213,10 @@ if(ENABLE_REDIS)
 		registrardb-redis-async.cc
 	)
 	target_compile_definitions(flexisip PRIVATE "ENABLE_REDIS")
-	target_link_libraries(flexisip PRIVATE hiredis::hiredis)
+	target_link_libraries(flexisip PUBLIC hiredis::hiredis)
 
 	if(ENABLE_REDIS_TLS)
-		target_link_libraries(flexisip PRIVATE hiredis_ssl)
+		target_link_libraries(flexisip PUBLIC hiredis_ssl)
 		target_compile_definitions(flexisip PUBLIC ENABLE_REDIS_TLS)
 	else()
 		target_compile_definitions(flexisip PUBLIC ENABLE_REDIS_TLS=0)
@@ -222,9 +225,9 @@ if(ENABLE_REDIS)
 		target_compile_definitions(flexisip PUBLIC "INTERNAL_LIBHIREDIS")
 	endif()
 endif()
-if(ENABLE_PRESENCE OR ENABLE_CONFERENCE)
+if(ENABLE_PRESENCE OR ENABLE_REGEVENT)
 	if(NOT XercesC_FOUND)
-		message(FATAL_ERROR "Presence asked but XercesC not enabled! Please enable it first.")
+		message(FATAL_ERROR "XercesC is not enabled or found and is required by ENABLE_PRESENCE and/or ENABLE_REGEVENT.")
 	endif()
 	list(APPEND XML_SOURCES
 		xml/xml.cc
@@ -246,17 +249,10 @@ if(ENABLE_PRESENCE)
 		xml/rpid.cc
 		xml/rpid.hh
 	)
-	target_link_libraries(flexisip PUBLIC belr)
 	add_subdirectory(presence)
 endif()
-if(ENABLE_CONFERENCE)
+if(ENABLE_REGEVENT)
 	target_sources(flexisip PRIVATE
-		conference/conference-server.cc
-		conference/conference-server.hh
-		conference/registration-subscription.cc
-		conference/registration-subscription.hh
-		conference/participant-registration-subscription-handler.cc
-		conference/participant-registration-subscription-handler.hh
 		registration-events/client.cpp
 		registration-events/client.hh
 		registration-events/server.cpp
@@ -280,7 +276,7 @@ if(ENABLE_VOICEMAIL)
 		voicemail/voicemail-server.cc voicemail/voicemail-server.hh
 	)
 	target_link_libraries(flexisip
-		PRIVATE belle-sip
+		PRIVATE belle-sip mediastreamer2
 		PUBLIC liblinphone++
 	)
 endif()
@@ -298,8 +294,8 @@ if(ENABLE_SOCI)
 	endif()
 endif()
 if(XercesC_FOUND)
-	target_include_directories(flexisip PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
-	target_link_libraries(flexisip PRIVATE "XercesC::XercesC")
+	target_include_directories(flexisip PUBLIC "${PROJECT_SOURCE_DIR}/libxsd")
+	target_link_libraries(flexisip PUBLIC "XercesC::XercesC")
 endif()
 if(ENABLE_PRESENCE OR ENABLE_MDNS)
 	target_link_libraries(flexisip PUBLIC belle-sip)
@@ -317,6 +313,19 @@ else(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
 	set_source_files_properties(${XML_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wno-deprecated-copy-with-user-provided-copy")
 endif()
 
+if(BUILD_AS_LIB)
+	target_link_libraries(flexisip PUBLIC
+		liblinphone++
+		belle-sip
+		mediastreamer2
+	)
+	target_include_directories(flexisip PUBLIC
+		${PROJECT_BINARY_DIR}/
+		${PROJECT_SOURCE_DIR}/include/
+		${CMAKE_CURRENT_SOURCE_DIR}/
+	)
+endif()
+
 #######################################################################################################################
 # Build plugins.
 #######################################################################################################################
@@ -327,30 +336,36 @@ endif()
 #######################################################################################################################
 # Build the executables
 #######################################################################################################################
-add_executable(flexisip_server main.cc)
-set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
-target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
-target_link_libraries(flexisip_server PRIVATE flexisip OpenSSL::Crypto ortp)
-install(TARGETS flexisip flexisip_server
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-)
+if(BUILD_AS_LIB)
+	install(TARGETS flexisip
+		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	)
+else()
+	add_executable(flexisip_server main.cc)
+	set_property(TARGET flexisip_server PROPERTY OUTPUT_NAME flexisip)
+	target_compile_features(flexisip_server PRIVATE cxx_auto_type cxx_variadic_macros)
+	target_link_libraries(flexisip_server PRIVATE flexisip OpenSSL::Crypto ortp)
+	install(TARGETS flexisip flexisip_server
+		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+	)
 
-add_executable(flexisip_pusher tools/pusher.cc)
-target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
-install(TARGETS flexisip_pusher
-	RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
-)
+	add_executable(flexisip_pusher tools/pusher.cc)
+	target_link_libraries(flexisip_pusher flexisip OpenSSL::Crypto LibNgHttp2)
+	install(TARGETS flexisip_pusher
+		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+		PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE
+	)
+endif()
 
 #######################################################################################################################
 # Generate default configuration file for flexisip
 #######################################################################################################################
-if(NOT CMAKE_CROSSCOMPILING)
+if(NOT BUILD_AS_LIB AND NOT CMAKE_CROSSCOMPILING)
 	add_custom_target(flexisip_config
 		ALL
 		COMMAND $<TARGET_FILE:flexisip_server> --dump-all-default > "${CMAKE_BINARY_DIR}/flexisip.conf"

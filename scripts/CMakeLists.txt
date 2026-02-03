@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2017  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -33,8 +33,8 @@ set(systemd_services "proxy")
 if(ENABLE_PRESENCE)
     list(APPEND systemd_services "presence")
 endif()
-if(ENABLE_CONFERENCE)
-    list(APPEND systemd_services "conference" "regevent")
+if(ENABLE_REGEVENT)
+    list(APPEND systemd_services "regevent")
 endif()
 if(ENABLE_B2BUA)
     list(APPEND systemd_services "b2bua")
@@ -51,9 +51,6 @@ foreach(service ${systemd_services})
         set(after " redis.service mysqld.service mariadb.service")
     elseif(service MATCHES "presence")
         set(description "Flexisip presence server")
-        set(after " redis.service mysqld.service mariadb.service")
-    elseif(service MATCHES "conference")
-        set(description "Flexisip conference server")
         set(after " redis.service mysqld.service mariadb.service")
     elseif(service MATCHES "regevent")
         set(description "Flexisip RegEvent server")

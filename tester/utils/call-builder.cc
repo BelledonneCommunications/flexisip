@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,15 +20,14 @@
 
 #include <string>
 
-#include "utils/client-builder.hh"
-#include "utils/client-call.hh"
-#include "utils/client-core.hh"
+#include "client-builder.hh"
+#include "client-call.hh"
+#include "client-core.hh"
 
 namespace flexisip::tester {
 
 CallBuilder::CallBuilder(const CoreClient& client)
-    : mClient(client), mParams(mClient.getCore()->createCallParams(nullptr)) {
-}
+    : mClient(client), mParams(mClient.getCore()->createCallParams(nullptr)) {}
 
 std::optional<ClientCall> CallBuilder::call(const std::string& destination) const {
 	return ClientCall::tryFrom(mClient.invite(destination, mParams));

@@ -1,5 +1,5 @@
 variables:
-  ROCKY9_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_EKT_SERVER=ON
+  ROCKY9_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
   ROCKY9_CMAKE_OPTIONS_UNIT_TESTS: ${ROCKY9_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DCMAKE_PREFIX_PATH=/usr/local -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON
 
 .rocky9-image-variables:
@@ -120,10 +120,7 @@ job-rocky9-rpm-check-package:
   variables:
     GIT_STRATEGY: none
   script:
-    - yum -y install epel-release
-    - yum -y --nogpgcheck localinstall ./build/*.rpm
-    - !reference [.script-check-features, script]
-    - !reference [.script-check-permissions, script]
+    - !reference [.job-rpm-check-package, script]
 
 job-rocky9-rpm-deploy:
   extends:

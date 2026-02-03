@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "main/flexisip.hh"
+
 #include <csignal> // For macOS
 #include <fstream>
 #include <sys/wait.h>
@@ -24,8 +26,7 @@
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include "flexisip/logmanager.hh"
-#include "main/flexisip.hh"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/cli-helper.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -39,7 +40,7 @@ constexpr auto step = 100ms;
 
 class ProcessusHandler {
 public:
-	explicit ProcessusHandler(pid_t pid) : mPid(pid) {};
+	explicit ProcessusHandler(pid_t pid) : mPid(pid){};
 
 	~ProcessusHandler() {
 		kill();
@@ -101,11 +102,6 @@ void callAndStopMain() {
 	auto confFilePath = dir.path() / "flexisip.conf";
 	ofstream(confFilePath) << "[global]" << '\n'
 	                       << "enable-snmp=true" << '\n'
-#ifdef ENABLE_CONFERENCE
-	                       << "[conference-server]" << '\n'
-	                       << "database-backend=sqlite3" << '\n'
-	                       << "database-connection-string=\":memory:\"" << '\n'
-#endif
 	                       << "[presence-server]" << '\n'
 	                       << "long-term-enabled=true" << '\n';
 

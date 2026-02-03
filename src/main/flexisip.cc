@@ -82,8 +82,7 @@
 #include "registrar/registrar-db.hh"
 #include "stun.hh"
 
-#ifdef ENABLE_CONFERENCE
-#include "conference/conference-server.hh"
+#ifdef ENABLE_REGEVENT
 #include "registration-events/server.hh"
 #endif
 #ifdef ENABLE_B2BUA
@@ -112,7 +111,7 @@
 using namespace std;
 using namespace flexisip;
 
-#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA || ENABLE_VOICEMAIL
+#define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_REGEVENT || ENABLE_B2BUA || ENABLE_VOICEMAIL
 
 static int run = 1;
 static shared_ptr<sofiasip::SuRoot> root{};
@@ -353,12 +352,10 @@ static void list_sections(ConfigManager& cfg, bool moduleOnly = false) {
 	}
 }
 
-static const string
-getFunctionName(bool startProxy, bool startPresence, bool startConference, bool regEvent, bool b2bua, bool voicemail) {
+static const string getFunctionName(bool startProxy, bool startPresence, bool regEvent, bool b2bua, bool voicemail) {
 	string functions;
 	if (startProxy) functions = "proxy";
 	if (startPresence) functions += ((functions.empty()) ? "" : "+") + string("presence");
-	if (startConference) functions += ((functions.empty()) ? "" : "+") + string("conference");
 	if (regEvent) functions += ((functions.empty()) ? "" : "+") + string("regevent");
 	if (b2bua) functions += ((functions.empty()) ? "" : "+") + string("b2bua");
 	if (voicemail) functions += ((functions.empty()) ? "" : "+") + string("voicemail");
@@ -386,8 +383,7 @@ static string version() {
 #if ENABLE_PRESENCE
 	options.emplace_back("Presence");
 #endif
-#if ENABLE_CONFERENCE
-	options.emplace_back("Conference");
+#if ENABLE_REGEVENT
 	options.emplace_back("RegEvent");
 #endif
 #ifdef ENABLE_B2BUA
@@ -427,8 +423,8 @@ int flexisip::main(int argc, const char* argv[]) {
 #if ENABLE_PRESENCE
 	                                     " 'presence',"
 #endif
-#if ENABLE_CONFERENCE
-	                                     " 'regevent', 'conference',"
+#if ENABLE_REGEVENT
+	                                     " 'regevent',"
 #endif
 #ifdef ENABLE_B2BUA
 	                                     " 'b2bua',"
@@ -597,6 +593,15 @@ int flexisip::main(int argc, const char* argv[]) {
 	}
 
 	// Try parsing the configuration file.
+	cfg->setDeprecatedSections({{
+	    "conference-server",
+	    {
+	        "2026-02-10",
+	        "2.6",
+	        "ATTENTION. This section of the configuration has no effect anymore. The conference server is now part of "
+	        "a different project: 'flexisip-conference'.",
+	    },
+	}});
 	if (cfg->load(configFile.getValue(),
 	              rewriteConf ? ConfigManager::OnInvalidItem::Continue : ConfigManager::OnInvalidItem::Throw) == -1) {
 		throw BadConfiguration{
@@ -623,7 +628,6 @@ int flexisip::main(int argc, const char* argv[]) {
 
 	bool startProxy = false;
 	bool startPresence = false;
-	bool startConference = false;
 	bool startRegEvent = false;
 	bool startB2bua = false;
 	bool startVoicemail = false;
@@ -635,14 +639,9 @@ int flexisip::main(int argc, const char* argv[]) {
 #ifndef ENABLE_PRESENCE
 		throw ExitFailure{"Flexisip was compiled without presence server extension"};
 #endif
-	} else if (functionName.getValue() == "conference") {
-		startConference = true;
-#ifndef ENABLE_CONFERENCE
-		throw ExitFailure{"Flexisip was compiled without conference server extension"};
-#endif
 	} else if (functionName.getValue() == "regevent") {
 		startRegEvent = true;
-#ifndef ENABLE_CONFERENCE
+#ifndef ENABLE_REGEVENT
 		throw ExitFailure{"Flexisip was compiled without regevent server extension"};
 #endif
 	} else if (functionName.getValue() == "b2bua") {
@@ -658,7 +657,6 @@ int flexisip::main(int argc, const char* argv[]) {
 	} else if (functionName.getValue() == "all") {
 		startPresence = true;
 		startProxy = true;
-		startConference = true;
 		startRegEvent = true;
 		startB2bua = true;
 	} else if (functionName.getValue().empty()) {
@@ -669,19 +667,21 @@ int flexisip::main(int argc, const char* argv[]) {
 		if (defaultServers->contains("presence")) {
 			startPresence = true;
 		}
-		if (defaultServers->contains("conference")) {
-			startConference = true;
-		}
 		if (defaultServers->contains("regevent")) {
 			startRegEvent = true;
 		}
 		if (defaultServers->contains("b2bua")) {
 			startB2bua = true;
 		}
-		if (!startPresence && !startProxy && !startConference && !startB2bua) {
+		if (!startPresence && !startProxy && !startRegEvent && !startB2bua) {
 			throw BadConfigurationValue{defaultServers};
 		}
 	} else {
+		if (functionName.getValue() == "conference") {
+			throw BadConfiguration{"server type 'conference' is not recognized anymore as the conference server is now "
+			                       "part of a different project ('flexisip-conference')."};
+		}
+
 		throw BadConfiguration{"unknown server type '" + functionName.getValue() + "'"};
 	}
 
@@ -726,8 +726,7 @@ int flexisip::main(int argc, const char* argv[]) {
 	// Read the pkcs passphrase if any from the FIFO, and keep it in memory.
 	auto passphrase = getPkcsPassphrase(pkcsFile);
 
-	string fName =
-	    getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua, startVoicemail);
+	string fName = getFunctionName(startProxy, startPresence, startRegEvent, startB2bua, startVoicemail);
 
 	makePidFile(pidFile.getValue());
 
@@ -828,20 +827,12 @@ int flexisip::main(int argc, const char* argv[]) {
 #endif
 	}
 
-	if (startConference) {
-#ifdef ENABLE_CONFERENCE
-		auto conferenceServer = make_shared<ConferenceServer>(agent->getPreferredRoute(), root, cfg, registrarDb);
-		conferenceServer->init();
-		serviceServers.emplace_back(std::move(conferenceServer));
-#endif // ENABLE_CONFERENCE
-	}
-
 	if (startRegEvent) {
-#ifdef ENABLE_CONFERENCE
+#ifdef ENABLE_REGEVENT
 		auto regEventServer = make_unique<RegistrationEvent::Server>(root, cfg, registrarDb);
 		regEventServer->init();
 		serviceServers.emplace_back(std::move(regEventServer));
-#endif // ENABLE_CONFERENCE
+#endif // ENABLE_REGEVENT
 	}
 
 	if (startB2bua) {

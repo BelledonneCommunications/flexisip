@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -40,11 +40,10 @@ time_t getCurrentTime() {
 }
 
 time_t getTimeOffset([[maybe_unused]] time_t current_time) {
-	static time_t empty = {0};
 #ifdef MONOTONIC_CLOCK_REGISTRATIONS
-	time_t offset = time(NULL) - current_time;
+	return time(nullptr) - current_time;
 #else
-	return empty;
+	return 0;
 #endif
 }
 

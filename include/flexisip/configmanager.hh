@@ -85,7 +85,8 @@ enum GenericValueType {
 
 /* Allows to have a string for each GenericValueType */
 static const std::map<GenericValueType, std::string> GenericValueTypeNameMap = {
-#define TypeToName(X) {X, #X}
+#define TypeToName(X)                                                                                                  \
+	{ X, #X }
     TypeToName(Boolean),     TypeToName(Integer),      TypeToName(IntegerRange), TypeToName(Counter64),
     TypeToName(String),      TypeToName(ByteSize),     TypeToName(StringList),   TypeToName(Struct),
     TypeToName(BooleanExpr), TypeToName(Notification), TypeToName(RuntimeError), TypeToName(DurationMS),
@@ -838,6 +839,14 @@ public:
 	void setOverrideMap(const std::map<std::string, std::string>& overrides) {
 		mOverrides = overrides;
 	}
+	/**
+	 * Create deprecated sections.
+	 * If the provided section is present in the configuration file with at least one parameter set, it will print
+	 * a warning message (using provided deprecation information).
+	 *
+	 * @param sections 'key' is the name of the section and 'value' contains deprecation information
+	 */
+	void setDeprecatedSections(const std::map<std::string, GenericEntry::DeprecationInfo>& sections = {});
 
 	const GenericStruct* getGlobal() const;
 

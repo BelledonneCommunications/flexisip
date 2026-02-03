@@ -18,12 +18,17 @@
 
 #pragma once
 
-#include <linphone++/core.hh>
+#include <cstddef>
+#include <filesystem>
+#include <random>
+#include <string>
 
-#include "server/proxy-server.hh"
+namespace flexisip::tester {
 
-namespace flexisip::tester::eventlogs {
+std::string bcTesterFile(const std::string& name);
+std::string bcTesterRes(const std::string& name);
+// Canonical path to the configured writable directory for flexisip_tester
+std::filesystem::path bcTesterWriteDir();
+std::filesystem::path bcTesterResourceDir();
 
-std::shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customConfigs = {});
-
-} // namespace flexisip::tester::eventlogs
+} // namespace flexisip::tester

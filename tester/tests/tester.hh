@@ -18,12 +18,13 @@
 
 #pragma once
 
-#include <linphone++/core.hh>
+#include <string>
 
-#include "server/proxy-server.hh"
+namespace flexisip::tester {
 
-namespace flexisip::tester::eventlogs {
+void flexisip_tester_add_grammar_loader_path(const std::string& path);
+void flexisip_tester_set_factory_resources_path(const std::string& path);
+void flexisip_tester_init();
+void flexisip_tester_uninit();
 
-std::shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customConfigs = {});
-
-} // namespace flexisip::tester::eventlogs
+} // namespace flexisip::tester

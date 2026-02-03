@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,18 +20,18 @@
 
 #include <chrono>
 
+#include "belle-sip/auth-helper.h"
+#include "linphone++/linphone.hh"
+#include "soci/session.h"
+#include "soci/sqlite3/soci-sqlite3.h"
 #include <json/reader.h>
 
 #include "b2bua/b2bua-server.hh"
-#include "belle-sip/auth-helper.h"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/module-router.hh"
-#include "linphone++/linphone.hh"
 #include "listeners/mwi-listener.hh"
 #include "registrardb-internal.hh"
-#include "soci/session.h"
-#include "soci/sqlite3/soci-sqlite3.h"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/call-listeners.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"

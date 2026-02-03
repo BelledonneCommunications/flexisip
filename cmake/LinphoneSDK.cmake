@@ -1,6 +1,6 @@
 ############################################################################
 # LinphoneSDK.cmake
-# Copyright (C) 2010-2023 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -25,23 +25,10 @@
 ############################################################################
 
 function(add_linphonesdk)
-	if(ENABLE_TRANSCODER OR ENABLE_CONFERENCE OR ENABLE_B2BUA)
-		set(BUILD_MEDIASTREAMER2 ON)
-		set(ENABLE_ZRTP ON)
-	else()
-		set(BUILD_MEDIASTREAMER2 OFF)
-		set(ENABLE_ZRTP OFF)
-	endif()
-
-	if(ENABLE_EKT_SERVER)
-		set(ENABLE_NON_FREE_FEATURES ON)
-		set(ENABLE_EKT_SERVER_PLUGIN ON)
-		set(ENABLE_PQCRYPTO ON)
-	else()
-		set(ENABLE_NON_FREE_FEATURES OFF)
-		set(ENABLE_EKT_SERVER_PLUGIN OFF)
-		set(ENABLE_PQCRYPTO OFF)
-	endif()
+	# Initialize local variables
+	set(BUILD_MEDIASTREAMER2 OFF)
+	set(BUILD_BELLESIP OFF)
+	set(ENABLE_ZRTP OFF)
 
 	set(BUILD_SOCI ${SOCI_REQUIRED})
 	if(BUILD_SOCI)
@@ -51,13 +38,26 @@ function(add_linphonesdk)
 		endif()
 	endif()
 
-	if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_CONFERENCE OR ENABLE_UNIT_TESTS)
-		set(BUILD_BELLESIP ON)
+	set(BUILD_LIBLINPHONE ${LIBLINPHONE_REQUIRED})
+	# Liblinphone specific config
+	if(BUILD_LIBLINPHONE)
+		# These two options are mandatory when BUILD_LIBLINPHONE is 'ON'.
+		set(BUILD_MEDIASTREAMER2 ON)
+		set(ENABLE_ZRTP ON)
+
+		set(ENABLE_CONSOLE_UI OFF)
+		set(ENABLE_DATE OFF)
+		set(ENABLE_JAVADOC OFF)
+		set(ENABLE_TUTORIALS OFF)
+		set(ENABLE_UPDATE_CHECK OFF)
+		if(APPLE)
+			set(ENABLE_DAEMON OFF)
+		else()
+			set(ENABLE_DAEMON ON)
+		endif()
 	endif()
 
-	set(BUILD_LIBLINPHONE ${LIBLINPHONE_REQUIRED})
-
-	# # Global SDK config
+	# Global SDK config
 	set(ENABLE_DOC OFF)
 	set(ENABLE_PACKAGE_SOURCE OFF)
 	set(ENABLE_STRICT ${ENABLE_STRICT_LINPHONESDK})
@@ -79,6 +79,7 @@ function(add_linphonesdk)
 	set(BUILD_SQLITE3 OFF)
 	set(BUILD_XERCESC OFF)
 	set(BUILD_ZLIB OFF)
+
 	set(ENABLE_ADVANCED_IM ON)
 	set(ENABLE_AMRNB OFF)
 	set(ENABLE_AMRWB OFF)
@@ -136,14 +137,17 @@ function(add_linphonesdk)
 	# BcToolbox specific config
 	set(ENABLE_DEFAULT_LOG_HANDLER OFF)
 
+	set(ENABLE_NON_FREE_FEATURES OFF)
+	set(ENABLE_EKT_SERVER_PLUGIN OFF)
+
 	# BZRTP specific config
 	set(ENABLE_ZIDCACHE ${ENABLE_ZRTP})
 	set(ENABLE_EXPORTEDKEY_V1_0_RETROCOMPATIBILITY OFF)
 	set(ENABLE_GOCLEAR ON)
 	set(ENABLE_PQCRYPTO OFF)
 
+	# Mediastreamer specific config
 	if(BUILD_MEDIASTREAMER2)
-		# Mediastreamer specific config
 		set(ENABLE_BAUDOT OFF)
 		set(ENABLE_FIXED_POINT OFF)
 		set(ENABLE_PCAP OFF)
@@ -159,13 +163,16 @@ function(add_linphonesdk)
 		set(ENABLE_RESAMPLE ON)
 	endif()
 
+	if(ENABLE_PRESENCE OR ENABLE_MDNS OR ENABLE_REGEVENT OR ENABLE_UNIT_TESTS)
+		set(BUILD_BELLESIP ON)
+	endif()
+	# Belle-sip specific config
 	if(BUILD_BELLESIP)
-		# Belle-sip specific config
 		set(ENABLE_RTP_MAP_ALWAYS_IN_SDP OFF)
 	endif()
 
+	# Lime specific config
 	if(ENABLE_LIME_X3DH)
-		# Lime specific config
 		set(ENABLE_CURVE25519 YES)
 		set(ENABLE_CURVE448 YES)
 		set(ENABLE_PROFILING NO)
@@ -173,23 +180,8 @@ function(add_linphonesdk)
 		set(ENABLE_JNI NO)
 	endif()
 
-	if(BUILD_LIBLINPHONE)
-		# Liblinphone specific config
-		set(ENABLE_CONSOLE_UI OFF)
-		set(ENABLE_DATE OFF)
-		set(ENABLE_JAVADOC OFF)
-		set(ENABLE_TUTORIALS OFF)
-		set(ENABLE_UPDATE_CHECK OFF)
-		if(APPLE)
-			set(ENABLE_DAEMON OFF)
-		else()
-			set(ENABLE_DAEMON ON)
-		endif()
-	endif()
-
 	set(LINPHONESDK_BUILD_TYPE "Flexisip")
 
 	add_subdirectory("linphone-sdk")
 endfunction()
-
 add_linphonesdk()

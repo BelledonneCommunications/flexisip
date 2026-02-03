@@ -1,5 +1,5 @@
 variables:
-  DEBIAN12_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON -DENABLE_EKT_SERVER=ON
+  DEBIAN12_CMAKE_OPTIONS: -DINTERNAL_LIBHIREDIS=ON
 
 .debian12-image:
   image:
@@ -47,7 +47,7 @@ job-debian12-ninja-clang:
     - .debian12-image
     - .tester-artifacts
   variables:
-    CMAKE_OPTIONS: ${DEBIAN12_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON
+    CMAKE_OPTIONS: ${DEBIAN12_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON
 
 #################################################
 # UNIT TESTS
@@ -59,13 +59,9 @@ job-debian12-unit-test:
     - .debian12-image
   needs:
     - job-debian12-ninja-clang
-  after_script:
-    - ls -lah #default.profraw should exist
-    - llvm-profdata merge -sparse default.profraw -o default.profdata
   artifacts:
     when: always
     paths:
-      - default.profdata
       - work/lib/libflexisip.so
       - ${LOGS_DIR}/*
 
@@ -101,10 +97,7 @@ job-debian12-deb-check-package:
   variables:
     GIT_STRATEGY: none
   script:
-    - apt update
-    - apt install -y ./build/*.deb
-    - !reference [.script-check-features, script]
-    - !reference [.script-check-permissions, script]
+    - !reference [.job-deb-check-package, script]
 
 job-debian12-deb-deploy:
   extends:

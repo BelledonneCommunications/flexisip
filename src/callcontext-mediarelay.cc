@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,6 +26,10 @@
 #include "mediarelay.hh"
 #include "modules/module-toolbox.hh"
 #include "utils/cast-to-const.hh"
+
+#ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
+#include "telephone-event-filter.hh"
+#endif // MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 
 using namespace std;
 using namespace flexisip;
@@ -378,11 +382,10 @@ void RelayedCall::configureRelayChannel(shared_ptr<RelayChannel> ms,
 	}
 #ifdef MEDIARELAY_SPECIFIC_FEATURES_ENABLED
 	if (mDropTelephoneEvents) {
-		// only telephone event coming from tls clients are dropped.
-		if (mline->m_type == sdp_media_audio) {
-			if (sip->sip_contact == NULL || sip->sip_contact->m_url == NULL || isTls(sip->sip_contact->m_url)) {
-				sdp_rtpmap_t* rtpmap;
-				for (rtpmap = mline->m_rtpmaps; rtpmap != NULL; rtpmap = rtpmap->rm_next) {
+		// Only telephone events coming from tls clients are dropped.
+		if (mediaLine->m_type == sdp_media_audio) {
+			if (sip->sip_contact == nullptr || isTls(sip->sip_contact->m_url)) {
+				for (const auto* rtpmap = mediaLine->m_rtpmaps; rtpmap != nullptr; rtpmap = rtpmap->rm_next) {
 					if (strcasecmp(rtpmap->rm_encoding, "telephone-event") == 0) {
 						LOGI << "Enabling telephone-event filtering on payload type " << rtpmap->rm_pt;
 						ms->setFilter(make_shared<TelephoneEventFilter>((int)rtpmap->rm_pt));

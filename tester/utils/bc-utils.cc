@@ -16,14 +16,32 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "bc-utils.hh"
 
-#include <linphone++/core.hh>
+#include "bctoolbox/tester.h"
 
-#include "server/proxy-server.hh"
+namespace flexisip::tester {
 
-namespace flexisip::tester::eventlogs {
+std::string bcTesterFile(const std::string& name) {
+	char* file = bc_tester_file(name.c_str());
+	std::string ret(file);
+	bc_free(file);
+	return ret;
+}
 
-std::shared_ptr<Server> makeAndStartProxy(std::map<std::string, std::string> customConfigs = {});
+std::string bcTesterRes(const std::string& name) {
+	char* file = bc_tester_res(name.c_str());
+	std::string ret(file);
+	bc_free(file);
+	return ret;
+}
 
-} // namespace flexisip::tester::eventlogs
+std::filesystem::path bcTesterWriteDir() {
+	return std::filesystem::canonical(bc_tester_get_writable_dir_prefix());
+}
+
+std::filesystem::path bcTesterResourceDir() {
+	return std::filesystem::canonical(bc_tester_get_resource_dir_prefix());
+}
+
+} // namespace flexisip::tester

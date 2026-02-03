@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,8 +20,8 @@
 
 #include "bctoolbox/tester.h"
 
+#include "bc-utils.hh"
 #include "flexisip/logmanager.hh"
-#include "tester.hh"
 #include "tls-tcp-server.hh"
 
 using namespace std;
@@ -33,8 +33,7 @@ using ssl::context;
 namespace {
 class TcpConnection : public IConnection<tcp::socket> {
 public:
-	TcpConnection(io_context& ioContext) : mSocket{make_unique<tcp::socket>(ioContext)} {
-	}
+	TcpConnection(io_context& ioContext) : mSocket{make_unique<tcp::socket>(ioContext)} {}
 
 	void accept(tcp::acceptor& acceptor) override {
 		acceptor.accept(*mSocket);
@@ -136,8 +135,7 @@ auto setConnection<ssl::stream<tcp::socket>>(io_context& ioContext, std::string_
 template <typename SocketType>
 TServer<SocketType>::TServer(int port, std::string_view sniValueExpected)
     : mLogPrefix{serverName<SocketType>()}, mIoContext{}, mAcceptor{mIoContext, tcp::endpoint(tcp::v4(), port)},
-      mConnection{setConnection<SocketType>(mIoContext, sniValueExpected)} {
-}
+      mConnection{setConnection<SocketType>(mIoContext, sniValueExpected)} {}
 
 template <typename SocketType>
 void TServer<SocketType>::accept() {

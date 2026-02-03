@@ -25,8 +25,8 @@
 #include <sysexits.h>
 
 #include "asserts.hh"
-#include "flexisip-tester-config.hh"
 #include "test-patterns/test.hh"
+#include "tester/flexisip-tester-config.hh"
 
 using namespace std;
 

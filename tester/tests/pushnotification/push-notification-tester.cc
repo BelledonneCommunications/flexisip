@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -39,9 +39,10 @@
 #include "pushnotification/firebase-v1/firebase-v1-request.hh"
 #include "pushnotification/generic/generic-http2-client.hh"
 #include "pushnotification/push-notification-exceptions.hh"
-#include "tester.hh"
+#include "utils/bc-utils.hh"
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
+#include "utils/random.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
 

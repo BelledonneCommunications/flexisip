@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,11 +21,12 @@
 #include <optional>
 
 #include "bctoolbox/tester.h"
+
 #include "sofia-sip/nta_tport.h"
 
+#include "bc-utils.hh"
 #include "registrar/registrar-db.hh"
-#include "tester.hh"
-#include "utils/test-patterns/test.hh"
+#include "test-patterns/test.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -89,8 +90,7 @@ Server::Server(const std::string& configFilePath, InjectedHooks* injectedHooks)
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
-    : Server(customConfig, std::make_shared<sofiasip::SuRoot>(), injectedHooks) {
-}
+    : Server(customConfig, std::make_shared<sofiasip::SuRoot>(), injectedHooks) {}
 
 Server::Server(const std::map<std::string, std::string>& customConfig,
                const std::shared_ptr<sofiasip::SuRoot>& root,

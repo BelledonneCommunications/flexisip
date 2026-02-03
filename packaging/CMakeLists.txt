@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -23,7 +23,7 @@
 set(CPACK_PACKAGE_NAME "bc-flexisip")
 set(CPACK_PACKAGE_VERSION "${FLEXISIP_FULL_VERSION}")
 set(CPACK_PACKAGE_VENDOR "Belledonne Communications SARL")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite including proxy server, presence server and IM conference server.")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "SIP server suite including proxy, presence, regevent, B2BUA and voicemail servers.")
 set(CPACK_PACKAGE_DESCRIPTION_FILE "${CMAKE_CURRENT_SOURCE_DIR}/description.txt")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://www.linphone.org/en/flexisip-sip-server/")
 set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
@@ -31,7 +31,11 @@ set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 
 # Add package dependencies.
-set(extra_dependencies "logrotate")
+set(extra_dependencies
+	# Add bc-flexisip-conference as a dependency for now to ease the update process
+	"bc-flexisip-conference"
+	"logrotate"
+)
 cmake_host_system_information(RESULT DISTRIBUTION QUERY DISTRIB_INFO)
 if(DISTRIBUTION_ID STREQUAL "centos")
 	list(APPEND extra_dependencies
@@ -90,12 +94,12 @@ list(JOIN obsolete_packets ", " obsolete_packets_str)
 
 
 # Set the SystemD services that should be restarted on package update
-set(FLEXISIP_SERVICES "flexisip-proxy flexisip-regevent")
+set(FLEXISIP_SERVICES "flexisip-proxy")
 if(ENABLE_PRESENCE)
 	string(APPEND FLEXISIP_SERVICES " flexisip-presence")
 endif()
-if(ENABLE_CONFERENCE)
-	string(APPEND FLEXISIP_SERVICES " flexisip-conference")
+if(ENABLE_REGEVENT)
+	string(APPEND FLEXISIP_SERVICES " flexisip-regevent")
 endif()
 if(ENABLE_B2BUA)
 	string(APPEND FLEXISIP_SERVICES " flexisip-b2bua")
@@ -117,19 +121,13 @@ set(CONFIG_FILES
 
 if("RPM" IN_LIST CPACK_GENERATOR)
 
-	set(CPACK_RPM_COMPONENT_INSTALL ON)
-	# CPACK_RPM_PACKAGE_NAME must be redefined because its default value is "${CPACK_PACKAGE_NAME}-<component>"
-	# when component mode is on.
-	set(CPACK_RPM_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 	set(CPACK_RPM_PACKAGE_EPOCH "1")
 	set(CPACK_RPM_PACKAGE_LICENSE "AGPLv3")
 	set(CPACK_RPM_PACKAGE_GROUP "Applications/Communication")
 	set(CPACK_RPM_PACKAGE_VERSION "${version}")
 	set(CPACK_RPM_PACKAGE_RELEASE "${release}")
-	set(CPACK_RPM_UNSPECIFIED_PACKAGE_REQUIRES "${extra_dependencies_str}")
-	set(CPACK_RPM_UNSPECIFIED_PACKAGE_OBSOLETES "${obsolete_packets_str}")
-	# EKT-server is a plugin of flexisip-conference server
-	set(CPACK_RPM_PLUGIN-EKTSERVER_PACKAGE_REQUIRES "${CPACK_PACKAGE_NAME}")
+	set(CPACK_RPM_PACKAGE_REQUIRES "${extra_dependencies_str}")
+	set(CPACK_RPM_PACKAGE_OBSOLETES "${obsolete_packets_str}")
 	set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 	set(CPACK_RPM_PACKAGE_RELEASE_DIST ON)
 	cmake_path(GET FLEXISIP_SYSTEMD_INSTALL_DIR PARENT_PATH SYSTEMD_DIR)
@@ -182,7 +180,7 @@ if("RPM" IN_LIST CPACK_GENERATOR)
 
 	## Declare config files
 	foreach (conffile ${CONFIG_FILES})
-		list(APPEND CPACK_RPM_UNSPECIFIED_USER_FILELIST "%config(noreplace) ${conffile}")
+		list(APPEND CPACK_RPM_USER_FILELIST "%config(noreplace) ${conffile}")
 	endforeach ()
 
 endif()
@@ -194,20 +192,13 @@ endif()
 
 if("DEB" IN_LIST CPACK_GENERATOR)
 
-	set(CPACK_DEB_COMPONENT_INSTALL ON)
-
-	# CPACK_DEBIAN_PACKAGE_NAME must be redefined because its default value is "${CPACK_PACKAGE_NAME}-<component>"
-	# when component mode is on.
-	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 	set(CPACK_DEBIAN_PACKAGE_VERSION "${version}-${release}")
 	set(CPACK_DEBIAN_PACKAGE_MAINTAINER "info@belledonne-communications.com")
 	set(CPACK_DEBIAN_PACKAGE_SECTION "net")
-	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_DEPENDS "${extra_dependencies_str}")
-	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_PROVIDES "${obsolete_packets_str}")
-	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_CONFLICTS "${obsolete_packets_str}")
-	set(CPACK_DEBIAN_UNSPECIFIED_PACKAGE_REPLACES "${obsolete_packets_str}")
-	# EKT-server is a plugin of flexisip-conference server
-	set(CPACK_DEBIAN_PLUGIN-EKTSERVER_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME}")
+	set(CPACK_DEBIAN_PACKAGE_DEPENDS "${extra_dependencies_str}")
+	set(CPACK_DEBIAN_PACKAGE_PROVIDES "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_PACKAGE_CONFLICTS "${obsolete_packets_str}")
+	set(CPACK_DEBIAN_PACKAGE_REPLACES "${obsolete_packets_str}")
 	set(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS ON)
 	set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 	set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/../lib")

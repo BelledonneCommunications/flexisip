@@ -19,12 +19,17 @@
 #cmakedefine CONFIG_DIR "${CONFIG_DIR}"
 #cmakedefine INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}"
 
+/* Default lib directory */
+#cmakedefine DEFAULT_LIB_DIR "${DEFAULT_LIB_DIR}"
+/* Default log directory */
+#cmakedefine DEFAULT_LOG_DIR "${DEFAULT_LOG_DIR}"
+
 #cmakedefine ENABLE_SYSTEMD 1
 #cmakedefine ENABLE_SNMP 1
 #cmakedefine ENABLE_LIBODB_MYSQL 1
 #cmakedefine ENABLE_TRANSCODER 1
 #cmakedefine ENABLE_PRESENCE 1
-#cmakedefine ENABLE_CONFERENCE 1
+#cmakedefine ENABLE_REGEVENT 1
 #cmakedefine ENABLE_B2BUA 1
 #cmakedefine ENABLE_VOICEMAIL 1
 #cmakedefine ENABLE_ODBC 1
@@ -59,10 +64,14 @@
 #define ORTP_HAS_REUSEADDR 1
 
 /* Default lib directory */
+#ifndef DEFAULT_LIB_DIR
 #define DEFAULT_LIB_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/lib/flexisip"
+#endif
 
 /* Default log directory */
+#ifndef DEFAULT_LOG_DIR
 #define DEFAULT_LOG_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/log/flexisip"
+#endif
 
 /* Default b2bua data dir */
 #define DEFAULT_B2BUA_DATA_DIR "@CMAKE_INSTALL_FULL_LOCALSTATEDIR@/flexisip/b2b"

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -17,34 +17,29 @@
 */
 
 #include "tester.hh"
-#include "utils/rand.hh"
 
 #include <cstddef>
 #include <cstdlib>
-#include <random>
 #include <stdexcept>
 #include <string>
 
-#include <bctoolbox/logging.h>
-#include <bctoolbox/tester.h>
-#include <belr/grammarbuilder.h>
-#include <linphone++/linphone.hh>
-
-#include <sofia-sip/sip_header.h>
-#include <sofia-sip/su_log.h>
+#include "bctoolbox/logging.h"
+#include "bctoolbox/tester.h"
+#include "belr/grammarbuilder.h"
+#include "linphone++/linphone.hh"
+#include "sofia-sip/sip_header.h"
+#include "sofia-sip/su_log.h"
 
 #ifdef HAVE_CONFIG_H
 #include "flexisip-config.h"
 #endif
 
-#include "flexisip-tester-config.hh"
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
+#include "tester/flexisip-tester-config.hh"
 
 namespace flexisip::tester {
 
 namespace {
-
-auto sSeed = std::random_device()();
 
 LoggerParameters params{
     .enableStandardOutput = true,
@@ -53,44 +48,6 @@ LoggerParameters params{
 };
 
 } // namespace
-
-namespace random {
-
-std::random_device::result_type seed() {
-	return sSeed;
-}
-
-std::default_random_engine engine() {
-	return std::default_random_engine{seed()};
-}
-
-Random random() {
-	return Random{seed()};
-}
-
-} // namespace random
-
-std::string bcTesterFile(const std::string& name) {
-	char* file = bc_tester_file(name.c_str());
-	std::string ret(file);
-	bc_free(file);
-	return ret;
-}
-
-std::string bcTesterRes(const std::string& name) {
-	char* file = bc_tester_res(name.c_str());
-	std::string ret(file);
-	bc_free(file);
-	return ret;
-}
-
-std::filesystem::path bcTesterWriteDir() {
-	return std::filesystem::canonical(bc_tester_get_writable_dir_prefix());
-}
-
-std::filesystem::path bcTesterResourceDir() {
-	return std::filesystem::canonical(bc_tester_get_resource_dir_prefix());
-}
 
 static int verbose_arg_func(const char*) {
 	LogManager::get().setLogLevel(BCTBX_LOG_DEBUG);
@@ -141,15 +98,6 @@ void flexisip_tester_init() {
 	bc_tester_set_verbose_func(verbose_arg_func);
 	bc_tester_set_silent_func(silent_arg_func);
 	bc_tester_init(log_handler, BCTBX_LOG_MESSAGE, BCTBX_LOG_ERROR, ".");
-
-	try {
-		if (auto envVar = std::getenv("FLEXISEED")) sSeed = std::stoul(envVar, nullptr, 0 /* Autodect base */);
-	} catch (const std::invalid_argument&) {
-		// leave sSeed untouched
-	} catch (const std::out_of_range&) {
-		// leave sSeed untouched
-	}
-	std::cerr << "FLEXISEED=" << sSeed << "\n";
 
 	// Make the default resource dir point to the 'tester' directory in the source code
 	bc_tester_set_resource_dir_prefix(FLEXISIP_TESTER_DATA_SRCDIR);
