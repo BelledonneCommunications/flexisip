@@ -44,20 +44,28 @@ using namespace chrono;
 using namespace flexisip;
 using namespace sofiasip;
 
-ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
-	LOGD << "New instance [" << this << "]";
-	const auto forkStats = make_shared<ForkStats>();
-	forkStats->mCountForks = mModuleConfig->getStatPairPtr("count-forks");
-	forkStats->mCountBasicForks = mModuleConfig->getStatPairPtr("count-basic-forks");
-	forkStats->mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
-	forkStats->mCountMessageForks = mModuleConfig->getStatPairPtr("count-message-forks");
-	forkStats->mCountMessageProxyForks = mModuleConfig->getStatPairPtr("count-message-proxy-forks");
-	forkStats->mCountMessageConferenceForks = mModuleConfig->getStatPairPtr("count-message-conference-forks");
-	mStats.mForkStats = forkStats;
-}
-
-ModuleRouter::~ModuleRouter() {
-	LOGD << "Destroy instance [" << this << "]";
+ModuleInfo<ModuleRouter> ModuleRouter::sInfo{
+    "Router",
+    "This modules routes requests for domains it manages.\n"
+    "The routing algorithm is as follows: \n"
+    "  1. Skip 'Route' headers that directly point to this proxy.\n"
+    "  2. If a 'Route' header is found that does not point to this proxy, the request is not processed by the module "
+    "and will be handled by the module::Forward at the end of the processing chain.\n"
+    "  3. Examine the request-URI: if it is part of managed domains by this proxy (according to module::Registrar "
+    "'reg-domains' definition, the proxy attempts to resolve the request-URI from the registrar database.\n"
+    "  4. Results from the registrar database (in the form of 'Contact' headers) are sorted by priority ('q' "
+    "parameter)\n"
+    "  5. For each set of contacts with equal priorities, the request is forked and sent to their corresponding SIP "
+    "URI. After 'call-fork-current-branches-timeout', the next set of contacts is processed.\n"
+    "  6. Responses are received from all attempted branches, and sent back to the request originator, according to "
+    "the procedure of RFC3261 16.7 Response processing.\n\n"
+    "The router module offers different variations of the routing logic, depending on whether it is an INVITE "
+    "(call-fork), a MESSAGE (message-fork), or another type of request (SUBSCRIBE, REFER, etc). The processing of "
+    "MESSAGE request essentially differs from others because it allows to keep the MESSAGE for a later delivery, in "
+    "which case the incoming transaction will be terminated with a 202 Accepted response.",
+    {"ContactRouteInserter"},
+    ModuleInfoBase::ModuleOid::Router,
+    declareConfig,
 };
 
 void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
@@ -112,7 +120,9 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        DurationS,
 	        "call-fork-current-branches-timeout",
-	        "Maximum time before trying the next set of lower priority contacts.",
+	        "Maximum time before trying the next set of lower priority contacts for call requests.\n"
+	        "This typically permits to send the request to lower priority contacts even if the high priority contact "
+	        "did not yet reject the call or ended in timeout.",
 	        "10",
 	    },
 	    {
@@ -174,9 +184,14 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	    {
 	        String,
 	        "fallback-route",
-	        "Default route to apply when the recipient is unreachable or when all attempted destination have "
-	        "failed. It is given as a SIP URI, for example: sip:example.org;transport=tcp (without surrounding "
-	        "brackets)",
+	        "Supplementary 'Route' header field inserted in a 'fallback' branch for all forked requests.\n"
+	        "The 'fallback' branch is only created if this parameter is set. It is created with the lowest priority "
+	        "such that it is triggered only in the following scenarios:\n"
+	        "- the recipient is not found in the registrar database\n"
+	        "- all attempted destinations failed (all status codes from 3xx to 5xx or transport protocol errors such "
+	        "as 'no route to host')\n"
+	        "- for call requests, when the 'call-fork-current-branches-timeout' expires and triggers the processing of "
+	        "the last set of priorities, which contains this branch",
 	        "",
 	    },
 	    {
@@ -315,6 +330,22 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	moduleConfig.createStatPair("count-message-proxy-forks", "Number of proxy message forks");
 	moduleConfig.createStatPair("count-message-conference-forks", "Number of conference message forks");
 }
+
+ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+	LOGD << "New instance [" << this << "]";
+	const auto forkStats = make_shared<ForkStats>();
+	forkStats->mCountForks = mModuleConfig->getStatPairPtr("count-forks");
+	forkStats->mCountBasicForks = mModuleConfig->getStatPairPtr("count-basic-forks");
+	forkStats->mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
+	forkStats->mCountMessageForks = mModuleConfig->getStatPairPtr("count-message-forks");
+	forkStats->mCountMessageProxyForks = mModuleConfig->getStatPairPtr("count-message-proxy-forks");
+	forkStats->mCountMessageConferenceForks = mModuleConfig->getStatPairPtr("count-message-conference-forks");
+	mStats.mForkStats = forkStats;
+}
+
+ModuleRouter::~ModuleRouter() {
+	LOGD << "Destroy instance [" << this << "]";
+};
 
 void ModuleRouter::onLoad(const GenericStruct* mc) {
 	const GenericStruct* cr = getAgent()->getConfigManager().getRoot();
@@ -484,8 +515,7 @@ public:
 		checkFinished();
 	}
 
-	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
-	}
+	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {}
 
 	void checkFinished() {
 		if (mPending != 0) return;
@@ -554,20 +584,19 @@ public:
 			const auto contact =
 			    r->getExtendedContacts().emplace(make_shared<ExtendedContact>(mSipUri, "", msgExpiresName));
 
-			LOGD << "Record [" << r << "] original request URI added because domain is not managed: " << **contact;
+			LOGD << "Record[" << r << "]: original request URI added because domain is not managed " << **contact;
 		}
 
 		if (!fallbackRoute.empty() && mModule->getFallbackRouteFilter()->eval(*mEv->getMsgSip()->getSip())) {
 			if (!ModuleToolbox::viaContainsUrlHost(mEv->getMsgSip()->getSip()->sip_via,
 			                                       mModule->getFallbackRouteParsed())) {
-				shared_ptr<ExtendedContact> fallback =
-				    make_shared<ExtendedContact>(mSipUri, fallbackRoute, msgExpiresName, 0.0);
+				const auto fallback = make_shared<ExtendedContact>(mSipUri, fallbackRoute, msgExpiresName, 0.0);
 				fallback->mIsFallback = true;
 				r->getExtendedContacts().emplace(fallback);
-				LOGD << "Record [" << r << "] fallback route '" << fallbackRoute << "' added: " << *fallback;
+				LOGD << "Record[" << r << "] fallback-route '" << fallbackRoute << "' added (" << *fallback << ")";
 			} else {
-				LOGD << "Not adding fallback route '" << fallbackRoute
-				     << "' to avoid loop because request is coming from there already";
+				LOGD << "Cancelled fallback-route addition '" << fallbackRoute
+				     << "' to avoid looping (the request comes from there already)";
 			}
 		}
 
@@ -585,7 +614,7 @@ public:
 
 			auto urlStr = "sip:" + mSipUri.getUser() + "@" + host;
 			SipUri url(urlStr);
-			LOGD << "Record [" << r << "] empty, trying to route to parent domain: '" << urlStr << "'";
+			LOGD << "Record[" << r << "] empty, trying to route to parent domain: '" << urlStr << "'";
 
 			auto onRoutingListener = make_shared<OnFetchForRoutingListener>(mModule, std::move(mEv), mSipUri);
 			mModule->getAgent()->getRegistrarDb().fetch(url, onRoutingListener, mModule->isDomainRegistrationAllowed(),
@@ -604,8 +633,7 @@ public:
 		mModule->sendReply(*mEv, response.getCode(), response.getReason());
 	}
 
-	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {
-	}
+	void onContactUpdated([[maybe_unused]] const shared_ptr<ExtendedContact>& ec) override {}
 
 	RequestSipEvent& getEvent() {
 		return *mEv;
@@ -759,31 +787,3 @@ unique_ptr<ResponseSipEvent> ModuleRouter::onResponse(unique_ptr<ResponseSipEven
 bool ModuleRouter::isManagedDomain(const url_t* url) const {
 	return ModuleToolbox::isManagedDomain(getAgent(), mDomains, url);
 }
-
-ModuleInfo<ModuleRouter> ModuleRouter::sInfo(
-    "Router",
-    "The Router module routes requests for domains it manages.\n"
-    "The routing algorithm is as follows: \n"
-    " - first skip route headers that directly point to this proxy.\n"
-    " - if a route header is found that doesn't point to this proxy, then the request is not processed by the Router "
-    "module, and will be"
-    " handled by the Forward module at the end of the processing chain.\n"
-    " - examine the request-uri: if it is part of the domains managed by this proxy (according to Registrar module "
-    "'reg-domains' definition,"
-    " then attempt to resolve the request-uri from the Registrar database.\n"
-    " - the results from the registrar database, in the form of contact headers, are sorted by priority (q parameter), "
-    "if any.\n"
-    " - for each set of contact with equal priorities, the request is forked, and sent to their corresponding sip URI. "
-    "After a timeout defined by property 'call-fork-current-branches-timeout', a next set of contact header is "
-    "determined.\n"
-    " - responses are received from all attempted branches, and sent back to the request originator, according to the "
-    "procedure of RFC3261 16.7"
-    " Response processing.\n"
-    "The router module offers different variations of the routing logic, depending on whether it is an INVITE, a "
-    "MESSAGE, or another type of request. "
-    "The processing of MESSAGE request essentially differs from others because it allows to keep the MESSAGE for a "
-    "later delivery, in which "
-    "case the incoming transaction will be terminated with a 202 Accepted response.",
-    {"ContactRouteInserter"},
-    ModuleInfoBase::ModuleOid::Router,
-    declareConfig);

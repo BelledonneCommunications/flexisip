@@ -373,8 +373,12 @@ void ForkContextBase::start() {
 
 	// Start the timer for the next branches.
 	if (mCfg->mCurrentBranchesTimeout > 0 && hasNextBranches())
-		mNextBranchesTimer.set([this]() { onNextBranches(); },
-		                       static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
+		mNextBranchesTimer.set(
+		    [this] {
+			    LOGD << "Timer 'call-fork-current-branches-timeout' triggered";
+			    onNextBranches();
+		    },
+		    static_cast<su_duration_t>(mCfg->mCurrentBranchesTimeout) * 1000);
 }
 
 RequestSipEvent& ForkContextBase::getEvent() {
