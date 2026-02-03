@@ -95,6 +95,7 @@ function(add_linphonesdk)
 	set(ENABLE_G729 ${ENABLE_G729})
 	set(ENABLE_G729B_CNG OFF) # Disabled for license conformity
 	set(ENABLE_GSM ON)
+	set(ENABLE_HIDAPI OFF)
 	set(ENABLE_JAVA_WRAPPER OFF)
 	set(ENABLE_JAZZY_DOC OFF)
 	set(ENABLE_JPEG OFF)
