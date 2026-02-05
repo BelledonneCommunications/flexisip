@@ -74,16 +74,16 @@ void ContactRouteInserter::onRequest(RequestSipEvent& ev) {
 	if (mMasqueradeRegisters && method == sip_method_register) {
 		LOGD << "Postponing contact masquerading (for REGISTER): outgoing transport not yet determined";
 		ev.addBeforeSendCallback([paramName = mCtRtParamName, prefix = mLogPrefix, insertDomain = mInsertDomain](
-		                             const std::shared_ptr<MsgSip>& msg, const tport_t* primary) {
+		                             const std::shared_ptr<MsgSip>& msg, const tport_t* tport) {
 			LOGD_CTX(prefix, "beforeSend") << "Masquerading contact";
-			contact_masquerader::masquerade(*msg, paramName, primary, insertDomain);
+			contact_masquerader::masquerade(*msg, paramName, tport_parent(tport), insertDomain);
 		});
 	} else if (mMasqueradeInvites && method == sip_method_invite) {
 		LOGD << "Postponing contact masquerading (for INVITE): outgoing transport not yet determined";
 		ev.addBeforeSendCallback([paramName = mCtRtParamName, prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg,
-		                                                                           const tport_t* primary) {
+		                                                                           const tport_t* tport) {
 			LOGD_CTX(prefix, "beforeSend") << "Masquerading contact";
-			contact_masquerader::masquerade(*msg, paramName, primary);
+			contact_masquerader::masquerade(*msg, paramName, tport_parent(tport));
 		});
 	}
 

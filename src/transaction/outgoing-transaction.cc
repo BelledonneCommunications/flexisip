@@ -121,7 +121,7 @@ void OutgoingTransaction::deinitializationCallback(nta_outgoing_t* outgoing, nta
 void OutgoingTransaction::beforeSendCallback(nta_outgoing_t* orq, nta_outgoing_magic_t* magic) {
 	auto* transaction = reinterpret_cast<OutgoingTransaction*>(magic);
 	const auto msgSip = make_shared<MsgSip>(owned(nta_outgoing_getrequest(orq)));
-	const auto* transport = tport_parent(nta_outgoing_transport(orq));
+	const auto* transport = nta_outgoing_transport(orq);
 
 	for (const auto& callback : transaction->mBeforeSendCallbacks) {
 		callback(msgSip, transport);

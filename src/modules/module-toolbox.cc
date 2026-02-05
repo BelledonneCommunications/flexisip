@@ -81,6 +81,11 @@ bool addRecordRoute(Agent* agent, MsgSip& msg, const tport_t* tport, const Flow:
 	auto* sip = msg.getSip();
 	auto* home = msg.getHome();
 
+	if (!tport) {
+		LOGD_CTX(kPrefix) << "Failed to add 'Record-Route' header field: provided tport_t pointer is empty";
+		return false;
+	}
+
 	// This finds public contact information for requests received via domain.
 	if (const auto* drm = agent->getDRM()) {
 		if (const auto* regUri = drm->getPublicUri(tport)) {
@@ -89,7 +94,7 @@ bool addRecordRoute(Agent* agent, MsgSip& msg, const tport_t* tport, const Flow:
 		}
 	}
 
-	if (tport && uri.empty()) {
+	if (uri.empty()) {
 		// Get the primary transport, to get the 'public' (server socket) ip/port.
 		try {
 			uri = SipUri::fromName(tport_name(tport_parent(tport)));
@@ -97,9 +102,6 @@ bool addRecordRoute(Agent* agent, MsgSip& msg, const tport_t* tport, const Flow:
 			LOGD_CTX(kPrefix) << "Failed to add 'Record-Route' header field: " << exception.what();
 			return false;
 		}
-	} else {
-		LOGD_CTX(kPrefix) << "Failed to add 'Record-Route' header field: provided tport_t pointer is empty";
-		return false;
 	}
 
 	uri = uri.setParameter("lr", "");

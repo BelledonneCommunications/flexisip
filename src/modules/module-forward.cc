@@ -447,9 +447,9 @@ void ForwardModule::sendRequest(const unique_ptr<RequestSipEvent>& ev,
 		LOGD << "Postponing 'Record-Route' header field insertion: outgoing transport not yet determined";
 		ev->addBeforeSendCallback([lastRoute, strategy = mAgent->getNatTraversalStrategy(),
 		                           incoming = ev->getIncomingTport().get(),
-		                           prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* primary) {
+		                           prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* tport) {
 			LOGD_CTX(prefix, "beforeSend") << "Adding 'Record-Route' header field";
-			strategy->addRecordRouteForwardModule(*msg, incoming, primary, lastRoute);
+			strategy->addRecordRouteForwardModule(*msg, incoming, tport, lastRoute);
 		});
 	}
 
@@ -459,9 +459,9 @@ void ForwardModule::sendRequest(const unique_ptr<RequestSipEvent>& ev,
 			ev->addBeforeSendCallback(
 			    [strategy = mAgent->getNatTraversalStrategy(), incoming = ev->getIncomingTport().get(),
 			     uniqueId = mAgent->getUniqueId(),
-			     prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* primary) {
+			     prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* tport) {
 				    LOGD_CTX(prefix, "beforeSend") << "Adding 'Path' header field";
-				    strategy->addPathOnRegister(*msg, incoming, primary, uniqueId.c_str());
+				    strategy->addPathOnRegister(*msg, incoming, tport, uniqueId.c_str());
 			    });
 		} else {
 			// "Path" header fields are added for internal processing within Flexisip and recorded into RegistrarDb.
