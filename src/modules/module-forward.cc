@@ -406,8 +406,10 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 	}
 
 	// If set, force Flexisip to use another custom default transport (instead of UDP as defined in RFC3261).
-	if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport"))
+	if (!mDefaultTransport.empty() && dest->url_type == url_sip && !url_has_param(dest, "transport") &&
+	    !module_toolbox::urlIsResolved(dest)) {
 		url_param_add(ms.getHome(), dest, mDefaultTransport.c_str());
+	}
 
 	sendRequest(ev, dest);
 	return std::move(ev);

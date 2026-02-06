@@ -540,6 +540,62 @@ void insertCoherentRecordRouteHeader() {
 	BC_ASSERT_CPP_EQUAL(test.mHeader.str(), test.mExpectedHeader.str());
 }
 
+void defaultTransportTest(const string& transport,
+                          const string& requestUri,
+                          const function<void(unique_ptr<RequestSipEvent>&&)>& asserter) {
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Forward/default-transport", transport},
+	}};
+	proxy.start();
+	const auto module = dynamic_pointer_cast<ForwardModule>(proxy.getAgent()->findModuleByRole("Forward"));
+
+	stringstream request;
+	request << "INVITE " << requestUri << " SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1\r\n"
+	        << "From: \"Caller\" <sip:caller@sip.example.org>;tag=stub-tag\r\n"
+	        << "To: \"Callee\" <sip:callee@sip.example.org>\r\n"
+	        << "CSeq: 20 INVITE\r\n"
+	        << "Call-ID: stub-id\r\n"
+	        << "User-Agent: stub-user-agent\r\n"
+	        << "Content-Length: 0\r\n";
+
+	const auto transaction = make_shared<Helper::MockedOutgoingTransaction>(proxy.getAgent());
+	auto event = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), nullptr);
+	event->setOutgoingAgent(transaction);
+
+	auto processedEvent = module->onRequest(std::move(event));
+
+	BC_HARD_ASSERT(processedEvent != nullptr);
+	BC_HARD_ASSERT(processedEvent->getSip() != nullptr);
+	BC_HARD_ASSERT(processedEvent->getSip()->sip_request != nullptr);
+	asserter(std::move(processedEvent));
+}
+
+const auto defaultTransportAsserter = [](const std::string& expectedTransportParameter) {
+	return [&](unique_ptr<RequestSipEvent>&& processedEvent) {
+		const auto requestUri = SipUri{processedEvent->getSip()->sip_request->rq_url};
+		BC_ASSERT_ENUM_EQUAL(requestUri.getSchemeType(), SipUri::Scheme::sip);
+		BC_ASSERT_CPP_EQUAL(requestUri.getParam("transport"), expectedTransportParameter);
+	};
+};
+
+void defaultTransportUdp() {
+	defaultTransportTest("udp", "sip:callee@sip.example.org", defaultTransportAsserter(""));
+	defaultTransportTest("udp", "sip:callee@127.0.0.1:1234", defaultTransportAsserter(""));
+}
+
+void defaultTransportTcp() {
+	defaultTransportTest("tcp", "sip:callee@sip.example.org", defaultTransportAsserter("tcp"));
+	defaultTransportTest("tcp", "sip:callee@127.0.0.1:1234", defaultTransportAsserter(""));
+}
+
+void defaultTransportTls() {
+	defaultTransportTest("tls", "sip:callee@sip.example.org", defaultTransportAsserter("tls"));
+	defaultTransportTest("tls", "sip:callee@127.0.0.1:1234", defaultTransportAsserter(""));
+}
+
 TestSuite _{
     "ForwardModule",
     {
@@ -550,6 +606,9 @@ TestSuite _{
         CLASSY_TEST(routeConfigForwarding),
         CLASSY_TEST(insertCoherentPathHeader),
         CLASSY_TEST(insertCoherentRecordRouteHeader),
+        CLASSY_TEST(defaultTransportUdp),
+        CLASSY_TEST(defaultTransportTcp),
+        CLASSY_TEST(defaultTransportTls),
     },
 };
 
