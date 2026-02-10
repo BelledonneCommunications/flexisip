@@ -366,6 +366,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64), NTATAG_RPORT(1), NTATAG_TCP_RPORT(1),
 	                     NTATAG_TLS_RPORT(1),    // use rport in vias added to outgoing requests for all protocols
 	                     NTATAG_SERVER_RPORT(2), // always add a rport parameter even if the request doesn't have it*/
+	                     NTATAG_GRAYLIST(0), // Disable graylisting servers
 	                     NTATAG_UDP_MTU(udpmtu), TAG_END());
 
 	const auto mainTlsConfigInfo = getTlsConfigInfo(global);
