@@ -79,6 +79,6 @@ void ForkBasicContext::onDecisionTimer() {
 }
 
 void ForkBasicContext::processInternalError(int status, const char* phrase) {
-	mDecisionTimer.reset(nullptr);
 	ForkContextBase::processInternalError(status, phrase);
+	mDecisionTimer.reset(nullptr);
 }

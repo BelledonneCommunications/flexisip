@@ -46,21 +46,21 @@ public:
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept override;
 
 	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
-	                                      const std::shared_ptr<ExtendedContact>& contact) override;
-	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override;
-	bool hasNextBranches() const override;
+	                                      const std::shared_ptr<ExtendedContact>& contact) final;
+	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const final;
+	bool hasNextBranches() const final;
 	void processInternalError(int status, const char* phrase) override;
 	void start() override;
-	void addKey(const std::string& key) override;
-	const std::vector<std::string>& getKeys() const override;
+	void addKey(const std::string& key) final;
+	const std::vector<std::string>& getKeys() const final;
 	void onCancel(const sofiasip::MsgSip& ms) override;
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) override;
-	bool isFinished() const override;
+	bool isFinished() const final;
 	std::shared_ptr<BranchInfo> tryToSendFinalResponse() override;
-	RequestSipEvent& getEvent() override;
+	RequestSipEvent& getEvent() final;
 	sofiasip::MsgSipPriority getMsgPriority() const override;
-	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
-	const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const override;
+	const std::shared_ptr<ForkContextConfig>& getConfig() const final;
+	const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const final;
 
 	/**
 	 * @param finalStatusMode fork mode to consider for the final status answer of a branch
@@ -68,7 +68,7 @@ public:
 	 */
 	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
 
-	std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
+	std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) final;
 
 protected:
 	struct ShouldDispatchType {
@@ -90,7 +90,7 @@ protected:
 	static bool isUseful4xx(int statusCode);
 	static bool isUrgent(int code, const int urgentCodes[]);
 
-	const ForkContext* getPtrForEquality() const override;
+	const ForkContext* getPtrForEquality() const final;
 
 	/**
 	 * @brief Notify the creation of a new branch for this ForkContext.
@@ -105,22 +105,15 @@ protected:
 	 */
 	virtual bool shouldFinish();
 	/**
-	 * @brief Inspects the current state of the fork and executes setFinished if necessary.
-	 */
-	virtual void tryToSetFinished();
-	/**
 	 * @brief Start the finish timer to schedule instance destruction.
 	 *
 	 * @note the real destruction is performed asynchronously, in the next main loop iteration.
 	 */
 	virtual void setFinished();
 	/**
-	 * @breif Notify the destruction of the fork context.
-	 *
-	 * @warning implementers should use it to perform their initialization but shall never forget to call the parent
-	 * class!
+	 * @brief Inspects the current state of the fork and executes setFinished if necessary.
 	 */
-	void onFinished();
+	void tryToSetFinished();
 	/**
 	 * @brief Send a custom response.
 	 *
@@ -154,7 +147,6 @@ protected:
 	 */
 	std::shared_ptr<BranchInfo> findBestBranch(bool ignore503And408 = false) const;
 	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);
-	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 	/**
 	 * @return the list of waiting branches
 	 */
@@ -183,6 +175,13 @@ protected:
 
 private:
 	/**
+	 * @breif Notify the destruction of the fork context.
+	 *
+	 * @warning implementers should use it to perform their initialization but shall never forget to call the parent
+	 * class!
+	 */
+	void onFinished();
+	/**
 	 * @brief Build the list of next branches to try.
 	 *
 	 * @note the result is stored in the list of current branches.
@@ -192,6 +191,8 @@ private:
 	 * @brief Start the next branches if there are any.
 	 */
 	void onNextBranches();
+
+	std::shared_ptr<BranchInfo> findBranchByDest(const SipUri& dest);
 
 	std::unique_ptr<RequestSipEvent> mEvent;
 	std::list<std::shared_ptr<BranchInfo>> mCurrentBranches;

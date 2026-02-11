@@ -187,12 +187,8 @@ void ForkMessageContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSi
 
 void ForkMessageContext::acceptMessage() {
 	// We are called here if no good response has been received from any branch, in fork-late mode only.
-	if (mIncoming == nullptr) return;
-
-	// In fork late mode, never answer a service unavailable.
-	shared_ptr<MsgSip> msgSip(mIncoming->createResponse(SIP_202_ACCEPTED));
-	auto ev = make_unique<ResponseSipEvent>(ResponseSipEvent(mAgent->getOutgoingAgent(), msgSip));
-	ev = ForkContextBase::onSendResponse(std::move(ev));
+	auto ev = ForkContextBase::sendCustomResponse(SIP_202_ACCEPTED);
+	if (ev == nullptr) return;
 
 	// In the sender's log will appear the 202 accepted from Flexisip server.
 	logResponseToSender(getEvent(), *ev);

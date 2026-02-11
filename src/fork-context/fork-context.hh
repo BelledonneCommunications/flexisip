@@ -144,22 +144,6 @@ public:
 	 * @return 'true' if the fork is terminated
 	 */
 	virtual bool isFinished() const = 0;
-	/**
-	 * @brief Try to send the final response through the incoming transaction.
-	 *
-	 * @return the branch that was used to answer the caller with the best final response or nullptr if no suitable
-	 * final response could be answered for the moment.
-	 */
-	virtual std::shared_ptr<BranchInfo> tryToSendFinalResponse() = 0;
-
-	/**
-	 * @return the event that created the ForkContext
-	 */
-	virtual RequestSipEvent& getEvent() = 0;
-	virtual const ForkContext* getPtrForEquality() const = 0;
-	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
-	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
-	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
 
 	/**
 	 * @param other other ForkContext to compare with
@@ -169,7 +153,24 @@ public:
 		return getPtrForEquality() == other->getPtrForEquality();
 	}
 
+	/**
+	 * @return the event that created the ForkContext
+	 */
+	virtual RequestSipEvent& getEvent() = 0;
+	virtual const ForkContext* getPtrForEquality() const = 0;
+	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
+	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
+
 protected:
+	/**
+	 * @brief Try to send the final response through the incoming transaction.
+	 *
+	 * @return the branch that was used to answer the caller with the best final response or nullptr if no suitable
+	 * final response could be answered for the moment.
+	 */
+	virtual std::shared_ptr<BranchInfo> tryToSendFinalResponse() = 0;
+
+	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
 	virtual const char* getClassName() const = 0;
 };
 
