@@ -106,15 +106,16 @@ This procedure will help you generate a unique RPM package containing Flexisip, 
 corresponding package for debug symbols.
 The following options are relevant for packaging:
 
-| Option                 | Description                                                                |
-|:-----------------------|:---------------------------------------------------------------------------|
-| `CMAKE_INSTALL_PREFIX` | Prefix path where the package will install the files.                      |
-| `SYSCONF_INSTALL_DIR`  | Directory where Flexisip expects to find its default configuration.        |
-| `CMAKE_BUILD_TYPE`     | Set it to “RelWithDebInfo” to have debug symbols in the debuginfo package. |
-| `CPACK_GENERATOR`      | Package type: “RPM” or “DEB”.                                              |
+| Option                          | Description                                                                |
+|:--------------------------------|:---------------------------------------------------------------------------|
+| `CMAKE_INSTALL_PREFIX`          | Prefix path where the package will install the files.                      |
+| `SYSCONF_INSTALL_DIR`           | Directory where Flexisip expects to find its default configuration.        |
+| `FLEXISIP_SYSTEMD_INSTALL_DIR`  | Directory where systemd units will be installed.                           |
+| `CMAKE_BUILD_TYPE`              | Set it to “RelWithDebInfo” to have debug symbols in the debuginfo package. |
+| `CPACK_GENERATOR`               | Package type: “RPM” or “DEB”.                                              |
 
 ```bash
-cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSYSCONF_INSTALL_DIR=/etc -DCPACK_GENERATOR=RPM
+cmake ./build -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/usr/lib/systemd/system -DCPACK_GENERATOR=RPM
 make -C ./build -j<njobs> package
 ```
 
