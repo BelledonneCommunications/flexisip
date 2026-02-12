@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fork-context/fork-message-context-soci-repository.hh"
+#include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 
 #include "tester.hh"
 #include "utils/server/mysql/mysql-server.hh"

@@ -22,7 +22,7 @@
 
 #include "soci/connection-pool.h"
 
-#include "fork-message-context.hh"
+#include "fork-context/fork-message-context.hh"
 
 namespace flexisip {
 

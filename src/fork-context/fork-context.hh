@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -165,13 +165,8 @@ public:
 protected:
 	/**
 	 * @brief Try to send the final response through the incoming transaction.
-	 *
-	 * @return the branch that was used to answer the caller with the best final response or nullptr if no suitable
-	 * final response could be answered for the moment.
 	 */
-	virtual std::shared_ptr<BranchInfo> tryToSendFinalResponse() = 0;
-
-	virtual const char* getClassName() const = 0;
+	virtual void tryToSendFinalResponse() = 0;
 };
 
 enum class DispatchStatus {

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,7 +18,9 @@
 
 #include "fork-message-context-db-proxy.hh"
 
-#include "fork-context-factory.hh"
+#include "flexisip/module-router.hh"
+#include "fork-context/fork-context-factory.hh"
+#include "fork-context/fork-strategy/message-fork-strategy.hh"
 #include "fork-message-context-soci-repository.hh"
 #include "router/fork-manager.hh"
 #include "utils/thread/auto-thread-pool.hh"
@@ -58,9 +60,9 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(std::unique_ptr<RequestSipE
 	}
 
 	if (event != nullptr)
-		mForkMessage =
-		    ForkMessageContext::make(std::move(event), priority, MessageKind{*event->getSip(), priority}, isRestored,
-		                             forkContextListener, injectorListener, agent, config, forkMessageCounter);
+		mForkMessage = ForkMessageContext::make(
+		    agent, config, injectorListener, forkContextListener, std::move(event), priority, forkMessageCounter,
+		    make_unique<MessageForkStrategy>(MessageKind{*event->getSip(), priority}, isRestored, config));
 }
 
 std::shared_ptr<ForkMessageContextDbProxy>
@@ -373,7 +375,8 @@ void ForkMessageContextDbProxy::startTimerAndResetFork(time_t expirationDate, co
 }
 
 void ForkMessageContextDbProxy::startTimerAndResetFork() {
-	startTimerAndResetFork(mForkMessage->getExpirationDate(), mForkMessage->getKeys());
+	const auto& forkMsg = dynamic_cast<const MessageForkStrategy&>(mForkMessage->getStrategy());
+	startTimerAndResetFork(forkMsg.getExpirationDate(), mForkMessage->getKeys());
 }
 
 ForkMessageContextDbProxy::State ForkMessageContextDbProxy::getState() const {
@@ -442,9 +445,9 @@ bool ForkMessageContextDbProxy::isFinished() const {
 	return mIsFinished;
 }
 
-std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::tryToSendFinalResponse() {
+void ForkMessageContextDbProxy::tryToSendFinalResponse() {
 	checkState(__FUNCTION__, State::IN_MEMORY);
-	return mForkMessage->tryToSendFinalResponse();
+	mForkMessage->tryToSendFinalResponse();
 }
 
 RequestSipEvent& ForkMessageContextDbProxy::getEvent() {
@@ -468,10 +471,6 @@ const std::shared_ptr<IncomingTransaction>& ForkMessageContextDbProxy::getIncomi
 std::unique_ptr<ResponseSipEvent> ForkMessageContextDbProxy::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
 	if (mForkMessage) return mForkMessage->onSendResponse(std::move(event));
 	return std::move(event);
-}
-
-const char* ForkMessageContextDbProxy::getClassName() const {
-	return kClassName.data();
 }
 
 const ForkContext* ForkMessageContextDbProxy::getPtrForEquality() const {

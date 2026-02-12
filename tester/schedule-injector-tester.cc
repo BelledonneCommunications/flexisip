@@ -16,8 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexisip/module-router.hh"
+#include "flexisip/module.hh"
 #include "fork-context/fork-context-factory.hh"
-#include "fork-context/fork-message-context-db-proxy.hh"
+#include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
 #include "router/fork-manager.hh"
 #include "router/inject-context.hh"
 #include "router/schedule-injector.hh"

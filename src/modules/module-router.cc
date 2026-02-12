@@ -36,7 +36,7 @@
 #include "utils/uri-utils.hh"
 
 #if ENABLE_SOCI
-#include "fork-context/fork-message-context-db-proxy.hh"
+#include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
 #endif
 
 using namespace std;

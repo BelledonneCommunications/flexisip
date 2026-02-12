@@ -22,7 +22,8 @@
 
 #include "agent.hh"
 #include "flexisip/module-router.hh"
-#include "fork-context/fork-context-base.hh"
+#include "fork-context/fork-context-impl.hh"
+#include "fork-context/fork-strategy/basic-fork-strategy.hh"
 #include "fork-context/message-kind.hh"
 #include "registrar/binding-parameters.hh"
 #include "tester.hh"
@@ -444,7 +445,7 @@ private:
 
 class BranchInfoTest : public BranchInfo {
 public:
-	explicit BranchInfoTest(int mTestStatus) : mTestStatus(mTestStatus){};
+	explicit BranchInfoTest(int mTestStatus) : mTestStatus(mTestStatus) {}
 	~BranchInfoTest() override = default;
 	int getStatus() const override {
 		return mTestStatus;
@@ -454,25 +455,23 @@ private:
 	int mTestStatus;
 };
 
-class ForkContextForTest : public ForkContextBase {
+class ForkContextForTest : public ForkContextImpl {
 public:
 	explicit ForkContextForTest(AgentInterface* agentMock)
-	    : ForkContextBase(agentMock,
-	                      nullptr,
+	    : ForkContextImpl(agentMock,
+	                      std::make_shared<ForkContextConfig>(),
 	                      std::weak_ptr<InjectorListener>(),
 	                      std::weak_ptr<ForkContextListener>(),
 	                      nullptr,
-	                      std::weak_ptr<StatPair>(),
 	                      sofiasip::MsgSipPriority::Normal,
-	                      true){};
+	                      std::weak_ptr<StatPair>(),
+	                      std::make_unique<BasicForkStrategy>(),
+	                      true) {}
 
 	void addFakeBranch(const std::shared_ptr<BranchInfoTest>& br) {
 		mWaitingBranches.push_back(br);
 	}
-	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override {};
-	const char* getClassName() const override {
-		return "ForkContextForTest";
-	}
+	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override{};
 	shared_ptr<BranchInfo> pubFindBestBranch(bool avoid503And408) {
 		return this->findBestBranch(avoid503And408);
 	}
@@ -506,48 +505,48 @@ private:
 
 class FindBestBranch6xxTest : public FindBestBranchTest {
 public:
-	FindBestBranch6xxTest() : FindBestBranchTest(true, 600, {420, 300, 603, 600, 301, 504}){};
+	FindBestBranch6xxTest() : FindBestBranchTest(true, 600, {420, 300, 603, 600, 301, 504}) {}
 };
 
 class FindBestBranch4xxTest : public FindBestBranchTest {
 public:
 	// 407 is more useful than 410, see SIP RFC.
-	FindBestBranch4xxTest() : FindBestBranchTest(true, 407, {503, 505, 410, 400, 407, 401}){};
+	FindBestBranch4xxTest() : FindBestBranchTest(true, 407, {503, 505, 410, 400, 407, 401}) {}
 };
 
 class FindBestBranch3xxTest : public FindBestBranchTest {
 public:
-	FindBestBranch3xxTest() : FindBestBranchTest(true, 302, {503, 302, 410, 400, 407, 401, 300}){};
+	FindBestBranch3xxTest() : FindBestBranchTest(true, 302, {503, 302, 410, 400, 407, 401, 300}) {}
 };
 
 class FindBestBranch2xxTest : public FindBestBranchTest {
 public:
-	FindBestBranch2xxTest() : FindBestBranchTest(true, 200, {204, 202, 603, 600, 200, 301, 504, 201}){};
+	FindBestBranch2xxTest() : FindBestBranchTest(true, 200, {204, 202, 603, 600, 200, 301, 504, 201}) {}
 };
 
 class FindBestBranchAvoid503Test : public FindBestBranchTest {
 public:
-	FindBestBranchAvoid503Test() : FindBestBranchTest(true, 500, {503, 500}){};
+	FindBestBranchAvoid503Test() : FindBestBranchTest(true, 500, {503, 500}) {}
 };
 
 class FindBestBranchAvoid408Test : public FindBestBranchTest {
 public:
-	FindBestBranchAvoid408Test() : FindBestBranchTest(true, 500, {503, 500, 408}){};
+	FindBestBranchAvoid408Test() : FindBestBranchTest(true, 500, {503, 500, 408}) {}
 };
 
 class FindBestBranchDontAvoid503Test : public FindBestBranchTest {
 public:
-	FindBestBranchDontAvoid503Test() : FindBestBranchTest(true, 503, {503, 500}, false){};
+	FindBestBranchDontAvoid503Test() : FindBestBranchTest(true, 503, {503, 500}, false) {}
 };
 
 class FindBestBranchDontAvoid408Test : public FindBestBranchTest {
 public:
-	FindBestBranchDontAvoid408Test() : FindBestBranchTest(true, 408, {503, 500, 408}, false){};
+	FindBestBranchDontAvoid408Test() : FindBestBranchTest(true, 408, {503, 500, 408}, false) {}
 };
 
 class FindBestBranchNoBranchConsidered : public FindBestBranchTest {
 public:
-	FindBestBranchNoBranchConsidered() : FindBestBranchTest(false, 0, {180, 100, 42}){};
+	FindBestBranchNoBranchConsidered() : FindBestBranchTest(false, 0, {180, 100, 42}) {}
 };
 
 /* ---------- End of "find best branch" unit tests ---------- */

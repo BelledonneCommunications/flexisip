@@ -27,7 +27,7 @@
 #include "flexisip/logmanager.hh"
 #include "flexisip/module-router.hh"
 #include "fork-context/fork-context-factory.hh"
-#include "fork-context/fork-message-context-soci-repository.hh"
+#include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 #include "router/fork-manager.hh"
 #include "tester.hh"
 #include "utils/asserts.hh"

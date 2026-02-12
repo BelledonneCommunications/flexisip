@@ -22,7 +22,7 @@
 #include <optional>
 
 #include "agent-interface.hh"
-#include "branch-info-db.hh"
+#include "fork-context/fork-message-db/branch-info-db.hh"
 #include "flexisip/logmanager.hh"
 #include "fork-status.hh"
 #include "transaction/outgoing-transaction.hh"

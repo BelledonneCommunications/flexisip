@@ -19,12 +19,15 @@
 #pragma once
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/registrar/registar-listeners.hh"
 #include "fork-context/fork-context-factory.hh"
+#include "fork-context/fork-context.hh"
+#include "fork-context/fork-stats.hh"
 #include "fork-group-sorter.hh"
 #include "injector.hh"
 
 #if ENABLE_SOCI
-#include "fork-context/fork-message-context-soci-repository.hh"
+#include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 #endif
 
 namespace flexisip {

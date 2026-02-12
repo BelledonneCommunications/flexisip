@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,6 +19,7 @@
 #include "fork-context-factory.hh"
 
 #include "exceptions/bad-configuration.hh"
+#include "fork-context/fork-strategy/message-fork-strategy.hh"
 
 using namespace std;
 
@@ -68,6 +69,7 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	mOtherForkCfg = make_shared<ForkContextConfig>();
 	mOtherForkCfg->mTreatAllErrorsAsUrgent = false;
 	mOtherForkCfg->mForkLate = false;
+	mOtherForkCfg->mUrgentTimeout = 20s;
 }
 
 std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
@@ -76,8 +78,10 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::uni
 	const auto kind = MessageKind{*event->getSip(), priority};
 	if (kind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageConferenceForks;
-		return ForkMessageContext::make(std::move(event), priority, kind, false, mForkContextListener,
-		                                mInjectorListener, mAgent, std::make_shared<ForkContextConfig>(), statCounter);
+		auto forkCfg = make_shared<ForkContextConfig>();
+		return ForkContextImpl::make(mAgent, forkCfg, mInjectorListener, mForkContextListener, std::move(event),
+		                             priority, statCounter,
+		                             std::make_unique<MessageForkStrategy>(kind, false, forkCfg));
 	}
 #if ENABLE_SOCI
 	if (messageStorageInDbEnabled()) {
@@ -92,8 +96,9 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::uni
 	}
 #endif
 	if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageForks;
-	return ForkMessageContext::make(std::move(event), priority, kind, false, mForkContextListener, mInjectorListener,
-	                                mAgent, mMessageForkCfg, statCounter);
+	return ForkContextImpl::make(mAgent, mMessageForkCfg, mInjectorListener, mForkContextListener, std::move(event),
+	                             priority, statCounter,
+	                             std::make_unique<MessageForkStrategy>(kind, false, mMessageForkCfg));
 }
 
 #if ENABLE_SOCI

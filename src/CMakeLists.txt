@@ -68,17 +68,6 @@ add_library(flexisip SHARED
 	exceptions/bad-configuration.hh
 	exceptions/exit.hh
 	exceptions/invalid-address.hh
-	fork-context/branch-info.hh fork-context/branch-info.cc
-	fork-context/branch-info-db.hh
-	fork-context/fork-basic-context.cc fork-context/fork-basic-context.hh
-	fork-context/fork-call-context.cc fork-context/fork-call-context.hh
-	fork-context/fork-context-base.cc fork-context/fork-context-base.hh
-	fork-context/fork-context-factory.cc fork-context/fork-context-factory.hh
-	fork-context/fork-message-context-db.hh
-	fork-context/fork-message-context.cc fork-context/fork-message-context.hh
-	fork-context/message-kind.cc fork-context/message-kind.hh
-	fork-context/fork-context.cc
-	fork-context/fork-status.hh
 	h264iframefilter.cc h264iframefilter.hh
 	i-supervisor-notifier.hh
 	lib/nlohmann-json-3-11-2/json.hpp
@@ -121,6 +110,7 @@ endif()
 
 add_subdirectory(accounts-store)
 add_subdirectory(flexiapi)
+add_subdirectory(fork-context)
 add_subdirectory(modules)
 add_subdirectory(pushnotification)
 add_subdirectory(router)
@@ -299,8 +289,6 @@ if(ENABLE_SOCI)
 	target_sources(flexisip PRIVATE
 		auth/db/authdb-soci.cc
 		eventlogs/writers/database-event-log-writer.cc eventlogs/writers/database-event-log-writer.hh
-		fork-context/fork-message-context-soci-repository.cc fork-context/fork-message-context-soci-repository.hh
-		fork-context/fork-message-context-db-proxy.cc fork-context/fork-message-context-db-proxy.hh
 	)
 	target_link_libraries(flexisip PUBLIC soci_core soci_mysql soci_sqlite3)
 	if(HAS_GCC_BUG_105562)

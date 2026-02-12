@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,24 +18,17 @@
 
 #pragma once
 
-#include "flexisip/module-router.hh"
-#include "injector.hh"
+#include <memory>
+
+#include "flexisip/configmanager.hh"
 
 namespace flexisip {
-
-/**
- * Really basic Injector implementation that simply call Module::injectRequestEvent on every
- * Module::injectRequestEvent call.
- */
-class AgentInjector : public Injector {
-public:
-	AgentInjector(ModuleRouter* router) : Injector(router){};
-
-	void injectRequestEvent(std::unique_ptr<RequestSipEvent>&& ev,
-	                        [[maybe_unused]] const std::shared_ptr<ForkContext>& fork,
-	                        [[maybe_unused]] const std::string& contactId) override {
-		mModule->injectRequestEvent(std::move(ev));
-	}
+struct ForkStats {
+	std::unique_ptr<StatPair> mCountForks;
+	std::shared_ptr<StatPair> mCountBasicForks;
+	std::shared_ptr<StatPair> mCountCallForks;
+	std::shared_ptr<StatPair> mCountMessageForks;
+	std::shared_ptr<StatPair> mCountMessageProxyForks;
+	std::shared_ptr<StatPair> mCountMessageConferenceForks;
 };
-
 } // namespace flexisip

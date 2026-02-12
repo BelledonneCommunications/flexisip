@@ -24,18 +24,9 @@
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "fork-context/fork-stats.hh"
 
 namespace flexisip {
-
-struct ForkStats {
-	std::unique_ptr<StatPair> mCountForks;
-	std::shared_ptr<StatPair> mCountBasicForks;
-	std::shared_ptr<StatPair> mCountCallForks;
-	std::shared_ptr<StatPair> mCountMessageForks;
-	std::shared_ptr<StatPair> mCountMessageProxyForks;
-	std::shared_ptr<StatPair> mCountMessageConferenceForks;
-};
-
 struct RouterStats {
 	std::shared_ptr<ForkStats> mForkStats;
 };
@@ -54,7 +45,7 @@ public:
 	~ModuleRouter() override;
 
 	void onLoad(const GenericStruct* mc) override;
-	void onUnload() override {};
+	void onUnload() override {}
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 

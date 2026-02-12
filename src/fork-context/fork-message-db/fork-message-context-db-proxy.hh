@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -22,8 +22,7 @@
 #include <memory>
 #include <string>
 
-#include "fork-context/fork-context-base.hh"
-#include "fork-message-context.hh"
+#include "fork-context/fork-message-context.hh"
 
 #if ENABLE_UNIT_TESTS
 #include "bctoolbox/tester.h"
@@ -75,10 +74,10 @@ public:
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
-	void onCancel(const sofiasip::MsgSip&) override {};
+	void onCancel(const sofiasip::MsgSip&) override{};
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
 	bool isFinished() const override;
-	std::shared_ptr<BranchInfo> tryToSendFinalResponse() override;
+	void tryToSendFinalResponse() override;
 	RequestSipEvent& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
 	sofiasip::MsgSipPriority getMsgPriority() const override;
@@ -102,10 +101,7 @@ public:
 #endif
 
 protected:
-	static constexpr std::string_view kClassName{"ForkMessageContextDbProxy"};
-
 	const ForkContext* getPtrForEquality() const override;
-	const char* getClassName() const override;
 
 private:
 	/**

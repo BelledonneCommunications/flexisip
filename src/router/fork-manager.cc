@@ -20,11 +20,13 @@
 
 #include "agent-injector.hh"
 #include "conference/chatroom-prefix.hh"
+#include "flexisip/module-router.hh"
+#include "fork-context/fork-stats.hh"
 #include "inject-context.hh"
 #include "modules/module-toolbox.hh"
 
 #if ENABLE_SOCI
-#include "fork-context/fork-message-context-soci-repository.hh"
+#include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 #include "schedule-injector.hh"
 #endif
 

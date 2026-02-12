@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,14 +21,15 @@
 #include <memory>
 
 #include "flexisip/configmanager.hh"
-#include "fork-basic-context.hh"
-#include "fork-call-context.hh"
 #include "fork-context.hh"
-#include "fork-message-context-db-proxy.hh"
+#include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
 #include "fork-message-context.hh"
+#include "fork-stats.hh"
+#include "fork-strategy/basic-fork-strategy.hh"
+#include "fork-strategy/call-fork-strategy.hh"
 
 #if ENABLE_SOCI
-#include "fork-message-context-soci-repository.hh"
+#include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 #endif
 
 namespace flexisip {
@@ -48,19 +49,22 @@ public:
 	~ForkContextFactory() = default;
 
 	template <typename... Args>
-	std::shared_ptr<ForkContext> makeForkBasicContext(Args&&... args) const {
+	std::shared_ptr<ForkContext> makeForkBasicContext(std::unique_ptr<RequestSipEvent>&& event,
+	                                                  sofiasip::MsgSipPriority priority) const {
 		std::weak_ptr<StatPair> statCounter{};
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountBasicForks;
-		return ForkBasicContext::make(std::forward<Args>(args)..., mForkContextListener, mInjectorListener, mAgent,
-		                              mOtherForkCfg, statCounter);
+		return ForkContextImpl::make(mAgent, mOtherForkCfg, mInjectorListener, mForkContextListener, std::move(event),
+		                             priority, statCounter, std::make_unique<BasicForkStrategy>());
 	}
 
 	template <typename... Args>
-	std::shared_ptr<ForkContext> makeForkCallContext(Args&&... args) const {
+	std::shared_ptr<ForkContext> makeForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
+	                                                 sofiasip::MsgSipPriority priority) const {
 		std::weak_ptr<StatPair> statCounter{};
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountCallForks;
-		return ForkCallContext::make(std::forward<Args>(args)..., mForkContextListener, mInjectorListener, mAgent,
-		                             mCallForkCfg, statCounter);
+		auto callStrategy = std::make_unique<CallForkStrategy>(mForkContextListener, *event, mCallForkCfg);
+		return ForkContextImpl::make(mAgent, mCallForkCfg, mInjectorListener, mForkContextListener, std::move(event),
+		                             priority, statCounter, std::move(callStrategy));
 	}
 
 	/**
