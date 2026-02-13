@@ -97,7 +97,8 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	        " where:\n"
 	        " <local domain name> is a domain name managed locally by this proxy\n"
 	        " <SIP URI of proxy/registrar> is the SIP URI where the domain registration will be sent. The special uri "
-	        "parameters are understood:\n"
+	        "parameters are understood but are ALL deprecated, it is advised to use 'global/transports' section to "
+	        "specify the TLS configuration:\n"
 	        " - 'tls-certificates-dir': specify a TLS client certificate to present to the remote proxy. This is "
 	        "deprecated and will be removed in 2.6.0, you may use 'tls-certificates-file', "
 	        "'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.\n"
@@ -116,18 +117,11 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	        "/etc/flexisip/domain-registrations.conf",
 	    },
 	    {
-	        Boolean,
-	        "verify-server-certs",
-	        "When submitting a domain registration to a server over TLS, verify the certificate presented by the "
-	        "server. "
-	        "Disabling this option is only for test, because it is a security flaw",
-	        "true",
-	    },
-	    {
 	        DurationS,
 	        "keepalive-interval",
 	        "Interval for sending \\r\\n\\r\\n keepalives through the outgoing domain registration connection."
-	        "A value of zero disables keepalives.",
+	        "A value of zero disables keepalives.\n"
+	        "It overrides the 'keepalive-interval' from the global config.",
 	        "30",
 	    },
 	    {
@@ -177,16 +171,30 @@ void DomainRegistrationManager::declareConfig(GenericStruct& rootConfig) {
 	        "This option is intended to be used with 'relay-reg-to-domains' mode enabled.",
 	        "",
 	    },
+	    // Deprecated
+	    {
+	        Boolean,
+	        "verify-server-certs",
+	        "When submitting a domain registration to a server over TLS, verify the certificate presented by the "
+	        "server. "
+	        "Disabling this option is only for test, because it is a security flaw.\n"
+	        "Deprecated since Flexisip 2.5, configure tls-verify-outgoing in your global transport instead.",
+	        "true",
+	    },
 	    config_item_end,
 	};
 
 	domainRegistrationArea->addChildrenValues(configs);
+	auto* contactVerifiedParam = domainRegistrationArea->get<ConfigBoolean>("verify-server-certs");
+	contactVerifiedParam->setDeprecated(
+	    "2025-02-12", "2.5.0",
+	    "Transport configuration in 'inter-domain-connections' is deprecated, it should "
+	    "always be done in the 'global' section. The equivalent parameter is 'tls-verify-outgoing'.");
 }
 
 DomainRegistrationManager::DomainRegistrationManager(Agent* agent)
     : mAgent(agent),
-      mDomainRegistrationArea(agent->getConfigManager().getRoot()->get<GenericStruct>(configSectionName)) {
-}
+      mDomainRegistrationArea(agent->getConfigManager().getRoot()->get<GenericStruct>(configSectionName)) {}
 
 DomainRegistrationManager::~DomainRegistrationManager() {
 	if (mRegisterWhenNeeded) mAgent->getRegistrarDb().unsubscribeLocalRegExpire(this);
@@ -280,11 +288,9 @@ int DomainRegistrationManager::load(const string& passphrase) {
 
 		Url url{uri};
 		auto clientTlsConf = url.getTlsConfigInfo();
-		if (clientTlsConf.mode == TlsMode::OLD) {
-			LOGW << "Be careful you are using a deprecated config 'tls-certificates-dir'. Use 'global/transports' "
-			        "to configure your transports and certificates instead.";
-		}
 		if (clientTlsConf.mode != TlsMode::NONE) {
+			LOGW << "Be careful you are using a deprecated config by specifying certificates in the domain "
+			        "registrations file. Use the global section instead.";
 			url.removeParam("tls-certificates-dir");
 			url.removeParam("tls-certificates-file");
 			url.removeParam("tls-certificates-private-key");

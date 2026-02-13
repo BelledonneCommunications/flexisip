@@ -92,6 +92,8 @@ Group changes to describe their impact on the project, as follows:
   parameter.
 - **Configuration:** Parameter 'tls-certificates-dir' in global config and transports URI will be removed in 2.6.
   Use 'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.
+  - Defining TLS certificates in the file specified in `inter-domain-connections/domain-registrations` is now
+  deprecated. The TLS certificates should always be configured in the `global` section or `global/transports` paraneter.
 
 ### [Fixed]
 - **Proxy:**
