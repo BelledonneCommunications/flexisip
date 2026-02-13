@@ -75,7 +75,7 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
     - Old Firebase API as it is not supported anymore to send push notifications.
     - `$api-key` is not supported anymore in `module::PushNotification/external-push-uri`. Old Firebase is thus not 
-      supported anymore in the external pusher. 
+      supported anymore in the external pusher.
     - Parameter `module::PushNotification/google` (deprecated in 2.0.0)
     - Parameter `module::PushNotification/google-project-api-keys` (deprecated in 2.0.0)
     - Parameter `module::PushNotification/time-to-live` (deprecated in 2.0.0)
@@ -183,7 +183,8 @@ Group changes to describe their impact on the project, as follows:
   parameter.
 - **Configuration:** Parameter 'tls-certificates-dir' in global config and transports URI will be removed in 2.6.
       Use 'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.
-
+    - Defining TLS certificates in the file specified in inter-domain-connections/domain-registrations is now
+      deprecated. The TLS certificates should always be configured in the global section or global/transports paraneter.
 ### [Fixed]
 - **Proxy:**
     - **Forward:**
