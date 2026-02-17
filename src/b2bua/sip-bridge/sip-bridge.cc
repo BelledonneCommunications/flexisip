@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -144,14 +144,21 @@ AccountPoolImplMap SipBridge::getAccountPoolsFromConfig(config::v2::AccountPoolC
 
 			        loader = make_unique<StaticAccountLoader>(std::move(staticPool));
 		        },
-		        [&loader, &redisConf, globalRootConf = mGlobalConfigRoot,
+		        [&loader, &redisConf, &capPoolName = poolName, globalRootConf = mGlobalConfigRoot,
 		         &suRoot = mSuRoot](config::v2::SQLLoader& sqlLoaderConf) {
-			        loader = make_unique<SQLAccountLoader>(suRoot, sqlLoaderConf);
+			        auto sqlLoader = make_unique<SQLAccountLoader>(suRoot, sqlLoaderConf);
+
+			        try {
+				        sqlLoader->validateInitQuery();
+			        } catch (BadConfiguration& e) {
+				        throw BadConfiguration{"AccountPool(" + capPoolName + ") " + e.what()};
+			        }
 
 			        if (globalRootConf) {
 				        redisConf.emplace(redis::async::RedisParameters::fromRegistrarConf(
 				            globalRootConf->getModuleSectionByRole("Registrar")));
 			        }
+			        loader = std::move(sqlLoader);
 		        });
 
 		accountPoolMap.try_emplace(poolName, make_shared<AccountPool>(mSuRoot, mCore, poolName, pool, std::move(loader),

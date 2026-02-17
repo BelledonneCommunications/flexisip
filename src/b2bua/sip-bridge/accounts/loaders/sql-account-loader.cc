@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -83,6 +83,23 @@ void SQLAccountLoader::accountUpdateNeeded(const RedisAccountPub& redisAccountPu
 			LOGE_CTX(mLogPrefix, "accountUpdateNeeded") << "Caught an unknown exception";
 		}
 	});
+}
+
+void SQLAccountLoader::validateInitQuery() {
+	SociHelper client{mSociConnectionPool};
+	try {
+		client.execute([&initQuery = mInitQuery](session& session) {
+			config::v2::Account account{};
+
+			// If present, remove the last ';' so we can extend the query.
+			if (const auto pos = initQuery.find_last_of(";"); pos != string::npos)
+				initQuery.erase(initQuery.find_last_of(";"));
+
+			session << initQuery << " LIMIT 1;", into(account);
+		});
+	} catch (const DatabaseException&) {
+		throw BadConfiguration{"an error occurred while validating initialization SQL query (see error in logs)"};
+	}
 }
 
 } // namespace flexisip::b2bua::bridge

@@ -61,6 +61,8 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - **Cluster:** The parameter `cluster/cluster-domain` no longer has any effect for 'Path' and 'Record-Router' header
     fields.
+- **B2BUA/SIP-Bridge:** Improved the error message when an account pool's database schema and/or init query is not as
+    expected (wrong type or column name).
 
 ### [Fixed]
 - **Proxy:**

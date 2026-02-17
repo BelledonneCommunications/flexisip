@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,6 +28,7 @@
 #include "utils/thread/auto-thread-pool.hh"
 
 namespace flexisip::b2bua::bridge {
+
 class SQLAccountLoader : public Loader {
 public:
 	explicit SQLAccountLoader(const std::shared_ptr<sofiasip::SuRoot>& suRoot, const config::v2::SQLLoader& loaderConf);
@@ -36,8 +37,15 @@ public:
 
 	void accountUpdateNeeded(const RedisAccountPub& redisAccountPub, const OnAccountUpdateCB& cb) override;
 
+	/**
+	 * Validate that the initialization SQL query returns a table with the right column names and types.
+	 *
+	 * @throw BadConfiguration in case the validation fails
+	 */
+	void validateInitQuery();
+
 private:
-	static constexpr std::string_view mLogPrefix{"SqlAccountLoader"};
+	static constexpr std::string_view mLogPrefix{"SQLAccountLoader"};
 
 	std::shared_ptr<sofiasip::SuRoot> mSuRoot;
 	AutoThreadPool mThreadPool;

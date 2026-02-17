@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,9 +20,11 @@
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "b2bua/sip-bridge/accounts/loaders/sql-account-loader.hh"
+#include "exceptions/bad-configuration.hh"
 #include "utils/core-assert.hh"
 #include "utils/lazy.hh"
 #include "utils/soci-helper.hh"
+#include "utils/soci/soci-tester-utils.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -265,7 +267,7 @@ void updateSqlTestDeletion() {
 }
 
 const TestSuite _{
-    "b2bua::sip-bridge::account::SqlAccountLoader",
+    "b2bua::sip-bridge::account::SQLAccountLoader",
     {
         CLASSY_TEST(nominalInitialSqlLoadTest),
         CLASSY_TEST(initialSqlLoadTestWithEmptyFields),
@@ -278,6 +280,111 @@ const TestSuite _{
 	    return 0;
     }),
 };
+
+namespace {
+
+shared_ptr<SqLite3Backend> sBackend{};
+function sTableCreationRequest = [](session&) {};
+
+/**
+ * Functional 'users' test table creation request.
+ */
+const function okTableCreationRequest = [](session& sql) {
+	sql << "CREATE TABLE users (username TEXT PRIMARY KEY, domain TEXT, user_id TEXT, realm TEXT NULL, secret "
+	       "TEXT, secret_type TEXT DEFAULT 'MD5', alias_username TEXT, alias_domain TEXT, outbound_proxy TEXT "
+	       "NULL, registrar TEXT NULL, protocol TEXT DEFAULT 'UDP');";
+	sql << "INSERT into users VALUES ('username', 'sip.example.org', '', NULL, '', NULL, 'expected-from', "
+	       "'sip.example.org', NULL, NULL, NULL);";
+};
+
+const auto getLoaderConf = [](const std::string& initQuery) {
+	// clang-format off
+	return json::parse(StringFormatter{
+		R"({
+        "dbBackend": "sqlite3",
+        "initQuery": "@query@",
+        "updateQuery": "not tested here",
+        "connection": "@connection_string@"
+    }
+	)",'@', '@'}
+	.format({{"connection_string", sBackend->getConnectionString()}, {"query", initQuery}}))
+	.get<SQLLoader>();
+	// clang-format on
+};
+
+/**
+ * Test the init query validation is successful when everything is well configured (database schema, request, and
+ * receiving cpp structure).
+ */
+void successful() {
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	sTableCreationRequest = okTableCreationRequest;
+	DbTestHelper helper{sBackend, sTableCreationRequest};
+	SQLAccountLoader loader{suRoot, getLoaderConf("SELECT * FROM users;")};
+
+	try {
+		loader.validateInitQuery();
+	} catch (...) {
+		BC_FAIL("validateInitQuery() threw an exception");
+	}
+}
+
+/**
+ * Test the init query validation throws a BadConfiguration if the database schema is not as expected.
+ */
+void failureDueToWrongColumnType() {
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	sTableCreationRequest = [&](session& sql) {
+		// Note: introduced a wrong type for the 'domain' column.
+		sql << "CREATE TABLE users (username TEXT PRIMARY KEY, domain INT, user_id TEXT, realm TEXT NULL, secret "
+		       "TEXT, secret_type TEXT DEFAULT 'MD5', alias_username TEXT, alias_domain TEXT, outbound_proxy TEXT "
+		       "NULL, registrar TEXT NULL, protocol TEXT DEFAULT 'UDP');";
+		sql << "INSERT into users VALUES ('username', 42, '', NULL, '', NULL, 'expected-from', 'sip.example.org', "
+		       "NULL, NULL, NULL);";
+	};
+	DbTestHelper helper{sBackend, sTableCreationRequest};
+	SQLAccountLoader loader{suRoot, getLoaderConf("SELECT * FROM users;")};
+
+	BC_ASSERT_THROWN(loader.validateInitQuery(), BadConfiguration);
+}
+
+/**
+ * Test the init query validation throws a BadConfiguration if the database query does not return a table with the right
+ * column names.
+ */
+void failureDueToWrongColumnName() {
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	sTableCreationRequest = okTableCreationRequest;
+	DbTestHelper helper{sBackend, sTableCreationRequest};
+	SQLAccountLoader loader{suRoot, getLoaderConf("SELECT username, domain, user_id as wrong_column_name, secret, "
+	                                              "alias_username, alias_domain, outbound_proxy FROM users;")};
+
+	BC_ASSERT_THROWN(loader.validateInitQuery(), BadConfiguration);
+}
+
+const TestSuite _{
+    "b2bua::sip-bridge::account::SQLAccountLoader::validateInitQuery",
+    {
+        CLASSY_TEST(successful),
+        CLASSY_TEST(failureDueToWrongColumnType),
+        CLASSY_TEST(failureDueToWrongColumnName),
+    },
+    Hooks{}
+        .beforeSuite([] {
+	        sBackend = make_shared<SqLite3Backend>();
+	        return 0;
+        })
+        .beforeEach([] {
+	        sBackend->clear();
+	        sTableCreationRequest = [](session&) { BC_FAIL("you must set a table creation request in this suite"); };
+        })
+        .afterSuite([] {
+	        sBackend.reset();
+	        return 0;
+        }),
+};
+
+} // namespace
 
 } // namespace
 } // namespace flexisip::tester
