@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,6 +23,7 @@
 
 #include "flexisip/utils/sip-uri.hh"
 #include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "utils/soci-type-conversion-utils.hh"
 #include "utils/string-utils.hh"
 
 #if ENABLE_SOCI
@@ -65,7 +66,7 @@ public:
 	 * @brief Parameters used to create an Account.
 	 */
 	struct Parameters {
-		std::string uri{""};
+		std::string uri{};
 		std::optional<std::string> userId{std::nullopt};
 		std::optional<SecretType> secretType{std::nullopt};
 		std::optional<std::string> secret{std::nullopt};
@@ -243,99 +244,43 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<Account>& ve
 
 #if ENABLE_SOCI
 
-namespace soci {
-
 /**
- * Used by soci to transform database result to Account (fill attributes of the provided instance).
+ * Used by soci to transform a database result to Account (fill attributes of the provided instance).
  */
 template <>
-struct type_conversion<flexisip::b2bua::bridge::config::v2::Account> {
+struct soci::type_conversion<flexisip::b2bua::bridge::config::v2::Account> {
 	using base_type = values;
 	using AccountConfig = flexisip::b2bua::bridge::config::v2::Account;
 
 	static void from_base(values const& v, indicator, AccountConfig& account) {
+		using namespace flexisip;
+
 		auto& params = account.mParams;
 
-		const auto username = get<std::string>(v, "username");
+		const auto username = soci_utils::get<std::string>(v, "username");
 		// Retrieve domain (or hostport for backward compatibility).
-		const auto domain = getWithBackwardCompatibility<std::string>(v, "domain", "hostport");
-		params.uri = flexisip::SipUri{username, domain}.str();
-		params.userId = get<std::string>(v, "user_id", "");
+		const auto domain = soci_utils::getWithBackwardCompatibility<std::string>(v, "domain", "hostport");
+		params.uri = SipUri{username, domain}.str();
+		params.userId = soci_utils::get<std::string>(v, "user_id", "");
 
-		params.realm = get<std::string>(v, "realm", domain);
-		params.secret = get<std::string>(v, "secret", "");
-		const auto secretType = flexisip::string_utils::toLower(
-		    get<std::string>(v, "secret_type", std::string{AccountConfig::kDefaultSecretTypeAsStr}));
-		params.secretType = nlohmann::json(secretType).get<flexisip::b2bua::bridge::config::v2::SecretType>();
+		params.realm = soci_utils::get<std::string>(v, "realm", domain);
+		params.secret = soci_utils::get<std::string>(v, "secret", "");
+		const auto secretType = string_utils::toLower(
+		    soci_utils::get<std::string>(v, "secret_type", std::string{AccountConfig::kDefaultSecretTypeAsStr}));
+		params.secretType = nlohmann::json(secretType).get<b2bua::bridge::config::v2::SecretType>();
 
-		const auto aliasUsername = get<std::string>(v, "alias_username", "");
+		const auto aliasUsername = soci_utils::get<std::string>(v, "alias_username", "");
 		// Retrieve alias_domain (or alias_hostport for backward compatibility).
-		const auto aliasDomain = getWithBackwardCompatibility<std::string>(v, "alias_domain", "alias_hostport", "");
+		const auto aliasDomain =
+		    soci_utils::getWithBackwardCompatibility<std::string>(v, "alias_domain", "alias_hostport", "");
 		if (aliasUsername.empty() or aliasDomain.empty()) params.alias = "";
-		else params.alias = flexisip::SipUri{aliasUsername, aliasDomain}.str();
+		else params.alias = SipUri{aliasUsername, aliasDomain}.str();
 
-		params.outboundProxy = getOptional<std::string>(v, "outbound_proxy", "");
-		params.registrar = getOptional<std::string>(v, "registrar", "");
-		params.protocol = flexisip::string_utils::toLower(
-		    getOptional<std::string>(v, "protocol", std::string{AccountConfig::kDefaultProtocol}));
-	}
-
-	/**
-	 * @throw runtime_error if the column 'name' has an invalid data type
-	 * @return the value of the column 'name'
-	 */
-	template <typename TargetType>
-	static TargetType
-	get(const values& v, const std::string& name, const std::optional<TargetType>& nullValue = std::nullopt) {
-		static const auto convertedDataType = []() -> std::pair<data_type, std::string> {
-			if (std::is_same_v<TargetType, std::string>) return {dt_string, "string"};
-			if (std::is_same_v<TargetType, std::tm>) return {dt_date, "timestamp"};
-			if (std::is_same_v<TargetType, double>) return {dt_double, "floating-point"};
-			if (std::is_same_v<TargetType, int>) return {dt_integer, "integer"};
-			if (std::is_same_v<TargetType, long long>) return {dt_long_long, "big integer"};
-			if (std::is_same_v<TargetType, unsigned long long>) return {dt_unsigned_long_long, "unsigned big integer"};
-			if (std::is_same_v<TargetType, blob>) return {dt_blob, "blob"};
-			return {static_cast<data_type>(-1), "unknown"};
-		};
-
-		const auto dataType = v.get_properties(name).get_data_type();
-		const auto [targetDataType, targetDataTypeName] = convertedDataType();
-		if (targetDataType != dataType)
-			throw std::runtime_error("invalid data type '" + targetDataTypeName + "' for column '" + name + "'");
-
-		if (nullValue.has_value()) return v.get<TargetType>(name, *nullValue);
-		return v.get<TargetType>(name);
-	}
-
-	/**
-	 * @return the value of the column 'name' or 'oldName' if the column does not exist
-	 */
-	template <typename T>
-	static T getWithBackwardCompatibility(const values& v,
-	                                      const std::string& name,
-	                                      const std::string& oldName,
-	                                      const std::optional<T>& nullValue = std::nullopt) {
-		try {
-			std::ignore = v.get_indicator(name);
-		} catch (const soci_error&) {
-			return get<T>(v, oldName, nullValue);
-		}
-		return get<T>(v, name, nullValue);
-	}
-
-	/**
-	 * @return the value of the column 'name' or 'defaultValue' if the column does not exist or is null
-	 */
-	template <typename T>
-	static T getOptional(const values& v, const std::string& name, const T& defaultValue) {
-		try {
-			std::ignore = v.get_indicator(name);
-		} catch (const soci_error&) {
-			return defaultValue;
-		}
-		return get(v, name, std::optional<T>{defaultValue});
+		params.outboundProxy = soci_utils::getOptional<std::string>(v, "outbound_proxy", "");
+		params.registrar = soci_utils::getOptional<std::string>(v, "registrar", "");
+		params.protocol = string_utils::toLower(
+		    soci_utils::getOptional<std::string>(v, "protocol", std::string{AccountConfig::kDefaultProtocol}));
 	}
 };
 
-} // namespace soci
 #endif

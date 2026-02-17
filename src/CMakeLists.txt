@@ -299,7 +299,6 @@ if(ENABLE_SOCI)
 		eventlogs/writers/database-event-log-writer.cc eventlogs/writers/database-event-log-writer.hh
 		fork-context/fork-message-context-soci-repository.cc fork-context/fork-message-context-soci-repository.hh
 		fork-context/fork-message-context-db-proxy.cc fork-context/fork-message-context-db-proxy.hh
-		utils/soci-helper.cc utils/soci-helper.hh
 	)
 	target_link_libraries(flexisip PUBLIC soci_core soci_mysql soci_sqlite3)
 	if(HAS_GCC_BUG_105562)

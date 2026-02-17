@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2025 Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -63,5 +63,12 @@ if(ENABLE_CONFERENCE OR ENABLE_B2BUA OR ENABLE_VOICEMAIL)
 	target_sources(flexisip PRIVATE
 		configuration/media.cc configuration/media.hh
 		configuration/transport.cc configuration/transport.hh
+	)
+endif()
+
+if(ENABLE_SOCI)
+	target_sources(flexisip PRIVATE
+		soci-helper.cc soci-helper.hh
+		soci-type-conversion-utils.hh
 	)
 endif()
