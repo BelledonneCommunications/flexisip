@@ -247,8 +247,10 @@ if(ENABLE_SOCI)
 		tests/modules/router/fork/fork-message-context-soci-repository-tester.cc
 		tests/modules/router/module-router-sql-tester.cc
 		tests/utils/soci-helper-tester.cc
+		tests/utils/soci-type-conversion-utils-tester.cc
 		utils/server/mysql/db-server-configurer.hh
 		utils/server/mysql/mysql-server.cc utils/server/mysql/mysql-server.hh
+		utils/soci/soci-tester-utils.cc utils/soci/soci-tester-utils.hh
 	)
 	if(IS_MARIADB)
 		target_sources(flexisip_tester PRIVATE

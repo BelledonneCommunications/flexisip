@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,6 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <array>
 #include <cstring>
 #include <optional>
 #include <stdexcept>
@@ -150,6 +151,12 @@ bool iequals(string_view a, string_view b) {
 	return equal(a.begin(), a.end(), b.begin(), b.end(), [](char a, char b) {
 		return tolower(static_cast<unsigned char>(a)) == tolower(static_cast<unsigned char>(b));
 	});
+}
+
+std::string strFromTime(const std::tm& time, const std::string_view& format) {
+	array<char, 64> output{};
+	std::strftime(output.data(), 64, format.data(), &time);
+	return output.data();
 }
 
 #ifdef HAVE_LIBLINPHONECXX

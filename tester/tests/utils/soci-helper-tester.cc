@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -23,9 +23,9 @@
 
 #include "flexisip/logmanager.hh"
 #include "utils/server/mysql/mysql-server.hh"
+#include "utils/soci/soci-tester-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/tmp-dir.hh"
 
 using namespace std;
 
@@ -33,50 +33,9 @@ namespace flexisip::tester {
 
 namespace {
 
-class ConnectionPool {
-public:
-	ConnectionPool(string_view dbName, string_view connectString, const unsigned int poolSize = 1) : mPool(poolSize) {
-		string backendName{dbName}, connectionString{connectString};
-		for (unsigned int sessionId = 0; sessionId < poolSize; ++sessionId) {
-			mPool.at(sessionId).open(backendName, connectionString);
-		}
-	}
-
-	soci::connection_pool& getPool() {
-		return mPool;
-	}
-
-private:
-	soci::connection_pool mPool;
-};
-
-class DatabaseBackend {
-public:
-	virtual ~DatabaseBackend() = default;
-
-	virtual void restart() = 0;
-	virtual void stop() = 0;
-	virtual void clear() = 0;
-	virtual string_view getName() const = 0;
-	virtual string getConnectionString() const = 0;
-};
-
-template <typename DbBackend>
-class TestHelper {
-public:
-	explicit TestHelper(const shared_ptr<DbBackend>& backend, const unsigned int poolSize = 1)
-	    : mDbBackend(backend), mConnectionPool(mDbBackend->getName(), mDbBackend->getConnectionString(), poolSize) {
-		SociHelper client{mConnectionPool.getPool()};
-		client.execute([](soci::session& session) {
-			session << "CREATE TABLE " << kTableName << " (id int, value varchar(50));";
-			session << "INSERT INTO test VALUES (0, 'test');";
-		});
-	}
-
-	static constexpr auto* kTableName{"test"};
-
-	shared_ptr<DbBackend> mDbBackend;
-	ConnectionPool mConnectionPool;
+const auto tableCreationRequest = [](soci::session& session) {
+	session << "CREATE TABLE " << DatabaseBackend::kTableName << " (id int, value varchar(50));";
+	session << "INSERT INTO " << DatabaseBackend::kTableName << " VALUES (0, 'test');";
 };
 
 /**
@@ -88,7 +47,7 @@ void successfulExecution(const shared_ptr<DbBackend>& backend) {
 	string expectedResult{"test"};
 	string currentResult{"unexpected"};
 
-	TestHelper helper{backend};
+	DbTestHelper<DbBackend> helper{backend, tableCreationRequest};
 	SociHelper client{helper.mConnectionPool.getPool()};
 
 	client.execute(
@@ -106,7 +65,7 @@ void error(const shared_ptr<DbBackend>& backend) {
 	string expectedResult{"expected"};
 	string currentResult{"expected"};
 
-	TestHelper helper{backend};
+	DbTestHelper<DbBackend> helper{backend, tableCreationRequest};
 	SociHelper client{helper.mConnectionPool.getPool()};
 
 	BC_ASSERT_THROWN(client.execute([&currentResult](soci::session& session) {
@@ -119,51 +78,7 @@ void error(const shared_ptr<DbBackend>& backend) {
 
 namespace sqlite3 {
 
-class Sqlite3DatabaseBackend : public DatabaseBackend {
-public:
-	Sqlite3DatabaseBackend() : mConnectionString(createDbFile().string()) {
-	}
-
-	void restart() override {
-		stop();
-		mDirectory = TmpDir{kDirectoryName.data()};
-		mConnectionString = createDbFile().string();
-	}
-
-	void stop() override {
-		filesystem::remove_all(mDirectory.path());
-	}
-
-	void clear() override {
-		restart();
-	}
-
-	string_view getName() const override {
-		return kName;
-	}
-
-	string getConnectionString() const override {
-		return mConnectionString;
-	}
-
-private:
-	static constexpr string_view kName{"sqlite3"};
-	static constexpr string_view kDirectoryName{"Sqlite3DatabaseBackend"};
-
-	filesystem::path createDbFile() const {
-		const auto filePath = mDirectory.path() / "database.db";
-		ofstream file{filePath};
-		file.close();
-		if (!filesystem::exists(filePath))
-			throw runtime_error{"failed to create sqlite3 database file ("s + filePath.string() + ")"};
-		return filePath;
-	}
-
-	TmpDir mDirectory{kDirectoryName.data()};
-	string mConnectionString;
-};
-
-shared_ptr<Sqlite3DatabaseBackend> sBackend{};
+shared_ptr<SqLite3Backend> sBackend{};
 
 void successfulQueryExecution() {
 	successfulExecution(sBackend);
@@ -181,7 +96,7 @@ TestSuite _{
     },
     Hooks{}
         .beforeSuite([] {
-	        sBackend = make_shared<Sqlite3DatabaseBackend>();
+	        sBackend = make_shared<SqLite3Backend>();
 	        return 0;
         })
         .beforeEach([] { sBackend->clear(); })
@@ -195,56 +110,15 @@ TestSuite _{
 
 namespace mysql {
 
-class MySqlDatabaseBackend : public DatabaseBackend {
-public:
-	MySqlDatabaseBackend() {
-		mServer->waitReady();
-	}
-
-	void restart() override {
-		if (isStopped()) {
-			mServer = make_unique<MysqlServer>();
-			mServer->waitReady();
-		} else {
-			mServer->restart();
-		}
-	}
-
-	void stop() override {
-		mServer.reset();
-	}
-
-	void clear() override {
-		mServer->clear();
-	}
-
-	bool isStopped() const {
-		return !mServer;
-	}
-
-	string_view getName() const override {
-		return kName;
-	}
-
-	string getConnectionString() const override {
-		return mServer->connectionString();
-	}
-
-private:
-	static constexpr string_view kName{"mysql"};
-
-	unique_ptr<MysqlServer> mServer{make_unique<MysqlServer>()};
-};
-
 // Shared instance of mysql process across all tests in the suite.
-shared_ptr<MySqlDatabaseBackend> backend{};
+shared_ptr<MySqlBackend> sBackend{};
 
 void successfulQueryExecution() {
-	successfulExecution(backend);
+	successfulExecution(sBackend);
 }
 
 void errorInSqlQuery() {
-	error(backend);
+	error(sBackend);
 }
 
 /**
@@ -254,7 +128,7 @@ void databaseBecomesUnavailableDuringExecution() {
 	string expectedResult{"expected"};
 	string currentResult{"expected"};
 
-	TestHelper helper{backend};
+	DbTestHelper helper{sBackend, tableCreationRequest};
 	SociHelper client{helper.mConnectionPool.getPool()};
 
 	helper.mDbBackend->stop();
@@ -274,12 +148,12 @@ void retryableError() {
 	string expectedResult{"test"};
 	string currentResult{"unexpected"};
 
-	TestHelper helper{backend};
+	DbTestHelper helper{sBackend, tableCreationRequest};
 	SociHelper client{helper.mConnectionPool.getPool()};
 
 	client.execute([&currentResult, &restarted](soci::session& session) {
 		if (!restarted) {
-			backend->restart(); // Trigger a "retryable" error.
+			sBackend->restart(); // Trigger a "retryable" error.
 			restarted = true;
 		}
 		session << "SELECT value FROM test;", soci::into(currentResult);
@@ -298,15 +172,15 @@ TestSuite _{
     },
     Hooks{}
         .beforeSuite([] {
-	        backend = make_shared<MySqlDatabaseBackend>();
+	        sBackend = make_shared<MySqlBackend>();
 	        return 0;
         })
         .beforeEach([] {
-	        if (backend->isStopped()) backend->restart();
-	        backend->clear();
+	        if (sBackend->isStopped()) sBackend->restart();
+	        sBackend->clear();
         })
         .afterSuite([] {
-	        backend.reset();
+	        sBackend.reset();
 	        return 0;
         }),
 };

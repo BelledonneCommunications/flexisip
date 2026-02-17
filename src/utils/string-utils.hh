@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <ctime>
 #include <map>
 #include <optional>
 #include <sstream>
@@ -175,7 +176,7 @@ bool endsWith(const std::string& str, const std::string& suffix) noexcept;
  */
 template <class StringList>
 std::string join(const StringList& args, size_t fromIndex = 0, std::string_view separator = " ") {
-	std::string ret{""};
+	std::string ret{};
 	if (args.size() <= fromIndex) {
 		return ret;
 	}
@@ -218,6 +219,14 @@ std::map<std::string, std::string> parseKeyValue(const std::string& toParse,
 inline bool isEndOfLineCharacter(char c) {
 	return c == '\r' || c == '\n';
 }
+
+/**
+ * Convert a time structure into a human-readable time string.
+ *
+ * @param time time to convert into a string
+ * @param format format into which the human-readable time should be produced (see std::strftime for supported formats)
+ */
+std::string strFromTime(const std::tm& time, const std::string_view& format = "%Y-%m-%d %H:%M:%S");
 
 #ifdef HAVE_LIBLINPHONECXX
 /**
