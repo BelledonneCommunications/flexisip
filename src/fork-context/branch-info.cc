@@ -213,10 +213,9 @@ bool BranchInfo::pushContextIsAppleVoIp() const {
 }
 
 void BranchInfo::cancel(const std::optional<CancelInfo>& information, bool keepAppleVoIpAlive) {
-	if (!mTransaction || getStatus() >= 200) return;
+	if (mCanceled || !mTransaction || getStatus() >= 200) return;
 
-	if (keepAppleVoIpAlive && !mWaitingAppleClientResponse && getStatus() == 0 && pushContextIsAppleVoIp()) {
-		mWaitingAppleClientResponse = true;
+	if (keepAppleVoIpAlive && getStatus() == 0 && pushContextIsAppleVoIp()) {
 		LOGD << "Cancel requested but this branch (iOS client) did not receive any response for the moment (status = "
 		     << getStatus() << "): waiting for a response or 'call-fork-timeout'";
 		return;

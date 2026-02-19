@@ -84,7 +84,7 @@ void ForkCallContext::cancelOthers(const shared_ptr<BranchInfo>& br) {
 	for (const auto& branch : branches) {
 		if (branch == br) continue;
 
-		branch->cancel(mCancel, true);
+		branch->cancel(mCancel, !mLateTimer.hasAlreadyExpiredOnce());
 		// Always notify here, even if the branch is not canceled (due to status or iOS devices specific reasons).
 		branch->notifyBranchCanceled(mCancel->mStatus);
 

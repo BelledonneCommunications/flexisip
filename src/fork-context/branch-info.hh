@@ -224,7 +224,6 @@ private:
 	int mClearedCount{};
 	// Only used with Invite/ForkCall.
 	std::weak_ptr<PushNotificationContext> mPushContext{};
-	bool mWaitingAppleClientResponse{};
 	bool mCanceled{};
 	std::string mLogPrefix{};
 };
