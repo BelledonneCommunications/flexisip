@@ -235,6 +235,7 @@ void VoicemailServer::onCallStateIncomingReceived(const std::shared_ptr<linphone
 		return;
 	}
 
+	mCallHandlers.at(callKey)->addObserver(shared_from_this());
 	mCallHandlers.at(callKey)->start();
 }
 
