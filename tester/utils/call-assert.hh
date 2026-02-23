@@ -117,19 +117,19 @@ private:
 };
 
 template <>
-const CallAssertionInfo::MediaStateList CallAssert<>::kAudioSentReceived = {
+inline const CallAssertionInfo::MediaStateList CallAssert<>::kAudioSentReceived = {
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::Sent},
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::Received},
 };
 
 template <>
-const CallAssertionInfo::MediaStateList CallAssert<>::kVideoSentReceived = {
+inline const CallAssertionInfo::MediaStateList CallAssert<>::kVideoSentReceived = {
     {linphone::StreamType::Video, CallAssertionInfo::MediaState::Sent},
     {linphone::StreamType::Video, CallAssertionInfo::MediaState::Received},
 };
 
 template <>
-const CallAssertionInfo::MediaStateList CallAssert<>::kAllMediaSentReceived = {
+inline const CallAssertionInfo::MediaStateList CallAssert<>::kAllMediaSentReceived = {
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::Sent},
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::Received},
     {linphone::StreamType::Video, CallAssertionInfo::MediaState::Sent},
@@ -137,7 +137,7 @@ const CallAssertionInfo::MediaStateList CallAssert<>::kAllMediaSentReceived = {
 };
 
 template <>
-const CallAssertionInfo::MediaStateList CallAssert<>::kNoMedia = {
+inline const CallAssertionInfo::MediaStateList CallAssert<>::kNoMedia = {
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::NotSent},
     {linphone::StreamType::Audio, CallAssertionInfo::MediaState::NotReceived},
     {linphone::StreamType::Video, CallAssertionInfo::MediaState::NotSent},
