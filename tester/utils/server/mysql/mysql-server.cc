@@ -149,7 +149,7 @@ void MysqlServer::makeDaemonReady() {
 		}
 
 		auto chunk =
-		    Match(standardError->readUntilDataReceptionOrTimeout(0xFF, 10s))
+		    Match(standardError->readUntilDataReceptionOrTimeout(0xFF, 20s))
 		        .against([](string&& chunk) { return std::move(chunk); },
 		                 [&fullLog](const SysErr& err) -> string {
 			                 throw system_error{err.number(), generic_category(),

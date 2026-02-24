@@ -270,22 +270,26 @@ void databaseBecomesUnavailableDuringExecution() {
  * Test successful SQL query execution on "retryable" error.
  */
 void retryableError() {
-	bool restarted = false;
-	string expectedResult{"test"};
-	string currentResult{"unexpected"};
+	try {
+		bool restarted = false;
+		string expectedResult{"test"};
+		string currentResult{"unexpected"};
 
-	TestHelper helper{backend};
-	SociHelper client{helper.mConnectionPool.getPool()};
+		TestHelper helper{backend};
+		SociHelper client{helper.mConnectionPool.getPool()};
 
-	client.execute([&currentResult, &restarted](soci::session& session) {
-		if (!restarted) {
-			backend->restart(); // Trigger a "retryable" error.
-			restarted = true;
-		}
-		session << "SELECT value FROM test;", soci::into(currentResult);
-	});
+		client.execute([&currentResult, &restarted](soci::session& session) {
+			if (!restarted) {
+				backend->restart(); // Trigger a "retryable" error.
+				restarted = true;
+			}
+			session << "SELECT value FROM test;", soci::into(currentResult);
+		});
 
-	BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
+		BC_ASSERT_CPP_EQUAL(currentResult, expectedResult);
+	} catch (runtime_error&) {
+		BC_HARD_FAIL("Database could not be started");
+	}
 }
 
 TestSuite _{
