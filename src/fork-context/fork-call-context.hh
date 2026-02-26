@@ -134,11 +134,6 @@ private:
 	 */
 	void sendAndLogResponse(const std::shared_ptr<BranchInfo>&) const;
 
-	/**
-	 * @return 'true' if the address of the voicemail server is set in the configuration.
-	 */
-	bool callForwardingEnabled() const;
-
 	sofiasip::Home mHome{};
 	// Optionally used to send retryable responses.
 	std::unique_ptr<sofiasip::Timer> mShortTimer{};
@@ -148,6 +143,7 @@ private:
 	// If non-null, indicate that call forwarding has already been successfully triggered for this instance.
 	std::weak_ptr<BranchInfo> mCallForwardingBranch{};
 	std::string mLogPrefix{};
+	bool mCallForwardingEnabled{};
 };
 
 } // namespace flexisip

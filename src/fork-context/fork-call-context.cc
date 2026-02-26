@@ -53,6 +53,8 @@ ForkCallContext::ForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
       mLog{ForkContextBase::getEvent().getEventLog<CallLog>()},
       mLogPrefix{LogManager::makeLogPrefixForInstance(this, "ForkCallContext")} {
 	LOGD << "New instance";
+	const auto cfg = static_pointer_cast<ForkCallContextConfig>(mCfg);
+	mCallForwardingEnabled = !cfg->mVoicemailServerUri.empty();
 }
 
 ForkCallContext::~ForkCallContext() {
@@ -66,6 +68,7 @@ void ForkCallContext::onCancel(const MsgSip& ms) {
 	mLog->setCancelled();
 	mLog->setCompleted();
 	mCancelled = true;
+	mCallForwardingEnabled = false;
 	cancelAll(ms.getSip());
 
 	if (shouldFinish()) setFinished();
@@ -167,11 +170,6 @@ void ForkCallContext::sendAndLogResponse(const shared_ptr<BranchInfo>& branch) c
 		logResponse(branch->getLastResponseEvent(), branch.get());
 }
 
-bool ForkCallContext::callForwardingEnabled() const {
-	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
-	return !config->mVoicemailServerUri.empty();
-}
-
 void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) const {
 	if (ev == nullptr) return;
 
@@ -252,7 +250,7 @@ void ForkCallContext::onLateTimeout() {
 	// Cancel all possibly pending outgoing transactions.
 	cancelOthers(nullptr);
 
-	if (callForwardingEnabled()) {
+	if (mCallForwardingEnabled) {
 		forward(408);
 		return;
 	}
@@ -283,7 +281,7 @@ void ForkCallContext::start() {
 
 std::shared_ptr<BranchInfo> ForkCallContext::tryToSendFinalResponse() {
 	const auto hasBeenForwarded = mCallForwardingBranch.lock() != nullptr;
-	if (!callForwardingEnabled() || hasBeenForwarded || (!mIncoming && !mCfg->mForkLate)) {
+	if (!mCallForwardingEnabled || hasBeenForwarded || (!mIncoming && !mCfg->mForkLate)) {
 		tryToSetFinished();
 		if (!mIncoming && !mCfg->mForkLate) return nullptr;
 	}
@@ -295,7 +293,7 @@ std::shared_ptr<BranchInfo> ForkCallContext::tryToSendFinalResponse() {
 	if (mCancelled && branch == nullptr) branch = findBestBranch(false);
 	if (branch == nullptr) return nullptr;
 
-	if (!callForwardingEnabled()) {
+	if (!mCallForwardingEnabled) {
 		if (branch->sendResponse(mIncoming != nullptr)) return branch;
 		return nullptr;
 	}

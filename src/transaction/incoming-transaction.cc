@@ -58,7 +58,8 @@ void IncomingTransaction::handle(const shared_ptr<MsgSip>& ms) {
 }
 
 std::shared_ptr<MsgSip> IncomingTransaction::getIncomingRequest() const {
-	return make_shared<MsgSip>(owned(nta_incoming_getrequest(mIncoming)));
+	auto* request = nta_incoming_getrequest(mIncoming);
+	return request ? make_shared<MsgSip>(owned(request)) : nullptr;
 }
 
 shared_ptr<MsgSip> IncomingTransaction::createResponse(int status, char const* phrase) {

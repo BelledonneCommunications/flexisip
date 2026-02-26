@@ -838,6 +838,25 @@ void callForwardingRejected() {
 		helper.caller->endCurrentCall(*helper.voicemail);
 }
 
+void callWithEarlyCancel() {
+	Server server{sDefaultConfig};
+	server.setConfigParameter({"module::Router/call-fork-timeout", "1s"});
+	server.setConfigParameter({"module::Router/voicemail-server", "sip:127.0.0.1:5060"});
+	server.start();
+
+	ClientBuilder builder{server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	auto calleeClient = builder.build("sip:calleeClient@sip.test.org");
+
+	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
+
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	// Assert that fork has finished since we don't forward after a CANCEL.
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 1);
+}
+
 } // namespace voicemail
 
 const std::vector<test_t> sTestList = {
@@ -856,6 +875,7 @@ const std::vector<test_t> sTestList = {
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotAnswered>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::Declined>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotAnswered>),
+    CLASSY_TEST(voicemail::callWithEarlyCancel),
 
     // Tests that do not need to be executed every time as we are already testing similar cases. However, these
     // tests are useful when comprehensive testing is required.
