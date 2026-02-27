@@ -1,6 +1,6 @@
 ############################################################################
 # CMakeLists.txt
-# Copyright (C) 2010-2024  Belledonne Communications, Grenoble France
+# Copyright (C) 2010-2026  Belledonne Communications, Grenoble France
 #
 ############################################################################
 #
@@ -72,6 +72,7 @@ else()
 	set(IS_DEBUG FALSE)
 endif()
 
+option(ENABLE_SYSTEMD "Build with systemD support" ON)
 option(ENABLE_SANITIZERS "Turn on sanitizers, like the LSAN memory leak detector" ${IS_DEBUG})
 option(ENABLE_SUBMODULES_UBSAN "Turn on UBSAN on submodule code" OFF)
 option(ENABLE_STRICT "Pass strict flags to the compiler" ON)
@@ -232,6 +233,10 @@ find_file(HAVE_SYS_PRCTL_H NAMES sys/prctl.h)
 set(CMAKE_REQUIRED_LIBRARIES)
 
 # Options
+if (ENABLE_SYSTEMD)
+	find_package(LibSystemD REQUIRED)
+endif()
+
 if(ENABLE_SNMP)
 	# todo: Not quite ready
 	FIND_PROGRAM_REQUIRED(NET_SNMP_PROG net-snmp-config)

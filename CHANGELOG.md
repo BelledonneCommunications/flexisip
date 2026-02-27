@@ -54,6 +54,8 @@ Group changes to describe their impact on the project, as follows:
     - `AUTH_CACHE_LIST`: list all entries in the cache (optional: filter by domain)
     - `AUTH_CACHE_GET`: get the entry of a specific user
     - `AUTH_CACHE_DELETE`: remove the entry for a specific user
+- **Global:** Parameter `global/watchdog-notify-interval` set the interval between notifications of a flexisip service to the watchdog of SystemD.
+- **All servers:** Option `--disable-stdout` in command line to not display the log in standard output.
 
 
 ### [Changed]
@@ -66,6 +68,10 @@ Group changes to describe their impact on the project, as follows:
     fields.
 - **B2BUA/SIP-Bridge:** Improved the error message when an account pool's database schema and/or init query is not as
     expected (wrong type or column name).
+- **Service:** The Flexisip services are now managed and started directly by SystemD. Service behavior is configured in the SystemD unit files. By default, a service notifies SystemD once startup is complete (using `Type=notify`). The SystemD watchdog is then enabled, and the service's main loop periodically notifies the watchdog to confirm that the process is alive and not blocked. The watchdog timeout is configured in the service's unit file by `WatchdogSec`, while the main loop notification interval is set via the global parameter `watchdog-notify-interval`. Flexisip now uses `Restart=on-failure` in its SystemD service units. This ensures that if a service crashes, exits with a non-zero status or fails to notify the watchdog before the timeout, SystemD automatically restarts it.
+
+### [Deprecated]
+- **Global:** Parameter `global/auto-respawn` no longer has any effect.
 
 ### [Fixed]
 - **Proxy:**
@@ -107,11 +113,14 @@ Group changes to describe their impact on the project, as follows:
   each element.
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
 - **Global:**
+  - Option `--daemon` in flexisip services start command
   - Parameter `global/tls-certificates-dir` (deprecated in 2.2.0)
   - `tls-certificates-dir` was removed from transports parameters (deprecated in 2.2.0)
 - **Registrar:** 
     - Unused `ctdumper` and `serializer` tools.
     - MSGPACK feature (deprecated in 2.4.0).
+- **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its watchdog.
+
 
 ## [2.5.0]
 - **SDK version:** 5.4.97
@@ -193,7 +202,7 @@ Group changes to describe their impact on the project, as follows:
       Use 'tls-certificates-file', 'tls-certificates-private-key' and 'tls-certificates-ca-file' instead.
     - Defining TLS certificates in the file specified in inter-domain-connections/domain-registrations is now
       deprecated. The TLS certificates should always be configured in the global section or global/transports parameter.
-- **All servers:** Option `--daemon` to launch the Flexisip services in daemon mode will be replaced by the use of the watchdog of SystemD in the future. 
+- **All servers:** Option `--daemon` to launch the Flexisip services in daemon mode will be replaced by the use of the watchdog of SystemD in the future.
 
 ### [Fixed]
 - **Proxy:**

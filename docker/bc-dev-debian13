@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20251202_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20260227_add_systemd
 ###############################################################################
 
 FROM debian:trixie
@@ -30,6 +30,7 @@ RUN apt-get -y update \
       python3-six \
       yasm \
     # Install all dependencies needed for Flexisip
+      libsystemd-dev \
       libssl-dev \
       libboost-dev \
       libboost-system-dev \

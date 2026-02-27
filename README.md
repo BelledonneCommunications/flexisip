@@ -49,6 +49,7 @@ Flexisip is dual licensed, and can be licensed and distributed:
 | XercesC         | XML parser. (-DENABLE\_PRESENCE=YES)                                                                                                  |           |         X          |
 | jsoncpp         | JSON parsing and writing (-DENABLE\_B2BUA=YES)                                                                                        |           |         X          |
 | cpp-jwt         | JSON Web Token support (-DENABLE\_OPENID\_CONNECT=YES)                                                                                |           |         X          |
+| libsystemd      | Library to interact with SystemD                                                                                                      |           |         X          |
 
 # Compilation
 

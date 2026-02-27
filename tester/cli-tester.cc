@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -38,6 +38,7 @@
 #include "registrardb-internal.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "utils/asserts.hh"
+#include "utils/cli-helper.hh"
 #include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
@@ -175,42 +176,6 @@ void handlerRegistrationAndDispatch() {
 	passthrough_handler.unregister();
 }
 
-auto callScript(const string& command, int expected_status, BcAssert<>& asserter) {
-	const auto& pid = to_string(getpid());
-	const auto& pyScript = FLEXISIP_TESTER_DATA_SRCDIR + "/../scripts/flexisip_cli.py -p "s + pid + " --server proxy ";
-	auto fut = async(launch::async, [command = pyScript + command, expected_status] {
-		auto* handle = popen(command.c_str(), "r");
-		BC_HARD_ASSERT(handle != nullptr);
-
-		string output(0xFFFF, '\0');
-		const auto& nread = fread(&output.front(), sizeof(decltype(output)::value_type), output.size(), handle);
-		if (ferror(handle)) {
-			BC_HARD_FAIL(("Error "s + strerror(errno) + " reading from subprocess' stdout").c_str());
-		}
-
-		auto exitStatus = pclose(handle);
-		if (exitStatus < 0) {
-			BC_HARD_FAIL(("Error "s + strerror(errno) + " closing process").c_str());
-		}
-
-		if (WIFEXITED(exitStatus)) exitStatus = WEXITSTATUS(exitStatus);
-		output.resize(nread);
-		if (exitStatus != expected_status) {
-			BC_HARD_FAIL(("Expected command to return " + to_string(expected_status) + " but found " +
-			              to_string(exitStatus) + ".\nCommand: " + command + "\nOutput: " + output)
-			                 .c_str());
-		}
-
-		return output;
-	});
-
-	asserter.iterateUpTo(
-	            33, [&fut] { return LOOP_ASSERTION(fut.wait_for(0s) == future_status::ready); }, 7s)
-	    .hard_assert_passed();
-
-	return fut.get();
-}
-
 /**
  * A note on deadlocks:
  *
@@ -280,7 +245,7 @@ void flexisipCliDotPy() {
 		{
 			command.str("");
 			command << "REGISTRAR_GET " << aor;
-			auto returned_contacts = deserialize(callScript(command.str(), EX_OK, asserter))["contacts"];
+			auto returned_contacts = deserialize(CliHelper::callScript(command.str(), EX_OK, asserter))["contacts"];
 			BC_HARD_ASSERT_CPP_EQUAL(returned_contacts.size(), 1);
 			const auto& returned_contact = returned_contacts[0];
 			BC_ASSERT_CPP_EQUAL(returned_contact["call-id"], "fs-cli-upsert");
@@ -294,7 +259,7 @@ void flexisipCliDotPy() {
 			command.str("");
 			const auto& modifiedContact = "sip:test2@[9f60:278:e0a:2a01:3a:d48c:6b2d:29d7]:91347";
 			command << "REGISTRAR_UPSERT " << aor << " '" << modifiedContact << "' 096 " << uuid;
-			auto returned_contacts = deserialize(callScript(command.str(), EX_OK, asserter))["contacts"];
+			auto returned_contacts = deserialize(CliHelper::callScript(command.str(), EX_OK, asserter))["contacts"];
 			BC_HARD_ASSERT_CPP_EQUAL(returned_contacts.size(), 1);
 			const auto& returned_contact = returned_contacts[0];
 			BC_ASSERT_CPP_EQUAL(returned_contact["unique-id"], uuid);
@@ -310,7 +275,7 @@ void flexisipCliDotPy() {
 		const auto& bogusUid = "fs-gen-something"; // Interpreted as placeholder because of the prefix.
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << initialContact << " 173 " << bogusUid;
-		auto returned_contacts = deserialize(callScript(command.str(), EX_OK, asserter))["contacts"];
+		auto returned_contacts = deserialize(CliHelper::callScript(command.str(), EX_OK, asserter))["contacts"];
 		BC_HARD_ASSERT_CPP_EQUAL(returned_contacts.size(), 1);
 		const auto& returned_contact = returned_contacts[0];
 		BC_ASSERT_CPP_EQUAL(returned_contact["contact"], initialContact);
@@ -322,7 +287,7 @@ void flexisipCliDotPy() {
 		const auto& differentUid = "fs-gen-something_else";
 		command.str("");
 		command << "REGISTRAR_UPSERT " << aor << " " << modifiedContact << " 682 " << differentUid;
-		const auto& result = callScript(command.str(), EX_USAGE, asserter);
+		const auto& result = CliHelper::callScript(command.str(), EX_USAGE, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Error - Invalid record\n"); // CSeq has not been properly incremented
 
 		// Delete contact based on key, even if it is "auto-generated" (has the placeholder prefix).
@@ -341,10 +306,10 @@ void flexisipCliDotPy() {
 
 	// Insert contact, ID passed as argument is ignored/overridden by instance-id embedded in the contact.
 	{
-		auto returned_contacts =
-		    deserialize(callScript("REGISTRAR_UPSERT sip:test3@sip.example.org "
-		                           "'sip:test3@sip.example.org;+sip.instance=embedded' 3000 passed-as-argument",
-		                           EX_OK, asserter))["contacts"];
+		auto returned_contacts = deserialize(
+		    CliHelper::callScript("REGISTRAR_UPSERT sip:test3@sip.example.org "
+		                          "'sip:test3@sip.example.org;+sip.instance=embedded' 3000 passed-as-argument",
+		                          EX_OK, asserter))["contacts"];
 		BC_HARD_ASSERT_CPP_EQUAL(returned_contacts.size(), 1);
 		const auto& returned_contact = returned_contacts[0];
 		BC_ASSERT_CPP_EQUAL(returned_contact["unique-id"], "embedded");
@@ -352,7 +317,7 @@ void flexisipCliDotPy() {
 
 	// Get Unknown Record (CLI).
 	{
-		const auto& result = callScript("REGISTRAR_GET sip:unknown@sip.example.org", EX_USAGE, asserter);
+		const auto& result = CliHelper::callScript("REGISTRAR_GET sip:unknown@sip.example.org", EX_USAGE, asserter);
 		BC_ASSERT_CPP_EQUAL(result,
 		                    "Error - 404 Not Found: the registrar database does not contain the requested AOR\n");
 	}
@@ -373,13 +338,13 @@ void flexisipCliDotPy() {
 
 	// Unsupported command (The script will allow it).
 	{
-		const auto& result = callScript("SIP_BRIDGE INFO", EX_USAGE, asserter);
+		const auto& result = CliHelper::callScript("SIP_BRIDGE INFO", EX_USAGE, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Error - Unknown command: SIP_BRIDGE\n");
 	}
 
 	// Unknown command (The script will reject it).
 	{
-		const auto& result = callScript("unknown 2>&1", 2, asserter);
+		const auto& result = CliHelper::callScript("unknown 2>&1", 2, asserter);
 		BC_ASSERT(StringUtils::startsWith(result, "usage: flexisip_cli.py"));
 	}
 
@@ -458,20 +423,20 @@ void flexisipCliDotPy() {
 
 	// CONFIG_GET success.
 	{
-		const auto& result = callScript("CONFIG_GET global/log-level 2>&1", EX_OK, asserter);
+		const auto& result = CliHelper::callScript("CONFIG_GET global/log-level 2>&1", EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "global/log-level: error\n");
 	}
 
 	// CONFIG_GET error.
 	{
-		const auto& result = callScript("CONFIG_GET no/such-setting 2>&1", EX_USAGE, asserter);
+		const auto& result = CliHelper::callScript("CONFIG_GET no/such-setting 2>&1", EX_USAGE, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Error - Not found: no/such-setting\n");
 	}
 
 	// REGISTRAR_DELETE invalid sip URI.
 	{
 		const auto& cmd = "REGISTRAR_DELETE soup:invalid@sip.example.org uuid 2>&1"s;
-		const auto& result = callScript(cmd, EX_USAGE, asserter);
+		const auto& result = CliHelper::callScript(cmd, EX_USAGE, asserter);
 		BC_ASSERT(StringUtils::startsWith(result, "Error - Invalid SIP URI:"));
 	}
 
@@ -486,13 +451,13 @@ void flexisipCliDotPy() {
 		// Insert 2 contacts {contact1, contact2} into database.
 		{
 			auto cmd = "REGISTRAR_UPSERT " + aor + " " + contact1 + " 5 " + uuid1 + " 2>&1"s;
-			auto contacts = deserialize(callScript(cmd, EX_OK, asserter))["contacts"];
+			auto contacts = deserialize(CliHelper::callScript(cmd, EX_OK, asserter))["contacts"];
 			BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
 			BC_ASSERT_CPP_EQUAL(contacts[0]["contact"], contact1);
 			BC_ASSERT_CPP_EQUAL(contacts[0]["unique-id"], uuid1);
 
 			cmd = "REGISTRAR_UPSERT " + aor + " " + contact2 + " 5 " + uuid2 + " 2>&1"s;
-			contacts = deserialize(callScript(cmd, EX_OK, asserter))["contacts"];
+			contacts = deserialize(CliHelper::callScript(cmd, EX_OK, asserter))["contacts"];
 			BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 2);
 			BC_ASSERT_CPP_EQUAL(contacts[1]["contact"], contact2);
 			BC_ASSERT_CPP_EQUAL(contacts[1]["unique-id"], uuid2);
@@ -501,7 +466,7 @@ void flexisipCliDotPy() {
 		// Remove contact1 from database.
 		{
 			const auto& cmd = "REGISTRAR_DELETE " + aor + " " + uuid1 + " 2>&1"s;
-			auto contacts = deserialize(callScript(cmd, EX_OK, asserter))["contacts"];
+			auto contacts = deserialize(CliHelper::callScript(cmd, EX_OK, asserter))["contacts"];
 			BC_HARD_ASSERT_CPP_EQUAL(contacts.size(), 1);
 			BC_ASSERT_CPP_EQUAL(contacts[0]["contact"], contact2);
 			BC_ASSERT_CPP_EQUAL(contacts[0]["unique-id"], uuid2);
@@ -510,7 +475,7 @@ void flexisipCliDotPy() {
 		// Remove contact2 from database.
 		{
 			const auto& cmd = "REGISTRAR_DELETE " + aor + " " + uuid2 + " 2>&1"s;
-			auto contacts = deserialize(callScript(cmd, EX_OK, asserter))["contacts"];
+			auto contacts = deserialize(CliHelper::callScript(cmd, EX_OK, asserter))["contacts"];
 			BC_ASSERT(contacts.empty());
 		}
 	}
@@ -528,25 +493,25 @@ void flexisipCliSetSofiaLogLevel() {
 
 	// Set a first value (which may be equal to default value).
 	{
-		const auto& setResult = callScript("CONFIG_SET global/sofia-level 4", EX_OK, asserter);
+		const auto& setResult = CliHelper::callScript("CONFIG_SET global/sofia-level 4", EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(setResult, "global/sofia-level: 4\n");
-		const auto& getResult = callScript("CONFIG_GET global/sofia-level", EX_OK, asserter);
+		const auto& getResult = CliHelper::callScript("CONFIG_GET global/sofia-level", EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(getResult, "global/sofia-level: 4\n");
 		BC_ASSERT_CPP_EQUAL(su_log_default->log_level, 4);
 	}
 
 	// Change value.
 	{
-		const auto& setResult = callScript("CONFIG_SET global/sofia-level 8", EX_OK, asserter);
+		const auto& setResult = CliHelper::callScript("CONFIG_SET global/sofia-level 8", EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(setResult, "global/sofia-level: 8\n");
-		const auto& getResult = callScript("CONFIG_GET global/sofia-level", EX_OK, asserter);
+		const auto& getResult = CliHelper::callScript("CONFIG_GET global/sofia-level", EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(getResult, "global/sofia-level: 8\n");
 		BC_ASSERT_CPP_EQUAL(su_log_default->log_level, 8);
 	}
 
 	// Check range.
 	{
-		std::ignore = callScript("CONFIG_SET global/sofia-level 10", EX_USAGE, asserter);
+		std::ignore = CliHelper::callScript("CONFIG_SET global/sofia-level 10", EX_USAGE, asserter);
 		BC_ASSERT_CPP_EQUAL(su_log_default->log_level, 8);
 	}
 }
@@ -588,7 +553,7 @@ void registrarDump() {
 	ProxyCommandLineInterface cli{proxy.getConfigManager(), proxy.getAgent()};
 	std::ignore = cli.start();
 	{
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json.items().begin().key() == "aors");
 		BC_HARD_ASSERT(json["aors"].is_array());
@@ -616,7 +581,7 @@ void registrarDump() {
 
 	// Test the command when there are several users registered in the registrar through the proxy.
 	{
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json.items().begin().key() == "aors");
 		BC_HARD_ASSERT(json["aors"].is_array());
@@ -660,13 +625,13 @@ void flexisipCliAuthCache() {
 
 	// Test the command outputs nothing when entering a user not present in the auth DB.
 	{
-		const auto& result = callScript("AUTH_CACHE_GET user42 sip.example.org"s, EX_OK, asserter);
+		const auto& result = CliHelper::callScript("AUTH_CACHE_GET user42 sip.example.org"s, EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
 	}
 
 	// Test that no results are returned when searching for an unknown domain.
 	{
-		auto json = deserialize(callScript("AUTH_CACHE_LIST sip.notanexample.org"s, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript("AUTH_CACHE_LIST sip.notanexample.org"s, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json.items().begin().key() == "entries");
 		BC_HARD_ASSERT(json["entries"].is_array());
@@ -675,14 +640,14 @@ void flexisipCliAuthCache() {
 
 	// Test then that the delete does nothing for a non-existent user.
 	{
-		const auto& result = callScript("AUTH_CACHE_DELETE user42 sip.example.org"s, EX_OK, asserter);
+		const auto& result = CliHelper::callScript("AUTH_CACHE_DELETE user42 sip.example.org"s, EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
 	}
 
 	// Now test the result for user1.
 	{
 		const auto& cmd = "AUTH_CACHE_GET " + user1.user + " " + user1.domain;
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 5);
 
 		auto it = json.items().begin();
@@ -708,7 +673,7 @@ void flexisipCliAuthCache() {
 	// Get the list of entries for the sip.example.org domain.
 	{
 		const auto& cmd = "AUTH_CACHE_LIST " + user1.domain;
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json["entries"].is_array());
 		BC_HARD_ASSERT(json["entries"].size() == 2);
@@ -721,7 +686,7 @@ void flexisipCliAuthCache() {
 	// Get the list of entries for the sip.otherexample.org domain.
 	{
 		const auto& cmd = "AUTH_CACHE_LIST " + user2.domain;
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json["entries"].is_array());
 		BC_HARD_ASSERT(json["entries"].size() == 1);
@@ -732,7 +697,7 @@ void flexisipCliAuthCache() {
 	// Delete the entry for user1.
 	{
 		const auto& cmd = "AUTH_CACHE_DELETE " + user1.user + " " + user1.domain;
-		const auto& result = callScript(cmd, EX_OK, asserter);
+		const auto& result = CliHelper::callScript(cmd, EX_OK, asserter);
 		const auto& expectedResult = "Done - Removed cached credential for '" + user1.user + "' in domain '" +
 		                             user1.domain + "' using auth '" + user1.authUsername + "'\n";
 		BC_ASSERT_CPP_EQUAL(result, expectedResult);
@@ -741,14 +706,14 @@ void flexisipCliAuthCache() {
 	// The entry should not be present anymore.
 	{
 		const auto& cmd = "AUTH_CACHE_GET " + user1.user + " " + user1.domain;
-		const auto& result = callScript(cmd, EX_OK, asserter);
+		const auto& result = CliHelper::callScript(cmd, EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
 	}
 
 	// The list for sip.example.org should not have user1 anymore.
 	{
 		const auto& cmd = "AUTH_CACHE_LIST " + user1.domain;
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json["entries"].is_array());
 		BC_HARD_ASSERT(json["entries"].size() == 1);
@@ -759,7 +724,7 @@ void flexisipCliAuthCache() {
 	// The list for sip.otherexample.org domain should not have changed.
 	{
 		const auto& cmd = "AUTH_CACHE_LIST " + user2.domain;
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json["entries"].is_array());
 		BC_HARD_ASSERT(json["entries"].size() == 1);
@@ -770,14 +735,14 @@ void flexisipCliAuthCache() {
 	// Test that deleting user3 without specifying his auth_username does not work since it's not the same.
 	{
 		const auto& cmd = "AUTH_CACHE_DELETE " + user3.user + " " + user3.domain;
-		const auto& result = callScript(cmd, EX_OK, asserter);
+		const auto& result = CliHelper::callScript(cmd, EX_OK, asserter);
 		BC_ASSERT_CPP_EQUAL(result, "Nothing to do - Cache entry does not exist\n");
 	}
 
 	// Then provide the auth_username.
 	{
 		const auto& cmd = "AUTH_CACHE_DELETE " + user3.user + " " + user3.domain + " " + user3.authUsername;
-		const auto& result = callScript(cmd, EX_OK, asserter);
+		const auto& result = CliHelper::callScript(cmd, EX_OK, asserter);
 		const auto& expectedResult = "Done - Removed cached credential for '" + user3.user + "' in domain '" +
 		                             user3.domain + "' using auth '" + user3.authUsername + "'\n";
 		BC_ASSERT_CPP_EQUAL(result, expectedResult);
@@ -786,7 +751,7 @@ void flexisipCliAuthCache() {
 	// The list for sip.example.org should now be empty.
 	{
 		const auto& cmd = "AUTH_CACHE_LIST " + user1.domain;
-		auto json = deserialize(callScript(cmd, EX_OK, asserter));
+		auto json = deserialize(CliHelper::callScript(cmd, EX_OK, asserter));
 		BC_HARD_ASSERT(json.size() == 1);
 		BC_HARD_ASSERT(json.items().begin().key() == "entries");
 		BC_HARD_ASSERT(json["entries"].is_array());

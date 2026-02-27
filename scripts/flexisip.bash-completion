@@ -13,7 +13,7 @@ _flexisip_completion()
     prev=${COMP_WORDS[COMP_CWORD-1]}
 
     # flexisip main commands
-    cmds='--transports --debug --daemon --config -c\
+    cmds='--transports --debug --config -c\
         --dump-default --dump-mibs --help --set --list-settables'
 
     # if no command were given, complete on commands
@@ -38,7 +38,7 @@ _flexisip_completion()
 	local IFS=$'\n'
 	COMPREPLY=( $(compgen -W "$allsettables" -- $cur))
            ;;
-       --debug|--daemon|--list-settables)
+       --debug|--list-settables)
            COMPREPLY=( $( compgen -W "$cmds" -- $cur ) )
           ;;
     esac

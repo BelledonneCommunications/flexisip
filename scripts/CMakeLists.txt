@@ -28,15 +28,6 @@ set(FLEXISIP_LOGROTATE_INSTALL_LOCATION "${logrotate_dir}/flexisip-logrotate" PA
 
 # legacy script
 set(bindir ${CMAKE_INSTALL_FULL_BINDIR})
-message("-- Startup scripts configured with bindir=${bindir}")
-configure_file(redhat/flexisip.in redhat/flexisip)
-configure_file(debian/flexisip.in debian/flexisip)
-
-if(ENABLE_PRESENCE)
-	configure_file(redhat/flexisip-presence.in redhat/flexisip-presence)
-	configure_file(debian/flexisip-presence.in debian/flexisip-presence)
-endif()
-
 
 # systemd
 set(systemd_services "flexisip-proxy.service" "flexisip-proxy@.service" "flexisip-linphone-daemon.service")

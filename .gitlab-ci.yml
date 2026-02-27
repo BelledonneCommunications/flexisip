@@ -17,13 +17,13 @@ variables:
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20251203_add_curl
-  ROCKY_8_IMAGE_VERSION: 20260114_upgrade_gcc
-  ROCKY_9_IMAGE_VERSION: 20260114_upgrade_gcc
-  DEBIAN_12_IMAGE_VERSION: 20260121_upgrade_gcc_clang
-  DEBIAN_13_IMAGE_VERSION: 20251202_add_curl
-  MINIMAL_IMAGE_VERSION: 20260121_upgrade_gcc_clang
-  UBUNTU_22_04_IMAGE_VERSION: 20260114_upgrade_gcc_clang
-  UBUNTU_24_04_IMAGE_VERSION: 20260121_upgrade_gcc_clang
+  ROCKY_8_IMAGE_VERSION: 20260227_add_systemd
+  ROCKY_9_IMAGE_VERSION: 20260227_add_systemd
+  DEBIAN_12_IMAGE_VERSION: 20260227_add_systemd
+  DEBIAN_13_IMAGE_VERSION: 20260227_add_systemd
+  MINIMAL_IMAGE_VERSION: 20260227_add_systemd
+  UBUNTU_22_04_IMAGE_VERSION: 20260227_add_systemd
+  UBUNTU_24_04_IMAGE_VERSION: 20260227_add_systemd
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:

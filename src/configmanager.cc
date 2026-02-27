@@ -748,13 +748,6 @@ ConfigManager::ConfigManager()
 	        "proxy",
 	    },
 	    {
-	        Boolean,
-	        "auto-respawn",
-	        "Automatically respawn Flexisip in case of abnormal termination (crashes). This only has an effect if "
-	        "Flexisip is launched with '--daemon' option",
-	        "true",
-	    },
-	    {
 	        String,
 	        "plugins-dir",
 	        "Path to the directory that contains plugins.",
@@ -792,6 +785,15 @@ ConfigManager::ConfigManager()
 	        "enable-snmp",
 	        "Enable SNMP.",
 	        "false",
+	    },
+	    {
+	        DurationMS,
+	        "watchdog-notify-interval",
+	        "Interval between calls to the watchdog of systemd to notify that the flexisip service is alive. The "
+	        "watchdog timeout can be set in service configuration file with parameter 'WatchdogSec'. If the time "
+	        "between two such calls is larger than the configured timeout, then the service is placed in a failed "
+	        "state and it will be terminated.",
+	        "1s",
 	    },
 
 	    // Logging settings.
@@ -1091,6 +1093,17 @@ ConfigManager::ConfigManager()
 	        "\t- path to a json file containing the account settings\n "
 	        "An empty string disables support for advanced account options.",
 	        "",
+	    },
+
+	    // Deprecated parameters
+	    {
+	        Boolean,
+	        "auto-respawn",
+	        "Automatically respawn Flexisip in case of abnormal termination (crashes). This only has an effect if "
+	        "Flexisip is launched with '--daemon' option.\n"
+	        "Deprecated since Flexisip 2.6, this parameter has no effect anymore. Configure the flexisip-proxy service "
+	        "to restart on failure with the watchdog of systemd (default) instead.",
+	        "true",
 	    },
 	    config_item_end,
 	};

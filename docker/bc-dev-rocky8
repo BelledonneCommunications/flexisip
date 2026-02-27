@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260114_upgrade_gcc
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260227_add_systemd
 ###############################################################################
 
 FROM rockylinux/rockylinux:8
@@ -43,6 +43,7 @@ RUN sudo dnf -y install \
                    yasm \
                    zlib-devel \
                  # Install all dependencies needed for Flexisip
+                   systemd-devel \
                    openssl-devel \
                    boost-devel \
                    cpp-jwt-devel \

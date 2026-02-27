@@ -181,6 +181,10 @@ if(APPLE)
 	target_link_libraries(flexisip PRIVATE Iconv::Iconv)
 endif()
 
+if(ENABLE_SYSTEMD)
+	add_compile_definitions(ENABLE_SYSTEMD)
+	target_link_libraries(flexisip PRIVATE LibSystemD)
+endif()
 
 target_compile_features(flexisip PRIVATE cxx_auto_type cxx_variadic_macros)
 target_link_libraries(flexisip

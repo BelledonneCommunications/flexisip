@@ -1,10 +1,10 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260114_upgrade_gcc
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260227_add_systemd
 ###############################################################################
 
 FROM rockylinux:9
 
-MAINTAINER Thibault Lemaire <Thibault.lemaire@belledonne-communications.com>
+LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
 # Install common general tools
 RUN dnf install -y sudo vim wget curl-minimal
@@ -44,6 +44,7 @@ RUN dnf makecache --refresh \
         yasm \
         zlib-devel \
       # Install all dependencies needed for Flexisip
+        systemd-devel \
         openssl-devel \
         boost-devel \
         cpp-jwt-devel \

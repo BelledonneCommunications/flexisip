@@ -6,8 +6,12 @@ After=syslog.target network.service network.target network-online.target redis.s
 
 [Service]
 UMask=0027
-Type=forking
-ExecStart=/opt/belledonne-communications/bin/flexisip --server proxy --daemon --syslog --pidfile /var/run/flexisip-proxy/%i.pid -c /etc/flexisip/%i.conf
+Type=notify
+ExecStart=/opt/belledonne-communications/bin/flexisip --server proxy --disable-stdout --syslog --pidfile /var/run/flexisip-proxy/%i.pid -c /etc/flexisip/%i.conf
+Restart=on-failure
+WatchdogSec=10s
+RestartForceExitStatus=5
+RestartSec=1s
 
 [Install]
 WantedBy=multi-user.target

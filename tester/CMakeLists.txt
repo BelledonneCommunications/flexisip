@@ -188,6 +188,7 @@ add_executable(flexisip_tester
 	utils/call-builder.cc utils/call-builder.hh
 	utils/call-listeners.cc utils/call-listeners.hh
 	utils/chat-room-builder.cc utils/chat-room-builder.hh
+	utils/cli-helper.hh
 	utils/client-builder.cc utils/client-builder.hh
 	utils/client-call.cc utils/client-call.hh
 	utils/client-core.cc utils/client-core.hh

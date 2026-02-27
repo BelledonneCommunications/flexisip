@@ -1,10 +1,10 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20260114_upgrade_gcc_clang
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-22-04:20260227_add_systemd
 ###############################################################################
 
 FROM ubuntu:22.04
 
-MAINTAINER Anthony Gauchy <anthony.gauchy@belledonne-communications.com>
+LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
 # Add repo for newer gcc
 RUN apt-get -y update \
@@ -33,6 +33,7 @@ RUN apt-get -y install sudo \
                        python3-pip \
                        yasm \
                      # Install all dependencies needed for Flexisip
+                       libsystemd-dev \
                        libssl-dev \
                        libboost-dev \
                        libboost-system-dev \

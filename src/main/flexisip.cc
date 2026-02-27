@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,6 +26,10 @@
 #include <list>
 #include <memory>
 #include <regex>
+
+#ifdef ENABLE_SYSTEMD
+#include <systemd/sd-daemon.h>
+#endif
 
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -114,7 +118,6 @@ using namespace flexisip;
 #define ENABLE_SERVICE_SERVERS ENABLE_PRESENCE || ENABLE_CONFERENCE || ENABLE_B2BUA || ENABLE_VOICEMAIL
 
 static int run = 1;
-static pid_t flexisipPid = -1;
 static shared_ptr<sofiasip::SuRoot> root{};
 static constexpr string_view kLogPrefix{"Flexisip"};
 
@@ -137,18 +140,11 @@ static void setOpenSSLThreadSafe() {
 	CRYPTO_set_locking_callback(&locking_function);
 }
 
-static void flexisip_stop(int signum) {
-	if (flexisipPid > 0) {
-		// We can't log from the parent process
-		// LOGD_CTX(kWatchdogLogPrefix) << "Received quit signal...passing to child.";
-		/*we are the watchdog, pass the signal to our child*/
-		kill(flexisipPid, signum);
-	} else if (run != 0) {
-		// LOGD_CTX(kWatchdogLogPrefix) << "Received quit signal...";
-
+static void flexisip_stop(int) {
+	if (run != 0) {
 		run = 0;
 		if (root) root->quit();
-	} // else nop
+	}
 }
 
 static void flexisip_reopen_log_files(int) {
@@ -276,127 +272,6 @@ static void makePidFile(const string& pidfile) {
 			LOGE_CTX(kLogPrefix) << "Could not write pid file [" << pidfile << "]";
 		}
 	}
-}
-
-static void set_process_name([[maybe_unused]] const string& process_name) {
-#ifdef PR_SET_NAME
-	if (prctl(PR_SET_NAME, process_name.c_str(), NULL, NULL, NULL) == -1) {
-		LOGW_CTX(kLogPrefix) << "prctl() failed: " << strerror(errno);
-	}
-#endif
-}
-
-static void forkProcess(const string& pidfile,
-                        bool autoRespawn,
-                        const string& functionName,
-                        optional<pipe::WriteOnly>& flexisipStartupPipe) {
-
-	static constexpr string_view kWatchdogLogPrefix{"Watchdog - "};
-#define WLOGI cout << kWatchdogLogPrefix
-
-	auto watchdogPipeTmp = pipe::open();
-	if (holds_alternative<SysErr>(watchdogPipeTmp))
-		throw ExitFailure{"Launcher process could not create pipe ("s + get<SysErr>(watchdogPipeTmp).message() + ")"};
-
-	pipe::Pipe watchdogPipe{std::move(get<pipe::Ready>(watchdogPipeTmp))};
-
-	// Creation of the watchdog process.
-	const auto pid = fork();
-	if (pid < 0) throw ExitFailure{"Launcher process could not fork Watchdog ("s + strerror(errno) + ")"};
-	if (pid > 0) {
-		// Execution in the parent process (Launcher process).
-		// It should block until Flexisip has started successfully or rejected to start.
-		WLOGI << "Watchdog PID: " << pid << endl;
-
-		// We only need the read end of the pipe in the Launcher process.
-		pipe::ReadOnly watchdogPipeReadEnd{std::move(get<pipe::Ready>(watchdogPipe))};
-		watchdogPipe = pipe::Closed();
-
-		// Wait for the Watchdog process to tell us "success" if all went well.
-		const auto watchdogMessage = watchdogPipeReadEnd.readUntilDataReception(startup::kMessageSize);
-		if (holds_alternative<SysErr>(watchdogMessage))
-			throw ExitFailure{"read error from Launcher process ("s + get<SysErr>(watchdogMessage).message() + ")"};
-		if (get<string>(watchdogMessage) != startup::kSuccessMessage) throw ExitFailure{};
-		throw ExitSuccess{};
-	}
-
-	// Execution in the child process (Watchdog process).
-	// We only need the write end of the pipe in the Watchdog process.
-	pipe::WriteOnly watchdogPipeWriteEnd{std::move(get<pipe::Ready>(watchdogPipe))};
-	watchdogPipe = pipe::Closed();
-	set_process_name("flexisip-watchdog-" + functionName);
-	bool launching = true;
-
-fork_flexisip:
-	WLOGI << "Spawning Flexisip server process" << endl;
-
-	auto flexisipPipeTmp = pipe::open();
-	if (holds_alternative<SysErr>(flexisipPipeTmp))
-		throw ExitFailure{"Watchdog process could not create pipe ("s + get<SysErr>(flexisipPipeTmp).message() + ")"};
-
-	pipe::Pipe flexisipPipe{std::move(get<pipe::Ready>(flexisipPipeTmp))};
-
-	flexisipPid = fork();
-	if (flexisipPid < 0) throw ExitFailure{"Watchdog process could not fork Flexisip ("s + strerror(errno) + ")"};
-	if (flexisipPid > 0) {
-		// Execution in the parent process (watchdog process).
-		WLOGI << "Flexisip PID: " << flexisipPid << endl;
-	}
-	if (flexisipPid == 0) {
-		// Execution in the child process (Flexisip process).
-		// We only need the write end of the pipe in the Flexisip process.
-		flexisipStartupPipe = pipe::WriteOnly(std::move(std::get<pipe::Ready>(flexisipPipe)));
-		flexisipPipe = pipe::Closed();
-
-		set_process_name("flexisip-" + functionName);
-		makePidFile(pidfile);
-		return;
-	}
-
-	// We only need the read end of the pipe in the Watchdog process.
-	pipe::ReadOnly flexisipPipeReadEnd{std::move(std::get<pipe::Ready>(flexisipPipe))};
-	flexisipPipe = pipe::Closed();
-
-	// Wait for the Flexisip process to tell us "success" if all went well.
-	const auto flexisipMessage = flexisipPipeReadEnd.readUntilDataReception(startup::kMessageSize);
-	if (holds_alternative<SysErr>(flexisipMessage))
-		throw ExitFailure{"read error from Watchdog process ("s + get<SysErr>(flexisipMessage).message() + ")"};
-	if (get<string>(flexisipMessage) != startup::kSuccessMessage) throw ExitFailure{};
-
-	// Only notify Launcher process in launching phase.
-	if (launching) {
-		if (const auto error = watchdogPipeWriteEnd.write(startup::kSuccessMessage); error.has_value()) {
-			throw ExitFailure{"Watchdog process failed to write to pipe ("s + error->message() + ")"};
-		}
-		launching = false;
-	}
-
-	// This loop aims to restart children of the watchdog process if necessary.
-	while (true) {
-		int status = 0;
-		const auto childPid = wait(&status);
-		if (childPid > 0) {
-			if (childPid == flexisipPid) {
-				if (WIFEXITED(status)) {
-					if (WEXITSTATUS(status) == RESTART_EXIT_CODE) {
-						WLOGI << "Restarting Flexisip to apply new config" << endl;
-						sleep(1);
-						goto fork_flexisip;
-					} else {
-						throw ExitSuccess{};
-					}
-				} else if (autoRespawn) {
-					WLOGI << "Flexisip has crashed: restarting now" << endl;
-					sleep(1);
-					goto fork_flexisip;
-				}
-			}
-		} else if (errno != EINTR) {
-			throw ExitFailure{"wait() error ("s + strerror(errno) + ")"};
-		}
-	}
-
-#undef WLOGI
 }
 
 static void depthFirstSearch(string& path, const GenericEntry* config, list<string>& allCompletions) {
@@ -544,7 +419,7 @@ static string getPkcsPassphrase(TCLAP::ValueArg<string>& pkcsFile) {
 	return passphrase;
 }
 
-int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&& startupPipe) {
+int flexisip::main(int argc, const char* argv[]) {
 	int errcode = EXIT_SUCCESS;
 
 	TCLAP::CmdLine cmd("", ' ', version());
@@ -574,7 +449,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	TCLAP::ValueArg<string>     configFile("c", "config", 			   "Location of the configuration file."
                                                                        "Default is: " DEFAULT_CONFIG_FILE,
                                                                        TCLAP::ValueArgOptional, DEFAULT_CONFIG_FILE, "file", cmd);
-	TCLAP::SwitchArg            daemonMode("",  "daemon", 			   "Launch in daemon mode. Deprecated since 2026-03-10 (Flexisip v2.5.0).",
+	TCLAP::SwitchArg            disableStdout("",  "disable-stdout", 			   "Do not display logs in the standard output. They are still printed in log files.",
                                                                        cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			   "Print logs in debug level to the terminal "
                                                                        "(does not affect the logging level of log files).",
@@ -661,9 +536,9 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 
 	// First configuration of the logger using command line arguments.
 	logger.configure({
-	    .enableStandardOutput = !daemonMode,
+	    .enableStandardOutput = !disableStdout,
 	    .level = useDebug ? BCTBX_LOG_DEBUG : BCTBX_LOG_WARNING,
-	    .enableSyslog = daemonMode,
+	    .enableSyslog = disableStdout,
 	    .syslogLevel = BCTBX_LOG_ERROR,
 	    .enableUserErrors = useDebug,
 	});
@@ -857,24 +732,12 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	string fName =
 	    getFunctionName(startProxy, startPresence, startConference, startRegEvent, startB2bua, startVoicemail);
 
-	// Fork watchdog process, then fork the worker daemon.
-	// WARNING: never create pthreads before this point, threads do not survive the fork below.
-	optional<pipe::WriteOnly> flexisipStartupPipe{};
-	if (daemonMode) {
-		// Now that we have successfully loaded the configuration, there is nothing that can prevent us to start.
-		const auto autoRespawn = globalCfg->get<ConfigBoolean>("auto-respawn")->read();
-		forkProcess(pidFile.getValue(), autoRespawn, fName, flexisipStartupPipe);
-	} else if (!pidFile.getValue().empty()) {
-		// Not in daemon mode, but we want a pidfile anyway.
-		makePidFile(pidFile.getValue());
-	}
-
-	// -- From now on, we are a Flexisip daemon, that is a process that will run the actual server. --
+	makePidFile(pidFile.getValue());
 
 	// Second configuration of the logger using command line arguments and configuration file parameters.
 	const auto& logFilename = globalCfg->get<ConfigString>("log-filename")->read();
 	logger.configure({
-	    .enableStandardOutput = !daemonMode,
+	    .enableStandardOutput = !disableStdout,
 	    .level = useDebug ? BCTBX_LOG_DEBUG : LogManager::logLevelFromName(logLevel),
 	    .enableSyslog = useSyslog,
 	    .syslogLevel = LogManager::logLevelFromName(globalCfg->get<ConfigString>("syslog-level")->read()),
@@ -1004,20 +867,19 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 #endif // ENABLE_B2BUA
 	}
 
-	// Notify the Watchdog process that Flexisip has started successfully.
-	if (daemonMode || startupPipe.has_value()) {
-		if (!flexisipStartupPipe.has_value()) {
-			if (startupPipe.has_value()) flexisipStartupPipe = std::move(startupPipe);
-			else throw ExitFailure{"Flexisip could not notify the Watchdog process (no pipe available)"};
-		}
-
-		const auto error = flexisipStartupPipe->write(startup::kSuccessMessage);
-		if (error.has_value()) {
-			LOGE_CTX(kLogPrefix) << "Error writing to startup pipe: " << *error;
-			throw ExitFailure{};
-		}
+#ifdef ENABLE_SYSTEMD
+	// Notify systemd that Flexisip has started successfully.
+	int rc = sd_notify(0, "READY=1");
+	if (rc < 0) {
+		LOGE_CTX(kLogPrefix) << "Flexisip startup: systemd sd_notify failed (" << rc << ")";
+		throw ExitFailure{"Could not notify systemd that Flexisip has started successfully"};
 	}
-
+	// Start the watchdog timer for the main loop keep-alive ping.
+	auto watchdogNotifyInterval =
+	    globalCfg->get<ConfigDuration<chrono::milliseconds>>("watchdog-notify-interval")->read();
+	sofiasip::Timer watchdogTimer(root, watchdogNotifyInterval);
+	watchdogTimer.setForEver([]() { sd_notify(0, "WATCHDOG=1"); });
+#endif
 	if (run) root->run();
 
 	agent->unloadConfig();

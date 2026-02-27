@@ -6,8 +6,12 @@ After=syslog.target network.service network.target network-online.target redis.s
 
 [Service]
 UMask=0027
-Type=forking
-ExecStart=@bindir@/flexisip --server b2bua --daemon --syslog --pidfile /var/run/flexisip-b2bua.pid
+Type=notify
+ExecStart=@bindir@/flexisip --server b2bua --disable-stdout --syslog --pidfile /var/run/flexisip-b2bua.pid
+Restart=on-failure
+WatchdogSec=10s
+RestartForceExitStatus=5
+RestartSec=1s
 
 [Install]
 WantedBy=multi-user.target

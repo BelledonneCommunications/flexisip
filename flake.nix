@@ -14,6 +14,7 @@
     };
     devShells.x86_64-linux.embedded-like = with nixpkgs.legacyPackages.x86_64-linux;
       /* CC=gcc CXX=g++ BUILD_DIR_NAME="build" cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -S . -B ./$BUILD_DIR_NAME -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX="$PWD/$BUILD_DIR_NAME/install"
+        -DENABLE_SYSTEMD=ON
         -DENABLE_PRESENCE=ON
         -DENABLE_REDIS=OFF
         -DENABLE_SNMP=OFF
