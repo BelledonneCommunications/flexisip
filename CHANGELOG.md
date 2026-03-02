@@ -111,7 +111,7 @@ Group changes to describe their impact on the project, as follows:
     - MSGPACK feature (deprecated in 2.4.0).
 
 ## [2.5.0]
-- **SDK version:** 5.4.74
+- **SDK version:** 5.4.92
 
 ### [Added]
 - **Proxy:**
