@@ -67,9 +67,7 @@ private:
 	class DynamicDomainManager : public IDomainManager {
 	public:
 		DynamicDomainManager(const std::shared_ptr<sofiasip::SuRoot>& root,
-		                     const std::string& host,
-		                     const std::string& port,
-		                     const std::string& apiKey,
+		                     RestClient&& restClient,
 		                     std::chrono::milliseconds delay);
 
 		const std::unordered_set<std::string>& getAuthorizedDomains() override {

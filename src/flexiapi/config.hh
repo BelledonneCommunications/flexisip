@@ -35,8 +35,9 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
 /**
  * Create a RestClient based on the content of the global::flexiapi section of the configuration.
  *
+ * @param http2Client should be the client created by createClient, for the same ConfigManager.
  * @throws BadConfiguration if the configuration fields contains invalid or empty values.
  */
-RestClient createRestClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root);
+RestClient createRestClient(const ConfigManager& cfg, const std::shared_ptr<Http2Client>& http2Client);
 
 } // namespace flexisip::flexiapi

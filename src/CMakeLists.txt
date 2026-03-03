@@ -67,6 +67,7 @@ add_library(flexisip SHARED
 	eventlogs/events/sip-event-log.cc eventlogs/events/sip-event-log.hh
 	eventlogs/writers/event-log-writer.cc eventlogs/writers/event-log-writer.hh
 	eventlogs/writers/filesystem-event-log-writer.cc eventlogs/writers/filesystem-event-log-writer.hh
+	eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
 	exceptions/bad-configuration.hh
 	exceptions/exit.hh
 	exceptions/invalid-address.hh
@@ -114,13 +115,6 @@ add_library(flexisip SHARED
 	uac-register.cc uac-register.hh
 	utils/process-monitoring/memory-watcher.cc utils/process-monitoring/memory-watcher.hh
 )
-
-if(ENABLE_FLEXIAPI)
-	message(STATUS "Building with support for FlexiAPI")
-	target_sources(flexisip PRIVATE
-		eventlogs/writers/flexi-stats-event-log-writer.cc eventlogs/writers/flexi-stats-event-log-writer.hh
-	)
-endif()
 
 if(ENABLE_OPENID_CONNECT)
 	target_sources(flexisip PRIVATE

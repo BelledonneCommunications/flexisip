@@ -40,7 +40,9 @@ class VoicemailServer : public ServiceServer,
                         public linphone::CoreListener,
                         public voicemail::CallHandlerObserver {
 public:
-	VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg);
+	VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root,
+	                const std::shared_ptr<ConfigManager>& cfg,
+	                const std::shared_ptr<Http2Client>& http2Client);
 	~VoicemailServer() override = default;
 
 	void _init() override;

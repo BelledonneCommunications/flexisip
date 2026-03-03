@@ -27,29 +27,27 @@
 #include "exceptions/bad-configuration.hh"
 
 #include "eventlogs/writers/filesystem-event-log-writer.hh"
+#include "flexiapi/config.hh"
 #if ENABLE_SOCI
 #include "eventlogs/writers/database-event-log-writer.hh"
 #endif
-#if ENABLE_FLEXIAPI
 #include "eventlogs/writers/flexi-stats-event-log-writer.hh"
-#endif
 
 using namespace std;
 
 namespace flexisip {
 
 void Agent::startLogWriter() {
-	GenericStruct* cr = mConfigManager->getRoot()->get<GenericStruct>("event-logs");
+	GenericStruct const* cr = mConfigManager->getRoot()->get<GenericStruct>("event-logs");
 
 	if (cr->get<ConfigBoolean>("enabled")->read()) {
 		if (cr->get<ConfigString>("logger")->read() == "database") {
 #if ENABLE_SOCI
 
-			DataBaseEventLogWriter* dbw =
-			    new DataBaseEventLogWriter(cr->get<ConfigString>("database-backend")->read(),
-			                               cr->get<ConfigString>("database-connection-string")->read(),
-			                               cr->get<ConfigInt>("database-max-queue-size")->read(),
-			                               cr->get<ConfigInt>("database-nb-threads-max")->read());
+			auto* dbw = new DataBaseEventLogWriter(cr->get<ConfigString>("database-backend")->read(),
+			                                       cr->get<ConfigString>("database-connection-string")->read(),
+			                                       cr->get<ConfigInt>("database-max-queue-size")->read(),
+			                                       cr->get<ConfigInt>("database-nb-threads-max")->read());
 			if (!dbw->isReady()) {
 				throw FlexisipException{"unable to use database (DataBaseEventLogWriter)"};
 			} else {
@@ -59,20 +57,30 @@ void Agent::startLogWriter() {
 			throw FlexisipException{"unable to use database, 'ENABLE_SOCI' is not defined (DataBaseEventLogWriter)"};
 #endif
 		} else if (cr->get<ConfigString>("logger")->read() == "flexiapi") {
-#if ENABLE_FLEXIAPI
 			const auto& host = cr->get<ConfigString>("flexiapi-host")->read();
-			auto port = cr->get<ConfigInt>("flexiapi-port")->read();
 			const auto& prefix = cr->get<ConfigString>("flexiapi-prefix")->read();
-			const auto& apiKey = cr->get<ConfigString>("flexiapi-api-key")->read();
-			mLogWriter = make_unique<FlexiStatsEventLogWriter>(*mRoot, host, to_string(port), prefix, apiKey);
-#else
-			throw BadConfiguration{"this version of Flexisip was built without 'ENABLE_FLEXIAPI', value 'flexiapi' "
-			                       "for 'event-logs/logger' is not supported"};
-#endif
-		} else {
+			if (!host.empty()) {
+				LOGW << "'flexiapi-host' 'flexiapi-port'  and 'flexiapi-api-key' parameters are deprecated, use "
+				        "'global::flexiapi::url' and 'global::flexiapi::api-key' instead.";
+				const auto port = cr->get<ConfigInt>("flexiapi-port")->read();
+				const auto& apiKey = cr->get<ConfigString>("flexiapi-api-key")->read();
+				const auto http2Client = Http2Client::make(*mRoot, host, to_string(port));
+				mLogWriter = make_unique<FlexiStatsEventLogWriter>(RestClient{http2Client,
+				                                                              HttpHeaders{
+				                                                                  {"accept", "application/json"},
+				                                                                  {"x-api-key"s, apiKey},
+				                                                              }},
+				                                                   prefix);
+			} else {
+				mLogWriter = make_unique<FlexiStatsEventLogWriter>(
+				    flexiapi::createRestClient(*mConfigManager, mFlexiApiClient), prefix);
+			}
+		} else if (cr->get<ConfigString>("logger")->read() == "filesystem") {
 			const auto& logdir = cr->get<ConfigString>("filesystem-directory")->read();
-			unique_ptr<FilesystemEventLogWriter> lw(new FilesystemEventLogWriter(logdir));
-			if (lw->isReady()) mLogWriter = std::move(lw);
+			if (auto lw = std::make_unique<FilesystemEventLogWriter>(logdir); lw->isReady()) mLogWriter = std::move(lw);
+		} else {
+			throw BadConfigurationValue{cr->get<ConfigString>("logger"),
+			                            "expected 'filesystem', 'database' or 'flexiapi'"};
 		}
 	}
 }

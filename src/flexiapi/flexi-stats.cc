@@ -25,18 +25,9 @@ using namespace flexisip;
 using namespace flexiapi;
 using namespace nlohmann;
 
-FlexiStats::FlexiStats(sofiasip::SuRoot& root,
-                       const std::string& host,
-                       const std::string& port,
-                       const std::string& apiPrefix,
-                       const std::string& token)
-    : mRestClient(Http2Client::make(root, host, port),
-                  HttpHeaders{
-                      {"accept", "application/json"},
-                      {"x-api-key"s, token},
-                  }),
-      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()} {
-}
+FlexiStats::FlexiStats(RestClient&& restClient, const std::string& apiPrefix)
+    : mRestClient(std::move(restClient)),
+      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()} {}
 
 void FlexiStats::successCallback(const std::string& id) {
 	mOngoingIds.erase(id);

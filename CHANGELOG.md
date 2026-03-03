@@ -49,7 +49,9 @@ Group changes to describe their impact on the project, as follows:
 - **B2BUA:** Add a Priority header to NOTIFY messages containing Message Waiting Indication (MWI) information. If the
   MWI notifies new urgent messages, the Priority header is set to 'urgent', otherwise it is set to 'non-urgent'. This
   has the effect of only sending push notifications for MWI indicating urgent messages.
-- **Build:** Add support for C++20
+- **Build:**
+    - Add support for C++20
+    - Removes ENABLE_FLEXIAPI cmake option. Now it always works as if ENABLE_FLEXIAPI was set to true.
 - **CLI:** Add three new commands to manage entries in the passwords cache.
     - `AUTH_CACHE_LIST`: list all entries in the cache (optional: filter by domain)
     - `AUTH_CACHE_GET`: get the entry of a specific user

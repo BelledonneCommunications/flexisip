@@ -50,6 +50,14 @@ using namespace flexisip::tester::http_mock;
 
 optional<MysqlServer> sDbServer{nullopt};
 
+RestClient getRestClient(sofiasip::SuRoot& root, const string& host, int port, const string& apiKey) {
+	const auto http2Client = Http2Client::make(root, host, to_string(port));
+	return RestClient{http2Client, HttpHeaders{
+	                                   {"accept", "application/json"},
+	                                   {"x-api-key"s, apiKey},
+	                               }};
+}
+
 void callStartedAndEnded() {
 	std::atomic_int eventLogRequestsReceivedCount{0};
 	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
@@ -155,8 +163,8 @@ void callToConference() {
 	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
-	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
-	                                                                    "", "aRandomApiToken"));
+	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(
+	    getRestClient(*agent->getRoot(), "127.0.0.1", port, "aRandomApiToken"), ""));
 	const ClientBuilder builder{proxy->getAgent()};
 	const auto johan = builder.build("sip:johan@sip.example.org");
 	const string expectedConferenceId = "expected-conf-id";
@@ -185,8 +193,8 @@ void messageSentAndReceived() {
 	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
-	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port),
-	                                                                    "/api/stats/", "aRandomApiToken"));
+	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(
+	    getRestClient(*agent->getRoot(), "127.0.0.1", port, "aRandomApiToken"), "/api/stats/"));
 	ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -274,7 +282,7 @@ void messageDeviceUnavailable() {
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(
-	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
+	    std::make_unique<FlexiStatsEventLogWriter>(getRestClient(*agent->getRoot(), "127.0.0.1", port, "toktok"), "/"));
 	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -453,7 +461,7 @@ void messageToChatroomClearText() {
 	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
 	int port = flexiapiServer.serveAsync();
 	agent->setEventLogWriter(
-	    std::make_unique<FlexiStatsEventLogWriter>(*agent->getRoot(), "127.0.0.1", to_string(port), "/", "toktok"));
+	    std::make_unique<FlexiStatsEventLogWriter>(getRestClient(*agent->getRoot(), "127.0.0.1", port, "toktok"), "/"));
 	const TestConferenceServer confServer(*proxy);
 	const auto before = chrono::system_clock::now();
 

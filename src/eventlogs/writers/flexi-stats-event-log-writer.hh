@@ -28,11 +28,7 @@ namespace flexisip {
 
 class FlexiStatsEventLogWriter : public EventLogWriter {
 public:
-	FlexiStatsEventLogWriter(sofiasip::SuRoot&,
-	                         const std::string& host,
-	                         const std::string& port,
-	                         const std::string& apiPrefix,
-	                         const std::string& token);
+	FlexiStatsEventLogWriter(RestClient&& restClient, const std::string& apiPrefix);
 
 private:
 	static constexpr std::string_view mLogPrefix{"FlexiStatsEventLogWriter"};

@@ -23,14 +23,10 @@
 #include "exceptions/bad-configuration.hh"
 #include "fork-context/branch-info.hh"
 #include "fork-context/fork-context.hh"
-#include "pushnotification/apple/apple-request.hh"
+#include "pushnotification/flexiapi/flexiapi-request.hh"
 #include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/pushnotification-context.hh"
 #include "utils/uri-utils.hh"
-
-#if ENABLE_FLEXIAPI
-#include "pushnotification/flexiapi/flexiapi-request.hh"
-#endif
 
 using namespace std;
 
@@ -416,7 +412,6 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	auto* externalPushFlexiApiCfg = mc->get<ConfigBoolean>("external-push-flexiapi");
 	if (externalPushFlexiApiCfg->read()) {
-#if ENABLE_FLEXIAPI
 		auto* flexiApiCfg = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("global::flexiapi");
 		auto* flexiApiUrlCfg = flexiApiCfg->get<ConfigString>("url");
 		auto* flexiApiKeyCfg = flexiApiCfg->get<ConfigString>("api-key");
@@ -443,10 +438,6 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 			throw BadConfiguration{"invalid value for parameter '" + flexiApiUrlCfg->getCompleteName() + "' (" +
 			                       e.what() + +")"};
 		}
-#else
-		throw BadConfiguration{"this version of Flexisip was built without 'ENABLE_FLEXIAPI', value 'true' for '" +
-		                       externalPushFlexiApiCfg->getCompleteName() + "' is not supported"};
-#endif
 	} else if (!externalUri.empty()) {
 		auto const* externalPushMethodCfg = mc->get<ConfigString>("external-push-method");
 		auto const* externalPushProtocolCfg = mc->get<ConfigString>("external-push-protocol");

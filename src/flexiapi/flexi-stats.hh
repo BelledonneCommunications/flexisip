@@ -34,11 +34,7 @@ namespace flexisip::flexiapi {
 
 class FlexiStats {
 public:
-	FlexiStats(sofiasip::SuRoot& root,
-	           const std::string& host,
-	           const std::string& port,
-	           const std::string& apiPrefix,
-	           const std::string& token);
+	FlexiStats(RestClient&& restClient, const std::string& apiPrefix);
 
 	/********** MESSAGES **********/
 	void postMessage(const Message& message);

@@ -24,6 +24,7 @@
 
 #include "agent.hh"
 #include "auth/preferred-identity.hh"
+#include "flexiapi/config.hh"
 #include "utils/transport/http/http-message-context.hh"
 #include "utils/transport/http/http2client.hh"
 
@@ -51,6 +52,16 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     ModuleInfoBase::ModuleOid::Authorization,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
+	        {
+	            String,
+	            "auth-domains-mode",
+	            "Defines how the domains are loaded. You can use :\n"
+	            " - 'flexiapi': dynamic domain loading from the flexiapi, uses 'global::flexiapi' connection configs.\n"
+	            " - 'static': domains are statically loaded from 'auth-domains' config.\n"
+	            " - 'legacy': as for Flexisip 2.5 and before, uses account-manager config ('account-manager-host', "
+	            "...) if present, 'auth-domains' if not.",
+	            "legacy",
+	        },
 	        {
 	            String,
 	            "account-manager-host",
@@ -89,6 +100,27 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
 	    };
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+
+	    const auto authDomainsModeString = moduleConfig.get<ConfigString>("auth-domains-mode");
+	    authDomainsModeString->setDeprecatedValue(
+	        {"2026-02-27", "2.6.0",
+	         "Don't use 'auth-domains-mode=legacy' but:\n"
+	         " - 'flexiapi' with the global section 'global::flexiapi' for dynamic domain\n"
+	         " - 'static' with the parameters 'auth-domains' for static domains",
+	         "legacy"});
+	    const auto accountManagerHostString = moduleConfig.get<ConfigString>("account-manager-host");
+	    accountManagerHostString->setDeprecated({"2026-02-27", "2.6.0",
+	                                             "Don't use 'auth-domains-mode=legacy' with 'account-manager-host' but "
+	                                             "the global section 'global::flexiapi' for dynamic domain."});
+	    const auto accountManagerPortString = moduleConfig.get<ConfigString>("account-manager-port");
+	    accountManagerPortString->setDeprecated({"2026-02-27", "2.6.0",
+	                                             "Don't use 'auth-domains-mode=legacy' with 'account-manager-port' but "
+	                                             "the global section 'global::flexiapi' for dynamic domain."});
+	    const auto accountMangerApiKeyString = moduleConfig.get<ConfigString>("account-manager-api-key");
+	    accountMangerApiKeyString->setDeprecated(
+	        {"2026-02-27", "2.6.0",
+	         "Don't use 'auth-domains-mode=legacy' with 'account-manager-api-key' but "
+	         "the global section 'global::flexiapi' for dynamic domain."});
     });
 
 bool isAuthorized(const MsgSip& msgSip) {
@@ -119,16 +151,9 @@ bool isRequestDomainValid(const string& usrDomain,
 } // namespace
 
 ModuleAuthorization::DynamicDomainManager::DynamicDomainManager(const shared_ptr<sofiasip::SuRoot>& root,
-                                                                const string& host,
-                                                                const string& port,
-                                                                const string& apiKey,
+                                                                RestClient&& restClient,
                                                                 chrono::milliseconds delay)
-    : mLogPrefix(sAuthorizationInfo.getLogPrefix()), mFAMClient(Http2Client::make(*root, host, port),
-                                                                HttpHeaders{
-                                                                    {"accept", "application/json"},
-                                                                    {"x-api-key", apiKey},
-                                                                }),
-      mTimer(root, delay) {
+    : mLogPrefix(sAuthorizationInfo.getLogPrefix()), mFAMClient{std::move(restClient)}, mTimer(root, delay) {
 	mTimer.setForEver([this] { askAccountManager(); });
 	askAccountManager();
 }
@@ -182,21 +207,38 @@ void ModuleAuthorization::DynamicDomainManager::onAccountManagerResponse(const s
 	}
 }
 
-ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
-}
+ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {}
 
 void ModuleAuthorization::onLoad(const GenericStruct* mc) {
-	auto host = mc->get<ConfigString>("account-manager-host")->read();
-	if (host.empty()) {
-		mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());
-		return;
-	}
-	auto port = mc->get<ConfigString>("account-manager-port")->read();
-	auto apiKey = mc->get<ConfigString>("account-manager-api-key")->read();
 	const auto refresh = chrono::duration_cast<chrono::milliseconds>(
 	    mc->get<ConfigDuration<chrono::minutes>>("accounts-refresh-delay")->read());
-
-	mDomainManager = make_unique<DynamicDomainManager>(getAgent()->getRoot(), host, port, apiKey, refresh);
+	if (mc->get<ConfigString>("auth-domains-mode")->read() == "legacy") {
+		LOGW << "Legacy 'auth-domains-mode' mode is deprecated, please use 'flexiapi' or 'static' instead";
+		auto host = mc->get<ConfigString>("account-manager-host")->read();
+		if (host.empty()) {
+			mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());
+			return;
+		}
+		auto port = mc->get<ConfigString>("account-manager-port")->read();
+		auto apiKey = mc->get<ConfigString>("account-manager-api-key")->read();
+		const auto http2Client = Http2Client::make(*getAgent()->getRoot(), host, port);
+		mDomainManager = make_unique<DynamicDomainManager>(getAgent()->getRoot(),
+		                                                   RestClient{http2Client,
+		                                                              HttpHeaders{
+		                                                                  {"accept", "application/json"},
+		                                                                  {"x-api-key"s, apiKey},
+		                                                              }},
+		                                                   refresh);
+	} else if (mc->get<ConfigString>("auth-domains-mode")->read() == "flexiapi") {
+		mDomainManager = make_unique<DynamicDomainManager>(
+		    getAgent()->getRoot(),
+		    flexiapi::createRestClient(getAgent()->getConfigManager(), getAgent()->getFlexiApiClient()), refresh);
+	} else if (mc->get<ConfigString>("auth-domains-mode")->read() == "static") {
+		mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());
+	} else {
+		throw BadConfigurationValue{mc->get<ConfigString>("auth-domains-mode"),
+		                            "expected 'flexiapi', 'static' or 'legacy' (deprecated)"};
+	}
 }
 
 unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSipEvent>&& ev) {

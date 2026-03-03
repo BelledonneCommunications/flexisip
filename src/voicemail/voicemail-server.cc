@@ -24,7 +24,6 @@
 #include "exceptions/bad-configuration.hh"
 #include "flexiapi/config.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
-#include "flexisip-config.h"
 #include "flexisip/configmanager.hh"
 #include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
@@ -46,8 +45,10 @@ string getCallKey(const std::shared_ptr<linphone::Call>& call) {
 } // namespace
 
 VoicemailServer::VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root,
-                                 const std::shared_ptr<ConfigManager>& cfg)
-    : ServiceServer(root), mConfigManager(cfg), mFlexiApiClient(flexiapi::createRestClient(mConfigManager, *mRoot)) {}
+                                 const std::shared_ptr<ConfigManager>& cfg,
+                                 const std::shared_ptr<Http2Client>& http2Client)
+    : ServiceServer(root), mConfigManager(cfg),
+      mFlexiApiClient(flexiapi::createRestClient(*mConfigManager, http2Client)) {}
 
 void VoicemailServer::_init() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("voicemail-server");

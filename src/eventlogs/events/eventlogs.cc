@@ -29,7 +29,7 @@ using namespace std;
 namespace flexisip {
 namespace {
 // Statically define default configuration items
-auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
+const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct& root) {
 	ConfigItemDescriptor items[] = {
 	    {
 	        Boolean,
@@ -126,14 +126,33 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 
 	auto* ev = root.addChild(std::move(uEv));
 	ev->addChildrenValues(items);
+
+	const auto flexiApiHostString = ev->get<ConfigString>("flexiapi-host");
+	flexiApiHostString->setDeprecated({
+	    "2026-02-27",
+	    "2.6.0",
+	    "Don't use 'flexiapi-host', but the global section 'global::flexiapi' to set up the FlexiAPI. WARNING: while "
+	    "this config entry is set, 'global::flexiapi' will be ignored for the event logs.",
+	});
+	const auto flexiApiPortInt = ev->get<ConfigInt>("flexiapi-port");
+	flexiApiPortInt->setDeprecated({
+	    "2026-02-27",
+	    "2.6.0",
+	    "Don't use 'flexiapi-port', but the global section 'global::flexiapi' to set up the FlexiAPI.",
+	});
+	const auto flexiApiKeyString = ev->get<ConfigString>("flexiapi-api-key");
+	flexiApiKeyString->setDeprecated({
+	    "2026-02-27",
+	    "2.6.0",
+	    "Don't use 'flexiapi-api-key', but the global section 'global::flexiapi' to set up the FlexiAPI.",
+	});
 });
 
 } // namespace
 
 EventLog::EventLog(const sip_t* sip)
     : SipEventLog(*sip), mUA{sip->sip_user_agent ? sip_user_agent_dup(mHome.home(), sip->sip_user_agent) : nullptr},
-      mDate{time(nullptr)}, mCallId{sip->sip_call_id->i_id} {
-}
+      mDate{time(nullptr)}, mCallId{sip->sip_call_id->i_id} {}
 
 RegistrationLog::RegistrationLog(const sip_t* sip, const sip_contact_t* contacts) : EventLog(sip) {
 	mType = (sip->sip_expires && sip->sip_expires->ex_delta == 0) ? Type::Unregister // REVISIT not 100% exact.
@@ -191,8 +210,7 @@ void AuthLog::write(EventLogWriter& writer) const {
 }
 
 CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t* sip)
-    : EventLog(sip), mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {
-}
+    : EventLog(sip), mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {}
 
 void CallQualityStatisticsLog::write(EventLogWriter& writer) const {
 	writer.write(*this);

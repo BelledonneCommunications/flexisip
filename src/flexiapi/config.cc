@@ -84,14 +84,9 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
 	}
 }
 
-RestClient createRestClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip::SuRoot& root) {
+RestClient createRestClient(const ConfigManager& cfg, const std::shared_ptr<Http2Client>& http2Client) {
 	// Create the HTTP Client that should be used for the FlexiAPI
-	auto httpClient = createClient(cfg, root);
-	if (!httpClient)
-		throw BadConfiguration(
-		    "failed to create a HTTP client, please check the fields of the 'global::flexiapi' section");
-
-	const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>(configSection);
+	const auto* flexiApiConfigSection = cfg.getRoot()->get<GenericStruct>(configSection);
 	const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
 	const auto* flexiApiUrlParameter = flexiApiConfigSection->get<ConfigString>("url");
 	const sofiasip::Url flexiApiUrl{flexiApiUrlParameter->read()};
@@ -102,7 +97,7 @@ RestClient createRestClient(const std::shared_ptr<ConfigManager>& cfg, sofiasip:
 	httpHeaders.add("accept", "application/json");
 	if (!flexiApiKey.empty()) httpHeaders.add("x-api-key", flexiApiKey);
 
-	return {httpClient, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
+	return {http2Client, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
 }
 
 } // namespace flexisip::flexiapi

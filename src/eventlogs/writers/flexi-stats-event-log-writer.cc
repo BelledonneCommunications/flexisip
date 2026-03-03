@@ -38,13 +38,8 @@
 
 namespace flexisip {
 
-FlexiStatsEventLogWriter::FlexiStatsEventLogWriter(sofiasip::SuRoot& root,
-                                                   const std::string& host,
-                                                   const std::string& port,
-                                                   const std::string& apiPrefix,
-                                                   const std::string& token)
-    : mRestClient(root, host, port, apiPrefix, token) {
-}
+FlexiStatsEventLogWriter::FlexiStatsEventLogWriter(RestClient&& restClient, const std::string& apiPrefix)
+    : mRestClient(std::move(restClient), apiPrefix) {}
 
 void FlexiStatsEventLogWriter::write(const CallStartedEventLog& call) {
 	if (call.getInviteKind() != InviteKind::Call) return;

@@ -18,6 +18,7 @@
 
 #include <nghttp2/asio_http2_server.h>
 
+#include "flexiapi/config.hh"
 #include "flexiapi/schemas/account/account.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "sofia-wrapper/nta-agent.hh"
@@ -60,7 +61,8 @@ void answerCallThenHangUp() {
 	}};
 	const auto& agent = server.getAgent();
 
-	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager());
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(),
+	                                              flexiapi::createClient(server.getConfigManager(), *agent->getRoot()));
 	voicemail->init();
 
 	ClientBuilder clientBuilder{"sip:flexisip-voicemail@localhost:" + to_string(voicemail->getTcpPort()) +
@@ -187,7 +189,8 @@ void answerCallRecordVoicemail() {
 	}};
 	const auto& agent = proxy.getAgent();
 	LOGD_CTX("answerCallRecordVoicemail") << "Root address" << agent->getRoot().get();
-	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), proxy.getConfigManager());
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), proxy.getConfigManager(),
+	                                              flexiapi::createClient(proxy.getConfigManager(), *agent->getRoot()));
 	try {
 		voicemail->init();
 	} catch (exception& e) {

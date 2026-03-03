@@ -101,12 +101,9 @@
 #include "snmp/snmp-agent.hh"
 #endif
 
-#if ENABLE_FLEXIAPI
-#include "flexiapi/config.hh"
-#endif
-
 #include "flexisip.hh"
 
+#include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
 #include "utils/pipe.hh"
 #include "utils/process-monitoring/memory-watcher.hh"
@@ -787,12 +784,11 @@ int flexisip::main(int argc, const char* argv[]) {
 #endif
 	unique_ptr<StunServer> stunServer{};
 	unique_ptr<CommandLineInterface> proxyCli{};
+	shared_ptr<Http2Client> flexiApiClient{};
 	if (startProxy) {
-#if ENABLE_FLEXIAPI
 		// Create the HTTP Client that should be used for the FlexiAPI
-		auto flexiApiClient = flexiapi::createClient(cfg, *agent->getRoot());
+		flexiApiClient = flexiapi::createClient(cfg, *agent->getRoot());
 		agent->setFlexiApiClient(flexiApiClient);
-#endif
 		agent->start(transportsArg.getValue(), passphrase);
 #ifdef ENABLE_SNMP
 		if (globalCfg->get<ConfigBoolean>("enable-snmp")->read()) {
@@ -861,7 +857,8 @@ int flexisip::main(int argc, const char* argv[]) {
 
 	if (startVoicemail) {
 #if ENABLE_VOICEMAIL
-		auto voicemailServer = make_shared<VoicemailServer>(root, cfg);
+		if (!flexiApiClient) flexiApiClient = flexiapi::createClient(cfg, *agent->getRoot());
+		auto voicemailServer = make_shared<VoicemailServer>(root, cfg, flexiApiClient);
 		voicemailServer->init();
 		serviceServers.emplace_back(std::move(voicemailServer));
 #endif // ENABLE_B2BUA
