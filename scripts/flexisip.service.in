@@ -1,12 +1,13 @@
 [Unit]
-Description=Flexisip Voicemail server
+Description=@service_description@
 Documentation=https://www.linphone.org/en/flexisip-sip-server/
 Wants=network-online.target
-After=syslog.target network.service network.target network-online.target
+After=syslog.target network.service network.target network-online.target@service_after@
 
 [Service]
+UMask=0027
 Type=notify
-ExecStart=@bindir@/flexisip --server voicemail --disable-stdout --syslog --pidfile /var/run/flexisip-voicemail.pid
+ExecStart=@service_execstart@
 Restart=on-failure
 WatchdogSec=10s
 RestartForceExitStatus=5
