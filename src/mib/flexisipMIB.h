@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2015  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026  Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -26,7 +26,6 @@ class ConfigManager;
 class Agent;
 /* function declarations */
 void init_flexisipMIB(Agent& agent, ConfigManager& cm);
-Netsnmp_Node_Handler handle_autoRespawn;
 Netsnmp_Node_Handler handle_aliases;
 Netsnmp_Node_Handler handle_ipAddress;
 Netsnmp_Node_Handler handle_bindAddress;

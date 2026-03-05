@@ -11,7 +11,6 @@
 #include <net-snmp/net-snmp-includes.h>
 /** Initializes the flexisipMIB module */
 void init_flexisipMIB(Agent& agent, ConfigManager& aCm) {
-	const oid autoRespawn_oid[] = {1, 3, 6, 1, 4, 1, 100000, 1, 1, 1, 1};
 	const oid aliases_oid[] = {1, 3, 6, 1, 4, 1, 100000, 1, 1, 1, 2};
 	const oid ipAddress_oid[] = {1, 3, 6, 1, 4, 1, 100000, 1, 1, 1, 3};
 	const oid bindAddress_oid[] = {1, 3, 6, 1, 4, 1, 100000, 1, 1, 1, 4};
@@ -22,8 +21,6 @@ void init_flexisipMIB(Agent& agent, ConfigManager& aCm) {
 
 	DEBUGMSGTL(("flexisipMIB", "Initializing\n"));
 
-	netsnmp_register_scalar(netsnmp_create_handler_registration("autoRespawn", handle_autoRespawn, autoRespawn_oid,
-	                                                            OID_LENGTH(autoRespawn_oid), HANDLER_CAN_RONLY));
 	netsnmp_register_scalar(netsnmp_create_handler_registration("aliases", handle_aliases, aliases_oid,
 	                                                            OID_LENGTH(aliases_oid), HANDLER_CAN_RONLY));
 	netsnmp_register_scalar(netsnmp_create_handler_registration("ipAddress", handle_ipAddress, ipAddress_oid,
@@ -42,33 +39,6 @@ void init_flexisipMIB(Agent& agent, ConfigManager& aCm) {
 	    OID_LENGTH(totalNumberOfExpiredRecords_oid), HANDLER_CAN_RONLY));
 }
 
-int handle_autoRespawn(netsnmp_mib_handler* handler,
-                       netsnmp_handler_registration* reginfo,
-                       netsnmp_agent_request_info* reqinfo,
-                       netsnmp_request_info* requests) {
-	/* We are never called for a GETNEXT if it's registered as a
-	   "instance", as it's "magically" handled for us.  */
-
-	/* a instance handler also only hands us one request at a time, so
-	   we don't need to loop over a list of requests; we'll only get one. */
-
-	switch (reqinfo->mode) {
-
-		case MODE_GET: {
-			snmp_set_var_typed_integer(requests->requestvb, ASN_INTEGER,
-			                           /* XXX: integer data */);
-
-			break;
-		}
-
-		default:
-			/* we should never get here, so this is a really bad error */
-			snmp_log(LOG_ERR, "unknown mode (%d) in handle_autoRespawn\n", reqinfo->mode);
-			return SNMP_ERR_GENERR;
-	}
-
-	return SNMP_ERR_NOERROR;
-}
 int handle_aliases(netsnmp_mib_handler* handler,
                    netsnmp_handler_registration* reginfo,
                    netsnmp_agent_request_info* reqinfo,

@@ -8,7 +8,6 @@ class ConfigManager;
 class Agent;
 /* function declarations */
 void init_flexisipMIB(Agent& agent, ConfigManager& cm);
-Netsnmp_Node_Handler handle_autoRespawn;
 Netsnmp_Node_Handler handle_aliases;
 Netsnmp_Node_Handler handle_ipAddress;
 Netsnmp_Node_Handler handle_bindAddress;
