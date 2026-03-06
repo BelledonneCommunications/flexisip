@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,12 +19,14 @@
 #include "transaction/outgoing-transaction.hh"
 
 #include <chrono>
+#include <sstream>
 #include <string>
 
 #include "registrardb-internal.hh"
 #include "sofia-sip/su_time.h"
 #include "sofia-wrapper/nta-agent.hh"
 #include "transaction/incoming-transaction.hh"
+#include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/override-static.hh"
@@ -32,6 +34,7 @@
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/transport/tls-connection.hh"
 
 extern void (*_su_time)(su_time_t* tv);
 extern su_time64_t (*_su_nanotime)(su_time64_t*);
@@ -193,11 +196,56 @@ void beforeSendCallbacks() {
 	    .assert_passed();
 }
 
+void resilienceToNetworkErrorOnCancel() {
+	Server proxy{{{"global/transports", "sip:127.0.0.1:0;transport=tcp"}}};
+	proxy.start();
+
+	TlsConnection unstableConnection{"127.0.0.1", proxy.getFirstPort(), "", ""};
+	unstableConnection.connect();
+	BC_HARD_ASSERT_TRUE(unstableConnection.isConnected());
+
+	// Iterate on the proxy to accept the incoming connection.
+	proxy.getRoot()->step(10ms);
+
+	const auto unstableUri = "sip:callee@127.0.0.1:" + to_string(unstableConnection.getLocalPort()) + ";transport=tcp";
+
+	stringstream request{};
+	request << "INVITE " << unstableUri << " SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:12345;branch=z9hG4bK.stub-branch-id\r\n"
+	        << "From: <sip:caller@127.0.0.1>;tag=caller-tag\r\n"
+	        << "To: <sip:callee@127.0.0.1>\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 1 INVITE\r\n"
+	        << "Contact: <sip:caller@127.0.0.1:12345;transport=tcp>\r\n"
+	        << "Content-Length: 0\r\n\r\n";
+
+	const auto message = make_shared<MsgSip>(0, request.str());
+	const auto event = make_shared<RequestSipEvent>(proxy.getAgent(), message, nullptr);
+	auto transaction = event->createOutgoingTransaction();
+	event->send(message, nullptr);
+
+	// Iterate until receiving the INVITE request on the unstable connection.
+	CoreAssert{proxy}.wait([&] { return LOOP_ASSERTION(unstableConnection.hasData()); }).hard_assert_passed();
+
+	// Disconnect the unstable connection to simulate a network error.
+	unstableConnection.disconnect();
+
+	// Iterate the proxy so it takes into account the network error.
+	proxy.getRoot()->step(10ms);
+
+	// Try to cancel the transaction.
+	transaction->cancel();
+
+	// The destruction of the transaction should work.
+	transaction.reset();
+}
+
 TestSuite _{
     "OutgoingTransaction",
     {
         CLASSY_TEST(resilienceToNetworkError),
         CLASSY_TEST(beforeSendCallbacks),
+        CLASSY_TEST(resilienceToNetworkErrorOnCancel),
     },
 };
 

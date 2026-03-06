@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -204,7 +204,4 @@ void OutgoingTransaction::cancel(Tags... tags) {
 	}
 
 	nta_outgoing_tcancel(mOutgoing.borrow(), nullptr, nullptr, tags..., NTATAG_CANCEL_3261(1), TAG_END());
-	// Prevent from calling the custom callback whenever a new response is being received for this outgoing
-	// transaction. From now on, we want to let sofia-sip manage transaction's end of life.
-	nta_outgoing_destroy(mOutgoing.borrow());
 }
