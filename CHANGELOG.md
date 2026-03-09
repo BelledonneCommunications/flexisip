@@ -56,6 +56,9 @@ Group changes to describe their impact on the project, as follows:
             - Parameter `protocol` (which is used with `outbound_proxy` and `registrar`) to indicate which transport
               protocol to use (optional, default: udp).
         - New field `displayName` in template strings (see [SIP-Bridge documentation] for more information).
+        - Add a Priority header to NOTIFY messages containing Message Waiting Indication (MWI) information. If the
+          MWI notifies new urgent messages, the Priority header is set to 'urgent', otherwise it is set to 'non-urgent'.
+          This has the effect of only sending push notifications for MWI indicating urgent messages.
 - **Conference:**
     - New parameters `audio-engine-mode` and `video-engine-mode` to specify the media engine to use (`mixer`, `semi-sfu`
       and `sfu`). Documentation is available in the [configuration reference guide].
