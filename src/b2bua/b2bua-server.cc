@@ -93,8 +93,7 @@ bool callIsInPausedByRemoteState(const std::shared_ptr<linphone::Call>& call) {
 } // namespace
 
 B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
-    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {
-}
+    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {}
 
 void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
                                      const shared_ptr<linphone::Call>& call,
@@ -497,6 +496,11 @@ void B2buaServer::onMessageWaitingIndicationChanged(
 	auto newMwi = mwi->clone();
 	newMwi->setAccountAddress(core->createAddress(subscriber.str()));
 	auto content = newMwi->toContent();
+	if (newMwi->getNbNewUrgent() > 0) {
+		content->addCustomHeader("Priority", "urgent");
+	} else {
+		content->addCustomHeader("Priority", "non-urgent");
+	}
 	auto resource = core->createAddress(subscriber.str());
 	auto legAEvent = core->createNotify(resource, "message-summary");
 	legAEvent->notify(content);
@@ -523,7 +527,17 @@ void B2buaServer::onNotifyReceived(const std::shared_ptr<linphone::Event>& event
 		return;
 	}
 
-	peerEvent->notify(content);
+	shared_ptr<linphone::Content> newContent = content->clone();
+	if (event->getName() == "message-summary") {
+		auto mwi = linphone::Factory::get()->createMessageWaitingIndicationFromContent(content);
+		if (mwi && mwi->getNbNewUrgent() > 0) {
+			newContent->addCustomHeader("Priority", "urgent");
+		} else {
+			newContent->addCustomHeader("Priority", "non-urgent");
+		}
+	}
+
+	peerEvent->notify(newContent);
 }
 
 void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>& event,
