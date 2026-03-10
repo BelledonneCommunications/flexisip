@@ -559,7 +559,7 @@ int flexisip::main(int argc, const char* argv[], std::optional<pipe::WriteOnly>&
 	TCLAP::ValueArg<string>     configFile("c", "config", 			   "Location of the configuration file."
                                                                        "Default is: " DEFAULT_CONFIG_FILE,
                                                                        TCLAP::ValueArgOptional, DEFAULT_CONFIG_FILE, "file", cmd);
-	TCLAP::SwitchArg            daemonMode("",  "daemon", 			   "Launch in daemon mode.",
+	TCLAP::SwitchArg            daemonMode("",  "daemon", 			   "Launch in daemon mode. Deprecated since 2026-03-10 (Flexisip v2.5.0).",
                                                                        cmd);
 	TCLAP::SwitchArg              useDebug("d", "debug", 			   "Print logs in debug level to the terminal "
                                                                        "(does not affect the logging level of log files).",
