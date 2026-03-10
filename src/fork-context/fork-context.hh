@@ -160,6 +160,7 @@ public:
 	virtual const ForkContext* getPtrForEquality() const = 0;
 	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
+	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
 
 protected:
 	/**
@@ -170,7 +171,6 @@ protected:
 	 */
 	virtual std::shared_ptr<BranchInfo> tryToSendFinalResponse() = 0;
 
-	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
 	virtual const char* getClassName() const = 0;
 };
 

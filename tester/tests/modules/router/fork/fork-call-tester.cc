@@ -656,8 +656,11 @@ void cancelStatusOnResponse() {
 
 	auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipInvite));
 	auto ev2 = make_unique<RequestSipEvent>(*ev);
+	auto ev3 = make_unique<RequestSipEvent>(*ev);
 	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
 	auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent);
+	// hack to avoid agent processing
+	const_cast<shared_ptr<IncomingTransaction>&>(forkCallCtx->getIncomingTransaction()).reset();
 	// add a branch to ForkCallCtx
 	auto branch =
 	    forkCallCtx->addBranch(std::move(ev2), make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5360"},
@@ -678,8 +681,11 @@ void cancelStatusOnResponse() {
 	                              "Content-Type: application/sdp\r\n"
 	                              "Content-Length: 0\r\n\r\n";
 	ResponseSipEvent response{proxy.getAgent(), make_shared<MsgSip>(0, rawSipResponse)};
-	auto answeredBranch = BranchInfo::make(forkCallCtx);
-	((ForkContext*)(forkCallCtx.get()))->onResponse(answeredBranch, response);
+	// add another branch that received the response
+	auto answeredBranch =
+	    forkCallCtx->addBranch(std::move(ev3), make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5361"},
+	                                                                        "sip:127.0.0.1;transport=udp", ""));
+	answeredBranch->processResponse(response);
 
 	BC_HARD_ASSERT(branchListener->mCancelStatus.has_value());
 	BC_ASSERT(branchListener->mCancelStatus.value() == ForkStatus::AcceptedElsewhere);
