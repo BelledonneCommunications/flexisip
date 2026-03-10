@@ -37,7 +37,8 @@ class FirebaseV1Client : public Client {
 public:
 	FirebaseV1Client(sofiasip::SuRoot& root,
 	                 std::shared_ptr<FirebaseV1AuthenticationManager>&& authenticationManager,
-	                 const Service* service = nullptr);
+	                 const Service* service = nullptr,
+	                 const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
 
 	/**
 	 * Send the request to the Firebase PNR server. If the request succeeds and a response is received, the

@@ -47,6 +47,7 @@ add_library(flexisip_tester_utils
 	server/injected-module-info.cc server/injected-module-info.hh
 	server/proxy-server.cc server/proxy-server.hh
 	server/redis-server.cc server/redis-server.hh
+	server/squid-server.cc server/squid-server.hh
 	server/tls-tcp-server.cc server/tls-tcp-server.hh
 	test-patterns/agent-test.hh
 	test-patterns/registrardb-test.hh

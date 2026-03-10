@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20251203_add_curl
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20260430_add_squid_proxy
 ###############################################################################
 
 FROM archlinux:base
@@ -54,6 +54,7 @@ RUN pacman --noconfirm --noprogressbar --sync --refresh --sysupgrade \
       # Test dependencies
         boost \
         redis \
+        squid \
   # Clean package cache
  && pacman --noconfirm -Scc
 

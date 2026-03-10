@@ -52,7 +52,11 @@ target_sources(flexisip PRIVATE
 	transport/http/http-response.cc transport/http/http-response.hh
 	transport/http/ng-data-provider.cc transport/http/ng-data-provider.hh
 	transport/http/rest-client.cc transport/http/rest-client.hh
-	transport/tls-connection.cc transport/tls-connection.hh
+	transport/tls/tls-connection.cc transport/tls/tls-connection.hh
+	transport/tls/tls-connection-establishment-strategy.hh
+	transport/tls/tls-connection-utils.cc transport/tls/tls-connection-utils.hh
+	transport/tls/tls-direct-connection-establishment-strategy.cc transport/tls/tls-direct-connection-establishment-strategy.hh
+	transport/tls/tls-proxy-connection-establishment-strategy.cc transport/tls/tls-proxy-connection-establishment-strategy.hh
 	uri-utils.cc uri-utils.hh
 	utf8-string.cc utf8-string.hh
 	variant-utils.hh

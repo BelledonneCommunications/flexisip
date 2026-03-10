@@ -19,19 +19,15 @@
 #pragma once
 
 #include <chrono>
-#include <cstring>
 #include <filesystem>
 #include <mutex>
 #include <stdexcept>
 #include <vector>
 
-#include <openssl/ssl.h>
-#include <sofia-sip/su_wait.h>
-
-#include "flexisip/logmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-
+#include "tls-connection-establishment-strategy.hh"
 #include "utils/thread/must-finish-thread.hh"
+#include "utils/transport/http/https-proxy-cfg.hh"
 
 namespace flexisip {
 
@@ -40,18 +36,10 @@ namespace flexisip {
  */
 class TlsConnection {
 public:
-	struct SSLCtxDeleter {
-		void operator()(SSL_CTX* ssl) noexcept {
-			SSL_CTX_free(ssl);
-		}
-	};
-	using SSLCtxUniquePtr = std::unique_ptr<SSL_CTX, SSLCtxDeleter>;
-
 	class CreationError : public std::runtime_error {
 	public:
 		explicit CreationError(const std::string& message)
-		    : std::runtime_error("failed to create TLSConnection, reason = " + message) {
-		}
+		    : std::runtime_error("failed to create TLSConnection, reason = " + message) {}
 	};
 
 	/**
@@ -61,7 +49,10 @@ public:
 	 * @param port other end port
 	 * @param mustBeHttp2 whether or not to force use of HTTP/2
 	 */
-	TlsConnection(const std::string& host, std::string_view port, bool mustBeHttp2 = false);
+	TlsConnection(const std::string& host,
+	              std::string_view port,
+	              bool mustBeHttp2 = false,
+	              const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
 	/** Instantiate a new TLS or TCP connection.
 	 *
 	 * @note You can leave trustStorePath and certPath empty in order to create a simple TCP connection.
@@ -76,10 +67,12 @@ public:
 	              std::string_view port,
 	              const std::string& trustStorePath,
 	              const std::string& certPath,
-	              bool mustBeHttp2 = false);
+	              bool mustBeHttp2 = false,
+	              const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
 
 	TlsConnection(const TlsConnection&) = delete;
 	TlsConnection(TlsConnection&&) = delete;
+	~TlsConnection();
 
 	const std::string& getHost() const noexcept {
 		return mHost;
@@ -128,9 +121,6 @@ public:
 		return mCtx != nullptr;
 	}
 
-	BIO* getBIO() const noexcept {
-		return mBio.get();
-	}
 	int getFd() const noexcept;
 
 	/**
@@ -280,13 +270,6 @@ public:
 	void enableInsecureTestMode();
 
 private:
-	struct BIODeleter {
-		void operator()(BIO* bio) {
-			BIO_free_all(bio);
-		}
-	};
-	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
-
 	/**
 	 * Utility function to convert ASN1_TIME to a printable string in a buffer.
 	 */
@@ -299,12 +282,13 @@ private:
 
 	int getFd(BIO& bio) const;
 
-	void handleBioError(const std::string& msg, int status) const;
 	bool isCertExpired(const std::string& certPath) noexcept;
 
 	BIOUniquePtr mBio{nullptr};
-	mutable std::mutex mBioMutex{}; // Protect async set of mBio.
+	SSLUniquePtr mSsl{nullptr};
+	mutable std::mutex mBioMutex{}; // Protect async set of mBio and mSsl.
 	SSLCtxUniquePtr mCtx{nullptr};
+	std::unique_ptr<TlsConnectionEstablishmentStrategy> mConnectionEstablishmentStrategy{nullptr};
 	std::string mHost{}, mPort{};
 	std::filesystem::path mCertPath{};
 	bool mMustBeHttp2 = false;

@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260428_add_dpkgdev
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260430_add_squid_proxy
 ###############################################################################
 
 FROM ubuntu:24.04
@@ -59,6 +59,7 @@ RUN apt-get -y update \
                        libspeexdsp-dev \
                        libxml2-dev \
                        redis-server \
+                       squid \
                      # Dependencies of the B2BUA
                        libvpx-dev \
                      # Dependencies of CPack (to build the .deb)

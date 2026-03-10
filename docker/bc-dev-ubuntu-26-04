@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-26-04:20260424_init
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-26-04:20260430_add_squid_proxy
 ###############################################################################
 
 FROM ubuntu:26.04
@@ -58,6 +58,7 @@ RUN apt-get -y update \
       libvpx-dev \
     # Dependencies of the tester
       mariadb-server \
+      squid \
     # Dependencies of CPack (to build the .deb)
       dpkg-dev \
   # Clean up

@@ -32,7 +32,7 @@
 #include "legacy-request.hh"
 #include "pushnotification/client.hh"
 #include "pushnotification/generic/generic-enums.hh"
-#include "utils/transport/tls-connection.hh"
+#include "utils/transport/tls/tls-connection.hh"
 
 namespace flexisip {
 namespace pushnotification {

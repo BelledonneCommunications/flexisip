@@ -35,7 +35,8 @@
 #include "authentication-manager.hh"
 #include "http-message-context.hh"
 #include "http-message.hh"
-#include "utils/transport/tls-connection.hh"
+#include "https-proxy-cfg.hh"
+#include "utils/transport/tls/tls-connection.hh"
 
 namespace flexisip {
 
@@ -50,8 +51,7 @@ public:
 
 	class BadStateError : public std::logic_error {
 	public:
-		BadStateError(State state) : logic_error(formatWhatArg(state)) {
-		}
+		BadStateError(State state) : logic_error(formatWhatArg(state)) {}
 
 	private:
 		static std::string formatWhatArg(State state) noexcept;
@@ -60,8 +60,7 @@ public:
 	class SessionSettings {
 	public:
 		SessionSettings(uint32_t maxConcurrentStreams = 1000)
-		    : mSettings{{{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, maxConcurrentStreams}}} {
-		}
+		    : mSettings{{{NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS, maxConcurrentStreams}}} {}
 
 		int submitTo(nghttp2_session* session) {
 			return nghttp2_submit_settings(session, NGHTTP2_FLAG_NONE, mSettings.data(), mSettings.size());
@@ -173,12 +172,14 @@ private:
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
 	            const std::string& port,
-	            std::shared_ptr<AuthenticationManager>&& authManager);
+	            std::shared_ptr<AuthenticationManager>&& authManager,
+	            const std::optional<HttpsProxyCfg>& httpsProxyCfg);
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
 	            const std::string& port,
 	            const std::string& trustStorePath,
 	            const std::string& certPath,
+	            const std::optional<HttpsProxyCfg>& httpsProxyCfg,
 	            SessionSettings&& sessionSettings = SessionSettings());
 
 	/* Private methods */

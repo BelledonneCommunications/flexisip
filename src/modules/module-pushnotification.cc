@@ -19,13 +19,13 @@
 #include "modules/module-pushnotification.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
 #include "exceptions/bad-configuration.hh"
 #include "fork-context/branch-info.hh"
 #include "fork-context/fork-context.hh"
 #include "pushnotification/flexiapi/flexiapi-request.hh"
 #include "pushnotification/push-notification-exceptions.hh"
 #include "pushnotification/pushnotification-context.hh"
+#include "utils/transport/http/https-proxy-cfg.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -326,6 +326,33 @@ ModuleInfo<PushNotification> PushNotification::sInfo{
 	            "true",
 	        },
 
+	        // HTTPS proxy configuration
+	        {
+	            String,
+	            "https-proxy-host",
+	            "Host of the HTTPS proxy to use to send push notifications. For now, sending push notification "
+	            "requests through an HTTPS proxy is only supported for APNS (Apple) and FCM (Android).",
+	            "",
+	        },
+	        {
+	            Integer,
+	            "https-proxy-port",
+	            "Port of the HTTPS proxy to use to send push notifications.",
+	            "3128",
+	        },
+	        {
+	            String,
+	            "https-proxy-username",
+	            "Username for the authentication to the HTTPS proxy to use to send push notifications.",
+	            "",
+	        },
+	        {
+	            String,
+	            "https-proxy-password",
+	            "Password for the authentication to the HTTPS proxy to use to send push notifications.",
+	            "",
+	        },
+
 	        // Deprecated parameters
 	        {
 	            StringList,
@@ -400,7 +427,16 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mCallRemotePushInterval = chrono::duration_cast<chrono::seconds>(callRemotePushInterval);
 
-	mPNS = make_unique<pushnotification::Service>(getAgent()->getRoot(), maxQueueSize);
+	// Load the HTTPS proxy configuration
+	std::optional<HttpsProxyCfg> httpsProxyCfg = std::nullopt;
+	if (const auto httpsProxyHost = mc->get<ConfigString>("https-proxy-host")->read(); !httpsProxyHost.empty()) {
+		const auto httpsProxyPort = mc->get<ConfigInt>("https-proxy-port")->read();
+		const auto httpsProxyUsername = mc->get<ConfigString>("https-proxy-username")->read();
+		const auto httpsProxyPassword = mc->get<ConfigString>("https-proxy-password")->read();
+		httpsProxyCfg = HttpsProxyCfg{httpsProxyHost, httpsProxyPort, httpsProxyUsername, httpsProxyPassword};
+	}
+
+	mPNS = make_unique<pushnotification::Service>(getAgent()->getRoot(), maxQueueSize, httpsProxyCfg);
 
 	// Load the 'add-to-tag-filter' parameter
 	const auto* addToTagFilterCfg = mc->get<ConfigString>("add-to-tag-filter");

@@ -16,14 +16,14 @@ variables:
   DEFAULT_PACKAGING_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/opt/belledonne-communications -DSYSCONF_INSTALL_DIR=/etc -DFLEXISIP_SYSTEMD_INSTALL_DIR=/usr/lib/systemd/system -DENABLE_G729=ON'
 
   # Docker image version
-  ARCHLINUX_IMAGE_VERSION: 20251203_add_curl
-  ROCKY_8_IMAGE_VERSION: 20260413_downgrade_gcc_toolset_to_14
-  ROCKY_9_IMAGE_VERSION: 20260227_add_systemd
-  DEBIAN_12_IMAGE_VERSION: 20260227_add_systemd
-  DEBIAN_13_IMAGE_VERSION: 20260227_add_systemd
+  ARCHLINUX_IMAGE_VERSION: 20260430_add_squid_proxy
+  ROCKY_8_IMAGE_VERSION: 20260430_add_squid_proxy
+  ROCKY_9_IMAGE_VERSION: 20260430_add_squid_proxy
+  DEBIAN_12_IMAGE_VERSION: 20260430_add_squid_proxy
+  DEBIAN_13_IMAGE_VERSION: 20260430_add_squid_proxy
   MINIMAL_IMAGE_VERSION: 20260227_add_systemd
-  UBUNTU_24_04_IMAGE_VERSION: 20260428_add_dpkgdev
-  UBUNTU_26_04_IMAGE_VERSION: 20260424_init
+  UBUNTU_24_04_IMAGE_VERSION: 20260430_add_squid_proxy
+  UBUNTU_26_04_IMAGE_VERSION: 20260430_add_squid_proxy
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:

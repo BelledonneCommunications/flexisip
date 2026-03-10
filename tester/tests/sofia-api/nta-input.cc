@@ -33,7 +33,7 @@
 #include "utils/tls/certificate.hh"
 #include "utils/tls/private-key.hh"
 #include "utils/tmp-dir.hh"
-#include "utils/transport/tls-connection.hh"
+#include "utils/transport/tls/tls-connection.hh"
 
 using namespace std;
 using namespace sofiasip;

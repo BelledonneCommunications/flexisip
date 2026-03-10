@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260227_add_systemd
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260430_add_squid_proxy
 ###############################################################################
 
 FROM rockylinux:9
@@ -71,6 +71,7 @@ RUN dnf makecache --refresh \
       # Dependencies of the tester
         mysql-server \
         rsync \
+        squid \
  && dnf -y module install redis \
  && dnf -y clean all
 

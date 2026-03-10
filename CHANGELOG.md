@@ -17,7 +17,10 @@ Group changes to describe their impact on the project, as follows:
 ## [2.6.0]
 ### [Added]
 - **Proxy:**
-    - Push notification delivery can now be delegated to a FlexiAPI server instance.
+    - **PushNotification:**
+      - Push notification delivery can now be delegated to a FlexiAPI server instance.
+      - Apple (iOS) and Firebase (Android) push notifications can now be sent via an HTTPS proxy (see new parameters
+        `module::PushNotification/https-proxy-*`).
     - New SIP URI parameter `network` for transports defined in `global/transports` to instruct Flexisip which
       transport to use to correctly route requests to destinations. See the [configuration reference guide] for more
       information.

@@ -71,8 +71,8 @@ int TlsTransport::sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& 
 	LOGD << "LegacyRequest[" << &req << "]: waiting for server response";
 	/* if the server response is NOT immediate, wait for something to read on the socket first */
 	if (!req.isServerAlwaysResponding()) {
-		int fdSocket;
-		if (BIO_get_fd(mConn->getBIO(), &fdSocket) < 0) {
+		int fdSocket = mConn->getFd();
+		if (fdSocket < 0) {
 			LOGE << "LegacyRequest[" << &req << "]: could not retrieve the socket";
 			onError(req, "Broken socket");
 			return -2;

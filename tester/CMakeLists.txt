@@ -89,6 +89,9 @@ if(IS_MARIADB)
 	)
 endif()
 
+find_program(SQUID_EXEC NAMES squid REQUIRED)
+find_program(BASIC_NCSA_AUTH_EXEC NAMES basic_ncsa_auth HINTS "/usr/lib/squid" "/usr/lib64/squid" REQUIRED)
+
 find_program(CAT_EXEC NAMES cat REQUIRED)
 configure_file(flexisip-tester-config.hh.in flexisip-tester-config.hh)
 

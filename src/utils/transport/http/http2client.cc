@@ -58,17 +58,22 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
 Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
-                         std::shared_ptr<AuthenticationManager>&& authManager)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, true), std::move(authManager), SessionSettings()) {}
+                         std::shared_ptr<AuthenticationManager>&& authManager,
+                         const std::optional<HttpsProxyCfg>& httpsProxyCfg)
+    : Http2Client(root,
+                  make_unique<TlsConnection>(host, port, true, httpsProxyCfg),
+                  std::move(authManager),
+                  SessionSettings()) {}
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
                          const string& trustStorePath,
                          const string& certPath,
+                         const std::optional<HttpsProxyCfg>& httpsProxyCfg,
                          SessionSettings&& sessionSettings)
     : Http2Client(root,
-                  make_unique<TlsConnection>(host, port, trustStorePath, certPath, true),
+                  make_unique<TlsConnection>(host, port, trustStorePath, certPath, true, httpsProxyCfg),
                   nullptr,
                   std::move(sessionSettings)) {}
 

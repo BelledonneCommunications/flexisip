@@ -25,8 +25,7 @@
 #include "utils/transport/http/http-response.hh"
 #include "utils/transport/http/http2client.hh"
 
-namespace flexisip {
-namespace pushnotification {
+namespace flexisip::pushnotification {
 
 /**
  * PNR (Push Notification Request) client designed to send push notification to the Apple push API.
@@ -37,7 +36,8 @@ public:
 	            const std::filesystem::path& trustStorePath,
 	            const std::filesystem::path& certPath,
 	            const std::string& server,
-	            const Service* service = nullptr);
+	            const Service* service = nullptr,
+	            const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
 
 	/**
 	 * Send the request to the apple PNR service. If the request succeed, if a response is received, the
@@ -71,5 +71,4 @@ private:
 	std::string mLogPrefix{};
 };
 
-} // namespace pushnotification
-} // namespace flexisip
+} // namespace flexisip::pushnotification

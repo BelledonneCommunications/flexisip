@@ -19,7 +19,6 @@
 #pragma once
 
 #include <chrono>
-#include <condition_variable>
 #include <filesystem>
 #include <string>
 
@@ -31,6 +30,7 @@
 #include "pushnotification/generic/generic-enums.hh"
 #include "request.hh"
 #include "utils/transport/http/http2client.hh"
+#include "utils/transport/http/https-proxy-cfg.hh"
 
 namespace flexisip::pushnotification {
 
@@ -44,7 +44,9 @@ struct ApnsServers {
 
 class Service {
 public:
-	Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize);
+	Service(const std::shared_ptr<sofiasip::SuRoot>& root,
+	        unsigned maxQueueSize,
+	        const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
 	~Service();
 
 	StatCounter64* getFailedCounter() const noexcept {
@@ -94,7 +96,7 @@ private:
 
 	std::shared_ptr<Client> createAppleClient(const std::filesystem::path& caFile,
 	                                          const std::filesystem::path& certDir,
-	                                          const std::filesystem::path& certName);
+	                                          const std::filesystem::path& certFile);
 	std::shared_ptr<Client> createAppleClientFromPotentialNewCertificate(const std::string& certName);
 
 	// Private attributes
@@ -105,6 +107,7 @@ private:
 	std::string mWindowsPhoneApplicationSecret{};
 	ApnsServers mApnsServers{};
 	std::map<std::filesystem::path, std::filesystem::path> mAppleCertDirs{};
+	std::optional<HttpsProxyCfg> mHttpsProxyCfg;
 	StatCounter64* mCountFailed{nullptr};
 	StatCounter64* mCountSent{nullptr};
 };

@@ -28,6 +28,10 @@
 #cmakedefine MARIADB_SERVER
 // Path to cat
 #cmakedefine CAT_EXEC "${CAT_EXEC}"
+// Path to squid executable
+#cmakedefine SQUID_EXEC "${SQUID_EXEC}"
+// Path to basic_ncsa_auth executable for squid
+#cmakedefine BASIC_NCSA_AUTH_EXEC "${BASIC_NCSA_AUTH_EXEC}"
 
 // Default listen port of Redis server
 #define REDIS_SERVER_DEFAULT_PORT 6379

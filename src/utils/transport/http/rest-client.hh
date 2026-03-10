@@ -23,6 +23,7 @@
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include "exceptions/bad-configuration.hh"
+#include "flexisip/logmanager.hh"
 #include "utils/transport/http/form-data.hh"
 #include "utils/transport/http/http-message-context.hh"
 #include "utils/transport/http/http2client.hh"

@@ -16,14 +16,14 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/transport/tls-connection.hh"
+#include "utils/transport/tls/tls-connection.hh"
 
 #include <chrono>
 #include <future>
 #include <thread>
 #include <type_traits>
 
-#include "flexisip-tester-config.hh"
+#include "server/squid-server.hh"
 #include "utils/bc-utils.hh"
 #include "utils/server/tls-tcp-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -36,14 +36,22 @@ using namespace std::chrono;
 namespace flexisip::tester {
 namespace {
 
+// Shared instance of an HTTPS proxy config used across all the tests in the suite.
+optional<HttpsProxyCfg> sHttpsProxyCfg{};
+
+// Shared instance of a squid server used across all the tests in the suite.
+shared_ptr<SquidServer> sSquid{};
+
 template <typename ServerT, typename HostStr, typename PortStr>
 std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
 	constexpr auto needTls = is_same<typename decay<ServerT>::type, TlsServer>::value;
 	if (needTls) {
-		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false);
+		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false,
+		                                  sHttpsProxyCfg);
 	} else {
 		// Using an empty certPath cause TlsConnection to behave as a raw TCP connection.
-		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), "", "", false);
+		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), "", "", false,
+		                                  sHttpsProxyCfg);
 	}
 }
 
@@ -198,20 +206,35 @@ void checkCertificateValidationOnReconnection() {
 	asyncServeRequest.get();
 }
 
-TestSuite _("TlsConnection",
-            {
-                CLASSY_TEST(readTest<TcpServer>),
-                CLASSY_TEST(readAllWithTimeout<TcpServer>),
-                CLASSY_TEST(readAllWithTimeoutDelayedResponse<TcpServer>),
-                CLASSY_TEST(readAllWithTimeoutLateResponse<TcpServer>),
-                CLASSY_TEST(readTest<TlsServer>),
-                CLASSY_TEST(readAllWithTimeout<TlsServer>),
-                CLASSY_TEST(readAllWithTimeoutDelayedResponse<TlsServer>),
-                CLASSY_TEST(readAllWithTimeoutLateResponse<TlsServer>),
-                CLASSY_TEST(createTlsConnectionWrongCertPath),
-                CLASSY_TEST(createTlsConnectionUnreadableCertFile),
-                CLASSY_TEST(checkCertificateValidationOnReconnection),
-            });
+const std::vector<test_t> sTestList = {
+    CLASSY_TEST(readTest<TcpServer>),
+    CLASSY_TEST(readAllWithTimeout<TcpServer>),
+    CLASSY_TEST(readAllWithTimeoutDelayedResponse<TcpServer>),
+    CLASSY_TEST(readAllWithTimeoutLateResponse<TcpServer>),
+    CLASSY_TEST(readTest<TlsServer>),
+    CLASSY_TEST(readAllWithTimeout<TlsServer>),
+    CLASSY_TEST(readAllWithTimeoutDelayedResponse<TlsServer>),
+    CLASSY_TEST(readAllWithTimeoutLateResponse<TlsServer>),
+    CLASSY_TEST(createTlsConnectionWrongCertPath),
+    CLASSY_TEST(createTlsConnectionUnreadableCertFile),
+    CLASSY_TEST(checkCertificateValidationOnReconnection),
+};
+
+TestSuite _direct("TlsConnection", sTestList);
+
+TestSuite _proxy("TlsConnection::Proxy",
+                 sTestList,
+                 Hooks{}
+                     .beforeSuite([] {
+	                     sSquid = make_shared<SquidServer>();
+	                     sHttpsProxyCfg = HttpsProxyCfg{"localhost", sSquid->port(), "bc", "cotcot"};
+	                     return 0;
+                     })
+                     .afterSuite([] {
+	                     sHttpsProxyCfg = nullopt;
+	                     sSquid.reset();
+	                     return 0;
+                     }));
 
 } // namespace
 } // namespace flexisip::tester

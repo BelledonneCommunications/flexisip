@@ -31,11 +31,12 @@ AppleClient::AppleClient(sofiasip::SuRoot& root,
                          const std::filesystem::path& trustStorePath,
                          const std::filesystem::path& certPath,
                          const std::string& apnsServer,
-                         const Service* service)
+                         const Service* service,
+                         const std::optional<HttpsProxyCfg>& httpsProxyCfg)
     : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "AppleClient")) {
 	LOGD << "Constructing client";
 
-	mHttp2Client = Http2Client::make(root, apnsServer, APN_PORT, trustStorePath, certPath);
+	mHttp2Client = Http2Client::make(root, apnsServer, APN_PORT, trustStorePath, certPath, httpsProxyCfg);
 }
 
 std::shared_ptr<Request> AppleClient::makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) {

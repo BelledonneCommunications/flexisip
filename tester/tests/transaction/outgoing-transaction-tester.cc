@@ -37,7 +37,7 @@
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
-#include "utils/transport/tls-connection.hh"
+#include "utils/transport/tls/tls-connection.hh"
 
 extern void (*_su_time)(su_time_t* tv);
 extern su_time64_t (*_su_nanotime)(su_time64_t*);

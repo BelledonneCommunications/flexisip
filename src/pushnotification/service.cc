@@ -18,8 +18,6 @@
 
 #include "service.hh"
 
-#include <sstream>
-
 #include <dirent.h>
 
 #include <openssl/err.h>
@@ -31,11 +29,9 @@
 #include "apple/apple-client.hh"
 #include "firebase-v1/firebase-v1-client.hh"
 #include "generic/generic-http-client.hh"
-#include "generic/generic-http-request.hh"
 #include "generic/generic-http2-client.hh"
-#include "generic/generic-http2-request.hh"
 #include "push-notification-exceptions.hh"
-#include "utils/transport/tls-connection.hh"
+#include "utils/transport/tls/tls-connection.hh"
 
 using namespace std;
 using namespace filesystem;
@@ -46,8 +42,10 @@ const std::string Service::kExternalClientName{"external"};
 const std::string Service::kFallbackClientKey{"fallback"};
 const ApnsServers Service::kDefaultApnsServers{.prod = "api.push.apple.com", .dev = "api.sandbox.push.apple.com"};
 
-Service::Service(const std::shared_ptr<sofiasip::SuRoot>& root, unsigned maxQueueSize)
-    : mRoot{root}, mMaxQueueSize{maxQueueSize} {
+Service::Service(const std::shared_ptr<sofiasip::SuRoot>& root,
+                 unsigned maxQueueSize,
+                 const std::optional<HttpsProxyCfg>& httpsProxyCfg)
+    : mRoot{root}, mMaxQueueSize{maxQueueSize}, mHttpsProxyCfg(httpsProxyCfg) {
 	SSL_library_init();
 	SSL_load_error_strings();
 }
@@ -61,7 +59,7 @@ shared_ptr<Client> Service::createAppleClient(const path& caFile, const path& ce
 	auto certPath = certDir / certFile;
 	const auto server = string_utils::endsWith(certName, ".dev") ? mApnsServers.dev : mApnsServers.prod;
 	try {
-		mClients[certName] = make_unique<AppleClient>(*mRoot, caFile, certPath, server, this);
+		mClients[certName] = make_unique<AppleClient>(*mRoot, caFile, certPath, server, this, mHttpsProxyCfg);
 		LOGD << "Created iOS push notification client [" << certName << "]";
 		return mClients[certName];
 	} catch (const TlsConnection::CreationError& err) {
@@ -206,7 +204,7 @@ void Service::addFirebaseV1Client(const std::string& appId,
 	    *mRoot,
 	    make_shared<FirebaseV1AuthenticationManager>(mRoot, tokenScriptPath, serviceAccountFilePath,
 	                                                 defaultRefreshInterval, tokenExpirationAnticipationTime),
-	    this);
+	    this, mHttpsProxyCfg);
 	LOGI << "Added firebase v1 push notification client [" << appId << "]";
 }
 

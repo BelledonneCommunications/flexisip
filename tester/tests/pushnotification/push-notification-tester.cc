@@ -23,7 +23,6 @@
 #include <regex>
 #include <sstream>
 #include <string>
-#include <thread>
 
 #include "bctoolbox/tester.h"
 
@@ -43,6 +42,7 @@
 #include "utils/listening-socket.hh"
 #include "utils/pns-mock.hh"
 #include "utils/random.hh"
+#include "utils/server/squid-server.hh"
 #include "utils/test-patterns/registrardb-test.hh"
 #include "utils/test-suite.hh"
 
@@ -66,9 +66,10 @@ static void startApplePushTest(PushType pType,
                                int responseCode,
                                const string& responseBody,
                                Request::State expectedFinalState,
+                               const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt,
                                bool timeout = false) {
 	AppleClient::APN_PORT = "3000";
-	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "127.0.0.1"};
+	AppleClient appleClient{*root, "", bcTesterRes("cert/apple.test.dev.pem"), "127.0.0.1", nullptr, httpsProxyCfg};
 	appleClient.enableInsecureTestMode();
 
 	auto request = make_shared<AppleRequest>(pType, pushInfo);
@@ -87,14 +88,17 @@ static void startFirebaseV1PushTest(PushType pType,
                                     int responseCode,
                                     const string& responseBody,
                                     Request::State expectedFinalState,
+                                    const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt,
                                     bool timeout = false) {
 
 	FirebaseV1Client::FIREBASE_ADDRESS = "127.0.0.1";
 	FirebaseV1Client::FIREBASE_PORT = "3000";
-	FirebaseV1Client firebaseClient{
-	    *root, make_shared<FirebaseV1AuthenticationManager>(
-	               root, pythonScriptPath, FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json",
-	               15s, 30s)};
+	FirebaseV1Client firebaseClient{*root,
+	                                make_shared<FirebaseV1AuthenticationManager>(
+	                                    root, pythonScriptPath,
+	                                    FLEXISIP_TESTER_DATA_SRCDIR "/config/firebase_sample_service_account.json", 15s,
+	                                    30s),
+	                                nullptr, httpsProxyCfg};
 	firebaseClient.enableInsecureTestMode();
 
 	auto request = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
@@ -128,7 +132,7 @@ static void genericPushTest() {
 	                                                genericHttp2Client);
 }
 
-static void firebaseV1PushTestOk() {
+static void firebaseV1PushTestOkBase(const std::optional<HttpsProxyCfg>& httpsProxyCfg) {
 	auto dest = make_shared<RFC8599PushParams>("fcm", "", "device_id");
 	auto pushInfo = make_shared<PushInfo>();
 	pushInfo->addDestination(dest);
@@ -160,7 +164,16 @@ static void firebaseV1PushTestOk() {
 
 	startFirebaseV1PushTest(PushType::Background,
 	                        FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py", pushInfo,
-	                        reqBodyPattern, 200, "ok", Request::State::Successful);
+	                        reqBodyPattern, 200, "ok", Request::State::Successful, httpsProxyCfg);
+}
+
+static void firebaseV1PushTestOk() {
+	firebaseV1PushTestOkBase(std::nullopt);
+}
+
+static void firebaseV1PushTestOkWithHttpsProxy() {
+	SquidServer squid;
+	firebaseV1PushTestOkBase(std::optional{HttpsProxyCfg{"localhost", squid.port(), "bc", "cotcot"}});
 }
 
 static void firebaseV1PushTestKo() {
@@ -208,10 +221,10 @@ static void firebaseV1PushTestTimeout() {
 	// Request body pattern not checked during timeout test
 	startFirebaseV1PushTest(PushType::Background,
 	                        FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py", pushInfo,
-	                        "", 200, "Ok", Request::State::Failed, true);
+	                        "", 200, "Ok", Request::State::Failed, std::nullopt, true);
 }
 
-static void applePushTestOkPushkit() {
+static void applePushTestOkPushkitBase(const std::optional<HttpsProxyCfg>& httpsProxyCfg) {
 	auto dest = make_shared<RFC8599PushParams>("apns", "ABCD1234.org.linphone.phone.voip",
 	                                           "6464646464646464646464646464646464646464646464646464646464646464");
 
@@ -238,7 +251,16 @@ static void applePushTestOkPushkit() {
 	"customPayload": \{\}
 \})json"};
 
-	startApplePushTest(PushType::VoIP, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful);
+	startApplePushTest(PushType::VoIP, pushInfo, reqBodyPattern, 200, "Ok", Request::State::Successful, httpsProxyCfg);
+}
+
+static void applePushTestOkPushkit() {
+	applePushTestOkPushkitBase(std::nullopt);
+}
+
+static void applePushTestOkPushkitWithHttpsProxy() {
+	SquidServer squid;
+	applePushTestOkPushkitBase(std::optional{HttpsProxyCfg{"localhost", squid.port(), "bc", "cotcot"}});
 }
 
 static void applePushTestOkBackground() {
@@ -362,7 +384,8 @@ static void applePushTestKoWrongType() {
 	// The request will not be sent to the server, we disable request check with timeout=true
 
 	try {
-		startApplePushTest(PushType::VoIP, pushInfo, "", 0, "Doesn't even matter", Request::State::Failed, true);
+		startApplePushTest(PushType::VoIP, pushInfo, "", 0, "Doesn't even matter", Request::State::Failed, std::nullopt,
+		                   true);
 	} catch (const pushnotification::PushNotificationException& exception) {
 		// Instantiating a request of given type whereas no RFC8599 parameters are available for this type is
 		// now a fatal error and the higher-level code must protect against that. Then, we expect a invalid_argument
@@ -382,7 +405,7 @@ static void applePushTestTimeout() {
 	pushInfo->mFromUri = "sip:kijou@sip.linphone.org";
 
 	// Request body pattern not checked during timeout test.
-	startApplePushTest(PushType::Message, pushInfo, "", 200, "Ok", Request::State::Failed, true);
+	startApplePushTest(PushType::Message, pushInfo, "", 200, "Ok", Request::State::Failed, std::nullopt, true);
 }
 
 static void applePushTestConnectErrorAndReconnect() {
@@ -724,6 +747,8 @@ TestSuite _{
         CLASSY_TEST(applePushTestTimeout),
         CLASSY_TEST(genericPushTest<pn_tester::Success>),
         CLASSY_TEST(genericPushTest<pn_tester::Timeout>),
+        CLASSY_TEST(firebaseV1PushTestOkWithHttpsProxy),
+        CLASSY_TEST(applePushTestOkPushkitWithHttpsProxy),
     },
     Hooks()
         .beforeSuite([] {
