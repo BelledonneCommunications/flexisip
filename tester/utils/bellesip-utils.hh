@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2021  Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -9,7 +9,7 @@
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
     GNU Affero General Public License for more details.
 
     You should have received a copy of the GNU Affero General Public License
@@ -21,7 +21,7 @@
 #include <functional>
 #include <string>
 
-#include "belle-sip/belle-sip.h"
+#include "belle-sip/listener.h"
 #include "belle-sip/types.h"
 
 namespace flexisip {
@@ -54,6 +54,13 @@ public:
 	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
 	void stackSleep(unsigned int milliseconds = 1);
 	int getListeningPort();
+
+	/**
+	 * Force the outgoing client source port.
+	 * @warning The port allocation may fail if the specified port is already in use, or if a previous connection using
+	 * the same port is still in TIME_WAIT state.
+	 */
+	void setBindPort(int port);
 
 	belle_sip_provider_t* getProvider();
 

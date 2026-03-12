@@ -22,10 +22,13 @@
 #include <sstream>
 #include <string>
 
-#include "registrardb-internal.hh"
+#include "belle-sip/belle-sip.h"
+
 #include "sofia-sip/su_time.h"
-#include "sofia-wrapper/nta-agent.hh"
+
+#include "registrardb-internal.hh"
 #include "transaction/incoming-transaction.hh"
+#include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
