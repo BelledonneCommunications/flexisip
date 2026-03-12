@@ -111,7 +111,7 @@ Group changes to describe their impact on the project, as follows:
     - MSGPACK feature (deprecated in 2.4.0).
 
 ## [2.5.0]
-- **SDK version:** 5.4.92
+- **SDK version:** 5.4.97
 
 ### [Added]
 - **Proxy:**
@@ -248,7 +248,7 @@ Group changes to describe their impact on the project, as follows:
 
 
 ## [2.4.4]
-- **SDK version:** 5.3.113
+- **SDK version:** 5.3.114
 
 ### [Added]:
 - **Configuration:** New SIPS URI parameter `tls-client-connection` in `global/transports` for creating TLS client
@@ -265,6 +265,7 @@ Group changes to describe their impact on the project, as follows:
 - **HTTPS (External authentication plugin, Flexistats, Push Notifications):** The SNI no longer contains the port and
   is now only added if the target is a domain name (and not an IPv4 or IPv6 address). This is more compliant with
   RFC6066, and therefore more compatible with stricter HTTPS implementations.
+- **Conference:** Fixed a crash for requests with an empty body.
 
 ## [2.4.3] - 2025-11-07 
 - **SDK version:** 5.3.112
