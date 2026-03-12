@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2024 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,11 +16,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "bellesip-utils.hh"
+
 #include "bctoolbox/tester.h"
 
-#include "flexisip/flexisip-exception.hh"
+#include "belle-sip/belle-sip.h"
 
-#include "bellesip-utils.hh"
+#include "flexisip/flexisip-exception.hh"
 
 using namespace std;
 
@@ -93,8 +95,7 @@ BellesipUtils::BellesipUtils(const std::string& ipaddress,
                              int port,
                              const std::string& transport,
                              const ProcessResponseStatusCb& processResponseStatusCb)
-    : BellesipUtils(ipaddress, port, transport, processResponseStatusCb, nullptr) {
-}
+    : BellesipUtils(ipaddress, port, transport, processResponseStatusCb, nullptr) {}
 
 BellesipUtils::~BellesipUtils() {
 	belle_sip_object_unref(mListener);
@@ -121,6 +122,10 @@ void BellesipUtils::stackSleep(unsigned int milliseconds) {
 
 int BellesipUtils::getListeningPort() {
 	return ::belle_sip_listening_point_get_port(mListeningPoint);
+}
+
+void BellesipUtils::setBindPort(int port) {
+	belle_sip_stack_set_client_bind_port(mStack, port);
 }
 
 belle_sip_provider_t* BellesipUtils::getProvider() {

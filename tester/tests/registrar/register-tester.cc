@@ -20,8 +20,9 @@
 #include <sstream>
 #include <string>
 
-#include "agent.hh"
+#include "belle-sip/belle-sip.h"
 
+#include "agent.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "registrar/binding-parameters.hh"
 #include "registrar/extended-contact.hh"
@@ -32,6 +33,7 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/sip-header-private.hh"
 #include "tester.hh"
+#include "utils/asserts.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
@@ -957,6 +959,137 @@ void uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance() {
 	test(proxy);
 }
 
+/*
+ * Verify that when a client (Callee) disconnects abruptly and another client (UnexpectedCallee) reuses the same TCP
+ * source port, an INVITE addressed to Callee is NOT delivered to UnexpectedCallee.
+ */
+void portHijackingProtection() {
+	class Client {
+	public:
+		using OnResponse = function<void(int)>;
+
+		explicit Client(const string& username, const optional<OnResponse>& onResponse = nullopt)
+		    : mUsername(username), mOnResponse(onResponse) {
+			mClient = make_unique<BellesipUtils>(
+			    "127.0.0.1", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, "tcp",
+			    [this](int status) {
+				    if (mRegistered == false && status == 200) {
+					    mRegistered = true;
+					    return;
+				    }
+				    if (mOnResponse.has_value()) (*mOnResponse)(status);
+			    },
+			    [](const belle_sip_request_event_t*) {
+				    BC_FAIL("This client received a request, which should not happen in this test");
+			    });
+		}
+
+		AssertionResult registerToProxy(const string& proxyUri, CoreAssert<>& asserter) const {
+			if (!mClient) return ASSERTION_FAILED();
+			if (mRegistered) return ASSERTION_PASSED();
+
+			asserter.registerSteppable(*mClient);
+
+			stringstream request{};
+			request << "REGISTER sip:sip.test.org SIP/2.0\r\n"
+			        << "Via: SIP/2.0/TCP 127.0.0.1:" << mClient->getListeningPort() << ";branch=stub-branch\r\n"
+			        << "From: <sip:" << mUsername << "@sip.test.org>;tag=stub-from-tag\r\n"
+			        << "To: <sip:" << mUsername << "@sip.test.org>\r\n"
+			        << "Call-ID: stub-call-id\r\n"
+			        << "CSeq: 20 REGISTER\r\n"
+			        << "Contact: <sip:127.0.0.1:" << mClient->getListeningPort() << ";transport=tcp>\r\n"
+			        << "Route: <" << proxyUri << ">\r\n"
+			        << "Expires: 3600\r\n\r\n";
+
+			mClient->sendRawRequest(request.str());
+			return asserter.waitUntil(500ms, [&]() { return LOOP_ASSERTION(mRegistered); });
+		}
+
+		string mUsername{};
+		optional<OnResponse> mOnResponse{};
+		bool mRegistered{};
+		unique_ptr<BellesipUtils> mClient{};
+	};
+
+	Server proxy{{{"global/transports", "sip:127.0.0.1:0;transport=tcp"}}};
+	proxy.start();
+
+	const auto proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp";
+
+	int portUsedByCallee{};
+	int portUsedByUnexpectedCallee{};
+	const auto listener = make_shared<ContactRegisteredCallback>([&](const shared_ptr<Record>& record, const string&) {
+		if (record == nullptr) return;
+		const auto user = record->getAor().getUser();
+		if (user != "callee" && user != "unexpected-callee") return;
+		const auto contacts = record->getExtendedContacts();
+		if (contacts.size() != 1) return;
+		const auto contact = (*contacts.latest())->toSipUriClean();
+		if (user == "callee") portUsedByCallee = strtol(contact.getPort().data(), nullptr, 10);
+		if (user == "unexpected-callee") portUsedByUnexpectedCallee = strtol(contact.getPort().data(), nullptr, 10);
+	});
+	// Subscribe to registration events, to retrieve the TCP source port used for registrations.
+	proxy.getRegistrarDb()->subscribe(Record::Key{SipUri{"sip:callee@sip.test.org"}, false}, listener);
+	proxy.getRegistrarDb()->subscribe(Record::Key{SipUri{"sip:unexpected-callee@sip.test.org"}, false}, listener);
+
+	CoreAssert asserter{proxy.getRoot()};
+
+	int inviteAnswerStatus{};
+	const Client caller{
+	    "caller",
+	    [&inviteAnswerStatus](int status) {
+		    if (status == 100) return;
+		    inviteAnswerStatus = status;
+	    },
+	};
+	caller.registerToProxy(proxyUri, asserter).hard_assert_passed();
+
+	{
+		CoreAssert tmpAsserter{proxy.getRoot()};
+		const Client callee{"callee"};
+		callee.registerToProxy(proxyUri, tmpAsserter).hard_assert_passed();
+	} // Leaving this scope simulates an abrupt disconnection of Callee (no UNREGISTER sent to the proxy).
+
+	// Reusing a just-closed TCP source port can fail transiently on Linux (TIME_WAIT window).
+	// Iterating once fixes the issue in most cases.
+	asserter.iterateAllOnce();
+
+	// However, we still try to register several times as the port may still be already taken.
+	unique_ptr<Client> unexpectedCallee{};
+	for (auto attempts = 0; attempts < 4; ++attempts) {
+		auto candidate = make_unique<Client>("unexpected-callee");
+		candidate->mClient->setBindPort(portUsedByCallee);
+		CoreAssert attemptAsserter{proxy.getRoot()};
+		if (candidate->registerToProxy(proxyUri, attemptAsserter)) {
+			unexpectedCallee = std::move(candidate);
+			break;
+		}
+	}
+
+	BC_ASSERT_CPP_NOT_EQUAL(portUsedByCallee, 0);
+	BC_ASSERT_CPP_EQUAL(portUsedByCallee, portUsedByUnexpectedCallee);
+
+	asserter.registerSteppable(*unexpectedCallee->mClient);
+
+	// A call attempt from Caller to Callee's AOR should NOT be delivered to UnexpectedCallee, even if it reuses the
+	// same TCP source port as Callee.
+	stringstream request{};
+	request << "INVITE sip:callee@sip.test.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:" << caller.mClient->getListeningPort() << ";branch=stub-branch\r\n"
+	        << "From: <sip:caller@sip.test.org>;tag=stub-from-tag\r\n"
+	        << "To: <sip:callee@sip.test.org>\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 20 INVITE\r\n"
+	        << "Contact: <sip:caller@127.0.0.1:" << caller.mClient->getListeningPort() << ";transport=tcp>\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Route: <" << proxyUri << ">\r\n"
+	        << "Content-Length: 0\r\n\r\n";
+	caller.mClient->sendRawRequest(request.str());
+
+	// Expecting "503 Service Unavailable", as no outgoing transport could be determined.
+	asserter.waitUntil(500ms, [&]() { return LOOP_ASSERTION(inviteAnswerStatus == 503); }).assert_passed();
+}
+
 TestSuite _{
     "Register",
     {
@@ -972,6 +1105,7 @@ TestSuite _{
         CLASSY_TEST(correctWildcardContactHeaderUsage),
         CLASSY_TEST(registerWithoutExpiryValueInRequest),
         CLASSY_TEST(uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance),
+        CLASSY_TEST(portHijackingProtection),
     },
     Hooks().beforeEach([] {
 	    responseReceived = 0;
