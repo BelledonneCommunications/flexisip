@@ -920,8 +920,9 @@ int flexisip::main(int argc, const char* argv[]) {
 	if (stunServer) stunServer->stop();
 	if (trackAllocs) dump_remaining_msgs();
 #ifdef ENABLE_SNMP
-	if (globalCfg->get<ConfigBoolean>("enable-snmp")->read())
+	if (globalCfg->get<ConfigBoolean>("enable-snmp")->read() && snmpAgent) {
 		snmpAgent->sendNotification("Flexisip " + fName + "-server exiting normally");
+	}
 #endif
 
 	bctbx_uninit_logger();

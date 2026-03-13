@@ -81,6 +81,8 @@ Group changes to describe their impact on the project, as follows:
     used to send the request to the destination (when several transports are defined in `global/transports`).
 - **Redis client:**
   - Wait 1 second before retrying to connect when the connection to the server fails instead of retrying immediately.
+- **Main:**
+  - Check that a server has an snmp agent before sending notification.
 
 ### [Removed]
 - **Proxy:**
