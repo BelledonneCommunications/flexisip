@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -28,6 +28,7 @@
 #include "bctoolbox/ownership.hh"
 
 #include "sofia-sip/nta_stateless.h"
+#include "sofia-sip/nta_tport.h"
 #include "sofia-sip/sip.h"
 #include "sofia-sip/su_md5.h"
 #include "sofia-sip/su_tagarg.h"
@@ -473,7 +474,7 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	nta_agent_set_params(mAgent, NTATAG_SIP_T1X64(t1x64), NTATAG_RPORT(1), NTATAG_TCP_RPORT(1),
 	                     NTATAG_TLS_RPORT(1),    // use rport in vias added to outgoing requests for all protocols
 	                     NTATAG_SERVER_RPORT(2), // always add a rport parameter even if the request doesn't have it*/
-	                     NTATAG_GRAYLIST(0), // Disable graylisting servers
+	                     NTATAG_GRAYLIST(0),     // Disable graylisting servers
 	                     NTATAG_UDP_MTU(udpmtu), TAG_END());
 
 	const auto mainTlsConfigInfo = getTlsConfigInfo(global);
@@ -699,7 +700,6 @@ TlsConfigInfo Agent::getTlsConfigInfo(const GenericStruct* global) {
 		LOGI << "Main tls certs file [" << tlsConfigInfoFromConf.certifFile << "], main private key file ["
 		     << tlsConfigInfoFromConf.certifPrivateKey << "], main CA file [" << tlsConfigInfoFromConf.certifCaFile
 		     << "]";
-
 	}
 
 	return tlsConfigInfoFromConf;
@@ -740,14 +740,16 @@ void Agent::addPluginsConfigSections(ConfigManager& cfg) {
 Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
              const std::shared_ptr<AuthDb>& authDb,
-             const std::shared_ptr<RegistrarDb>& registrarDb)
-    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mTimer(mRoot, 5s) {
+             const std::shared_ptr<RegistrarDb>& registrarDb,
+             const std::shared_ptr<Http2Client>& flexiApiClient)
+    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mFlexiApiClient{flexiApiClient},
+      mTimer(mRoot, 5s) {
 
 	LOGD << "New Agent instance: " << this;
 
 	if (const auto accountsData = mConfigManager->getGlobal()->get<ConfigString>("advanced-account-data")->read();
 	    !accountsData.empty()) {
-		mAccountsStore.emplace(accountsData);
+		mAccountsStore = AccountsStore{accountsData, mConfigManager, mFlexiApiClient, mRoot};
 	}
 
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());

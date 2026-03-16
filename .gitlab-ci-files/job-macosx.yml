@@ -1,7 +1,6 @@
 .job-macosx:
   stage: build 🏗
   tags: [ "macosx-min-xcode12.2-flat" ]
-
   script:
     - ccache -s
     - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl
@@ -11,6 +10,7 @@
     - cmake -S . -B work -G "$CMAKE_GENERATOR" $DEFAULT_MACOS_CMAKE_OPTIONS $CMAKE_OPTIONS -DENABLE_SOCI_POSTGRESQL_BACKEND=OFF -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF -DENABLE_PROTOBUF=OFF -DENABLE_OPENID_CONNECT=OFF -DENABLE_REDIS_TLS=OFF -DENABLE_SYSTEMD=OFF
     - cmake --build work -- $ADDITIONAL_BUILD_OPTIONS
     - ccache -s
+  allow_failure: true # Temporarily allows macosx jobs to fail because c++ 20 is not yet supported on our build machines
 
 
 #################################################
@@ -48,6 +48,3 @@ job-macosx-xcode:
   variables:
     CMAKE_GENERATOR: Xcode
     NJOBS: $MAX_NUMBER_TASK_XCODE
-    
-  # Temporarily allows macosx jobs to fail because it doesn't run on the new macos machine. Remove when it is fixed, using a dev mac.
-  allow_failure: true

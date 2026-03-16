@@ -18,27 +18,12 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <vector>
-
-#include "flexiapi/schemas/account/account.hh"
-#include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexiapi/schemas/account/uri-type.hh"
-#include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "flexisip/utils/stl-backports.hh"
 
-namespace flexisip {
+namespace flexisip::flexiapi {
 
-class IDataManager {
-public:
-	using CallDiversionsCallback =
-	    stl_backports::move_only_function<void(const std::vector<flexiapi::CallForwarding>&)>;
-	using Accounts = std::unordered_map<flexiapi::ApiFormattedUri, flexiapi::Account>;
-
-	virtual ~IDataManager() = default;
-	virtual void findCallDiversions(const SipUri& uri,
-	                                flexiapi::CallForwarding::ForwardType forwardType,
-	                                CallDiversionsCallback&& callback) = 0;
+struct Group {
+	SipUri sip_uri;
 };
-} // namespace flexisip
+
+} // namespace flexisip::flexiapi

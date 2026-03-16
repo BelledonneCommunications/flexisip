@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,15 +20,14 @@
 
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <string>
 
 #include "linphone++/linphone.hh"
 
+#include "flexiapi/flexiapi.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/observable.hh"
-#include "utils/transport/http/rest-client.hh"
 
 namespace flexisip::voicemail {
 
@@ -65,11 +64,11 @@ public:
 	CallHandler(const std::shared_ptr<linphone::Call>& call,
 	            const std::shared_ptr<linphone::Core>& core,
 	            const std::shared_ptr<sofiasip::SuRoot>& root,
-	            RestClient& restClient,
+	            flexiapi::FlexiApi& flexiApiClient,
 	            const AnnouncementPaths& announcementsPaths,
 	            const RecordingParameters& params)
 	    : mLogPrefix(LogManager::makeLogPrefixForInstance(this, "CallHandler")), mCore(core), mCall(call),
-	      mFlexiApiClient(restClient), mTimer(root), mAnnouncementsPaths(announcementsPaths),
+	      mFlexiApiClient(flexiApiClient), mTimer(root), mAnnouncementsPaths(announcementsPaths),
 	      mRecordingParameters(params),
 	      mMaxRecordSize(mRecordingParameters.callMaxDuration.count() * kBytesPerSecondOfRecord) {}
 	~CallHandler() override = default;
@@ -127,7 +126,7 @@ private:
 	const std::string mLogPrefix;
 	std::shared_ptr<linphone::Core> mCore;
 	const std::shared_ptr<linphone::Call> mCall;
-	RestClient& mFlexiApiClient;
+	flexiapi::FlexiApi& mFlexiApiClient;
 	sofiasip::Timer mTimer;
 
 	const AnnouncementPaths& mAnnouncementsPaths;

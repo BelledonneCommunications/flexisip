@@ -18,6 +18,7 @@
 */
 
 #include "accounts-store/accounts-store.hh"
+#include "flexiapi/config.hh"
 
 #include <fstream>
 
@@ -25,66 +26,91 @@
 #include "utils/test-suite.hh"
 #include "utils/tmp-dir.hh"
 
+using namespace std;
 namespace flexisip::tester {
 namespace {
 std::optional<TmpDir> kSuiteDir;
 
-auto accounts = R"(
-    [
-        {
+const auto accountInitial = R"({
             "type": "account",
             "payload": {
+				"id": 0,
 		        "sip_uri": "sip:initial-callee@sip.example.org",
-		        "call_diversions": [
+		        "call_forwardings": [
 			        {
 				        "type": "busy",
-				        "target": "sip:busy-callee@sip.example.org",
-				        "target_type": "account"
+				        "contact_sip_uri": "sip:busy-callee@sip.example.org",
+				        "forward_to": "contact",
+						"enabled": true
+			        },
+					{
+				        "type": "always",
+				        "sip_uri": "sip:fail_if_returned@sip.example.org",
+				        "forward_to": "sip_uri",
+						"enabled": false
 			        },
 			        {
 				        "type": "always",
-				        "target": "sip:intermediate-callee@sip.example.org",
-				        "target_type": "account"
+				        "contact_sip_uri": "sip:intermediate-callee@sip.example.org",
+				        "forward_to": "contact",
+						"enabled": true
 			        }
 		        ]
             }
-        },
-        {
+        })";
+const auto accountIntermediate = R"({
             "type": "account",
             "payload": {
+				"id": 0,
 		        "sip_uri": "sip:intermediate-callee@sip.example.org",
-		        "call_diversions": [
+		        "call_forwardings": [
 			        {
 				        "type": "always",
-				        "target": "sip:final-callee@sip.example.org",
-				        "target_type": "account"
+				        "sip_uri": "sip:final-callee@sip.example.org",
+				        "forward_to": "sip_uri",
+						"enabled": true
 			        }
 		        ]
             }
-        },
-        {
+        })";
+const auto accountFinal = R"({
             "type": "account",
             "payload": {
-		        "sip_uri": "sip:final-callee@sip.example.org",
-		        "call_diversions": [
+				"id": 0,
+				"sip_uri": "sip:final-callee@sip.example.org",
+		        "call_forwardings": [
 			        {
 				        "type": "busy",
-				        "target": "sip:initial-callee@sip.example.org",
-				        "target_type": "account"
+				        "contact_sip_uri": "sip:initial-callee@sip.example.org",
+				        "forward_to": "contact",
+						"enabled": true
 			        }
 		        ]
             }
-        }
-    ]
-)";
+        })";
+const auto accounts = "["s + accountInitial + "," + accountIntermediate + "," + accountFinal + "]";
 
 void findPermanentCallDiversion() {
 	auto accountsFile = kSuiteDir->path() / __func__;
 	std::ofstream(accountsFile) << accounts;
-	AccountsStore store{accountsFile};
-	store.setMaxCallDiversions(2);
+	AccountsStore store{accountsFile, nullptr, nullptr, nullptr};
+	store.setMaxCallDiversions(5);
 	bool callbackCalled{};
-	store.checkCallDiversions(SipUri("sip:initial-callee@sip.example.org"), flexiapi::CallDiversion::Type::Always,
+	store.checkCallDiversions(SipUri("sip:initial-callee@sip.example.org"), flexiapi::CallForwarding::Type::Always,
+	                          [&callbackCalled](const SipUri& uri) {
+		                          BC_ASSERT_CPP_EQUAL(uri.str(), "sip:final-callee@sip.example.org");
+		                          callbackCalled = true;
+	                          });
+	BC_ASSERT_TRUE(callbackCalled);
+}
+
+void findPermanentCallDiversion_noDiversion() {
+	auto accountsFile = kSuiteDir->path() / __func__;
+	std::ofstream(accountsFile) << accounts;
+	AccountsStore store{accountsFile, nullptr, nullptr, nullptr};
+	store.setMaxCallDiversions(5);
+	bool callbackCalled{};
+	store.checkCallDiversions(SipUri("sip:final-callee@sip.example.org"), flexiapi::CallForwarding::Type::Always,
 	                          [&callbackCalled](const SipUri& uri) {
 		                          BC_ASSERT_CPP_EQUAL(uri.str(), "sip:final-callee@sip.example.org");
 		                          callbackCalled = true;
@@ -95,10 +121,10 @@ void findPermanentCallDiversion() {
 void maxCallDiversion() {
 	auto accountsFile = kSuiteDir->path() / __func__;
 	std::ofstream(accountsFile) << accounts;
-	AccountsStore store{accountsFile};
+	AccountsStore store{accountsFile, nullptr, nullptr, nullptr};
 	store.setMaxCallDiversions(1);
 	bool callbackCalled{};
-	store.checkCallDiversions(SipUri("sip:initial-callee@sip.example.org"), flexiapi::CallDiversion::Type::Always,
+	store.checkCallDiversions(SipUri("sip:initial-callee@sip.example.org"), flexiapi::CallForwarding::Type::Always,
 	                          [&callbackCalled](const SipUri& uri) {
 		                          BC_ASSERT_TRUE(uri.str().empty());
 		                          callbackCalled = true;
@@ -110,6 +136,7 @@ TestSuite kSuite{
     "AccountsStore",
     {
         CLASSY_TEST(findPermanentCallDiversion),
+        CLASSY_TEST(findPermanentCallDiversion_noDiversion),
         CLASSY_TEST(maxCallDiversion),
     },
     Hooks()

@@ -16,18 +16,19 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "schemas-json.hh"
 
-#include <vector>
-
-#include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "flexisip/logmanager.hh"
 
 namespace flexisip::flexiapi {
-struct Account {
-	int id = -1;
-	SipUri sip_uri{};
-	std::vector<CallForwarding> call_forwardings{};
-};
+
+void ApiFormattedUri::JsonHandler::fromJson(const nlohmann::json& j, ApiFormattedUri& a) {
+	LOGD_CTX("ApiFormattedUri") << "This function is not safe (no verifications)";
+	a.apiFormattedUri = j.get<std::string>();
+}
+
+void ApiFormattedUri::JsonHandler::toJson(nlohmann::json& j, const ApiFormattedUri& a) {
+	j = a.apiFormattedUri;
+}
 
 } // namespace flexisip::flexiapi

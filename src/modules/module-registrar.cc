@@ -22,9 +22,10 @@
 #include <chrono>
 #include <csignal>
 #include <fstream>
-#include <functional>
 #include <ostream>
 #include <regex>
+
+#include "sofia-sip/nta_tport.h"
 
 #include "agent.hh"
 #include "domain-registrations.hh"

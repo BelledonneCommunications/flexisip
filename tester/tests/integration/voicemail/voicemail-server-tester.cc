@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,6 +20,7 @@
 
 #include "flexiapi/config.hh"
 #include "flexiapi/schemas/account/account.hh"
+#include "flexiapi/schemas/schemas-json.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "tester.hh"
@@ -99,7 +100,10 @@ void answerCallThenHangUp() {
 void getAccountIdHandler(http_mock::HttpMock&,
                          const nghttp2::asio_http2::server::request&,
                          const nghttp2::asio_http2::server::response& res) {
-	nlohmann::json account = flexiapi::Account{1234};
+	nlohmann::json account{}; // = flexiapi::Account{1234}; doesn't work for a reason.
+	account["id"] = 1234;
+	account["call_forwardings"] = nlohmann::json::array();
+	account["sip_uri"] = SipUri{};
 
 	res.write_head(200);
 	res.end(account.dump());

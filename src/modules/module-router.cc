@@ -747,7 +747,7 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 
 		if (sip->sip_request->rq_method == sip_method_invite && mEnableCallDiversions) {
 			mAgent->getAccountsStore()->checkCallDiversions(
-			    requestUri, flexiapi::CallDiversion::Type::Always,
+			    requestUri, flexiapi::CallForwarding::Type::Always,
 			    [this, event = std::move(ev)](const SipUri& target) mutable {
 				    if (target.empty()) {
 					    return sendReply(*event, SIP_482_LOOP_DETECTED);

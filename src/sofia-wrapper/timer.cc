@@ -100,6 +100,7 @@ void Timer::_oneShotTimerCb([[maybe_unused]] su_root_magic_t* magic,
 
 	// The attribute timer->_func must be emptied before calling the function to avoid an invalid Timer state if the
 	// function calls Timer::set() again. That would result in having the C timer set without a C++ function set.
+	// This also allows deleting the Timer object during the execution of func().
 	Func func;
 	func.swap(timer->mFunc);
 	func();

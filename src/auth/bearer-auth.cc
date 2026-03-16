@@ -19,16 +19,12 @@
 #include "bearer-auth.hh"
 
 #include <algorithm>
-#include <cstdio>
 
 #include <jwt/jwt.hpp>
 #include <nlohmann/json.hpp>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
-#include <openssl/rsa.h>
 #include <openssl/x509.h>
-
-#include <sofia-sip/hostdomain.h>
 
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
@@ -56,8 +52,7 @@ constexpr auto kScope = "scope"sv;
 // this wrapper forces the use of a string as a key id
 class JsonWrapper {
 public:
-	explicit JsonWrapper(const nlohmann::json& jsonData) : mJsonData(jsonData) {
-	}
+	explicit JsonWrapper(const nlohmann::json& jsonData) : mJsonData(jsonData) {}
 	auto has(const string& keyId) const {
 		return mJsonData.contains(keyId);
 	}
@@ -267,8 +262,7 @@ unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
 Bearer::Bearer(const shared_ptr<sofiasip::SuRoot>& root,
                const BearerParams& params,
                const KeyStoreParams& keyStoreParams)
-    : mParams(params), mKeyStore(root, params.issuer, keyStoreParams, [this] { processPendingTokens(); }) {
-}
+    : mParams(params), mKeyStore(root, params.issuer, keyStoreParams, [this] { processPendingTokens(); }) {}
 
 string Bearer::schemeType() const {
 	return kSchemeType;
@@ -307,7 +301,7 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 		const auto& payload = dec.payload();
 		const auto payloadValues = JsonWrapper(payload.create_json_obj());
 
-		auto checkMandatoryClaim = [&payload, &payloadValues](string_view claim) {
+		const auto checkMandatoryClaim = [&payload, &payloadValues](string_view claim) -> nlohmann::json {
 			if (!payload.has_claim(claim)) throw runtime_error(string(claim) + " claim is missing");
 			return payloadValues[claim];
 		};
@@ -323,9 +317,8 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 		const auto subject = checkMandatoryClaim(claim::kSubject).get<string>();
 		if (!acceptSubjet(subject)) throw runtime_error("invalid subject");
 
-		auto audience = checkMandatoryClaim(claim::kAudience);
-		if (!acceptAudience(audience.is_array() ? audience.get<vector<nlohmann::json>>()
-		                                        : vector<nlohmann::json>{audience},
+		const auto audience = checkMandatoryClaim(claim::kAudience);
+		if (!acceptAudience(audience.is_array() ? audience.get<vector<nlohmann::json>>() : vector{audience},
 		                    mParams.audience))
 			throw runtime_error("invalid audience");
 

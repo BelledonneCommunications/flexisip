@@ -146,6 +146,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Sanitizer"
 	endif()
 endif()
 
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=118867
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 12 VERSION_LESS_EQUAL 16)
+	set(HAS_GCC_BUG_118867 ON)
+endif()
+
 # Place the built libraries and executables in top level directories 'lib' and 'bin' in the build tree.
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" CACHE PATH "Archive output dir.")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib" CACHE PATH "Library output dir.")

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <fstream>
 
+#include "flexiapi/schemas/account/account-json.hh"
 #include "flexiapi/schemas/account/account.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "flexiapi/schemas/voicemail/slot.hh"
@@ -28,7 +29,6 @@
 #include "utils/digest.hh"
 #include "utils/rand.hh"
 #include "utils/string-utils.hh"
-#include "utils/transport/http/form-data.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -193,7 +193,7 @@ void CallHandler::handleCallWithoutRecording() {
 void CallHandler::reserveSlot() {
 	const auto requestUri = mCall->getRequestAddress();
 	const auto targetParameter = uri_utils::unescape(requestUri->getUriParam("target"));
-	const auto target = std::string(string_utils::removePrefix(targetParameter, "sip:").value_or(""));
+	const auto target = targetParameter.starts_with("sip:") ? targetParameter : "";
 
 	if (target.empty()) {
 		LOGD << "Received request without target parameter, declining call";
@@ -201,10 +201,19 @@ void CallHandler::reserveSlot() {
 		notifyCallHandled();
 		return;
 	}
+	SipUri targetUri;
+	try {
+		targetUri = SipUri(target);
+	} catch (const sofiasip::InvalidUrlError& e) {
+		LOGE << "Invalid target parameter (" << e.what() << "), declining call";
+		mCall->decline(linphone::Reason::AddressIncomplete);
+		notifyCallHandled();
+		return;
+	}
 
 	LOGD << "Searching for the account ID of the user on the FAM";
-	mFlexiApiClient.get(
-	    "/api/accounts/"s + target + "/search",
+	mFlexiApiClient.accountSearchByUri(
+	    targetUri,
 	    [maybe_thiz = weak_from_this(), logPrefix = mLogPrefix](const std::shared_ptr<HttpMessage>&,
 	                                                            const std::shared_ptr<HttpResponse>& rep) {
 		    const auto thiz = maybe_thiz.lock();
@@ -213,11 +222,11 @@ void CallHandler::reserveSlot() {
 			    return;
 		    }
 		    try {
-			    const auto body = nlohmann::json::parse(string(rep->getBody().data(), rep->getBody().size()));
+			    const auto body = nlohmann::json::parse(rep->getBodyAsString());
 			    const auto account = body.get<flexiapi::Account>();
 
-			    thiz->sendSlotRequest(account.getId());
-		    } catch (const exception& e) {
+			    thiz->sendSlotRequest(account.id);
+		    } catch (const nlohmann::json::exception& e) {
 			    LOGE_CTX(logPrefix, "reserveSlot") << "Unexpected error while parsing response: " << e.what();
 			    thiz->handleCallWithoutRecording();
 		    }
@@ -236,10 +245,8 @@ void CallHandler::reserveSlot() {
 
 void CallHandler::sendSlotRequest(const int accountId) {
 	LOGD << "Reserving a slot to upload a voicemail";
-	const nlohmann::json jsonBody(flexiapi::SlotCreation{mCall->getRemoteAddress()->asStringUriOnly(), "audio/wav"});
-
-	mFlexiApiClient.post(
-	    "/api/accounts/"s + to_string(accountId) + "/voicemails", jsonBody,
+	mFlexiApiClient.slotCreationByAccountId(
+	    accountId, flexiapi::SlotCreation{mCall->getRemoteAddress()->asStringUriOnly(), "audio/wav"},
 	    [maybe_thiz = weak_from_this(), logPrefix = mLogPrefix](const std::shared_ptr<HttpMessage>&,
 	                                                            const std::shared_ptr<HttpResponse>& rep) {
 		    const auto thiz = maybe_thiz.lock();
@@ -316,7 +323,7 @@ void CallHandler::onSlotReserved(const std::shared_ptr<HttpResponse>& rep) {
 	} catch (const sofiasip::InvalidUrlError& e) {
 		LOGE << "Invalid url (" << e.what() << ")";
 		handleCallWithoutRecording();
-	} catch (const exception& e) {
+	} catch (const nlohmann::json::exception& e) {
 		LOGE << "Unexpected error while parsing response: " << e.what();
 		handleCallWithoutRecording();
 	}
@@ -332,15 +339,8 @@ void CallHandler::uploadVoicemail(const sofiasip::Url& url) {
 		return;
 	}
 
-	const HttpHeaders partHeader{
-	    {"Content-Disposition", R"(form-data; name="file"; filename=")" + mRecordPath.string() + "\""},
-	    {"Content-Type", "audio/wav"},
-	};
-	const http::MultiPartForm form{{partHeader, fileContent}};
-
-	const auto path = url.getPath();
-	mFlexiApiClient.post(
-	    !path.empty() ? "/" + path : "", form,
+	mFlexiApiClient.uploadVoicemail(
+	    url, mRecordPath.string(), fileContent,
 	    [maybe_thiz = weak_from_this(), logPrefix = mLogPrefix](const std::shared_ptr<HttpMessage>&,
 	                                                            const std::shared_ptr<HttpResponse>& rep) {
 		    const auto thiz = maybe_thiz.lock();

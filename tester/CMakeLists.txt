@@ -167,6 +167,7 @@ add_executable(flexisip_tester
 	tests/sofia-wrapper/su/home-tester.cc
 	tests/sofia-wrapper/sip-header-tester.cc
 	tests/sofia-wrapper/su-root-tester.cc
+	tests/sofia-wrapper/timer-tester.cc
 	tests/transaction/outgoing-transaction-tester.cc
 	tests/transports-tester.cc
 	tests/transaction/transaction-tester.cc
@@ -274,6 +275,7 @@ endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
+		tests/accounts-store/fam-data-tester.cc
 		tests/auth/module-authorization-FAM-tester.cc
 		tests/pushnotification/global-push-tester.cc
 		tests/flexiapi/flexi-stats-tester.cc

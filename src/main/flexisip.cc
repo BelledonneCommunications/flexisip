@@ -773,7 +773,8 @@ int flexisip::main(int argc, const char* argv[]) {
 	// Create an Agent in all cases because it will declare configuration items that are necessary for presence server.
 	const auto authDb = std::make_shared<AuthDb>(cfg);
 	const auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
-	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb);
+	auto flexiApiClient = flexiapi::createClient(cfg, *root);
+	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb, flexiApiClient);
 	setOpenSSLThreadSafe();
 
 #ifdef ENABLE_SNMP
@@ -784,11 +785,7 @@ int flexisip::main(int argc, const char* argv[]) {
 #endif
 	unique_ptr<StunServer> stunServer{};
 	unique_ptr<CommandLineInterface> proxyCli{};
-	shared_ptr<Http2Client> flexiApiClient{};
 	if (startProxy) {
-		// Create the HTTP Client that should be used for the FlexiAPI
-		flexiApiClient = flexiapi::createClient(cfg, *agent->getRoot());
-		agent->setFlexiApiClient(flexiApiClient);
 		agent->start(transportsArg.getValue(), passphrase);
 #ifdef ENABLE_SNMP
 		if (globalCfg->get<ConfigBoolean>("enable-snmp")->read()) {

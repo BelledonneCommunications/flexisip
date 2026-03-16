@@ -24,9 +24,10 @@
 #include <vector>
 
 #include "accounts-data-manager.hh"
-#include "flexiapi/schemas/advanced-account/advanced-account.hh"
+#include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "flexisip/utils/stl-backports.hh"
+#include "utils/transport/http/http2client.hh"
 
 namespace flexisip {
 
@@ -34,7 +35,10 @@ class AccountsStore {
 public:
 	static constexpr std::string_view mLogPrefix{"AccountsStore"};
 
-	AccountsStore(const std::string& advancedAccountOptions);
+	AccountsStore(const std::string& advancedAccountOptions,
+	              const std::shared_ptr<ConfigManager>& configManager,
+	              const std::shared_ptr<Http2Client>& flexiApiClient,
+	              const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	/**
 	 * Resolve the call diversions until a valid uri is found or max-call-diversion is reached.
@@ -45,7 +49,7 @@ public:
 	 * @param callback function to resume call processing
 	 */
 	void checkCallDiversions(const SipUri& uri,
-	                         flexiapi::CallDiversion::Type type,
+	                         flexiapi::CallForwarding::Type type,
 	                         stl_backports::move_only_function<void(const SipUri&)>&& callback);
 
 	void setMaxCallDiversions(int maxCallDiversions) {
@@ -54,7 +58,7 @@ public:
 
 private:
 	void checkPermanentCallDiversion(const SipUri& targetUri,
-	                                 const std::vector<flexiapi::CallDiversion>& callDiversions,
+	                                 const std::vector<flexiapi::CallForwarding>& callDiversions,
 	                                 int iDivertedCallCnt,
 	                                 stl_backports::move_only_function<void(const SipUri&)>&& finalCallback);
 

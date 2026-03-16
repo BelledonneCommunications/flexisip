@@ -18,8 +18,7 @@
 
 #include "file-data.hh"
 
-#include "lib/nlohmann-json-3-11-2/json.hpp"
-
+#include "flexiapi/schemas/account/account-json.hh"
 #include "flexisip/logmanager.hh"
 #include "utils/load-file.hh"
 
@@ -31,24 +30,21 @@ FileData::FileData(const std::filesystem::path& filePath) {
 	auto jsonData = nlohmann::json::parse(data);
 	try {
 		for (const auto& entity : jsonData) {
-			auto p = flexiapi::loadAdvancedAccount(to_string(entity));
-			mData.mAccounts.insert(p);
+			auto account = entity.get<ResolvedUri>().asAccount();
+			mAccounts.try_emplace(account.sip_uri, account);
 		}
-	} catch (std::exception& e) {
-		LOGW << "Parsing error: " << e.what();
+	} catch (const nlohmann::json::exception& e) {
+		LOGE << "Parsing error: " << e.what();
 	}
 }
 
-void FileData::fetchAccount(const SipUri&) {}
-
-void FileData::findCallDiversions(
-    const SipUri& uri, stl_backports::move_only_function<void(const std::vector<CallDiversion>&)>&& callback) {
-	const auto account = mData.mAccounts.find(uri);
-	if (account == mData.mAccounts.cend()) {
-		LOGD << "Unkonw account '" << uri.str() << "'";
+void FileData::findCallDiversions(const SipUri& uri, CallForwarding::ForwardType, CallDiversionsCallback&& callback) {
+	const auto account = mAccounts.find(uri);
+	if (account == mAccounts.cend()) {
+		LOGD << "Unknown account '" << uri.str() << "'";
 		return callback({});
 	}
-	callback(account->call_diversions);
+	callback(account->second.call_forwardings);
 }
 
 } // namespace flexisip

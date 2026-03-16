@@ -213,7 +213,6 @@ void ModuleAuthorization::onLoad(const GenericStruct* mc) {
 	const auto refresh = chrono::duration_cast<chrono::milliseconds>(
 	    mc->get<ConfigDuration<chrono::minutes>>("accounts-refresh-delay")->read());
 	if (mc->get<ConfigString>("auth-domains-mode")->read() == "legacy") {
-		LOGW << "Legacy 'auth-domains-mode' mode is deprecated, please use 'flexiapi' or 'static' instead";
 		auto host = mc->get<ConfigString>("account-manager-host")->read();
 		if (host.empty()) {
 			mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());

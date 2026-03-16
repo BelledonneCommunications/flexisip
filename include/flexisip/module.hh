@@ -20,10 +20,6 @@
 
 #include <utility>
 
-#include <sofia-sip/msg_header.h>
-#include <sofia-sip/nta_tport.h>
-#include <sofia-sip/tport.h>
-
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/home.hh"
@@ -121,8 +117,6 @@ protected:
 	void sendTrap(const std::string& msg);
 
 	std::string mLogPrefix;
-
-protected:
 	sofiasip::Home mHome;
 	Agent* mAgent = nullptr;
 	const ModuleInfoBase* mInfo;

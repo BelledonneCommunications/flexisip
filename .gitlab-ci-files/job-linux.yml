@@ -78,7 +78,7 @@
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:
-    - "[[ -f /opt/rh/devtoolset-8/enable ]] && source /opt/rh/devtoolset-8/enable"
+    - "[[ -f /opt/rh/gcc-toolset-15/enable ]] && source /opt/rh/gcc-toolset-15/enable"
     - *set-max-jobs
     - mkdir build && cd build
     - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM ..

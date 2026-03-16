@@ -18,27 +18,54 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <vector>
-
-#include "flexiapi/schemas/account/account.hh"
-#include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexiapi/schemas/account/uri-type.hh"
-#include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "flexisip/utils/stl-backports.hh"
 
-namespace flexisip {
+namespace flexisip::flexiapi {
 
-class IDataManager {
-public:
-	using CallDiversionsCallback =
-	    stl_backports::move_only_function<void(const std::vector<flexiapi::CallForwarding>&)>;
-	using Accounts = std::unordered_map<flexiapi::ApiFormattedUri, flexiapi::Account>;
+struct CallForwarding {
+	enum class Type {
+		Always,
+		Busy,
+		Away,
+	};
 
-	virtual ~IDataManager() = default;
-	virtual void findCallDiversions(const SipUri& uri,
-	                                flexiapi::CallForwarding::ForwardType forwardType,
-	                                CallDiversionsCallback&& callback) = 0;
+	enum class ForwardType {
+		Voicemail,
+		SipUri,
+		Contact,
+	};
+
+	Type type;
+	ForwardType forward_to;
+	SipUri sip_uri{};
+	bool enabled;
 };
-} // namespace flexisip
+
+inline std::string toString(CallForwarding::ForwardType type) {
+	switch (type) {
+		using enum CallForwarding::ForwardType;
+		case Voicemail:
+			return "voicemail";
+		case SipUri:
+			return "sip_uri";
+		case Contact:
+			return "contact";
+		default:
+			return "Invalid ForwardType";
+	}
+}
+
+inline std::string toString(CallForwarding::Type type) {
+	switch (type) {
+		using enum CallForwarding::Type;
+		case Always:
+			return "always";
+		case Busy:
+			return "busy";
+		case Away:
+			return "away";
+		default:
+			return "Invalid ForwardType";
+	}
+}
+} // namespace flexisip::flexiapi

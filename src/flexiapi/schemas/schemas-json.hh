@@ -18,27 +18,36 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <vector>
-
-#include "flexiapi/schemas/account/account.hh"
-#include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexiapi/schemas/account/uri-type.hh"
 #include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "flexisip/utils/stl-backports.hh"
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
 namespace flexisip {
 
-class IDataManager {
-public:
-	using CallDiversionsCallback =
-	    stl_backports::move_only_function<void(const std::vector<flexiapi::CallForwarding>&)>;
-	using Accounts = std::unordered_map<flexiapi::ApiFormattedUri, flexiapi::Account>;
+inline void to_json(nlohmann::json& j, const SipUri& uri) {
+	j = uri.str();
+}
 
-	virtual ~IDataManager() = default;
-	virtual void findCallDiversions(const SipUri& uri,
-	                                flexiapi::CallForwarding::ForwardType forwardType,
-	                                CallDiversionsCallback&& callback) = 0;
-};
+inline void from_json(const nlohmann::json& j, SipUri& uri) {
+	uri = SipUri(j.get<std::string>());
+}
 } // namespace flexisip
+
+namespace flexisip::flexiapi {
+struct ApiFormattedUri::JsonHandler {
+	static void fromJson(const nlohmann::json& j, ApiFormattedUri& a);
+	static void toJson(nlohmann::json& j, const ApiFormattedUri& a);
+};
+} // namespace flexisip::flexiapi
+
+NLOHMANN_JSON_NAMESPACE_BEGIN
+template <>
+struct adl_serializer<flexisip::flexiapi::ApiFormattedUri> {
+	static void from_json(const json& j, flexisip::flexiapi::ApiFormattedUri& a) {
+		flexisip::flexiapi::ApiFormattedUri::JsonHandler::fromJson(j, a);
+	}
+	static void to_json(json& j, const flexisip::flexiapi::ApiFormattedUri& a) {
+		flexisip::flexiapi::ApiFormattedUri::JsonHandler::toJson(j, a);
+	}
+};
+NLOHMANN_JSON_NAMESPACE_END

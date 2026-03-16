@@ -63,6 +63,9 @@ job-rocky8-rpm:
   extends:
     - .job-linux-rpm
     - .rocky8-image-variables
+  variables:
+    CC: clang
+    CXX: clang++
   needs:
     - job: job-rocky8-unit-test
       optional: true

@@ -16,18 +16,22 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "resolved-uri.hh"
 
-#include <vector>
-
-#include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include <stdexcept>
 
 namespace flexisip::flexiapi {
-struct Account {
-	int id = -1;
-	SipUri sip_uri{};
-	std::vector<CallForwarding> call_forwardings{};
-};
+
+const Account& ResolvedUri::asAccount() const {
+	if (type != UriType::Account) throw std::logic_error("ResolvedUri::asAccount() called but type is not Account");
+	if (!mAccount) throw std::logic_error("ResolvedUri::asAccount() called but account payload is nullopt");
+	return *mAccount;
+}
+
+const Group& ResolvedUri::asGroup() const {
+	if (type != UriType::Group) throw std::logic_error("ResolvedUri::asGroup() called but type is not Group");
+	if (!mGroup) throw std::logic_error("ResolvedUri::asGroup() called but group payload is nullopt");
+	return *mGroup;
+}
 
 } // namespace flexisip::flexiapi

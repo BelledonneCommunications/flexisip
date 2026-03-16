@@ -21,28 +21,8 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
-	config.cc config.hh
-	flexi-stats.cc flexi-stats.hh
-	flexiapi.cc flexiapi.hh
-	schemas/account/account.hh
-	schemas/account/account-json.cc schemas/account/account-json.hh
-	schemas/account/call-forwarding.hh
-	schemas/account/group.hh
-	schemas/account/resolved-uri.cc schemas/account/resolved-uri.hh
-	schemas/account/uri-type.hh
-	schemas/api-formatted-uri.hh
-	schemas/call/call.hh
-	schemas/call/call-device-state.hh
-	schemas/call/terminated.hh
-	schemas/conference/conference.hh
-	schemas/conference/participant-device-event.hh
-	schemas/conference/participant-event.hh
-	schemas/iso-8601-date.hh
-	schemas/message/message.hh
-	schemas/message/message-device-response.hh
-	schemas/optional-json.hh
-	schemas/pushnotification/pushnotification.hh
-	schemas/schemas-json.cc schemas/schemas-json.hh
-	schemas/voicemail/slot.hh
-	schemas/voicemail/slot-creation.hh
+	accounts-data-manager.hh
+	accounts-store.cc accounts-store.hh
+	fam-data.cc fam-data.hh
+	file-data.cc file-data.hh
 )

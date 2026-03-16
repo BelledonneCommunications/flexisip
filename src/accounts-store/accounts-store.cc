@@ -18,31 +18,52 @@
 
 #include "accounts-store.hh"
 
-#include "exceptions/bad-configuration.hh"
+#include <chrono>
+
+#include "fam-data.hh"
 #include "file-data.hh"
+#include "flexiapi/config.hh"
 #include "flexisip/logmanager.hh"
 
+using namespace std::chrono_literals;
 using namespace flexisip::flexiapi;
+
 namespace flexisip {
 namespace {
-SipUri findPermanentCallDiversion(const std::vector<CallDiversion>& callDiversions) {
+std::pair<SipUri, CallForwarding::ForwardType>
+findPermanentCallDiversion(const std::vector<CallForwarding>& callDiversions) {
 	for (const auto& d : callDiversions) {
-		if (d.type == CallDiversion::Type::Always) return d.target;
+		if (d.enabled && d.type == CallForwarding::Type::Always) {
+			switch (d.forward_to) {
+				using enum CallForwarding::ForwardType;
+				case Contact:
+				case SipUri:
+					return {d.sip_uri, d.forward_to};
+				case Voicemail:
+					return {flexisip::SipUri{}, d.forward_to};
+			}
+		}
 	}
-	return {};
+	return {SipUri{}, CallForwarding::ForwardType::SipUri};
 }
 } // namespace
 
-AccountsStore::AccountsStore(const std::string& advancedAccountOptions) {
-	if (advancedAccountOptions == "flexiapi") throw BadConfiguration("'flexiapi' is not yet implemented");
+AccountsStore::AccountsStore(const std::string& advancedAccountOptions,
+                             const std::shared_ptr<ConfigManager>& configManager,
+                             const std::shared_ptr<Http2Client>& flexiApiClient,
+                             const std::shared_ptr<sofiasip::SuRoot>& root) {
+	if (advancedAccountOptions == "flexiapi") {
+		mDataManager = std::make_unique<FAMData>(createRestClient(*configManager, flexiApiClient), root, 30s, 10min);
+		return;
+	}
 	mDataManager = std::make_unique<FileData>(advancedAccountOptions);
 }
 
 void AccountsStore::checkCallDiversions(const SipUri& uri,
-                                        CallDiversion::Type type,
+                                        CallForwarding::Type type,
                                         stl_backports::move_only_function<void(const SipUri&)>&& callback) {
 	switch (type) {
-		case CallDiversion::Type::Always:
+		case CallForwarding::Type::Always:
 		default:
 			checkPermanentCallDiversion(uri, {}, 0, std::move(callback));
 	}
@@ -50,12 +71,17 @@ void AccountsStore::checkCallDiversions(const SipUri& uri,
 
 void AccountsStore::checkPermanentCallDiversion(
     const SipUri& targetUri,
-    const std::vector<CallDiversion>& callDiversions,
+    const std::vector<CallForwarding>& callDiversions,
     int iDivertedCallCnt,
     stl_backports::move_only_function<void(const SipUri&)>&& finalCallback) {
 
-	auto divertedUri = iDivertedCallCnt == 0 ? targetUri : findPermanentCallDiversion(callDiversions);
+	auto [divertedUri, divertedType] = iDivertedCallCnt == 0 ? std::pair{targetUri, CallForwarding::ForwardType::SipUri}
+	                                                         : findPermanentCallDiversion(callDiversions);
 
+	if (divertedType == CallForwarding::ForwardType::Voicemail) {
+		LOGE << "Voicemail call diversion is not supported yet";
+		return finalCallback({});
+	}
 	if (divertedUri.empty()) {
 		return finalCallback(targetUri);
 	}
@@ -67,8 +93,9 @@ void AccountsStore::checkPermanentCallDiversion(
 
 	LOGD << "Find if '" << divertedUri.str() << "' has a 'Always' type call diversion";
 	mDataManager->findCallDiversions(
-	    divertedUri, [this, divertedUri, cnt = iDivertedCallCnt + 1,
-	                  callback = std::move(finalCallback)](const std::vector<CallDiversion>& nextDiversions) mutable {
+	    divertedUri, divertedType,
+	    [this, divertedUri, cnt = iDivertedCallCnt + 1,
+	     callback = std::move(finalCallback)](const std::vector<CallForwarding>& nextDiversions) mutable {
 		    checkPermanentCallDiversion(divertedUri, nextDiversions, cnt, std::move(callback));
 	    });
 }

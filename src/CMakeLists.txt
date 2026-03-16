@@ -25,9 +25,6 @@
 #######################################################################################################################
 
 add_library(flexisip SHARED
-	accounts-store/accounts-data-manager.hh
-	accounts-store/accounts-store.cc accounts-store/accounts-store.hh
-	accounts-store/file-data.cc accounts-store/file-data.hh
 	agent.cc agent.hh
 	agent-startlogwriter.cc
 	auth/auth-scheme.hh
@@ -122,6 +119,7 @@ if(ENABLE_OPENID_CONNECT)
 	)
 endif()
 
+add_subdirectory(accounts-store)
 add_subdirectory(flexiapi)
 add_subdirectory(modules)
 add_subdirectory(pushnotification)
@@ -156,6 +154,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 			sip-boolean-expressions.cc
 			tools/pusher.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized")
+	endif()
+	if(HAS_GCC_BUG_118867)
+		set_source_files_properties(
+			auth/bearer-auth.cc
+			PROPERTIES COMPILE_OPTIONS "-Wno-error=free-nonheap-object"
+		)
 	endif()
 endif()
 

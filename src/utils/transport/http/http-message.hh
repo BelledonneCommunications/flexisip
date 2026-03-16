@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -41,7 +41,7 @@ public:
 	};
 
 	HttpMessage() = default;
-	HttpMessage(const HttpHeaders& headers, const std::vector<char>& body) : mHeaders(headers), mBody(body){};
+	HttpMessage(const HttpHeaders& headers, const std::vector<char>& body) : mHeaders(headers), mBody(body) {};
 	HttpMessage(const HttpHeaders& headers, const std::string& body) : mHeaders(headers) {
 		mBody.assign(body.cbegin(), body.cend());
 	};
@@ -49,6 +49,10 @@ public:
 
 	const std::vector<char>& getBody() const {
 		return mBody;
+	}
+
+	std::string getBodyAsString() const {
+		return std::string{mBody.data(), mBody.size()};
 	}
 
 	void setBody(const std::vector<char>& body) {

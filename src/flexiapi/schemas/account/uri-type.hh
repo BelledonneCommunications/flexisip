@@ -18,16 +18,26 @@
 
 #pragma once
 
-#include <vector>
-
-#include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexisip/utils/sip-uri.hh"
-
 namespace flexisip::flexiapi {
-struct Account {
-	int id = -1;
-	SipUri sip_uri{};
-	std::vector<CallForwarding> call_forwardings{};
+
+enum class UriType {
+	Account,
+	Group,
+	Unknown,
 };
+
+inline std::string toString(UriType type) {
+	switch (type) {
+		using enum UriType;
+		case Account:
+			return "account";
+		case Group:
+			return "group";
+		case Unknown:
+			return "unknown";
+		default:
+			return "Invalid UriType";
+	}
+}
 
 } // namespace flexisip::flexiapi

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -76,7 +76,8 @@ public:
 	Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 	      const std::shared_ptr<ConfigManager>& cm,
 	      const std::shared_ptr<AuthDb>& authDb,
-	      const std::shared_ptr<RegistrarDb>& registrarDb);
+	      const std::shared_ptr<RegistrarDb>& registrarDb,
+	      const std::shared_ptr<Http2Client>& flexiApiClient = nullptr);
 
 	~Agent() override;
 
@@ -122,9 +123,6 @@ public:
 
 	std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept override {
 		return mFlexiApiClient;
-	}
-	void setFlexiApiClient(const std::shared_ptr<Http2Client>& flexiApiClient) noexcept {
-		mFlexiApiClient = flexiApiClient;
 	}
 
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {

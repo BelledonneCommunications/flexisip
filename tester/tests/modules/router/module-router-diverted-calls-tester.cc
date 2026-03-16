@@ -50,12 +50,14 @@ struct DivertedCallTester {
         {
             "type": "account",
             "payload": {
+				"id": 1,
 		        "sip_uri": "sip:initial-callee@sip.example.org",
-		        "call_diversions": [
+		        "call_forwardings": [
 			        {
 				        "type": "always",
-				        "target": "sip:intermediate-callee@sip.example.org",
-				        "target_type": "account"
+				        "sip_uri": "sip:intermediate-callee@sip.example.org",
+				        "forward_to": "sip_uri",
+						"enabled": true
 			        }
 		        ]
             }
@@ -63,21 +65,24 @@ struct DivertedCallTester {
         {
             "type": "account",
             "payload": {
+				"id": 2,
 		        "sip_uri": "sip:intermediate-callee@sip.example.org",
-		        "call_diversions": [
+		        "call_forwardings": [
 			        {
 				        "type": "always",
-				        "target": "sip:final-callee@sip.example.org",
-				        "target_type": "account"
+				        "contact_sip_uri": "sip:final-callee@sip.example.org",
+				        "forward_to": "contact",
+						"enabled": true
 			        }
 		        ]
             }
         },
         {
+			"id": 3,
             "type": "account",
             "payload": {
 		        "sip_uri": "sip:final-callee@sip.example.org",
-		        "call_diversions": [
+		        "call_forwardings": [
 		        ]
             }
         }

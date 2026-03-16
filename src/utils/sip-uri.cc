@@ -96,7 +96,7 @@ const std::string& Url::str() const noexcept {
 	return _urlAsStr;
 }
 
-Url Url::replace(const char* url_t::*attribute, std::string_view value) const {
+Url Url::replace(const char* url_t::* attribute, std::string_view value) const {
 	if (empty()) throw UrlModificationError{"url is empty, cannot replace attribute"};
 	auto url = *_url;
 	url.*attribute = value.empty() ? nullptr : value.data();
@@ -519,6 +519,9 @@ bool SipUri::Headers::operator==(const SipUri::Headers& other) const {
 }
 
 bool SipUri::rfc3261Compare(const url_t* other) const {
+	if (_url == nullptr) return other == nullptr;
+	if (other == nullptr) return false;
+
 	// Handles user, host, and port
 	if (url_cmp(_url, other) != 0) return false;
 

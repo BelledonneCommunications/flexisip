@@ -18,41 +18,26 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_set>
-#include <vector>
+#include <optional>
 
-#include "flexisip/utils/sip-uri.hh"
+#include "flexiapi/schemas/account/account.hh"
+#include "flexiapi/schemas/account/group.hh"
+#include "flexiapi/schemas/account/uri-type.hh"
 
 namespace flexisip::flexiapi {
 
-enum class UriType {
-	Account,
-	Group,
+class ResolvedUri {
+public:
+	struct JsonDeserializer;
+	ResolvedUri() = default;
+
+	const Account& asAccount() const;
+	const Group& asGroup() const;
+
+	UriType type{};
+
+private:
+	std::optional<Account> mAccount{};
+	std::optional<Group> mGroup{};
 };
-struct CallDiversion {
-	enum class Type {
-		Always,
-		Busy,
-		Away,
-	};
-	Type type;
-	SipUri target{};
-	UriType target_type;
-};
-
-struct AccountParam {
-	AccountParam() = default;
-	AccountParam(const SipUri& uri) : sip_uri(uri) {}
-
-	bool operator==(const AccountParam& other) const {
-		return sip_uri.getUser() == other.sip_uri.getUser() && sip_uri.getHost() == other.sip_uri.getHost();
-	}
-
-	SipUri sip_uri;
-	std::vector<CallDiversion> call_diversions{};
-};
-
-AccountParam loadAdvancedAccount(const std::string& json);
-
 } // namespace flexisip::flexiapi

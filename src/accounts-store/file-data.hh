@@ -19,9 +19,7 @@
 #pragma once
 
 #include <filesystem>
-#include <string>
 #include <string_view>
-#include <vector>
 
 #include "accounts-data-manager.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -30,15 +28,14 @@ namespace flexisip {
 
 class FileData : public IDataManager {
 public:
-	FileData(const std::filesystem::path& filePath);
-	void fetchAccount(const SipUri& uri) override;
-	void findCallDiversions(
-	    const SipUri& uri,
-	    stl_backports::move_only_function<void(const std::vector<flexiapi::CallDiversion>&)>&& callback) override;
+	explicit FileData(const std::filesystem::path& filePath);
+	void findCallDiversions(const SipUri& uri,
+	                        flexiapi::CallForwarding::ForwardType forwardType,
+	                        CallDiversionsCallback&& callback) override;
 
 private:
 	static constexpr std::string_view mLogPrefix{"AccountsStore::FileData"};
-	AccountsData mData;
+	Accounts mAccounts;
 };
 
 } // namespace flexisip

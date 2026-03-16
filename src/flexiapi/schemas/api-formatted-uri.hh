@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -18,55 +18,45 @@
 
 #pragma once
 
-#include "flexisip/logmanager.hh"
+#include "flexisip/utils/sip-uri.hh"
 
-#include "lib/nlohmann-json-3-11-2/json.hpp"
-
-namespace flexisip {
-namespace flexiapi {
+namespace flexisip::flexiapi {
 
 class ApiFormattedUri {
 public:
-	// Do not use default constructor, here only for nlohmann json serialization.
-	ApiFormattedUri();
+	struct JsonHandler;
+
 	ApiFormattedUri(const url_t& url) {
 		std::ostringstream concatenated{};
 		concatenated << url.url_user << "@" << url.url_host;
 		apiFormattedUri = concatenated.str();
 	}
+	ApiFormattedUri(const SipUri& sipUri) : ApiFormattedUri(*sipUri.get()) {}
 
 	operator std::string_view() const {
 		return apiFormattedUri;
-	};
+	}
+	operator std::string() const& {
+		return apiFormattedUri;
+	}
 	operator std::string() && {
 		return std::move(apiFormattedUri);
-	};
-
-	friend void to_json(nlohmann::json& j, const ApiFormattedUri& date) {
-		j = date.apiFormattedUri;
-	};
-	friend void from_json(const nlohmann::json& j, ApiFormattedUri& date) {
-		LOGD_CTX("ApiFormattedUri") << "This function is not safe (no verifications)";
-		date.apiFormattedUri = j.get<std::string>();
 	}
 
-	bool operator==(const ApiFormattedUri& other) const {
-		return apiFormattedUri == other.apiFormattedUri;
-	}
+	bool operator==(const ApiFormattedUri& other) const = default;
 
 private:
-	friend std::hash<flexisip::flexiapi::ApiFormattedUri>;
+	friend std::hash<ApiFormattedUri>;
 
 	std::string apiFormattedUri;
 };
 
-} // namespace flexiapi
-} // namespace flexisip
+} // namespace flexisip::flexiapi
 
 namespace std {
 template <>
 struct hash<flexisip::flexiapi::ApiFormattedUri> {
-	size_t operator()(const flexisip::flexiapi::ApiFormattedUri& apiUri) const {
+	size_t operator()(const flexisip::flexiapi::ApiFormattedUri& apiUri) const noexcept {
 		return hash<string>()(apiUri.apiFormattedUri);
 	}
 };

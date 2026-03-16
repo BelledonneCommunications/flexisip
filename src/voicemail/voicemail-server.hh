@@ -69,7 +69,7 @@ private:
 	std::shared_ptr<linphone::Core> mCore{};
 
 	std::shared_ptr<ConfigManager> mConfigManager{};
-	RestClient mFlexiApiClient;
+	flexiapi::FlexiApi mFlexiApiClient;
 	voicemail::CallHandler::RecordingParameters mRecordingParameters;
 	voicemail::CallHandler::AnnouncementPaths mAnnouncementsPaths{};
 
