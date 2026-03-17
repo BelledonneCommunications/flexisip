@@ -689,6 +689,13 @@ struct CallForwardingHelper {
 		callee3 = make_unique<CoreClient>(builder.build(calleeAddress));
 		voicemail = make_unique<CoreClient>(builder.setRegistration(OnOff::Off).build("sip:voicemail@127.0.0.2"));
 
+		if constexpr (reason == Reason::Declined) {
+			// Add an Apple device that will not respond to simulate a dead device.
+			// The goal is to test that the call is still transferred as soon as the callee declines.
+			callee4 = make_unique<CoreClient>(
+			    builder.setRegistration(OnOff::On).setApplePushConfig().build(string(calleeAddress)));
+		}
+
 		const auto& config = *proxy.getConfigManager()->getRoot()->template get<GenericStruct>("module::Router");
 		const auto voicemailAddress = "sip:127.0.0.2:" + to_string(voicemail->getTcpPort()) + ";transport=tcp";
 		config.template get<ConfigString>("voicemail-server")->set(voicemailAddress);
@@ -764,11 +771,13 @@ struct CallForwardingHelper {
 	    {"module::Router/fork-late", "true"},
 	    {"module::Router/call-fork-timeout", "2s"},
 	    {"module::MediaRelay/enabled", "false"},
+	    {"module::PushNotification/enabled", "true"},
 	}};
 	unique_ptr<CoreClient> caller{};
 	unique_ptr<CoreClient> callee1{};
 	unique_ptr<CoreClient> callee2{};
 	unique_ptr<CoreClient> callee3{};
+	unique_ptr<CoreClient> callee4{};
 	unique_ptr<CoreClient> voicemail{};
 	optional<ClientCall> callToCallee{};
 	optional<ClientCall> callFromCallerToVoicemail{};

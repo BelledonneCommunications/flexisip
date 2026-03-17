@@ -133,7 +133,10 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 			if (!mCfg->mForkNoGlobalDecline) {
 				mCancelled = true;
 				cancelOthersWithStatus(br, ForkStatus::DeclinedElsewhere);
+
+				if (mCallForwardingEnabled && forward(code)) return;
 			}
+			if (br == mCallForwardingBranch.lock()) sendAndLogResponse(br);
 		} else if (isUrgent(code, getUrgentCodes()) && mShortTimer == nullptr) {
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
@@ -156,7 +159,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 }
 
 void ForkCallContext::setFinished() {
-	if (mLateTimer.hasAlreadyExpiredOnce() && mCallForwardingBranch.lock()) return;
+	if (mLateTimer.hasAlreadyExpiredOnce() && mIncoming) return;
 	ForkContextBase::setFinished();
 }
 
@@ -250,10 +253,7 @@ void ForkCallContext::onLateTimeout() {
 	// Cancel all possibly pending outgoing transactions.
 	cancelOthers(nullptr);
 
-	if (mCallForwardingEnabled) {
-		forward(408);
-		return;
-	}
+	if (mCallForwardingEnabled && forward(408)) return;
 
 	if (const auto br = findBestBranch(mCfg->mForkLate); !br || br->getStatus() == 0)
 		logResponse(sendCustomResponse(SIP_408_REQUEST_TIMEOUT), br.get());
@@ -320,15 +320,6 @@ std::shared_ptr<BranchInfo> ForkCallContext::tryToSendFinalResponse() {
 		return nullptr;
 	}
 
-	// -- Fourth case: make sure the status code received on this branch is supported for call forwarding.
-	const auto status = branch->getStatus();
-	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
-	const auto supported = config->mStatusCodes;
-	if (find(supported.cbegin(), supported.cend(), status) == supported.cend()) {
-		if (branch->sendResponse(mIncoming != nullptr)) return branch;
-		return nullptr;
-	}
-
 	// Finally, try to forward the call.
 	if (forward(branch->getStatus())) return nullptr;
 
@@ -338,6 +329,16 @@ std::shared_ptr<BranchInfo> ForkCallContext::tryToSendFinalResponse() {
 }
 
 std::shared_ptr<BranchInfo> ForkCallContext::forward(int code) {
+	// Do nothing if we already have forwarded.
+	if (mCallForwardingBranch.lock()) return nullptr;
+
+	// Make sure the status code received on this branch is supported for call forwarding.
+	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+	const auto supported = config->mStatusCodes;
+	if (find(supported.cbegin(), supported.cend(), code) == supported.cend()) {
+		return nullptr;
+	}
+
 	const auto listener = mForkContextListener.lock();
 	if (listener == nullptr) {
 		LOGE << "Failed to trigger call forwarding (ForkContextListener pointer is empty)";
