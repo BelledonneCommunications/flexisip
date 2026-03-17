@@ -376,9 +376,6 @@ unique_ptr<RequestSipEvent> ForwardModule::onRequest(unique_ptr<RequestSipEvent>
 		msg_header_remove_all(msg, (msg_pub_t*)sip, (msg_header_t*)ppi);
 	}
 
-	// Remove the "fs-conn-id" internal parameter (if present).
-	msg_header_remove_param(reinterpret_cast<msg_common_t*>(sip->sip_request), "fs-conn-id");
-
 	// If the destination could be determined with the NAT traversal strategy, then we MUST rely on it to forward.
 	if (auto* dest =
 	        mAgent->getNatTraversalStrategy()->getDestinationUrl(ms, ev->getIncomingTport().get(), lastRoute)) {
@@ -456,13 +453,12 @@ void ForwardModule::sendRequest(const unique_ptr<RequestSipEvent>& ev,
 	if (method == sip_method_register) {
 		if (mAddPath) {
 			LOGD << "Postponing 'Path' header field insertion: outgoing transport not yet determined";
-			ev->addBeforeSendCallback(
-			    [strategy = mAgent->getNatTraversalStrategy(), incoming = ev->getIncomingTport().get(),
-			     uniqueId = mAgent->getUniqueId(),
-			     prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* tport) {
-				    LOGD_CTX(prefix, "beforeSend") << "Adding 'Path' header field";
-				    strategy->addPathOnRegister(*msg, incoming, tport, uniqueId.c_str());
-			    });
+			ev->addBeforeSendCallback([strategy = mAgent->getNatTraversalStrategy(),
+			                           incoming = ev->getIncomingTport().get(), uniqueId = mAgent->getUniqueId(),
+			                           prefix = mLogPrefix](const std::shared_ptr<MsgSip>& msg, const tport_t* tport) {
+				LOGD_CTX(prefix, "beforeSend") << "Adding 'Path' header field";
+				strategy->addPathOnRegister(*msg, incoming, tport, uniqueId.c_str());
+			});
 		} else {
 			// "Path" header fields are added for internal processing within Flexisip and recorded into RegistrarDb.
 			// However, if the ForwardModule has to send a REGISTER with "Path" header fields, but "add-path" is set to
