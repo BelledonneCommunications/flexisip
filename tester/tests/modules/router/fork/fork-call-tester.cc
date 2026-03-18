@@ -197,6 +197,11 @@ void callWithEarlyCancelCalleeOffline() {
 	}
 }
 
+typedef enum {
+	DisconnectThenReconnect,
+	Disconnected,
+	AnsweringLate,
+} CallWithEarlyCancelCalleeOnlyOneDeviceCase;
 /**
  * @brief Tests early call cancellation behavior with 'fork-late mode' enabled.
  *
@@ -212,16 +217,11 @@ void callWithEarlyCancelCalleeOffline() {
  * 3. Callee device receives Invite/Cancel requests
  *
  * EXPECTED BEHAVIORS:
- * Case 1 - Broken Connection (clientBecomesAvailable=true):
- * - Condition: iOS client is "properly" offline (connection broken)
- * - Verifies: ForkCallContext preservation until client re-registration for sending INVITE and CANCEL requests
- *
- * Case 2 - Timeout (clientBecomesAvailable=false):
- * - Condition: Connection intact but client non-responsive
- * - Verifies: ForkCallContext is not preserved after timeout trigger
+ * Case 1 : See earlyCancelCalleeOnlyOneDeviceDisconnectThenReconnect
+ * Case 2 : See earlyCancelCalleeOnlyOneDeviceDisconnected,
+ * Case 3: earlyCancelCalleeOnlyOneDeviceAnsweringLate,
  */
-template <bool clientBecomesAvailable>
-void callWithEarlyCancelCalleeOnlyOffline() {
+void callWithEarlyCancelCalleeOnlyOneDevice(CallWithEarlyCancelCalleeOnlyOneDeviceCase testCase) {
 	Server server{sDefaultConfig};
 	server.setConfigParameter({"module::Router/call-fork-timeout", "1s"});
 	server.start();
@@ -266,7 +266,7 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	        << "Content-Length: 0\r\n\r\n";
 	belleSipUtils.sendRawRequest(request.str());
 
-	asserter.wait([&] { return LOOP_ASSERTION(isRequestAccepted == true); }).hard_assert_passed();
+	asserter.wait([&] { return LOOP_ASSERTION(isRequestAccepted); }).hard_assert_passed();
 
 	request = {};
 	request << "CANCEL sip:calleeClient@sip.test.org SIP/2.0\r\n"
@@ -282,18 +282,20 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	belleSipUtils.sendRawRequest(request.str());
 
 	// Case 1: iOS client is "properly" offline.
-	if constexpr (clientBecomesAvailable) {
+	if (testCase == DisconnectThenReconnect) {
 		calleeIdleClient.disconnect();
 		asserter.registerSteppable(calleeIdleClient);
 	}
 
 	asserter.wait([&] { return LOOP_ASSERTION(isCancelRequestAccepted == true); }).hard_assert_passed();
 
+	// Case 3: iOs client is not properly offline
+	if (testCase == AnsweringLate) asserter.registerSteppable(calleeIdleClient);
 	const auto& router = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_HARD_ASSERT(router != nullptr);
 	BC_HARD_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountCallForks->start->read(), 1);
 
-	if constexpr (clientBecomesAvailable) {
+	if (testCase == DisconnectThenReconnect || testCase == AnsweringLate) {
 		// Assert the ForkCallContext is still present because the callee has an offline iOS client.
 		BC_HARD_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountCallForks->finish->read(), 0);
 		// The iOS client reconnects after receiving the push notification.
@@ -345,6 +347,33 @@ void callWithEarlyCancelCalleeOnlyOffline() {
 	// Verifies that only one ForkContext existed during test execution.
 	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->start->read(), 1);
 	BC_ASSERT_CPP_EQUAL(router->mStats.mForkStats->mCountForks->finish->read(), 1);
+}
+
+/*
+ * Case 1 - Broken Connection
+ * - Condition: iOS client is "properly" offline (connection broken)
+ * - Verifies: ForkCallContext preservation until client re-registration for sending INVITE and CANCEL requests
+ */
+void earlyCancelCalleeOnlyOneDeviceDisconnectThenReconnect() {
+	callWithEarlyCancelCalleeOnlyOneDevice(DisconnectThenReconnect);
+}
+
+/*
+ * Case 2 - Timeout
+ * - Condition: Connection intact but client non-responsive
+ * - Verifies: ForkCallContext is not preserved after timeout trigger
+ */
+void earlyCancelCalleeOnlyOneDeviceIdle() {
+	callWithEarlyCancelCalleeOnlyOneDevice(Disconnected);
+}
+
+/*
+ * Case 3 - Broken Connection without "proper" disconnection
+ * - Condition: iOS client is not answering
+ * - Verifies: ForkCallContext preservation until client response is received and send INVITE and CANCEL requests
+ */
+void earlyCancelCalleeOnlyOneDeviceAnsweringLate() {
+	callWithEarlyCancelCalleeOnlyOneDevice(AnsweringLate);
 }
 
 /**
@@ -875,8 +904,9 @@ const std::vector<test_t> sTestList = {
     CLASSY_TEST(callWithEarlyCancel),
     CLASSY_TEST(calleeOfflineWithOneDeviceEarlyDecline),
     CLASSY_TEST(callWithEarlyCancelCalleeOffline),
-    CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline<true>),
-    CLASSY_TEST(callWithEarlyCancelCalleeOnlyOffline<false>),
+    CLASSY_TEST(earlyCancelCalleeOnlyOneDeviceDisconnectThenReconnect),
+    CLASSY_TEST(earlyCancelCalleeOnlyOneDeviceIdle),
+    CLASSY_TEST(earlyCancelCalleeOnlyOneDeviceAnsweringLate),
     CLASSY_TEST(calleeOfflineWithOneDevice),
     CLASSY_TEST(calleeMultipleOnlineDevices),
     CLASSY_TEST(callWithEarlyCancelCalleeOfflineNoVOIPPush),

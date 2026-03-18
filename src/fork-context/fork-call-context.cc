@@ -151,6 +151,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 			request.writeLog(make_shared<CallRingingEventLog>(*request.getMsgSip()->getSip(), br.get()));
 		}
 
+		if (mCancelled && br->needsDelivery()) br->cancel(mCancel, true);
 		if (!mCancelled) sendAndLogResponse(br);
 	}
 
