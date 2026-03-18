@@ -146,7 +146,8 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 			event.writeLog(make_shared<CallRingingEventLog>(*event.getMsgSip()->getSip(), br.get()));
 		}
 
-		forwardThenLogResponse(br);
+		if (mCancelled && br->needsDelivery()) br->cancel(mCancel, true);
+		if (!mCancelled) forwardThenLogResponse(br);
 	}
 
 	if (auto forwardedBr = checkFinished(); forwardedBr)
