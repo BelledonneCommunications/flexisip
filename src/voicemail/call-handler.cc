@@ -168,6 +168,7 @@ void CallHandler::onCallStateEnd() {
 	LOGD << "Call ended";
 
 	if (mHandlerMode != HandlerMode::voicemailRecording) {
+		mCall->removeListener(shared_from_this());
 		notifyCallHandled();
 		return;
 	}
