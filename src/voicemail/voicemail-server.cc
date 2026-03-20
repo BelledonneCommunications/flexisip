@@ -168,8 +168,10 @@ void VoicemailServer::_run() {
 
 unique_ptr<AsyncCleanup> VoicemailServer::_stop() {
 	mCore->removeListener(shared_from_this());
-	for (const auto& [_, callHandler] : mCallHandlers)
+	for (const auto& [_, callHandler] : mCallHandlers) {
+		callHandler->removeObserver(shared_from_this());
 		callHandler->terminateCall();
+	}
 	mCallHandlers.clear();
 
 	if (mCore == nullptr) return nullptr;
