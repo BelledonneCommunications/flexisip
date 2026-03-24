@@ -331,7 +331,7 @@ ostream& MibDumper::dump(ostream& ostr) const {
 	     << "flexisipMIB MODULE-IDENTITY" << endl
 	     << "	LAST-UPDATED \"" << mbstr << "\"" << endl
 	     << "	ORGANIZATION \"belledonne-communications\"" << endl
-	     << "	CONTACT-INFO \"postal:   34 Avenue de L'europe 38 100 Grenoble France" << endl
+	     << "	CONTACT-INFO \"postal:   3 Avenue Marie Reynoard 38 100 Grenoble France" << endl
 	     << "		email:    contact@belledonne-communications.com\"" << endl
 	     << "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
 	     << "	REVISION     \"" << mbstr << "\"" << endl
