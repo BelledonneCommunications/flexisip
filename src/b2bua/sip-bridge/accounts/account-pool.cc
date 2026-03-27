@@ -168,6 +168,14 @@ void AccountPool::applyOperation(const CreateAccount& op) {
 	const auto accountParams = mAccountParams->clone();
 	accountParams->setIdentityAddress(address);
 
+	if (accountDesc.mwiServerUriIsSet()) {
+		const auto mwiServerAddress = linphone::Factory::get()->createAddress(accountDesc.getMwiServerUri());
+		if (mwiServerAddress == nullptr)
+			throw BadConfiguration{"invalid MWI server URI set in " + mLogPrefix + ": " +
+			                       accountDesc.getMwiServerUri()};
+		accountParams->setMwiServerAddress(mwiServerAddress);
+	}
+
 	setOutboundProxyAndRegistrar(accountParams, accountDesc);
 	handleAuthInfo(accountDesc, address);
 

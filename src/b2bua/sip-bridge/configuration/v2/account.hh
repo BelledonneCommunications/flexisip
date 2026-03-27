@@ -74,11 +74,13 @@ public:
 		std::optional<std::string> outboundProxy{std::nullopt};
 		std::optional<std::string> registrar{std::nullopt};
 		std::optional<std::string> protocol{std::nullopt};
+		std::optional<std::string> mwiServerUri{std::nullopt};
 
 		bool operator==(const Parameters& other) const {
 			return uri == other.uri and userId == other.userId and secretType == other.secretType and
 			       secret == other.secret and realm == other.realm and alias == other.alias and
-			       outboundProxy == other.outboundProxy and registrar == other.registrar and protocol == other.protocol;
+			       outboundProxy == other.outboundProxy and registrar == other.registrar and
+			       protocol == other.protocol and mwiServerUri == other.mwiServerUri;
 		}
 
 		bool operator!=(const Parameters& other) const {
@@ -89,7 +91,7 @@ public:
 	/**
 	 * @note Default values for secretType and protocol are set to 'MD5' and 'udp' respectively.
 	 */
-	Account() : Account(Parameters()){};
+	Account() : Account(Parameters()) {};
 
 	/**
 	 * @note Default values for secretType and protocol are set to 'MD5' and 'udp' respectively.
@@ -110,6 +112,7 @@ public:
 		if (parameters.outboundProxy.has_value()) mParams.outboundProxy = parameters.outboundProxy;
 		if (parameters.registrar.has_value()) mParams.registrar = parameters.registrar;
 		if (parameters.protocol.has_value()) mParams.protocol = parameters.protocol;
+		if (parameters.mwiServerUri.has_value()) mParams.mwiServerUri = parameters.mwiServerUri;
 		return *this;
 	}
 
@@ -165,6 +168,14 @@ public:
 		return mParams.protocol.value();
 	}
 
+	bool mwiServerUriIsSet() const {
+		return mParams.mwiServerUri.has_value() and !mParams.mwiServerUri.value().empty();
+	}
+
+	std::string getMwiServerUri() const {
+		return mParams.mwiServerUri.value_or(std::string{});
+	}
+
 private:
 #if ENABLE_SOCI
 	friend struct soci::type_conversion<Account>;
@@ -206,6 +217,7 @@ inline void from_json(const nlohmann::json& json_object, Account& account) {
 	    .outboundProxy = json_object.value("outboundProxy", def.mParams.outboundProxy.value_or(std::string{})),
 	    .registrar = json_object.value("registrar", def.mParams.registrar.value_or(std::string{})),
 	    .protocol = json_object.value("protocol", def.getProtocol()),
+	    .mwiServerUri = json_object.value("mwiServerUri", def.getMwiServerUri()),
 	};
 };
 
@@ -221,6 +233,7 @@ inline void to_json(nlohmann::json& json_object, const Account& account) {
 	    {"outboundProxy", account.mParams.outboundProxy.value_or(std::string{})},
 	    {"registrar", account.mParams.registrar.value_or(std::string{})},
 	    {"protocol", account.getProtocol()},
+	    {"mwiServerUri", account.getMwiServerUri()},
 	};
 }
 
@@ -278,6 +291,7 @@ struct type_conversion<flexisip::b2bua::bridge::config::v2::Account> {
 		params.registrar = getOptional<std::string>(v, "registrar", "");
 		params.protocol = flexisip::string_utils::toLower(
 		    getOptional<std::string>(v, "protocol", std::string{AccountConfig::kDefaultProtocol}));
+		params.mwiServerUri = getOptional<std::string>(v, "mwi_server_uri", "");
 	}
 
 	/**

@@ -55,6 +55,8 @@ Group changes to describe their impact on the project, as follows:
               user should register (optional).
             - Parameter `protocol` (which is used with `outbound_proxy` and `registrar`) to indicate which transport
               protocol to use (optional, default: udp).
+            - New parameter `mwiServerUri` to specify the URI of the MWI server individually for each account
+              (optional).
         - New field `displayName` in template strings (see [SIP-Bridge documentation] for more information).
         - Add a Priority header to NOTIFY messages containing Message Waiting Indication (MWI) information. If the
           MWI notifies new urgent messages, the Priority header is set to 'urgent', otherwise it is set to 'non-urgent'.
