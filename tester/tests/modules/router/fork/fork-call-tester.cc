@@ -690,6 +690,8 @@ std::string reasonToString(Reason reason) {
 			return "486";
 		case Reason::NotAnswered:
 			return "408";
+		case Reason::NotFound:
+			return "404";
 		default:
 			throw invalid_argument("unknown reason");
 	}
@@ -713,9 +715,13 @@ struct CallForwardingHelper {
 		ClientBuilder builder{proxy.getAgent()};
 		caller = make_unique<CoreClient>(builder.build("caller@sip.test.org"));
 		constexpr auto* calleeAddress = "sip:callee@sip.test.org";
-		callee1 = make_unique<CoreClient>(builder.build(calleeAddress));
-		callee2 = make_unique<CoreClient>(builder.build(calleeAddress));
-		callee3 = make_unique<CoreClient>(builder.build(calleeAddress));
+
+		if constexpr (reason != Reason::NotFound) {
+			callee1 = make_unique<CoreClient>(builder.build(calleeAddress));
+			callee2 = make_unique<CoreClient>(builder.build(calleeAddress));
+			callee3 = make_unique<CoreClient>(builder.build(calleeAddress));
+		}
+
 		voicemail = make_unique<CoreClient>(builder.setRegistration(OnOff::Off).build("sip:voicemail@127.0.0.2"));
 
 		if constexpr (reason == Reason::Declined) {
@@ -732,14 +738,21 @@ struct CallForwardingHelper {
 		forkStats = router->mStats.mForkStats;
 		router->reload();
 
-		asserter = CoreAssert{proxy, *caller, *callee1, *callee2, *callee3, *voicemail};
+		if constexpr (reason != Reason::NotFound) {
+			asserter = CoreAssert{proxy, *caller, *callee1, *callee2, *callee3, *voicemail};
+		} else {
+			asserter = CoreAssert{proxy, *caller, *voicemail};
+		}
 
 		// Initiate a call from 'Caller' to 'Callee'.
 		callToCallee = ClientCall::tryFrom(caller->invite("sip:callee@sip.test.org"));
 		BC_HARD_ASSERT(callToCallee.has_value());
-		callee1->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
-		callee2->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
-		callee3->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
+
+		if constexpr (reason != Reason::NotFound) {
+			callee1->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
+			callee2->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
+			callee3->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
+		}
 
 		switch (reason) {
 			case Reason::Declined: {
@@ -760,27 +773,31 @@ struct CallForwardingHelper {
 				callee2->disconnect();
 				callee3->disconnect();
 				break;
+			case Reason::NotFound:
+				break;
 			default:
 				BC_FAIL("Reason not supported");
 		}
 
-		asserter
-		    .iterateUpTo(
-		        0x20,
-		        [this] {
-			        if constexpr (reason == Reason::NotAnswered) {
-				        FAIL_IF(callee1->getCurrentCall() == nullopt);
-				        FAIL_IF(callee2->getCurrentCall() == nullopt);
-				        FAIL_IF(callee3->getCurrentCall() == nullopt);
-			        } else {
-				        FAIL_IF(callee1->getCurrentCall() != nullopt);
-				        FAIL_IF(callee2->getCurrentCall() != nullopt);
-				        FAIL_IF(callee3->getCurrentCall() != nullopt);
-			        }
-			        return ASSERTION_PASSED();
-		        },
-		        2s)
-		    .assert_passed();
+		if constexpr (reason != Reason::NotFound) {
+			asserter
+			    .iterateUpTo(
+			        0x20,
+			        [this] {
+				        if constexpr (reason == Reason::NotAnswered) {
+					        FAIL_IF(callee1->getCurrentCall() == nullopt);
+					        FAIL_IF(callee2->getCurrentCall() == nullopt);
+					        FAIL_IF(callee3->getCurrentCall() == nullopt);
+				        } else {
+					        FAIL_IF(callee1->getCurrentCall() != nullopt);
+					        FAIL_IF(callee2->getCurrentCall() != nullopt);
+					        FAIL_IF(callee3->getCurrentCall() != nullopt);
+				        }
+				        return ASSERTION_PASSED();
+			        },
+			        2s)
+			    .assert_passed();
+		}
 
 		// Check that a call was received on the voicemail server.
 		voicemail->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
@@ -835,8 +852,17 @@ void callForwardingAccepted() {
 
 	const auto stats = helper.forkStats.lock();
 	BC_HARD_ASSERT(stats != nullptr);
-	BC_ASSERT(stats->mCountCallForks->start->read() == 1);
-	BC_ASSERT(stats->mCountCallForks->finish->read() == 1);
+	BC_ASSERT_CPP_EQUAL(stats->mCountCallForks->start->read(), 1);
+
+	helper.asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&stats] {
+		        FAIL_IF(stats->mCountCallForks->finish->read() != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
 
 	if (helper.callToCallee->getState() == Call::State::StreamsRunning)
 		helper.caller->endCurrentCall(*helper.voicemail);
@@ -915,8 +941,10 @@ const std::vector<test_t> sTestList = {
     CLASSY_TEST(cancelStatusOnResponse),
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Declined>),
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotAnswered>),
+    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotFound>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::Declined>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotAnswered>),
+    CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotFound>),
     CLASSY_TEST(voicemail::callWithEarlyCancel),
 
     // Tests that do not need to be executed every time as we are already testing similar cases. However, these

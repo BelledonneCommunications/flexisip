@@ -329,6 +329,8 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 		if (!mAgent->getAccountsStore()) throw BadConfigurationValue{enableCallDiversionsParam};
 		mAgent->getAccountsStore()->setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
 	}
+
+	mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
 }
 
 void ModuleRouter::sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code, const char* warning) {
@@ -407,7 +409,25 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 		} else {
 			LOGD << "This user is not registered (no valid contact)";
 			LOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " is not registered (no valid contact)";
-			sendReply(*ev, SIP_404_NOT_FOUND);
+
+			// Try to redirect the call to the voicemail if it has been configured.
+			if (sip->sip_request->rq_method == sip_method_invite && !mVoicemailServerUri.empty()) {
+				LOGD << "Redirecting call to voicemail server";
+
+				const auto target = uri_utils::escape(url_as_string(mHome.home(), sip->sip_to->a_url),
+				                                      uri_utils::sipUriParamValueReserved);
+				const auto requestUri =
+				    mVoicemailServerUri.setParameter("target", target).setParameter("cause", to_string(404));
+				const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
+				contact->mKey = ContactKey{}.str();
+				forkContacts.emplace_back(contact->toSofiaContact(mHome.home()), contact);
+
+				sendReply(*ev, SIP_181_CALL_IS_BEING_FORWARDED);
+
+				mForkManager->fork(std::move(ev), sipUri, forkContacts, mDomains);
+			} else {
+				sendReply(*ev, SIP_404_NOT_FOUND);
+			}
 		}
 		return;
 	}

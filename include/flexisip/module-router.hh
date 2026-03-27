@@ -122,6 +122,7 @@ private:
 	std::shared_ptr<ForkManager> mForkManager{};
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter{};
 	std::optional<AccountsStore> mAccountsStore;
+	SipUri mVoicemailServerUri{};
 };
 
 } // namespace flexisip
