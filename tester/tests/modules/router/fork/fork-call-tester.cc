@@ -843,11 +843,9 @@ void callForwardingAccepted() {
 }
 
 /**
- * Test unsuccessful call forwarding to a voicemail server for the provided reason.
+ * Test unsuccessful call forwarding to a voicemail server.
  *
- * The caller is expecting to receive the reason from the callee (i.e., the reason why the call could not be established
- * with callee). We are not expecting to receive the reason from the call attempt to the voicemail server.
- * We are also expecting to use only one ForkCallContext instance here.
+ * We are expecting to use only one ForkCallContext instance here.
  */
 template <const Reason reason>
 void callForwardingRejected() {
@@ -858,21 +856,24 @@ void callForwardingRejected() {
 	helper.callToCallee->addListener(listener);
 
 	helper.callFromCallerToVoicemail->decline(Reason::Forbidden);
+
+	const auto stats = helper.forkStats.lock();
+	BC_HARD_ASSERT(stats != nullptr);
+
 	helper.asserter
 	    .iterateUpTo(
 	        0x20,
-	        [&helper, &listener] {
-		        FAIL_IF(listener->mReason != reason);
+	        [&helper, &listener, &stats] {
+		        FAIL_IF(listener->mReason != Reason::Forbidden);
 		        FAIL_IF(helper.caller->getCurrentCall() != nullopt);
+		        FAIL_IF(stats->mCountCallForks->finish->read() != 1);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .assert_passed();
 
-	const auto stats = helper.forkStats.lock();
-	BC_HARD_ASSERT(stats != nullptr);
-	BC_ASSERT(stats->mCountCallForks->start->read() == 1);
-	BC_ASSERT(stats->mCountCallForks->finish->read() == 1);
+	BC_ASSERT_CPP_EQUAL(stats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(stats->mCountCallForks->finish->read(), 1);
 
 	if (helper.callToCallee->getState() == Call::State::StreamsRunning)
 		helper.caller->endCurrentCall(*helper.voicemail);

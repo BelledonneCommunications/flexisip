@@ -141,6 +141,7 @@ void ForkCallContext::onResponse(const shared_ptr<BranchInfo>& br, ResponseSipEv
 			mShortTimer = make_unique<sofiasip::Timer>(mAgent->getRoot());
 			mShortTimer->set([this]() { onShortTimer(); }, mCfg->mUrgentTimeout);
 		}
+		if (br == mCallForwardingBranch.lock()) sendAndLogResponse(br);
 	} else if (code >= 200) {
 		sendAndLogResponse(br);
 		mCancelled = true;
@@ -170,8 +171,7 @@ void ForkCallContext::onPushSent(PushNotificationContext& aPNCtx, bool aRingingP
 }
 
 void ForkCallContext::sendAndLogResponse(const shared_ptr<BranchInfo>& branch) const {
-	if (branch->sendResponse(mIncoming != nullptr) && branch != mCallForwardingBranch.lock())
-		logResponse(branch->getLastResponseEvent(), branch.get());
+	if (branch->sendResponse(mIncoming != nullptr)) logResponse(branch->getLastResponseEvent(), branch.get());
 }
 
 void ForkCallContext::logResponse(const std::unique_ptr<ResponseSipEvent>& ev, const BranchInfo* branch) const {
@@ -299,27 +299,15 @@ std::shared_ptr<BranchInfo> ForkCallContext::tryToSendFinalResponse() {
 		return nullptr;
 	}
 
-	// From now on, we will try to forward the call to the voicemail server.
-	// Manage several cases before actually trying to forward the call.
-
-	// -- First case: If the 'call-fork-timeout' timer triggered, but the call forwarding did not work: answer '408'
-	//                (we know it did not work because this part of the code is reached).
+	// If the 'call-fork-timeout' timer triggered, but the call forwarding did not work, finish fork.
 	if (hasBeenForwarded && mLateTimer.hasAlreadyExpiredOnce() && !mFinished) {
 		if (branch == mCallForwardingBranch.lock() || allBranchesAnswered(FinalStatusMode::RFC)) {
-			sendCustomResponse(SIP_408_REQUEST_TIMEOUT);
 			ForkContextBase::setFinished();
 			return branch;
 		}
 	}
 
-	if (hasBeenForwarded) {
-		// -- Second case: If we received a final response on all branches, but the call forwarding did not work: answer
-		//                 the best response to the caller (we know it did not work because this part of the code is
-		//                 reached).
-		if (allBranchesAnswered(FinalStatusMode::RFC) && branch->sendResponse(mIncoming != nullptr)) return branch;
-		// -- Third case: if the call has already been forwarded, do not forward it again.
-		return nullptr;
-	}
+	if (hasBeenForwarded) return nullptr;
 
 	// Finally, try to forward the call.
 	if (forward(branch->getStatus())) return nullptr;
