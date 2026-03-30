@@ -10,6 +10,7 @@ install(FILES ${GRAMMAR_FILES}
 
 if(ENABLE_VOICEMAIL)
 	set(VOICEMAIL_ANNOUNCE_FILES
+		voicemail/beep.wav
 		voicemail/default-announce.wav
 		voicemail/leave-a-message.wav
 	)

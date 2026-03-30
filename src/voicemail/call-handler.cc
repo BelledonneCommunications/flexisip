@@ -71,6 +71,8 @@ std::filesystem::path generateRecordName(const std::shared_ptr<linphone::Call>& 
 namespace flexisip::voicemail {
 
 void CallHandler::playAnnounce(const std::filesystem::path& announcePath) {
+	mPlaybackPhase = PlaybackPhase::announcing;
+
 	const auto player = mCall->getPlayer();
 	player->addListener(shared_from_this());
 	player->open(announcePath);
@@ -92,34 +94,36 @@ void CallHandler::start() {
 }
 
 void CallHandler::onEofReached(const std::shared_ptr<linphone::Player>& player) {
-	switch (mHandlerMode) {
-		case HandlerMode::voicemailRecording:
+	switch (mPlaybackPhase) {
+		case PlaybackPhase::announcing:
+			if (mHandlerMode == HandlerMode::voicemailRecording) {
+				mPlaybackPhase = PlaybackPhase::beeping;
+
+				player->open(mAnnouncementsPaths.beepSound);
+				player->start();
+			} else {
+				LOGD << "Announce finished, ending call";
+				mTimer.set(
+				    [maybe_thiz = weak_from_this()] {
+					    if (const auto thiz = maybe_thiz.lock(); thiz) thiz->terminateCall();
+				    },
+				    500ms);
+			}
+			break;
+		case PlaybackPhase::beeping:
+			mPlaybackPhase = PlaybackPhase::idle;
+
 			player->close();
 			player->removeListener(shared_from_this());
 
+			mCall->startRecording();
 			mTimer.set(
 			    [maybe_thiz = weak_from_this()] {
-				    const auto thiz = maybe_thiz.lock();
-				    if (!thiz) return;
-				    thiz->mCall->sendDtmf('1');
-
-				    thiz->mCall->startRecording();
-				    thiz->mTimer.set(
-				        [maybe_thiz] {
-					        if (const auto thiz = maybe_thiz.lock(); thiz) thiz->mCall->terminate();
-				        },
-				        thiz->mRecordingParameters.callMaxDuration);
+				    if (const auto thiz = maybe_thiz.lock(); thiz) thiz->mCall->terminate();
 			    },
-			    500ms);
+			    mRecordingParameters.callMaxDuration);
 			break;
-		case HandlerMode::simpleAnnounce:
 		default:
-			LOGD << "Announce finished, ending call";
-			mTimer.set(
-			    [maybe_thiz = weak_from_this()] {
-				    if (const auto thiz = maybe_thiz.lock(); thiz) thiz->terminateCall();
-			    },
-			    500ms);
 			break;
 	}
 }

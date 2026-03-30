@@ -59,6 +59,7 @@ public:
 	struct AnnouncementPaths {
 		std::filesystem::path defaultAnnounce;
 		std::filesystem::path voicemailAnnounce;
+		std::filesystem::path beepSound;
 	};
 
 	CallHandler(const std::shared_ptr<linphone::Call>& call,
@@ -100,6 +101,11 @@ private:
 		simpleAnnounce,
 		voicemailRecording,
 	};
+	enum class PlaybackPhase {
+		idle,
+		announcing,
+		beeping,
+	};
 
 	// Bytes per second of recording (approximately 0.1MB/s with uncompressed WAV)
 	static constexpr int kBytesPerSecondOfRecord = 1024 * 1024 / 10;
@@ -131,6 +137,7 @@ private:
 
 	HandlerMode mHandlerMode{};
 	CallState mCallState{};
+	PlaybackPhase mPlaybackPhase{};
 };
 
 } // namespace flexisip::voicemail

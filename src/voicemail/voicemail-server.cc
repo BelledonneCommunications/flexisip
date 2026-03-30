@@ -62,6 +62,11 @@ void VoicemailServer::_init() {
 	if (!filesystem::exists(mAnnouncementsPaths.voicemailAnnounce))
 		throw BadConfigurationValue{voicemailAnnouncementParam, "The file does not exist"};
 
+	const auto* beepSoundParam = config->get<ConfigString>("beep-sound-path");
+	mAnnouncementsPaths.beepSound = beepSoundParam->read();
+	if (!filesystem::exists(mAnnouncementsPaths.beepSound))
+		throw BadConfigurationValue{beepSoundParam, "The file does not exist"};
+
 	const auto* voicemailStorageParam = config->get<ConfigString>("voicemail-storage-path");
 	mRecordingParameters.voicemailStoragePath = voicemailStorageParam->read();
 	if (filesystem::exists(mRecordingParameters.voicemailStoragePath) &&
@@ -135,10 +140,6 @@ void VoicemailServer::_init() {
 
 	mCore->enableFriendListSubscription(false);
 	mCore->enableLimeX3Dh(false);
-	// Forward DTMF via out-of-band RTP ...
-	mCore->setUseRfc2833ForDtmf(true);
-	// ... or via SIP INFO if unsupported by media.
-	mCore->setUseInfoForDtmf(true);
 	// Do not allow chat
 	mCore->disableChat(linphone::Reason::NotImplemented);
 
@@ -300,6 +301,15 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "The file must exists to start the voicemail server.\n"
 	        "Supports WAV and MKA/MKV files.",
 	        VOICEMAIL_ANNOUNCES_DIR "/leave-a-message.wav",
+	    },
+	    {
+	        String,
+	        "beep-sound-path",
+	        "Path to the audio file that will be played after the voicemail announcement to indicate the user "
+	        "can start talking.\n"
+	        "The file must exists to start the voicemail server.\n"
+	        "Supports WAV and MKA/MKV files.",
+	        VOICEMAIL_ANNOUNCES_DIR "/beep.wav",
 	    },
 	    {
 	        String,

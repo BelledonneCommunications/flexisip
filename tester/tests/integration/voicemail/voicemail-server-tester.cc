@@ -46,6 +46,7 @@ namespace {
 void answerCallThenHangUp() {
 	const TmpDir tmpDir{"voicemail"};
 	const auto audioFile = createShortAudioFile(tmpDir);
+	const auto beepFile = bcTesterRes("../share/voicemail/beep.wav");
 	const TmpDir tmpStorageDir{"voicemail-storage"};
 
 	Server server{{
@@ -53,6 +54,8 @@ void answerCallThenHangUp() {
 	    {"voicemail-server/transport", "sip:flexisip-voicemail@localhost:0;maddr=127.0.0.1;transport=tcp"},
 	    {"voicemail-server/default-announcement-path", audioFile},
 	    {"voicemail-server/voicemail-announcement-path", audioFile},
+	    {"voicemail-server/beep-sound-path", beepFile},
+	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
 	    {"global::flexiapi/url", "https://127.0.0.1:443"},
 	}};
 	const auto& agent = server.getAgent();
@@ -157,6 +160,7 @@ void answerCallRecordVoicemail() {
 	const TmpDir tmpDir{"voicemail"};
 	const TmpDir tmpStorageDir{"voicemail-storage"};
 	const auto audioFile = createShortAudioFile(tmpDir);
+	const auto beepFile = bcTesterRes("../share/voicemail/beep.wav");
 
 	bool fileUploaded{};
 
@@ -177,6 +181,7 @@ void answerCallRecordVoicemail() {
 	    {"voicemail-server/transport", "sip:127.0.0.1:0;transport=tcp"},
 	    {"voicemail-server/default-announcement-path", audioFile},
 	    {"voicemail-server/voicemail-announcement-path", audioFile},
+	    {"voicemail-server/beep-sound-path", beepFile},
 	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
 	    {"global::flexiapi/url", "https://127.0.0.1:" + to_string(httpPort)},
 	}};
