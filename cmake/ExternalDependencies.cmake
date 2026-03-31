@@ -26,7 +26,6 @@
 
 # Configure and add SofiaSip
 function(add_sofiasip) # Use function of override variable without propagating the change afterwards
-	set(ENABLE_UNIT_TESTS OFF)
 	add_subdirectory("submodules/externals/sofia-sip")
 endfunction()
 add_sofiasip()
