@@ -134,6 +134,7 @@ add_executable(flexisip_tester
 	tests/modules/module-nat-helper-tester.cc
 	tests/modules/module-registrar-tester.cc
 	tests/modules/module-sanitychecker-tester.cc
+	tests/modules/module-tester.cc
 	tests/modules/module-toolbox-tester.cc
 	tests/modules/router/fork/fork-call-tester.cc
 	tests/modules/router/fork/fork-context-tester.cc
