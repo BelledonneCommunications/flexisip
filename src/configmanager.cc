@@ -396,6 +396,9 @@ void GenericStruct::addChildrenValues(ConfigItemDescriptor* items, bool hashed) 
 		if (!items->name) {
 			throw BadConfiguration{"no name provided in configuration item"};
 		}
+		if (!isValidName(items->name)) {
+			throw BadConfiguration{"invalid name '"s + items->name + "' provided in configuration item"};
+		}
 		if (!items->help) {
 			throw BadConfiguration{"no help provided for configuration item '"s + items->name + "'"};
 		}

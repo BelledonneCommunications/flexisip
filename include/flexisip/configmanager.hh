@@ -171,8 +171,7 @@ public:
 		                     const std::string& version,
 		                     const std::string& text,
 		                     const std::string& value)
-		    : mDeprecationInfo{date, version, text}, mValue{value} {
-		}
+		    : mDeprecationInfo{date, version, text}, mValue{value} {}
 		bool isDeprecatedValue(const std::string& currentVal) const {
 			return mDeprecationInfo.isDeprecated() && currentVal == mValue;
 		}
@@ -358,6 +357,15 @@ public:
 	GenericEntry* find(Str&& name) const {
 		auto it = find_if(mEntries.cbegin(), mEntries.cend(), [&name](const auto& e) { return e->getName() == name; });
 		return it != mEntries.cend() ? it->get() : nullptr;
+	}
+
+	static constexpr bool isValidName(std::string_view name) {
+		for (char c : name) {
+			if (!(isalnum(c) || c == '-')) {
+				return false;
+			}
+		}
+		return !name.empty();
 	}
 
 	GenericEntry* findApproximate(const std::string& name) const;

@@ -18,6 +18,7 @@
 
 #include "flexisip/configmanager.hh"
 
+#include "exceptions/bad-configuration.hh"
 #include "exceptions/configparsing-exception.hh"
 #include "flexisip/module.hh"
 #include "tester.hh"
@@ -341,6 +342,33 @@ void detectInactiveSection() {
 	BC_ASSERT_CPP_EQUAL(reader.containsInactiveModuleSections(), true);
 }
 
+void invalidChildNameNotAdded() {
+	ConfigManager cfg{};
+	GenericStruct* cr = cfg.getEditableRoot();
+	auto section = make_unique<GenericStruct>("section-name", "Section", ModuleInfoBase::SanityChecker);
+	auto* sectionStruct = cr->addChild(std::move(section));
+	ConfigItemDescriptor validItem[] = {
+	    {
+	        Integer,
+	        "valid-parameter-42",
+	        "Valid parameter.",
+	        "42",
+	    },
+	    config_item_end,
+	};
+	sectionStruct->addChildrenValues(validItem);
+	ConfigItemDescriptor invalidItem[] = {
+	    {
+	        Integer,
+	        "invalid.name",
+	        "Invalid name with '.'.",
+	        "0",
+	    },
+	    config_item_end,
+	};
+	BC_ASSERT_THROWN(sectionStruct->addChildrenValues(invalidItem), BadConfiguration);
+}
+
 TestSuite _("ConfigManager",
             {
                 CLASSY_TEST(configDuration),
@@ -348,6 +376,7 @@ TestSuite _("ConfigManager",
                 CLASSY_TEST(redundantKey),
                 CLASSY_TEST(confValueListener),
                 CLASSY_TEST(detectInactiveSection),
+                CLASSY_TEST(invalidChildNameNotAdded),
             });
 } // namespace
 } // namespace flexisip::tester
