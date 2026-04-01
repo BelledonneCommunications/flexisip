@@ -121,6 +121,7 @@ add_executable(flexisip_tester
 	tests/libhiredis-wrapper/replication/redis-client-tester.cc
 	tests/module-forward-tester.cc
 	tests/main-tester.cc
+	tests/module-tester.cc
 	tests/module-nat-helper-tester.cc
 	tests/module-sanitychecker-tester.cc
 	tests/module-registrar-tester.cc

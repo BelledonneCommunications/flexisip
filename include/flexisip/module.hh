@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -91,18 +91,19 @@ public:
 		return mModuleConfig;
 	}
 
+	void setRequestEventIncoming(const std::shared_ptr<IncomingAgent>& incoming) {
+		mCurIncomingTransaction = incoming;
+	}
+
 protected:
-	virtual void onLoad([[maybe_unused]] const GenericStruct* root) {
-	}
-	virtual void onUnload() {
-	}
+	virtual void onLoad([[maybe_unused]] const GenericStruct* root) {}
+	virtual void onUnload() {}
 
 	virtual std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) = 0;
 	virtual std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) = 0;
 
 	virtual bool doOnConfigStateChanged(const ConfigValue& conf, ConfigState state);
-	virtual void onIdle() {
-	}
+	virtual void onIdle() {}
 
 	virtual bool onCheckValidNextConfig() {
 		return true;
@@ -122,6 +123,7 @@ protected:
 	const ModuleInfoBase* mInfo;
 	GenericStruct* mModuleConfig = nullptr;
 	std::unique_ptr<EntryFilter> mFilter;
+	std::weak_ptr<IncomingAgent> mCurIncomingTransaction;
 };
 
 // -----------------------------------------------------------------------------
@@ -268,8 +270,7 @@ public:
 	           std::function<void(GenericStruct&)> declareConfig,
 	           ModuleClass moduleClass = ModuleClass::Production,
 	           const std::string& replace = "")
-	    : ModuleInfoBase(moduleName, help, after, oid, declareConfig, moduleClass, replace) {
-	}
+	    : ModuleInfoBase(moduleName, help, after, oid, declareConfig, moduleClass, replace) {}
 
 	std::shared_ptr<Module> create(Agent* agent) override {
 		std::shared_ptr<Module> module;

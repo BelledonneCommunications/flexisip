@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -209,8 +209,7 @@ RequestSipEvent::RequestSipEvent(shared_ptr<IncomingAgent> incomingAgent,
                                  const shared_ptr<MsgSip>& msgSip,
                                  tport_t* tport)
     : SipEvent(incomingAgent, msgSip, tport), mRecordRouteAdded(false),
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RequestSipEvent")) {
-}
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "RequestSipEvent")) {}
 
 RequestSipEvent::RequestSipEvent(const RequestSipEvent& sipEvent)
     : SipEvent(sipEvent), mRecordRouteAdded(sipEvent.mRecordRouteAdded),
@@ -268,6 +267,7 @@ std::shared_ptr<IncomingTransaction> RequestSipEvent::createIncomingTransaction(
 		mIncomingTransactionOwner = make_shared<IncomingTransaction>(sharedAgent->getAgent());
 		transaction = mIncomingTransactionOwner;
 		SipEvent::setIncomingAgent(transaction);
+		if (auto curModule = mCurrModule.lock()) curModule->setRequestEventIncoming(transaction);
 		transaction->handle(mMsgSip);
 		linkTransactions();
 	}
@@ -332,8 +332,7 @@ void RequestSipEvent::terminateProcessing() {
 	mOutgoingTransactionOwner.reset();
 }
 
-RequestSipEvent::~RequestSipEvent() {
-}
+RequestSipEvent::~RequestSipEvent() {}
 
 bool RequestSipEvent::matchIncomingSubject(regex_t* regex) {
 	const su_strlst_t* strlst = tport_delivered_from_subjects(getIncomingTport().get(), mMsgSip->getMsg());
@@ -378,8 +377,7 @@ ResponseSipEvent::ResponseSipEvent(shared_ptr<OutgoingAgent> outgoingAgent,
 
 ResponseSipEvent::ResponseSipEvent(const ResponseSipEvent& sipEvent)
     : SipEvent(sipEvent), mPopVia(sipEvent.mPopVia),
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ResponseSipEvent")) {
-}
+      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ResponseSipEvent")) {}
 
 void ResponseSipEvent::checkContentLength(const shared_ptr<MsgSip>& msg, const sip_via_t* via) {
 	if (msg->getSip()->sip_content_length == NULL && strcasecmp(via->v_protocol, "UDP") != 0) {
@@ -437,9 +435,7 @@ bool ResponseSipEvent::shouldBeForwarded() const {
 	return mShouldForward;
 }
 
-
-ResponseSipEvent::~ResponseSipEvent() {
-}
+ResponseSipEvent::~ResponseSipEvent() {}
 
 std::ostream& operator<<(std::ostream& strm, const url_t& obj) {
 	sofiasip::Home home;

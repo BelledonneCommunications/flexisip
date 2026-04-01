@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -106,14 +106,21 @@ void Module::reload() {
 }
 
 unique_ptr<RequestSipEvent> Module::processRequest(unique_ptr<RequestSipEvent>&& ev) {
+	shared_ptr<MsgSip> ms = ev->getMsgSip();
+	mCurIncomingTransaction.reset();
+	auto incoming = ev->getIncomingAgent();
+
 	auto errorReply = [&](int code, string_view reason, string_view error_msg) {
 		LOGD_CTX(mLogPrefix, "processRequest")
 		    << "Exception while executing onRequest() on module " << getModuleName() << ": " << error_msg;
 		LOGI_CTX(mLogPrefix, "processRequest") << "Replying with message " << code << " and reason " << reason.data();
+		if (!ev) {
+			if (auto incomingTransaction = mCurIncomingTransaction.lock()) incoming = incomingTransaction;
+			ev = make_unique<RequestSipEvent>(incoming, ms);
+		}
 		ev->reply(code, reason.data(), SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	};
 
-	const shared_ptr<MsgSip>& ms = ev->getMsgSip();
 	try {
 		if (mFilter->isEnabled()) {
 			if (mFilter->canEnter(ms)) {
