@@ -113,6 +113,7 @@ Group changes to describe their impact on the project, as follows:
     - **MediaRelay:** RTP and RTCP ports cannot be set outside the range defined in configuration.
     - **Registrar:** A client that does not use "+sip.instance" could have duplicate entries in the registrar database.
     - **ForkCallContext:** Early cancel are forwarded upon reception of non terminal answers 
+    - **EventLogs:** EventIds where from and/or to are from an IP address does not throw an exception anymore.
 - **Conference server:** 
     - Set the default contact address (with identity address of the conference server) to fix issues when connection to
       the Redis database is slow or broken.

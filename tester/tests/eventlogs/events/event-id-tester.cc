@@ -123,7 +123,7 @@ struct MockEvent {
 /** Example of how the hash is constructed. Update it when needed
  */
 void hashInputConstruction() {
-	const auto expected = Sha256().compute<string>("A-from-userB-from-hostC-to-userD-to-hostE-call-id"s);
+	const auto expected = Sha256().compute<string>("A-from-user@B-from-hostC-to-user@D-to-hostE-call-id"s);
 
 	BC_ASSERT_CPP_EQUAL((MockEvent{.from =
 	                                   {
@@ -182,12 +182,82 @@ void collisions() {
 	                             .id()));
 }
 
+/*
+ * Test that EventIds should be correctly created whether the user part is null or empty.
+ * And that in both cases, the result is the same.
+ */
+void eventIdCreatedWithUserNullOrEmpty() {
+	const auto expected = Sha256().compute<string>("@127.0.0.1@127.0.0.1:52459stub-call-id"s);
+
+	BC_ASSERT_CPP_EQUAL((MockEvent{
+		.from = {
+			.user = nullptr,
+			.host = "127.0.0.1",
+		},
+		.to = {
+			.user = nullptr,
+			.host = "127.0.0.1:52459",
+		},
+		.callId = "stub-call-id",
+	}.id()),
+	expected);
+
+	BC_ASSERT_CPP_EQUAL((MockEvent{
+		.from = {
+			.user = "",
+			.host = "127.0.0.1",
+		},
+		.to = {
+			.user = "",
+			.host = "127.0.0.1:52459",
+		},
+		.callId = "stub-call-id",
+	}.id()),
+	expected);
+}
+
+/*
+ * Test that two EventIds defined as:
+ *   fromA->user = "A-from-user"
+ *   fromA->host = "A-from-host"
+ * and:
+ *   fromA->user = nullptr
+ *   fromA->host = "A-from-userA-from-host"
+ * are not equivalent.
+ */
+void eventIdDifferentiateUserAndHost() {
+	BC_ASSERT_CPP_NOT_EQUAL((MockEvent{
+		.from ={
+			.user = "A-from-user",
+			.host = "A-from-host",
+		},
+		.to = {
+			.user = "B-to-user",
+			.host = "B-to-host",
+		},
+		.callId = "stub-call-id"
+	}.id()),
+	(MockEvent{
+		.from = {
+			.user = nullptr,
+			.host = "A-from-userA-from-host",
+		},
+		.to = {
+			.user = "B-to-user",
+			.host = "B-to-host",
+		},
+		.callId = "stub-call-id"
+	}.id()));
+}
+
 TestSuite _("EventId",
             {
                 CLASSY_TEST(eventIdCreatedFromByeComingFromCallerOrCallee),
                 CLASSY_TEST(eventIdCreatedUsingUrisWithEmptyUserParts),
                 CLASSY_TEST(hashInputConstruction),
                 CLASSY_TEST(collisions),
+                CLASSY_TEST(eventIdCreatedWithUserNullOrEmpty),
+                CLASSY_TEST(eventIdDifferentiateUserAndHost),
             });
 
 } // namespace

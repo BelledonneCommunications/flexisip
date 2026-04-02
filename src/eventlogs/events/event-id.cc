@@ -29,12 +29,12 @@ using namespace std;
 EventId::EventId(const sip_t& sip)
     : mHash([&sip] {
 	      const auto* fromUrl = sip.sip_from->a_url;
-	      auto first = string(fromUrl->url_user);
-	      first.append(fromUrl->url_host);
+	      auto first = string(fromUrl->url_user ? fromUrl->url_user : "");
+	      first.append("@"s + (fromUrl->url_host ? fromUrl->url_host : ""));
 
 	      const auto* toUrl = sip.sip_to->a_url;
-	      auto second = string(toUrl->url_user);
-	      second.append(toUrl->url_host);
+	      auto second = string(toUrl->url_user ? toUrl->url_user : "");
+	      second.append("@"s + (toUrl->url_host ? toUrl->url_host : ""));
 
 	      if (second < first) first.swap(second);
 
