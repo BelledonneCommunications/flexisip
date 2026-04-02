@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <cstddef>
-#include <optional>
 #include <string>
 
 #include "sofia-sip/sip.h"
