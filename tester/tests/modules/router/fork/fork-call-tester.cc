@@ -18,6 +18,11 @@
 
 #include "belle-sip/belle-sip.h"
 
+#include "linphone++/enums.hh"
+
+#include "sofia-sip/nta.h"
+#include "sofia-sip/nta_tag.h"
+
 #include "eventlogs/events/eventlogs.hh"
 #include "flexisip/module-router.hh"
 #include "fork-context/branch-info.hh"
@@ -926,6 +931,94 @@ void callWithEarlyCancel() {
 
 } // namespace voicemail
 
+namespace timerC {
+
+template <const bool cancel>
+void expiration() {
+	Server proxy{sDefaultConfig};
+	proxy.setConfigParameter({"module::Router/call-fork-timeout", "2s"});
+	proxy.start();
+	// Override timer C to a short value for testing purposes.
+	nta_agent_set_params(proxy.getAgent()->getSofiaAgent(), NTATAG_TIMER_C(500), TAG_END());
+
+	ClientBuilder builder{proxy.getAgent()};
+	auto callerClient = builder.build("sip:caller@sip.test.org");
+	auto calleeClient = builder.build("sip:callee@sip.test.org");
+
+	const auto call = callerClient.invite(calleeClient);
+	BC_ASSERT_PTR_NOT_NULL(call);
+
+	CoreAssert{proxy, callerClient, calleeClient}
+	    .wait([&] { return LOOP_ASSERTION(call->getState() == Call::State::OutgoingRinging); })
+	    .assert_passed();
+
+	// If cancel is true, terminate the call before timer C expiration to trigger an early cancel scenario.
+	// Otherwise, just wait for timer C to expire.
+	if constexpr (cancel) {
+		const auto callerCall = callerClient.getCurrentCall();
+		BC_HARD_ASSERT(callerCall.has_value());
+		callerCall->terminate();
+	}
+
+	const auto moduleRouter = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+
+	usize_t timeouts{};
+	CoreAssert{proxy, callerClient}
+	    .waitUntil(3s,
+	               [&] {
+		               FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
+		               FAIL_IF(moduleRouter->mStats.mForkStats->mCountForks->finish->read() != 1);
+
+		               // We expect a timeout on the outgoing transaction to the callee because of timer C expiration.
+		               nta_agent_get_stats(proxy.getAgent()->getSofiaAgent(), NTATAG_S_TOUT_REQUEST_REF(timeouts),
+		                                   TAG_END());
+		               FAIL_IF(timeouts != 1);
+
+		               FAIL_IF(call->getState() != Call::State::Released);
+		               if constexpr (cancel) {
+			               FAIL_IF(call->getReason() != linphone::Reason::None);
+		               } else {
+			               FAIL_IF(call->getReason() != linphone::Reason::NotAnswered);
+		               }
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+	if constexpr (cancel) {
+		BC_ASSERT_ENUM_EQUAL(call->getReason(), linphone::Reason::None);
+	} else {
+		BC_ASSERT_ENUM_EQUAL(call->getReason(), linphone::Reason::NotAnswered);
+	}
+}
+
+/**
+ * Scenario:
+ * 1. Caller initiates a call to callee.
+ * 2. Caller cancels the call after receiving the ringing response but before receiving any final response.
+ *    A CANCEL request is then sent to the callee.
+ * 3. The call should be properly terminated on the caller side.
+ * 4. Timer C expires on the forked INVITE to the callee (because it is unresponsive), which generates a
+ *    408 Request Timeout response to the original INVITE.
+ */
+void expirationWithCancelFromCaller() {
+	expiration<true>();
+}
+
+/**
+ * Scenario:
+ * 1. Caller initiates a call to callee.
+ * 2. Caller does not cancel the call, but the callee is unresponsive.
+ * 3. Timer C expires on the forked INVITE to the callee, which sends a CANCEL to the callee.
+ * 4. Timer C expires again because the callee is still unresponsive, which generates a 408 Request Timeout response to
+ *    the original INVITE.
+ * 5. The call should be properly terminated on the caller side.
+ */
+void expirationWithoutCancelFromCaller() {
+	expiration<false>();
+}
+
+} // namespace timerC
+
 const std::vector<test_t> sTestList = {
     CLASSY_TEST(basicCall),
     CLASSY_TEST(callWithEarlyCancel),
@@ -951,6 +1044,9 @@ const std::vector<test_t> sTestList = {
     // tests are useful when comprehensive testing is required.
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::Busy>).tag("skip"),
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Busy>).tag("skip"),
+
+    CLASSY_TEST(timerC::expirationWithCancelFromCaller),
+    CLASSY_TEST(timerC::expirationWithoutCancelFromCaller),
 };
 
 TestSuite _{
