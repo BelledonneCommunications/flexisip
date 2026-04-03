@@ -1,7 +1,7 @@
-### Any build directory ###
+# Any build directory
 /build*
 
-### IDE or editor files ###
+# IDE or editor files
 *.kdev4
 *.settings
 *.kate*
@@ -10,8 +10,12 @@
 /CMakeLists.txt.user
 .idea/
 
-### TEST ###
+# TEST
 BCUnitAutomated-Results.xml
 
-### Direnv ###
+# Direnv
 .direnv
+
+# Cache files
+.cache/
+**/compile_commands.json

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -20,7 +20,8 @@
 
 #include <memory>
 
-#include <sofia-sip/nta.h>
+#include "sofia-sip/nta.h"
+#include "sofia-sip/nta_tag.h"
 
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
@@ -61,14 +62,13 @@ public:
 	 * Cancel the request.
 	 */
 	void cancel() {
-		nta_outgoing_cancel(mNativePtr);
+		nta_outgoing_tcancel(mNativePtr, nullptr, nullptr, NTATAG_CANCEL_3261(1), TAG_END());
 	}
 
 private:
 	friend class NtaAgent;
 
-	explicit NtaOutgoingTransaction(nta_outgoing_t* obj) : mNativePtr{obj} {
-	}
+	explicit NtaOutgoingTransaction(nta_outgoing_t* obj) : mNativePtr{obj} {}
 
 	nta_outgoing_t* mNativePtr{nullptr};
 	mutable std::shared_ptr<const MsgSip> mResponse{nullptr};
