@@ -127,7 +127,7 @@ Group changes to describe their impact on the project, as follows:
 
 
 ## [2.5.0]
-- **SDK version:** 5.4.100
+- **SDK version:** 5.4.106
 
 ### [Added]
 - **Proxy:**
