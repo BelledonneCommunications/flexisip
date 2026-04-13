@@ -25,10 +25,10 @@ RUN sudo dnf -y install \
                    cmake \
                    c-ares-devel \
                    doxygen \
-                   gcc-toolset-15 \
-                   gcc-toolset-15-libasan-devel \
-                   gcc-toolset-15-libubsan-devel \
-                   gcc-toolset-15-gdb \
+                   gcc-toolset-14 \
+                   gcc-toolset-14-libasan-devel \
+                   gcc-toolset-14-libubsan-devel \
+                   gcc-toolset-14-gdb \
                    git \
                    libasan \
                    libev-devel \
@@ -99,9 +99,9 @@ WORKDIR /home/bc
 RUN python3 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
-# Load gcc-toolset-15 environment on starting
-RUN echo 'source /opt/rh/gcc-toolset-15/enable' >> /home/bc/.bashrc && \
-    echo 'source /opt/rh/gcc-toolset-15/enable' >> /home/bc/.shrc
+# Load gcc-toolset-14 environment on starting
+RUN echo 'source /opt/rh/gcc-toolset-14/enable' >> /home/bc/.bashrc && \
+    echo 'source /opt/rh/gcc-toolset-14/enable' >> /home/bc/.shrc
 
 
 ENV PS1='\[\e[34m\]\u@bc-dev-rocky8>\[\e[0m\] '

@@ -17,7 +17,7 @@ variables:
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20251203_add_curl
-  ROCKY_8_IMAGE_VERSION: 20260227_add_systemd
+  ROCKY_8_IMAGE_VERSION: 20260413_downgrade_gcc_toolset_to_14
   ROCKY_9_IMAGE_VERSION: 20260227_add_systemd
   DEBIAN_12_IMAGE_VERSION: 20260227_add_systemd
   DEBIAN_13_IMAGE_VERSION: 20260227_add_systemd
