@@ -24,6 +24,10 @@
     if ! [ -z ${DEPLOY_SERVER_HOST_KEYS+x} ]; then mkdir -p ~/.ssh && chmod 700 ~/.ssh; fi
     if ! [ -z ${DEPLOY_SERVER_HOST_KEYS+x} ]; then echo "$DEPLOY_SERVER_HOST_KEYS" >> ~/.ssh/known_hosts; fi
 
+.enable-gcc-toolset: &enable-gcc-toolset
+  - "[[ -f /opt/rh/gcc-toolset-14/enable ]] && source /opt/rh/gcc-toolset-14/enable" # For rocky 8
+  - "[[ -f /opt/rh/gcc-toolset-15/enable ]] && source /opt/rh/gcc-toolset-15/enable" # For rocky 9
+
 .linux-ccache:
   cache:
     key: $CI_JOB_NAME
@@ -31,7 +35,7 @@
       - ccache/
   before_script:
     - !reference [ ".todo_before_script", "before_script" ]
-    - "[[ -f /opt/rh/devtoolset-8/enable ]] && source /opt/rh/devtoolset-8/enable"
+    - *enable-gcc-toolset
     - mkdir -p ccache
     - echo "max_size = $CCACHE_SIZE" > ccache/ccache.conf
     - export CCACHE_BASEDIR=${PWD}
@@ -81,7 +85,7 @@
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:
-    - "[[ -f /opt/rh/gcc-toolset-15/enable ]] && source /opt/rh/gcc-toolset-15/enable"
+    - *enable-gcc-toolset
     - *set-max-jobs
     - mkdir build && cd build
     - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM ..
