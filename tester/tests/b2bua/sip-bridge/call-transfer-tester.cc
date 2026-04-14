@@ -453,7 +453,17 @@ void blindCallTransferDeclined() {
 	    .hard_assert_passed();
 
 	// Resume call after failed call transfer.
-	transfereeCallToTransferor->resume();
+	// We have to wait for resume to return 0 because if "Transferee" didn't receive
+	// the 200 OK from the NOTIFY yet, then it will fail.
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transfereeCallToTransferor]() {
+		        FAIL_IF(transfereeCallToTransferor->resume() != 0);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
 
 	asserter
 	    .iterateUpTo(
