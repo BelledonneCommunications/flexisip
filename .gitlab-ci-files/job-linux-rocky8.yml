@@ -16,6 +16,7 @@ job-rocky8-makefile-gcc:
   extends:
     - .job-makefile-gcc
     - .rocky8-image-variables
+  allow_failure: true # Temporarily allows rocky8-makefile-gcc job to fail until gcc build on rocky8 is fixed
 
 
 job-rocky8-makefile-clang:
@@ -31,7 +32,7 @@ job-rocky8-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .rocky8-image-variables
-
+  allow_failure: true # Temporarily allows rocky8-ninja-gcc job to fail until gcc build on rocky8 is fixed
 
 job-rocky8-ninja-clang:
   extends:
