@@ -97,7 +97,7 @@ OnResponseAction CallForkStrategy::chooseActionOnResponse(const shared_ptr<Branc
 		mCancelled = true;
 		cancelWithStatus(ForkStatus::AcceptedElsewhere);
 		return OnResponseAction::SendAndUpdate;
-	} else if (code >= 100 && !mCancelled && br != mCallForwardingBranch.lock()) {
+	} else if (code > 100 && !mCancelled && br != mCallForwardingBranch.lock()) {
 		return OnResponseAction::SendAndUpdate;
 	}
 	return OnResponseAction::WaitAndUpdate;

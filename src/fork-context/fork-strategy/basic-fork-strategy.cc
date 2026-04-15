@@ -33,7 +33,7 @@ BasicForkStrategy::~BasicForkStrategy() {
 
 OnResponseAction BasicForkStrategy::chooseActionOnResponse(const shared_ptr<BranchInfo>& br) {
 	int code = br->getStatus();
-	return (code >= 200 && code < 300) ? OnResponseAction::Send : OnResponseAction::Wait;
+	return (code > 100 && code < 300) ? OnResponseAction::Send : OnResponseAction::Wait;
 }
 
 ResponseStrategy BasicForkStrategy::chooseStrategyOnceAllBranchesAnswered(const std::shared_ptr<BranchInfo>&) {
