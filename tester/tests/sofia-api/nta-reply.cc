@@ -305,7 +305,7 @@ void timerCExpiration(const AgentState::Callback& calleeCallback, const AssertCa
 			    auto* uri = toSofiaSipUrlUnion(state->targetUri);
 			    auto* magic = reinterpret_cast<nta_outgoing_magic_t*>(state);
 			    nta_outgoing_callbacks_t callbacks{.response = forwardCalleeResponse, .response_magic = magic};
-			    state->outgoing = nta_outgoing_mcreate(agent, callbacks, uri, msg, TAG_END());
+			    state->outgoing = nta_outgoing_mcreate_2(agent, callbacks, uri, msg, TAG_END());
 		    }
 		    return 0;
 	    },

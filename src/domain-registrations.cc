@@ -720,7 +720,7 @@ void DomainRegistration::sendRequest() {
 	    .response = sResponseCallback,
 	    .response_magic = reinterpret_cast<nta_outgoing_magic_t*>(this),
 	};
-	mOutgoing = nta_outgoing_mcreate(agent, sofiaCallbacks, nullptr, msg, NTATAG_TPORT(tport), TAG_END());
+	mOutgoing = nta_outgoing_mcreate_2(agent, sofiaCallbacks, nullptr, msg, NTATAG_TPORT(tport), TAG_END());
 	if (!mOutgoing) LOGE << "Could not create outgoing transaction";
 }
 

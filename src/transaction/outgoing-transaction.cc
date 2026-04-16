@@ -165,12 +165,12 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip>& msg,
 	    .before_send = mBeforeSendCallbacks.empty() ? nullptr : beforeSendCallback,
 	    .before_send_magic = mBeforeSendCallbacks.empty() ? nullptr : magic,
 	};
-	mOutgoing = owned(nta_outgoing_mcreate(mAgent.lock()->mAgent, sofiaCallbacks, u, msgRef, ta_tags(ta), TAG_END()));
+	mOutgoing = owned(nta_outgoing_mcreate_2(mAgent.lock()->mAgent, sofiaCallbacks, u, msgRef, ta_tags(ta), TAG_END()));
 
 	ta_end(ta);
 
 	if (mOutgoing == nullptr) {
-		// When nta_outgoing_mcreate() fails, we must destroy the message because it will not take the reference.
+		// When nta_outgoing_mcreate_2() fails, we must destroy the message because it will not take the reference.
 		LOGE << "Failed to create sofia-sip outgoing transaction: aborting";
 		msg_destroy(msgRef);
 		return;
