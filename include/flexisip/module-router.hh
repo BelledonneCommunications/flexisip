@@ -19,10 +19,8 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 #include <vector>
 
-#include "accounts-store/accounts-store.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -121,7 +119,6 @@ private:
 	std::vector<SipUri> mStaticTargets{};
 	std::shared_ptr<ForkManager> mForkManager{};
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter{};
-	std::optional<AccountsStore> mAccountsStore;
 	SipUri mVoicemailServerUri{};
 };
 
