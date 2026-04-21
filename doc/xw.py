@@ -157,7 +157,7 @@ class DocWriter:
 	def __init__(self, wikiProxy, fProxy):
 		self.proxy = wikiProxy
 		self.fProxy = fProxy
-		self.documentRoot = '/Flexisip/A. Configuration Reference Guide'
+		self.documentRoot = '/Flexisip/Core servers/Configuration reference guide'
 
 	def write_and_push(self):
 		fProxy = FlexisipProxy(args.flexisip_binary)
