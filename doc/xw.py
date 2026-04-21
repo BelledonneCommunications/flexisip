@@ -163,7 +163,7 @@ class DocWriter:
 		fProxy = FlexisipProxy(args.flexisip_binary)
 
 		childrenMacro = '{{children/}}'
-		wiki.update_page(os.path.join(self.documentRoot, 'WebHome'), childrenMacro)
+		wiki.update_page(os.path.join(self.documentRoot, 'WebHome'), '{{children sort=":desc"/}}')
 		wiki.update_page(os.path.join(self._get_version_page_path(), 'WebHome'), childrenMacro)
 		wiki.update_page(os.path.join(self._get_version_page_path(), 'module/WebHome'), childrenMacro)
 
