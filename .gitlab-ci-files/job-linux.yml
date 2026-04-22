@@ -46,9 +46,12 @@
   stage: build 🏗
   tags: [ "docker-flat" ]
   extends: .linux-ccache
+  variables:
+    LSAN_SUPPRESSIONS_FILE_PATH: "" # Empty to disable suppressions by default.
   script:
     - *set-max-jobs
     - mkdir work && cd work
+    - export LSAN_OPTIONS="suppressions=$LSAN_SUPPRESSIONS_FILE_PATH"
     - echo "cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS .."
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
     - cmake --build .
