@@ -31,13 +31,6 @@ cmake_policy(SET CMP0077 NEW)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Force the compiler version to be at least what is used in our docker images with the lowest versions.
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
-	message(FATAL_ERROR "Flexisip requires at least gcc 13")
-elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.0)
-	message(FATAL_ERROR "Flexisip requires at least clang 19")
-endif()
-
 # -O0 disables optimizations. Any level of optimization (higher than 0) will throw off debuggers while stepping through source code.
 # With sanitizers enabled, fortifying source requires some optimizations. This is unwanted in Debug builds.
 set(CMAKE_C_FLAGS_DEBUG_INIT "-g -O0 -U_FORTIFY_SOURCE -fdiagnostics-color=always")
@@ -64,6 +57,14 @@ include(CheckFunctionExists)
 include(FeatureSummary)
 include(CheckCXXSourceCompiles)
 include(GNUInstallDirs)
+
+# Force the compiler version to be at least what is used in our docker images with the lowest versions.
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0)
+	message(FATAL_ERROR "Flexisip requires at least gcc 13")
+elseif(CMAKE_C_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.0)
+	message(FATAL_ERROR "Flexisip requires at least clang 19")
+endif()
+
 include("cmake/FlexisipUtils.cmake")
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
