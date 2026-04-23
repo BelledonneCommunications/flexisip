@@ -19,7 +19,6 @@ job-rocky8-makefile-gcc:
   variables:
     LSAN_SUPPRESSIONS_FILE_PATH: "../../sanitizer_ignore_rocky8.txt"
     CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_RECOVERY_FOR_UBSAN=ON
-  allow_failure: true # Temporarily allows rocky8-makefile-gcc job to fail until gcc build on rocky8 is fixed
 
 
 job-rocky8-makefile-clang:
@@ -38,7 +37,6 @@ job-rocky8-ninja-gcc:
   variables:
     LSAN_SUPPRESSIONS_FILE_PATH: "../../sanitizer_ignore_rocky8.txt"
     CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_RECOVERY_FOR_UBSAN=ON
-  allow_failure: true # Temporarily allows rocky8-ninja-gcc job to fail until gcc build on rocky8 is fixed
 
 job-rocky8-ninja-clang:
   extends:
