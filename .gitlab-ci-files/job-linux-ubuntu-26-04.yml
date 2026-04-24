@@ -1,0 +1,100 @@
+variables:
+  UBUNTU26_CMAKE_OPTIONS: -DENABLE_EKT_SERVER=ON
+
+.ubuntu-26-04-image:
+  image:
+    name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-26-04:$UBUNTU_26_04_IMAGE_VERSION
+  variables:
+    CMAKE_OPTIONS: ${UBUNTU26_CMAKE_OPTIONS}
+
+#################################################
+# Makefile
+#################################################
+
+job-ubuntu-26-04-makefile-gcc:
+  extends:
+    - .job-makefile-gcc
+    - .ubuntu-26-04-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-gcc rules
+
+
+job-ubuntu-26-04-makefile-clang:
+  extends:
+    - .job-makefile-clang
+    - .ubuntu-26-04-image
+    - .rules-never-run  # ⚠ See `rules.yml`, override .job-makefile-clang rules
+
+#################################################
+# Ninja
+#################################################
+
+job-ubuntu-26-04-ninja-gcc:
+  extends:
+    - .job-ninja-gcc
+    - .ubuntu-26-04-image
+
+
+job-ubuntu-26-04-ninja-clang:
+  extends:
+    - .job-ninja-clang
+    - .ubuntu-26-04-image
+    - .tester-artifacts
+  variables:
+    # TODO: Remove "-DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF" when nghttp2_asio dependency has been removed.
+    CMAKE_OPTIONS: ${UBUNTU26_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
+
+#################################################
+# UNIT TESTS
+#################################################
+
+job-ubuntu-26-04-unit-test:
+  extends:
+    - .unit-test
+    - .ubuntu-26-04-image
+  needs:
+    - job-ubuntu-26-04-ninja-clang
+
+#################################################
+# DEB
+#################################################
+
+job-ubuntu-26-04-deb:
+  extends:
+    - .job-linux-deb
+    - .ubuntu-26-04-image
+  needs:
+    - job: job-ubuntu-26-04-unit-test
+      optional: true
+      artifacts: false
+    - job: job-ubuntu-26-04-ninja-clang
+      optional: true
+      artifacts: false
+
+
+# Test installation of the DEB package, check its feature list and files permissions
+job-ubuntu-26-04-deb-check-package:
+  stage: check-package 📤
+  tags: [ "docker-flat" ]
+  image: ubuntu:26.04
+  rules:
+    - !reference [job-ubuntu-26-04-deb, rules]
+  needs:
+    - job: job-ubuntu-26-04-deb
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt update
+    - apt install -y ./build/*.deb
+    - !reference [.script-check-features, script]
+    - !reference [.script-check-permissions, script]
+
+
+job-ubuntu-26-04-deb-deploy:
+  extends:
+    - .job-deploy
+    - .ubuntu-26-04-image
+  variables:
+    DISTRIB: ubuntu
+    RELEASE: noble
+  dependencies:
+    - job-ubuntu-26-04-deb

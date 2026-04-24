@@ -50,7 +50,8 @@ Group changes to describe their impact on the project, as follows:
   MWI notifies new urgent messages, the Priority header is set to 'urgent', otherwise it is set to 'non-urgent'. This
   has the effect of only sending push notifications for MWI indicating urgent messages.
 - **Build:**
-    - Add support for C++20
+    - Add support for C++20.
+    - Add support for Ubuntu 26.04.
     - Removes ENABLE_FLEXIAPI cmake option. Now it always works as if ENABLE_FLEXIAPI was set to true.
 - **CLI:** Add three new commands to manage entries in the passwords cache.
     - `AUTH_CACHE_LIST`: list all entries in the cache (optional: filter by domain)
@@ -116,6 +117,7 @@ Group changes to describe their impact on the project, as follows:
 - **Configuration:** Parameters of type `StringList` can no longer be declared using the character `','` to separate
   each element.
 - **Debian 11:** Support discontinued, as distribution will reach its end-of-life (2026-08-31).
+- **Ubuntu 22.04:** Support discontinued
 - **Global:**
   - Option `--daemon` in flexisip services start command
   - Parameter `global/tls-certificates-dir` (deprecated in 2.2.0)

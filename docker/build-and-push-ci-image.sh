@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (C) 2010-2023 Belledonne Communications SARL
+# Copyright (C) 2010-2026 Belledonne Communications SARL
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Small helper script to build and push a Docker image used for CI.
@@ -8,7 +8,7 @@
 # Set {BUILD,RUN,PUSH} env vars to {en,dis}able the corresponding steps
 #
 # Example usage:
-# BUILD=false RUN=true ./build-and-push-ci-image.sh bc-dev-ubuntu-22-04
+# BUILD=false RUN=true ./build-and-push-ci-image.sh bc-dev-ubuntu-26-04
 
 set -euxo pipefail
 
