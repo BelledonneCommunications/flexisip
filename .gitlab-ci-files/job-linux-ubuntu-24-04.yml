@@ -61,7 +61,6 @@ job-ubuntu-24-04-deb:
   extends:
     - .job-linux-deb
     - .ubuntu-24-04-image
-    - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
   needs:
     - job: job-ubuntu-24-04-unit-test
       optional: true
@@ -69,6 +68,23 @@ job-ubuntu-24-04-deb:
     - job: job-ubuntu-24-04-ninja-clang
       optional: true
       artifacts: false
+
+# Test installation of the DEB package, check its feature list and files permissions
+job-ubuntu-24-04-deb-check-package:
+  stage: check-package 📤
+  tags: [ "docker-flat" ]
+  image: ubuntu:24.04
+  rules:
+    - !reference [job-ubuntu-24-04-deb, rules]
+  needs:
+    - job: job-ubuntu-24-04-deb
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt update
+    - apt install -y ./build/*.deb
+    - !reference [.script-check-features, script]
+    - !reference [.script-check-permissions, script]
 
 
 job-ubuntu-24-04-deb-deploy:
