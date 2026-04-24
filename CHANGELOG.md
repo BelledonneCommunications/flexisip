@@ -127,6 +127,11 @@ Group changes to describe their impact on the project, as follows:
     - MSGPACK feature (deprecated in 2.4.0).
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its watchdog.
 
+## [2.5.1]
+- **SDK version:** 5.4.111
+
+### [Fixed]
+- **Conference server:** Compatibility issues with clients using linphone-sdk 5.5.0-beta.x.
 
 ## [2.5.0] - 2026-04-27
 - **SDK version:** 5.4.106
