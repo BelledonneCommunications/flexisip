@@ -14,6 +14,11 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.1]
+
+### [Fixed]
+- **Conference server:** Compatibility issues with clients using linphone-sdk 5.5.0-beta.x.
+
 ## [2.5.0] - 2026-04-27
 - **SDK version:** 5.4.106
 
