@@ -21,10 +21,10 @@
 #include <memory>
 #include <vector>
 
+#include "flexisip/fork-stats.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "fork-context/fork-stats.hh"
 
 namespace flexisip {
 struct RouterStats {

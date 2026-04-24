@@ -19,10 +19,10 @@
 #pragma once
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/fork-stats.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "fork-context/fork-context-factory.hh"
 #include "fork-context/fork-context.hh"
-#include "fork-context/fork-stats.hh"
 #include "fork-group-sorter.hh"
 #include "injector.hh"
 

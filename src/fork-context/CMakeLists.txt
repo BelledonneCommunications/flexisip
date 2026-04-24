@@ -26,7 +26,6 @@ target_sources(flexisip PRIVATE
     fork-context-impl.cc fork-context-impl.hh
     fork-context-factory.cc fork-context-factory.hh
     fork-message-context.cc fork-message-context.hh
-    fork-stats.hh
     fork-status.hh
     message-kind.cc message-kind.hh
     fork-message-db/branch-info-db.hh
