@@ -126,7 +126,7 @@ Group changes to describe their impact on the project, as follows:
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its watchdog.
 
 
-## [2.5.0]
+## [2.5.0] - 2026-04-27
 - **SDK version:** 5.4.106
 
 ### [Added]
@@ -267,7 +267,7 @@ Group changes to describe their impact on the project, as follows:
 - **Plugin:** JweAuth.
 
 
-## [2.4.4]
+## [2.4.4] - 2026-03-30
 - **SDK version:** 5.3.114
 
 ### [Added]:
