@@ -61,7 +61,6 @@ job-ubuntu-22-04-deb:
   extends:
     - .job-linux-deb
     - .ubuntu-22-04-image
-    - .rules-manual-deploy # ⚠ See `rules.yml`, override .job-linux-deb rules
   needs:
     - job: job-ubuntu-22-04-unit-test
       optional: true
@@ -70,6 +69,22 @@ job-ubuntu-22-04-deb:
       optional: true
       artifacts: false
 
+# Test installation of the DEB package, check its feature list and files permissions
+job-ubuntu-22-04-deb-check-package:
+  stage: check-package 📤
+  tags: [ "docker" ]
+  image: ubuntu:22.04
+  rules:
+    - !reference [job-ubuntu-22-04-deb, rules]
+  needs:
+    - job: job-ubuntu-22-04-deb
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - apt update
+    - apt install -y ./build/*.deb
+    - !reference [.script-check-features, script]
+    - !reference [.script-check-permissions, script]
 
 job-ubuntu-22-04-deb-deploy:
   extends:
