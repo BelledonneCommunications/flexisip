@@ -24,7 +24,7 @@ variables:
   DEBIAN_13_IMAGE_VERSION: 20250930
   MINIMAL_IMAGE_VERSION: 20240911_remove_protobuf
   UBUNTU_22_04_IMAGE_VERSION: 20240911_remove_protobuf
-  UBUNTU_24_04_IMAGE_VERSION: 20240916_add_cpp-jwt
+  UBUNTU_24_04_IMAGE_VERSION: 20260428_add_dpkgdev-2.5
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:
