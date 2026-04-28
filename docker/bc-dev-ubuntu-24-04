@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260227_add_systemd
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260428_add_dpkgdev
 ###############################################################################
 
 FROM ubuntu:24.04
@@ -61,6 +61,8 @@ RUN apt-get -y update \
                        redis-server \
                      # Dependencies of the B2BUA
                        libvpx-dev \
+                     # Dependencies of CPack (to build the .deb)
+                       dpkg-dev \
   # Clean
  && apt-get -y autoremove \
  && apt-get -y clean

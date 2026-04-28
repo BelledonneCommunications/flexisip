@@ -23,7 +23,7 @@ variables:
   DEBIAN_13_IMAGE_VERSION: 20260227_add_systemd
   MINIMAL_IMAGE_VERSION: 20260227_add_systemd
   UBUNTU_22_04_IMAGE_VERSION: 20260227_add_systemd
-  UBUNTU_24_04_IMAGE_VERSION: 20260227_add_systemd
+  UBUNTU_24_04_IMAGE_VERSION: 20260428_add_dpkgdev
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:
