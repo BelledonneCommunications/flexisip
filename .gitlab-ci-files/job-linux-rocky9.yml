@@ -75,6 +75,7 @@ job-rocky9-xwiki-doc-deploy:
   extends:
     - .rules-deploy  # ⚠ See `rules.yml`
     - .rocky9-image-variables
+    - .linux-enable-gcc-toolset
   script:
     - prefix=/opt/belledonne-communications
     - builddir=wikiBuild

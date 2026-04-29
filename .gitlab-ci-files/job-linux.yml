@@ -28,6 +28,10 @@
   - "[[ -f /opt/rh/gcc-toolset-14/enable ]] && source /opt/rh/gcc-toolset-14/enable" # For rocky 8
   - "[[ -f /opt/rh/gcc-toolset-15/enable ]] && source /opt/rh/gcc-toolset-15/enable" # For rocky 9
 
+.linux-enable-gcc-toolset:
+  script:
+    - *enable-gcc-toolset
+
 .linux-ccache:
   cache:
     key: $CI_JOB_NAME
