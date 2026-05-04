@@ -175,9 +175,13 @@ void Server::Application::onSubscribeReceived(const shared_ptr<Core>&,
 
 	// If subscriber already exists, replace the old subscription with the new one.
 	if (subscriptionIt != subscriptions.end()) {
-		LOGD << "Replacing Subscription[event=" << (*subscriptionIt)->getEvent() << "] from '" << fromUri
-		     << "' to record key '" << recordKey.asString() << "'";
-		subscriptions.erase(subscriptionIt);
+		if (auto event = (*subscriptionIt)->getEvent()) {
+			LOGD << "Replacing Subscription[event=" << event << "] from '" << fromUri
+			     << "' to record key '" << recordKey.asString() << "'";
+			// Event termination triggers erase from the mSubscriptions map
+			event->terminate();
+		}
+
 	}
 	subscriptions.emplace_back(make_shared<Subscription>(event));
 	LOGD << "Added Subscription[event=" << event << "] from '" << fromUri << "' to record key '" << recordKey.asString()
@@ -220,7 +224,7 @@ void Server::Application::onSubscriptionStateChanged(const shared_ptr<linphone::
 			const auto fromUri = event->getFromAddress()->asStringUriOnly();
 			const auto subscriptionIt =
 			    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
-				    return subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri;
+				    return subscription && (subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri);
 			    });
 
 			if (subscriptionIt != subscriptions.end()) {

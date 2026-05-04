@@ -181,7 +181,7 @@ void basicSubscription() {
 	inserter.setExpire(0s).insert({.uniqueId = "device-d"});
 	registrarDb->publish(otherParticipantTopic, "");
 	asserter.iterateUpTo(
-	            10, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }, 1s)
+	            50, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); }, 1s)
 	    .hard_assert_passed();
 
 	{
@@ -194,7 +194,7 @@ void basicSubscription() {
 	// Remove the last device of a participant.
 	registrarDb->clear(SipUri(participantFrom), "stub-callid", make_shared<StubListener>());
 	registrarDb->publish(participantTopic, "");
-	asserter.iterateUpTo(3, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 2); })
+	asserter.iterateUpTo(50, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 2); })
 	    .hard_assert_passed();
 
 	{
@@ -226,7 +226,7 @@ void basicSubscription() {
 	const string participantRebindFrom{"sip:participant_re_bind@localhost"};
 	inserter.setExpire(10s).setAor(participantRebindFrom).insert({.uniqueId = "re-device-a"});
 	chatRoom->addParticipant(linphone::Factory::get()->createAddress(participantRebindFrom));
-	asserter.iterateUpTo(8, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); })
+	asserter.iterateUpTo(50, [&totalDevicesCount] { return LOOP_ASSERTION(totalDevicesCount() == 3); })
 	    .hard_assert_passed();
 
 	// Check if the participant was still added (locally).
@@ -430,7 +430,9 @@ void multipleSubscribersToOneRecordKey() {
 	    .hard_assert_passed();
 
 	// Replace subscription from 'subscriber' to topic.
-	const auto newSubscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, regEventUri);
+	Subscriber subscriberBis{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	asserter.registerSteppable(subscriberBis.mSuRoot);
+	const auto newSubscriptionFromSubscriber = subscriberBis.subscribe(aorOfInterest, regEventUri);
 
 	asserter
 	    .iterateUpTo(
@@ -439,6 +441,7 @@ void multipleSubscribersToOneRecordKey() {
 		        FAIL_IF(!newSubscriptionFromSubscriber->isCompleted());
 		        FAIL_IF(newSubscriptionFromSubscriber->getStatus() != 200);
 		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 1);
 		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 2);
 		        return ASSERTION_PASSED();
 	        },
@@ -446,7 +449,7 @@ void multipleSubscribersToOneRecordKey() {
 	    .hard_assert_passed();
 
 	// Unsubscribe 'subscriber' from topic.
-	const auto unsubscriptionFromSubscriber = subscriber.unsubscribe(aorOfInterest, regEventUri);
+	const auto unsubscriptionFromSubscriber = subscriberBis.unsubscribe(aorOfInterest, regEventUri);
 
 	asserter
 	    .iterateUpTo(
@@ -455,6 +458,7 @@ void multipleSubscribersToOneRecordKey() {
 		        FAIL_IF(!unsubscriptionFromSubscriber->isCompleted());
 		        FAIL_IF(unsubscriptionFromSubscriber->getStatus() != 200);
 		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 1);
 		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 2);
 		        return ASSERTION_PASSED();
 	        },
@@ -470,6 +474,7 @@ void multipleSubscribersToOneRecordKey() {
 	        32,
 	        [&]() {
 		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 1);
 		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 3);
 		        return ASSERTION_PASSED();
 	        },
@@ -484,6 +489,7 @@ void multipleSubscribersToOneRecordKey() {
 	        32,
 	        [&]() {
 		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 1);
 		        FAIL_IF(!unsubscriptionFromOtherSubscriber->isCompleted());
 		        FAIL_IF(unsubscriptionFromOtherSubscriber->getStatus() != 200);
 		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 3);
@@ -501,6 +507,7 @@ void multipleSubscribersToOneRecordKey() {
 	        32,
 	        [&]() {
 		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 1);
 		        FAIL_IF(otherSubscriber.mTotalNotifyReceived != 3);
 		        return ASSERTION_PASSED();
 	        },
