@@ -95,8 +95,6 @@ void BranchInfo::processResponse(ResponseSipEvent& event) {
 		// mLastResponseEvent has been resubmitted, so stop the original event.
 		event.terminateProcessing();
 	}
-
-	if (forkCtx->allCurrentBranchesAnswered(FinalStatusMode::RFC) && forkCtx->hasNextBranches()) forkCtx->start();
 }
 
 int BranchInfo::getStatus() const {

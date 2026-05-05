@@ -399,16 +399,6 @@ std::shared_ptr<BranchInfo> ForkMessageContextDbProxy::addBranch(std::unique_ptr
 	return newBranch;
 }
 
-bool ForkMessageContextDbProxy::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const {
-	if (getState() != State::IN_MEMORY) return true;
-	return mForkMessage->allCurrentBranchesAnswered(finalStatusMode);
-}
-
-bool ForkMessageContextDbProxy::hasNextBranches() const {
-	if (getState() != State::IN_MEMORY) return false;
-	return mForkMessage->hasNextBranches();
-}
-
 void ForkMessageContextDbProxy::processInternalError(int status, const char* phrase) {
 	checkState(__FUNCTION__, State::IN_MEMORY);
 	mForkMessage->processInternalError(status, phrase);
@@ -434,11 +424,6 @@ const vector<string>& ForkMessageContextDbProxy::getKeys() const {
 
 bool ForkMessageContextDbProxy::isFinished() const {
 	return mIsFinished;
-}
-
-void ForkMessageContextDbProxy::tryToSendFinalResponse() {
-	checkState(__FUNCTION__, State::IN_MEMORY);
-	mForkMessage->tryToSendFinalResponse();
 }
 
 RequestSipEvent& ForkMessageContextDbProxy::getEvent() {

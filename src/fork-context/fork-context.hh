@@ -84,15 +84,6 @@ public:
 	virtual std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                              const std::shared_ptr<ExtendedContact>& contact) = 0;
 	/**
-	 * @param finalStatusMode fork mode to consider for the final status answer
-	 * @return 'true' if all current branches have been answered (see @FinalStatusMode for more information)
-	 */
-	virtual bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const = 0;
-	/**
-	 * @return 'true' if there are other branches with lower priorities to try
-	 */
-	virtual bool hasNextBranches() const = 0;
-	/**
 	 * @brief Send a custom response and cancel all branches if necessary.
 	 *
 	 * @note MUST be called in case of a fatal error at runtime
@@ -161,12 +152,6 @@ public:
 	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
 	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
-
-protected:
-	/**
-	 * @brief Try to send the final response through the incoming transaction.
-	 */
-	virtual void tryToSendFinalResponse() = 0;
 };
 
 enum class DispatchStatus {

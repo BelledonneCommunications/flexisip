@@ -43,7 +43,6 @@ public:
 	static std::shared_ptr<ForkContextImpl> make(Args&&... args) {
 		return std::shared_ptr<ForkContextImpl>(new ForkContextImpl{std::forward<Args>(args)...});
 	}
-	static bool isUrgent(int code, const int urgentCodes[]);
 
 	~ForkContextImpl() override;
 
@@ -51,8 +50,6 @@ public:
 
 	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) final;
-	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const final;
-	bool hasNextBranches() const final;
 	void processInternalError(int status, const char* phrase) final;
 	void start() final;
 	void addKey(const std::string& key) final;
@@ -63,7 +60,6 @@ public:
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
 	bool isFinished() const final;
-	void tryToSendFinalResponse() final;
 	RequestSipEvent& getEvent() final;
 	sofiasip::MsgSipPriority getMsgPriority() const final;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const final;
@@ -111,6 +107,15 @@ private:
 	static bool isUseful4xx(int statusCode);
 
 	/**
+	 * @param finalStatusMode fork mode to consider for the final status answer of a branch
+	 * @return 'true' if all current branches have been answered (see @FinalStatusMode for more information)
+	 */
+	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const;
+	/**
+	 * @brief Try to send the final response through the incoming transaction.
+	 */
+	void tryToSendFinalResponse();
+	/**
 	 * @return 'true' if the fork process should be terminated.
 	 */
 	bool shouldFinish(bool ignoreForkLate = false);
@@ -127,6 +132,10 @@ private:
 	 * class!
 	 */
 	void onFinished();
+	/**
+	 * @return 'true' if there are branches with lower priority to try.
+	 */
+	bool hasNextBranches() const;
 	/**
 	 * @brief Build the list of next branches to try.
 	 *

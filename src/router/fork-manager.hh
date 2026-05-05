@@ -32,6 +32,8 @@
 
 namespace flexisip {
 
+class ModuleRouter;
+
 /**
  * @brief Manages the forking of SIP requests. It is responsible for coordinating the handling and dispatching of forked
  * SIP requests along with managing forked contexts during the SIP transaction lifecycle.

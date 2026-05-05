@@ -82,8 +82,6 @@ public:
 
 	std::shared_ptr<BranchInfo> addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 	                                      const std::shared_ptr<ExtendedContact>& contact) override;
-	bool allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const override;
-	bool hasNextBranches() const override;
 	void processInternalError(int status, const char* phrase) override;
 	void start() override;
 	void addKey(const std::string& key) override;
@@ -94,7 +92,6 @@ public:
 	void onCancel(const sofiasip::MsgSip&) override {};
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
 	bool isFinished() const override;
-	void tryToSendFinalResponse() override;
 	RequestSipEvent& getEvent() override;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
 	sofiasip::MsgSipPriority getMsgPriority() const override;

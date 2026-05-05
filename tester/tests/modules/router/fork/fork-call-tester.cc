@@ -1045,11 +1045,8 @@ const std::vector<test_t> sTestList = {
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotAnswered>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotFound>),
     CLASSY_TEST(voicemail::callWithEarlyCancel),
-
-    // Tests that do not need to be executed every time as we are already testing similar cases. However, these
-    // tests are useful when comprehensive testing is required.
-    CLASSY_TEST(voicemail::callForwardingRejected<Reason::Busy>).tag("skip"),
-    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Busy>).tag("skip"),
+    CLASSY_TEST(voicemail::callForwardingRejected<Reason::Busy>),
+    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Busy>),
 
     CLASSY_TEST(timerC::expirationWithCancelFromCaller),
     CLASSY_TEST(timerC::expirationWithoutCancelFromCaller),

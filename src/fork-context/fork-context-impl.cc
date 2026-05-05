@@ -504,16 +504,17 @@ void ForkContextImpl::onResponse(const std::shared_ptr<BranchInfo>& br, Response
 	const auto action = mStrategy->chooseActionOnResponse(br);
 	LOGD << "Received " << br->getStatus() << ", " << onResponseActionToString(action);
 
-	if (action == OnResponseAction::Send || action == OnResponseAction::SendAndUpdate) {
-		br->sendResponse(mIncoming != nullptr);
-		mStrategy->logSentResponse(br->getLastResponseEvent(), br.get(), getEvent());
-	}
 	if (action == OnResponseAction::WaitAndUpdate || action == OnResponseAction::SendAndUpdate) {
 		for (const auto& branch : mWaitingBranches) {
 			mStrategy->updateBranch(branch, getEvent());
 		}
 	}
+	if (action == OnResponseAction::Send || action == OnResponseAction::SendAndUpdate) {
+		br->sendResponse(mIncoming != nullptr);
+		mStrategy->logSentResponse(br->getLastResponseEvent(), br.get(), getEvent());
+	}
 	tryToSendFinalResponse();
+	if (allCurrentBranchesAnswered(FinalStatusMode::RFC)) onNextBranches();
 }
 
 void ForkContextImpl::onNewRegister(const SipUri& dest,

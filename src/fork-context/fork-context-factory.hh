@@ -23,12 +23,12 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/fork-stats.hh"
 #include "fork-context.hh"
-#include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
 #include "fork-message-context.hh"
 #include "fork-strategy/basic-fork-strategy.hh"
 #include "fork-strategy/call-fork-strategy.hh"
 
 #if ENABLE_SOCI
+#include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
 #include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 #endif
 

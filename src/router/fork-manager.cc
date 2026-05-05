@@ -19,6 +19,7 @@
 #include "fork-manager.hh"
 
 #include "agent-injector.hh"
+#include "flexisip/module-router.hh"
 #include "inject-context.hh"
 #include "modules/module-toolbox.hh"
 
