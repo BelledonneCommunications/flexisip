@@ -25,11 +25,17 @@
     if ! [ -z ${DEPLOY_SERVER_HOST_KEYS+x} ]; then echo "$DEPLOY_SERVER_HOST_KEYS" >> ~/.ssh/known_hosts; fi
 
 .enable-gcc-toolset: &enable-gcc-toolset
-  - "[[ -f /opt/rh/gcc-toolset-14/enable ]] && source /opt/rh/gcc-toolset-14/enable" # For rocky 8
-  - "[[ -f /opt/rh/gcc-toolset-15/enable ]] && source /opt/rh/gcc-toolset-15/enable" # For rocky 9
+  - |
+    if [[ -f /opt/rh/gcc-toolset-15/enable ]]; then
+      source /opt/rh/gcc-toolset-15/enable
+    elif [[ -f /opt/rh/gcc-toolset-14/enable ]]; then
+      source /opt/rh/gcc-toolset-14/enable
+    else
+      echo "No GCC Toolset found"
+    fi
 
 .linux-enable-gcc-toolset:
-  script:
+  before_script:
     - *enable-gcc-toolset
 
 .linux-ccache:
