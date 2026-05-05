@@ -95,6 +95,6 @@ job-ubuntu-26-04-deb-deploy:
     - .ubuntu-26-04-image
   variables:
     DISTRIB: ubuntu
-    RELEASE: noble
+    RELEASE: resolute
   dependencies:
     - job-ubuntu-26-04-deb
