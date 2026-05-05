@@ -130,6 +130,14 @@ Group changes to describe their impact on the project, as follows:
 ## [2.5.1]
 - **SDK version:** 5.4.111
 
+### [Added]
+- **B2BUA server:**
+  - Add a Priority header to NOTIFY messages containing Message Waiting Indication (MWI) information. If the MWI
+    notifies new urgent messages, the Priority header is set to 'urgent', otherwise it is set to 'non-urgent'. This
+    has the effect of only sending push notifications for MWI indicating urgent messages.
+  - **SIP-Bridge/Account:** new parameter `mwiServerUri` to specify the URI of the MWI server individually for each
+    account (optional).
+
 ### [Fixed]
 - **Conference server:** Compatibility issues with clients using linphone-sdk 5.5.0-beta.x.
 
