@@ -222,9 +222,7 @@ class DocWriter:
             out = self.server.dump_section_doc(section)
 
             # add commit version on top of the file
-            message = f"// Documentation based on repostory git version commit {
-                self.server.version.git_version
-            } //\n\n"
+            message = f"// Documentation based on repostory git version commit {self.server.version.git_version} //\n\n"
             out = message + out
 
             path = self._section_name_to_page_path(section)
