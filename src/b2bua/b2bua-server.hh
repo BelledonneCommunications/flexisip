@@ -20,7 +20,6 @@
 
 #include <memory>
 #include <unordered_map>
-#include <variant>
 
 #include "application.hh"
 #include "b2bua-core.hh"
@@ -83,7 +82,7 @@ public:
 	}
 
 	void onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
-	                         const std::shared_ptr<linphone::Event>& linphoneEvent,
+	                         const std::shared_ptr<linphone::Event>& legAEvent,
 	                         const std::string& subscribeEvent,
 	                         const std::shared_ptr<const linphone::Content>& body) override;
 

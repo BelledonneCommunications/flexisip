@@ -24,11 +24,8 @@
 #include "b2bua/utils/call-transfer-listener.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"
-#include "mediastreamer2/ms_srtp.h"
 #include "sip-bridge/sip-bridge.hh"
 #include "trenscrypter/trenscrypter.hh"
-#include "utils/string-utils.hh"
-#include "utils/uri-utils.hh"
 #include "utils/variant-utils.hh"
 
 using namespace std;
@@ -327,10 +324,29 @@ void B2buaServer::onCallStateEnd(const std::shared_ptr<linphone::Call>& call) {
 }
 
 void B2buaServer::onCallStatePausedByRemote(const std::shared_ptr<linphone::Call>& call) {
-	// Paused by remote: do not pause peer call as it will kick it out of the conference.
+	// Paused by remote: do not pause the peer call as it will kick it out of the conference.
 	// Instead, switch the media direction to SendOnly (only if it is not already set this way).
 	const auto peerCall = getPeerCall(call);
 	if (!peerCall) return;
+
+	// If this is legB and that legA is in the incoming state, answer it.
+	// This cannot be done in the Connected state as currentCallParams are not updated yet.
+	if (const auto peerCallState = peerCall->getState(); call->getDir() == linphone::Call::Dir::Outgoing &&
+	                                                     (peerCallState == linphone::Call::State::IncomingReceived ||
+	                                                      peerCallState == linphone::Call::State::IncomingEarlyMedia)) {
+		LOGD << "Call on legB is now paused directly when answering ---> answer call on legA";
+		// Update enablement of audio and video on both legs so we make sure they are synchronized.
+		const auto incomingCallParams = mCore->createCallParams(peerCall);
+		incomingCallParams->enableAudio(call->getCurrentParams()->audioEnabled());
+		if (call->getCurrentParams()->audioEnabled()) {
+			incomingCallParams->setAudioDirection(call->getCurrentParams()->getAudioDirection());
+		}
+		incomingCallParams->enableVideo(call->getCurrentParams()->videoEnabled());
+		// Explicitly set the account to avoid the core to guess it.
+		if (incomingCallParams->getAccount() == nullptr) incomingCallParams->setAccount(mCore->getDefaultAccount());
+		peerCall->acceptWithParams(incomingCallParams);
+		return;
+	}
 
 	// If we receive a "Call on hold for me too" update.
 	if (callIsInPausedByRemoteState(peerCall)) {
@@ -674,7 +690,7 @@ shared_ptr<linphone::Call> B2buaServer::findPeerReplacingCall(const b2bua::Repla
 		if (candidateToTag != replacesHeader.getToTag()) continue;
 
 		// legB
-		const auto peerReplacingCall = getPeerCall(candidate);
+		auto peerReplacingCall = getPeerCall(candidate);
 		if (!peerReplacingCall) return {};
 
 		LOGD << "Found bridged call " << candidate << " to replace with call " << peerReplacingCall;

@@ -32,7 +32,6 @@
 #include "soci/session.h"
 #include "soci/sqlite3/soci-sqlite3.h"
 #include "tester.hh"
-#include "utils/call-listeners.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
@@ -165,8 +164,11 @@ struct DtmfListener : public linphone::CallListener {
     and Felix should receive a call form Jasper that should look like it's coming from within the same domain as him:
     <sip:jasper@flexisip.example.org>
 
-    Finally, test a third scenario: internal calls.
+    Then, test a third scenario: internal calls.
     Thus, a third user, "Emilie" <sip:emilie@flexisip.example.org, will attempt to call Felix's internal account.
+
+    Finally, make a call where Jasper answers the call with the audio being inactive and then updates it to restore the
+    audio.
 
     Note: this test makes sure all calls are routed through the external proxy (Jabiru).
 */
@@ -339,7 +341,7 @@ void bidirectionalBridging() {
 
 	// Flexisip -> Jabiru
 	{
-		BC_HARD_ASSERT(felix.call(jasper, jasper.getCore()->createAddress(jasperUriOnFlexisip)) != nullptr);
+		BC_HARD_ASSERT(felix.call(jasper, linphone::Factory::get()->createAddress(jasperUriOnFlexisip)) != nullptr);
 		const auto& jasperCall = jasper.getCurrentCall();
 		// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
 		BC_ASSERT_CPP_EQUAL(toUriOnJabiru, jasperUriOnJabiru);
@@ -355,7 +357,7 @@ void bidirectionalBridging() {
 
 	// Jabiru -> Flexisip
 	{
-		BC_HARD_ASSERT(jasper.call(felix, felix.getCore()->createAddress(felixUriOnJabiru)) != nullptr);
+		BC_HARD_ASSERT(jasper.call(felix, linphone::Factory::get()->createAddress(felixUriOnJabiru)) != nullptr);
 		const auto& felixCall = felix.getCurrentCall();
 		// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
 		BC_ASSERT_CPP_EQUAL(toUriOnJabiru, felixUriOnJabiru);
@@ -382,6 +384,29 @@ void bidirectionalBridging() {
 		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 3);
 		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 3);
 		BC_ASSERT(felix.endCurrentCall(emilie, jabiruProxy));
+	}
+	fromUriOnJabiru = toUriOnJabiru = "unexpected"; // Reset.
+
+	// Flexisip -> Jabiru
+	// With jasper answering the call with the audio being inactive and then updating it to restore the audio.
+	// This is a common scenario with PSTN gateways.
+	{
+		auto jasperCallParams = jasper.getCore()->createCallParams(nullptr);
+		jasperCallParams->setAudioDirection(MediaDirection::Inactive);
+		BC_HARD_ASSERT(felix.call(jasper, linphone::Factory::get()->createAddress(jasperUriOnFlexisip), nullptr,
+		                          jasperCallParams) != nullptr);
+		const auto& jasperCall = jasper.getCurrentCall();
+		// Verify "To" and "From" headers in INVITE request received by Jabiru proxy from B2BUA.
+		BC_ASSERT_CPP_EQUAL(toUriOnJabiru, jasperUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(fromUriOnJabiru, felixUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->asStringUriOnly(), felixUriOnJabiru);
+		BC_ASSERT_CPP_EQUAL(jasperCall->getRemoteAddress()->getDisplayName(), felixDisplayName);
+		// Verify that Jabiru proxy actually created a ForkCallContext for this call.
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->start->read(), 4);
+		BC_ASSERT_CPP_EQUAL(jabiruRouterModule->mStats.mForkStats->mCountCallForks->finish->read(), 4);
+		jasperCallParams->setAudioDirection(MediaDirection::SendRecv);
+		jasper.callUpdate(felix, jasperCallParams);
+		BC_ASSERT(jasper.endCurrentCall(felix));
 	}
 
 	std::ignore = b2buaServer->stop();
@@ -1178,7 +1203,7 @@ void mwiBridging() {
 
 	// Un-register the subscriber to check that the subscription is correctly ended on
 	// the subscribee side.
-	auto subscriberAccount = subscriber.getAccount();
+	const auto& subscriberAccount = subscriber.getAccount();
 	auto newAccountParams = subscriberAccount->getParams()->clone();
 	newAccountParams->enableRegister(false);
 	subscriberAccount->setParams(newAccountParams);
@@ -1407,7 +1432,7 @@ void loadBalancing() {
 	BC_ASSERT_TRUE(holds_alternative<linphone::Reason>(sipBridge.onCallCreate(*call, *params)));
 }
 
-// Should display no memory leak when run in sanitizier mode
+// Should display no memory leak when run in sanitizer mode
 void cli() {
 	using namespace flexisip::b2bua;
 	const auto stubCore =

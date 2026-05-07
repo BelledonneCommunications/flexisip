@@ -14,6 +14,14 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.2] - Hotfix
+- **SDK version:** 5.4.111
+
+### [Fixed]
+- **B2BUA server:** Fix wrong behavior of the B2BUA server when a call is answered with inactive audio. Previously, if a
+  200 OK response to a call was setting the audio inactive, the B2BUA server was sending an UPDATE on the other leg
+  instead of relaying the 200 OK. It is now correctly relaying this response.
+
 ## [2.5.1] - 2026-05-19
 - **SDK version:** 5.4.111
 
