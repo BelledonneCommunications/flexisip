@@ -20,10 +20,10 @@
 
 #include <memory>
 
-#include "exceptions/bad-configuration.hh"
+#include "linphone++/enums.hh"
+
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "linphone++/enums.hh"
 #include "registrar/record.hh"
 #include "utils/configuration/transport.hh"
 #include "xml/reginfo.hh"
@@ -35,21 +35,17 @@ using namespace flexisip::Xsd::XmlSchema;
 
 namespace flexisip::RegistrationEvent {
 
-Server::Subscription::Subscription(const std::shared_ptr<linphone::Event>& event) : mEvent(event) {
-}
+Server::Subscription::Subscription(const std::shared_ptr<linphone::Event>& event) : mEvent(event) {}
 
 void Server::Subscription::onRecordFound(const shared_ptr<Record>& record) {
 	processRecord(record, "");
 }
 
-void Server::Subscription::onError(const flexisip::SipStatus&) {
-}
+void Server::Subscription::onError(const flexisip::SipStatus&) {}
 
-void Server::Subscription::onInvalid(const flexisip::SipStatus&) {
-}
+void Server::Subscription::onInvalid(const flexisip::SipStatus&) {}
 
-void Server::Subscription::onContactUpdated(const std::shared_ptr<ExtendedContact>&) {
-}
+void Server::Subscription::onContactUpdated(const std::shared_ptr<ExtendedContact>&) {}
 
 void Server::Subscription::onContactRegistered(const shared_ptr<Record>& record, const string& uidOfFreshlyRegistered) {
 	processRecord(record, uidOfFreshlyRegistered);
@@ -129,8 +125,7 @@ std::shared_ptr<linphone::Event> Server::Subscription::getEvent() const {
 }
 
 Server::Application::Application(const std::shared_ptr<RegistrarDb>& registrarDb)
-    : mRegistrarDb(registrarDb), mSubscriptions() {
-}
+    : mRegistrarDb(registrarDb), mSubscriptions() {}
 
 void Server::Application::onSubscribeReceived(const shared_ptr<Core>&,
                                               const shared_ptr<linphone::Event>& event,
@@ -164,25 +159,28 @@ void Server::Application::onSubscribeReceived(const shared_ptr<Core>&,
 	const auto recordKey = Record::Key(toUri, mRegistrarDb->useGlobalDomain());
 	const auto fromUri = event->getFromAddress()->asStringUriOnly();
 
-	// Iterator to the record key in the subscriptions map.
-	auto recordKeyIt = mSubscriptions.insert({recordKey.asString(), {}}).first;
+	// Manage subscription replacement if subscriber already exists for the same record key.
+	{
+		auto& subscriptions = mSubscriptions[recordKey.asString()];
+		const auto subscriptionIt =
+		    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
+			    return subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri;
+		    });
 
-	auto& subscriptions = recordKeyIt->second;
-	const auto subscriptionIt =
-	    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
-		    return subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri;
-	    });
-
-	// If subscriber already exists, replace the old subscription with the new one.
-	if (subscriptionIt != subscriptions.end()) {
-		if (auto event = (*subscriptionIt)->getEvent()) {
-			LOGD << "Replacing Subscription[event=" << event << "] from '" << fromUri
-			     << "' to record key '" << recordKey.asString() << "'";
-			// Event termination triggers erase from the mSubscriptions map
-			event->terminate();
+		// If subscriber already exists, replace the old subscription with the new one.
+		if (subscriptionIt != subscriptions.end()) {
+			if (auto oldEvent = (*subscriptionIt)->getEvent()) {
+				LOGD << "Replacing Subscription[event=" << oldEvent << "] from '" << fromUri << "' to record key '"
+				     << recordKey.asString() << "'";
+				// Event termination triggers erase from the mSubscriptions map.
+				oldEvent->terminate();
+			}
 		}
-
 	}
+
+	// Warning: the entry in the map is not guaranteed to be present (it may have been erased because of subscription
+	// replacement). The [] operator ensures that the entry is created if it does not exist.
+	auto& subscriptions = mSubscriptions[recordKey.asString()];
 	subscriptions.emplace_back(make_shared<Subscription>(event));
 	LOGD << "Added Subscription[event=" << event << "] from '" << fromUri << "' to record key '" << recordKey.asString()
 	     << "'";
