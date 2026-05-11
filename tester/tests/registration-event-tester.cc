@@ -19,9 +19,8 @@
 #include <memory>
 #include <string>
 
-#include "bctoolbox/logging.h"
-#include "bctoolbox/tester.h"
 #include "linphone++/linphone.hh"
+
 #include "sofia-sip/nta_stateless.h"
 
 #include "flexisip/configmanager.hh"
@@ -31,12 +30,10 @@
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/nta-outgoing-transaction.hh"
 #include "sofia-wrapper/sip-header-private.hh"
-#include "utils/chat-room-builder.hh"
-#include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
-#include "utils/rand.hh"
+#include "utils/random.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/server/regevent-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -354,15 +351,139 @@ void multipleSubscribersToOneRecordKey() {
 	    .assert_passed();
 }
 
+void replaceSubscriptionWithOnlyOneSubscriber() {
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	const string aorOfInterest{"sip:aor-of-interest@sip.example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+
+	// Fill the Registrar DB with a topic ('AOR of interest').
+	ContactInserter inserter{*registrarDb, make_shared<AcceptUpdatesListener>()};
+	const auto deviceId = rsg.generate(25);
+	inserter.withGruu(true).setExpire(10s).setAor(aorOfInterest).insert({.uniqueId = deviceId});
+
+	RegEventServer regEvent{registrarDb};
+	const auto regEventUri = regEvent.getTransport().str();
+
+	const auto onSubscriberResponse = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		auto* subscriber = reinterpret_cast<Subscriber*>(magic);
+
+		if (sip->sip_request and sip->sip_request->rq_method == sip_method_notify) subscriber->mTotalNotifyReceived++;
+
+		if (subscriber->mToHeader.empty()) {
+			sofiasip::Home home{};
+			subscriber->mToHeader =
+			    "<"s + url_as_string(home.home(), sip->sip_from->a_url) + ">;tag=" + sip->sip_from->a_tag;
+		}
+
+		nta_msg_treply(agent, msg, 200, "Notification received", TAG_END());
+		return 0;
+	};
+
+	Subscriber subscriber{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	const auto subscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, regEventUri);
+
+	CoreAssert asserter{regEvent.getCore(), suRoot, subscriber.mSuRoot};
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Add a new device to 'AOR of interest'.
+	{
+		const auto newDeviceId = rsg.generate(25);
+		inserter.insert({.uniqueId = newDeviceId});
+		registrarDb->publish(topic, "");
+	}
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Replace subscription from 'subscriber' to topic.
+	Subscriber subscriberBis{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	asserter.registerSteppable(subscriberBis.mSuRoot);
+	const auto newSubscriptionFromSubscriber = subscriberBis.subscribe(aorOfInterest, regEventUri);
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!newSubscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(newSubscriptionFromSubscriber->getStatus() != 200);
+		        // A notification is sent on subscription replacement to terminate the old one.
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Add a new device to 'AOR of interest'.
+	{
+		const auto newDeviceId = rsg.generate(25);
+		inserter.insert({.uniqueId = newDeviceId});
+		registrarDb->publish(topic, "");
+	}
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+
+	// Unsubscribe 'subscriber' from topic.
+	const auto unsubscriptionFromSubscriber = subscriberBis.unsubscribe(aorOfInterest, regEventUri);
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!unsubscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(unsubscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 3);
+		        FAIL_IF(subscriberBis.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .hard_assert_passed();
+}
+
 namespace {
 
-TestSuite _("regevent",
-            {
-                CLASSY_TEST(badSubscriptionRequest),
-                CLASSY_TEST(wrongEventHeaderInSubscribeRequest),
-                CLASSY_TEST(wrongAcceptHeaderInSubscribeRequest),
-                CLASSY_TEST(multipleSubscribersToOneRecordKey),
-            });
+TestSuite _{
+    "regevent",
+    {
+        CLASSY_TEST(badSubscriptionRequest),
+        CLASSY_TEST(wrongEventHeaderInSubscribeRequest),
+        CLASSY_TEST(wrongAcceptHeaderInSubscribeRequest),
+        CLASSY_TEST(multipleSubscribersToOneRecordKey),
+        CLASSY_TEST(replaceSubscriptionWithOnlyOneSubscriber),
+    },
+};
 
 }
 } // namespace flexisip::tester
