@@ -320,7 +320,7 @@ def main():
         "-d",
         "--wiki-directory",
         help="folder in the wiki where the doc will be uploaded",
-        default="/Flexisip/Core servers/Configuration Reference Guide",
+        default="/Flexisip/Core servers/Configuration reference guide",
     )
     args = parser.parse_args()
 
