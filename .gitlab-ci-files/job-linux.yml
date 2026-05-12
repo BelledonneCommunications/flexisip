@@ -224,7 +224,6 @@
 .job-ninja-gcc:
   extends:
     - .job-linux-build
-    - .rules-manual  # ⚠ See `rules.yml`
   variables:
     CMAKE_GENERATOR: Ninja
     CC: gcc
@@ -234,7 +233,6 @@
 .job-ninja-clang:
   extends:
     - .job-linux-build
-    - .rules-dev  # ⚠ See `rules.yml`
   variables:
     CMAKE_GENERATOR: Ninja
     CC: clang

@@ -1,4 +1,3 @@
-
 .debian13-image:
   image:
     name: gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:$DEBIAN_13_IMAGE_VERSION
@@ -28,11 +27,15 @@ job-debian13-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .debian13-image
+    - .rules-dev
+  variables:
+    CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
 
 job-debian13-ninja-clang:
   extends:
     - .job-ninja-clang
     - .debian13-image
+    - .rules-dev
     - .tester-artifacts
   variables:
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON -DENABLE_COVERAGE=ON

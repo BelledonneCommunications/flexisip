@@ -27,12 +27,14 @@ job-ubuntu-24-04-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .ubuntu-24-04-image
+    - .rules-manual
 
 
 job-ubuntu-24-04-ninja-clang:
   extends:
     - .job-ninja-clang
     - .ubuntu-24-04-image
+    - .rules-dev
     - .tester-artifacts
   variables:
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON

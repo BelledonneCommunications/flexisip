@@ -38,6 +38,7 @@ job-archlinux-ninja-clang:
   extends:
     - .job-ninja-clang
     - .archlinux-image-variables
+    - .rules-dev
 
 #################################################
 # UNIT TESTS

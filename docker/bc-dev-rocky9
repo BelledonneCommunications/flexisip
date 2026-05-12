@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260430_add_squid_proxy
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260515_upgrade_to_boost_1_81
 ###############################################################################
 
 FROM rockylinux:9
@@ -7,7 +7,7 @@ FROM rockylinux:9
 LABEL org.opencontainers.image.authors="Belledonne Communications <flexisip@belledonne-communications.com>"
 
 # Install common general tools
-RUN dnf install -y sudo vim wget curl-minimal
+RUN dnf install -y sudo vim wget curl-minimal tar
 
 # Configure additional repositories
 RUN dnf install -y \
@@ -46,7 +46,6 @@ RUN dnf makecache --refresh \
       # Install all dependencies needed for Flexisip
         systemd-devel \
         openssl-devel \
-        boost-devel \
         cpp-jwt-devel \
       # json-devel is a depency of cpp-jwt but not declared in its package dependencies
         json-devel \
@@ -80,6 +79,16 @@ COPY cmake_install.sh .
 RUN ./cmake_install.sh 3.22.6 \
 	&& rm cmake_install.sh \
 	&& dnf -y remove cmake
+
+# Install boost 1.81 (version available from repo is only 1.75, which is not compatible with GCC 15).
+RUN wget -O boost_1_81_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.81.0/boost_1_81_0.tar.gz/download \
+ && tar xzf boost_1_81_0.tar.gz \
+ && cd boost_1_81_0 \
+ && ./bootstrap.sh --prefix=/usr/local \
+ && ./b2 --with=all -j 8 install \
+ && cd .. \
+ && rm -rf boost_1_81_0 boost_1_81_0.tar.gz \
+ && export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
 # Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .

@@ -32,16 +32,17 @@ job-ubuntu-26-04-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .ubuntu-26-04-image
-
+    - .rules-dev
+    - .tester-artifacts
+  variables:
+    # TODO: Remove "-DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF" when nghttp2_asio dependency has been removed.
+    CMAKE_OPTIONS: ${UBUNTU26_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
 
 job-ubuntu-26-04-ninja-clang:
   extends:
     - .job-ninja-clang
     - .ubuntu-26-04-image
-    - .tester-artifacts
-  variables:
-    # TODO: Remove "-DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF" when nghttp2_asio dependency has been removed.
-    CMAKE_OPTIONS: ${UBUNTU26_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
+    - .rules-manual
 
 #################################################
 # UNIT TESTS
@@ -52,7 +53,7 @@ job-ubuntu-26-04-unit-test:
     - .unit-test
     - .ubuntu-26-04-image
   needs:
-    - job-ubuntu-26-04-ninja-clang
+    - job-ubuntu-26-04-ninja-gcc
 
 #################################################
 # DEB
@@ -66,7 +67,7 @@ job-ubuntu-26-04-deb:
     - job: job-ubuntu-26-04-unit-test
       optional: true
       artifacts: false
-    - job: job-ubuntu-26-04-ninja-clang
+    - job: job-ubuntu-26-04-ninja-gcc
       optional: true
       artifacts: false
 

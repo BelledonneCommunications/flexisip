@@ -45,6 +45,7 @@ job-debian12-ninja-clang:
   extends:
     - .job-ninja-clang
     - .debian12-image
+    - .rules-dev
     - .tester-artifacts
   variables:
     CMAKE_OPTIONS: ${DEBIAN12_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON

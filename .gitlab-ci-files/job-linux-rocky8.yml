@@ -34,6 +34,7 @@ job-rocky8-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .rocky8-image-variables
+    - .rules-manual
   variables:
     LSAN_SUPPRESSIONS_FILE_PATH: "../../sanitizer_ignore_rocky8.txt"
     CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS} -DENABLE_RECOVERY_FOR_UBSAN=ON
@@ -42,6 +43,7 @@ job-rocky8-ninja-clang:
   extends:
     - .job-ninja-clang
     - .rocky8-image-variables
+    - .rules-dev
     - .tester-artifacts
   variables:
     # -DCMAKE_PREFIX_PATH=/usr/local: Unit tests require libnghttp2_asio, which has been build and intalled into /usr/local
