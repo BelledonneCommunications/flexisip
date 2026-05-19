@@ -128,7 +128,7 @@ Group changes to describe their impact on the project, as follows:
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its
   watchdog.
 
-## [2.5.1]
+## [2.5.1] - 2026-05-19
 - **SDK version:** 5.4.111
 
 ### [Added]
