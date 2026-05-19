@@ -14,7 +14,7 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.5.1]
+## [2.5.1] - 2026-05-19
 - **SDK version:** 5.4.111
 
 ### [Added]
