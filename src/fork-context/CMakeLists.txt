@@ -23,7 +23,7 @@
 target_sources(flexisip PRIVATE
     branch-info.hh branch-info.cc
     fork-context.cc fork-context.hh
-    fork-context-impl.cc fork-context-impl.hh
+    fork.cc fork.hh
     fork-context-factory.cc fork-context-factory.hh
     fork-message-context.cc fork-message-context.hh
     fork-status.hh

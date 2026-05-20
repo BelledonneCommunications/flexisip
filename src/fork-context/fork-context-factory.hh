@@ -53,8 +53,8 @@ public:
 	                                                  sofiasip::MsgSipPriority priority) const {
 		std::weak_ptr<StatPair> statCounter{};
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountBasicForks;
-		return ForkContextImpl::make(mAgent, mOtherForkCfg, mInjectorListener, mForkContextListener, std::move(event),
-		                             priority, statCounter, std::make_unique<BasicForkStrategy>());
+		return Fork::make(mAgent, mOtherForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
+		                  statCounter, std::make_unique<BasicForkStrategy>());
 	}
 
 	template <typename... Args>
@@ -63,8 +63,8 @@ public:
 		std::weak_ptr<StatPair> statCounter{};
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountCallForks;
 		auto callStrategy = std::make_unique<CallForkStrategy>(mForkContextListener, *event, mCallForkCfg);
-		return ForkContextImpl::make(mAgent, mCallForkCfg, mInjectorListener, mForkContextListener, std::move(event),
-		                             priority, statCounter, std::move(callStrategy));
+		return Fork::make(mAgent, mCallForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
+		                  statCounter, std::move(callStrategy));
 	}
 
 	/**

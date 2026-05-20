@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fork-context-impl.hh"
+#include "fork.hh"
 
 #include "agent.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -61,21 +61,21 @@ string responseStrategyToString(const ResponseStrategy& strategy) {
 }
 } // namespace
 
-ForkContextImpl::ForkContextImpl(AgentInterface* agent,
-                                 const std::shared_ptr<ForkContextConfig>& cfg,
-                                 const std::weak_ptr<InjectorListener>& injectorListener,
-                                 const std::weak_ptr<ForkContextListener>& forkContextListener,
-                                 std::unique_ptr<RequestSipEvent>&& event,
-                                 sofiasip::MsgSipPriority priority,
-                                 const std::weak_ptr<StatPair>& counter,
-                                 std::unique_ptr<IForkStrategy>&& forkStrategy,
-                                 bool isRestored)
+Fork::Fork(AgentInterface* agent,
+           const std::shared_ptr<ForkContextConfig>& cfg,
+           const std::weak_ptr<InjectorListener>& injectorListener,
+           const std::weak_ptr<ForkContextListener>& forkContextListener,
+           std::unique_ptr<RequestSipEvent>&& event,
+           sofiasip::MsgSipPriority priority,
+           const std::weak_ptr<StatPair>& counter,
+           std::unique_ptr<IForkStrategy>&& forkStrategy,
+           bool isRestored)
     : mAgent(agent), mLateTimer(mAgent->getRoot(), cfg->mDeliveryTimeout), mMsgPriority(priority),
       mForkContextListener(forkContextListener), mCfg(cfg), mDecisionTimer(mAgent->getRoot()),
       mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()), mInjectorListener(injectorListener),
       mEvent(std::move(event)), mStatCounter(counter),
       mLogPrefix(LogManager::makeLogPrefixForInstance(
-          this, string("ForkContextImpl") + "(" + forkStrategy->getStrategyName().data() + ")")),
+          this, string("Fork") + "(" + forkStrategy->getStrategyName().data() + ")")),
       mStrategy(std::move(forkStrategy)) {
 	mDecisionTimer.set(
 	    [this] {
@@ -96,7 +96,7 @@ ForkContextImpl::ForkContextImpl(AgentInterface* agent,
 	}
 }
 
-ForkContextImpl::~ForkContextImpl() {
+Fork::~Fork() {
 	LOGD << "Destroy instance";
 
 	if (mIncoming && mIncoming->getStatus() < 200) {
@@ -108,7 +108,7 @@ ForkContextImpl::~ForkContextImpl() {
 	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 }
 
-void ForkContextImpl::executeOnLateTimeout() {
+void Fork::executeOnLateTimeout() {
 	LOGD << "Late timeout timer triggered";
 	// Evaluate first as the value may change after the onLateTimeout call.
 	const auto stop = shouldFinish(true);
@@ -122,7 +122,7 @@ void ForkContextImpl::executeOnLateTimeout() {
 	if (stop) setFinished();
 }
 
-shared_ptr<BranchInfo> ForkContextImpl::findBranchByUid(const string& uid) {
+shared_ptr<BranchInfo> Fork::findBranchByUid(const string& uid) {
 	auto branchIt = find_if(mWaitingBranches.begin(), mWaitingBranches.end(),
 	                        [&uid](const std::shared_ptr<BranchInfo>& branch) { return uid == branch->getUid(); });
 
@@ -130,7 +130,7 @@ shared_ptr<BranchInfo> ForkContextImpl::findBranchByUid(const string& uid) {
 	return {};
 }
 
-shared_ptr<BranchInfo> ForkContextImpl::findBranchByDest(const SipUri& dest) {
+shared_ptr<BranchInfo> Fork::findBranchByDest(const SipUri& dest) {
 	auto branchIt =
 	    find_if(mWaitingBranches.begin(), mWaitingBranches.end(), [&dest](const std::shared_ptr<BranchInfo>& branch) {
 		    if (const auto branchDest = branch->getRequestUri(); branchDest != nullopt)
@@ -146,12 +146,12 @@ static bool isConsidered(int code, bool ignore503And408) {
 	return ignore503And408 ? !(code == 503 || code == 408) : true;
 }
 
-bool ForkContextImpl::isUseful4xx(int statusCode) {
+bool Fork::isUseful4xx(int statusCode) {
 	constexpr std::array<int, 5> useful4xxCodes{401, 407, 415, 420, 484};
 	return find(useful4xxCodes.begin(), useful4xxCodes.end(), statusCode) != useful4xxCodes.end();
 }
 
-std::shared_ptr<BranchInfo> ForkContextImpl::findBestBranch(bool ignore503And408) const {
+std::shared_ptr<BranchInfo> Fork::findBestBranch(bool ignore503And408) const {
 	shared_ptr<BranchInfo> best{nullptr};
 
 	for (const auto& br : mWaitingBranches) {
@@ -193,23 +193,23 @@ std::shared_ptr<BranchInfo> ForkContextImpl::findBestBranch(bool ignore503And408
 	return best;
 }
 
-bool ForkContextImpl::allBranchesAnswered(FinalStatusMode finalStatusMode) const {
+bool Fork::allBranchesAnswered(FinalStatusMode finalStatusMode) const {
 	return all_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(),
 	              [&](const auto& branch) { return !branch->needsDelivery(finalStatusMode); });
 }
 
-bool ForkContextImpl::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const {
+bool Fork::allCurrentBranchesAnswered(FinalStatusMode finalStatusMode) const {
 	return all_of(mCurrentBranches.cbegin(), mCurrentBranches.cend(),
 	              [&](const auto& branch) { return !branch->needsDelivery(finalStatusMode); });
 }
 
-void ForkContextImpl::removeBranch(const shared_ptr<BranchInfo>& br) {
+void Fork::removeBranch(const shared_ptr<BranchInfo>& br) {
 	mWaitingBranches.remove(br);
 	mCurrentBranches.remove(br);
 	LOGD << "Removed branch: " << br;
 }
 
-ForkContextImpl::ShouldDispatchType ForkContextImpl::shouldDispatch(const SipUri& dest, const std::string& uid) {
+Fork::ShouldDispatchType Fork::shouldDispatch(const SipUri& dest, const std::string& uid) {
 	/*
 	 * Check gruu. If the request was targeting a gruu address, the uid of the contact who has just registered shall
 	 * match.
@@ -260,7 +260,7 @@ ForkContextImpl::ShouldDispatchType ForkContextImpl::shouldDispatch(const SipUri
 
 // This is actually called when we want to simulate a ringing event by sending a 180, or, for example, to signal the
 // caller that we've sent a push notification.
-void ForkContextImpl::sendResponse(int code, char const* phrase, bool addToTag) {
+void Fork::sendResponse(int code, char const* phrase, bool addToTag) {
 	if (!mCfg->mPermitSelfGeneratedProvisionalResponse) {
 		LOGD << "Self-generated provisional response are disabled by configuration";
 		return;
@@ -283,8 +283,8 @@ void ForkContextImpl::sendResponse(int code, char const* phrase, bool addToTag) 
 	onSendResponse(std::move(ev));
 }
 
-shared_ptr<BranchInfo> ForkContextImpl::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
-                                                  const std::shared_ptr<ExtendedContact>& contact) {
+shared_ptr<BranchInfo> Fork::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
+                                       const std::shared_ptr<ExtendedContact>& contact) {
 	if (mIncoming && mWaitingBranches.empty()) setFork(mIncoming, shared_from_this());
 
 	int clearedCount{0};
@@ -339,18 +339,18 @@ shared_ptr<BranchInfo> ForkContextImpl::addBranch(std::unique_ptr<RequestSipEven
 	return branch;
 }
 
-void ForkContextImpl::onNextBranches() {
+void Fork::onNextBranches() {
 	if (hasNextBranches()) start();
 }
 
-bool ForkContextImpl::hasNextBranches() const {
+bool Fork::hasNextBranches() const {
 	const auto hasWaitingBranchesLeft =
 	    any_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(),
 	           [this](const auto& br) { return mCurrentPriority == -1.f || br->getPriority() < mCurrentPriority; });
 	return !mFinished && hasWaitingBranchesLeft && mStrategy->shouldAcceptNextBranches();
 }
 
-void ForkContextImpl::nextBranches() {
+void Fork::nextBranches() {
 	// Clear all current branches if there is any.
 	mCurrentBranches.clear();
 
@@ -371,7 +371,7 @@ void ForkContextImpl::nextBranches() {
 		if (br->getPriority() == mCurrentPriority) mCurrentBranches.push_back(br);
 }
 
-void ForkContextImpl::start() {
+void Fork::start() {
 	if (mFinished) {
 		LOGE << "Calling start() on a finished fork: do nothing";
 		return;
@@ -419,23 +419,23 @@ void ForkContextImpl::start() {
 		    mCfg->mCurrentBranchesTimeout);
 }
 
-RequestSipEvent& ForkContextImpl::getEvent() {
+RequestSipEvent& Fork::getEvent() {
 	return *mEvent;
 }
 
-sofiasip::MsgSipPriority ForkContextImpl::getMsgPriority() const {
+sofiasip::MsgSipPriority Fork::getMsgPriority() const {
 	return mMsgPriority;
 }
 
-const std::shared_ptr<ForkContextConfig>& ForkContextImpl::getConfig() const {
+const std::shared_ptr<ForkContextConfig>& Fork::getConfig() const {
 	return mCfg;
 }
 
-const std::shared_ptr<IncomingTransaction>& ForkContextImpl::getIncomingTransaction() const {
+const std::shared_ptr<IncomingTransaction>& Fork::getIncomingTransaction() const {
 	return mIncoming;
 }
 
-void ForkContextImpl::onFinished() {
+void Fork::onFinished() {
 	if (const auto forkContextListener = mForkContextListener.lock()) {
 		forkContextListener->onForkContextFinished(shared_from_this());
 	} else {
@@ -443,7 +443,7 @@ void ForkContextImpl::onFinished() {
 	}
 }
 
-void ForkContextImpl::setFinished() {
+void Fork::setFinished() {
 	// Already finishing: ignore.
 	if (mFinishTimer.isRunning()) return;
 
@@ -458,11 +458,11 @@ void ForkContextImpl::setFinished() {
 	    0ms);
 }
 
-bool ForkContextImpl::shouldFinish(bool ignoreForkLate) {
+bool Fork::shouldFinish(bool ignoreForkLate) {
 	return (ignoreForkLate || !mCfg->mForkLate) && (!mIncoming || mStrategy->shouldFinish());
 }
 
-std::unique_ptr<ResponseSipEvent> ForkContextImpl::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
+std::unique_ptr<ResponseSipEvent> Fork::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
 	if (!mIncoming) return {};
 
 	const int code = event->getStatusCode();
@@ -481,7 +481,7 @@ std::unique_ptr<ResponseSipEvent> ForkContextImpl::onSendResponse(std::unique_pt
 	return std::move(event);
 }
 
-void ForkContextImpl::onCancel(const MsgSip& ms) {
+void Fork::onCancel(const MsgSip& ms) {
 	mStrategy->onCancel(ms);
 	for (const auto& br : mWaitingBranches) {
 		mStrategy->updateBranch(br, getEvent());
@@ -497,7 +497,7 @@ void ForkContextImpl::onCancel(const MsgSip& ms) {
 	mNextBranchesTimer.stop();
 }
 
-void ForkContextImpl::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) {
+void Fork::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) {
 	if (br->getStatus() >= 200) br->notifyBranchCompleted();
 
 	mStrategy->logResponse(br, getEvent(), ev);
@@ -517,9 +517,9 @@ void ForkContextImpl::onResponse(const std::shared_ptr<BranchInfo>& br, Response
 	if (allCurrentBranchesAnswered(FinalStatusMode::RFC)) onNextBranches();
 }
 
-void ForkContextImpl::onNewRegister(const SipUri& dest,
-                                    const std::string& uid,
-                                    const std::shared_ptr<ExtendedContact>& newContact) {
+void Fork::onNewRegister(const SipUri& dest,
+                         const std::string& uid,
+                         const std::shared_ptr<ExtendedContact>& newContact) {
 	const auto forkContextListener = mForkContextListener.lock();
 	if (!forkContextListener) {
 		LOGE << "ForkContextListener is missing, cannot process new register (this should not happen)";
@@ -545,11 +545,11 @@ void ForkContextImpl::onNewRegister(const SipUri& dest,
 	}
 }
 
-bool ForkContextImpl::isFinished() const {
+bool Fork::isFinished() const {
 	return mFinished;
 }
 
-void ForkContextImpl::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
+void Fork::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
 	if (m110Sent) return;
 
 	sendResponse(110, "Push sent", aPNCtx.toTagEnabled());
@@ -557,21 +557,21 @@ void ForkContextImpl::onPushSent(PushNotificationContext& aPNCtx, bool aRingingP
 	if (aRingingPush && !isRingingSomewhere()) sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
 }
 
-void ForkContextImpl::addKey(const string& key) {
+void Fork::addKey(const string& key) {
 	mKeys.push_back(key);
 }
 
-const vector<string>& ForkContextImpl::getKeys() const {
+const vector<string>& Fork::getKeys() const {
 	return mKeys;
 }
 
-int ForkContextImpl::getLastResponseCode() const {
+int Fork::getLastResponseCode() const {
 	if (!mLastResponseSent) return 0;
 
 	return mLastResponseSent->getSip()->sip_status->st_status;
 }
 
-unique_ptr<ResponseSipEvent> ForkContextImpl::sendCustomResponse(int status, const char* phrase) {
+unique_ptr<ResponseSipEvent> Fork::sendCustomResponse(int status, const char* phrase) {
 	if (!mIncoming) {
 		LOGD << "Cannot send SIP response [" << status << " " << phrase << "]: no incoming transaction";
 		return {};
@@ -588,7 +588,7 @@ unique_ptr<ResponseSipEvent> ForkContextImpl::sendCustomResponse(int status, con
 	return onSendResponse(std::move(ev));
 }
 
-void ForkContextImpl::processInternalError(int status, const char* phrase) {
+void Fork::processInternalError(int status, const char* phrase) {
 	sendCustomResponse(status, phrase);
 	mStrategy->onInternalError();
 	for (const auto& br : mWaitingBranches) {
@@ -596,7 +596,7 @@ void ForkContextImpl::processInternalError(int status, const char* phrase) {
 	}
 }
 
-void ForkContextImpl::tryToSendFinalResponse() {
+void Fork::tryToSendFinalResponse() {
 	if (!mIncoming && shouldFinish()) {
 		setFinished();
 		return;
@@ -611,7 +611,7 @@ void ForkContextImpl::tryToSendFinalResponse() {
 	applyResponseStrategy(respStrategy);
 }
 
-void ForkContextImpl::applyResponseStrategy(ResponseStrategy respStrategy) {
+void Fork::applyResponseStrategy(ResponseStrategy respStrategy) {
 	if (!mIncoming) return;
 
 	auto branch = findBestBranch(mCfg->mForkLate);
@@ -636,11 +636,11 @@ void ForkContextImpl::applyResponseStrategy(ResponseStrategy respStrategy) {
 	}
 }
 
-const ForkContext* ForkContextImpl::getPtrForEquality() const {
+const ForkContext* Fork::getPtrForEquality() const {
 	return this;
 }
 
-bool ForkContextImpl::isRingingSomewhere() const {
+bool Fork::isRingingSomewhere() const {
 	return any_of(mWaitingBranches.cbegin(), mWaitingBranches.cend(), [](const auto& br) {
 		const auto status = br->getStatus();
 		return status >= 180 && status < 200;

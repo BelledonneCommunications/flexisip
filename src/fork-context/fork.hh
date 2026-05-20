@@ -37,14 +37,14 @@ class OnContactRegisteredListener;
  * @brief Base class for all ForkContext implementations. It provides the basic functionality to manage the fork process
  * and the branches.
  */
-class ForkContextImpl : public ForkContext, public std::enable_shared_from_this<ForkContextImpl> {
+class Fork : public ForkContext, public std::enable_shared_from_this<Fork> {
 public:
 	template <typename... Args>
-	static std::shared_ptr<ForkContextImpl> make(Args&&... args) {
-		return std::shared_ptr<ForkContextImpl>(new ForkContextImpl{std::forward<Args>(args)...});
+	static std::shared_ptr<Fork> make(Args&&... args) {
+		return std::shared_ptr<Fork>(new Fork{std::forward<Args>(args)...});
 	}
 
-	~ForkContextImpl() override;
+	~Fork() override;
 
 	void onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept final;
 
@@ -79,15 +79,15 @@ public:
 	}
 
 protected:
-	ForkContextImpl(AgentInterface* agent,
-	                const std::shared_ptr<ForkContextConfig>& cfg,
-	                const std::weak_ptr<InjectorListener>& injectorListener,
-	                const std::weak_ptr<ForkContextListener>& forkContextListener,
-	                std::unique_ptr<RequestSipEvent>&& event,
-	                sofiasip::MsgSipPriority priority,
-	                const std::weak_ptr<StatPair>& counter,
-	                std::unique_ptr<IForkStrategy>&& forkStrategy,
-	                bool isRestored = false);
+	Fork(AgentInterface* agent,
+	     const std::shared_ptr<ForkContextConfig>& cfg,
+	     const std::weak_ptr<InjectorListener>& injectorListener,
+	     const std::weak_ptr<ForkContextListener>& forkContextListener,
+	     std::unique_ptr<RequestSipEvent>&& event,
+	     sofiasip::MsgSipPriority priority,
+	     const std::weak_ptr<StatPair>& counter,
+	     std::unique_ptr<IForkStrategy>&& forkStrategy,
+	     bool isRestored = false);
 
 	/**
 	 * @brief Find the best branch to take the response from and forward it to all the other branches.

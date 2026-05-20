@@ -21,16 +21,16 @@
 #include <memory>
 
 #include "agent.hh"
-#include "fork-context-impl.hh"
-#include "fork-context/branch-info.hh"
+#include "branch-info.hh"
 #include "fork-context/fork-message-db/fork-message-context-db.hh"
+#include "fork.hh"
 
 namespace flexisip {
 /**
  * @brief Handle the forking of SIP chat messages (MESSAGE requests). It manages the branches of the call and processes
  * responses from them.
  */
-class ForkMessageContext : public ForkContextImpl {
+class ForkMessageContext : public Fork {
 public:
 	template <typename... Args>
 	static std::shared_ptr<ForkMessageContext> make(Args&&... args) {
@@ -50,7 +50,7 @@ public:
 	void assertEqual(const std::shared_ptr<ForkMessageContext>& expected);
 #endif
 private:
-	using ForkContextImpl::ForkContextImpl;
+	using Fork::Fork;
 };
 
 } // namespace flexisip

@@ -79,9 +79,8 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::uni
 	if (kind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageConferenceForks;
 		auto forkCfg = make_shared<ForkContextConfig>();
-		return ForkContextImpl::make(mAgent, forkCfg, mInjectorListener, mForkContextListener, std::move(event),
-		                             priority, statCounter,
-		                             std::make_unique<MessageForkStrategy>(kind, false, forkCfg));
+		return Fork::make(mAgent, forkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
+		                  statCounter, std::make_unique<MessageForkStrategy>(kind, false, forkCfg));
 	}
 #if ENABLE_SOCI
 	if (messageStorageInDbEnabled()) {
@@ -96,9 +95,8 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::uni
 	}
 #endif
 	if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageForks;
-	return ForkContextImpl::make(mAgent, mMessageForkCfg, mInjectorListener, mForkContextListener, std::move(event),
-	                             priority, statCounter,
-	                             std::make_unique<MessageForkStrategy>(kind, false, mMessageForkCfg));
+	return Fork::make(mAgent, mMessageForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
+	                  statCounter, std::make_unique<MessageForkStrategy>(kind, false, mMessageForkCfg));
 }
 
 #if ENABLE_SOCI

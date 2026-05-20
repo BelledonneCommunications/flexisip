@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "fork-context/fork-context-impl.hh"
+#include "fork-context/fork.hh"
 
 #include <chrono>
 
@@ -456,23 +456,23 @@ private:
 	int mTestStatus;
 };
 
-class ForkContextForTest : public ForkContextImpl {
+class ForkContextForTest : public Fork {
 public:
 	explicit ForkContextForTest(AgentInterface* agentMock)
-	    : ForkContextImpl(agentMock,
-	                      std::make_shared<ForkContextConfig>(),
-	                      std::weak_ptr<InjectorListener>(),
-	                      std::weak_ptr<ForkContextListener>(),
-	                      nullptr,
-	                      sofiasip::MsgSipPriority::Normal,
-	                      std::weak_ptr<StatPair>(),
-	                      std::make_unique<BasicForkStrategy>(),
-	                      true) {}
+	    : Fork(agentMock,
+	           std::make_shared<ForkContextConfig>(),
+	           std::weak_ptr<InjectorListener>(),
+	           std::weak_ptr<ForkContextListener>(),
+	           nullptr,
+	           sofiasip::MsgSipPriority::Normal,
+	           std::weak_ptr<StatPair>(),
+	           std::make_unique<BasicForkStrategy>(),
+	           true) {}
 
 	void addFakeBranch(const std::shared_ptr<BranchInfoTest>& br) {
 		mWaitingBranches.push_back(br);
 	}
-	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override {};
+	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override{};
 	shared_ptr<BranchInfo> pubFindBestBranch(bool avoid503And408) {
 		return this->findBestBranch(avoid503And408);
 	}
