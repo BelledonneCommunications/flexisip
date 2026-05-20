@@ -444,11 +444,6 @@ const std::shared_ptr<IncomingTransaction>& ForkMessageContextDbProxy::getIncomi
 	return mForkMessage->getIncomingTransaction();
 }
 
-std::unique_ptr<ResponseSipEvent> ForkMessageContextDbProxy::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
-	if (mForkMessage) return mForkMessage->onSendResponse(std::move(event));
-	return std::move(event);
-}
-
 const ForkContext* ForkMessageContextDbProxy::getPtrForEquality() const {
 	if (mForkMessage) {
 		return mForkMessage.get();

@@ -71,8 +71,6 @@ public:
 	 */
 	bool allBranchesAnswered(FinalStatusMode finalStatusMode) const;
 
-	std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) final;
-
 	const ForkContext* getPtrForEquality() const final;
 	const IForkStrategy& getStrategy() {
 		return *mStrategy;
@@ -164,21 +162,34 @@ private:
 	ShouldDispatchType shouldDispatch(const SipUri& dest, const std::string& uid);
 
 	/**
-	 * @brief Send a response in the incoming transaction associated with this ForkContext.
+	 * @brief Send a provisional response in the incoming transaction associated with this ForkContext.
 	 *
 	 * @param status SIP response status code.
 	 * @param phrase SIP response phrase.
 	 * @param addToTag if 'true', add a generated 'tag' parameter to the 'To' header of the response
 	 */
-	void sendResponse(int status, char const* phrase, bool addToTag = false);
+	void sendProvisionalResponse(int status, char const* phrase, bool addToTag);
 	/**
 	 * @brief Send a custom response.
 	 *
 	 * @param status the status of the custom response to send
 	 * @param phrase the content of the custom response to send
+	 * @param addToTag if 'true', add a generated 'tag' parameter to the 'To' header of the response
+	 */
+	std::unique_ptr<ResponseSipEvent> sendCustomResponse(int status, const char* phrase, bool addToTag = false);
+	/**
+	 * @brief Send and log a response received on the branch if any.
+	 *
+	 * @param branch branch containing a response SIP event.
+	 */
+	void sendAndLogResponse(const std::shared_ptr<BranchInfo>& branch);
+	/**
+	 * @brief Send a response through the incoming transaction.
+	 *
+	 * @param event the response SIP event
 	 * @return the response sent, or nullptr if the response was not sent
 	 */
-	std::unique_ptr<ResponseSipEvent> sendCustomResponse(int status, const char* phrase);
+	std::unique_ptr<ResponseSipEvent> sendResponse(std::unique_ptr<ResponseSipEvent>&& event);
 
 	void applyResponseStrategy(ResponseStrategy respStrategy);
 	std::shared_ptr<BranchInfo> findBranchByUid(const std::string& uid);

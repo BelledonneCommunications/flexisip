@@ -22,8 +22,8 @@
 #include <optional>
 
 #include "agent-interface.hh"
-#include "fork-context/fork-message-db/branch-info-db.hh"
 #include "flexisip/logmanager.hh"
+#include "fork-context/fork-message-db/branch-info-db.hh"
 #include "fork-status.hh"
 #include "transaction/outgoing-transaction.hh"
 
@@ -117,11 +117,11 @@ public:
 	 */
 	void processResponse(ResponseSipEvent& event);
 	/**
-	 * @brief Send the last response received on this branch to the ForkContext (incoming transaction).
+	 * @brief Transfer the last response received on this branch to the ForkContext.
 	 *
-	 * @return 'true' if a response was sent
+	 * @return the received ResponseSipEvent if any.
 	 */
-	bool sendResponse(bool forkContextHasIncomingTransaction);
+	std::unique_ptr<ResponseSipEvent> transferLastResponse();
 	/**
 	 * @brief Cancel the branch (send a 'CANCEL' request to the target).
 	 *
@@ -153,7 +153,6 @@ public:
 	std::weak_ptr<BranchInfoListener> getListener() const;
 	std::shared_ptr<const ExtendedContact> getContact() const;
 	std::shared_ptr<ForkContext> getForkContext() const;
-	const std::unique_ptr<ResponseSipEvent>& getLastResponseEvent() const;
 	std::shared_ptr<PushNotificationContext> getPushNotificationContext() const;
 	std::shared_ptr<MsgSip> getRequestMsg() const;
 	BranchInfoDb getDbObject() const;

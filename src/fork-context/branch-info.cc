@@ -164,10 +164,6 @@ shared_ptr<ForkContext> BranchInfo::getForkContext() const {
 	return mForkCtx.lock();
 }
 
-const unique_ptr<ResponseSipEvent>& BranchInfo::getLastResponseEvent() const {
-	return mLastResponseEvent;
-}
-
 shared_ptr<PushNotificationContext> BranchInfo::getPushNotificationContext() const {
 	return mPushContext.lock();
 }
@@ -184,23 +180,16 @@ void BranchInfo::setPushNotificationContext(const shared_ptr<PushNotificationCon
 	mPushContext = context;
 }
 
-bool BranchInfo::sendResponse(bool forkContextHasIncomingTransaction) {
+std::unique_ptr<ResponseSipEvent> BranchInfo::transferLastResponse() {
 	if (mLastResponseEvent == nullptr) {
-		LOGE << "No response received on this branch";
-		return false;
-	}
-
-	if (!forkContextHasIncomingTransaction) {
-		mLastResponseEvent->doNotForward();
-		return false;
+		LOGE << "No available response on this branch";
+		return nullptr;
 	}
 
 	const int statusCode = getStatus();
-	if (const auto forkContext = mForkCtx.lock())
-		mLastResponseEvent = forkContext->onSendResponse(std::move(mLastResponseEvent));
-
 	if (statusCode >= 200) mTransaction.reset();
-	return true;
+
+	return std::move(mLastResponseEvent);
 }
 
 bool BranchInfo::pushContextIsAppleVoIp() const {

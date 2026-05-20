@@ -128,10 +128,6 @@ public:
 	 */
 	virtual void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) = 0;
 	/**
-	 * @brief Process the forwarding of the provided response from a branch.
-	 */
-	virtual std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) = 0;
-	/**
 	 * @return 'true' if the fork is terminated
 	 */
 	virtual bool isFinished() const = 0;

@@ -260,27 +260,15 @@ Fork::ShouldDispatchType Fork::shouldDispatch(const SipUri& dest, const std::str
 
 // This is actually called when we want to simulate a ringing event by sending a 180, or, for example, to signal the
 // caller that we've sent a push notification.
-void Fork::sendResponse(int code, char const* phrase, bool addToTag) {
+void Fork::sendProvisionalResponse(int status, char const* phrase, bool addToTag) {
 	if (!mCfg->mPermitSelfGeneratedProvisionalResponse) {
 		LOGD << "Self-generated provisional response are disabled by configuration";
 		return;
 	}
-
 	// Don't send a response with status code lesser than the last transmitted response.
-	if (const auto previousCode = getLastResponseCode(); previousCode > code || !mIncoming) return;
+	if (const auto previousCode = getLastResponseCode(); previousCode > status) return;
 
-	auto msgsip = mIncoming->createResponse(code, phrase);
-	if (!msgsip) return;
-
-	auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), msgsip);
-
-	// Add a 'To' tag, no set by sofia here.
-	if (addToTag) {
-		auto totag = nta_agent_newtag(msgsip->getHome(), "%s", mAgent->getSofiaAgent());
-		sip_to_tag(msgsip->getHome(), msgsip->getSip()->sip_to, totag);
-	}
-
-	onSendResponse(std::move(ev));
+	sendCustomResponse(status, phrase, addToTag);
 }
 
 shared_ptr<BranchInfo> Fork::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
@@ -462,7 +450,15 @@ bool Fork::shouldFinish(bool ignoreForkLate) {
 	return (ignoreForkLate || !mCfg->mForkLate) && (!mIncoming || mStrategy->shouldFinish());
 }
 
-std::unique_ptr<ResponseSipEvent> Fork::onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
+void Fork::sendAndLogResponse(const std::shared_ptr<BranchInfo>& branch) {
+	if (!mIncoming) return;
+	auto responseEvent = branch->transferLastResponse();
+
+	responseEvent = sendResponse(std::move(responseEvent));
+	if (responseEvent) mStrategy->logSentResponse(responseEvent, branch.get(), getEvent());
+}
+
+std::unique_ptr<ResponseSipEvent> Fork::sendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
 	if (!mIncoming) return {};
 
 	const int code = event->getStatusCode();
@@ -490,8 +486,7 @@ void Fork::onCancel(const MsgSip& ms) {
 	else tryToSendFinalResponse();
 	if (mIncoming) {
 		if (auto branch = findBestBranch(false)) {
-			branch->sendResponse(mIncoming != nullptr);
-			mStrategy->logSentResponse(branch->getLastResponseEvent(), branch.get(), getEvent());
+			sendAndLogResponse(branch);
 		}
 	}
 	mNextBranchesTimer.stop();
@@ -510,8 +505,7 @@ void Fork::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& e
 		}
 	}
 	if (action == OnResponseAction::Send || action == OnResponseAction::SendAndUpdate) {
-		br->sendResponse(mIncoming != nullptr);
-		mStrategy->logSentResponse(br->getLastResponseEvent(), br.get(), getEvent());
+		sendAndLogResponse(br);
 	}
 	tryToSendFinalResponse();
 	if (allCurrentBranchesAnswered(FinalStatusMode::RFC)) onNextBranches();
@@ -552,9 +546,9 @@ bool Fork::isFinished() const {
 void Fork::onPushSent(PushNotificationContext& aPNCtx, bool aRingingPush) noexcept {
 	if (m110Sent) return;
 
-	sendResponse(110, "Push sent", aPNCtx.toTagEnabled());
+	sendProvisionalResponse(110, "Push sent", aPNCtx.toTagEnabled());
 	m110Sent = true;
-	if (aRingingPush && !isRingingSomewhere()) sendResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
+	if (aRingingPush && !isRingingSomewhere()) sendProvisionalResponse(180, sip_180_Ringing, aPNCtx.toTagEnabled());
 }
 
 void Fork::addKey(const string& key) {
@@ -571,7 +565,7 @@ int Fork::getLastResponseCode() const {
 	return mLastResponseSent->getSip()->sip_status->st_status;
 }
 
-unique_ptr<ResponseSipEvent> Fork::sendCustomResponse(int status, const char* phrase) {
+unique_ptr<ResponseSipEvent> Fork::sendCustomResponse(int status, const char* phrase, bool addToTag) {
 	if (!mIncoming) {
 		LOGD << "Cannot send SIP response [" << status << " " << phrase << "]: no incoming transaction";
 		return {};
@@ -585,7 +579,13 @@ unique_ptr<ResponseSipEvent> Fork::sendCustomResponse(int status, const char* ph
 	}
 
 	auto ev = make_unique<ResponseSipEvent>(mAgent->getOutgoingAgent(), message);
-	return onSendResponse(std::move(ev));
+
+	// Add a 'To' tag, no set by sofia here.
+	if (addToTag) {
+		auto totag = nta_agent_newtag(message->getHome(), "%s", mAgent->getSofiaAgent());
+		sip_to_tag(message->getHome(), message->getSip()->sip_to, totag);
+	}
+	return sendResponse(std::move(ev));
 }
 
 void Fork::processInternalError(int status, const char* phrase) {
@@ -619,8 +619,7 @@ void Fork::applyResponseStrategy(ResponseStrategy respStrategy) {
 		case ResponseStrategy::BestElseDefault:
 		case ResponseStrategy::Best: {
 			if (branch != nullptr && branch->getStatus() >= 200) {
-				branch->sendResponse(mIncoming != nullptr);
-				mStrategy->logSentResponse(branch->getLastResponseEvent(), branch.get(), getEvent());
+				sendAndLogResponse(branch);
 				break;
 			}
 			if (respStrategy == ResponseStrategy::Best) break;

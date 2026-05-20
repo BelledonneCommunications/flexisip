@@ -96,7 +96,6 @@ public:
 	const std::shared_ptr<ForkContextConfig>& getConfig() const override;
 	sofiasip::MsgSipPriority getMsgPriority() const override;
 	const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const override;
-	std::unique_ptr<ResponseSipEvent> onSendResponse(std::unique_ptr<ResponseSipEvent>&& event) override;
 
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
 	                                             const std::shared_ptr<ExtendedContact>& newContact) override;
