@@ -35,7 +35,6 @@ public:
 	virtual std::shared_ptr<const EventLogWriteDispatcher>
 	makeStartEventLog(const MsgSip&, const std::list<std::shared_ptr<BranchInfo>>&) = 0;
 	virtual OnResponseAction chooseActionOnResponse(const std::shared_ptr<BranchInfo>& br) = 0;
-	virtual bool shouldFinish() = 0;
 	virtual ResponseStrategy chooseStrategyOnceAllBranchesAnswered(const std::shared_ptr<BranchInfo>&) = 0;
 	virtual ResponseStrategy chooseStrategyOnDecisionTimer() = 0;
 	virtual ResponseStrategy chooseStrategyOnLateTimeout() = 0;
@@ -61,7 +60,5 @@ public:
 	virtual void onInternalError() = 0;
 	virtual void onCancel(const MsgSip&) = 0;
 	virtual const std::string_view getStrategyName() const = 0;
-	// hack for voicemail
-	virtual void setForkContext(const std::shared_ptr<ForkContext>&){};
 };
 } // namespace flexisip

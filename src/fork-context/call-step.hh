@@ -18,18 +18,14 @@
 
 #pragma once
 
-#include <memory>
-
-#include "flexisip/configmanager.hh"
-
 namespace flexisip {
-struct ForkStats {
-	std::unique_ptr<StatPair> mCountForks;
-	std::shared_ptr<StatPair> mCountBasicForks;
-	std::shared_ptr<StatPair> mCountCallForks;
-	std::shared_ptr<StatPair> mCountDivertibleCallForks;
-	std::shared_ptr<StatPair> mCountMessageForks;
-	std::shared_ptr<StatPair> mCountMessageProxyForks;
-	std::shared_ptr<StatPair> mCountMessageConferenceForks;
+
+/**
+ * @brief Type of call used to know if the call is the initial call or the result of a call diversion.
+ */
+enum class CallStep {
+	Initial,
+	Diverted,
 };
+
 } // namespace flexisip

@@ -439,11 +439,6 @@ sofiasip::MsgSipPriority ForkMessageContextDbProxy::getMsgPriority() const {
 	return mSavedMsgPriority;
 }
 
-const std::shared_ptr<IncomingTransaction>& ForkMessageContextDbProxy::getIncomingTransaction() const {
-	checkState(__FUNCTION__, State::IN_MEMORY);
-	return mForkMessage->getIncomingTransaction();
-}
-
 const ForkContext* ForkMessageContextDbProxy::getPtrForEquality() const {
 	if (mForkMessage) {
 		return mForkMessage.get();

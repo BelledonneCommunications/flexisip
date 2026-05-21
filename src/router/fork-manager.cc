@@ -40,6 +40,8 @@ ForkManager::make(Agent* agent, ModuleRouter* router, const GenericStruct* modul
 	manager->mStats = router->mStats.mForkStats;
 	manager->mUseGlobalDomain = moduleRouterConfig->get<ConfigBoolean>("use-global-domain")->read();
 	manager->mAllowTargetFactorization = moduleRouterConfig->get<ConfigBoolean>("allow-target-factorization")->read();
+	const GenericStruct* reg = router->getAgent()->findModuleByRole("Registrar")->getConfig();
+	manager->mDomains = reg->get<ConfigStringList>("reg-domains")->read();
 	manager->mFactory = make_shared<ForkContextFactory>(agent, manager->mStats, manager, manager, moduleRouterConfig);
 
 #if ENABLE_SOCI
@@ -70,8 +72,7 @@ void ForkManager::inject(std::unique_ptr<RequestSipEvent>&& event,
 
 void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
                        const url_t* sipUri,
-                       const ForkGroupSorter::ForkContacts& forkContacts,
-                       const std::list<std::string>& domains) {
+                       const ForkGroupSorter::ForkContacts& forkContacts) {
 	const auto ms = ev->getMsgSip();
 	const auto* sip = ms->getSip();
 	bool isInviteRequest = false;
@@ -91,19 +92,29 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 
 	if (method == sip_method_invite) {
 		isInviteRequest = true;
-		context = mFactory->makeForkCallContext(std::move(ev), MsgSipPriority::Urgent);
+		const auto hasContact = !forkContacts.empty();
+		context = mFactory->makeForkCallContext(std::move(ev), MsgSipPriority::Urgent, hasContact);
 	} else if (method == sip_method_message && !imIsComposingXml && !sipExDeltaIsZero) {
 		// Note: use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages.
 		context = mFactory->makeForkMessageContext(std::move(ev), priority);
 	} else {
 		context = mFactory->makeForkBasicContext(std::move(ev), priority);
 	}
+	if (context) addFork(context, sipUri, forkContacts, isInviteRequest);
+}
+
+void ForkManager::addFork(const std::shared_ptr<ForkContext>& context,
+                          const url_t* sipUri,
+                          const ForkGroupSorter::ForkContacts& forkContacts,
+                          bool isInviteRequest) {
 
 	const Record::Key key{sipUri, mUseGlobalDomain};
 	context->addKey(key.asString());
 	mForks.emplace(key.asString(), context);
 	LOGD << "Added new ForkContext[" << context.get() << "] related to key '" << key
 	     << "' (count = " << mForks.count(key.asString()) << ")";
+
+	if (forkContacts.empty()) return;
 
 	if (context->getConfig()->mForkLate) mAgent->getRegistrarDb().subscribe(key, shared_from_this());
 
@@ -115,6 +126,7 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 		sorter.makeDestinations();
 	}
 
+	const auto ms = context->getEvent().getMsgSip();
 	for (const auto& [targetUris, ct, ec] : sorter.getDestinations()) {
 		if (!ec->mAlias) {
 			mInjector->addContext(context, ec->contactId());
@@ -122,7 +134,7 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 			continue;
 		}
 
-		if (context->getConfig()->mForkLate && ModuleToolbox::isManagedDomain(mAgent, domains, ct->m_url)) {
+		if (context->getConfig()->mForkLate && ModuleToolbox::isManagedDomain(mAgent, mDomains, ct->m_url)) {
 			auto* tmpContact =
 			    sip_contact_create(ms->getHome(), reinterpret_cast<url_string_t*>(ec->mSipContact->m_url), nullptr);
 

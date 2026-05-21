@@ -24,31 +24,25 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "flexisip/event.hh"
 #include "fork-context/branch-info.hh"
+#include "fork-context/call-step.hh"
 #include "fork-context/fork-context.hh"
 #include "fork-context/fork-status.hh"
 #include "fork-strategy.hh"
 
 namespace flexisip {
-
-struct ForkCallContextConfig : ForkContextConfig {
-	SipUri mVoicemailServerUri{};
-	std::vector<int> mStatusCodes{};
-};
-
 /**
  * @brief Handle the forking of SIP calls (INVITE requests).
  */
 class CallForkStrategy : public IForkStrategy {
 public:
-	CallForkStrategy(const std::weak_ptr<ForkContextListener>& forkContextListener,
-	                 RequestSipEvent& event,
-	                 const std::shared_ptr<ForkContextConfig>& config);
+	CallForkStrategy(RequestSipEvent& event,
+	                 const std::shared_ptr<ForkContextConfig>& config,
+	                 CallStep callStep = CallStep::Initial);
 	~CallForkStrategy() override;
 
 	std::shared_ptr<const EventLogWriteDispatcher>
 	makeStartEventLog(const MsgSip& msgSip, const std::list<std::shared_ptr<BranchInfo>>& branches) override;
 	OnResponseAction chooseActionOnResponse(const std::shared_ptr<BranchInfo>& br) override;
-	bool shouldFinish() override;
 	ResponseStrategy chooseStrategyOnceAllBranchesAnswered(const std::shared_ptr<BranchInfo>& best) override;
 	ResponseStrategy chooseStrategyOnDecisionTimer() override;
 	ResponseStrategy chooseStrategyOnLateTimeout() override;
@@ -75,19 +69,6 @@ public:
 	const std::string_view getStrategyName() const override {
 		return kStrategyName;
 	}
-
-	// to remove
-	void setForkContext(const std::shared_ptr<ForkContext>& fork) override {
-		mFork = fork;
-	}
-	/**
-	 * Try to create a new call forwarding branch for this fork.
-	 *
-	 * @param code the 'cause' code to insert into the request URI.
-	 *
-	 * @return the new branch if the operation succeeded, nullptr otherwise.
-	 */
-	std::shared_ptr<BranchInfo> forward(int code);
 
 private:
 	static constexpr std::string_view kStrategyName = "Call";
@@ -118,17 +99,12 @@ private:
 	bool mCancelled{};
 	std::optional<CancelInfo> mCancel{};
 	bool mStopping{};
-	std::weak_ptr<ForkContextListener> mForkContextListener;
 	std::shared_ptr<ForkContextConfig> mCfg;
+	CallStep mCallStep{CallStep::Initial};
 	std::string mLogPrefix{};
 
 	enum class UrgentCodeState { DoNotForward, AwaitingBetterResponse, SendOnReceived };
 	UrgentCodeState mUrgentCode{UrgentCodeState::DoNotForward};
-
-	// If non-null, indicate that call forwarding has already been successfully triggered for this instance.
-	std::weak_ptr<BranchInfo> mCallForwardingBranch{};
-	bool mCallForwardingEnabled{};
-	std::weak_ptr<ForkContext> mFork; // to remove
 };
 
 } // namespace flexisip

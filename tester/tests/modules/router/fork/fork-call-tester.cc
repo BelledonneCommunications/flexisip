@@ -605,7 +605,7 @@ void cancelStatusOnCancel() {
 		auto new_ev = make_unique<RequestSipEvent>(*ev);
 		auto msg = ev->getMsgSip();
 		ev->setEventLog(make_shared<CallLog>(msg->getSip()));
-		auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent);
+		auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent, true);
 
 		auto branch =
 		    forkCallCtx->addBranch(std::move(new_ev), make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"},
@@ -658,9 +658,17 @@ void cancelStatusOnResponse() {
 	auto ev2 = make_unique<RequestSipEvent>(*ev);
 	auto ev3 = make_unique<RequestSipEvent>(*ev);
 	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
-	auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent);
-	// hack to avoid agent processing
-	const_cast<shared_ptr<IncomingTransaction>&>(forkCallCtx->getIncomingTransaction()).reset();
+	// Create call without incoming transaction in order to avoid agent processing.
+	auto cfg =
+	    forkFactory->makeForkCallContext(make_unique<RequestSipEvent>(*ev), sofiasip::MsgSipPriority::Urgent, true)
+	        ->getConfig();
+	std::weak_ptr<StatPair> statCounter{};
+	std::weak_ptr<ForkContextListener> forkListener;
+	std::weak_ptr<InjectorListener> injListener;
+	auto callStrategy = make_unique<CallForkStrategy>(*ev, cfg);
+	auto forkCallCtx =
+	    Fork::make(&*proxy.getAgent(), cfg, injListener, forkListener, std::move(ev), sofiasip::MsgSipPriority::Urgent,
+	               statCounter, std::move(callStrategy), false, make_unique<BasicIncomingReplier>());
 	// add a branch to ForkCallCtx
 	auto branch =
 	    forkCallCtx->addBranch(std::move(ev2), make_shared<ExtendedContact>(SipUri{"sip:callee@127.0.0.1:5360"},
@@ -742,9 +750,9 @@ struct CallForwardingHelper {
 			    builder.setRegistration(OnOff::On).setApplePushConfig().build(string(calleeAddress)));
 		}
 
-		const auto& config = *proxy.getConfigManager()->getRoot()->template get<GenericStruct>("module::Router");
+		const auto& config = *proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Router");
 		const auto voicemailAddress = "sip:127.0.0.2:" + to_string(voicemail->getTcpPort()) + ";transport=tcp";
-		config.template get<ConfigString>("voicemail-server")->set(voicemailAddress);
+		config.get<ConfigString>("voicemail-server")->set(voicemailAddress);
 		const auto router = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 		forkStats = router->mStats.mForkStats;
 		router->reload();
@@ -863,17 +871,18 @@ void callForwardingAccepted() {
 
 	const auto stats = helper.forkStats.lock();
 	BC_HARD_ASSERT(stats != nullptr);
-	BC_ASSERT_CPP_EQUAL(stats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(stats->mCountDivertibleCallForks->start->read(), 1);
 
 	helper.asserter
 	    .iterateUpTo(
 	        0x20,
 	        [&stats] {
-		        FAIL_IF(stats->mCountCallForks->finish->read() != 1);
+		        FAIL_IF(stats->mCountDivertibleCallForks->finish->read() != 1);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .assert_passed();
+	BC_ASSERT_CPP_EQUAL(stats->mCountDivertibleCallForks->finish->read(), 1);
 
 	if (helper.callToCallee->getState() == Call::State::StreamsRunning)
 		helper.caller->endCurrentCall(*helper.voicemail);
@@ -903,14 +912,14 @@ void callForwardingRejected() {
 	        [&helper, &listener, &stats] {
 		        FAIL_IF(listener->mReason != Reason::Forbidden);
 		        FAIL_IF(helper.caller->getCurrentCall() != nullopt);
-		        FAIL_IF(stats->mCountCallForks->finish->read() != 1);
+		        FAIL_IF(stats->mCountDivertibleCallForks->finish->read() != 1);
 		        return ASSERTION_PASSED();
 	        },
 	        2s)
 	    .assert_passed();
 
-	BC_ASSERT_CPP_EQUAL(stats->mCountCallForks->start->read(), 1);
-	BC_ASSERT_CPP_EQUAL(stats->mCountCallForks->finish->read(), 1);
+	BC_ASSERT_CPP_EQUAL(stats->mCountDivertibleCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(stats->mCountDivertibleCallForks->finish->read(), 1);
 
 	if (helper.callToCallee->getState() == Call::State::StreamsRunning)
 		helper.caller->endCurrentCall(*helper.voicemail);
@@ -930,9 +939,9 @@ void callWithEarlyCancel() {
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->start->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountDivertibleCallForks->start->read(), 1);
 	// Assert that fork has finished since we don't forward after a CANCEL.
-	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read(), 1);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountDivertibleCallForks->finish->read(), 1);
 }
 
 } // namespace voicemail

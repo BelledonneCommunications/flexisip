@@ -19,10 +19,9 @@
 #include "fork.hh"
 
 #include "agent.hh"
-#include "eventlogs/writers/event-log-writer.hh"
+#include "flexisip/logmanager.hh"
 #include "fork-context/branch-info.hh"
 #include "modules/module-pushnotification.hh"
-#include "registrar/registrar-db.hh"
 #include "router/injector.hh"
 
 using namespace std;
@@ -61,6 +60,27 @@ string responseStrategyToString(const ResponseStrategy& strategy) {
 }
 } // namespace
 
+shared_ptr<Fork> Fork::make(AgentInterface* agent,
+                            const std::shared_ptr<ForkContextConfig>& cfg,
+                            const std::weak_ptr<InjectorListener>& injectorListener,
+                            const std::weak_ptr<ForkContextListener>& forkContextListener,
+                            std::unique_ptr<RequestSipEvent>&& event,
+                            sofiasip::MsgSipPriority priority,
+                            const std::weak_ptr<StatPair>& counter,
+                            std::unique_ptr<IForkStrategy>&& forkStrategy,
+                            bool isRestored,
+                            std::unique_ptr<IIncomingReplier>&& incoming) {
+
+	const auto incomingManagedByFork = incoming == nullptr;
+	auto fork =
+	    std::shared_ptr<Fork>(new Fork{agent, cfg, injectorListener, forkContextListener, std::move(event), priority,
+	                                   counter, std::move(forkStrategy), isRestored, std::move(incoming)});
+	if (incomingManagedByFork) {
+		setFork(fork->getEvent().getIncomingTransaction(), fork);
+	}
+	return fork;
+}
+
 Fork::Fork(AgentInterface* agent,
            const std::shared_ptr<ForkContextConfig>& cfg,
            const std::weak_ptr<InjectorListener>& injectorListener,
@@ -69,14 +89,15 @@ Fork::Fork(AgentInterface* agent,
            sofiasip::MsgSipPriority priority,
            const std::weak_ptr<StatPair>& counter,
            std::unique_ptr<IForkStrategy>&& forkStrategy,
-           bool isRestored)
+           bool isRestored,
+           std::unique_ptr<IIncomingReplier>&& incoming)
     : mAgent(agent), mLateTimer(mAgent->getRoot(), cfg->mDeliveryTimeout), mMsgPriority(priority),
       mForkContextListener(forkContextListener), mCfg(cfg), mDecisionTimer(mAgent->getRoot()),
       mFinishTimer(mAgent->getRoot()), mNextBranchesTimer(mAgent->getRoot()), mInjectorListener(injectorListener),
       mEvent(std::move(event)), mStatCounter(counter),
       mLogPrefix(LogManager::makeLogPrefixForInstance(
           this, string("Fork") + "(" + forkStrategy->getStrategyName().data() + ")")),
-      mStrategy(std::move(forkStrategy)) {
+      mStrategy(std::move(forkStrategy)), mIncomingReplier(std::move(incoming)) {
 	mDecisionTimer.set(
 	    [this] {
 		    if (isRingingSomewhere()) return;
@@ -88,8 +109,11 @@ Fork::Fork(AgentInterface* agent,
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
 	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 
+	if (!mIncomingReplier)
+		mIncomingReplier =
+		    isRestored ? make_unique<BasicIncomingReplier>() : make_unique<BasicIncomingReplier>(agent, mEvent);
+
 	if (!isRestored) {
-		mIncoming = mEvent->createIncomingTransaction();
 		// This timer is for when outgoing transaction all die prematurely, we still need to wait that late register
 		// arrive.
 		if (mCfg->mForkLate) mLateTimer.setForEver([this] { executeOnLateTimeout(); });
@@ -99,7 +123,8 @@ Fork::Fork(AgentInterface* agent,
 Fork::~Fork() {
 	LOGD << "Destroy instance";
 
-	if (mIncoming && mIncoming->getStatus() < 200) {
+	// Check that no response has been provided, not even by Sofia.
+	if (!mIncomingReplier->hasReceivedFinalAnswer() && mEvent->getIncomingTransaction()->getStatus() < 200) {
 		LOGE << "Fork failed to provide an answer, reply 503.";
 		getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
 	}
@@ -110,16 +135,14 @@ Fork::~Fork() {
 
 void Fork::executeOnLateTimeout() {
 	LOGD << "Late timeout timer triggered";
-	// Evaluate first as the value may change after the onLateTimeout call.
-	const auto stop = shouldFinish(true);
 
-	if (mIncoming) {
+	if (!mIncomingReplier->hasReceivedFinalAnswer()) {
 		applyResponseStrategy(mStrategy->chooseStrategyOnLateTimeout());
 		for (const auto& br : mWaitingBranches) {
 			mStrategy->updateBranch(br, getEvent());
 		}
 	}
-	if (stop) setFinished();
+	setFinished();
 }
 
 shared_ptr<BranchInfo> Fork::findBranchByUid(const string& uid) {
@@ -273,8 +296,6 @@ void Fork::sendProvisionalResponse(int status, char const* phrase, bool addToTag
 
 shared_ptr<BranchInfo> Fork::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
                                        const std::shared_ptr<ExtendedContact>& contact) {
-	if (mIncoming && mWaitingBranches.empty()) setFork(mIncoming, shared_from_this());
-
 	int clearedCount{0};
 	std::weak_ptr<BranchInfoListener> listener{};
 	std::weak_ptr<PushNotificationContext> pushContext{};
@@ -365,9 +386,6 @@ void Fork::start() {
 		return;
 	}
 
-	// hack for voicemail
-	mStrategy->setForkContext(shared_from_this());
-
 	bool firstStart = mCurrentPriority == -1.f;
 	if (firstStart) {
 		// We want all the branches in the event, so that presumes there are no branches answered yet. We also presume
@@ -419,10 +437,6 @@ const std::shared_ptr<ForkContextConfig>& Fork::getConfig() const {
 	return mCfg;
 }
 
-const std::shared_ptr<IncomingTransaction>& Fork::getIncomingTransaction() const {
-	return mIncoming;
-}
-
 void Fork::onFinished() {
 	if (const auto forkContextListener = mForkContextListener.lock()) {
 		forkContextListener->onForkContextFinished(shared_from_this());
@@ -446,30 +460,26 @@ void Fork::setFinished() {
 	    0ms);
 }
 
-bool Fork::shouldFinish(bool ignoreForkLate) {
-	return (ignoreForkLate || !mCfg->mForkLate) && (!mIncoming || mStrategy->shouldFinish());
+bool Fork::shouldFinish() {
+	return !mCfg->mForkLate;
 }
 
 void Fork::sendAndLogResponse(const std::shared_ptr<BranchInfo>& branch) {
-	if (!mIncoming) return;
-	auto responseEvent = branch->transferLastResponse();
+	if (mIncomingReplier->hasReceivedFinalAnswer()) return;
 
+	auto responseEvent = branch->transferLastResponse();
 	responseEvent = sendResponse(std::move(responseEvent));
 	if (responseEvent) mStrategy->logSentResponse(responseEvent, branch.get(), getEvent());
 }
 
 std::unique_ptr<ResponseSipEvent> Fork::sendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
-	if (!mIncoming) return {};
+	if (mIncomingReplier->hasReceivedFinalAnswer() || !event) return {};
 
 	const int code = event->getStatusCode();
-	event->setIncomingAgent(mIncoming);
 	mLastResponseSent = event->getMsgSip();
-
-	if (event->isSuspended()) event = mAgent->injectResponse(std::move(event));
-	else event = mAgent->processResponse(std::move(event));
+	event = mIncomingReplier->sendResponse(std::move(event));
 
 	if (code >= 200) {
-		mIncoming.reset();
 		mNextBranchesTimer.stop();
 		if (shouldFinish()) setFinished();
 	}
@@ -484,7 +494,7 @@ void Fork::onCancel(const MsgSip& ms) {
 	}
 	if (shouldFinish()) setFinished();
 	else tryToSendFinalResponse();
-	if (mIncoming) {
+	if (!mIncomingReplier->hasReceivedFinalAnswer()) {
 		if (auto branch = findBestBranch(false)) {
 			sendAndLogResponse(branch);
 		}
@@ -566,12 +576,12 @@ int Fork::getLastResponseCode() const {
 }
 
 unique_ptr<ResponseSipEvent> Fork::sendCustomResponse(int status, const char* phrase, bool addToTag) {
-	if (!mIncoming) {
+	if (mIncomingReplier->hasReceivedFinalAnswer()) {
 		LOGD << "Cannot send SIP response [" << status << " " << phrase << "]: no incoming transaction";
 		return {};
 	}
 
-	const auto message = mIncoming->createResponse(status, phrase);
+	const auto message = mIncomingReplier->createResponse(status, phrase);
 	if (message == nullptr) { // Should never happen
 		LOGE << "Error, MsgSip cannot be created: fork is completed without sending any response";
 		setFinished();
@@ -597,13 +607,13 @@ void Fork::processInternalError(int status, const char* phrase) {
 }
 
 void Fork::tryToSendFinalResponse() {
-	if (!mIncoming && shouldFinish()) {
+	if (mIncomingReplier->hasReceivedFinalAnswer() && shouldFinish()) {
 		setFinished();
 		return;
 	}
 	if (!allBranchesAnswered(FinalStatusMode::RFC)) return;
 
-	if (shouldFinish() || (shouldFinish(true) && allBranchesAnswered(FinalStatusMode::ForkLate))) setFinished();
+	if (shouldFinish() || allBranchesAnswered(FinalStatusMode::ForkLate)) setFinished();
 
 	auto best = findBestBranch(mCfg->mForkLate);
 	const auto respStrategy =
@@ -612,7 +622,7 @@ void Fork::tryToSendFinalResponse() {
 }
 
 void Fork::applyResponseStrategy(ResponseStrategy respStrategy) {
-	if (!mIncoming) return;
+	if (mIncomingReplier->hasReceivedFinalAnswer()) return;
 
 	auto branch = findBestBranch(mCfg->mForkLate);
 	switch (respStrategy) {

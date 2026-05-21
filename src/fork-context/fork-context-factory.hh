@@ -20,6 +20,7 @@
 
 #include <memory>
 
+#include "divertible-fork-context.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/fork-stats.hh"
 #include "fork-context.hh"
@@ -43,7 +44,7 @@ public:
 	ForkContextFactory(Agent* agent,
 	                   const std::weak_ptr<ForkStats>& forkStats,
 	                   const std::weak_ptr<InjectorListener>& injectorListener,
-	                   const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                   const std::weak_ptr<DivertibleForkContextListener>& forkContextListener,
 	                   const GenericStruct* moduleRouterConfig);
 
 	~ForkContextFactory() = default;
@@ -59,10 +60,16 @@ public:
 
 	template <typename... Args>
 	std::shared_ptr<ForkContext> makeForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
-	                                                 sofiasip::MsgSipPriority priority) const {
+	                                                 sofiasip::MsgSipPriority priority,
+	                                                 bool hasContact) const {
 		std::weak_ptr<StatPair> statCounter{};
-		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountCallForks;
-		auto callStrategy = std::make_unique<CallForkStrategy>(mForkContextListener, *event, mCallForkCfg);
+		const auto isDivertible = !mCallForkCfg->mVoicemailServerUri.empty();
+		if (const auto forkStats = mForkStats.lock())
+			statCounter = isDivertible ? forkStats->mCountDivertibleCallForks : forkStats->mCountCallForks;
+		if (isDivertible)
+			return DivertibleForkContext::make(hasContact, mAgent, mCallForkCfg, mInjectorListener,
+			                                   mForkContextListener, std::move(event), priority, statCounter);
+		auto callStrategy = std::make_unique<CallForkStrategy>(*event, mCallForkCfg);
 		return Fork::make(mAgent, mCallForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
 		                  statCounter, std::move(callStrategy));
 	}
@@ -110,7 +117,7 @@ private:
 	Agent* mAgent{};
 	std::weak_ptr<ForkStats> mForkStats{};
 	std::weak_ptr<InjectorListener> mInjectorListener{};
-	std::weak_ptr<ForkContextListener> mForkContextListener{};
+	std::weak_ptr<DivertibleForkContextListener> mForkContextListener{};
 	std::shared_ptr<ForkCallContextConfig> mCallForkCfg{};
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg{};
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg{};

@@ -280,6 +280,7 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	moduleConfig.createStatPair("count-forks", "Number of forks");
 	moduleConfig.createStatPair("count-basic-forks", "Number of basic forks");
 	moduleConfig.createStatPair("count-call-forks", "Number of call forks");
+	moduleConfig.createStatPair("count-divertible-call-forks", "Number of divertible call forks");
 	moduleConfig.createStatPair("count-message-forks", "Number of message forks");
 	moduleConfig.createStatPair("count-message-proxy-forks", "Number of proxy message forks");
 	moduleConfig.createStatPair("count-message-conference-forks", "Number of conference message forks");
@@ -291,6 +292,7 @@ ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module
 	forkStats->mCountForks = mModuleConfig->getStatPairPtr("count-forks");
 	forkStats->mCountBasicForks = mModuleConfig->getStatPairPtr("count-basic-forks");
 	forkStats->mCountCallForks = mModuleConfig->getStatPairPtr("count-call-forks");
+	forkStats->mCountDivertibleCallForks = mModuleConfig->getStatPairPtr("count-divertible-call-forks");
 	forkStats->mCountMessageForks = mModuleConfig->getStatPairPtr("count-message-forks");
 	forkStats->mCountMessageProxyForks = mModuleConfig->getStatPairPtr("count-message-proxy-forks");
 	forkStats->mCountMessageConferenceForks = mModuleConfig->getStatPairPtr("count-message-conference-forks");
@@ -406,33 +408,20 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 			/*rfc5630 5.3*/
 			LOGUE << "Not dispatching request because SIPS not allowed for " << url_as_string(ms->getHome(), sipUri);
 			sendReply(*ev, SIP_480_TEMPORARILY_UNAVAILABLE, 380, "SIPS not allowed");
+			return;
 		} else {
 			LOGD << "This user is not registered (no valid contact)";
 			LOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " is not registered (no valid contact)";
 
-			// Try to redirect the call to the voicemail if it has been configured.
-			if (sip->sip_request->rq_method == sip_method_invite && !mVoicemailServerUri.empty()) {
-				LOGD << "Redirecting call to voicemail server";
-
-				const auto target = uri_utils::escape(url_as_string(mHome.home(), sip->sip_to->a_url),
-				                                      uri_utils::sipUriParamValueReserved);
-				const auto requestUri =
-				    mVoicemailServerUri.setParameter("target", target).setParameter("cause", to_string(404));
-				const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
-				contact->mKey = ContactKey{}.str();
-				forkContacts.emplace_back(contact->toSofiaContact(mHome.home()), contact);
-
-				sendReply(*ev, SIP_181_CALL_IS_BEING_FORWARDED);
-
-				mForkManager->fork(std::move(ev), sipUri, forkContacts, mDomains);
-			} else {
+			if (sip->sip_request->rq_method != sip_method_invite || mVoicemailServerUri.empty()) {
 				sendReply(*ev, SIP_404_NOT_FOUND);
+				return;
 			}
+			// else try to divert the call
 		}
-		return;
 	}
 
-	mForkManager->fork(std::move(ev), sipUri, forkContacts, mDomains);
+	mForkManager->fork(std::move(ev), sipUri, forkContacts);
 }
 
 class TargetUriListFetcher : public ContactUpdateListener, public enable_shared_from_this<TargetUriListFetcher> {

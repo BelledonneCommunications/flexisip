@@ -35,14 +35,13 @@ using namespace string_view_literals;
 
 namespace flexisip {
 
-CallForkStrategy::CallForkStrategy(const std::weak_ptr<ForkContextListener>& forkContextListener,
-                                   RequestSipEvent& event,
-                                   const std::shared_ptr<ForkContextConfig>& config)
-    : mLog{event.getEventLog<CallLog>()}, mForkContextListener(forkContextListener), mCfg(config),
-      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "CallForkStrategy")} {
+CallForkStrategy::CallForkStrategy(RequestSipEvent& event,
+                                   const std::shared_ptr<ForkContextConfig>& config,
+                                   CallStep callStep)
+    : mCfg(config), mCallStep(callStep), mLogPrefix{LogManager::makeLogPrefixForInstance(this, "CallForkStrategy")} {
+	// Deactivate CallLog for diverted call until it is supported
+	if (mCallStep == CallStep::Initial) mLog = event.getEventLog<CallLog>();
 	LOGD << "New instance";
-	const auto cfg = static_pointer_cast<ForkCallContextConfig>(mCfg);
-	mCallForwardingEnabled = !cfg->mVoicemailServerUri.empty();
 }
 
 CallForkStrategy::~CallForkStrategy() {
@@ -51,6 +50,7 @@ CallForkStrategy::~CallForkStrategy() {
 
 std::shared_ptr<const EventLogWriteDispatcher>
 CallForkStrategy::makeStartEventLog(const MsgSip& msgSip, const std::list<std::shared_ptr<BranchInfo>>& branches) {
+	if (mCallStep == CallStep::Diverted) return {};
 	return make_shared<CallStartedEventLog>(*msgSip.getSip(), branches);
 }
 
@@ -71,7 +71,8 @@ const int* CallForkStrategy::getUrgentCodes() const {
 }
 
 OnResponseAction CallForkStrategy::chooseActionOnResponse(const shared_ptr<BranchInfo>& br) {
-	if (const auto code = br->getStatus(); code >= 300) {
+	const auto code = br->getStatus();
+	if (code >= 300) {
 		/*
 		 * In fork-late mode, we must not consider that 503 and 408 response codes (which are sent by sofia in case
 		 * of i/o error or timeouts) are branches that are answered. Instead, we must wait for the duration of the
@@ -82,9 +83,10 @@ OnResponseAction CallForkStrategy::chooseActionOnResponse(const shared_ptr<Branc
 			if (!mCfg->mForkNoGlobalDecline) {
 				mCancelled = true;
 				cancelWithStatus(ForkStatus::DeclinedElsewhere);
-				if (forward(code)) return OnResponseAction::WaitAndUpdate;
 			}
-		} else if (isUrgent(code, getUrgentCodes())) {
+			return OnResponseAction::WaitAndUpdate;
+		}
+		if (isUrgent(code, getUrgentCodes())) {
 			if (mUrgentCode == UrgentCodeState::SendOnReceived) {
 				mCancelled = true;
 				cancelWithStatus(ForkStatus::Standard);
@@ -92,26 +94,21 @@ OnResponseAction CallForkStrategy::chooseActionOnResponse(const shared_ptr<Branc
 			}
 			mUrgentCode = UrgentCodeState::AwaitingBetterResponse;
 		}
-		if (br == mCallForwardingBranch.lock()) return OnResponseAction::SendAndUpdate;
-	} else if (code >= 200) {
+		return OnResponseAction::WaitAndUpdate;
+	}
+	if (code >= 200) {
 		mCancelled = true;
 		cancelWithStatus(ForkStatus::AcceptedElsewhere);
 		return OnResponseAction::SendAndUpdate;
-	} else if (code > 100 && !mCancelled && br != mCallForwardingBranch.lock()) {
+	}
+	if (code > 100 && !mCancelled) {
 		return OnResponseAction::SendAndUpdate;
 	}
 	return OnResponseAction::WaitAndUpdate;
 }
 
-bool CallForkStrategy::shouldFinish() {
-	return (!mCallForwardingEnabled || mCallForwardingBranch.lock() != nullptr);
-}
-
 ResponseStrategy CallForkStrategy::chooseStrategyOnceAllBranchesAnswered(const std::shared_ptr<BranchInfo>& best) {
-	if (best == nullptr || mCallForwardingBranch.lock() != nullptr) return ResponseStrategy::Wait;
-
-	// Try to forward the call.
-	if (forward(best->getStatus())) return ResponseStrategy::Wait;
+	if (best == nullptr) return ResponseStrategy::Wait;
 
 	// If it failed, try to send the response anyway.
 	return ResponseStrategy::Best;
@@ -128,7 +125,6 @@ ResponseStrategy CallForkStrategy::chooseStrategyOnLateTimeout() {
 	mStopping = true;
 	cancelWithStatus(ForkStatus::Standard);
 
-	if (forward(408)) return ResponseStrategy::Wait;
 	return ResponseStrategy::BestElseDefault;
 }
 
@@ -137,7 +133,9 @@ std::pair<int, const char*> CallForkStrategy::getDefaultResponse() const {
 }
 
 void CallForkStrategy::logResponse(const shared_ptr<BranchInfo>& br, RequestSipEvent& request, ResponseSipEvent&) {
-	if (br->getStatus() == 180 && br != mCallForwardingBranch.lock()) {
+	if (mCallStep == CallStep::Diverted) return;
+
+	if (br->getStatus() == 180) {
 		request.writeLog(make_shared<CallRingingEventLog>(*request.getSip(), br.get()));
 	}
 }
@@ -145,7 +143,9 @@ void CallForkStrategy::logResponse(const shared_ptr<BranchInfo>& br, RequestSipE
 void CallForkStrategy::logSentResponse(const std::unique_ptr<ResponseSipEvent>& repEv,
                                        const BranchInfo* branch,
                                        RequestSipEvent&) const {
-	if (repEv == nullptr) return;
+	if (mCallStep == CallStep::Diverted) return;
+
+	if (repEv == nullptr || !mLog) return;
 
 	if (branch) mLog->setDevice(*branch->getContact());
 
@@ -158,11 +158,13 @@ void CallForkStrategy::logSentResponse(const std::unique_ptr<ResponseSipEvent>& 
 }
 
 void CallForkStrategy::updateBranch(const shared_ptr<BranchInfo>& br, RequestSipEvent& request) {
-	if (!mCancel || br == mCallForwardingBranch.lock() || !br->needsDelivery()) return;
+	if (!mCancel || !br->needsDelivery()) return;
 
 	br->cancel(mCancel, !mStopping);
 	// Always notify here, even if the branch is not canceled (due to status or iOS devices specific reasons).
 	br->notifyBranchCanceled(mCancel->mStatus);
+
+	if (mCallStep == CallStep::Diverted) return;
 
 	auto eventLog = make_shared<CallLog>(request.getSip());
 	eventLog->setDevice(*br->getContact());
@@ -202,61 +204,11 @@ void CallForkStrategy::onInternalError() {
 
 void CallForkStrategy::onCancel(const MsgSip& ms) {
 	LOGD << "Canceling fork";
-	mLog->setCancelled();
-	mLog->setCompleted();
+	if (mLog) {
+		mLog->setCancelled();
+		mLog->setCompleted();
+	}
 	mCancelled = true;
-	mCallForwardingEnabled = false;
 	cancelWithMessage(ms.getSip());
-}
-
-std::shared_ptr<BranchInfo> CallForkStrategy::forward(int code) {
-	// Do nothing if we already have forwarded or feature is disabled.
-	if (shouldFinish()) return nullptr;
-
-	// Make sure the status code received on this branch is supported for call forwarding.
-	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
-	const auto supported = config->mStatusCodes;
-	if (find(supported.cbegin(), supported.cend(), code) == supported.cend()) {
-		return nullptr;
-	}
-
-	const auto listener = mForkContextListener.lock();
-	if (listener == nullptr) {
-		LOGE << "Failed to trigger call forwarding (ForkContextListener pointer is empty)";
-		return nullptr;
-	}
-
-	auto forkCtx = mFork.lock();
-	if (!forkCtx) {
-		LOGE << "Invalid state of call strategy, ForkContext is unavailable.";
-		return nullptr;
-	}
-
-	auto incoming = forkCtx->getIncomingTransaction();
-	if (!incoming) {
-		LOGE << "Failed to trigger call forwarding (incoming request pointer is empty)";
-		return nullptr;
-	}
-
-	LOGD << "Starting call forwarding with status '" << code << "'";
-
-	const auto request = incoming->getIncomingRequest();
-	auto* home = request->getHome();
-	const auto* sip = request->getSip();
-
-	const auto voicemailServerUri = static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri;
-	const auto target = uri_utils::escape(url_as_string(home, sip->sip_to->a_url), uri_utils::sipUriParamValueReserved);
-	const auto cause = to_string(code);
-	const auto requestUri = voicemailServerUri.setParameter("target", target).setParameter("cause", cause);
-
-	const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
-	contact->mKey = ContactKey{}.str();
-	if (auto branch = listener->onDispatchNeeded(forkCtx, contact)) {
-		// Reply to incoming transaction.
-		forkCtx->getEvent().reply(SIP_181_CALL_IS_BEING_FORWARDED, TAG_END());
-		mCallForwardingBranch = branch;
-		return branch;
-	}
-	return nullptr;
 }
 } // namespace flexisip

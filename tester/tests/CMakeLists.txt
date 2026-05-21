@@ -1,8 +1,8 @@
-############################################################################
+# ###########################################################################
 # CMakeLists.txt
 # Copyright (C) 2010-2026 Belledonne Communications, Grenoble France
 #
-############################################################################
+# ###########################################################################
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -18,7 +18,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
-############################################################################
+# ###########################################################################
 
 add_executable(flexisip_tester
 	agent-tester.cc
@@ -58,6 +58,7 @@ add_executable(flexisip_tester
 	modules/module-registrar-tester.cc
 	modules/module-sanitychecker-tester.cc
 	modules/module-toolbox-tester.cc
+	modules/router/fork/divertible-fork-tester.cc
 	modules/router/fork/fork-call-tester.cc
 	modules/router/fork/fork-context-tester.cc
 	modules/router/module-router-diverted-calls-tester.cc
@@ -139,6 +140,7 @@ if(ENABLE_SOCI)
 		utils/soci-helper-tester.cc
 		utils/soci-type-conversion-utils-tester.cc
 	)
+
 	if(ENABLE_PRESENCE)
 		target_sources(flexisip_tester PRIVATE
 			presence/list-subscription/external-list-subscription-tester.cc
@@ -155,23 +157,27 @@ if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 		utils/transport/http/rest-client-tester.cc
 		utils/transport/http/http2client-tester.cc
 	)
+
 	if(ENABLE_FLEXIAPI)
 		target_sources(flexisip_tester PRIVATE
 			flexiapi/flexi-stats-tester.cc
 			pushnotification/push-notification-flexiapi-tester.cc
 		)
+
 		if(ENABLE_SOCI)
 			target_sources(flexisip_tester PRIVATE
 				eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 			)
 		endif()
 	endif()
+
 	if(HAS_GCC_BUG_105562)
 		set_source_files_properties(
 			pushnotification/push-notification-tester.cc
 			utils/pns-mock.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
 		)
+
 		if(ENABLE_SOCI)
 			set_source_files_properties(
 				eventlogs/writers/flexi-stats-event-log-writer-tester.cc
@@ -199,6 +205,7 @@ if(ENABLE_B2BUA)
 		b2bua/sip-bridge/string-format-fields-tester.cc
 		b2bua/trenscrypter/trenscrypter-tester.cc
 	)
+
 	if(ENABLE_G729)
 		target_sources(flexisip_tester PRIVATE
 			b2bua/b2bua-tester-with-g729.cc
@@ -251,6 +258,7 @@ endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
+
 	if(ENABLE_VOICEMAIL)
 		target_sources(flexisip_tester PRIVATE
 			integration/voicemail/voicemail-server-tester.cc

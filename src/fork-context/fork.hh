@@ -31,7 +31,42 @@
 
 namespace flexisip {
 
-class OnContactRegisteredListener;
+class BasicIncomingReplier : public IIncomingReplier {
+public:
+	BasicIncomingReplier(AgentInterface* agent, const std::unique_ptr<RequestSipEvent>& event) : mAgent(agent) {
+		mIncoming = event->createIncomingTransaction();
+	}
+	BasicIncomingReplier() = default;
+
+	bool hasReceivedFinalAnswer() const override {
+		return mIncoming == nullptr;
+	}
+
+	std::shared_ptr<MsgSip> createResponse(int status, const char* phrase) const override {
+		if (!mIncoming) return nullptr;
+		return mIncoming->createResponse(status, phrase);
+	}
+
+	std::unique_ptr<ResponseSipEvent> sendResponse(std::unique_ptr<ResponseSipEvent>&& event) override {
+		if (!mIncoming) return {};
+
+		const int code = event->getStatusCode();
+		event->setIncomingAgent(mIncoming);
+
+		if (event->isSuspended()) event = mAgent->injectResponse(std::move(event));
+		else event = mAgent->processResponse(std::move(event));
+
+		if (code >= 200) {
+			mIncoming.reset();
+		}
+
+		return std::move(event);
+	}
+
+private:
+	AgentInterface* mAgent;
+	std::shared_ptr<IncomingTransaction> mIncoming;
+};
 
 /**
  * @brief Base class for all ForkContext implementations. It provides the basic functionality to manage the fork process
@@ -39,10 +74,16 @@ class OnContactRegisteredListener;
  */
 class Fork : public ForkContext, public std::enable_shared_from_this<Fork> {
 public:
-	template <typename... Args>
-	static std::shared_ptr<Fork> make(Args&&... args) {
-		return std::shared_ptr<Fork>(new Fork{std::forward<Args>(args)...});
-	}
+	static std::shared_ptr<Fork> make(AgentInterface* agent,
+	                                  const std::shared_ptr<ForkContextConfig>& cfg,
+	                                  const std::weak_ptr<InjectorListener>& injectorListener,
+	                                  const std::weak_ptr<ForkContextListener>& forkContextListener,
+	                                  std::unique_ptr<RequestSipEvent>&& event,
+	                                  sofiasip::MsgSipPriority priority,
+	                                  const std::weak_ptr<StatPair>& counter,
+	                                  std::unique_ptr<IForkStrategy>&& forkStrategy,
+	                                  bool isRestored = false,
+	                                  std::unique_ptr<IIncomingReplier>&& incoming = nullptr);
 
 	~Fork() override;
 
@@ -63,7 +104,6 @@ public:
 	RequestSipEvent& getEvent() final;
 	sofiasip::MsgSipPriority getMsgPriority() const final;
 	const std::shared_ptr<ForkContextConfig>& getConfig() const final;
-	const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const final;
 
 	/**
 	 * @param finalStatusMode fork mode to consider for the final status answer of a branch
@@ -76,6 +116,10 @@ public:
 		return *mStrategy;
 	}
 
+	IIncomingReplier& getIncomingReplier() {
+		return *mIncomingReplier;
+	}
+
 protected:
 	Fork(AgentInterface* agent,
 	     const std::shared_ptr<ForkContextConfig>& cfg,
@@ -85,7 +129,8 @@ protected:
 	     sofiasip::MsgSipPriority priority,
 	     const std::weak_ptr<StatPair>& counter,
 	     std::unique_ptr<IForkStrategy>&& forkStrategy,
-	     bool isRestored = false);
+	     bool isRestored = false,
+	     std::unique_ptr<IIncomingReplier>&& incoming = nullptr);
 
 	/**
 	 * @brief Find the best branch to take the response from and forward it to all the other branches.
@@ -116,7 +161,7 @@ private:
 	/**
 	 * @return 'true' if the fork process should be terminated.
 	 */
-	bool shouldFinish(bool ignoreForkLate = false);
+	bool shouldFinish();
 	/**
 	 * @brief Start the finish timer to schedule instance destruction.
 	 *
@@ -208,7 +253,6 @@ private:
 	bool m110Sent{};
 	std::shared_ptr<MsgSip> mLastResponseSent;
 	std::weak_ptr<ForkContextListener> mForkContextListener;
-	std::shared_ptr<IncomingTransaction> mIncoming;
 	std::shared_ptr<ForkContextConfig> mCfg;
 	// Timeout after which an answer must be sent through the incoming transaction even if no success response was
 	// received on the outgoing transactions.
@@ -221,6 +265,7 @@ private:
 	std::weak_ptr<StatPair> mStatCounter;
 	std::string mLogPrefix;
 	std::unique_ptr<IForkStrategy> mStrategy;
+	std::unique_ptr<IIncomingReplier> mIncomingReplier;
 };
 
 } // namespace flexisip

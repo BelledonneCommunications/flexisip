@@ -22,6 +22,9 @@
 
 target_sources(flexisip PRIVATE
     branch-info.hh branch-info.cc
+    call-step.hh
+    divertible-fork-context.cc divertible-fork-context.hh
+    divertible-fork-entry.cc divertible-fork-entry.hh
     fork-context.cc fork-context.hh
     fork.cc fork.hh
     fork-context-factory.cc fork-context-factory.hh

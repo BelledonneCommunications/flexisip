@@ -39,7 +39,7 @@ class ModuleRouter;
  * SIP requests along with managing forked contexts during the SIP transaction lifecycle.
  */
 class ForkManager : public InjectorListener,
-                    public ForkContextListener,
+                    public DivertibleForkContextListener,
                     public ContactRegisteredListener,
                     public std::enable_shared_from_this<ForkManager> {
 public:
@@ -63,12 +63,21 @@ public:
 	 * @param ev SIP request to be forked
 	 * @param sipUri SIP request URI
 	 * @param forkContacts list of contacts to which the request will be forked
-	 * @param domains the list of SIP domains managed by the registrar
 	 */
-	void fork(std::unique_ptr<RequestSipEvent>&& ev,
-	          const url_t* sipUri,
-	          const ForkGroupSorter::ForkContacts& forkContacts,
-	          const std::list<std::string>& domains);
+	void
+	fork(std::unique_ptr<RequestSipEvent>&& ev, const url_t* sipUri, const ForkGroupSorter::ForkContacts& forkContacts);
+
+	/**
+	 * @brief Add the fork context to the internal list and start it if the contacts list is not empty.
+	 *
+	 * @param context fork to add and start
+	 * @param sipUri SIP request URI
+	 * @param forkContacts list of contacts to which the request will be forked
+	 */
+	void addFork(const std::shared_ptr<ForkContext>& context,
+	             const url_t* sipUri,
+	             const ForkGroupSorter::ForkContacts& forkContacts,
+	             bool isInviteRequest) override;
 
 	std::shared_ptr<const ForkContextFactory> getFactory() const {
 		return mFactory;
@@ -139,6 +148,7 @@ private:
 	ForkMap mForks{};
 	bool mUseGlobalDomain{};
 	bool mAllowTargetFactorization{};
+	std::list<std::string> mDomains{};
 	mutable sofiasip::MsgSipPriority mMaxPriorityHandled{sofiasip::MsgSipPriority::Normal};
 	std::weak_ptr<ForkStats> mStats{};
 	std::unique_ptr<Injector> mInjector{};

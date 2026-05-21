@@ -35,7 +35,7 @@ constexpr std::array<int, 3> kStatusCodes{408, 486, 603};
 ForkContextFactory::ForkContextFactory(Agent* agent,
                                        const std::weak_ptr<ForkStats>& forkStats,
                                        const std::weak_ptr<InjectorListener>& injectorListener,
-                                       const std::weak_ptr<ForkContextListener>& forkContextListener,
+                                       const std::weak_ptr<DivertibleForkContextListener>& forkContextListener,
                                        const GenericStruct* moduleRouterConfig)
     : mAgent(agent), mForkStats(forkStats), mInjectorListener(injectorListener),
       mForkContextListener(forkContextListener) {
@@ -141,7 +141,7 @@ void ForkContextFactory::setVoicemailConfiguration(const GenericStruct* config) 
 					throw BadConfigurationValue{statusCodesParameter,
 					                            "unsupported forwarding status code '" + value + "'"};
 
-				mCallForkCfg->mStatusCodes.push_back(status);
+				mCallForkCfg->mStatusCodes.emplace(status);
 			} catch (const exception& exception) {
 				throw BadConfigurationValue{statusCodesParameter, "unsupported forwarding status code '" + value +
 				                                                      "' (error: " + exception.what() + ")"};

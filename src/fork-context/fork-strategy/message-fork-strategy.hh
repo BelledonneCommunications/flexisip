@@ -37,9 +37,6 @@ public:
 	std::shared_ptr<const EventLogWriteDispatcher>
 	makeStartEventLog(const MsgSip& msgSip, const std::list<std::shared_ptr<BranchInfo>>& branches) override;
 	OnResponseAction chooseActionOnResponse(const std::shared_ptr<BranchInfo>& br) override;
-	bool shouldFinish() override {
-		return true;
-	}
 	ResponseStrategy chooseStrategyOnceAllBranchesAnswered(const std::shared_ptr<BranchInfo>& br) override;
 	ResponseStrategy chooseStrategyOnDecisionTimer() override;
 	ResponseStrategy chooseStrategyOnLateTimeout() override;

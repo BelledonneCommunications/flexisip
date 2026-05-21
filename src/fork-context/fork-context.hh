@@ -33,6 +33,7 @@ class OutgoingTransaction;
 class RequestSipEvent;
 class ResponseSipEvent;
 class SipUri;
+class ForkGroupSorter;
 
 struct ExtendedContact;
 
@@ -53,6 +54,14 @@ struct ForkContextConfig {
 	bool mTreatAllErrorsAsUrgent{false};
 	// Self-explanatory (example: 110 Push sent, 180 Ringing).
 	bool mPermitSelfGeneratedProvisionalResponse{true};
+};
+
+class IIncomingReplier {
+public:
+	virtual ~IIncomingReplier() = default;
+	virtual std::unique_ptr<ResponseSipEvent> sendResponse(std::unique_ptr<ResponseSipEvent>&& event) = 0;
+	virtual bool hasReceivedFinalAnswer() const = 0;
+	virtual std::shared_ptr<MsgSip> createResponse(int status, const char* phrase) const = 0;
 };
 
 class ForkContext : public PushNotificationContextObserver {
@@ -147,7 +156,6 @@ public:
 	virtual const ForkContext* getPtrForEquality() const = 0;
 	virtual sofiasip::MsgSipPriority getMsgPriority() const = 0;
 	virtual const std::shared_ptr<ForkContextConfig>& getConfig() const = 0;
-	virtual const std::shared_ptr<IncomingTransaction>& getIncomingTransaction() const = 0;
 };
 
 enum class DispatchStatus {

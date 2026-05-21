@@ -38,9 +38,6 @@ public:
 		return {};
 	}
 	OnResponseAction chooseActionOnResponse(const std::shared_ptr<BranchInfo>& br) override;
-	bool shouldFinish() override {
-		return true;
-	}
 	ResponseStrategy chooseStrategyOnceAllBranchesAnswered(const std::shared_ptr<BranchInfo>&) override;
 	ResponseStrategy chooseStrategyOnDecisionTimer() override;
 	ResponseStrategy chooseStrategyOnLateTimeout() override;
