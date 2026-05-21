@@ -31,11 +31,7 @@ set(CPACK_PACKAGING_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 bc_compute_linux_package_version("${FLEXISIP_FULL_VERSION}" version release)
 
 # Add package dependencies.
-set(extra_dependencies
-	# Add bc-flexisip-conference as a dependency for now to ease the update process
-	"bc-flexisip-conference"
-	"logrotate"
-)
+set(extra_dependencies "logrotate")
 cmake_host_system_information(RESULT DISTRIBUTION QUERY DISTRIB_INFO)
 if(DISTRIBUTION_ID STREQUAL "centos")
 	list(APPEND extra_dependencies
