@@ -59,7 +59,7 @@ void flexiApiPushTest() {
 	"call_id": "callID"
 \})json"};
 
-	GenericHttp2Client genericHttp2Client{sofiasip::Url("https://127.0.0.1:3000/flexiapi/push_notification"),
+	GenericHttp2Client genericHttp2Client{HttpUrl("https://127.0.0.1:3000/flexiapi/push_notification"),
 	                                      "api-key",
 	                                      FlexiApiBodyGenerationFunc,
 	                                      *root,

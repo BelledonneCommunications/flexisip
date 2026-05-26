@@ -127,7 +127,7 @@ bool Service::isIdle() const noexcept {
 	return all_of(mClients.cbegin(), mClients.cend(), [](const auto& kv) { return kv.second->isIdle(); });
 }
 
-void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol) {
+void Service::setupGenericClient(const HttpUrl& url, Method method, Protocol protocol) {
 	if (method != Method::HttpGet && method != Method::HttpPost) {
 		throw UnauthorizedHttpMethod{method};
 	}
@@ -139,7 +139,7 @@ void Service::setupGenericClient(const sofiasip::Url& url, Method method, Protoc
 	}
 }
 
-void Service::setupGenericJsonClient(const sofiasip::Url& url,
+void Service::setupGenericJsonClient(const HttpUrl& url,
                                      const std::string& apiKey,
                                      JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
                                      const std::shared_ptr<Http2Client>& http2Client) {

@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include "flexisip/utils/http-url.hh"
+
 #include "body-utils.hh"
 #include "generic-enums.hh"
 #include "pushnotification/request.hh"
@@ -34,20 +36,14 @@ public:
 	GenericHttp2Request(PushType pType,
 	                    const std::shared_ptr<const PushInfo>& pInfo,
 	                    Method method,
-	                    const std::string& host,
-	                    const std::string& port,
-	                    std::string path,         // copy needed
-	                    std::string urlParameters // copy needed
-	);
+	                    const HttpUrl& url);
 
 	/**
 	 * Create a HTTP POST Request with a JSON body generated from the push information
 	 */
 	GenericHttp2Request(PushType pType,
 	                    const std::shared_ptr<const PushInfo>& pInfo,
-	                    const std::string& host,
-	                    const std::string& port,
-	                    const std::string& path,
+	                    const HttpUrl& url,
 	                    const std::string& apiKey,
 	                    const JsonBodyGenerationFunc& bodyGenerationFunc);
 

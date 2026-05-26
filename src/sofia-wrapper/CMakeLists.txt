@@ -30,5 +30,6 @@ target_sources(flexisip PRIVATE
 	sip-header-private.hh
 	su-root.cc
 	timer.cc
+	url.cc
 	utilities.hh
 )

@@ -25,6 +25,7 @@ add_executable(flexisip_tester
 	boolean-expressions.cc
 	cli-tester.cc
 	domain-registration-tester.cc
+	http-url-tester.cc
 	msg-sip-tester.cc
 	sip-uri-tester.cc
 	schedule-injector-tester.cc

@@ -124,8 +124,7 @@ static void genericPushTest() {
 	pushInfo->mCallId = "callID";
 
 	GenericHttp2Client genericHttp2Client{
-	    sofiasip::Url(
-	        "https://127.0.0.1:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
+	    HttpUrl("https://127.0.0.1:3000/generic?type=$type&from-name=$from-name&from-uri=$from-uri&call-id=$call-id"),
 	    Method::HttpPost, *root};
 
 	pn_tester::startGenericPushTest<expectedResult>(root, PushType::Background, pushInfo, pushInfo->mText, 200, "ok",

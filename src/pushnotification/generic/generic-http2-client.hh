@@ -20,6 +20,8 @@
 
 #include <string>
 
+#include "flexisip/utils/http-url.hh"
+
 #include "generic-http2-request.hh"
 #include "pushnotification/client.hh"
 #include "utils/transport/http/http-message.hh"
@@ -34,12 +36,12 @@ namespace flexisip::pushnotification {
  */
 class GenericHttp2Client : public Client {
 public:
-	GenericHttp2Client(const sofiasip::Url& url, Method method, sofiasip::SuRoot& root, Service* pushService = nullptr);
+	GenericHttp2Client(const HttpUrl& url, Method method, sofiasip::SuRoot& root, Service* pushService = nullptr);
 
 	/**
 	 * Create a HTTP client to send push notification through an API that requires a JSON body.
 	 */
-	GenericHttp2Client(const sofiasip::Url& url,
+	GenericHttp2Client(const HttpUrl& url,
 	                   const std::string& apiKey,
 	                   JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
 	                   sofiasip::SuRoot& root,
@@ -71,10 +73,7 @@ private:
 
 	std::shared_ptr<Http2Client> mHttp2Client;
 	std::string mLogPrefix{};
-	std::string mHost{};
-	std::string mPort{};
-	std::string mPath{};
-	std::string mUrlParameters{};
+	HttpUrl mUrl{};
 	std::string mApiKey{};
 	Method mMethod;
 	JsonBodyGenerationFunc mJsonBodyGenerationFunc{};
