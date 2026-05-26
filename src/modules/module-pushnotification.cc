@@ -18,6 +18,8 @@
 
 #include "modules/module-pushnotification.hh"
 
+#include "flexisip/utils/http-url.hh"
+
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
 #include "fork-context/branch-info.hh"
@@ -466,9 +468,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 			throw ExitFailure{"a FlexiAPI client is mandatory to use `" + externalPushFlexiApiCfg->getCompleteName() +
 			                  "`"};
 		try {
-			auto pnUrl = sofiasip::Url(flexiApiUrl);
 			// Append push notification endpoint to the generic api path
-			pnUrl = pnUrl.replace(&url_t::url_path, pnUrl.getPath() + kFlexiApiPushNotificationPath);
+			auto pnUrl = HttpUrl(flexiApiUrl).appendPath(kFlexiApiPushNotificationPath);
 			mPNS->setupGenericJsonClient(pnUrl, flexiApiKey, FlexiApiBodyGenerationFunc, flexiApiClient);
 		} catch (const sofiasip::InvalidUrlError& e) {
 			throw BadConfiguration{"invalid value for parameter '" + flexiApiUrlCfg->getCompleteName() + "' (" +
@@ -478,7 +479,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 		auto const* externalPushMethodCfg = mc->get<ConfigString>("external-push-method");
 		auto const* externalPushProtocolCfg = mc->get<ConfigString>("external-push-protocol");
 		try {
-			auto externalPushUri = static_cast<sofiasip::Url>(externalUri);
+			auto externalPushUri = HttpUrl{externalUri};
 			auto externalPushMethod = stringToGenericPushMethod(externalPushMethodCfg->read());
 			auto externalPushProtocol = stringToGenericPushProtocol(externalPushProtocolCfg->read());
 

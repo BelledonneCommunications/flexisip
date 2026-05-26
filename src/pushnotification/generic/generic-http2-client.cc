@@ -25,36 +25,28 @@ using namespace std;
 
 namespace flexisip::pushnotification {
 
-GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
-                                       Method method,
-                                       sofiasip::SuRoot& root,
-                                       Service* pushService)
-    : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")},
-      mHost{url.getHost()}, mPort{url.getPortWithFallback()}, mPath(url.getPath()), mUrlParameters{url.getHeaders()},
+GenericHttp2Client::GenericHttp2Client(const HttpUrl& url, Method method, sofiasip::SuRoot& root, Service* pushService)
+    : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")}, mUrl{url},
       mMethod{method} {
 	LOGD << "Constructing client";
 
-	mHttp2Client = Http2Client::make(root, mHost, mPort);
+	mHttp2Client = Http2Client::make(root, mUrl.getHost(), mUrl.getPortWithFallback().data());
 }
 
-GenericHttp2Client::GenericHttp2Client(const sofiasip::Url& url,
+GenericHttp2Client::GenericHttp2Client(const HttpUrl& url,
                                        const std::string& apiKey,
                                        JsonBodyGenerationFunc&& jsonBodyGeneratorFunc,
                                        sofiasip::SuRoot& root,
                                        Service* pushService,
                                        const std::shared_ptr<Http2Client>& http2Client)
-    : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")},
-      mHost{url.getHost()}, mPort{url.getPortWithFallback()}, mUrlParameters{url.getHeaders()}, mApiKey(apiKey),
-      mMethod{Method::HttpPost}, mJsonBodyGenerationFunc(std::move(jsonBodyGeneratorFunc)) {
-	const auto urlPath = url.getPath();
-	mPath = !urlPath.empty() ? "/" + urlPath : "";
-
+    : Client{pushService}, mLogPrefix{LogManager::makeLogPrefixForInstance(this, "GenericHttp2Client")}, mUrl{url},
+      mApiKey(apiKey), mMethod{Method::HttpPost}, mJsonBodyGenerationFunc(std::move(jsonBodyGeneratorFunc)) {
 	if (http2Client != nullptr) {
 		mHttp2Client = http2Client;
 	} else {
 		LOGD << "Constructing client";
 
-		mHttp2Client = Http2Client::make(root, mHost, mPort);
+		mHttp2Client = Http2Client::make(root, mUrl.getHost(), mUrl.getPortWithFallback().data());
 	}
 }
 
@@ -67,14 +59,13 @@ void GenericHttp2Client::sendPush(const shared_ptr<Request>& request) {
 	    [this](const auto& req) { this->onError(req); });
 }
 
-std::shared_ptr<Request> GenericHttp2Client::makeRequest(PushType pType,
-                                                         const shared_ptr<const PushInfo>& pInfo) {
+std::shared_ptr<Request> GenericHttp2Client::makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) {
 	if (!mJsonBodyGenerationFunc) {
-		return make_shared<GenericHttp2Request>(pType, pInfo, mMethod, mHost, mPort, mPath, mUrlParameters);
+		return make_shared<GenericHttp2Request>(pType, pInfo, mMethod, mUrl);
 	}
 
 	try {
-		return make_shared<GenericHttp2Request>(pType, pInfo, mHost, mPort, mPath, mApiKey, mJsonBodyGenerationFunc);
+		return make_shared<GenericHttp2Request>(pType, pInfo, mUrl, mApiKey, mJsonBodyGenerationFunc);
 	} catch (const std::exception& e) {
 		LOGE << "Error while creating push notification request: " << e.what();
 		return nullptr;

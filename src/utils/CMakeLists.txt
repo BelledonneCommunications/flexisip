@@ -27,6 +27,7 @@ target_sources(flexisip PRIVATE
 	flow.cc flow.hh
 	flow-data.cc flow-data.hh
 	flow-factory.cc flow-factory.hh
+	http-url.cc
 	limited-unordered-map.hh
 	load-file.hh
 	observable.hh

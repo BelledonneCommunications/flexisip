@@ -25,19 +25,19 @@ namespace flexisip::pushnotification {
 GenericHttp2Request::GenericHttp2Request(PushType pType,
                                          const std::shared_ptr<const PushInfo>& pInfo,
                                          Method method,
-                                         const std::string& host,
-                                         const std::string& port,
-                                         std::string path,
-                                         std::string urlParameters)
+                                         const HttpUrl& url)
     : Request(pType, pInfo) {
+	std::string path = url.getAbsolutePath();
+	std::string urlParameters = url.getHeaders();
+
 	GenericUtils::substituteArgs(path, mPInfo, mPType);
 	GenericUtils::substituteArgs(urlParameters, mPInfo, mPType);
 
 	HttpHeaders headers{};
 	headers.add(":method", method == Method::HttpPost ? "POST" : "GET");
 	headers.add(":scheme", "https");
-	headers.add(":path", "/" + path + (urlParameters.empty() ? "" : "?" + urlParameters));
-	headers.add(":authority", host + ":" + port);
+	headers.add(":path", path + (urlParameters.empty() ? "" : "?" + urlParameters));
+	headers.add(":authority", url.getHost() + ":" + url.getPortWithFallback().data());
 	headers.add("content-type", "text/plain");
 	if (!mPInfo->mText.empty()) {
 		headers.add("content-length", std::to_string(mPInfo->mText.size()));
@@ -50,9 +50,7 @@ GenericHttp2Request::GenericHttp2Request(PushType pType,
 
 GenericHttp2Request::GenericHttp2Request(const PushType pType,
                                          const std::shared_ptr<const PushInfo>& pInfo,
-                                         const std::string& host,
-                                         const std::string& port,
-                                         const std::string& path,
+                                         const HttpUrl& url,
                                          const std::string& apiKey,
                                          const JsonBodyGenerationFunc& bodyGenerationFunc)
     : Request(pType, pInfo) {
@@ -63,8 +61,8 @@ GenericHttp2Request::GenericHttp2Request(const PushType pType,
 	HttpHeaders headers{};
 	headers.add(":method", "POST");
 	headers.add(":scheme", "https");
-	headers.add(":path", path);
-	headers.add(":authority", host + ":" + port);
+	headers.add(":path", url.getAbsolutePath());
+	headers.add(":authority", url.getHost() + ":" + url.getPortWithFallback().data());
 	headers.add("accept", "application/json");
 	headers.add("content-type", "application/json");
 	if (!apiKey.empty()) headers.add("x-api-key", apiKey);

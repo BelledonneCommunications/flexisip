@@ -23,6 +23,7 @@
 #include <string>
 
 #include "flexisip/configmanager.hh"
+#include "flexisip/utils/http-url.hh"
 #include "flexisip/utils/sip-uri.hh"
 
 #include "client.hh"
@@ -66,11 +67,11 @@ public:
 
 	std::shared_ptr<Request> makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
 	void sendPush(const std::shared_ptr<Request>& pn);
-	void setupGenericJsonClient(const sofiasip::Url& url,
+	void setupGenericJsonClient(const HttpUrl& url,
 	                            const std::string& apiKey,
 	                            JsonBodyGenerationFunc&& jsonBodyGenerationFunc,
 	                            const std::shared_ptr<Http2Client>& http2Client = nullptr);
-	void setupGenericClient(const sofiasip::Url& url, Method method, Protocol protocol);
+	void setupGenericClient(const HttpUrl& url, Method method, Protocol protocol);
 	void setupiOSClient(const std::string& certDir, const std::string& caFile, const ApnsServers& apnsServers);
 	void setupFirebaseClients(const GenericStruct* pushConfig);
 	void addFirebaseV1Client(const std::string& appId,
