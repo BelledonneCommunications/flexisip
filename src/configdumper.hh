@@ -25,8 +25,7 @@ namespace flexisip {
 
 class ConfigDumper {
 public:
-	ConfigDumper(GenericEntry* root) : mRoot(root) {
-	}
+	ConfigDumper(GenericEntry* root) : mRoot(root) {}
 	virtual ~ConfigDumper() = default;
 
 	void setDumpExperimentalEnabled(bool enabled) {
@@ -83,8 +82,8 @@ protected:
 	 * @param element pointer to GenericStruct
 	 * @return true if the element should be dumped recursively, false otherwise.
 	 */
-
 	bool shouldRecurse(const GenericStruct* element, int level) const;
+
 	/**
 	 * Will tell if the module should be dumped.
 	 * Returns false if the module is experimental and the dumpExperimental flag is not set, or if the module is
@@ -118,8 +117,7 @@ public:
 		                */
 	};
 
-	FileConfigDumper(GenericEntry* root) : ConfigDumper(root) {
-	}
+	FileConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 	/**
 	 * Set the policy to use for generating the value of each parameter in the file.
@@ -140,8 +138,7 @@ private:
 
 class TexFileConfigDumper : public ConfigDumper {
 public:
-	TexFileConfigDumper(GenericEntry* root) : ConfigDumper(root) {
-	}
+	TexFileConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
 	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
@@ -153,8 +150,7 @@ private:
 
 class DokuwikiConfigDumper : public ConfigDumper {
 public:
-	DokuwikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {
-	}
+	DokuwikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
 	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
@@ -163,8 +159,7 @@ protected:
 
 class MediaWikiConfigDumper : public ConfigDumper {
 public:
-	MediaWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {
-	}
+	MediaWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
 	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
@@ -174,8 +169,7 @@ protected:
 
 class XWikiConfigDumper : public ConfigDumper {
 public:
-	XWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {
-	}
+	XWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
 	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
@@ -186,8 +180,7 @@ protected:
 
 class MibDumper : public ConfigDumper {
 public:
-	MibDumper(GenericEntry* root) : ConfigDumper(root) {
-	}
+	MibDumper(GenericEntry* root) : ConfigDumper(root) {}
 	std::ostream& dump(std::ostream& ostr) const override;
 
 protected:
