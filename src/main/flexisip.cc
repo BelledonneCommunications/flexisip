@@ -593,15 +593,6 @@ int flexisip::main(int argc, const char* argv[]) {
 	}
 
 	// Try parsing the configuration file.
-	cfg->setDeprecatedSections({{
-	    "conference-server",
-	    {
-	        "2026-02-10",
-	        "2.6",
-	        "ATTENTION. This section of the configuration has no effect anymore. The conference server is now part of "
-	        "a different project: 'flexisip-conference'.",
-	    },
-	}});
 	if (cfg->load(configFile.getValue(),
 	              rewriteConf ? ConfigManager::OnInvalidItem::Continue : ConfigManager::OnInvalidItem::Throw) == -1) {
 		throw BadConfiguration{
