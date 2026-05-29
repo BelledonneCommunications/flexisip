@@ -94,6 +94,14 @@ protected:
 	 */
 	bool shouldDumpModule(const std::string& moduleName) const;
 
+	/**
+	 * @param element section to analyze, element of the configuration tree
+	 * @param level the depth of the section in the configuration tree
+	 * @eturns true if the section contains a parameter that has a value explicitely set or another section that should
+	 * be dumped
+	 */
+	bool shouldDumpDeprecatedSection(const GenericStruct* element, int level) const;
+
 private:
 	std::ostream& dump_recursive(std::ostream& ostr, const GenericEntry* root, unsigned int level) const;
 

@@ -72,6 +72,10 @@ Group changes to describe their impact on the project, as follows:
   while the main loop notification interval is set via the global parameter `watchdog-notify-interval`. Flexisip now
   uses `Restart=on-failure` in its SystemD service units. This ensures that if a service crashes, exits with a non-zero
   status or fails to notify the watchdog before the timeout, SystemD automatically restarts it.
+- **Command line:**
+  - Option "--rewrite-config":
+    - Deprecated parameters that have a value set are dumped.
+    - Deprecated sections are dumped if they contain a parameter that should be dumped.
 
 ### [Deprecated]
 - **Global:** Parameter `global/auto-respawn` no longer has any effect.
