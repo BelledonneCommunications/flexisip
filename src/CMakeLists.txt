@@ -105,6 +105,10 @@ add_library(flexisip
 	utils/process-monitoring/memory-watcher.cc utils/process-monitoring/memory-watcher.hh
 )
 
+if(KEEP_DEPRECATED_CONFERENCE_CONFIG)
+	target_sources(flexisip PRIVATE conference/deprecated-config.cc)
+endif()
+
 if(ENABLE_OPENID_CONNECT)
 	target_sources(flexisip PRIVATE
 		auth/bearer-auth.cc auth/bearer-auth.hh

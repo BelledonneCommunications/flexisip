@@ -98,6 +98,7 @@ option(ENABLE_COVERAGE "Enable flexisip clang test coverage reports (add instrum
 option(INTERNAL_LIBSRTP2 "Build SRTP2 source code present as linphone-sdk submodule instead of searching it in system libraries" ON)
 option(INTERNAL_JSONCPP "Build and use vendored Jsoncpp source code instead of searching for it in system libraries" OFF)
 option(ENABLE_VOICEMAIL "Build with voicemail server support" ON)
+option(KEEP_DEPRECATED_CONFERENCE_CONFIG "Keep the parameters of the conference server for compatibility with old configuration files (<2.6)" ON)
 
 cmake_dependent_option(INTERNAL_LIBHIREDIS "Build libhiredis source code present as Flexisip submodule instead of searching it in system libraries" OFF "ENABLE_REDIS" OFF)
 cmake_dependent_option(ENABLE_REDIS_TLS "Enable TLS connections with Redis servers. Libhiredis may need to be compiled internally, depending on the version of the library available on your system" ON "ENABLE_REDIS" OFF)
