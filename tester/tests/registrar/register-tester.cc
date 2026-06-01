@@ -1056,7 +1056,7 @@ void portHijackingProtection() {
 
 	// However, we still try to register several times as the port may still be already taken.
 	unique_ptr<Client> unexpectedCallee{};
-	for (auto attempts = 0; attempts < 4; ++attempts) {
+	for (auto attempts = 0; attempts < 5; ++attempts) {
 		auto candidate = make_unique<Client>("unexpected-callee");
 		candidate->mClient->setBindPort(portUsedByCallee);
 		CoreAssert attemptAsserter{proxy.getRoot()};
@@ -1065,6 +1065,8 @@ void portHijackingProtection() {
 			break;
 		}
 	}
+
+	BC_HARD_ASSERT_NOT_NULL(unexpectedCallee);
 
 	BC_ASSERT_CPP_NOT_EQUAL(portUsedByCallee, 0);
 	BC_ASSERT_CPP_EQUAL(portUsedByCallee, portUsedByUnexpectedCallee);
