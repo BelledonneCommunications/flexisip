@@ -494,12 +494,18 @@ void B2buaServer::onMessageWaitingIndicationChanged(
 
 	// Modify the MWI content so that its Message-Account is mapped according to the account mapping of the sip
 	// provider.
-	auto newMwi = mwi->clone();
+	const auto newMwi = mwi->clone();
 	newMwi->setAccountAddress(core->createAddress(subscriber.str()));
-	auto content = newMwi->toContent();
-	auto resource = core->createAddress(subscriber.str());
-	auto legAEvent = core->createNotify(resource, "message-summary");
-	legAEvent->notify(content);
+	const auto content = newMwi->toContent();
+	const auto nbNewUrgent = newMwi->getNbNewUrgent();
+	const auto nbNew = newMwi->getNbNew();
+	if (mEventMwiCounters.contains(legBEvent) &&
+	    (nbNewUrgent > mEventMwiCounters[legBEvent].nbNewUrgent || (nbNew > mEventMwiCounters[legBEvent].nbNew))) {
+		const auto resource = core->createAddress(subscriber.str());
+		const auto legAEvent = core->createNotify(resource, "message-summary");
+		legAEvent->notify(content);
+	}
+	mEventMwiCounters[legBEvent] = {.nbNewUrgent = nbNewUrgent, .nbNew = nbNew};
 }
 
 /**
@@ -542,8 +548,13 @@ void B2buaServer::onSubscribeStateChanged(const std::shared_ptr<linphone::Event>
 				return;
 			}
 			peerEvent->terminate();
-			const auto peerEventEntry = mPeerEvents.find(peerEvent);
-			if (peerEventEntry != mPeerEvents.cend()) mPeerEvents.erase(peerEventEntry);
+			if (const auto peerEventEntry = mPeerEvents.find(peerEvent); peerEventEntry != mPeerEvents.cend()) {
+				mPeerEvents.erase(peerEventEntry);
+			}
+			if (const auto peerEventMwiCounters = mEventMwiCounters.find(peerEvent);
+			    peerEventMwiCounters != mEventMwiCounters.cend()) {
+				mEventMwiCounters.erase(peerEventMwiCounters);
+			}
 			mPeerEvents.erase(eventEntry);
 		}
 	} else {

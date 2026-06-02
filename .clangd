@@ -1,4 +1,17 @@
 Diagnostics:
+    ClangTidy:
+        Add:
+            - bugprone*
+            - misc-unused-parameters
+            - modernize*
+            - readability*
+        Remove:
+            - modernize-use-trailing-return-type
+            - readability-function-cognitive-complexity
+            - readability-identifier-length
     UnusedIncludes: Strict
 InlayHints:
-    Designators: No
+    Designators: false
+    DefaultArguments: true
+CompileFlags:
+    CompilationDatabase: build/

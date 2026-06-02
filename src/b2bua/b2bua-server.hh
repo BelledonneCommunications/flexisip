@@ -117,6 +117,11 @@ private:
 		bool isLegA;
 	};
 
+	struct MwiCounters {
+		uint32_t nbNewUrgent;
+		uint32_t nbNew;
+	};
+
 	/**
 	 * @brief Retrieve peer call that is linked to the given call.
 	 *
@@ -138,6 +143,7 @@ private:
 	std::shared_ptr<b2bua::B2buaCore> mCore;
 	std::unordered_map<std::shared_ptr<linphone::Call>, std::weak_ptr<linphone::Call>> mPeerCalls;
 	std::unordered_map<std::shared_ptr<linphone::Event>, EventInfo> mPeerEvents;
+	std::unordered_map<std::shared_ptr<linphone::Event>, MwiCounters> mEventMwiCounters;
 	std::unique_ptr<b2bua::Application> mApplication = nullptr;
 	const std::string mLogPrefix{"B2buaServer"};
 };

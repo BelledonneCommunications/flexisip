@@ -21,6 +21,25 @@
 
 namespace flexisip::tester {
 
+void MwiListener::notifyMwi(const std::shared_ptr<linphone::Core>& core,
+                            const std::shared_ptr<linphone::Event>& linphoneEvent,
+                            const uint32_t nbNew,
+                            const uint32_t nbOld,
+                            const uint32_t nbUrgentNew,
+                            const uint32_t nbUrgentOld) {
+	auto mwi_stream = std::ostringstream();
+	mwi_stream << "Messages-Waiting: yes\r\n"
+	           << "Message-Account: " << linphoneEvent->getFromAddress()->asStringUriOnly() << "\r\n"
+	           << "Voice-Message: " << nbNew << "/" << nbOld << " (" << nbUrgentNew << "/" << nbUrgentOld << ")\r\n";
+	const std::string mwi = mwi_stream.str();
+
+	const auto content = core->createContent();
+	content->setType("application");
+	content->setSubtype("simple-message-summary");
+	content->setBuffer(reinterpret_cast<const uint8_t*>(mwi.c_str()), mwi.size());
+	linphoneEvent->notify(content);
+}
+
 void MwiListener::onSubscribeReceived(const std::shared_ptr<linphone::Core>& core,
                                       const std::shared_ptr<linphone::Event>& linphoneEvent,
                                       const std::string& subscribeEvent,
@@ -29,17 +48,11 @@ void MwiListener::onSubscribeReceived(const std::shared_ptr<linphone::Core>& cor
 	linphoneEvent->acceptSubscription();
 
 	if (subscribeEvent == "message-summary") {
-		auto mwi_stream = std::ostringstream();
-		mwi_stream << "Messages-Waiting: yes\r\n"
-		           << "Message-Account: " << linphoneEvent->getFromAddress()->asStringUriOnly() << "\r\n"
-		           << "Voice-Message: 4/8 (1/2)\r\n";
-		std::string mwi = mwi_stream.str();
-
-		auto content = core->createContent();
-		content->setType("application");
-		content->setSubtype("simple-message-summary");
-		content->setBuffer(reinterpret_cast<const uint8_t*>(mwi.c_str()), mwi.size());
-		linphoneEvent->notify(content);
+		// Send 2 NOTIFY messages here, because the first will not be forwarded by the B2BUA. It is used to initialize
+		// the mechanism to prevent sending out-of-dialog NOTIFY to the client with a push notification if the number
+		// of new messages in the MWI has not been incremented.
+		notifyMwi(core, linphoneEvent, 4, 8, 1, 2);
+		notifyMwi(core, linphoneEvent, 5, 8, 1, 2);
 	}
 }
 

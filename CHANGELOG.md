@@ -42,6 +42,14 @@ Group changes to describe their impact on the project, as follows:
   - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,
     `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global/domains-configuration` instead.
 
+## [2.6.2] - Hotfix
+- **SDK version:** 5.5.7
+
+### [Added]
+- **B2BUA:** Do not forward an out-of-dialog NOTIFY when an MWI is notified but the new and new-urgent message 
+  counters have not been incremented, therefore preventing a push notification to be sent and waking a client for a
+  useless information.
+
 ## [2.6.1] - 2026-07-30
 - **SDK version:** 5.5.7
 
