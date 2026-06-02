@@ -14,6 +14,14 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.6.2] - Hotfix
+- **SDK version:** 5.5.7
+
+### [Added]
+- **B2BUA:** Do not forward an out-of-dialog NOTIFY when an MWI is notified but the new and new-urgent message
+  counters have not been incremented, therefore preventing a push notification to be sent and waking a client for a
+  useless information.
+
 ## [2.6.1] - 2026-07-30
 - **SDK version:** 5.5.7
 

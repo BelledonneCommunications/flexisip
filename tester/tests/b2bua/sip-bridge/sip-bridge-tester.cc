@@ -1993,7 +1993,7 @@ void mwiB2buaSubscription() {
 	        [&subscriberMwiListener] {
 		        const MwiCoreStats& stats = subscriberMwiListener->getStats();
 		        FAIL_IF(stats.nbMwiReceived != 1);
-		        FAIL_IF(stats.nbNewMWIVoice != 4);
+		        FAIL_IF(stats.nbNewMWIVoice != 5);
 		        FAIL_IF(stats.nbOldMWIVoice != 8);
 		        FAIL_IF(stats.nbNewUrgentMWIVoice != 1);
 		        FAIL_IF(stats.nbOldUrgentMWIVoice != 2);

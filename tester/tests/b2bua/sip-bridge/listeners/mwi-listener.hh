@@ -67,6 +67,13 @@ private:
 	onMessageWaitingIndicationChanged(const std::shared_ptr<linphone::Account>& account,
 	                                  const std::shared_ptr<const linphone::MessageWaitingIndication>& mwi) override;
 
+	void notifyMwi(const std::shared_ptr<linphone::Core>& core,
+	               const std::shared_ptr<linphone::Event>& linphoneEvent,
+	               uint32_t nbNew,
+	               uint32_t nbOld,
+	               uint32_t nbUrgentNew,
+	               uint32_t nbUrgentOld);
+
 	MwiCoreStats mStats;
 };
 
