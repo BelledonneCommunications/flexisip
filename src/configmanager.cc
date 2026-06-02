@@ -961,6 +961,13 @@ ConfigManager::ConfigManager()
 	        "3600",
 	    },
 	    {
+	        DurationMS,
+	        "connection-establishment-timeout",
+	        "Time interval after which connections that are being established are closed (connection attempts is "
+	        "aborted). Set to 0 to disable.",
+	        "60s",
+	    },
+	    {
 	        DurationS,
 	        "keepalive-interval",
 	        "Time interval for sending \"\\r\\n\\r\\n\" keepalive packets on inbound and outbound connections.\n"

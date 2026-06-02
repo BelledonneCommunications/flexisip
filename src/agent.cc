@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <sstream>
 
@@ -441,7 +442,9 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	string ciphers = global->get<ConfigString>("tls-ciphers")->read();
 	// sofia needs a value in milliseconds.
-	auto tports_idle_timeout = global->get<ConfigDuration<chrono::seconds>>("idle-timeout")->read().count();
+	auto tportsIdleTimeout = global->get<ConfigDuration<chrono::seconds>>("idle-timeout")->read().count();
+	auto tportsConnectionTimeout =
+	    global->get<ConfigDuration<chrono::milliseconds>>("connection-establishment-timeout")->read().count();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	auto t1x64 = global->get<ConfigDuration<chrono::milliseconds>>("transaction-timeout")->read().count();
 	int udpmtu = global->get<ConfigInt>("udp-mtu")->read();
@@ -523,9 +526,10 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				err = nta_agent_add_tport(
 				    mAgent, reinterpret_cast<const url_string_t*>(url.get()), TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()),
 				    TPTAG_TLS_CIPHERS(ciphers.c_str()), TPTAG_TLS_VERIFY_POLICY(tls_policy),
-				    TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-				    TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize),
-				    TPTAG_SERVER(0), TPTAG_PUBLIC(tport_type_client), TAG_END());
+				    TPTAG_IDLE(tportsIdleTimeout), TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout),
+				    TPTAG_TIMEOUT(incompleteIncomingMessageTimeout), TPTAG_KEEPALIVE(keepAliveInterval),
+				    TPTAG_SDWN_ERROR(1), TPTAG_QUEUESIZE(queueSize), TPTAG_SERVER(0), TPTAG_PUBLIC(tport_type_client),
+				    TAG_END());
 			} else {
 				finalTlsConfigInfo.certifFile = absolutePath(currDir, finalTlsConfigInfo.certifFile);
 				finalTlsConfigInfo.certifPrivateKey = absolutePath(currDir, finalTlsConfigInfo.certifPrivateKey);
@@ -536,8 +540,9 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 				                          TPTAG_CERTIFICATE_PRIVATE_KEY(finalTlsConfigInfo.certifPrivateKey.c_str()),
 				                          TPTAG_CERTIFICATE_CA_FILE(finalTlsConfigInfo.certifCaFile.c_str()),
 				                          TPTAG_TLS_PASSPHRASE(mPassphrase.c_str()), TPTAG_TLS_CIPHERS(ciphers.c_str()),
-				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
+				                          TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tportsIdleTimeout),
 				                          TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+				                          TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout),
 				                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
 				                          TPTAG_QUEUESIZE(queueSize), TPTAG_NETWORK(networkParameter.c_str()),
 				                          TPTAG_SERVER(!isClientTport), TPTAG_PUBLIC(publicTag), TAG_END());
@@ -555,7 +560,8 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 			}
 		} else {
 			err = nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(url.get()),
-			                          TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+			                          TPTAG_IDLE(tportsIdleTimeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+			                          TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout),
 			                          TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1),
 			                          TPTAG_QUEUESIZE(queueSize), TPTAG_NETWORK(networkParameter.c_str()), TAG_END());
 		}
@@ -593,9 +599,10 @@ void Agent::start(const string& transport_override, const string& passphrase) {
 
 	if (mPreferredRouteV4 != nullptr) {
 		if (nta_agent_add_tport(mAgent, reinterpret_cast<const url_string_t*>(mPreferredRouteV4),
-		                        TPTAG_IDLE(tports_idle_timeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
-		                        TPTAG_IDENT(sInternalTransportIdent), TPTAG_KEEPALIVE(keepAliveInterval),
-		                        TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1), TAG_END()) == -1) {
+		                        TPTAG_IDLE(tportsIdleTimeout), TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+		                        TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout), TPTAG_IDENT(sInternalTransportIdent),
+		                        TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_QUEUESIZE(queueSize), TPTAG_SDWN_ERROR(1),
+		                        TAG_END()) == -1) {
 			char prefRouteV4[266];
 			url_e(prefRouteV4, sizeof(prefRouteV4), mPreferredRouteV4);
 			throw runtime_error{"could not enable internal transport "s + prefRouteV4 + ", " + strerror(errno)};

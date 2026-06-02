@@ -15,6 +15,10 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.7.0] - Alpha
+### [Added]
+- **Proxy:**
+  - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
+    that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
 
 ## [2.6.0] - Beta 
 ### [Added]

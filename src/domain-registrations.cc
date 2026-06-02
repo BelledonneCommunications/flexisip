@@ -389,12 +389,14 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 	mPassword = password;
 	mProxy = url_hdup(mHome.home(), parentProxy.get());
 
+	const auto* globalConfig = mManager.mAgent->getConfigManager().getRoot()->get<GenericStruct>("global");
+	const auto tportsConnectionTimeout =
+	    globalConfig->get<ConfigDuration<chrono::milliseconds>>("connection-establishment-timeout")->read().count();
 	const auto transport = parentProxy.getParam("transport");
 	const auto usingTls = parentProxy.get()->url_type == url_sips || strcasecmp(transport.c_str(), "tls") == 0;
 
 	if (usingTls && clientCertConf.mode != TlsMode::NONE) {
-		const auto mainTlsConfigInfo =
-		    Agent::getTlsConfigInfo(mManager.mAgent->getConfigManager().getRoot()->get<GenericStruct>("global"));
+		const auto mainTlsConfigInfo = Agent::getTlsConfigInfo(globalConfig);
 		if (mainTlsConfigInfo == clientCertConf) {
 			// Certs dir is the same as for the existing tport
 			LOGD << "Domain registration certificates are the same as the one for existing tports, let's use them";
@@ -418,7 +420,8 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager& mgr,
 				                    TPTAG_CERTIFICATE_PRIVATE_KEY(clientCertConf.certifPrivateKey.c_str()),
 				                    TPTAG_CERTIFICATE_CA_FILE(clientCertConf.certifCaFile.c_str()),
 				                    TPTAG_TLS_PASSPHRASE(passphrase.c_str()), TPTAG_IDENT(localDomain.c_str()),
-				                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+				                    TPTAG_TLS_VERIFY_POLICY(verifyPolicy),
+				                    TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout), TAG_END());
 
 				tpn.tpn_ident = localDomain.c_str();
 				mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
