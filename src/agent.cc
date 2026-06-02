@@ -210,6 +210,7 @@ void Agent::start(const std::string &transport_override) {
 	list<string> transports = global->get<ConfigStringList>("transports")->read();
 	// sofia needs a value in millseconds.
 	unsigned int tports_idle_timeout = 1000 * (unsigned int)global->get<ConfigInt>("idle-timeout")->read();
+	unsigned int tportsConnectionTimeout = 1000 * (unsigned int)global->get<ConfigInt>("connection-establishment-timeout")->read();
 	bool globalVerifyIn = global->get<ConfigBoolean>("require-peer-certificate")->read();
 	string mainTlsCertsDir = global->get<ConfigString>("tls-certificates-dir")->read();
 	unsigned int t1x64 = (unsigned int)global->get<ConfigInt>("transaction-timeout")->read();
@@ -265,10 +266,12 @@ void Agent::start(const std::string &transport_override) {
 			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_CERTIFICATE(keys.c_str()),
 									  TPTAG_TLS_VERIFY_POLICY(tls_policy), TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+									  TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout),
 									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
 		} else {
 			err = nta_agent_add_tport(mAgent, (const url_string_t *)url, TPTAG_IDLE(tports_idle_timeout),
 									  TPTAG_TIMEOUT(incompleteIncomingMessageTimeout),
+									  TPTAG_CONNECTION_TIMEOUT(tportsConnectionTimeout),
 									  TPTAG_KEEPALIVE(keepAliveInterval), TPTAG_SDWN_ERROR(1), TAG_END());
 		}
 		if (err == -1) {

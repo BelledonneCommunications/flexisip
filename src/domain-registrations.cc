@@ -246,6 +246,7 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 	url_param(parent_proxy->url_params, "transport", transport, sizeof(transport) - 1);
 
 	usingTls = parent_proxy->url_type == url_sips || strcasecmp(transport, "tls") == 0;
+	unsigned int tportConnectionTimeout = 1000 * (unsigned int)GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigInt>("connection-establishment-timeout")->read();
 
 	if (usingTls && !clientCertdir.empty()) {
 		string mainTlsCertsDir = GenericManager::get()->getRoot()->get<GenericStruct>("global")->get<ConfigString>("tls-certificates-dir")->read();
@@ -269,7 +270,8 @@ DomainRegistration::DomainRegistration(DomainRegistrationManager &mgr, const str
 				/* need to add a new tport because we want to use a specific certificate for this connection*/
 				nta_agent_add_tport(agent, (url_string_t *)tportUri, TPTAG_CERTIFICATE(clientCertdir.c_str()),
 									TPTAG_IDENT(localDomain.c_str()),
-									TPTAG_TLS_VERIFY_POLICY(verifyPolicy), TAG_END());
+									TPTAG_TLS_VERIFY_POLICY(verifyPolicy),
+									TPTAG_CONNECTION_TIMEOUT(tportConnectionTimeout), TAG_END());
 				tpn.tpn_ident = localDomain.c_str();
 				mPrimaryTport = tport_by_name(nta_agent_tports(agent), &tpn);
 				if (!mPrimaryTport) {

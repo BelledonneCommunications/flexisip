@@ -821,6 +821,7 @@ GenericManager::GenericManager()
 		 "The setup of agent.pem, and eventually cafile.pem is required for TLS transport to work.",
 		 "/etc/flexisip/tls"},
 		{Integer, "idle-timeout", "Time interval in seconds after which inactive connections are closed.", "3600"},
+		{Integer, "connection-establishment-timeout", "Time interval in seconds after which connections that are being established are closed (connection attempts is aborted). Set to 0 to disable.", "60"},
 		{Boolean, "require-peer-certificate", "Require client certificate from peer (inbound connections only).", "false"},
 		{Integer, "transaction-timeout", "SIP transaction timeout in milliseconds. It is T1*64 (32000 ms) by default.",
 		 "32000"},
