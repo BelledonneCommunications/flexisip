@@ -37,7 +37,8 @@ add_executable(flexisip_tester
 	auth/module-authorization-tester.cc
 	auth/rsa-keys.hh
 	callcontext-mediarelay-tester.cc
-	configmanager-tester.cc
+	config/configdumper-tester.cc
+	config/configmanager-tester.cc
 	eventlogs/events/auth-log-tester.cc
 	eventlogs/events/event-id-tester.cc
 	eventlogs/events/event-log-stats-tester.cc

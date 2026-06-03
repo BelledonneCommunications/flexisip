@@ -291,8 +291,12 @@ static void depthFirstSearch(string& path, const GenericEntry* config, list<stri
 	}
 }
 
-static void dump_config(
-    ConfigManager& cfg, const string& dump_cfg_part, bool with_experimental, bool dumpDefault, const string& format) {
+static void dump_config(ConfigManager& cfg,
+                        const string& dump_cfg_part,
+                        bool with_experimental,
+                        bool dumpDefault,
+                        bool removeAllDeprecated,
+                        const string& format) {
 	cfg.applyOverrides(true);
 	auto* pluginsDirEntry = cfg.getGlobal()->get<ConfigString>("plugins-dir");
 	if (pluginsDirEntry->get().empty()) {
@@ -340,6 +344,7 @@ static void dump_config(
 		throw ExitFailure{"invalid output format '" + format + "'"};
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
+	dumper->setRemoveDeprecated(removeAllDeprecated);
 	dumper->dump(cout);
 }
 
@@ -486,6 +491,10 @@ int flexisip::main(int argc, const char* argv[]) {
                                                                        "to the default value and the default value has "
                                                                        "changed.",
                                                                        cmd);
+	TCLAP::SwitchArg         removeDeprecated("", "remove-deprecated", "When dumping the configuration, remove all "
+                                                                       "deprecated parameters even if they had a value "
+                                                                       "explicitly set.",
+                                                                       cmd);
 	TCLAP::SwitchArg              dumpMibs("",  "dump-mibs", 		   "Dump the MIB files for Flexisip performance "
                                                                        "counters and other related SNMP items in the "
                                                                        "standard output.",
@@ -558,7 +567,7 @@ int flexisip::main(int argc, const char* argv[]) {
 	cfg->setOverrideMap(oset);
 
 	if (const auto module = dumpAll ? "all" : dumpDefault.getValue(); !module.empty()) {
-		dump_config(*cfg, module, displayExperimental, true, dumpFormat.getValue());
+		dump_config(*cfg, module, displayExperimental, true, removeDeprecated, dumpFormat.getValue());
 		return EXIT_SUCCESS;
 	}
 	auto* rootCfg = cfg->getEditableRoot();
@@ -606,7 +615,7 @@ int flexisip::main(int argc, const char* argv[]) {
 	}
 
 	if (rewriteConf) {
-		dump_config(*cfg, "all", displayExperimental, false, "file");
+		dump_config(*cfg, "all", displayExperimental, false, removeDeprecated, "file");
 		return EXIT_SUCCESS;
 	}
 
