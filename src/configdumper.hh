@@ -52,7 +52,7 @@ protected:
 	 * @param level When the entry is not the root entry, this represents the current recursive level (>0)
 	 * @return the output stream
 	 */
-	virtual std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const = 0;
+	virtual std::ostream& dumpSectionHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const = 0;
 
 	/**
 	 * When called, we expect the implementation to output into ostr the value description.
@@ -62,7 +62,7 @@ protected:
 	 *		You can use this to perform the necessary indentation into the output stream.
 	 * @return the output stream
 	 */
-	virtual std::ostream& dumpModuleValue(std::ostream& ostr, const ConfigValue* value, int level) const = 0;
+	virtual std::ostream& dumpValue(std::ostream& ostr, const ConfigValue* value, int level) const = 0;
 
 	/**
 	 * @brief Called when the module has finished dumping all the values.
@@ -76,7 +76,7 @@ protected:
 	 * @return the output stream
 	 */
 	virtual std::ostream&
-	dumpModuleEnd(std::ostream& ostr, [[maybe_unused]] const GenericStruct* module, [[maybe_unused]] int level) const {
+	dumpSectionEnd(std::ostream& ostr, [[maybe_unused]] const GenericStruct* module, [[maybe_unused]] int level) const {
 		return ostr;
 	}
 
@@ -146,8 +146,8 @@ public:
 	}
 
 protected:
-	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
-	std::ostream& dumpModuleValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
+	std::ostream& dumpSectionHead(std::ostream& ostr, const GenericStruct* sectionHead, int level) const override;
+	std::ostream& dumpValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
 
 private:
 	std::ostream& printHelp(std::ostream& os, const std::string& help, const std::string& comment_prefix) const;
@@ -160,8 +160,8 @@ public:
 	TexFileConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
-	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
-	std::ostream& dumpModuleValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
+	std::ostream& dumpSectionHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
+	std::ostream& dumpValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
 
 private:
 	std::string escape(const std::string& strc) const;
@@ -172,8 +172,8 @@ public:
 	DokuwikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
-	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
-	std::ostream& dumpModuleValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
+	std::ostream& dumpSectionHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
+	std::ostream& dumpValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
 };
 
 class MediaWikiConfigDumper : public ConfigDumper {
@@ -181,9 +181,9 @@ public:
 	MediaWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
-	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
-	std::ostream& dumpModuleValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
-	std::ostream& dumpModuleEnd(std::ostream& ostr, const GenericStruct* value, int level) const override;
+	std::ostream& dumpSectionHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
+	std::ostream& dumpValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
+	std::ostream& dumpSectionEnd(std::ostream& ostr, const GenericStruct* value, int level) const override;
 };
 
 class XWikiConfigDumper : public ConfigDumper {
@@ -191,8 +191,8 @@ public:
 	XWikiConfigDumper(GenericEntry* root) : ConfigDumper(root) {}
 
 protected:
-	std::ostream& dumpModuleHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
-	std::ostream& dumpModuleValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
+	std::ostream& dumpSectionHead(std::ostream& ostr, const GenericStruct* moduleHead, int level) const override;
+	std::ostream& dumpValue(std::ostream& ostr, const ConfigValue* value, int level) const override;
 
 	static std::string escape(const std::string& str);
 };
@@ -203,14 +203,14 @@ public:
 	std::ostream& dump(std::ostream& ostr) const override;
 
 protected:
-	std::ostream& dumpModuleHead(std::ostream& ostr,
-	                             [[maybe_unused]] const GenericStruct* moduleHead,
-	                             [[maybe_unused]] int level) const override {
+	std::ostream& dumpSectionHead(std::ostream& ostr,
+	                              [[maybe_unused]] const GenericStruct* moduleHead,
+	                              [[maybe_unused]] int level) const override {
 		return ostr;
 	}
-	std::ostream& dumpModuleValue(std::ostream& ostr,
-	                              [[maybe_unused]] const ConfigValue* value,
-	                              [[maybe_unused]] int level) const override {
+	std::ostream& dumpValue(std::ostream& ostr,
+	                        [[maybe_unused]] const ConfigValue* value,
+	                        [[maybe_unused]] int level) const override {
 		return ostr;
 	}
 
