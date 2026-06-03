@@ -84,6 +84,8 @@ void mixedEncryption(const string& marieName,
 	auto marie = builder.build(marieName);
 	auto pauline = builder.build(paulineName);
 
+	CoreAssert asserter{server, marie, pauline};
+
 	// Establish an audio (and video if enabled) call using given encryption.
 	{
 		// Marie (caller) calls Pauline (callee).
@@ -96,10 +98,19 @@ void mixedEncryption(const string& marieName,
 		const auto marieCall = marie.call(pauline, marieCallParams);
 		BC_HARD_ASSERT(marieCall != nullptr);
 
+		// Give time for the encryption mechanism
+		asserter
+		    .waitUntil(3s,
+		               [&marie, marieEncryption, &pauline, paulineEncryption] {
+			               const auto marieStats = marie.getCurrentCall()->getStats(linphone::StreamType::Audio);
+			               const auto paulineStats = pauline.getCurrentCall()->getStats(linphone::StreamType::Audio);
+			               return marieStats->getSrtpSource() == marieEncryption &&
+			                      paulineStats->getSrtpSource() == paulineEncryption;
+		               })
+		    .assert_passed();
+
 		const auto marieStats = marie.getCurrentCall()->getStats(linphone::StreamType::Audio);
 		const auto paulineStats = pauline.getCurrentCall()->getStats(linphone::StreamType::Audio);
-		BC_HARD_ASSERT_ENUM_EQUAL(marieStats->getSrtpSource(), marieEncryption);
-		BC_HARD_ASSERT_ENUM_EQUAL(paulineStats->getSrtpSource(), paulineEncryption);
 		if (expectedMarieSuite != linphone::SrtpSuite::Invalid) {
 			BC_HARD_ASSERT_ENUM_EQUAL(marieStats->getSrtpSuite(), expectedMarieSuite);
 		}
@@ -125,11 +136,22 @@ void mixedEncryption(const string& marieName,
 		const auto marieCall = marie.call(pauline, marieCallParams);
 		BC_HARD_ASSERT(marieCall != nullptr);
 
+		// Give time for the encryption mechanism
+		asserter
+		    .waitUntil(3s,
+		               [&marieCall, marieEncryption, &pauline, paulineEncryption] {
+			               if (!pauline.getCurrentCall().has_value()) {
+				               return false;
+			               }
+			               const auto paulineCall = ClientCall::getLinphoneCall(pauline.getCurrentCall().value());
+			               auto marieStats = marieCall->getStats(linphone::StreamType::Audio);
+			               auto paulineStats = paulineCall->getStats(linphone::StreamType::Audio);
+			               return marieStats->getSrtpSource() == marieEncryption &&
+			                      paulineStats->getSrtpSource() == paulineEncryption;
+		               })
+		    .assert_passed();
+
 		const auto paulineCall = ClientCall::getLinphoneCall(pauline.getCurrentCall().value());
-		auto marieStats = marieCall->getStats(linphone::StreamType::Audio);
-		auto paulineStats = paulineCall->getStats(linphone::StreamType::Audio);
-		BC_HARD_ASSERT_ENUM_EQUAL(marieStats->getSrtpSource(), marieEncryption);
-		BC_HARD_ASSERT_ENUM_EQUAL(paulineStats->getSrtpSource(), paulineEncryption);
 		BC_HARD_ASSERT(!marieCall->getCurrentParams()->videoEnabled());
 		BC_HARD_ASSERT(!paulineCall->getCurrentParams()->videoEnabled());
 
@@ -138,20 +160,30 @@ void mixedEncryption(const string& marieName,
 		marieCallParams->enableVideo(true);
 		BC_HARD_ASSERT(marie.callUpdate(pauline, marieCallParams));
 
-		marieStats = marieCall->getStats(linphone::StreamType::Audio);
-		paulineStats = paulineCall->getStats(linphone::StreamType::Audio);
-		BC_HARD_ASSERT_ENUM_EQUAL(marieStats->getSrtpSource(), marieEncryption);
-		BC_HARD_ASSERT_ENUM_EQUAL(paulineStats->getSrtpSource(), paulineEncryption);
+		asserter
+		    .waitUntil(3s,
+		               [&marieCall, marieEncryption, &paulineCall, paulineEncryption] {
+			               auto marieStats = marieCall->getStats(linphone::StreamType::Audio);
+			               auto paulineStats = paulineCall->getStats(linphone::StreamType::Audio);
+			               return marieStats->getSrtpSource() == marieEncryption &&
+			                      paulineStats->getSrtpSource() == paulineEncryption;
+		               })
+		    .assert_passed();
 
 		// Update call to remove video.
 		// The callUpdate checks that video is disabled.
 		marieCallParams->enableVideo(false);
 		BC_HARD_ASSERT(marie.callUpdate(pauline, marieCallParams));
 
-		marieStats = marieCall->getStats(linphone::StreamType::Audio);
-		paulineStats = paulineCall->getStats(linphone::StreamType::Audio);
-		BC_HARD_ASSERT_ENUM_EQUAL(marieStats->getSrtpSource(), marieEncryption);
-		BC_HARD_ASSERT_ENUM_EQUAL(paulineStats->getSrtpSource(), paulineEncryption);
+		asserter
+		    .waitUntil(3s,
+		               [&marieCall, marieEncryption, &paulineCall, paulineEncryption] {
+			               auto marieStats = marieCall->getStats(linphone::StreamType::Audio);
+			               auto paulineStats = paulineCall->getStats(linphone::StreamType::Audio);
+			               return marieStats->getSrtpSource() == marieEncryption &&
+			                      paulineStats->getSrtpSource() == paulineEncryption;
+		               })
+		    .assert_passed();
 
 		BC_HARD_ASSERT(marie.endCurrentCall(pauline));
 	}
