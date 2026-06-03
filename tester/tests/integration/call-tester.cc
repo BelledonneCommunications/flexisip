@@ -138,8 +138,10 @@ CallTestContext&& basicCallTemplate(CallTestContext&& ctx) {
 
 	// Assert the call is running fine.
 	CallAssert<>::CallAssertionInfoList callStates = {
-	    {*callerCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
-	    {*ctx.answeringCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
+	    {*callerCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState,
+	     ctx.params.videoCall == OnOff::On},
+	    {*ctx.answeringCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState,
+	     ctx.params.videoCall == OnOff::On},
 	};
 	for (const auto& otherDevicesCall : ctx.otherDevicesCalls) {
 		callStates.push_back({otherDevicesCall, linphone::Call::State::Released, CallAssert<>::kNoMedia});
@@ -222,8 +224,10 @@ CallTestContext&& cancelCallUpdateTemplate(CallTestContext&& ctx) {
 	// Assert the call is running fine.
 	CallAssert{ctx.asserter}
 	    .waitUntil({
-	        {*callerCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
-	        {*calleeCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState},
+	        {*callerCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState,
+	         ctx.params.videoCall == OnOff::On},
+	        {*calleeCall, linphone::Call::State::StreamsRunning, ctx.params.inCallMediaState,
+	         ctx.params.videoCall == OnOff::On},
 	    })
 	    .hard_assert_passed();
 

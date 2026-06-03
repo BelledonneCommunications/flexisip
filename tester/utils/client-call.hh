@@ -114,9 +114,11 @@ public:
 	assertOnState(linphone::Call::State state, linphone::MediaDirection audio, linphone::MediaDirection video) const;
 
 	linphone::Status accept() const;
+	linphone::Status acceptWithParams(const std::shared_ptr<linphone::CallParams>& params) const;
 	linphone::Status acceptEarlyMedia() const;
 	linphone::Status
 	update(const std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)>&) const;
+	linphone::Status update(const std::shared_ptr<linphone::CallParams>& params) const;
 	linphone::Status pause() const;
 	linphone::Status resume() const;
 	linphone::Status transferTo(const std::shared_ptr<linphone::Address>& referToAddress) const;
@@ -140,6 +142,7 @@ public:
 	void takeRtpStatsSnapshot() const;
 	RtpStats getRtpStatsSnapshot() const;
 
+	std::shared_ptr<const linphone::CallParams> getCurrentParams() const;
 	linphone::MediaDirection getAudioDirection() const;
 	std::shared_ptr<linphone::CallStats> getAudioStats() const;
 	std::optional<rtp_stats> getAudioRtpStats() const;

@@ -81,6 +81,8 @@ void basicCall() {
 	auto marie = builder.build("sip:marie@sip.example.org");
 	BC_ASSERT_PTR_NOT_NULL(marie.getAccount());
 
+	CoreAssert asserter{server, marie, pauline};
+
 	// Marie calls pauline with default call params.
 	marie.call(pauline);
 	// Will fail if there is no current call.
@@ -92,10 +94,14 @@ void basicCall() {
 	const auto marieCall = marie.call(pauline, callParams);
 	BC_HARD_ASSERT(marieCall != nullptr);
 
-	BC_ASSERT_TRUE(marieCall->getCurrentParams()->getMediaEncryption() == linphone::MediaEncryption::ZRTP);
-	BC_ASSERT_ENUM_EQUAL(
-	    ClientCall::getLinphoneCall(pauline.getCurrentCall().value())->getCurrentParams()->getMediaEncryption(),
-	    linphone::MediaEncryption::ZRTP);
+	asserter
+	    .waitUntil(3s,
+	               [marieCall, &pauline] {
+		               return marieCall->getCurrentParams()->getMediaEncryption() == linphone::MediaEncryption::ZRTP &&
+		                      pauline.getCurrentCall().value().getCurrentParams()->getMediaEncryption() ==
+		                          linphone::MediaEncryption::ZRTP;
+	               })
+	    .assert_passed();
 	BC_HARD_ASSERT(marie.endCurrentCall(pauline));
 
 	// Marie calls with video pauline with default call params.
@@ -225,14 +231,12 @@ void basicCallOnHoldThenResume() {
 	    {"module::MediaRelay/enabled", "false"},
 	}};
 
-	CallAssertionInfo::MediaStateList sentReceivedStatus{};
+	CallAssertionInfo::MediaStateListBuilder sentReceivedStatusBuilder{};
 	if constexpr (sendRecvAudio == OnOff::On) {
-		sentReceivedStatus.insert(sentReceivedStatus.end(), CallAssert<>::kAudioSentReceived.begin(),
-		                          CallAssert<>::kAudioSentReceived.end());
+		sentReceivedStatusBuilder.add(CallAssert<>::kAudioSentReceived);
 	}
 	if constexpr (sendRecvVideo == OnOff::On) {
-		sentReceivedStatus.insert(sentReceivedStatus.end(), CallAssert<>::kVideoSentReceived.begin(),
-		                          CallAssert<>::kVideoSentReceived.end());
+		sentReceivedStatusBuilder.add(CallAssert<>::kVideoSentReceived);
 	}
 
 	ClientBuilder builder{*B2buaAndProxy.getAgent()};
@@ -259,8 +263,8 @@ void basicCallOnHoldThenResume() {
 
 	callAsserter
 	    .waitUntil({
-	        {*callerCall, Call::State::StreamsRunning, sentReceivedStatus},
-	        {*calleeCall, Call::State::StreamsRunning, sentReceivedStatus},
+	        {*callerCall, Call::State::StreamsRunning, sentReceivedStatusBuilder.get()},
+	        {*calleeCall, Call::State::StreamsRunning, sentReceivedStatusBuilder.get()},
 	    })
 	    .hard_assert_passed();
 
@@ -292,8 +296,8 @@ void basicCallOnHoldThenResume() {
 
 	callAsserter
 	    .waitUntil({
-	        {*callerCall, Call::State::StreamsRunning, sentReceivedStatus},
-	        {*calleeCall, Call::State::StreamsRunning, sentReceivedStatus},
+	        {*callerCall, Call::State::StreamsRunning, sentReceivedStatusBuilder.get()},
+	        {*calleeCall, Call::State::StreamsRunning, sentReceivedStatusBuilder.get()},
 	    })
 	    .hard_assert_passed();
 

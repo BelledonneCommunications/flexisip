@@ -65,6 +65,10 @@ linphone::Status ClientCall::accept() const {
 	return mCall->accept();
 }
 
+linphone::Status ClientCall::acceptWithParams(const std::shared_ptr<linphone::CallParams>& params) const {
+	return mCall->acceptWithParams(params);
+}
+
 linphone::Status ClientCall::acceptEarlyMedia() const {
 	return mCall->acceptEarlyMedia();
 }
@@ -72,6 +76,10 @@ linphone::Status ClientCall::acceptEarlyMedia() const {
 linphone::Status ClientCall::update(
     const std::function<std::shared_ptr<linphone::CallParams>(std::shared_ptr<linphone::CallParams>&&)>& tweak) const {
 	return mCall->update(tweak(mCall->getCore()->createCallParams(mCall)));
+}
+
+linphone::Status ClientCall::update(const std::shared_ptr<linphone::CallParams>& params) const {
+	return mCall->update(params);
 }
 
 linphone::Status ClientCall::pause() const {
@@ -132,6 +140,10 @@ void ClientCall::takeRtpStatsSnapshot() const {
 
 ClientCall::RtpStats ClientCall::getRtpStatsSnapshot() const {
 	return mRtpStatsSnapshot;
+}
+
+std::shared_ptr<const linphone::CallParams> ClientCall::getCurrentParams() const {
+	return mCall->getCurrentParams();
 }
 
 linphone::MediaDirection ClientCall::getAudioDirection() const {

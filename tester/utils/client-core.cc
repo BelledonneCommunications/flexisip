@@ -23,6 +23,8 @@
 #include "asserts.hh"
 #include "bctoolbox/tester.h"
 #include "client-core.hh"
+
+#include "call-assert.hh"
 #include "core-assert.hh"
 #include "flexisip/module-router.hh"
 #include "linphone++/address.hh"
@@ -40,38 +42,6 @@ using namespace std::chrono;
 using namespace linphone;
 
 namespace flexisip::tester {
-
-namespace {
-
-auto assert_data_transmitted(linphone::Call& calleeCall, linphone::Call& callerCall, bool videoOriginallyEnabled) {
-	return [&calleeCall, &callerCall, videoOriginallyEnabled] {
-		const auto& calleeAudioStats = calleeCall.getAudioStats();
-		FAIL_IF(calleeAudioStats == nullptr);
-		const auto& callerAudioStats = callerCall.getAudioStats();
-		FAIL_IF(callerAudioStats == nullptr);
-		// Check both sides for download and upload
-		FAIL_IF(calleeAudioStats->getDownloadBandwidth() < 10);
-		FAIL_IF(callerAudioStats->getDownloadBandwidth() < 10);
-
-		if (videoOriginallyEnabled) { // Not VideoEnabled() of current call. Callee could have declined
-			FAIL_IF(!calleeCall.getCurrentParams()->videoEnabled());
-			FAIL_IF(!callerCall.getCurrentParams()->videoEnabled());
-			const auto& calleeVideoStats = calleeCall.getVideoStats();
-			FAIL_IF(calleeVideoStats == nullptr);
-			const auto& callerVideoStats = callerCall.getVideoStats();
-			FAIL_IF(callerVideoStats == nullptr);
-			FAIL_IF(calleeVideoStats->getDownloadBandwidth() < 10);
-			FAIL_IF(callerVideoStats->getDownloadBandwidth() < 10);
-		} else {
-			FAIL_IF(callerCall.getCurrentParams()->videoEnabled());
-			FAIL_IF(calleeCall.getCurrentParams()->videoEnabled());
-		}
-
-		return ASSERTION_PASSED();
-	};
-}
-
-} // namespace
 
 std::shared_ptr<linphone::Core> minimalCore() {
 	const auto factory = linphone::Factory::get();
@@ -97,8 +67,7 @@ std::shared_ptr<linphone::Core> minimalCore() {
 }
 
 CoreClient::CoreClient(const std::string& me, const std::shared_ptr<Agent>& agent)
-    : CoreClient(ClientBuilder(*agent).build(me)) {
-}
+    : CoreClient(ClientBuilder(*agent).build(me)) {}
 
 CoreClient::~CoreClient() {
 	if (mAccount != nullptr) {
@@ -157,15 +126,16 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 
 	auto clonedCalleeAddress = calleeAddress->clone();
 	clonedCalleeAddress->removeUriParam("gr");
-	auto callerCall = mCore->inviteAddressWithParams(clonedCalleeAddress, callParams);
 
-	if (callerCall == nullptr) {
-		BC_FAIL("Invite \"" + clonedCalleeAddress->asString() + "\" failed");
+	const auto callerCall = ClientCall::tryFrom(mCore->inviteAddressWithParams(clonedCalleeAddress, callParams));
+	if (!BC_ASSERT(callerCall.has_value())) {
 		return nullptr;
 	}
 
 	CoreAssert asserter{mCore, mAgent, callee.mCore, callee.mAgent};
 	CoreAssert idleAsserter{mCore, mAgent, callee.mCore, callee.mAgent};
+	CallAssert callAsserter{asserter};
+
 	for (const auto& calleeDevice : calleeIdleDevices) {
 		idleAsserter.registerSteppable(calleeDevice);
 	}
@@ -196,17 +166,17 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		}
 	}
 
-	const auto calleeCall = callee.mCore->getCurrentCall();
-	if (calleeCall == nullptr) {
-		BC_FAIL("No call received");
+	const auto calleeCall = ClientCall::tryFrom(callee.mCore->getCurrentCall());
+	if (!BC_ASSERT(calleeCall.has_value())) {
 		return nullptr;
 	}
 
-	if (!asserter
-	         .wait([&callerCall] {
-		         FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
-		         return ASSERTION_PASSED();
-	         })
+	if (!callAsserter
+	         .waitUntil(
+	             {
+	                 {*callerCall, Call::State::OutgoingRinging},
+	             },
+	             5s)
 	         .assert_passed()) {
 		return nullptr;
 	}
@@ -216,16 +186,40 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		return nullptr;
 	};
 
-	if (!asserter
-	         .waitUntil(5s,
-	                    [&calleeCall, &callerCall] {
-		                    FAIL_IF(callerCall->getState() != linphone::Call::State::StreamsRunning);
-		                    FAIL_IF(calleeCall->getState() != linphone::Call::State::StreamsRunning);
-		                    return ASSERTION_PASSED();
-	                    })
+	CallAssertionInfo::MediaStateListBuilder callerMediaStateBuilder{};
+	CallAssertionInfo::MediaStateListBuilder calleeMediaStateBuilder{};
+	if (callParams->videoEnabled()) {
+		callerMediaStateBuilder.add(CallAssert<>::kVideoSentReceived);
+		calleeMediaStateBuilder.add(CallAssert<>::kVideoSentReceived);
+	} else {
+		callerMediaStateBuilder.add(CallAssert<>::kNoVideo);
+		calleeMediaStateBuilder.add(CallAssert<>::kNoVideo);
+	}
+	struct CallAsserterExpectedValues {
+		Call::State callerState = Call::State::StreamsRunning;
+		Call::State calleeState = Call::State::StreamsRunning;
+		CallAssertionInfo::MediaStateList callerMediaStateList = CallAssert<>::kAudioSentReceived;
+		CallAssertionInfo::MediaStateList calleeMediaStateList = CallAssert<>::kAudioSentReceived;
+	};
+	struct CallAsserterExpectedValues expectedValues{};
+	if (calleeCallParams && calleeCallParams->getAudioDirection() == linphone::MediaDirection::Inactive) {
+		expectedValues.callerState = Call::State::PausedByRemote;
+		expectedValues.calleeState = Call::State::StreamsRunning;
+		expectedValues.callerMediaStateList = CallAssert<>::kNoAudio;
+		expectedValues.calleeMediaStateList = CallAssert<>::kNoAudio;
+	}
+	callerMediaStateBuilder.add(expectedValues.callerMediaStateList);
+	calleeMediaStateBuilder.add(expectedValues.calleeMediaStateList);
+	if (!callAsserter
+	         .waitUntil(
+	             {
+	                 {*callerCall, expectedValues.callerState, callerMediaStateBuilder.get(),
+	                  callParams->videoEnabled()},
+	                 {*calleeCall, expectedValues.calleeState, calleeMediaStateBuilder.get(),
+	                  callParams->videoEnabled()},
+	             },
+	             12s)
 	         .assert_passed()) {
-		BC_ASSERT(callerCall->getState() == linphone::Call::State::StreamsRunning);
-		BC_ASSERT(calleeCall->getState() == linphone::Call::State::StreamsRunning);
 		return nullptr;
 	}
 	if (!calleeIdleDevices.empty()) {
@@ -246,12 +240,7 @@ std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
 		}
 	}
 
-	if (!asserter.waitUntil(12s, assert_data_transmitted(*calleeCall, *callerCall, callParams->videoEnabled()))
-	         .assert_passed()) {
-		return nullptr;
-	}
-
-	return callerCall;
+	return ClientCall::getLinphoneCall(callerCall.value());
 }
 
 std::shared_ptr<linphone::Call> CoreClient::call(const CoreClient& callee,
@@ -426,37 +415,43 @@ bool CoreClient::callUpdate(const CoreClient& peer,
 		BC_FAIL("Cannot update call without new call params");
 	}
 
-	const auto selfCall = mCore->getCurrentCall();
-	const auto peerCall = peer.mCore->getCurrentCall();
-	if (selfCall == nullptr || peerCall == nullptr) {
+	const auto selfCall = ClientCall::tryFrom(mCore->getCurrentCall());
+	const auto peerCall = ClientCall::tryFrom(peer.mCore->getCurrentCall());
+	if (!selfCall.has_value() || !peerCall.has_value()) {
 		BC_FAIL("Trying to update a call but at least one participant is not currently engaged in one");
 		return false;
 	}
 
 	CoreAssert asserter{mCore, peer.mCore, mAgent, peer.mAgent};
+	CallAssert callAsserter{asserter};
 	if (externalProxy) {
 		asserter.registerSteppable(externalProxy);
 	}
 
 	// Our peer is set to auto accept the call update so just verify the changes after.
-	selfCall->update(callParams);
+	std::ignore = selfCall->update(callParams);
 	BC_ASSERT(selfCall->getState() == linphone::Call::State::Updating);
-	BC_ASSERT(peerCall->getState() == linphone::Call::State::StreamsRunning);
 
 	// Wait for the update to be concluded
-	if (!asserter
-	         .iterateUpTo(10,
-	                      [&selfCall = *selfCall] {
-		                      FAIL_IF(selfCall.getState() != linphone::Call::State::StreamsRunning);
-		                      return ASSERTION_PASSED();
-	                      })
-	         .assert_passed())
+	CallAssertionInfo::MediaStateListBuilder selfMediaStateBuilder{CallAssert<>::kAudioSentReceived};
+	CallAssertionInfo::MediaStateListBuilder peerMediaStateBuilder{CallAssert<>::kAudioSentReceived};
+	if (callParams->videoEnabled()) {
+		selfMediaStateBuilder.add(CallAssert<>::kVideoSentReceived);
+		peerMediaStateBuilder.add(CallAssert<>::kVideoSentReceived);
+	} else {
+		selfMediaStateBuilder.add(CallAssert<>::kNoVideo);
+		peerMediaStateBuilder.add(CallAssert<>::kNoVideo);
+	}
+	if (!callAsserter
+	         .waitUntil(
+	             {
+	                 {*selfCall, Call::State::StreamsRunning, selfMediaStateBuilder.get(), callParams->videoEnabled()},
+	                 {*peerCall, Call::State::StreamsRunning, peerMediaStateBuilder.get(), callParams->videoEnabled()},
+	             },
+	             12s)
+	         .assert_passed()) {
 		return false;
-	BC_ASSERT(peerCall->getState() == linphone::Call::State::StreamsRunning);
-
-	if (!asserter.waitUntil(12s, assert_data_transmitted(*peerCall, *selfCall, callParams->videoEnabled()))
-	         .assert_passed())
-		return false;
+	}
 
 	return true;
 }
