@@ -68,18 +68,6 @@ bool ConfigDumper::shouldRecurse(const GenericStruct* element, int level) const 
 	return shouldDumpModule(match[1].str());
 }
 
-bool ConfigDumper::shouldDumpDeprecatedSection(const GenericStruct* element, int level) const {
-	for (const auto& child : element->getChildren()) {
-		const auto* childStruct = dynamic_cast<const GenericStruct*>(child.get());
-		const auto* childValue = dynamic_cast<const ConfigValue*>(child.get());
-
-		if (shouldRecurse(childStruct, level) && shouldDumpDeprecatedSection(childStruct, level + 1)) return true;
-		if (childValue && !childValue->isDefault()) return true;
-	}
-
-	return false;
-}
-
 bool ConfigDumper::shouldDumpModule(const string& name) const {
 	// Check if module is activated.
 	auto moduleChain = ModuleInfoManager::get()->getModuleChain();
@@ -89,6 +77,22 @@ bool ConfigDumper::shouldDumpModule(const string& name) const {
 
 	// When the dumpExperimental is activated, we should dump everything
 	return mDumpExperimental ? true : (*it)->getClass() == ModuleClass::Production;
+}
+
+bool ConfigDumper::shouldDumpValue(const ConfigValue* val) const {
+	return (!val->isDeprecated() && !val->getParent()->isDeprecated()) || (!val->isDefault() && !mRemoveDeprecated);
+}
+
+bool ConfigDumper::shouldDumpDeprecatedSection(const GenericStruct* element, int level) const {
+	for (const auto& child : element->getChildren()) {
+		const auto* childStruct = dynamic_cast<const GenericStruct*>(child.get());
+		const auto* childValue = dynamic_cast<const ConfigValue*>(child.get());
+
+		if (shouldRecurse(childStruct, level) && shouldDumpDeprecatedSection(childStruct, level + 1)) return true;
+		if (childValue && !(childValue->isDefault() || mRemoveDeprecated)) return true;
+	}
+
+	return false;
 }
 
 /* FILE CONFIG DUMPER */
@@ -134,7 +138,7 @@ ostream& FileConfigDumper::printHelp(ostream& os, const string& help, const stri
 ostream&
 FileConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
 	if (!val || !val->isExportable()) return ostr;
-	if ((!val->isDeprecated() && !val->getParent()->isDeprecated()) || !val->isDefault()) {
+	if (shouldDumpValue(val)) {
 		printHelp(ostr, val->getHelp(), "#");
 		ostr << "# Default: " << val->getDefault() << endl;
 
@@ -193,7 +197,7 @@ TexFileConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs,
 
 ostream&
 TexFileConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
-	if ((!val->isDeprecated() && !val->getParent()->isDeprecated()) || !val->isDefault()) {
+	if (shouldDumpValue(val)) {
 		ostr << "\\subsubsection{" << escape(val->getName()) << "}" << endl;
 		ostr << escape(val->getHelp()) << endl;
 		ostr << "The default value is ``" << escape(val->getDefault()) << "''." << endl;
@@ -206,7 +210,7 @@ TexFileConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val,
 
 ostream&
 DokuwikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
-	if ((!val->isDeprecated() && !val->getParent()->isDeprecated()) || !val->isDefault()) {
+	if (shouldDumpValue(val)) {
 		// dokuwiki handles line breaks with double backspaces
 		auto help = StringUtils::transform(val->getHelp(), {{'\n', "\\\\ "}, {'`', "'' "}});
 		StringUtils::searchAndReplace(help, ". ", ".\\\\ ");
@@ -249,7 +253,7 @@ MediaWikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* c
 
 ostream&
 MediaWikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
-	if ((!val->isDeprecated() && !val->getParent()->isDeprecated()) || !val->isDefault()) {
+	if (shouldDumpValue(val)) {
 		// MediaWiki handles line breaks with double backspaces
 		auto help = StringUtils::transform(val->getHelp(), {{'\n', "<br/>"}, {'`', "'' "}});
 		StringUtils::searchAndReplace(help, ". ", ".<br/> ");
@@ -293,7 +297,7 @@ XWikiConfigDumper::dumpModuleHead(std::ostream& ostr, const GenericStruct* cs, [
 
 ostream&
 XWikiConfigDumper::dumpModuleValue(std::ostream& ostr, const ConfigValue* val, [[maybe_unused]] int level) const {
-	if ((!val->isDeprecated() && !val->getParent()->isDeprecated()) || !val->isDefault()) {
+	if (shouldDumpValue(val)) {
 		ostr << "|=(% style=\"text-align: center;  vertical-align: middle; border: 1px solid #999\" %)"
 		     << val->getName() << "|(% style=\"text-align: left; border: 1px solid #999\" %)((("
 		     << escape(val->getHelp()) << ")))"

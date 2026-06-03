@@ -52,7 +52,11 @@ Group changes to describe their impact on the project, as follows:
     - `AUTH_CACHE_DELETE`: remove the entry for a specific user
 - **Global:** Parameter `global/watchdog-notify-interval` set the interval between notifications of a flexisip service
   to the watchdog of SystemD.
-- **All servers:** Option `--disable-stdout` in command line to not display the log in standard output.
+- **Command line:**
+    - Option `--disable-stdout`: to not output the log in standard output.
+    - Option `--remove-deprecated`: when dumping the configuration, all deprecated parameters will be removed even if
+      they have a value explicitly set.
+
 
 
 ### [Changed]

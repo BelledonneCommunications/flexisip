@@ -32,6 +32,10 @@ public:
 		mDumpExperimental = enabled;
 	}
 
+	void setRemoveDeprecated(bool enabled) {
+		mRemoveDeprecated = enabled;
+	}
+
 	/**
 	 * Can be overloaded for special handling. We expect the implementation to perform a recursive dump of all childrens
 	 * of the root GenericEntry.
@@ -95,6 +99,12 @@ protected:
 	bool shouldDumpModule(const std::string& moduleName) const;
 
 	/**
+	 * @param val value of a configuration parameter
+	 * @return true if the parameter is not deprecated or if deprecated should be dumped and the value was changed
+	 */
+	bool shouldDumpValue(const ConfigValue* val) const;
+
+	/**
 	 * @param element section to analyze, element of the configuration tree
 	 * @param level the depth of the section in the configuration tree
 	 * @eturns true if the section contains a parameter that has a value explicitely set or another section that should
@@ -108,6 +118,7 @@ private:
 protected:
 	GenericEntry* mRoot = nullptr;
 	bool mDumpExperimental = false;
+	bool mRemoveDeprecated = false;
 };
 
 inline std::ostream& operator<<(std::ostream& ostr, const ConfigDumper& dumper) {
