@@ -20,7 +20,7 @@
 #
 ############################################################################
 
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.25)
 
 # CMP0076 is required to use relative path in target_sources.
 cmake_policy(SET CMP0076 NEW)

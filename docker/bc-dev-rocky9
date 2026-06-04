@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260515_upgrade_to_boost_1_81
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260604_use_provided_cmake
 ###############################################################################
 
 FROM rockylinux:9
@@ -73,12 +73,6 @@ RUN dnf makecache --refresh \
         squid \
  && dnf -y module install redis \
  && dnf -y clean all
-
-# Install CMake 3.22.6
-COPY cmake_install.sh .
-RUN ./cmake_install.sh 3.22.6 \
-	&& rm cmake_install.sh \
-	&& dnf -y remove cmake
 
 # Install boost 1.81 (version available from repo is only 1.75, which is not compatible with GCC 15).
 RUN wget -O boost_1_81_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.81.0/boost_1_81_0.tar.gz/download \

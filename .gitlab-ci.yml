@@ -17,8 +17,8 @@ variables:
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20260430_add_squid_proxy
-  ROCKY_8_IMAGE_VERSION: 20260430_add_squid_proxy
-  ROCKY_9_IMAGE_VERSION: 20260515_upgrade_to_boost_1_81
+  ROCKY_8_IMAGE_VERSION: 20260604_use_provided_cmake
+  ROCKY_9_IMAGE_VERSION: 20260604_use_provided_cmake
   DEBIAN_12_IMAGE_VERSION: 20260430_add_squid_proxy
   DEBIAN_13_IMAGE_VERSION: 20260430_add_squid_proxy
   MINIMAL_IMAGE_VERSION: 20260227_add_systemd

@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260430_add_squid_proxy
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260604_use_provided_cmake
 ###############################################################################
 
 FROM rockylinux/rockylinux:8
@@ -21,7 +21,7 @@ RUN sudo dnf makecache --refresh && dnf -y update
 RUN sudo dnf -y install \
                    bzip2 \
                    ccache \
-                   clang \
+                   clang-20.1.8 \
                    cmake \
                    c-ares-devel \
                    doxygen \
@@ -34,11 +34,10 @@ RUN sudo dnf -y install \
                    libev-devel \
                    libubsan \
                    libuv-devel \
-                   llvm \
                    make \
                    ninja-build \
-                   python3 \
-                   python3-pip \
+                   python3.12 \
+                   python3.12-pip \
                    rpm-build \
                    yasm \
                    zlib-devel \
@@ -74,12 +73,6 @@ RUN sudo dnf -y install \
                &&  dnf -y module install redis:6 \
                &&  dnf -y clean all
 
-# Install CMake 3.22.6
-COPY cmake_install.sh .
-RUN ./cmake_install.sh 3.22.6 \
-	&& rm cmake_install.sh \
-	&& dnf -y remove cmake
-
 # Install libnghttp2_asio 1.39.2
 COPY libnghttp2_asio_install.sh .
 RUN ./libnghttp2_asio_install.sh 1.39.2 && rm libnghttp2_asio_install.sh
@@ -97,7 +90,7 @@ WORKDIR /home/bc
 # This must be done as user 'bc' because python modules are installed in /usr/local/lib when pip is invoked
 # as root, and rpmbuild prevents python from searching its modules in this prefix. Installing with user 'bc' puts
 # the modules in /home/bc/.local/bin.
-RUN python3 -m pip install --user pystache six
+RUN python3.12 -m pip install --user pystache six
 ENV PATH=$PATH:/home/bc/.local/bin
 
 # Load gcc-toolset-14 environment on starting
