@@ -20,12 +20,10 @@
 
 #include <sofia-sip/sip_status.h>
 
-#include "lib/nlohmann-json-3-11-2/json.hpp"
-
 #include "agent.hh"
+#include "auth/domains-store.hh"
 #include "auth/preferred-identity.hh"
 #include "flexiapi/config.hh"
-#include "utils/transport/http/http-message-context.hh"
 #include "utils/transport/http/http2client.hh"
 
 using namespace std;
@@ -35,7 +33,6 @@ using namespace std::string_literals;
 namespace flexisip {
 
 namespace {
-constexpr auto kDynamicDomainPath = "/api/spaces";
 
 constexpr auth_challenger_t kRegistrarChallenger{401, sip_401_Unauthorized, sip_www_authenticate_class,
                                                  sip_authentication_info_class};
@@ -150,63 +147,6 @@ bool isRequestDomainValid(const string& usrDomain,
 }
 } // namespace
 
-ModuleAuthorization::DynamicDomainManager::DynamicDomainManager(const shared_ptr<sofiasip::SuRoot>& root,
-                                                                RestClient&& restClient,
-                                                                chrono::milliseconds delay)
-    : mLogPrefix(sAuthorizationInfo.getLogPrefix()), mFAMClient{std::move(restClient)}, mTimer(root, delay) {
-	mTimer.setForEver([this] { askAccountManager(); });
-	askAccountManager();
-}
-
-void ModuleAuthorization::DynamicDomainManager::askAccountManager() {
-	mFAMClient.get(
-	    kDynamicDomainPath,
-	    [this](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>& rep) {
-		    onAccountManagerResponse(rep);
-	    },
-	    [](const std::shared_ptr<HttpMessage>&) {
-		    LOGE_CTX(sAuthorizationInfo.getLogPrefix(), "onAccountManagerResponseFailure")
-		        << "Received an error while connecting to the account manager, please check your "
-		        << sAuthorizationInfo.getLogPrefix()
-		        << " configuration settings and make sure that the account manager is correctly configured";
-	    });
-}
-
-void ModuleAuthorization::DynamicDomainManager::onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep) {
-	if (rep->getStatusCode() != 200) {
-		LOGE << "Received error " << rep->getStatusCode()
-		     << ", please check your api key validity and that the account manager is running "
-		        "properly";
-		return;
-	}
-
-	try {
-		const auto spaces = nlohmann::json::parse(string(rep->getBody().data(), rep->getBody().size()));
-		if (!spaces.is_array()) {
-			LOGE << "Authorized domains not updated, failed to read spaces";
-			return;
-		}
-
-		constexpr auto domain = "domain"sv;
-		unordered_set<string> authDomains{};
-
-		for (auto i = 0; i < (int)spaces.size(); ++i) {
-			const auto& space = spaces[i];
-			if (!space.contains(domain) || !space[domain].is_string()) {
-				LOGE << "Authorized domains not updated, expect to have a domain in each space";
-				return;
-			}
-			authDomains.emplace(space[domain]);
-		}
-
-		mAuthorizedDomains = authDomains;
-		LOGI << "Authorized domains updated";
-		if (mAuthorizedDomains.empty()) LOGW << "Authorized domains are empty, all requests will be rejected";
-	} catch (const exception& e) {
-		LOGE << "Unexpected error while parsing response: " << e.what();
-	}
-}
-
 ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {}
 
 void ModuleAuthorization::onLoad(const GenericStruct* mc) {
@@ -215,25 +155,25 @@ void ModuleAuthorization::onLoad(const GenericStruct* mc) {
 	if (mc->get<ConfigString>("auth-domains-mode")->read() == "legacy") {
 		auto host = mc->get<ConfigString>("account-manager-host")->read();
 		if (host.empty()) {
-			mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());
+			mDomainsStore = make_unique<StaticDomainsStore>(mc->get<ConfigStringList>("auth-domains")->read());
 			return;
 		}
 		auto port = mc->get<ConfigString>("account-manager-port")->read();
 		auto apiKey = mc->get<ConfigString>("account-manager-api-key")->read();
 		const auto http2Client = Http2Client::make(*getAgent()->getRoot(), host, port);
-		mDomainManager = make_unique<DynamicDomainManager>(getAgent()->getRoot(),
-		                                                   RestClient{http2Client,
-		                                                              HttpHeaders{
-		                                                                  {"accept", "application/json"},
-		                                                                  {"x-api-key"s, apiKey},
-		                                                              }},
-		                                                   refresh);
+		mDomainsStore = make_unique<DynamicDomainsStore>(getAgent()->getRoot(),
+		                                                 RestClient{http2Client,
+		                                                            HttpHeaders{
+		                                                                {"accept", "application/json"},
+		                                                                {"x-api-key"s, apiKey},
+		                                                            }},
+		                                                 refresh);
 	} else if (mc->get<ConfigString>("auth-domains-mode")->read() == "flexiapi") {
-		mDomainManager = make_unique<DynamicDomainManager>(
+		mDomainsStore = make_unique<DynamicDomainsStore>(
 		    getAgent()->getRoot(),
 		    flexiapi::createRestClient(getAgent()->getConfigManager(), getAgent()->getFlexiApiClient()), refresh);
 	} else if (mc->get<ConfigString>("auth-domains-mode")->read() == "static") {
-		mDomainManager = make_unique<StaticDomainManger>(mc->get<ConfigStringList>("auth-domains")->read());
+		mDomainsStore = make_unique<StaticDomainsStore>(mc->get<ConfigStringList>("auth-domains")->read());
 	} else {
 		throw BadConfigurationValue{mc->get<ConfigString>("auth-domains-mode"),
 		                            "expected 'flexiapi', 'static' or 'legacy' (deprecated)"};
@@ -255,7 +195,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
 	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
 
-	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mDomainManager->getAuthorizedDomains())) {
+	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mDomainsStore->getDomains())) {
 		if (sip->sip_request->rq_method == sip_method_ack) {
 			ev->terminateProcessing(); // ACK of 403 response should not be processed further
 			return {};

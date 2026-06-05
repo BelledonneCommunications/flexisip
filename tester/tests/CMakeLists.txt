@@ -34,6 +34,8 @@ add_executable(flexisip_tester
 	auth/auth-domains-tester.cc
 	auth/auth-tls-client-tester.cc
 	auth/auth-trusted-hosts-tester.cc
+	auth/domains-store/shared-tests.cc auth/domains-store/shared-tests.hh
+	auth/domains-store/static-tester.cc
 	auth/module-authorization-tester.cc
 	auth/rsa-keys.hh
 	callcontext-mediarelay-tester.cc
@@ -146,6 +148,7 @@ endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
+		auth/domains-store/dynamic-tester.cc
 		auth/module-authorization-FAM-tester.cc
 		pushnotification/global-push-tester.cc
 		pushnotification/push-notification-tester.cc pushnotification/push-notification-tester.hh

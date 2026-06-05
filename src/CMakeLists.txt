@@ -33,6 +33,7 @@ add_library(flexisip
 	auth/auth-scheme.hh
 	auth/db/authdb-file.cc
 	auth/db/authdb.cc auth/db/authdb.hh
+	auth/domains-store.cc auth/domains-store.hh
 	auth/flexisip-auth-module-base.cc
 	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
 	auth/nonce-store.cc
