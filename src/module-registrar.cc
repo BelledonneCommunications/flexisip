@@ -786,9 +786,10 @@ class OnStaticBindListener : public RegistrarDbListener {
 };
 
 void ModuleRegistrar::readStaticRecords() {
-	if (mStaticRecordsFile.empty())
+	if (mStaticRecordsFile.empty()) {
 		SLOGW << "No static-records-file configured. Nothing to read.";
 		return;
+	}
 	LOGD("Reading static records file");
 
 	su_home_t home;
