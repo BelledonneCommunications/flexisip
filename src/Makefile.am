@@ -73,7 +73,9 @@ thesources= \
 			$(GITVERSION_FILE) \
 			module-redirect.cc module-presence.cc \
 			domain-registrations.cc domain-registrations.hh \
-			utils/threadpool.cc utils/threadpool.hh
+			utils/threadpool.cc utils/threadpool.hh \
+			signal-handling/signal-handling.cc signal-handling/signal-handling.hh \
+			signal-handling/sofia-driven-signal-handler.hh
 
 
 
