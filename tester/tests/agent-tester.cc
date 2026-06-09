@@ -69,20 +69,21 @@ private:
 
 	void testExec() override {
 		// 6060
-		BC_ASSERT_TRUE(mAgent->isUs("localhost", "6060", false)); // hostname
-		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.1", "6060", false)); // resolved ipv4
-		BC_ASSERT_TRUE(mAgent->isUs("::1", "6060", false));       // resolved ipv6
-		BC_ASSERT_TRUE(mAgent->isUs("[::1]", "6060", false));     // resolved ipv6
-		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.2", "6060", false)); // maddr biding
+		BC_ASSERT_TRUE(mAgent->isUs("localhost", "6060", false));  // hostname
+		BC_ASSERT_TRUE(mAgent->isUs("localhost.", "6060", false)); // hostname
+		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.1", "6060", false));  // resolved ipv4
+		BC_ASSERT_TRUE(mAgent->isUs("::1", "6060", false));        // resolved ipv6
+		BC_ASSERT_TRUE(mAgent->isUs("[::1]", "6060", false));      // resolved ipv6
+		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.2", "6060", false));  // maddr binding
 
 		// 6062
-		BC_ASSERT_TRUE(mAgent->isUs("localhost", "6062", false)); // hostname
-		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.1", "6062", false)); // resolved ipv4 or auto biding
-		BC_ASSERT_TRUE(mAgent->isUs("::1", "6062", false));       // resolved ipv6 or auto biding
-		BC_ASSERT_TRUE(mAgent->isUs("[::1]", "6062", false));     // resolved ipv6 or auto biding
+		BC_ASSERT_TRUE(mAgent->isUs("localhost", "6062", false));  // hostname
+		BC_ASSERT_TRUE(mAgent->isUs("localhost.", "6062", false)); // hostname
+		BC_ASSERT_TRUE(mAgent->isUs("127.0.0.1", "6062", false));  // resolved ipv4 or auto binding
+		BC_ASSERT_TRUE(mAgent->isUs("::1", "6062", false));        // resolved ipv6 or auto binding
+		BC_ASSERT_TRUE(mAgent->isUs("[::1]", "6062", false));      // resolved ipv6 or auto binding
 
 		// With aliases
-		BC_ASSERT_TRUE(mAgent->isUs("localhost", "evenWithABadPort", true));
 		BC_ASSERT_TRUE(mAgent->isUs("aRandomAlias", "evenWithABadPort", true));
 		BC_ASSERT_TRUE(mAgent->isUs("8.8.8.8", "evenWithABadPort", true));
 
@@ -92,6 +93,21 @@ private:
 
 		// No match with aliases
 		BC_ASSERT_FALSE(mAgent->isUs("anotherRandomAlias", "6060", true));
+
+		// No match with host in aliases but not the correct port
+		BC_ASSERT_FALSE(mAgent->isUs("localhost", "badPort", true));
+
+		// No match with empty host
+		BC_ASSERT_FALSE(mAgent->isUs("", "6060", true));
+		BC_ASSERT_FALSE(mAgent->isUs(nullptr, "6060", true));
+
+		// No match with empty port (compares with default port) when not checking aliases
+		BC_ASSERT_FALSE(mAgent->isUs("localhost", "", false));
+		BC_ASSERT_FALSE(mAgent->isUs("localhost", nullptr, false));
+
+		// Match with empty port if host is in alias
+		BC_ASSERT_TRUE(mAgent->isUs("localhost", "", true));
+		BC_ASSERT_TRUE(mAgent->isUs("localhost", nullptr, true));
 	}
 
 	TmpDir mTmpDir{"TransportsAndIsUsTest"};

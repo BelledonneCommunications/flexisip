@@ -20,6 +20,11 @@ Group changes to describe their impact on the project, as follows:
   - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
     that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
 
+### [Changed]
+- **Proxy:**
+  - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
+    considered if the URI's port (the URI in the header being compared) matches that transport's port.
+
 ## [2.6.0] - Beta 
 ### [Added]
 - **Proxy:**

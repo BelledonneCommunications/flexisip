@@ -950,9 +950,15 @@ ConfigManager::ConfigManager()
 	    {
 	        StringList,
 	        "aliases",
-	        "List of whitespace separated host names pointing to this machine.\n"
-	        "This is to prevent loops while routing SIP requests.",
-	        "localhost",
+	        "List of whitespace separated host names (IP addresses or domain names) referencing this machine.\n"
+	        "This is to prevent loops while routing SIP requests.\n"
+	        "Insert here host names that are not already 'included' in the 'transports' parameter. For example, if "
+	        "this instance serves 'sip.example.org' but the actual entry in the DNS is sip1.example.org (and that "
+	        "'sip:sip1.example.org' is set in 'transports'), you must set 'sip.example.org' in this parameter.\n"
+	        "For loopback transports, prefer fully qualifying transports instead of setting host names in this "
+	        "parameter. Example: prefer 'sip:localhost:5060;maddr=127.0.0.1' instead of 'sip:127.0.0.1:5060' and "
+	        "setting 'localhost' in this parameter.",
+	        "",
 	    },
 	    {
 	        DurationS,

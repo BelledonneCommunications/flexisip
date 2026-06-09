@@ -105,8 +105,8 @@ public:
 	void incrReplyStat(int status);
 	void sendTrap(const GenericEntry* source, const std::string& msg) const;
 
-	bool isUs(const char* host, const char* port, bool check_aliases) const;
-	bool isUs(const url_t* url, bool check_aliases = true) const;
+	bool isUs(const char* host, const char* port, bool checkAliases) const;
+	bool isUs(const url_t* url, bool checkAliases = true) const;
 	int countUsInVia(sip_via_t* via) const;
 
 	/**

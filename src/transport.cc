@@ -18,14 +18,17 @@
 
 #include <strings.h>
 
-#include "flexisip/module.hh"
-
 #include "modules/module-toolbox.hh"
 #include "transport.hh"
 
 using namespace std;
 
 namespace flexisip {
+
+bool Transport::isSameHost(const string& host) const {
+	return module_toolbox::urlHostMatch(host, mHostname) || module_toolbox::urlHostMatch(host, mAddrBinding) ||
+	       module_toolbox::urlHostMatch(host, mResolvedIpv4) || module_toolbox::urlHostMatch(host, mResolvedIpv6);
+}
 
 bool Transport::is(const string& host, string port) const {
 	if (host.empty()) {
@@ -35,9 +38,7 @@ bool Transport::is(const string& host, string port) const {
 		strcasecmp(mProtocol.c_str(), "tls") == 0 ? port = "5061" : port = "5060";
 	}
 	if (port == mPort) {
-		if (ModuleToolbox::urlHostMatch(host, mHostname) || ModuleToolbox::urlHostMatch(host, mAddrBiding) ||
-		    ModuleToolbox::urlHostMatch(host, mResolvedIpv4) || ModuleToolbox::urlHostMatch(host, mResolvedIpv6))
-			return true;
+		return isSameHost(host);
 	}
 	return false;
 }

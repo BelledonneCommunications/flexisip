@@ -30,15 +30,16 @@ public:
 	          const std::string& protocol,
 	          const std::string& resolvedIpv4,
 	          const std::string& resolvedIpv6,
-	          const std::string& addrBiding)
+	          const std::string& addrBinding)
 	    : mHostname{hostname}, mPort{port}, mProtocol{protocol}, mResolvedIpv4{resolvedIpv4},
-	      mResolvedIpv6{resolvedIpv6}, mAddrBiding{addrBiding} {};
+	      mResolvedIpv6{resolvedIpv6}, mAddrBinding{addrBinding} {};
 	~Transport() = default;
 
+	bool isSameHost(const std::string& host) const;
 	bool is(const std::string& host, std::string port) const;
 
-	const std::string& getAddrBiding() const {
-		return mAddrBiding;
+	const std::string& getAddrBinding() const {
+		return mAddrBinding;
 	}
 
 	const std::string& getHostname() const {
@@ -67,7 +68,7 @@ private:
 	std::string mProtocol{};
 	std::string mResolvedIpv4{};
 	std::string mResolvedIpv6{};
-	std::string mAddrBiding{};
+	std::string mAddrBinding{};
 };
 
 } // namespace flexisip

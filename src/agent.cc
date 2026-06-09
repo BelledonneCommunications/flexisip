@@ -895,31 +895,35 @@ int Agent::countUsInVia(sip_via_t* via) const {
 	return count;
 }
 
-bool Agent::isUs(const char* host, const char* port, bool check_aliases) const {
-	// skip possibly trailing '.' at the end of host
-	char* tmp = nullptr;
-	size_t end;
-	if (host[end = (strlen(host) - 1)] == '.') {
-		tmp = (char*)alloca(end + 1);
-		memcpy(tmp, host, end);
-		tmp[end] = '\0';
-		host = tmp;
-	}
+bool Agent::isUs(const char* host, const char* port, bool checkAliases) const {
+	auto sanitizedHost = string(!host ? "" : host);
+	const auto sanitizedPort = string(!port ? "" : port);
+	// Skip possibly trailing '.' at the end of host.
+	if (!sanitizedHost.empty() && sanitizedHost.back() == '.') sanitizedHost.pop_back();
 
-	if (check_aliases) {
-		/*the checking of aliases ignores the port number, since a domain name in a Route header might resolve to
-		 * multiple ports thanks to SRV records */
-		list<string>::const_iterator it;
+	if (checkAliases) {
 		for (const auto& alias : mAliases) {
-			if (ModuleToolbox::urlHostMatch(host, alias.c_str())) return true;
+			if (!module_toolbox::urlHostMatch(sanitizedHost.data(), alias.c_str())) continue;
+			if (sanitizedPort.empty()) {
+				LOGD << "Match for alias '" << alias << "' and no port specified, considering it as us";
+				return true;
+			}
+			// If alias matches any existing transport host, then the port must also match to consider it as 'us'.
+			const auto transportWhichHostMatchesWithAlias = find_if(
+			    mTransports.begin(), mTransports.end(), [&alias](const auto& t) { return t.isSameHost(alias); });
+			if (transportWhichHostMatchesWithAlias == mTransports.end()) {
+				LOGD << "Match for alias '" << alias << "' but no transport has this host, considering it as us anyway";
+				return true;
+			}
+			if (transportWhichHostMatchesWithAlias->is(alias, sanitizedPort)) {
+				LOGD << "Match for alias '" << alias << "' and port '" << sanitizedPort << "', considering it as us";
+				return true;
+			}
 		}
 	}
 
-	string matchedHost{host == nullptr ? "" : host};
-	string matchedPort{port == nullptr ? "" : port};
-
 	return any_of(mTransports.begin(), mTransports.end(),
-	              [&matchedHost, &matchedPort](const auto& t) { return t.is(matchedHost, matchedPort); });
+	              [&sanitizedHost, &sanitizedPort](const auto& t) { return t.is(sanitizedHost, sanitizedPort); });
 }
 
 sip_via_t* Agent::getNextVia(sip_t* response) const {
@@ -933,13 +937,13 @@ sip_via_t* Agent::getNextVia(sip_t* response) const {
 /**
  * Takes care of an eventual maddr parameter.
  */
-bool Agent::isUs(const url_t* url, bool check_aliases) const {
+bool Agent::isUs(const url_t* url, bool checkAliases) const {
 	char maddr[50];
 	if (mDrm && mDrm->isUs(url)) return true;
 	if (url_param(url->url_params, "maddr", maddr, sizeof(maddr))) {
-		return isUs(maddr, url->url_port, check_aliases);
+		return isUs(maddr, url->url_port, checkAliases);
 	}
-	return isUs(url->url_host, url->url_port, check_aliases);
+	return isUs(url->url_host, url->url_port, checkAliases);
 }
 
 shared_ptr<Module> Agent::findModuleByRole(const std::string& moduleRole) const {
