@@ -1,11 +1,8 @@
 # This is a known leak.
 leak:convert_hostent_to_gaih_addrtuple
 leak:libstdc++.so
-leak:libsqlite3.so
 
-leak:ortp_libc_malloc
 leak:bctbx_libc_malloc
 leak:dblk_alloc
 
 leak:LinphonePrivate
-leak:linphone::Factory::createCoreWithConfig
