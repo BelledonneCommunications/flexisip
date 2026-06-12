@@ -149,9 +149,15 @@ std::shared_ptr<linphone::CallStats> ClientCall::getAudioStats() const {
 std::optional<rtp_stats> ClientCall::getAudioRtpStats() const {
 	const auto callStats = linphone_call_get_audio_stats(mCall->cPtr());
 	if (!callStats) return std::nullopt;
+
 	const auto rtpStats = linphone_call_stats_get_rtp_stats(callStats);
 	if (!rtpStats) return std::nullopt;
-	return *rtpStats;
+
+	auto stats = *rtpStats;
+
+	linphone_call_stats_unref(callStats);
+
+	return stats;
 }
 
 std::shared_ptr<const linphone::PayloadType> ClientCall::getAudioPayloadType() const {
@@ -181,9 +187,15 @@ std::shared_ptr<linphone::CallStats> ClientCall::getVideoStats() const {
 std::optional<rtp_stats> ClientCall::getVideoRtpStats() const {
 	const auto callStats = linphone_call_get_video_stats(mCall->cPtr());
 	if (!callStats) return std::nullopt;
+
 	const auto rtpStats = linphone_call_stats_get_rtp_stats(callStats);
 	if (!rtpStats) return std::nullopt;
-	return *rtpStats;
+
+	auto stats = *rtpStats;
+
+	linphone_call_stats_unref(callStats);
+
+	return stats;
 }
 
 string ClientCall::getCallId() const {
