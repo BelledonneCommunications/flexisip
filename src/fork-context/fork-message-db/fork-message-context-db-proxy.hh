@@ -23,6 +23,7 @@
 #include <string>
 
 #include "fork-context/fork-message-context.hh"
+#include "fork-context/fork-strategy/message-fork-strategy.hh"
 
 #if ENABLE_UNIT_TESTS
 #include "bctoolbox/tester.h"
@@ -44,9 +45,25 @@ public:
 	 */
 	enum class State : uint8_t { IN_DATABASE, IN_MEMORY };
 
-	template <typename... Args>
-	static std::shared_ptr<ForkMessageContextDbProxy> make(Args&&... args) {
-		return std::shared_ptr<ForkMessageContextDbProxy>{new ForkMessageContextDbProxy{std::forward<Args>(args)...}};
+	static std::shared_ptr<ForkMessageContextDbProxy>
+	make(std::unique_ptr<RequestSipEvent>&& event,
+	     sofiasip::MsgSipPriority priority,
+	     bool isRestored,
+	     const std::weak_ptr<ForkContextListener>& forkContextListener,
+	     const std::weak_ptr<InjectorListener>& injectorListener,
+	     const std::weak_ptr<ForkMessageContextSociRepository>& database,
+	     Agent* agent,
+	     const std::shared_ptr<ForkContextConfig>& config,
+	     const std::weak_ptr<StatPair>& forkMessageCounter,
+	     const std::weak_ptr<StatPair>& counter) {
+		auto forkCtx = std::shared_ptr<ForkMessageContextDbProxy>{
+		    new ForkMessageContextDbProxy{priority, forkContextListener, database, agent, config, counter}};
+		if (event != nullptr) {
+			forkCtx->mForkMessage = ForkMessageContext::make(
+			    agent, config, injectorListener, forkCtx, std::move(event), priority, forkMessageCounter,
+			    make_unique<MessageForkStrategy>(MessageKind{*event->getSip(), priority}, isRestored, config));
+		}
+		return forkCtx;
 	}
 
 	static std::shared_ptr<ForkMessageContextDbProxy>
@@ -74,7 +91,7 @@ public:
 	void onNewRegister(const SipUri& dest,
 	                   const std::string& uid,
 	                   const std::shared_ptr<ExtendedContact>& newContact) override;
-	void onCancel(const sofiasip::MsgSip&) override{};
+	void onCancel(const sofiasip::MsgSip&) override {};
 	void onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& event) override;
 	bool isFinished() const override;
 	void tryToSendFinalResponse() override;
@@ -107,15 +124,11 @@ private:
 	/**
 	 * @brief Create a new instance from a request.
 	 */
-	ForkMessageContextDbProxy(std::unique_ptr<RequestSipEvent>&& event,
-	                          sofiasip::MsgSipPriority priority,
-	                          bool isRestored,
+	ForkMessageContextDbProxy(sofiasip::MsgSipPriority priority,
 	                          const std::weak_ptr<ForkContextListener>& forkContextListener,
-	                          const std::weak_ptr<InjectorListener>& injectorListener,
 	                          const std::weak_ptr<ForkMessageContextSociRepository>& database,
 	                          Agent* agent,
 	                          const std::shared_ptr<ForkContextConfig>& config,
-	                          const std::weak_ptr<StatPair>& forkMessageCounter,
 	                          const std::weak_ptr<StatPair>& counter);
 
 	/**

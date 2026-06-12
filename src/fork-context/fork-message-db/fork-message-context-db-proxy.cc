@@ -38,15 +38,11 @@ unsigned int getMaxThreadNumber(const ConfigManager& cfg) {
 
 } // namespace
 
-ForkMessageContextDbProxy::ForkMessageContextDbProxy(std::unique_ptr<RequestSipEvent>&& event,
-                                                     sofiasip::MsgSipPriority priority,
-                                                     bool isRestored,
+ForkMessageContextDbProxy::ForkMessageContextDbProxy(sofiasip::MsgSipPriority priority,
                                                      const std::weak_ptr<ForkContextListener>& forkContextListener,
-                                                     const std::weak_ptr<InjectorListener>& injectorListener,
                                                      const std::weak_ptr<ForkMessageContextSociRepository>& database,
                                                      Agent* agent,
                                                      const std::shared_ptr<ForkContextConfig>& config,
-                                                     const std::weak_ptr<StatPair>& forkMessageCounter,
                                                      const std::weak_ptr<StatPair>& counter)
     : mAgent(agent), mState{State::IN_MEMORY}, mProxyLateTimer{agent->getRoot()}, mCounter{counter},
       mForkContextListener{forkContextListener}, mSavedConfig{config}, mSavedMsgPriority{priority},
@@ -58,11 +54,6 @@ ForkMessageContextDbProxy::ForkMessageContextDbProxy(std::unique_ptr<RequestSipE
 	} else {
 		LOGE << "Failed to increment counter 'count-message-proxy-forks' (std::weak_ptr is empty)";
 	}
-
-	if (event != nullptr)
-		mForkMessage = ForkMessageContext::make(
-		    agent, config, injectorListener, forkContextListener, std::move(event), priority, forkMessageCounter,
-		    make_unique<MessageForkStrategy>(MessageKind{*event->getSip(), priority}, isRestored, config));
 }
 
 std::shared_ptr<ForkMessageContextDbProxy>
