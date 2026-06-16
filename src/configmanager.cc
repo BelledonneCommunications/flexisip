@@ -1115,9 +1115,7 @@ ConfigManager::ConfigManager()
 	        Boolean,
 	        "auto-respawn",
 	        "Automatically respawn Flexisip in case of abnormal termination (crashes). This only has an effect if "
-	        "Flexisip is launched with '--daemon' option.\n"
-	        "Deprecated since Flexisip 2.6, this parameter has no effect anymore. Configure the flexisip-proxy service "
-	        "to restart on failure with the watchdog of systemd (default) instead.",
+	        "Flexisip is launched with '--daemon' option.\n",
 	        "true",
 	    },
 	    config_item_end,
@@ -1212,6 +1210,11 @@ ConfigManager::ConfigManager()
 	auto global = mConfigRoot.addChild(std::move(uGlobal));
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
+
+	global->get<ConfigBoolean>("auto-respawn")
+	    ->setDeprecated("2026-03-24", "2.6.0",
+	                    "This parameter has no effect anymore. Configure the flexisip-proxy service to restart on "
+	                    "failure with the watchdog of systemd (default) instead.");
 
 	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
 	version->setReadOnly(true);
