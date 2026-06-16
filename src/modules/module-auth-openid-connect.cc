@@ -24,7 +24,7 @@
 
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "flexisip/sofia-wrapper/url.hh"
 #include "modules/module-authorization.hh"
 
 using namespace std;
@@ -127,8 +127,8 @@ auto getAuthHdr(const MsgSip& msg) {
 
 } // namespace
 
-ModuleAuthOpenIDConnect::ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
-}
+ModuleAuthOpenIDConnect::ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo) {}
 
 void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	if (getAgent()

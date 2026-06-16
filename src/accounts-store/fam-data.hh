@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <filesystem>
 #include <queue>
 #include <string_view>
 #include <unordered_set>
@@ -26,6 +25,7 @@
 
 #include "accounts-data-manager.hh"
 #include "flexiapi/flexiapi.hh"
+#include "flexiapi/schemas/account/uri-type.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/transport/http/http-response.hh"
@@ -40,6 +40,7 @@ public:
 	        const std::shared_ptr<sofiasip::SuRoot>& root,
 	        std::chrono::milliseconds cacheTimeout,
 	        std::chrono::milliseconds unknownTimeout);
+
 	void findCallDiversions(const SipUri& uri,
 	                        flexiapi::CallForwarding::ForwardType forwardType,
 	                        CallDiversionsCallback&& callback) override;

@@ -23,7 +23,6 @@
 
 #include "flexiapi/schemas/account/account.hh"
 #include "flexiapi/schemas/account/call-forwarding.hh"
-#include "flexiapi/schemas/account/uri-type.hh"
 #include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "flexisip/utils/stl-backports.hh"
@@ -41,4 +40,5 @@ public:
 	                                flexiapi::CallForwarding::ForwardType forwardType,
 	                                CallDiversionsCallback&& callback) = 0;
 };
+
 } // namespace flexisip

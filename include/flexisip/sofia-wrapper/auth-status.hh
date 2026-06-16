@@ -18,11 +18,12 @@
 
 #pragma once
 
-#include <functional>
+#include <sstream>
 #include <string>
 
 #include <sofia-sip/auth_module.h>
 
+#include "flexisip/event.hh"
 #include "flexisip/utils/stl-backports.hh"
 
 namespace flexisip {
@@ -38,7 +39,6 @@ namespace flexisip {
  * @see See http://sofia-sip.sourceforge.net/refdocs/iptsec/structauth__status__t.html
  * for more documentation.
  */
-class RequestSipEvent;
 class AuthStatus {
 public:
 	using ResponseCb = flexisip::stl_backports::move_only_function<std::unique_ptr<RequestSipEvent>(AuthStatus& as)>;

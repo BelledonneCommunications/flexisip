@@ -34,10 +34,18 @@ namespace flexisip {
 
 namespace {
 
-constexpr auth_challenger_t kRegistrarChallenger{401, sip_401_Unauthorized, sip_www_authenticate_class,
-                                                 sip_authentication_info_class};
-constexpr auth_challenger_t kProxyChallenger{407, sip_407_Proxy_auth_required, sip_proxy_authenticate_class,
-                                             sip_proxy_authentication_info_class};
+constexpr auth_challenger_t kRegistrarChallenger{
+    401,
+    sip_401_Unauthorized,
+    sip_www_authenticate_class,
+    sip_authentication_info_class,
+};
+constexpr auth_challenger_t kProxyChallenger{
+    407,
+    sip_407_Proxy_auth_required,
+    sip_proxy_authenticate_class,
+    sip_proxy_authentication_info_class,
+};
 
 const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     "Authorization",
@@ -99,25 +107,35 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 
 	    const auto authDomainsModeString = moduleConfig.get<ConfigString>("auth-domains-mode");
-	    authDomainsModeString->setDeprecatedValue(
-	        {"2026-02-27", "2.6.0",
-	         "Don't use 'auth-domains-mode=legacy' but:\n"
-	         " - 'flexiapi' with the global section 'global::flexiapi' for dynamic domain\n"
-	         " - 'static' with the parameters 'auth-domains' for static domains",
-	         "legacy"});
+	    authDomainsModeString->setDeprecatedValue({
+	        "2026-02-27",
+	        "2.6.0",
+	        "Don't use 'auth-domains-mode=legacy' but:\n"
+	        " - 'flexiapi' with the global section 'global::flexiapi' for dynamic domain\n"
+	        " - 'static' with the parameters 'auth-domains' for static domains",
+	        "legacy",
+	    });
 	    const auto accountManagerHostString = moduleConfig.get<ConfigString>("account-manager-host");
-	    accountManagerHostString->setDeprecated({"2026-02-27", "2.6.0",
-	                                             "Don't use 'auth-domains-mode=legacy' with 'account-manager-host' but "
-	                                             "the global section 'global::flexiapi' for dynamic domain."});
+	    accountManagerHostString->setDeprecated({
+	        "2026-02-27",
+	        "2.6.0",
+	        "Don't use 'auth-domains-mode=legacy' with 'account-manager-host' but "
+	        "the global section 'global::flexiapi' for dynamic domain.",
+	    });
 	    const auto accountManagerPortString = moduleConfig.get<ConfigString>("account-manager-port");
-	    accountManagerPortString->setDeprecated({"2026-02-27", "2.6.0",
-	                                             "Don't use 'auth-domains-mode=legacy' with 'account-manager-port' but "
-	                                             "the global section 'global::flexiapi' for dynamic domain."});
+	    accountManagerPortString->setDeprecated({
+	        "2026-02-27",
+	        "2.6.0",
+	        "Don't use 'auth-domains-mode=legacy' with 'account-manager-port' but "
+	        "the global section 'global::flexiapi' for dynamic domain.",
+	    });
 	    const auto accountMangerApiKeyString = moduleConfig.get<ConfigString>("account-manager-api-key");
-	    accountMangerApiKeyString->setDeprecated(
-	        {"2026-02-27", "2.6.0",
-	         "Don't use 'auth-domains-mode=legacy' with 'account-manager-api-key' but "
-	         "the global section 'global::flexiapi' for dynamic domain."});
+	    accountMangerApiKeyString->setDeprecated({
+	        "2026-02-27",
+	        "2.6.0",
+	        "Don't use 'auth-domains-mode=legacy' with 'account-manager-api-key' but "
+	        "the global section 'global::flexiapi' for dynamic domain.",
+	    });
     });
 
 bool isAuthorized(const MsgSip& msgSip) {

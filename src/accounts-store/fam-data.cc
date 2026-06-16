@@ -18,8 +18,9 @@
 
 #include "fam-data.hh"
 
-#include "flexiapi/schemas/account/account-json.hh"
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
+#include "flexiapi/schemas/account/account-json.hh"
 #include "flexisip/logmanager.hh"
 
 using namespace std;
@@ -99,14 +100,14 @@ void FAMData::onResponseCallback(const std::shared_ptr<HttpRequest>&,
                                  const std::shared_ptr<HttpResponse>& response,
                                  const ApiFormattedUri& apiUri,
                                  const UriType& uriType) {
-	if (response.get()->getStatusCode() != 200) {
-		if (response.get()->getStatusCode() == 404) {
+	if (response->getStatusCode() != 200) {
+		if (response->getStatusCode() == 404) {
 			LOGI << "Account unknown calling resolve[" << string_view{apiUri} << "] from FlexiAPI.";
 			mUnknownAccounts.insert(apiUri);
 			startUnknownTimer(apiUri);
 		} else {
 			LOGW << "Error while calling resolve[" << string_view{apiUri}
-			     << "] from FlexiAPI: " << response.get()->getStatusCode();
+			     << "] from FlexiAPI: " << response->getStatusCode();
 		}
 		notifyWaitingCallbacks(apiUri, {});
 		return;

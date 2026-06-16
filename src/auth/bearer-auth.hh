@@ -21,7 +21,6 @@
 #include <chrono>
 #include <functional>
 #include <list>
-#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -30,7 +29,7 @@
 #include "auth/auth-scheme.hh"
 #include "flexisip/sofia-wrapper/auth-status.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "flexisip/sofia-wrapper/url.hh"
 #include "flexisip/utils/stl-backports.hh"
 #include "utils/transport/http/http1-client.hh"
 

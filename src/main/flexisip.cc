@@ -21,7 +21,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
-#include <functional>
 #include <iostream>
 #include <list>
 #include <memory>
@@ -89,7 +88,6 @@
 #include "b2bua/b2bua-server.hh"
 #endif // ENABLE_B2BUA
 #ifdef ENABLE_PRESENCE
-#include "presence/observers/presence-longterm.hh"
 #include "presence/presence-server.hh"
 #endif
 #ifdef ENABLE_VOICEMAIL
@@ -104,9 +102,7 @@
 
 #include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
-#include "utils/pipe.hh"
 #include "utils/process-monitoring/memory-watcher.hh"
-#include "utils/transport/http/http2client.hh"
 
 using namespace std;
 using namespace flexisip;

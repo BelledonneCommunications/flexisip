@@ -113,20 +113,17 @@ protected:
 		globalCfg->get<ConfigBoolean>("enable-snmp")->set("false");
 	}
 
-	virtual void onAgentStarted() {
-	}
+	virtual void onAgentStarted() {}
 
 	/**
 	 * This method is called after agent creation, but before it starts.
 	 */
-	virtual void onAgentConfigured() {
-	}
+	virtual void onAgentConfigured() {}
 
 	/**
 	 * This method is the last called before testExec.
 	 */
-	virtual void onTestInit() {
-	}
+	virtual void onTestInit() {}
 
 	virtual void testExec() = 0;
 

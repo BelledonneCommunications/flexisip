@@ -20,8 +20,10 @@
 
 #include <algorithm>
 
+// Must be included first while cpp-jwt uses it.
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
 #include <jwt/jwt.hpp>
-#include <nlohmann/json.hpp>
 #include <openssl/bio.h>
 #include <openssl/pem.h>
 #include <openssl/x509.h>

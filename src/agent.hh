@@ -22,6 +22,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 #if defined(HAVE_CONFIG_H) && !defined(FLEXISIP_INCLUDED)
@@ -44,7 +45,7 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "flexisip/sofia-wrapper/url.hh"
 #include "i-supervisor-notifier.hh"
 #include "registrar/registrar-db.hh"
 #include "transaction/incoming-agent.hh"

@@ -29,12 +29,14 @@ namespace flexisip {
 class FileData : public IDataManager {
 public:
 	explicit FileData(const std::filesystem::path& filePath);
+
 	void findCallDiversions(const SipUri& uri,
 	                        flexiapi::CallForwarding::ForwardType forwardType,
 	                        CallDiversionsCallback&& callback) override;
 
 private:
 	static constexpr std::string_view mLogPrefix{"AccountsStore::FileData"};
+
 	Accounts mAccounts;
 };
 

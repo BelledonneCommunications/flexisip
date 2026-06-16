@@ -18,8 +18,6 @@
 
 #include "accounts-store.hh"
 
-#include <chrono>
-
 #include "fam-data.hh"
 #include "file-data.hh"
 #include "flexiapi/config.hh"
