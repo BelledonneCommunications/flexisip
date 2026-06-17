@@ -21,10 +21,8 @@
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
-#include "auth/domains-store.hh"
 #include "auth/preferred-identity.hh"
-#include "flexiapi/config.hh"
-#include "utils/transport/http/http2client.hh"
+#include "exceptions/bad-configuration.hh"
 
 using namespace std;
 using namespace std::string_view_literals;
@@ -165,36 +163,15 @@ bool isRequestDomainValid(const string& usrDomain,
 }
 } // namespace
 
-ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {}
+ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mSpacesStore(ag->getSpacesStore()) {}
 
-void ModuleAuthorization::onLoad(const GenericStruct* mc) {
-	const auto refresh = chrono::duration_cast<chrono::milliseconds>(
-	    mc->get<ConfigDuration<chrono::minutes>>("accounts-refresh-delay")->read());
-	if (mc->get<ConfigString>("auth-domains-mode")->read() == "legacy") {
-		auto host = mc->get<ConfigString>("account-manager-host")->read();
-		if (host.empty()) {
-			mDomainsStore = make_unique<StaticDomainsStore>(mc->get<ConfigStringList>("auth-domains")->read());
-			return;
-		}
-		auto port = mc->get<ConfigString>("account-manager-port")->read();
-		auto apiKey = mc->get<ConfigString>("account-manager-api-key")->read();
-		const auto http2Client = Http2Client::make(*getAgent()->getRoot(), host, port);
-		mDomainsStore = make_unique<DynamicDomainsStore>(getAgent()->getRoot(),
-		                                                 RestClient{http2Client,
-		                                                            HttpHeaders{
-		                                                                {"accept", "application/json"},
-		                                                                {"x-api-key"s, apiKey},
-		                                                            }},
-		                                                 refresh);
-	} else if (mc->get<ConfigString>("auth-domains-mode")->read() == "flexiapi") {
-		mDomainsStore = make_unique<DynamicDomainsStore>(
-		    getAgent()->getRoot(),
-		    flexiapi::createRestClient(getAgent()->getConfigManager(), getAgent()->getFlexiApiClient()), refresh);
-	} else if (mc->get<ConfigString>("auth-domains-mode")->read() == "static") {
-		mDomainsStore = make_unique<StaticDomainsStore>(mc->get<ConfigStringList>("auth-domains")->read());
-	} else {
-		throw BadConfigurationValue{mc->get<ConfigString>("auth-domains-mode"),
-		                            "expected 'flexiapi', 'static' or 'legacy' (deprecated)"};
+void ModuleAuthorization::onLoad(const GenericStruct*) {
+	if (!mSpacesStore || !mSpacesStore->getDomainsStore()) {
+		throw BadConfiguration{
+		    "the authorization module is enabled but no SIP domains configuration provided (configure '" +
+		        this->mLogPrefix + "' section)",
+		};
 	}
 }
 
@@ -213,7 +190,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
 	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
 
-	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mDomainsStore->getDomains())) {
+	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mSpacesStore->getDomainsStore()->getDomains())) {
 		if (sip->sip_request->rq_method == sip_method_ack) {
 			ev->terminateProcessing(); // ACK of 403 response should not be processed further
 			return {};

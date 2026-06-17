@@ -748,16 +748,12 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
              const std::shared_ptr<AuthDb>& authDb,
              const std::shared_ptr<RegistrarDb>& registrarDb,
+             const std::shared_ptr<SpacesStore>& spacesStore,
              const std::shared_ptr<Http2Client>& flexiApiClient)
-    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mFlexiApiClient{flexiApiClient},
-      mTimer(mRoot, 5s) {
+    : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mSpacesStore(spacesStore),
+      mFlexiApiClient{flexiApiClient}, mTimer(mRoot, 5s) {
 
 	LOGD << "New Agent instance: " << this;
-
-	if (const auto accountsData = mConfigManager->getGlobal()->get<ConfigString>("advanced-account-data")->read();
-	    !accountsData.empty()) {
-		mAccountsStore = AccountsStore{accountsData, mConfigManager, mFlexiApiClient, mRoot};
-	}
 
 	mHttpEngine = nth_engine_create(root->getCPtr(), NTHTAG_ERROR_MSG(0), TAG_END());
 	const auto* cr = cm->getRoot();

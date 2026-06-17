@@ -26,6 +26,7 @@
 
 #include "bc-utils.hh"
 #include "registrar/registrar-db.hh"
+#include "spaces-store/spaces-store.hh"
 #include "test-patterns/test.hh"
 
 using namespace std;
@@ -86,7 +87,8 @@ Server::Server(const std::string& configFilePath, InjectedHooks* injectedHooks)
 	const auto root = std::make_shared<sofiasip::SuRoot>();
 	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
-	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb,
+	                                 SpacesStore::make(root, mConfigManager, nullptr));
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
@@ -111,7 +113,8 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 
 	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
-	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb);
+	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb,
+	                                 SpacesStore::make(root, mConfigManager, nullptr));
 }
 
 Server::~Server() {

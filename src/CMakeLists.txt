@@ -123,6 +123,7 @@ add_subdirectory(modules)
 add_subdirectory(pushnotification)
 add_subdirectory(router)
 add_subdirectory(sofia-wrapper)
+add_subdirectory(spaces-store)
 add_subdirectory(transaction)
 add_subdirectory(utils)
 

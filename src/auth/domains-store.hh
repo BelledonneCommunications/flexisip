@@ -33,24 +33,22 @@ namespace flexisip {
 class IDomainsStore {
 public:
 	virtual ~IDomainsStore() = default;
-	virtual const std::unordered_set<std::string>& getDomains() = 0;
+
+	virtual const std::unordered_set<std::string>& getDomains() const = 0;
 };
 
 class StaticDomainsStore : public IDomainsStore {
 public:
-	explicit StaticDomainsStore(const std::list<std::string>& domains) {
-		for (const auto& domain : domains)
-			mDomains.emplace(domain);
-	}
+	explicit StaticDomainsStore(const std::list<std::string>& domains);
 
-	const std::unordered_set<std::string>& getDomains() override {
+	const std::unordered_set<std::string>& getDomains() const override {
 		return mDomains;
-	};
+	}
 
 private:
 	static constexpr std::string_view mLogPrefix{"StaticDomainsStore"};
 
-	std::unordered_set<std::string> mDomains;
+	std::unordered_set<std::string> mDomains{};
 };
 
 class DynamicDomainsStore : public IDomainsStore {
@@ -59,9 +57,9 @@ public:
 	                    RestClient&& restClient,
 	                    std::chrono::milliseconds delay);
 
-	const std::unordered_set<std::string>& getDomains() override {
+	const std::unordered_set<std::string>& getDomains() const override {
 		return mDomains;
-	};
+	}
 
 private:
 	static constexpr std::string_view mLogPrefix{"DynamicDomainsStore"};
@@ -71,7 +69,7 @@ private:
 
 	RestClient mFAMClient;
 	sofiasip::Timer mTimer;
-	std::unordered_set<std::string> mDomains;
+	std::unordered_set<std::string> mDomains{};
 };
 
 } // namespace flexisip

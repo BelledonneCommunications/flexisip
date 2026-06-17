@@ -21,8 +21,8 @@
 #include <memory>
 
 #include "auth/auth-scheme.hh"
-#include "auth/domains-store.hh"
 #include "flexisip/module.hh"
+#include "spaces-store/spaces-store.hh"
 
 namespace flexisip {
 
@@ -41,7 +41,7 @@ private:
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
 	std::unordered_map<std::string, std::shared_ptr<AuthScheme>> mAuthModules;
-	std::unique_ptr<IDomainsStore> mDomainsStore;
+	std::shared_ptr<SpacesStore> mSpacesStore;
 };
 
 } // namespace flexisip

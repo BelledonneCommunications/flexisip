@@ -44,8 +44,7 @@ struct ChallengerMock : public AuthScheme {
 	std::string schemeType() const {
 		return "ChallengerMock";
 	}
-	void challenge(AuthStatus&, const auth_challenger_t*) {
-	}
+	void challenge(AuthStatus&, const auth_challenger_t*) {}
 	State check(const msg_auth_t*, std::function<void(ChallengeResult&&)>&&) {
 		return State::Done;
 	}
@@ -56,7 +55,6 @@ void rejectUnexpectedDomain() {
 	Server proxy({
 	    {"module::Registrar/reg-domains", "*.example.org"},
 	    {"module::Authorization/enabled", "true"},
-	    {"module::Authorization/auth-domains", ""},
 	});
 
 	proxy.start();
@@ -82,7 +80,6 @@ void acceptTrustedHostOfUnexpectedDomain() {
 	    {
 	        {"module::Registrar/reg-domains", "*.example.org"},
 	        {"module::Authorization/enabled", "true"},
-	        {"module::Authorization/auth-domains", ""},
 	    },
 	    &forceTrustedHost);
 

@@ -18,13 +18,16 @@
 
 #pragma once
 
+#include <list>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "flexisip/fork-stats.hh"
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "spaces-store/spaces-store.hh"
 
 namespace flexisip {
 struct RouterStats {
@@ -111,6 +114,7 @@ private:
 	std::shared_ptr<ForkManager> mForkManager{};
 	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter{};
 	SipUri mVoicemailServerUri{};
+	std::shared_ptr<SpacesStore> mSpacesStore{};
 };
 
 } // namespace flexisip

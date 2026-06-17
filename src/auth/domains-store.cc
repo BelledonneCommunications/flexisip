@@ -18,6 +18,10 @@
 
 #include "domains-store.hh"
 
+#include <list>
+#include <string>
+#include <unordered_set>
+
 using namespace std;
 
 namespace flexisip {
@@ -26,6 +30,11 @@ namespace {
 
 constexpr auto kDynamicDomainPath = "/api/spaces";
 
+} // namespace
+
+StaticDomainsStore::StaticDomainsStore(const list<string>& domains) {
+	for (const auto& domain : domains)
+		mDomains.emplace(domain);
 }
 
 DynamicDomainsStore::DynamicDomainsStore(const shared_ptr<sofiasip::SuRoot>& root,
@@ -65,8 +74,7 @@ void DynamicDomainsStore::onAccountManagerResponse(const std::shared_ptr<HttpRes
 		constexpr auto domain = "domain"sv;
 		unordered_set<string> domains{};
 
-		for (auto i = 0; i < (int)spaces.size(); ++i) {
-			const auto& space = spaces[i];
+		for (const auto& space : spaces) {
 			if (!space.contains(domain) || !space[domain].is_string()) {
 				LOGE << "Domains not updated, expect to have a domain in each space";
 				return;
@@ -74,7 +82,10 @@ void DynamicDomainsStore::onAccountManagerResponse(const std::shared_ptr<HttpRes
 			domains.emplace(space[domain]);
 		}
 
-		mDomains = domains;
+		mDomains.clear();
+		for (const auto& domain : domains) {
+			mDomains.emplace(domain);
+		}
 		LOGD << "Domains updated";
 		if (mDomains.empty()) LOGW << "Domains list is empty (expect all requests to be rejected!)";
 	} catch (const exception& e) {

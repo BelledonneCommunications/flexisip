@@ -102,6 +102,7 @@
 
 #include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
+#include "spaces-store/spaces-store.hh"
 #include "utils/process-monitoring/memory-watcher.hh"
 
 using namespace std;
@@ -771,7 +772,8 @@ int flexisip::main(int argc, const char* argv[]) {
 	const auto authDb = std::make_shared<AuthDb>(cfg);
 	const auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
 	auto flexiApiClient = flexiapi::createClient(cfg, *root);
-	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb, flexiApiClient);
+	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb, SpacesStore::make(root, cfg, flexiApiClient),
+	                                flexiApiClient);
 	setOpenSSLThreadSafe();
 
 #ifdef ENABLE_SNMP

@@ -286,7 +286,8 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	moduleConfig.createStatPair("count-message-conference-forks", "Number of conference message forks");
 }
 
-ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo) : Module(ag, moduleInfo) {
+ModuleRouter::ModuleRouter(Agent* ag, const ModuleInfoBase* moduleInfo)
+    : Module(ag, moduleInfo), mSpacesStore(ag->getSpacesStore()) {
 	LOGD << "New instance [" << this << "]";
 	const auto forkStats = make_shared<ForkStats>();
 	forkStats->mCountForks = mModuleConfig->getStatPairPtr("count-forks");
@@ -328,8 +329,9 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	const auto* enableCallDiversionsParam = mc->get<ConfigBoolean>("enable-call-diversions");
 	mEnableCallDiversions = enableCallDiversionsParam->read();
 	if (mEnableCallDiversions) {
-		if (!mAgent->getAccountsStore()) throw BadConfigurationValue{enableCallDiversionsParam};
-		mAgent->getAccountsStore()->setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
+		if (!mSpacesStore || !mSpacesStore->getAccountsStore()) throw BadConfigurationValue{enableCallDiversionsParam};
+
+		mSpacesStore->getAccountsStore()->setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
 	}
 
 	mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
@@ -734,8 +736,8 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 			return {};
 		}
 
-		if (sip->sip_request->rq_method == sip_method_invite && mEnableCallDiversions) {
-			mAgent->getAccountsStore()->checkCallDiversions(
+		if (sip->sip_request->rq_method == sip_method_invite && mEnableCallDiversions && mSpacesStore) {
+			mSpacesStore->getAccountsStore()->checkCallDiversions(
 			    requestUri, flexiapi::CallForwarding::Type::Always,
 			    [this, event = std::move(ev)](const SipUri& target) mutable {
 				    if (target.empty()) {

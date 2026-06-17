@@ -24,7 +24,6 @@
 
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
-#include "flexisip/sofia-wrapper/url.hh"
 #include "modules/module-authorization.hh"
 
 using namespace std;
@@ -110,15 +109,6 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
     });
 
-Bearer::PubKeyType getPubKeyType(string_view pubKeyType) {
-	if (pubKeyType == "file") return Bearer::PubKeyType::file;
-	if (pubKeyType != "well-known")
-		throw BadConfiguration{"invalid public-key-type '"s + pubKeyType.data() +
-		                       "' in ModuleAuthOpenIDConnect configuration"};
-
-	return Bearer::PubKeyType::wellKnown;
-}
-
 auto getAuthHdr(const MsgSip& msg) {
 	const auto* sip = msg.getSip();
 	if (sip->sip_request->rq_method == sip_method_register) return sip->sip_authorization;
@@ -130,52 +120,28 @@ auto getAuthHdr(const MsgSip& msg) {
 ModuleAuthOpenIDConnect::ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo)
     : Module(ag, moduleInfo) {}
 
-void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
-	if (getAgent()
-	        ->getConfigManager()
-	        .getRoot()
-	        ->getModuleSectionByRole("Authorization")
-	        ->get<ConfigBoolean>("enabled")
-	        ->read() == false)
+void ModuleAuthOpenIDConnect::onLoad(const GenericStruct*) {
+	const auto authzModule =
+	    reinterpret_pointer_cast<ModuleAuthorization>(getAgent()->findModuleByRole("Authorization"));
+	if (authzModule->getConfig()->get<ConfigBoolean>("enabled")->read() == false)
 		throw BadConfiguration{"the AuthOpenIDConnect module requires the Authorization module to be enabled"};
 
-	auto readMandatoryString = [&mc](string_view paramName) {
-		const auto* configValue = mc->get<ConfigString>(paramName);
-		auto value = configValue->read();
-		if (value.empty()) throw BadConfigurationEmpty{configValue};
-		return value;
-	};
-
-	auto readDuration = [&mc](string_view paramName) {
-		return chrono::duration_cast<chrono::milliseconds>(mc->get<ConfigDuration<chrono::minutes>>(paramName)->read());
-	};
-
-	Bearer::BearerParams params{};
-	{
-		const auto issuer = readMandatoryString("authorization-server");
-		auto issUrl = sofiasip::Url(issuer);
-		if (issUrl.getType() != url_https)
-			throw BadConfigurationValue{mc->get<ConfigString>("authorization-server"), "it must be a HTTPS url"};
-		params.issuer = issUrl;
+	const auto spacesStore = getAgent()->getSpacesStore();
+	if (!spacesStore) {
+		LOGE << "SpacesStore pointer is empty: this should not happen";
+		throw BadConfiguration{"missing " + this->mLogPrefix + " configuration"};
 	}
-	params.realm = readMandatoryString("realm");
-	params.audience = readMandatoryString("audience");
-	params.idClaimer = readMandatoryString("sip-id-claim");
-	params.scope = mc->get<ConfigStringList>("scope")->read();
 
-	Bearer::KeyStoreParams keyStore{};
-	keyStore.keyType = getPubKeyType(mc->get<ConfigString>("public-key-type")->read());
-	if (keyStore.keyType != Bearer::PubKeyType::wellKnown)
-		keyStore.keyPath = readMandatoryString("public-key-location");
-
-	keyStore.jwksRefreshDelay = readDuration("jwks-refresh-delay");
-	keyStore.wellKnownRefreshDelay = readDuration("well-known-refresh-delay");
+	const auto& bearerParams = spacesStore->getBearerParams();
+	if (!bearerParams) {
+		LOGE << "No Bearer settings available: this should not happen";
+		throw BadConfiguration{"missing " + this->mLogPrefix + " Bearer configuration"};
+	}
+	const auto& [params, keyStore] = *bearerParams;
 
 	mBearerAuth = std::make_shared<Bearer>(getAgent()->getRoot(), params, keyStore);
 
-	auto authModule = getAgent()->findModuleByRole("Authorization");
-	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
-	auth->addAuthModule(mBearerAuth);
+	authzModule->addAuthModule(mBearerAuth);
 }
 
 unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<RequestSipEvent>&& ev) {

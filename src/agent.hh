@@ -38,7 +38,6 @@
 #include "sofia-sip/nth.h"
 #include "sofia-sip/sip.h"
 
-#include "accounts-store/accounts-store.hh"
 #include "agent-interface.hh"
 #include "auth/db/authdb.hh"
 #include "eventlogs/writers/event-log-writer.hh"
@@ -48,6 +47,7 @@
 #include "flexisip/sofia-wrapper/url.hh"
 #include "i-supervisor-notifier.hh"
 #include "registrar/registrar-db.hh"
+#include "spaces-store/spaces-store.hh"
 #include "transaction/incoming-agent.hh"
 #include "transaction/outgoing-agent.hh"
 #include "transport.hh"
@@ -78,6 +78,7 @@ public:
 	      const std::shared_ptr<ConfigManager>& cm,
 	      const std::shared_ptr<AuthDb>& authDb,
 	      const std::shared_ptr<RegistrarDb>& registrarDb,
+	      const std::shared_ptr<SpacesStore>& spacesStore,
 	      const std::shared_ptr<Http2Client>& flexiApiClient = nullptr);
 
 	~Agent() override;
@@ -138,8 +139,8 @@ public:
 	RegistrarDb& getRegistrarDb() {
 		return *mRegistrarDb;
 	}
-	std::optional<AccountsStore>& getAccountsStore() {
-		return mAccountsStore;
+	std::shared_ptr<SpacesStore> getSpacesStore() const {
+		return mSpacesStore;
 	}
 	nta_agent_t* getSofiaAgent() const override {
 		return mAgent;
@@ -290,7 +291,7 @@ private:
 	// Important: disconnecting the Redis registrar DB may trigger callbacks on mModules, so they must still be alive
 	// when destroying it.
 	const std::shared_ptr<RegistrarDb> mRegistrarDb;
-	std::optional<AccountsStore> mAccountsStore;
+	const std::shared_ptr<SpacesStore> mSpacesStore;
 
 	su_home_t mHome{};
 	nta_agent_t* mAgent = nullptr;

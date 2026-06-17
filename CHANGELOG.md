@@ -26,6 +26,9 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
+  - **Authorization:** Parameter `global/advanced-account-data` is not compatible with this module (it cannot be used
+    together). Therefore, the proxy will not start if both `module::Authorization` and `global/advanced-account-data`
+    are enabled/set.
 
 ## [2.6.1] - Hotfix
 - **SDK version:** 5.5.7
