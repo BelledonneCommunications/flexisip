@@ -21,8 +21,5 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
-	spaces-store.cc spaces-store.hh
+	domains-store.cc domains-store.hh
 )
-
-add_subdirectory(accounts)
-add_subdirectory(domains)

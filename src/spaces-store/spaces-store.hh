@@ -22,9 +22,9 @@
 #include <optional>
 #include <string_view>
 
-#include "accounts-store/accounts-store.hh"
+#include "accounts/accounts-store.hh"
 #include "auth/bearer-auth.hh"
-#include "auth/domains-store.hh"
+#include "domains/domains-store.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 

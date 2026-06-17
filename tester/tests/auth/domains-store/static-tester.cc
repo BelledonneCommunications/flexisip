@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "auth/domains-store.hh"
+#include "spaces-store/domains/domains-store.hh"
 
 #include <memory>
 #include <string>

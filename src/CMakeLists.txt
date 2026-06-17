@@ -25,15 +25,11 @@
 #######################################################################################################################
 
 add_library(flexisip
-	accounts-store/accounts-data-manager.hh
-	accounts-store/accounts-store.cc accounts-store/accounts-store.hh
-	accounts-store/file-data.cc accounts-store/file-data.hh
 	agent.cc agent.hh
 	agent-startlogwriter.cc
 	auth/auth-scheme.hh
 	auth/db/authdb-file.cc
 	auth/db/authdb.cc auth/db/authdb.hh
-	auth/domains-store.cc auth/domains-store.hh
 	auth/flexisip-auth-module-base.cc
 	auth/flexisip-auth-module.cc auth/flexisip-auth-module.hh
 	auth/nonce-store.cc
@@ -116,7 +112,6 @@ if(ENABLE_OPENID_CONNECT)
 	)
 endif()
 
-add_subdirectory(accounts-store)
 add_subdirectory(flexiapi)
 add_subdirectory(fork-context)
 add_subdirectory(modules)

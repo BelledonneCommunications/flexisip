@@ -17,8 +17,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "accounts-store/accounts-store.hh"
 #include "flexiapi/config.hh"
+#include "spaces-store/accounts/accounts-store.hh"
 
 #include <fstream>
 
