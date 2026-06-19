@@ -16,22 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "shared-tests.hh"
+#include <list>
+#include <string>
 
-#include "test-patterns/test.hh"
+#include "file-spaces-data.hh"
 
 using namespace std;
 
-namespace flexisip::tester {
+namespace flexisip {
 
-void getDomains(const shared_ptr<IDomainsStore>& store, const unordered_set<string>& expected) {
-	BC_HARD_ASSERT_NOT_NULL(store);
-
-	const auto& domains = store->getDomains();
-	BC_HARD_ASSERT_CPP_EQUAL(domains.size(), expected.size());
-	for (const auto& domain : domains) {
-		BC_HARD_ASSERT(expected.find(domain) != expected.end());
-	}
+FileSpacesData::FileSpacesData(const list<string>& domains) {
+	for (const auto& domain : domains)
+		mDomains.emplace(domain);
 }
 
-} // namespace flexisip::tester
+} // namespace flexisip

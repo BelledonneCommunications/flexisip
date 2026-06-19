@@ -167,7 +167,7 @@ ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* module
     : Module(ag, moduleInfo), mSpacesStore(ag->getSpacesStore()) {}
 
 void ModuleAuthorization::onLoad(const GenericStruct*) {
-	if (!mSpacesStore || !mSpacesStore->getDomainsStore()) {
+	if (!mSpacesStore || !mSpacesStore->getSpacesData()) {
 		throw BadConfiguration{
 		    "the authorization module is enabled but no SIP domains configuration provided (configure '" +
 		        this->mLogPrefix + "' section)",
@@ -190,7 +190,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
 	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
 
-	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mSpacesStore->getDomainsStore()->getDomains())) {
+	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mSpacesStore->getSpacesData()->getDomains())) {
 		if (sip->sip_request->rq_method == sip_method_ack) {
 			ev->terminateProcessing(); // ACK of 403 response should not be processed further
 			return {};

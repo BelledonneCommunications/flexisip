@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "domains-store.hh"
+#include "fam-spaces-data.hh"
 
 #include <list>
 #include <string>
@@ -32,20 +32,15 @@ constexpr auto kDynamicDomainPath = "/api/spaces";
 
 } // namespace
 
-StaticDomainsStore::StaticDomainsStore(const list<string>& domains) {
-	for (const auto& domain : domains)
-		mDomains.emplace(domain);
-}
-
-DynamicDomainsStore::DynamicDomainsStore(const shared_ptr<sofiasip::SuRoot>& root,
-                                         RestClient&& restClient,
-                                         chrono::milliseconds delay)
+FAMSpacesData::FAMSpacesData(const shared_ptr<sofiasip::SuRoot>& root,
+                             RestClient&& restClient,
+                             chrono::milliseconds delay)
     : mFAMClient{std::move(restClient)}, mTimer(root, delay) {
 	mTimer.setForEver([this] { askAccountManager(); });
 	askAccountManager();
 }
 
-void DynamicDomainsStore::askAccountManager() {
+void FAMSpacesData::askAccountManager() {
 	mFAMClient.get(
 	    kDynamicDomainPath,
 	    [this](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>& rep) {
@@ -57,7 +52,7 @@ void DynamicDomainsStore::askAccountManager() {
 	    });
 }
 
-void DynamicDomainsStore::onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep) {
+void FAMSpacesData::onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep) {
 	if (rep->getStatusCode() != 200) {
 		LOGE << "Received error " << rep->getStatusCode()
 		     << ", please check your api key validity and that the account manager is running properly";

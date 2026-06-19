@@ -34,8 +34,6 @@ add_executable(flexisip_tester
 	auth/auth-domains-tester.cc
 	auth/auth-tls-client-tester.cc
 	auth/auth-trusted-hosts-tester.cc
-	auth/domains-store/shared-tests.cc auth/domains-store/shared-tests.hh
-	auth/domains-store/static-tester.cc
 	auth/module-authorization-tester.cc
 	auth/rsa-keys.hh
 	callcontext-mediarelay-tester.cc
@@ -91,6 +89,8 @@ add_executable(flexisip_tester
 	sofia-wrapper/su/home-tester.cc
 	sofia-wrapper/sip-header-tester.cc
 	sofia-wrapper/su-root-tester.cc
+	spaces-store/spaces/file-spaces-data-tester.cc
+	spaces-store/spaces/shared-tests.cc spaces-store/spaces/shared-tests.hh
 	transaction/outgoing-transaction-tester.cc
 	transports-tester.cc
 	transaction/transaction-tester.cc
@@ -150,10 +150,10 @@ endif()
 
 if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_sources(flexisip_tester PRIVATE
-		auth/domains-store/dynamic-tester.cc
 		auth/module-authorization-FAM-tester.cc
 		pushnotification/global-push-tester.cc
 		pushnotification/push-notification-tester.cc pushnotification/push-notification-tester.hh
+		spaces-store/spaces/fam-spaces-data-tester.cc
 		utils/transport/http/rest-client-tester.cc
 		utils/transport/http/http2client-tester.cc
 	)

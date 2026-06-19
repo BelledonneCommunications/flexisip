@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "spaces-store/domains/domains-store.hh"
+#include "spaces-store/spaces/fam-spaces-data.hh"
 
 #include <memory>
 #include <string>
@@ -59,10 +59,10 @@ void getDomains() {
 	const auto port = to_string(server.serveAsync());
 	const auto http2Client = Http2Client::make(*suRoot, "localhost", port);
 
-	const auto store = make_shared<DynamicDomainsStore>(suRoot, RestClient{http2Client}, 500ms);
-	asserter.waitUntil(250ms, [&store] { return !store->getDomains().empty(); }).hard_assert_passed();
+	const auto data = make_shared<FAMSpacesData>(suRoot, RestClient{http2Client}, 500ms);
+	asserter.waitUntil(250ms, [&data] { return !data->getDomains().empty(); }).hard_assert_passed();
 
-	flexisip::tester::getDomains(store, unordered_set<string>{kTestDomains.begin(), kTestDomains.end()});
+	flexisip::tester::getDomains(data, unordered_set<string>{kTestDomains.begin(), kTestDomains.end()});
 
 	const string newDomain{"new.example.org"};
 	auto newSpaces = spaces;
@@ -70,18 +70,18 @@ void getDomains() {
 	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, newSpaces.dump()));
 
 	asserter
-	    .wait([&store, &newDomain] {
-		    const auto& domains = store->getDomains();
+	    .wait([&data, &newDomain] {
+		    const auto& domains = data->getDomains();
 		    FAIL_IF(domains.find(newDomain) == domains.end());
 		    return ASSERTION_PASSED();
 	    })
 	    .hard_assert_passed();
 
-	flexisip::tester::getDomains(store, unordered_set<string>{kTestDomains[0], kTestDomains[1], newDomain});
+	flexisip::tester::getDomains(data, unordered_set<string>{kTestDomains[0], kTestDomains[1], newDomain});
 }
 
 const TestSuite kSuite{
-    "DynamicDomainsStore",
+    "FAMSpacesData",
     {
         CLASSY_TEST(getDomains),
     },

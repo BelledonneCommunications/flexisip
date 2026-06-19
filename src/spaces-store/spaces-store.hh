@@ -24,9 +24,9 @@
 
 #include "accounts/accounts-store.hh"
 #include "auth/bearer-auth.hh"
-#include "domains/domains-store.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
+#include "spaces/spaces-data-manager.hh"
 
 namespace flexisip {
 
@@ -47,8 +47,8 @@ public:
 		return mAccountsStore;
 	}
 
-	std::shared_ptr<IDomainsStore> getDomainsStore() {
-		return mDomainsStore;
+	std::shared_ptr<ISpacesDataManager> getSpacesData() {
+		return mSpacesDataManager;
 	}
 
 	const std::optional<Bearer>& getBearerParams() const {
@@ -67,7 +67,7 @@ private:
 
 	std::optional<Bearer> mBearerParams{};
 	std::optional<AccountsStore> mAccountsStore{};
-	std::shared_ptr<IDomainsStore> mDomainsStore{};
+	std::shared_ptr<ISpacesDataManager> mSpacesDataManager{};
 };
 
 } // namespace flexisip

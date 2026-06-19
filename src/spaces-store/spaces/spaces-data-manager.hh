@@ -16,17 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "spaces-store/domains/domains-store.hh"
+#pragma once
 
-#include <array>
-#include <memory>
 #include <string>
 #include <unordered_set>
 
-namespace flexisip::tester {
+namespace flexisip {
 
-static const std::array<std::string, 2> kTestDomains{"example.org", "other.example.org"};
+class ISpacesDataManager {
+public:
+	virtual ~ISpacesDataManager() = default;
 
-void getDomains(const std::shared_ptr<IDomainsStore>& store, const std::unordered_set<std::string>& expected);
+	virtual const std::unordered_set<std::string>& getDomains() const = 0;
+};
 
-} // namespace flexisip::tester
+} // namespace flexisip

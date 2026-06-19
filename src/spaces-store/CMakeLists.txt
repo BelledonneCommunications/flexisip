@@ -25,4 +25,4 @@ target_sources(flexisip PRIVATE
 )
 
 add_subdirectory(accounts)
-add_subdirectory(domains)
+add_subdirectory(spaces)

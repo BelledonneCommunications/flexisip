@@ -16,36 +16,17 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "spaces-store/domains/domains-store.hh"
+#include "spaces-store/spaces/spaces-data-manager.hh"
 
+#include <array>
 #include <memory>
 #include <string>
 #include <unordered_set>
-#include <vector>
-
-#include "shared-tests.hh"
-#include "utils/test-patterns/test.hh"
-#include "utils/test-suite.hh"
-
-using namespace std;
 
 namespace flexisip::tester {
-namespace {
 
-/*
- * Test domains loading at initialization.
- */
-void getDomains() {
-	const auto store = make_shared<StaticDomainsStore>(list<string>{kTestDomains.begin(), kTestDomains.end()});
-	flexisip::tester::getDomains(store, unordered_set<string>{kTestDomains.begin(), kTestDomains.end()});
-}
+static const std::array<std::string, 2> kTestDomains{"example.org", "other.example.org"};
 
-const TestSuite kSuite{
-    "StaticDomainsStore",
-    {
-        CLASSY_TEST(getDomains),
-    },
-};
+void getDomains(const std::shared_ptr<ISpacesDataManager>& data, const std::unordered_set<std::string>& expected);
 
-} // namespace
 } // namespace flexisip::tester

@@ -19,50 +19,29 @@
 #pragma once
 
 #include <chrono>
-#include <list>
 #include <memory>
 #include <string>
 #include <unordered_set>
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/sofia-wrapper/timer.hh"
+#include "spaces-data-manager.hh"
 #include "utils/transport/http/rest-client.hh"
 
 namespace flexisip {
 
-class IDomainsStore {
+class FAMSpacesData : public ISpacesDataManager {
 public:
-	virtual ~IDomainsStore() = default;
-
-	virtual const std::unordered_set<std::string>& getDomains() const = 0;
-};
-
-class StaticDomainsStore : public IDomainsStore {
-public:
-	explicit StaticDomainsStore(const std::list<std::string>& domains);
+	FAMSpacesData(const std::shared_ptr<sofiasip::SuRoot>& root,
+	              RestClient&& restClient,
+	              std::chrono::milliseconds delay);
 
 	const std::unordered_set<std::string>& getDomains() const override {
 		return mDomains;
 	}
 
 private:
-	static constexpr std::string_view mLogPrefix{"StaticDomainsStore"};
-
-	std::unordered_set<std::string> mDomains{};
-};
-
-class DynamicDomainsStore : public IDomainsStore {
-public:
-	DynamicDomainsStore(const std::shared_ptr<sofiasip::SuRoot>& root,
-	                    RestClient&& restClient,
-	                    std::chrono::milliseconds delay);
-
-	const std::unordered_set<std::string>& getDomains() const override {
-		return mDomains;
-	}
-
-private:
-	static constexpr std::string_view mLogPrefix{"DynamicDomainsStore"};
+	static constexpr std::string_view mLogPrefix{"FAMSpacesData"};
 
 	void askAccountManager();
 	void onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep);

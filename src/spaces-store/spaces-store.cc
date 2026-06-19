@@ -24,6 +24,8 @@
 #include "exceptions/bad-configuration.hh"
 #include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
+#include "spaces/fam-spaces-data.hh"
+#include "spaces/file-spaces-data.hh"
 
 using namespace std;
 
@@ -83,13 +85,13 @@ std::optional<SpacesStore::Bearer> makeBearerParams(const std::shared_ptr<Config
 	return bearer;
 }
 
-std::unique_ptr<IDomainsStore> makeDomainsStore(const std::shared_ptr<sofiasip::SuRoot>& root,
-                                                const std::shared_ptr<ConfigManager>& cfg,
-                                                const std::shared_ptr<Http2Client>& flexiApiClient) {
+std::unique_ptr<ISpacesDataManager> makeSpacesDataManager(const std::shared_ptr<sofiasip::SuRoot>& root,
+                                                          const std::shared_ptr<ConfigManager>& cfg,
+                                                          const std::shared_ptr<Http2Client>& flexiApiClient) {
 	const auto* authzCfg = cfg->getRoot()->getModuleSectionByRole("Authorization");
 	if (authzCfg->get<ConfigBoolean>("enabled")->read() == false) {
-		LOGD_CTX(SpacesStore::mLogPrefix)
-		    << "Trying to create the DomainsStore but the '" + authzCfg->getName() + "' is disabled: returning nullptr";
+		LOGD_CTX(SpacesStore::mLogPrefix) << "Trying to create the SpacesDataManager but the '" + authzCfg->getName() +
+		                                         "' is disabled: returning nullptr";
 		return nullptr;
 	}
 
@@ -100,23 +102,23 @@ std::unique_ptr<IDomainsStore> makeDomainsStore(const std::shared_ptr<sofiasip::
 	const auto mode = modeParam->read();
 	if (mode == "legacy") {
 		const auto host = authzCfg->get<ConfigString>("account-manager-host")->read();
-		if (host.empty()) return make_unique<StaticDomainsStore>(authDomains);
+		if (host.empty()) return make_unique<FileSpacesData>(authDomains);
 
 		const auto port = authzCfg->get<ConfigString>("account-manager-port")->read();
 		const auto apiKey = authzCfg->get<ConfigString>("account-manager-api-key")->read();
 		const auto http2Client = Http2Client::make(*root, host, port);
 		RestClient client{http2Client, HttpHeaders{{"accept", "application/json"}, {"x-api-key"s, apiKey}}};
-		return make_unique<DynamicDomainsStore>(root, std::move(client), refresh);
+		return make_unique<FAMSpacesData>(root, std::move(client), refresh);
 	}
 	if (mode == "flexiapi") {
 		if (!flexiApiClient) {
 			throw BadConfigurationValue{modeParam, "'flexiapi' mode requires [global::flexiapi] parameters to be set"};
 		}
 		auto client = flexiapi::createRestClient(*cfg, flexiApiClient);
-		return make_unique<DynamicDomainsStore>(root, std::move(client), refresh);
+		return make_unique<FAMSpacesData>(root, std::move(client), refresh);
 	}
 	if (mode == "static") {
-		return make_unique<StaticDomainsStore>(authDomains);
+		return make_unique<FileSpacesData>(authDomains);
 	}
 
 	throw BadConfigurationValue{modeParam, "expected 'flexiapi', 'static' or 'legacy' (deprecated)"};
@@ -136,7 +138,7 @@ std::unique_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 	const auto& authDomainsMode = authDomainsModeParam->read();
 
 	const bool hasAccountsStore = !advancedAccountData.empty();
-	const bool hasDomainsStore = [&] {
+	const bool hasSpacesData = [&] {
 		if (!authzModuleEnabled) return false;
 		if (authDomainsMode.empty()) return false;
 
@@ -160,7 +162,7 @@ std::unique_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 	if (hasAccountsStore) {
 		return unique_ptr<SpacesStore>{new SpacesStore(advancedAccountData, cfg, flexiApiClient, root)};
 	}
-	if (hasDomainsStore) {
+	if (hasSpacesData) {
 		return unique_ptr<SpacesStore>{new SpacesStore(root, cfg, flexiApiClient)};
 	}
 
@@ -177,6 +179,6 @@ SpacesStore::SpacesStore(const std::string& advancedAccountData,
 SpacesStore::SpacesStore(const std::shared_ptr<sofiasip::SuRoot>& root,
                          const std::shared_ptr<ConfigManager>& cfg,
                          const std::shared_ptr<Http2Client>& flexiApiClient)
-    : mBearerParams(makeBearerParams(cfg)), mDomainsStore(makeDomainsStore(root, cfg, flexiApiClient)) {}
+    : mBearerParams(makeBearerParams(cfg)), mSpacesDataManager(makeSpacesDataManager(root, cfg, flexiApiClient)) {}
 
 } // namespace flexisip

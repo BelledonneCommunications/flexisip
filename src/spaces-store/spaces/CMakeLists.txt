@@ -21,5 +21,7 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
-	domains-store.cc domains-store.hh
+	spaces-data-manager.hh
+	fam-spaces-data.cc fam-spaces-data.hh
+	file-spaces-data.cc file-spaces-data.hh
 )
