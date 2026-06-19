@@ -34,8 +34,6 @@ endif()
 # TODO Change back to lowercase `jsoncpp` when (if) the SDK decides to use it as well
 # https://linphone.atlassian.net/browse/SDK-184
 find_package(JsonCPP "1.1.0" REQUIRED)
-find_package(LibNgHttp2Asio)
-
 # Some tests need SDK clients able to stream video (mostly those of the B2BUA).
 # Mediastreamer2 does not enforce any video codec, resulting in tests crashing at runtime.
 # We prefer to detect this at configure time, so we're enforcing VPX

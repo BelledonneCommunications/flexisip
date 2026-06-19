@@ -22,6 +22,7 @@
 
 add_executable(flexisip_tester
 	agent-tester.cc
+	auth/module-authorization-FAM-tester.cc
 	boolean-expressions.cc
 	cli-tester.cc
 	domain-registration-tester.cc
@@ -69,9 +70,11 @@ add_executable(flexisip_tester
 	posix-process-tester.cc
 	pushnotification/access-token-provider-tester.cc
 	pushnotification/authentication-manager-tester.cc
+	pushnotification/global-push-tester.cc
 	pushnotification/rfc8599-push-params-tester.cc
 	pushnotification/module-pushnotification-tester.cc
 	pushnotification/notify-pushnotification-tester.cc
+	pushnotification/push-notification-tester.cc pushnotification/push-notification-tester.hh
 	pushnotification/service-tester.cc
 	registrar/extended-contact-tester.cc
 	registrar/register-tester.cc
@@ -102,6 +105,8 @@ add_executable(flexisip_tester
 	utils/socket-address-tester.cc
 	utils/soft-ptr-tester.cc
 	utils/transport/http/http1client-tester.cc
+	utils/transport/http/http2client-tester.cc
+	utils/transport/http/rest-client-tester.cc
 	thread-pool-tester.cc
 	tls-connection-tester.cc
 )
@@ -144,40 +149,29 @@ if(ENABLE_SOCI)
 	endif()
 endif()
 
-if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
+if(ENABLE_FLEXIAPI)
 	target_sources(flexisip_tester PRIVATE
-		auth/module-authorization-FAM-tester.cc
-		pushnotification/global-push-tester.cc
-		pushnotification/push-notification-tester.cc pushnotification/push-notification-tester.hh
-		utils/transport/http/rest-client-tester.cc
-		utils/transport/http/http2client-tester.cc
+		flexiapi/flexi-stats-tester.cc
+		pushnotification/push-notification-flexiapi-tester.cc
 	)
-	if(ENABLE_FLEXIAPI)
+	if(ENABLE_SOCI)
 		target_sources(flexisip_tester PRIVATE
-			flexiapi/flexi-stats-tester.cc
-			pushnotification/push-notification-flexiapi-tester.cc
+			eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 		)
-		if(ENABLE_SOCI)
-			target_sources(flexisip_tester PRIVATE
-				eventlogs/writers/flexi-stats-event-log-writer-tester.cc
-			)
-		endif()
 	endif()
-	if(HAS_GCC_BUG_105562)
+endif()
+if(HAS_GCC_BUG_105562)
+	set_source_files_properties(
+		pushnotification/push-notification-tester.cc
+		utils/pns-mock.cc
+		PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
+	)
+	if(ENABLE_SOCI)
 		set_source_files_properties(
-			pushnotification/push-notification-tester.cc
-			utils/pns-mock.cc
+			eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 			PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
 		)
-		if(ENABLE_SOCI)
-			set_source_files_properties(
-				eventlogs/writers/flexi-stats-event-log-writer-tester.cc
-				PROPERTIES COMPILE_OPTIONS "-Wno-error=maybe-uninitialized"
-			)
-		endif()
 	endif()
-elseif(ENABLE_UNIT_TESTS_NGHTTP2ASIO)
-	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
 endif()
 
 if(ENABLE_B2BUA)
@@ -216,6 +210,12 @@ if(ENABLE_TRANSCODER)
 	)
 endif()
 
+if(ENABLE_VOICEMAIL)
+	target_sources(flexisip_tester PRIVATE
+			integration/voicemail/voicemail-server-tester.cc
+	)
+endif()
+
 # C++ 20 adds the support for char8_t which adds a lot of backward compatibility problems.
 # See: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1423r3.html
 # So for now disable it until we need it.
@@ -228,6 +228,7 @@ target_link_libraries(flexisip_tester PRIVATE
 	belle-sip
 	liblinphone
 	liblinphone++
+	LibNgHttp2
 )
 
 if(ENABLE_REDIS)
@@ -243,15 +244,6 @@ if(ENABLE_REDIS)
 			libhiredis-wrapper/replication/redis-tls-client-tester.cc
 		)
 		target_link_libraries(flexisip_tester PRIVATE hiredis_ssl)
-	endif()
-endif()
-
-if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
-	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
-	if(ENABLE_VOICEMAIL)
-		target_sources(flexisip_tester PRIVATE
-			integration/voicemail/voicemail-server-tester.cc
-		)
 	endif()
 endif()
 

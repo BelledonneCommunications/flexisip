@@ -113,16 +113,16 @@ void flexiStatTestFunc(const SendReqFunc& sendRequest,
 		BC_ASSERT_CPP_EQUAL(headers.size(), 4);
 		auto header = headers.find("x-api-key");
 		BC_HARD_ASSERT_TRUE(header != headers.end());
-		BC_ASSERT_CPP_EQUAL(header->second.value, "aRandomApiToken");
+		BC_ASSERT_CPP_EQUAL(header->second.getValue(), "aRandomApiToken");
 		header = headers.find("accept");
 		BC_HARD_ASSERT_TRUE(header != headers.end());
-		BC_ASSERT_CPP_EQUAL(header->second.value, "application/json");
+		BC_ASSERT_CPP_EQUAL(header->second.getValue(), "application/json");
 		header = headers.find("content-type");
 		BC_HARD_ASSERT_TRUE(header != headers.end());
-		BC_ASSERT_CPP_EQUAL(header->second.value, "application/json");
+		BC_ASSERT_CPP_EQUAL(header->second.getValue(), "application/json");
 		header = headers.find("content-length");
 		BC_HARD_ASSERT_TRUE(header != headers.end());
-		BC_ASSERT_CPP_EQUAL(header->second.value, to_string(actualRequest->body.size()));
+		BC_ASSERT_CPP_EQUAL(header->second.getValue(), to_string(actualRequest->body.size()));
 	}
 }
 

@@ -26,10 +26,9 @@
 #include "flexisip/logmanager.hh"
 
 using namespace std;
-using namespace flexisip::tester;
-using namespace nghttp2::asio_http2;
-using namespace nghttp2::asio_http2::server;
 using namespace boost::asio::ssl;
+using namespace flexisip::tester;
+using namespace flexisip::tester::http_mock;
 
 namespace flexisip::pushnotification {
 
@@ -56,10 +55,10 @@ bool PnsMock::exposeMock(
 	}
 }
 
-request_cb
+server::RequestCb
 PnsMock::handleRequest(int code, const string& body, const string& reqBodyPattern, bool& assert, bool timeout) {
-	return [code, body, reqBodyPattern, &assert, timeout](const request& req, const response& res) {
-		req.on_data([reqBodyPattern, &assert](const uint8_t* data, std::size_t len) {
+	return [code, body, reqBodyPattern, &assert, timeout](const server::Request& req, const server::Response& res) {
+		req.onData([reqBodyPattern, &assert](const uint8_t* data, std::size_t len) {
 			if (len > 0) {
 				string body{reinterpret_cast<const char*>(data), len};
 				regex bodyRegex(reqBodyPattern, regex::ECMAScript);
@@ -67,15 +66,15 @@ PnsMock::handleRequest(int code, const string& body, const string& reqBodyPatter
 				if (!assert) SLOGE << "Body is different, actual body : \n" << body;
 			}
 		});
-		res.write_head(code);
+		res.writeHead(code);
 		if (timeout) {
 			this_thread::sleep_for(3s);
 		}
-		res.end(body);
+		res.send(body);
 	};
 }
 
-void PnsMock::onPushRequest(request_cb cb) {
+void PnsMock::onPushRequest(server::RequestCb cb) {
 	mServer.handle("/fcm/send", cb);
 	mServer.handle("/v1/projects/sample-project/messages:send", cb);
 	mServer.handle("/3/device/", cb);
@@ -86,20 +85,14 @@ void PnsMock::onPushRequest(request_cb cb) {
 bool PnsMock::serveAsync(const std::string& port) {
 	boost::system::error_code ec{};
 
-	configure_tls_context_easy(ec, mCtx);
-
-	if (mServer.listen_and_serve(ec, mCtx, "127.0.0.1", port, true)) {
-		SLOGE << "error: " << ec.message() << std::endl;
+	if (mServer.listenAndServe(ec, mCtx, "127.0.0.1", port)) {
+		LOGE_CTX("PnsMock") << "error: " << ec.message();
 		return false;
 	}
 	return true;
 }
 
 void PnsMock::forceCloseServer() {
-	for (const auto& io_service : mServer.io_services()) {
-		io_service->stop();
-	}
-
 	mServer.stop();
 }
 

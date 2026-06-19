@@ -105,7 +105,6 @@ cmake_dependent_option(ENABLE_REDIS_TLS "Enable TLS connections with Redis serve
 cmake_dependent_option(ENABLE_REGEVENT "Build with RegEvent server support (is in charge of processing and responding to SIP SUBSCRIBE requests with 'reg' event types)" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_SOCI_POSTGRESQL_BACKEND "Build with SOCI Postgre sql backend support" ON "ENABLE_SOCI" OFF)
 cmake_dependent_option(ENABLE_B2BUA "Enable Back2back user agent support" ON "ENABLE_SOCI" OFF)
-cmake_dependent_option(ENABLE_UNIT_TESTS_NGHTTP2ASIO "Enable unit tests requiring libnghttp2_asio" ON "ENABLE_UNIT_TESTS" ON)
 cmake_dependent_option(ENABLE_SPECIFIC_FEATURES "Enable media relay specific features" OFF "ENABLE_TRANSCODER" OFF)
 
 set(CPACK_GENERATOR "" CACHE STRING "Generator to use for making package. Supported values: 'RPM', 'DEB'")

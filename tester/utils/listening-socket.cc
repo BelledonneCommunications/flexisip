@@ -26,12 +26,12 @@
 
 using namespace flexisip;
 
-void ListeningSocket::listenUntil(std::promise<void>& barrier) {
+void ListeningSocket::listenUntil(std::promise<void>& barrier, int port) {
 	int sock;
 	struct sockaddr_in addr;
 
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(3000);
+	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);

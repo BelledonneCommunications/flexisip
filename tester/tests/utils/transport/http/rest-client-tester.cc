@@ -64,9 +64,11 @@ public:
 		customAssert(actualRequest);
 		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 4);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("custom_header"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header")->second.value, "custom_header_value");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header")->second.getValue(),
+		                         "custom_header_value");
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("custom_header2"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header2")->second.value, "custom_header_value2");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("custom_header2")->second.getValue(),
+		                         "custom_header_value2");
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("content-type"), 1);
 	}
 
@@ -115,7 +117,7 @@ protected:
 			if (string_utils::iequals(header.first, "content-type")) {
 				const auto contentTypeRegex = regex(R"r(multipart/form-data; ?boundary="([ a-zA-Z0-9\\:\\-]+)")r");
 				std::smatch matches;
-				regex_search(header.second.value, matches, contentTypeRegex);
+				regex_search(header.second.getValue(), matches, contentTypeRegex);
 				BC_HARD_ASSERT_CPP_NOT_EQUAL(matches.length(), 0);
 				boundary = matches[1].str();
 				break;

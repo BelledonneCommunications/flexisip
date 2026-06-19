@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20260430_add_squid_proxy
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20260619_remove_nghttp2_asio
 ###############################################################################
 
 FROM debian:trixie
@@ -70,17 +70,6 @@ RUN apt-get -y update \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
-
-# Install libnghttp2_asio
-# nghttp2-asio has been moved out of nghttp2 from v1.52.0 onward.
-RUN wget https://github.com/nghttp2/nghttp2-asio/archive/e877868abe06a83ed0a6ac6e245c07f6f20866b5.zip -O asio.zip && \
-    unzip asio.zip && \
-    cd nghttp2-* && \
-    cmake -S . -B build -GNinja -DCMAKE_INSTALL_PREFIX=/usr/local && \
-    cmake --build ./build -j4 && \
-    sudo cmake --install ./build && \
-    cd - && \
-    rm -rf asio.zip nghttp2-*
 	
 RUN apt-get -y install python3-pip \
   # Dependency of clang test coverage (converts lcov format to cobertura so Gitlab can display code coverage for files in diff view)

@@ -21,7 +21,7 @@
 #include <future>
 #include <string>
 
-#include <nghttp2/asio_http2_server.h>
+#include "server/http2/http2-server.hh"
 
 namespace ssl = boost::asio::ssl;
 
@@ -38,7 +38,7 @@ public:
 		forceCloseServer();
 	}
 
-	void onPushRequest(nghttp2::asio_http2::server::request_cb cb);
+	void onPushRequest(tester::http_mock::server::RequestCb cb);
 	bool serveAsync(const std::string& port);
 
 	/**
@@ -53,15 +53,18 @@ public:
 	 *
 	 * @return True if the received request match reqBodyPattern, false otherwise.
 	 */
-	bool exposeMock(int code, const std::string& body, const std::string& reqBodyPattern, std::promise<bool>&& barrier,
+	bool exposeMock(int code,
+	                const std::string& body,
+	                const std::string& reqBodyPattern,
+	                std::promise<bool>&& barrier,
 	                bool timeout = false);
 	void forceCloseServer();
 
 private:
-	nghttp2::asio_http2::server::http2 mServer{};
+	tester::http_mock::server::Http2 mServer{};
 	ssl::context mCtx;
 
-	std::function<void(const nghttp2::asio_http2::server::request&, const nghttp2::asio_http2::server::response&)>
+	std::function<void(const tester::http_mock::server::Request&, const tester::http_mock::server::Response&)>
 	handleRequest(int code, const std::string& body, const std::string& reqBodyPattern, bool& assert, bool timeout);
 };
 

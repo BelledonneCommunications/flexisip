@@ -35,8 +35,7 @@ job-ubuntu-26-04-ninja-gcc:
     - .rules-dev
     - .tester-artifacts
   variables:
-    # TODO: Remove "-DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF" when nghttp2_asio dependency has been removed.
-    CMAKE_OPTIONS: ${UBUNTU26_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF
+    CMAKE_OPTIONS: ${UBUNTU26_CMAKE_OPTIONS} -DENABLE_UNIT_TESTS=ON
 
 job-ubuntu-26-04-ninja-clang:
   extends:
