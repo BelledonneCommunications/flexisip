@@ -53,7 +53,7 @@ using namespace std;
 using namespace std::chrono;
 
 namespace pn = flexisip::pushnotification;
-namespace server = nghttp2::asio_http2::server;
+namespace server = flexisip::tester::http_mock::server;
 
 static shared_ptr<sofiasip::SuRoot> root = nullptr;
 
@@ -466,7 +466,7 @@ static void applePushTestConnectErrorAndReconnect() {
 
 static void tlsTimeoutTest() {
 	FirebaseV1Client::FIREBASE_ADDRESS = "127.0.0.1";
-	FirebaseV1Client::FIREBASE_PORT = "3000";
+	FirebaseV1Client::FIREBASE_PORT = "3001"; // To prevent an 'already in use' from previous test.
 	FirebaseV1Client firebaseClient{
 	    *root, make_shared<FirebaseV1AuthenticationManager>(
 	               root, FLEXISIP_TESTER_DATA_SRCDIR "/scripts/firebase_v1_get_access_token_success.py",
@@ -486,8 +486,8 @@ static void tlsTimeoutTest() {
 	auto request4 = make_shared<FirebaseV1Request>(pType, pushInfo, "sample-project");
 
 	std::promise<void> barrier{};
-	// Start listening on port 3000 with no response to simulate tls timeout
-	auto isReqPatternMatched = async(launch::async, [&barrier]() { ListeningSocket::listenUntil(barrier); });
+	// Start listening on port 3001 with no response to simulate tls timeout
+	auto isReqPatternMatched = async(launch::async, [&barrier]() { ListeningSocket::listenUntil(barrier, 3001); });
 
 	// Send the push notifications and wait until the request state is "Successful" or "Failed"
 	firebaseClient.sendPush(request);
@@ -601,11 +601,11 @@ protected:
 
 		pn::PnsMock pnServer;
 		pnServer.onPushRequest(
-		    [&sofiaLoop = *mRoot, &expectedUris, &passed](const server::request& req, const server::response& res) {
-			    res.write_head(200);
-			    res.end("ok");
+		    [&sofiaLoop = *mRoot, &expectedUris, &passed](const server::Request& req, const server::Response& res) {
+			    res.writeHead(200);
+			    res.send("ok");
 
-			    req.on_data([&sofiaLoop, &expectedUris, &passed](const uint8_t* data, std::size_t len) {
+			    req.onData([&sofiaLoop, &expectedUris, &passed](const uint8_t* data, std::size_t len) {
 				    if (0 < len) {
 					    auto body = string(reinterpret_cast<const char*>(data), len);
 					    static const auto extractFromUri =
@@ -682,8 +682,8 @@ void test_http2client__requests_that_can_not_be_sent_are_queued_and_sent_later()
 		receivedCount++;
 		serverProcessing.lock();
 		serverProcessing.unlock();
-		res.write_head(200);
-		res.end("ok");
+		res.writeHead(200);
+		res.send("ok");
 	});
 	pnServer.serveAsync(suitePort);
 

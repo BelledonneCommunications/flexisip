@@ -16,8 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "accounts/fam-data.hh"
 #include "flexiapi/config.hh"
+#include "spaces-store/accounts/fam-data.hh"
 
 #include <fstream>
 
@@ -105,29 +105,31 @@ const auto accountFinal = R"({
 
 int numberOfCalls = 0;
 const std::map<std::string, http_mock::HttpMockHandler> basicHandlers = {
-    {accountInitialApiUri,
-     [](http_mock::HttpMock&,
-        const nghttp2::asio_http2::server::request&,
-        const nghttp2::asio_http2::server::response& res) {
-	     numberOfCalls++;
-	     res.write_head(200);
-	     res.end(accountInitial);
-     }},
-    {accountIntermediateApiUri,
-     [](http_mock::HttpMock&,
-        const nghttp2::asio_http2::server::request&,
-        const nghttp2::asio_http2::server::response& res) {
-	     numberOfCalls++;
-	     res.write_head(200);
-	     res.end(accountIntermediate);
-     }},
-    {accountFinalApiUri, [](http_mock::HttpMock&,
-                            const nghttp2::asio_http2::server::request&,
-                            const nghttp2::asio_http2::server::response& res) {
-	     numberOfCalls++;
-	     res.write_head(200);
-	     res.end(accountFinal);
-     }}};
+    {
+        accountInitialApiUri,
+        [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+	        numberOfCalls++;
+	        res.writeHead(200);
+	        res.send(accountInitial);
+        },
+    },
+    {
+        accountIntermediateApiUri,
+        [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+	        numberOfCalls++;
+	        res.writeHead(200);
+	        res.send(accountIntermediate);
+        },
+    },
+    {
+        accountFinalApiUri,
+        [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+	        numberOfCalls++;
+	        res.writeHead(200);
+	        res.send(accountFinal);
+        },
+    },
+};
 
 std::pair<unique_ptr<http_mock::HttpMock>, int>
 setupFamMock(const std::map<std::string, http_mock::HttpMockHandler>& customHandlers = {}) {
@@ -237,12 +239,13 @@ void findCallDiversions_Final() {
 }
 
 void findCallDiversions_FamKo() {
-	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {
-	    {accountInitialApiUri, [](http_mock::HttpMock&, const nghttp2::asio_http2::server::request&,
-	                              const nghttp2::asio_http2::server::response& res) {
-		     res.write_head(503);
-		     res.end();
-	     }}};
+	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {{
+	    accountInitialApiUri,
+	    [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+		    res.writeHead(503);
+		    res.send();
+	    },
+	}};
 	const auto [famMock, httpPort] = setupFamMock(customHandlers);
 	auto commons = TestCommons{httpPort};
 
@@ -259,10 +262,10 @@ void findCallDiversions_FamKo() {
 
 void findCallDiversions_badJsonTemplate(const string& badJson = "") {
 	std::map<std::string, http_mock::HttpMockHandler> customHandlers = basicHandlers;
-	customHandlers[accountInitialApiUri] = [badJson](http_mock::HttpMock&, const nghttp2::asio_http2::server::request&,
-	                                                 const nghttp2::asio_http2::server::response& res) {
-		res.write_head(200);
-		res.end(badJson);
+	customHandlers[accountInitialApiUri] = [badJson](http_mock::HttpMock&, const http_mock::server::Request&,
+	                                                 const http_mock::server::Response& res) {
+		res.writeHead(200);
+		res.send(badJson);
 	};
 	const auto [famMock, httpPort] = setupFamMock(customHandlers);
 	auto commons = TestCommons{httpPort};
@@ -421,13 +424,14 @@ void cacheResetTest() {
 }
 
 void unknownHitTest() {
-	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {
-	    {accountInitialApiUri, [](http_mock::HttpMock&, const nghttp2::asio_http2::server::request&,
-	                              const nghttp2::asio_http2::server::response& res) {
-		     numberOfCalls++;
-		     res.write_head(404);
-		     res.end();
-	     }}};
+	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {{
+	    accountInitialApiUri,
+	    [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+		    numberOfCalls++;
+		    res.writeHead(404);
+		    res.send();
+	    },
+	}};
 	const auto [famMock, httpPort] = setupFamMock(customHandlers);
 	auto commons = TestCommons{httpPort};
 
@@ -463,13 +467,14 @@ void unknownHitTest() {
 }
 
 void unknownResetTest() {
-	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {
-	    {accountInitialApiUri, [](http_mock::HttpMock&, const nghttp2::asio_http2::server::request&,
-	                              const nghttp2::asio_http2::server::response& res) {
-		     numberOfCalls++;
-		     res.write_head(404);
-		     res.end();
-	     }}};
+	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {{
+	    accountInitialApiUri,
+	    [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+		    numberOfCalls++;
+		    res.writeHead(404);
+		    res.send();
+	    },
+	}};
 	const auto [famMock, httpPort] = setupFamMock(customHandlers);
 	auto commons = TestCommons{httpPort, 30s, 1ms};
 

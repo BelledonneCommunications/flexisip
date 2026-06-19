@@ -27,8 +27,6 @@
 #include "flexisip/logmanager.hh"
 
 using namespace std;
-using namespace nghttp2::asio_http2;
-using namespace nghttp2::asio_http2::server;
 using namespace boost::asio::ssl;
 
 namespace flexisip::tester::http_mock {
@@ -37,9 +35,10 @@ HttpMock::HttpMock(const std::map<std::string, HttpMockHandler>& handlers) : mCt
 	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
 	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
 
-	std::map<string, std::function<void(HttpMock&, const request& req, const response& res)>> endpoints;
 	for (const auto& kv : handlers) {
-		mServer.handle(kv.first, [this, &kv](const request& req, const response& res) { kv.second(*this, req, res); });
+		mServer.handle(kv.first, [this, &kv](const server::Request& req, const server::Response& res) {
+			kv.second(*this, req, res);
+		});
 	}
 }
 
@@ -49,8 +48,9 @@ HttpMock::HttpMock(const std::initializer_list<std::string> endpoints, std::atom
 	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
 
 	for (const auto& handle : endpoints) {
-		mServer.handle(handle,
-		               [this, handle](const request& req, const response& res) { handleRequest(req, res, handle); });
+		mServer.handle(handle, [this, handle](const server::Request& req, const server::Response& res) {
+			handleRequest(req, res, handle);
+		});
 		mGETResponse[handle] = kDefaultResponse;
 	}
 }
@@ -59,11 +59,11 @@ std::lock_guard<std::recursive_mutex> HttpMock::pauseProcessing() {
 	return lock_guard<recursive_mutex>(mMutex);
 }
 
-void HttpMock::handleRequest(const request& req, const response& res, const string& endpoint) {
-	SLOGD << " HttpMock::handleRequest()";
+void HttpMock::handleRequest(const server::Request& req, const server::Response& res, const string& endpoint) {
+	LOGD_CTX(mLogPrefix) << "handleRequest()";
 	lock_guard<recursive_mutex> lock(mMutex);
 	auto requestReceived = make_shared<Request>();
-	req.on_data([this, requestReceived](const uint8_t* data, std::size_t len) {
+	req.onData([this, requestReceived](const uint8_t* data, std::size_t len) {
 		lock_guard<recursive_mutex> lock(mMutex);
 		if (len > 0) {
 			string body{reinterpret_cast<const char*>(data), len};
@@ -73,44 +73,39 @@ void HttpMock::handleRequest(const request& req, const response& res, const stri
 			}
 		}
 	});
-	requestReceived->method = req.method();
-	requestReceived->headers = req.header();
+	requestReceived->method = req.getMethod();
+	requestReceived->headers = req.getHeaders();
 	if (requestReceived->headers.count("content-length") == 1 &&
-	    requestReceived->headers.find("content-length")->second.value == "0") {
+	    requestReceived->headers.find("content-length")->second.getValue() == "0") {
 		if (mRequestReceivedCount) {
 			(*mRequestReceivedCount)++;
 		}
 	}
-	requestReceived->path = req.uri().path;
+	requestReceived->path = req.getUri().getPath();
 	mRequestsReceived.push(requestReceived);
 
-	res.write_head(200);
-	if (req.method() == "GET" && mGETResponse.find(endpoint) != mGETResponse.cend()) {
-		res.end(mGETResponse[endpoint]);
+	res.writeHead(200);
+	if (req.getMethod() == "GET" && mGETResponse.find(endpoint) != mGETResponse.cend()) {
+		res.send(mGETResponse[endpoint]);
 		return;
 	}
-	res.end(kDefaultResponse);
+	res.send(kDefaultResponse);
 }
 
 int HttpMock::serveAsync(const std::string& port) {
 	boost::system::error_code ec{};
 
-	configure_tls_context_easy(ec, mCtx);
-
-	if (mServer.listen_and_serve(ec, mCtx, "127.0.0.1", port, true)) {
-		SLOGE << "error: " << ec.message() << std::endl;
+	if (mServer.listenAndServe(ec, mCtx, "127.0.0.1", port)) {
+		LOGE_CTX(mLogPrefix) << "error: " << ec.message();
 		return -1;
 	}
-	return !mServer.ports().empty() ? mServer.ports().front() : -1;
+	return !mServer.getPorts().empty() ? mServer.getPorts().front() : -1;
 }
 
 void HttpMock::forceCloseServer() {
-	for (const auto& io_service : mServer.io_services()) {
-		io_service->stop();
-	}
-
 	mServer.stop();
 }
+
 std::shared_ptr<Request> HttpMock::popRequestReceived() {
 	lock_guard<recursive_mutex> lock(mMutex);
 	shared_ptr<Request> ret{nullptr};
@@ -129,7 +124,7 @@ bool HttpMock::addResponseToGET(const std::string& endpoint, const std::string& 
 }
 
 int HttpMock::getFirstPort() const {
-	const auto ports = mServer.ports();
+	const auto ports = mServer.getPorts();
 	return ports.empty() ? -1 : ports.front();
 }
 

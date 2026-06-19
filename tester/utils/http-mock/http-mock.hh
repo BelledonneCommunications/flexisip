@@ -24,7 +24,7 @@
 #include <queue>
 #include <string>
 
-#include <nghttp2/asio_http2_server.h>
+#include "server/http2/http2-server.hh"
 
 namespace ssl = boost::asio::ssl;
 
@@ -35,14 +35,13 @@ public:
 	std::string body;
 	std::string method;
 	std::string path;
-	nghttp2::asio_http2::header_map headers;
+	HeaderMap headers;
 };
 
 class HttpMock;
 
-using HttpMockHandler = std::function<void(HttpMock& httpMock,
-                                           const nghttp2::asio_http2::server::request& req,
-                                           const nghttp2::asio_http2::server::response& res)>;
+using HttpMockHandler =
+    std::function<void(HttpMock& httpMock, const server::Request& req, const server::Response& res)>;
 /**
  * A simple HTTP2/2 mock server
  */
@@ -73,11 +72,10 @@ public:
 	int getFirstPort() const;
 
 private:
-	void handleRequest(const nghttp2::asio_http2::server::request&,
-	                   const nghttp2::asio_http2::server::response&,
-	                   const std::string& endpoint);
+	void handleRequest(const server::Request&, const server::Response&, const std::string& endpoint);
 
-	nghttp2::asio_http2::server::http2 mServer{};
+	static constexpr std::string_view mLogPrefix{"HttpMock"};
+	server::Http2 mServer{};
 	ssl::context mCtx;
 	mutable std::recursive_mutex mMutex{};
 	std::queue<std::shared_ptr<Request>> mRequestsReceived{};

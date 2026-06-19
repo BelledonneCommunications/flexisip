@@ -125,9 +125,9 @@ protected:
 		BC_ASSERT_CPP_EQUAL(actualRequest->path, "/genericMessage");
 		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 2);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("content-type"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-type")->second.value, "text/plain");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-type")->second.getValue(), "text/plain");
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("content-length"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-length")->second.value, "3");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-length")->second.getValue(), "3");
 	}
 
 	void customizeConf(ConfigManager& cfg) override {
@@ -160,9 +160,9 @@ protected:
 		BC_ASSERT_CPP_EQUAL(actualRequest->path, "/genericCall");
 		BC_ASSERT_CPP_EQUAL(actualRequest->headers.size(), 2);
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("content-type"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-type")->second.value, "text/plain");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-type")->second.getValue(), "text/plain");
 		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.count("content-length"), 1);
-		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-length")->second.value, "0");
+		BC_HARD_ASSERT_CPP_EQUAL(actualRequest->headers.find("content-length")->second.getValue(), "0");
 	}
 
 	void customizeConf(ConfigManager& cfg) override {

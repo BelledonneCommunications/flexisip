@@ -40,9 +40,13 @@ add_library(flexisip_tester_utils
 	eventlogs/writers/event-log-writer-visitor-adapter.hh
 	flow-test-helper.cc flow-test-helper.hh
 	http-mock/http1-mock.cc http-mock/http1-mock.hh
+	server/http2/http2-server.cc server/http2/http2-server.hh
+	server/http2/http2-session.cc server/http2/http2-session.hh
+	http-mock/http-mock.cc http-mock/http-mock.hh
 	listeners.hh
 	listening-socket.cc listening-socket.hh
 	nat-test-helper.cc nat-test-helper.hh
+	pns-mock.cc pns-mock.hh
 	random.cc random.hh
 	server/injected-module-info.cc server/injected-module-info.hh
 	server/proxy-server.cc server/proxy-server.hh
@@ -91,15 +95,6 @@ if(ENABLE_REDIS)
 	endif()
 endif()
 
-if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
-	target_sources(flexisip_tester_utils PRIVATE
-		http-mock/http-mock.cc http-mock/http-mock.hh
-		pns-mock.cc pns-mock.hh
-	)
-elseif(ENABLE_UNIT_TESTS_NGHTTP2ASIO)
-	message(FATAL_ERROR "The LibNgHttp2Asio module is required by some tests. You may disable them with -DENABLE_UNIT_TESTS_NGHTTP2ASIO=OFF")
-endif()
-
 if(ENABLE_PRESENCE)
 	target_sources(flexisip_tester_utils PRIVATE
 		test-patterns/presence-test.hh
@@ -130,12 +125,9 @@ target_link_libraries(flexisip_tester_utils PUBLIC
 	OpenSSL::SSL
 	bctoolbox-tester
 	flexisip
+	LibNgHttp2
 	mediastreamer2
 	ortp
 	jsoncpp_lib
 	XercesC::XercesC
 )
-
-if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
-	target_link_libraries(flexisip_tester_utils PUBLIC LibNgHttp2Asio)
-endif()

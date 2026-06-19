@@ -18,10 +18,7 @@
 
 #include "voicemail/voicemail-server.hh"
 
-#include <nghttp2/asio_http2_server.h>
-
 #include "flexiapi/config.hh"
-#include "flexiapi/schemas/account/account.hh"
 #include "flexiapi/schemas/schemas-json.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "sofia-wrapper/nta-agent.hh"
@@ -99,27 +96,27 @@ void answerCallThenHangUp() {
 }
 
 void getAccountIdHandler(http_mock::HttpMock&,
-                         const nghttp2::asio_http2::server::request&,
-                         const nghttp2::asio_http2::server::response& res) {
+                         const http_mock::server::Request&,
+                         const http_mock::server::Response& res) {
 	nlohmann::json account{}; // = flexiapi::Account{1234}; doesn't work for a reason.
 	account["id"] = 1234;
 	account["call_forwardings"] = nlohmann::json::array();
 	account["sip_uri"] = SipUri{};
 
-	res.write_head(200);
-	res.end(account.dump());
+	res.writeHead(200);
+	res.send(account.dump());
 }
 
 void getSlotHandler(http_mock::HttpMock& httpMock,
-                    const nghttp2::asio_http2::server::request& req,
-                    const nghttp2::asio_http2::server::response& res) {
-	if (req.method() != "POST") {
-		res.write_head(404);
-		res.end(http_mock::HttpMock::kDefaultError);
+                    const http_mock::server::Request& req,
+                    const http_mock::server::Response& res) {
+	if (req.getMethod() != "POST") {
+		res.writeHead(404);
+		res.send(http_mock::HttpMock::kDefaultError);
 		return;
 	}
 
-	req.on_data([&httpMock, &res](const uint8_t* body, std::size_t size) {
+	req.onData([&httpMock, &res](const uint8_t* body, std::size_t size) {
 		try {
 			if (size) {
 				const auto jsonBody = nlohmann::json::parse(string((char*)body, size));
@@ -128,8 +125,8 @@ void getSlotHandler(http_mock::HttpMock& httpMock,
 		} catch (exception& e) {
 			BC_FAIL("getSlotHandler::on_data - exception while parsing json: "s + e.what());
 
-			res.write_head(500);
-			res.end();
+			res.writeHead(500);
+			res.send();
 		}
 
 		nlohmann::json slot = {
@@ -140,22 +137,22 @@ void getSlotHandler(http_mock::HttpMock& httpMock,
 		    {"content_type", "audio/wav"},
 		};
 
-		res.write_head(200);
-		res.end(slot.dump());
+		res.writeHead(200);
+		res.send(slot.dump());
 	});
 }
 
 void postFileHandler(http_mock::HttpMock&,
-                     const nghttp2::asio_http2::server::request& req,
-                     const nghttp2::asio_http2::server::response& res) {
-	if (req.method() != "POST") {
-		res.write_head(404);
-		res.end(http_mock::HttpMock::kDefaultError);
+                     const http_mock::server::Request& req,
+                     const http_mock::server::Response& res) {
+	if (req.getMethod() != "POST") {
+		res.writeHead(404);
+		res.send(http_mock::HttpMock::kDefaultError);
 		return;
 	}
 
-	res.write_head(200);
-	res.end(http_mock::HttpMock::kDefaultResponse);
+	res.writeHead(200);
+	res.send(http_mock::HttpMock::kDefaultResponse);
 }
 
 /**
@@ -174,9 +171,8 @@ void answerCallRecordVoicemail() {
 	std::map<std::string, http_mock::HttpMockHandler> handlers;
 	handlers["/api/accounts/target@sip.test.org/search"] = getAccountIdHandler;
 	handlers["/api/accounts/1234/voicemails"] = getSlotHandler;
-	handlers["/api/upload"] = [&fileUploaded](http_mock::HttpMock& mock,
-	                                          const nghttp2::asio_http2::server::request& req,
-	                                          const nghttp2::asio_http2::server::response& res) {
+	handlers["/api/upload"] = [&fileUploaded](http_mock::HttpMock& mock, const http_mock::server::Request& req,
+	                                          const http_mock::server::Response& res) {
 		fileUploaded = true;
 		postFileHandler(mock, req, res);
 	};

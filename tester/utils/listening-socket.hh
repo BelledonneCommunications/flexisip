@@ -27,6 +27,6 @@ namespace flexisip {
  */
 class ListeningSocket {
 public:
-	static void listenUntil(std::promise<void>& barrier);
+	static void listenUntil(std::promise<void>& barrier, int port = 3000);
 };
 } // namespace flexisip

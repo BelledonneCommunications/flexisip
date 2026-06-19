@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260430_add_squid_proxy
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260619_remove_nghttp2_asio
 ###############################################################################
 
 FROM ubuntu:24.04
@@ -73,10 +73,6 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 10 \
     && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 10 \
     &&update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 10 \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 10
-
-# Install libnghttp2_asio 1.51.0
-COPY libnghttp2_asio_install.sh .
-RUN ./libnghttp2_asio_install.sh 1.51.0 && rm libnghttp2_asio_install.sh
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \

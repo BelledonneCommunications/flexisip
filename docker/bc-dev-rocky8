@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260604_use_provided_cmake
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260619_remove_nghttp2_asio
 ###############################################################################
 
 FROM rockylinux/rockylinux:8
@@ -34,6 +34,7 @@ RUN sudo dnf -y install \
                    libev-devel \
                    libubsan \
                    libuv-devel \
+                   llvm-20.1.8 \
                    make \
                    ninja-build \
                    python3.12 \
@@ -72,10 +73,6 @@ RUN sudo dnf -y install \
                    squid \
                &&  dnf -y module install redis:6 \
                &&  dnf -y clean all
-
-# Install libnghttp2_asio 1.39.2
-COPY libnghttp2_asio_install.sh .
-RUN ./libnghttp2_asio_install.sh 1.39.2 && rm libnghttp2_asio_install.sh
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \
