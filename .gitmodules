@@ -10,6 +10,9 @@
 [submodule "submodules/externals/jose"]
 	path = submodules/externals/jose
 	url = https://gitlab.linphone.org/BC/public/external/jose.git
+[submodule "submodules/externals/xsd"]
+    path = submodules/externals/xsd
+    url = https://gitlab.linphone.org/BC/public/external/xsd.git
 [submodule "linphone-sdk"]
 	path = linphone-sdk
 	url = https://gitlab.linphone.org/BC/public/linphone-sdk.git

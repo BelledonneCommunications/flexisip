@@ -266,4 +266,4 @@ if(LIBNGHTTP2ASIO_FOUND AND ENABLE_UNIT_TESTS_NGHTTP2ASIO)
 	target_link_libraries(flexisip_tester PRIVATE LibNgHttp2Asio)
 endif()
 
-target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
+target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/submodules/externals/xsd/libxsd")
