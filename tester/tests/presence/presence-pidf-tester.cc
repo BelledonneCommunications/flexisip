@@ -16,8 +16,10 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "utils/background-thread.hh"
 #include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
+#include "utils/http-mock/http1-mock.hh"
 #include "utils/test-patterns/presence-test.hh"
 #include "utils/test-suite.hh"
 
@@ -176,10 +178,116 @@ protected:
 	}
 };
 
+class XXEVulnerability : public PidfOneDevice {
+public:
+	void testExec() override {
+		auto rootThread = BackgroundThread([this](const atomic_bool& running) {
+			auto root = make_shared<sofiasip::SuRoot>();
+			http_mock::Http1Srv server{root};
+			server.addPage("/resource-lists", "200 Ok");
+			mRequestUrl = server.getUrl();
+
+			mReady = true;
+			while (running) {
+				root->step(10ms);
+				mRequestReceived = server.getRequestReceivedCount();
+			}
+			root->step(0ms);
+		});
+
+		mAsserter
+		    .wait([&]() {
+			    FAIL_IF(!mReady);
+			    return ASSERTION_PASSED();
+		    })
+		    .hard_assert_passed();
+
+		insertRegistrarContact();
+
+		auto isBadRequestReceived = false;
+
+		BellesipUtils belleSipUtils{
+		    "0.0.0.0",
+		    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+		    "tcp",
+		    [&isBadRequestReceived](int status) {
+			    if (status != 100) {
+				    isBadRequestReceived = true;
+			    }
+		    },
+		};
+		mClientPort = to_string(belleSipUtils.getListeningPort());
+
+		const auto body = getSubscribeBody();
+		belleSipUtils.sendRawRequest(getSubscribeHeaders(body.size()), body);
+
+		CoreAssert{mPresence, belleSipUtils}
+		    .wait([&isBadRequestReceived]() { return LOOP_ASSERTION(isBadRequestReceived); })
+		    .assert_passed();
+
+		// Let some time pass to avoid leaks.
+		CoreAssert{mPresence}.forceIterateThenAssert(20, 0ms, []() { return ASSERTION_PASSED(); }).hard_assert_passed();
+
+		doAssert();
+	}
+
+protected:
+	BcAssert<> mAsserter{};
+	atomic_int mRequestReceived{0};
+	string mRequestUrl{};
+	atomic_bool mReady{false};
+
+	string getSubscribeBody() override {
+		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+		       "<!DOCTYPE resource-lists [\r\n"
+		       " <!ENTITY xxe SYSTEM \"" +
+		       mRequestUrl +
+		       "/resource-lists\">\r\n"
+		       "]>\r\n"
+		       "<resource-lists xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
+		       "xmlns=\"urn:ietf:params:xml:ns:resource-lists\">\r\n"
+		       " <list version=\"2\" fullState=\"true\">\r\n"
+		       "  <display-name>&xxe;</display-name>\r\n"
+		       "  <entry uri=\"sip:test@127.0.0.1\"/>\r\n"
+		       " </list>\r\n"
+		       "</resource-lists>\r\n";
+	}
+
+	void doAssert() override {
+		mAsserter
+		    .forceIterateThenAssert(0, 500ms,
+		                            [&]() {
+			                            FAIL_IF(mRequestReceived > 0);
+			                            return ASSERTION_PASSED();
+		                            })
+		    .hard_assert_passed();
+	}
+};
+
+class BlindXXEVulnerability : public XXEVulnerability {
+protected:
+	string getSubscribeBody() override {
+		return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
+		       "<!DOCTYPE resource-lists [\r\n"
+		       " <!ENTITY % xxe SYSTEM \"" +
+		       mRequestUrl +
+		       "/resource-lists\"> %xxe;\r\n"
+		       "]>\r\n"
+		       "<resource-lists xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
+		       "xmlns=\"urn:ietf:params:xml:ns:resource-lists\">\r\n"
+		       " <list version=\"2\" fullState=\"true\">\r\n"
+		       "  <entry uri=\"sip:test@127.0.0.1\"/>\r\n"
+		       " </list>\r\n"
+		       "</resource-lists>\r\n";
+	}
+};
+
 TestSuite _("PidfPresence",
             {
                 CLASSY_TEST(PidfOneDevice),
                 CLASSY_TEST(PidfMultipleDevices),
+                CLASSY_TEST(XXEVulnerability),
+                CLASSY_TEST(BlindXXEVulnerability),
             });
 
 } // namespace

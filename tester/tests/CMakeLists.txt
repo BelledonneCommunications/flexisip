@@ -257,4 +257,4 @@ endif()
 
 target_sources(flexisip_tester PRIVATE tester.cc tester.hh)
 
-target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/libxsd")
+target_include_directories(flexisip_tester PRIVATE "${PROJECT_SOURCE_DIR}/submodules/externals/xsd/libxsd")

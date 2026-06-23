@@ -46,8 +46,13 @@ public:
 		return response->second;
 	}
 
+	int getRequestReceivedCount() const {
+		return mRequestReceivedCount;
+	}
+
 private:
 	std::shared_ptr<sofiasip::SuRoot> mRoot;
+	int mRequestReceivedCount = 0;
 
 	struct NthSiteDeleter {
 		void operator()(nth_site_t* site) {
