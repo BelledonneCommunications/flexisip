@@ -57,6 +57,7 @@ std::string Http1Srv::addPage(std::string_view subPath, std::string_view body) {
 		sofiasip::Home home{};
 		auto payload = http_payload_create(home.home(), rep.data(), static_cast<isize_t>(rep.size()));
 		nth_request_treply(req, HTTP_200_OK, HTTPTAG_ALLOW_STR("GET"), HTTPTAG_PAYLOAD(payload), TAG_END());
+		thiz->mRequestReceivedCount++;
 		return 200;
 	};
 	auto page =

@@ -15,6 +15,8 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.7.0] - Alpha
+- **SDK version:** 5.5.7
+
 ### [Added]
 - **Proxy:**
   - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
@@ -25,7 +27,12 @@ Group changes to describe their impact on the project, as follows:
   - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
 
+## [2.6.1] - Hotfix
+- **SDK version:** 5.5.7
+
 ## [2.6.0] - Beta 
+- **SDK version:** 5.5-beta
+
 ### [Added]
 - **Proxy:**
     - **PushNotification:**
@@ -146,6 +153,9 @@ Group changes to describe their impact on the project, as follows:
     - MSGPACK feature (deprecated in 2.4.0).
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its
   watchdog.
+
+## [2.5.2] - 2026-06-26
+- **SDK version:** 5.4.123
 
 ## [2.5.1] - 2026-05-19
 - **SDK version:** 5.4.111
@@ -302,6 +312,8 @@ Group changes to describe their impact on the project, as follows:
         - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
 - **Plugin:** JweAuth.
 
+## [2.4.5] - 2026-06-26
+- **SDK version:** 5.3.115
 
 ## [2.4.4] - 2026-03-30
 - **SDK version:** 5.3.114

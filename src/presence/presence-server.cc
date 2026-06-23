@@ -26,6 +26,8 @@
 #include <soci/mysql/soci-mysql.h>
 #endif
 
+#include <xercesc/util/XMLNetAccessor.hpp>
+
 #include "flexisip/configmanager.hh"
 
 #include "bellesip-signaling-exception.hh"
@@ -276,6 +278,12 @@ PresenceServer::PresenceServer(const std::shared_ptr<sofiasip::SuRoot>& root, co
 	mMaxPresenceInfoNotifiedAtATime = config->get<ConfigInt>("notify-limit")->read();
 
 	xercesc::XMLPlatformUtils::Initialize();
+
+	// Set the NetAccessor to nullptr
+	if (xercesc::XMLPlatformUtils::fgNetAccessor) {
+		delete xercesc::XMLPlatformUtils::fgNetAccessor;
+		xercesc::XMLPlatformUtils::fgNetAccessor = nullptr;
+	}
 
 	belle_sip_listener_callbacks_t listener_callbacks;
 	memset(&listener_callbacks, 0, sizeof(listener_callbacks));
