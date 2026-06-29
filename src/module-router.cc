@@ -288,6 +288,13 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "Rewrite username with given value.",
 	        "",
 	    },
+	    {
+	        Integer,
+	        "no-contact-for-aor-return-code",
+	        "SIP response code to send when the requested AoR exists but has no valid registered contact.\n"
+	        "Valid interval: [400; 599]",
+	        "404",
+	    },
 	    config_item_end,
 	};
 	moduleConfig.addChildrenValues(configs);
@@ -368,6 +375,12 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	for (const auto& uri : mc->get<ConfigStringList>("static-targets")->read())
 		mStaticTargets.emplace_back(uri);
+
+	const auto* noDevicesRegisteredReturnCodeParam = mc->get<ConfigInt>("no-contact-for-aor-return-code");
+	mNoContactForAorReturnCode = noDevicesRegisteredReturnCodeParam->read();
+	if (mNoContactForAorReturnCode < 400 || mNoContactForAorReturnCode > 599) {
+		throw BadConfigurationValue{noDevicesRegisteredReturnCodeParam};
+	}
 }
 
 void ModuleRouter::sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code, const char* warning) {
@@ -446,7 +459,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 		} else {
 			LOGD << "This user is not registered (no valid contact)";
 			LOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " is not registered (no valid contact)";
-			sendReply(*ev, SIP_404_NOT_FOUND);
+			sendReply(*ev, mNoContactForAorReturnCode, sip_status_phrase(mNoContactForAorReturnCode));
 		}
 		return;
 	}

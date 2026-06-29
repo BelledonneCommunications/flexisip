@@ -559,6 +559,80 @@ void sipMessageRequestIntendedForChatroom() {
 	router::sipMessageRequestIntendedForChatroom(false, "");
 }
 
+template <typename Database>
+void customNoContactReturnCode(bool insertContactWithLowExpire) {
+	constexpr auto customReturnCode = 480;
+
+	std::map<std::string, std::string> config = {
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Registrar/reg-domains", "127.0.0.1"},
+	    {"module::Router/no-contact-for-aor-return-code", to_string(customReturnCode)},
+	};
+
+	Database db{};
+
+	config.merge(db.configAsMap());
+
+	Server server{config};
+	server.start();
+
+	const auto aor = "sip:no-contact@127.0.0.1"s;
+
+	ContactInserter inserter{server.getAgent()->getRegistrarDb()};
+	if (insertContactWithLowExpire) {
+		inserter.setAor(aor).setExpire(1s).insert({aor + ":0"s});
+	}
+
+	auto responseReceived = false;
+	BellesipUtils belleSipUtils{
+	    "0.0.0.0",
+	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
+	    "UDP",
+	    [&customReturnCode, &responseReceived](int status) {
+		    if (status != 100) {
+			    BC_ASSERT_CPP_EQUAL(status, customReturnCode);
+			    responseReceived = true;
+		    }
+	    },
+	    nullptr,
+	};
+
+	CoreAssert asserter{server, belleSipUtils};
+
+	if (insertContactWithLowExpire) {
+		// Wait until the AoR exists but its only contact is expired.
+		asserter.forceIterateThenAssert(0, 1s, [&inserter] { return LOOP_ASSERTION(inserter.finished()); })
+		    .hard_assert_passed();
+	}
+
+	const auto requestUri = aor + ":"s + server.getFirstPort();
+	stringstream request{};
+	request << "OPTIONS " << requestUri << " SIP/2.0\r\n"
+	        << "Via: SIP/2.0/UDP 127.0.0.1:" << belleSipUtils.getListeningPort()
+	        << ";branch=z9hG4bK.custom-no-contact\r\n"
+	        << "From: <sip:caller@127.0.0.1>;tag=custom-no-contact-from\r\n"
+	        << "To: <" << "sip:no-contact@127.0.0.1"s << ">\r\n"
+	        << "CSeq: 1 OPTIONS\r\n"
+	        << "Call-ID: custom-no-contact-return-code\r\n"
+	        << "Max-Forwards: 70\r\n"
+	        << "Content-Length: 0\r\n\r\n";
+	belleSipUtils.sendRawRequest(request.str());
+
+	asserter.wait([&responseReceived] { return LOOP_ASSERTION(responseReceived); }).assert_passed();
+}
+
+void customNoContactReturnCode() {
+	customNoContactReturnCode<DbImplementation::Internal>(false);
+}
+
+void customNoContactReturnCodeExpiredInternal() {
+	customNoContactReturnCode<DbImplementation::Internal>(true);
+}
+
+void customNoContactReturnCodeExpiredRedis() {
+	customNoContactReturnCode<DbImplementation::Redis>(true);
+}
+
 TestSuite _{
     "RouterModule",
     {
@@ -571,6 +645,9 @@ TestSuite _{
         CLASSY_TEST(requestIsRoutedToXTargetUrisAndStaticTargets),
         CLASSY_TEST(statelessCancel),
         CLASSY_TEST(sipMessageRequestIntendedForChatroom),
+        CLASSY_TEST(customNoContactReturnCode),
+        CLASSY_TEST(customNoContactReturnCodeExpiredInternal),
+        CLASSY_TEST(customNoContactReturnCodeExpiredRedis),
     },
 };
 

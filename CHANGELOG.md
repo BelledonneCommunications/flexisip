@@ -14,6 +14,12 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.3] - Hotfix
+### [Added]
+- **Proxy:**
+  - **Router:** New parameter `no-contact-for-aor-return-code` to configure the SIP response code to send when the
+    requested AoR exists but has no valid registered contact.
+
 ## [2.5.2] - 2026-06-26
 - **SDK version:** 5.4.123
 

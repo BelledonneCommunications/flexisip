@@ -110,6 +110,7 @@ protected:
 	std::list<std::string> mDomains{};
 	bool mFallbackParentDomain{};
 	bool mAllowDomainRegistrations{};
+	int mNoContactForAorReturnCode{};
 
 private:
 	static ModuleInfo<ModuleRouter> sInfo;
