@@ -18,6 +18,9 @@ Group changes to describe their impact on the project, as follows:
 - **SDK version:** 5.5.7
 
 ### [Added]
+- **Proxy:**
+    - **Router:** New parameter `no-contact-for-aor-return-code` to configure the SIP response code to send when the
+      requested AoR exists but has no valid registered contact.
 - **B2BUA:** Do not forward an out-of-dialog NOTIFY when an MWI is notified but the new and new-urgent message
   counters have not been incremented, therefore preventing a push notification to be sent and waking a client for a
   useless information.
