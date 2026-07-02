@@ -14,7 +14,7 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.5.3] - Hotfix
+## [2.5.3] - 2026-07-02
 ### [Added]
 - **Proxy:**
   - **Router:** New parameter `no-contact-for-aor-return-code` to configure the SIP response code to send when the
