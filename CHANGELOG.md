@@ -136,6 +136,22 @@ Group changes to describe their impact on the project, as follows:
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its
   watchdog.
 
+## [2.5.3] - 2026-07-02
+- **SDK version:** 5.4.123
+
+### [Added]
+- **Proxy:**
+    - **Router:** New parameter `no-contact-for-aor-return-code` to configure the SIP response code to send when the
+      requested AoR exists but has no valid registered contact.
+
+## [2.5.2] - 2026-06-26
+- **SDK version:** 5.4.123
+
+### [Fixed]
+- **B2BUA server:** Fix wrong behavior of the B2BUA server when a call is answered with inactive audio. Previously, if a
+  200 OK response to a call was setting the audio inactive, the B2BUA server was sending an UPDATE on the other leg
+  instead of relaying the 200 OK. It is now correctly relaying this response.
+
 ## [2.5.1] - 2026-05-19
 - **SDK version:** 5.4.111
 
