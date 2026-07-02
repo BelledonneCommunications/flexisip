@@ -154,6 +154,12 @@ Group changes to describe their impact on the project, as follows:
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its
   watchdog.
 
+## [2.5.3] - 2026-07-02
+### [Added]
+- **Proxy:**
+    - **Router:** New parameter `no-contact-for-aor-return-code` to configure the SIP response code to send when the
+      requested AoR exists but has no valid registered contact.
+
 ## [2.5.2] - 2026-06-26
 - **SDK version:** 5.4.123
 
