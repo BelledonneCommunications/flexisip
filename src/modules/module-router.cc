@@ -273,6 +273,13 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "This prevents loops during successive call diversions.",
 	        "10",
 	    },
+	    {
+	        Integer,
+	        "no-contact-for-aor-return-code",
+	        "SIP response code to send when the requested AoR exists but has no valid registered contact.\n"
+	        "Valid interval: [400; 599]",
+	        "404",
+	    },
 	    config_item_end,
 	};
 	moduleConfig.addChildrenValues(configs);
@@ -335,6 +342,12 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	}
 
 	mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
+
+	const auto* noDevicesRegisteredReturnCodeParam = mc->get<ConfigInt>("no-contact-for-aor-return-code");
+	mNoContactForAorReturnCode = noDevicesRegisteredReturnCodeParam->read();
+	if (mNoContactForAorReturnCode < 400 || mNoContactForAorReturnCode > 599) {
+		throw BadConfigurationValue{noDevicesRegisteredReturnCodeParam};
+	}
 }
 
 void ModuleRouter::sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code, const char* warning) {
@@ -416,7 +429,7 @@ void ModuleRouter::routeRequest(unique_ptr<RequestSipEvent>&& ev, const shared_p
 			LOGUE << "User " << url_as_string(ms->getHome(), sipUri) << " is not registered (no valid contact)";
 
 			if (sip->sip_request->rq_method != sip_method_invite || mVoicemailServerUri.empty()) {
-				sendReply(*ev, SIP_404_NOT_FOUND);
+				sendReply(*ev, mNoContactForAorReturnCode, sip_status_phrase(mNoContactForAorReturnCode));
 				return;
 			}
 			// else try to divert the call

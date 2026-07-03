@@ -106,6 +106,7 @@ protected:
 	bool mFallbackParentDomain{};
 	bool mAllowDomainRegistrations{};
 	bool mEnableCallDiversions{};
+	int mNoContactForAorReturnCode{};
 
 private:
 	static ModuleInfo<ModuleRouter> sInfo;
