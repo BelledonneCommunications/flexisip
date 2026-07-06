@@ -14,7 +14,9 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.6.0] - Beta 
+## [2.6.0] - 2026-07-07
+- **SDK version:** 5.5-beta
+
 ### [Added]
 - **Proxy:**
     - **PushNotification:**
@@ -57,8 +59,6 @@ Group changes to describe their impact on the project, as follows:
     - Option `--remove-deprecated`: when dumping the configuration, all deprecated parameters will be removed even if
       they have a value explicitly set.
 
-
-
 ### [Changed]
 - **Pusher:**
     - Default values of the push body are now empty instead of containing placeholders.
@@ -83,6 +83,16 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Deprecated]
 - **Global:** Parameter `global/auto-respawn` no longer has any effect.
+- **Proxy:**
+  - **Authorization:**
+    - Value `legacy` of parameter `auth-domains-mode`: use `static` or `flexiapi` instead.
+    - Parameter `account-manager-host`: use `[global::flexiapi]` instead.
+    - Parameter `account-manager-port`: use `[global::flexiapi]` instead.
+    - Parameter `account-manager-api-key`: use `[global::flexiapi]` instead.
+  - **EventLogs:**
+    - Parameter `flexiapi-host`: use `[global::flexiapi]` instead.
+    - Parameter `flexiapi-port`: use `[global::flexiapi]` instead.
+    - Parameter `flexiapi-api-key`: use `[global::flexiapi]` instead.
 
 ### [Fixed]
 - **Proxy:**
