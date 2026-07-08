@@ -228,6 +228,35 @@ void configureNatAddressesWithSeveralIPv6Addresses() {
 	BC_ASSERT_THROWN(configuration_utils::configureNatAddresses(policy, &parameter), BadConfigurationValue)
 }
 
+void getTransportUriWithInvalidUri() {
+	const ConfigString emptyParam{"transport", "", "", 0};
+	BC_ASSERT_THROWN(configuration_utils::getTransportUri(&emptyParam), BadConfigurationEmpty)
+
+	const ConfigString invalidParam{"transport", "", "http:sip.example.org", 0};
+	BC_ASSERT_THROWN(configuration_utils::getTransportUri(&invalidParam), BadConfigurationValue)
+}
+
+void bindAddressInvalidUri() {
+	const auto config = linphone::Factory::get()->createConfig("");
+
+	const ConfigString emptyParam{"transport", "", "", 0};
+	BC_ASSERT_THROWN(configuration_utils::setBindAddress(config, &emptyParam), BadConfigurationEmpty)
+
+	const ConfigString invalidParam{"transport", "", "0", 0};
+	BC_ASSERT_THROWN(configuration_utils::setBindAddress(config, &invalidParam), BadConfigurationValue)
+}
+
+void setBindaddress() {
+	const auto config = linphone::Factory::get()->createConfig("");
+
+	const ConfigString parameter{"transport", "", "sip:127.0.0.2", 0};
+	configuration_utils::setBindAddress(config, &parameter);
+	BC_ASSERT_CPP_EQUAL(config->getString("sip", "bind_address", ""), "127.0.0.2");
+	auto core = linphone::Factory::get()->createCoreWithConfig(config, nullptr);
+	core->enableDatabase(false);
+	core->start();
+}
+
 TestSuite _{
     "utils::configuration::transport",
     {
@@ -243,6 +272,9 @@ TestSuite _{
         CLASSY_TEST(configureNatAddressesWithUnknownNameOrService),
         CLASSY_TEST(configureNatAddressesWithSeveralIPv4Addresses),
         CLASSY_TEST(configureNatAddressesWithSeveralIPv6Addresses),
+        CLASSY_TEST(getTransportUriWithInvalidUri),
+        CLASSY_TEST(bindAddressInvalidUri),
+        CLASSY_TEST(setBindaddress),
     },
 };
 

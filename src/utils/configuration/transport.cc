@@ -35,6 +35,17 @@ static constexpr string_view kLogPrefix{"ConfigurationUtils::Transport"};
 
 namespace flexisip::configuration_utils {
 
+SipUri getTransportUri(const ConfigString* parameter) {
+	const auto& transportValue = parameter->read();
+	if (transportValue.empty()) throw BadConfigurationEmpty{parameter};
+
+	try {
+		return SipUri{transportValue};
+	} catch (const std::exception& exception) {
+		throw BadConfigurationValue{parameter, " invalid SIP URI ("s + exception.what() + ")"};
+	}
+}
+
 void configureTransport(const shared_ptr<linphone::Transports>& transports,
                         const ConfigString* parameter,
                         const set<string>& allowedSip,
@@ -44,17 +55,7 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 	transports->setTlsPort(LC_SIP_TRANSPORT_DONTBIND);
 	transports->setDtlsPort(LC_SIP_TRANSPORT_DONTBIND);
 
-	const auto& transport = parameter->read();
-	if (transport.empty()) return;
-
-	const auto parameterName = parameter->getCompleteName();
-
-	SipUri transportUri{};
-	try {
-		transportUri = SipUri{transport};
-	} catch (const std::exception& exception) {
-		throw BadConfigurationValue{parameter, " invalid SIP URI ("s + exception.what() + ")"};
-	}
+	SipUri transportUri = getTransportUri(parameter);
 
 	const auto scheme = transportUri.getSchemeType();
 	const auto transportUriParam = string_utils::toLower(transportUri.getParam("transport"));
@@ -101,6 +102,13 @@ void configureTransport(const shared_ptr<linphone::Transports>& transports,
 	} else {
 		throw BadConfigurationValue{parameter, "invalid scheme for SIP URI"};
 	}
+}
+
+void setBindAddress(std::shared_ptr<linphone::Config> linphoneConfig, const ConfigString* parameter) {
+	const auto& transportUri = getTransportUri(parameter);
+	const auto maddr = transportUri.getParam("maddr");
+	const auto bindAddress = maddr.empty() ? transportUri.getHost() : maddr;
+	linphoneConfig->setString("sip", "bind_address", bindAddress);
 }
 
 pair<string, IP_FAMILY> parseInternetAddress(string_view address, string_view service) {

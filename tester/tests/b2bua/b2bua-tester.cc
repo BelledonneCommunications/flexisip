@@ -901,7 +901,7 @@ void resumeCallPausedOnBothSides() {
 		        FAIL_IF(resumerCall->getAudioDirection() != linphone::MediaDirection::RecvOnly);
 
 		        FAIL_IF(resumeeCall->getState() != linphone::Call::State::Paused);
-		        if (pauseeAnswersWithAudioInactive == OnOff::On and legThatInitiatedResume == PAUSER) {
+		        if (pauseeAnswersWithAudioInactive == OnOff::On && legThatInitiatedResume == PAUSER) {
 			        FAIL_IF(resumeeCall->getAudioDirection() != linphone::MediaDirection::Inactive);
 		        } else {
 			        FAIL_IF(resumeeCall->getAudioDirection() != linphone::MediaDirection::SendOnly);
@@ -1682,7 +1682,7 @@ void transportAndOneConnectionPerAccount() {
 		const auto& portUsed1 = *ports.begin();
 		if constexpr (oneConnectionPerAccount) {
 			// TODO: fix non-working case (UDP-UDP), parameter one-connection-per-account does not have any effect.
-			if (incomingTransport == "udp" and outgoingTransport == "udp") {
+			if (incomingTransport == "udp" && outgoingTransport == "udp") {
 				FAIL_IF(ports.size() != 1);
 				FAIL_IF(portUsed1 != b2buaUdpPort);
 			} else {
@@ -1699,7 +1699,7 @@ void transportAndOneConnectionPerAccount() {
 		} else {
 			FAIL_IF(ports.size() != 1);
 
-			if (incomingTransport == "udp" and outgoingTransport == "udp") {
+			if (incomingTransport == "udp" && outgoingTransport == "udp") {
 				FAIL_IF(portUsed1 != b2buaUdpPort);
 			} else {
 				FAIL_IF(portUsed1 == b2buaTcpPort);
@@ -1725,7 +1725,7 @@ void transportAndOneConnectionPerAccount() {
 	asserter
 	    .iterateUpTo(
 	        0x20,
-	        [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted() and transaction->getStatus() == 200); },
+	        [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted() && transaction->getStatus() == 200); },
 	        100ms)
 	    .assert_passed();
 
@@ -1758,6 +1758,96 @@ void transportAndOneConnectionPerAccount() {
 
 const string UDP = "udp";
 const string TCP = "tcp";
+
+/**
+ * Ensure that only the address and protocol specified in the transport parameter are available to reach the server
+ */
+void transportInitialization(const string& incomingTransport) {
+	using namespace sofiasip;
+	TmpDir directory{"B2bua::"s + __func__};
+	const auto& b2buaConfigPath = directory.path() / "b2bua.conf";
+
+	ofstream{b2buaConfigPath} << "[b2bua-server]\n"
+	                          << "transport=sip:127.0.0.1:0;transport=" << incomingTransport << '\n'
+	                          << "data-directory=" << bcTesterWriteDir().string() << '\n';
+	const auto suRoot = make_shared<SuRoot>();
+	const auto config = make_shared<ConfigManager>();
+	config->load(b2buaConfigPath);
+	CoreAssert asserter{suRoot};
+
+	// Instantiate B2BUA server.
+	const auto b2buaServer = make_shared<flexisip::B2buaServer>(suRoot, config);
+	b2buaServer->init();
+	const auto b2buaTcpPort = to_string(b2buaServer->getTcpPort());
+	const auto b2buaUdpPort = to_string(b2buaServer->getUdpPort());
+	const auto b2buaPort = incomingTransport == TCP ? b2buaTcpPort : b2buaUdpPort;
+	const auto b2buaServerUri = "sip:127.0.0.1:" + b2buaPort + ";transport=" + incomingTransport;
+
+	const auto b2buaServerUriWrongAddress = "sip:127.0.0.2:" + b2buaPort + ";transport=" + incomingTransport;
+	const auto b2buaServerUriWrongProtocol =
+	    "sip:127.0.0.1:" + b2buaPort + ";transport=" + (incomingTransport == TCP ? UDP : TCP);
+
+	// Test connection with the B2BUA server.
+	NtaAgent client{suRoot, "sip:user-1@127.0.0.1:0;transport=" + incomingTransport};
+	const auto clientUri = "<sip:user-1@127.0.0.1:"s + client.getFirstPort() + ";transport=" + incomingTransport + ">";
+	MsgSip msg{};
+	msg.makeAndInsert<SipHeaderRequest>(sip_method_options, "sip:user-2@flexisip.example.org");
+	msg.makeAndInsert<SipHeaderFrom>("sip:user-1@flexisip.example.org", "stub-from-tag");
+	msg.makeAndInsert<SipHeaderTo>("sip:user-2@flexisip.example.org");
+	msg.makeAndInsert<SipHeaderCallID>("stub-call-id");
+	msg.makeAndInsert<SipHeaderCSeq>(20u, sip_method_options);
+	msg.makeAndInsert<SipHeaderContact>(clientUri);
+
+	const auto transaction = client.createOutgoingTransaction(msg.msgAsString(), b2buaServerUri);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted() && transaction->getStatus() == 200); },
+	        100ms)
+	    .assert_passed();
+
+	const auto transactionWrongAddress =
+	    client.createOutgoingTransaction(msg.msgAsString(), b2buaServerUriWrongAddress);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transactionWrongAddress]() {
+		        return LOOP_ASSERTION(transactionWrongAddress->isCompleted() &&
+		                              transactionWrongAddress->getStatus() == 503);
+	        },
+	        100ms)
+	    .assert_passed();
+	const auto transactionWrongProtocol =
+	    client.createOutgoingTransaction(msg.msgAsString(), b2buaServerUriWrongProtocol);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transactionWrongProtocol]() {
+		        return LOOP_ASSERTION(transactionWrongProtocol->isCompleted() &&
+		                              transactionWrongProtocol->getStatus() == 503);
+	        },
+	        100ms)
+	    .assert_passed();
+
+	const auto& asyncCleanup = b2buaServer->stop();
+	constexpr static auto timeout = 500ms;
+	const auto& cleanupThread = std::async(std::launch::async, [&asyncCleanup = *asyncCleanup]() {
+		BcAssert()
+		    .iterateUpTo(
+		        1, [&asyncCleanup]() { return LOOP_ASSERTION(asyncCleanup.finished()); }, timeout)
+		    .assert_passed();
+	});
+
+	// Join b2bua iterate thread. Leave ample time to let the asserter time-out first.
+	cleanupThread.wait_for(10s);
+}
+
+void transportInitializationUDP() {
+	transportInitialization(UDP);
+}
+void transportInitializationTCP() {
+	transportInitialization(TCP);
+}
 
 TestSuite _{
     "b2bua",
@@ -1797,6 +1887,8 @@ TestSuite _{
         CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, TCP, true>)),
         CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, UDP, false>)),
         CLASSY_TEST((transportAndOneConnectionPerAccount<UDP, UDP, true>)),
+        CLASSY_TEST(transportInitializationUDP),
+        CLASSY_TEST(transportInitializationTCP),
     },
 };
 

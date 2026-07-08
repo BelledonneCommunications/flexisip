@@ -26,11 +26,25 @@
 #include <utility>
 
 #include <flexisip/configmanager.hh>
+#include <flexisip/utils/sip-uri.hh>
 
+// Needed by <linphone++/config.hh>
+#include <linphone++/enums.hh>
+
+#include <linphone++/config.hh>
 #include <linphone++/nat_policy.hh>
 #include <linphone++/transports.hh>
 
 namespace flexisip::configuration_utils {
+
+/**
+ * @param parameter parameter from Flexisip configuration file (must be a SIP URI)
+ * @return the URI contained in the parameter as a SipUri
+ *
+ * @throw BadConfigurationEmpty if the parameter is empty
+ * @throw BadConfiguration if the parameter is not a valid SIP URI
+ */
+SipUri getTransportUri(const ConfigString* parameter);
 
 /**
  * Configure provided 'linphone::Transports' in function of the given parameter and conditions.
@@ -40,7 +54,7 @@ namespace flexisip::configuration_utils {
  * @param allowedSip allowed transport types for 'sip' scheme
  * @param allowedSips allowed transport types for 'sips' scheme
  *
- * @throw BadConfiguration if the parameter is not a valid SIP URI
+ * @throw BadConfigurationEmpty if the parameter is empty
  * @throw BadConfiguration if the SIP URI in the parameter does not contain a port
  * @throw BadConfiguration if a forbidden scheme is used in the parameter
  * @throw BadConfiguration if a forbidden transport type for the current scheme is used in the parameter
@@ -50,6 +64,15 @@ void configureTransport(const std::shared_ptr<linphone::Transports>& transports,
                         const ConfigString* parameter,
                         const std::set<std::string>& allowedSip = {"", "udp", "tcp", "tls"},
                         const std::set<std::string>& allowedSips = {"udp", "", "tcp"});
+
+/**
+ * @param linphoneConfig configuration of a linphone core
+ * @param parameter parameter from Flexisip configuration file (must be a SIP URI)
+ *
+ * @throw BadConfigurationEmpty if the parameter is empty
+ * @throw BadConfiguration if the parameter is not a valid SIP URI
+ */
+void setBindAddress(std::shared_ptr<linphone::Config> linphoneConfig, const ConfigString* parameter);
 
 using IP_FAMILY = int;
 

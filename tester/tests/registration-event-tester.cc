@@ -16,6 +16,8 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "registration-events/server.hh"
+
 #include <memory>
 #include <string>
 
@@ -472,6 +474,96 @@ void replaceSubscriptionWithOnlyOneSubscriber() {
 	    .hard_assert_passed();
 }
 
+/**
+ * Test the initialization of the RegEvent server.
+ * * The server should only listen to the IP address specified in the "transport" parameter.
+ */
+void transportInitialization() {
+	const auto suRoot = make_shared<SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	auto regeventSection = configuration->getRoot()->get<GenericStruct>("regevent-server");
+	regeventSection->get<ConfigString>("transport")->set("sip:127.0.0.1:0;transport=tcp");
+	const string aorOfInterest{"sip:aor-of-interest@sip.example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+
+	RegistrationEvent::Server regEvent{suRoot, configuration, registrarDb};
+	regEvent.init();
+
+	const auto tcpPort = to_string(regEvent.getTcpPort());
+	const auto serverUri = "sip:127.0.0.1:" + tcpPort + ";transport=tcp";
+
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	// Fill the Registrar DB with a topic ('AOR of interest').
+	ContactInserter inserter{*registrarDb, make_shared<AcceptUpdatesListener>()};
+	const auto deviceId = rsg.generate(25);
+	inserter.withGruu(true).setExpire(10s).setAor(aorOfInterest).insert({.uniqueId = deviceId});
+
+	const auto onSubscriberResponse = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		auto* subscriber = reinterpret_cast<Subscriber*>(magic);
+
+		if (sip->sip_request and sip->sip_request->rq_method == sip_method_notify) subscriber->mTotalNotifyReceived++;
+
+		if (subscriber->mToHeader.empty()) {
+			sofiasip::Home home{};
+			subscriber->mToHeader =
+			    "<"s + url_as_string(home.home(), sip->sip_from->a_url) + ">;tag=" + sip->sip_from->a_tag;
+		}
+
+		nta_msg_treply(agent, msg, 200, "Notification received", TAG_END());
+		return 0;
+	};
+	Subscriber subscriber{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+
+	CoreAssert asserter{suRoot, subscriber.mSuRoot};
+	const auto subscriptionFromSubscriber = subscriber.subscribe(aorOfInterest, serverUri);
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// Unsubscribe 'subscriber' from topic.
+	const auto unsubscriptionFromSubscriber = subscriber.unsubscribe(aorOfInterest, serverUri);
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!unsubscriptionFromSubscriber->isCompleted());
+		        FAIL_IF(unsubscriptionFromSubscriber->getStatus() != 200);
+		        FAIL_IF(subscriber.mTotalNotifyReceived != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// Test another IP address, the subscription must not succeed
+	const auto serverUriWrongAddress = "sip:127.0.0.2:" + tcpPort + ";transport=tcp";
+	const auto subscriptionWrongAddress = subscriber.subscribe(aorOfInterest, serverUriWrongAddress);
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionWrongAddress->isCompleted());
+		        FAIL_IF(subscriptionWrongAddress->getStatus() != 503);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+
+	// Currently, "stop()" always  returns nullptr
+	std::ignore = regEvent.stop();
+}
+
 namespace {
 
 TestSuite _{
@@ -482,6 +574,7 @@ TestSuite _{
         CLASSY_TEST(wrongAcceptHeaderInSubscribeRequest),
         CLASSY_TEST(multipleSubscribersToOneRecordKey),
         CLASSY_TEST(replaceSubscriptionWithOnlyOneSubscriber),
+        CLASSY_TEST(transportInitialization),
     },
 };
 

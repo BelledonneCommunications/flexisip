@@ -63,6 +63,9 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 	// Do not try to change call parameters if a message seems malformed.
 	configLinphone->setBool("sip", "account_strict_matching", true);
 
+	const auto& transportParam = config.get<ConfigString>("transport");
+	configuration_utils::setBindAddress(configLinphone, transportParam);
+
 	const auto core = factory.createCoreWithConfig(configLinphone, nullptr);
 	core->setLabel("Flexisip B2BUA");
 	core->enableConferenceServer(true);
@@ -194,9 +197,8 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 
 	core->setInCallTimeout(static_cast<int>(chrono::duration_cast<chrono::seconds>(maxCallDuration).count()));
 
-	// Get transport from flexisip configuration.
 	const auto b2buaTransport = factory.createTransports();
-	configuration_utils::configureTransport(b2buaTransport, config.get<ConfigString>("transport"));
+	configuration_utils::configureTransport(b2buaTransport, transportParam);
 	core->setTransports(b2buaTransport);
 
 	static_assert(sizeof(B2buaCore) == sizeof(decltype(*core)));

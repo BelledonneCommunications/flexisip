@@ -23,6 +23,7 @@
 #include "flexiapi/schemas/voicemail/slot-creation-json.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "sofia-wrapper/nta-agent.hh"
+#include "sofia-wrapper/sip-header-private.hh"
 #include "utils/asserts.hh"
 #include "utils/audio/wave.hh"
 #include "utils/bc-utils.hh"
@@ -196,7 +197,7 @@ void answerCallRecordVoicemail() {
 	try {
 		voicemail->init();
 	} catch (exception& e) {
-		BC_FAIL("Unexpected exception during voicemail initialization: " + e.what());
+		BC_HARD_FAIL(("Unexpected exception during voicemail initialization: "s + e.what()).c_str());
 	}
 	ClientBuilder clientBuilder{"sip:127.0.0.1:" + to_string(voicemail->getTcpPort()) + ";transport=tcp"};
 	clientBuilder.setRegistration(OnOff::Off);
@@ -234,11 +235,78 @@ void answerCallRecordVoicemail() {
 	agent->getRoot()->step(10ms); // needed to acknowledge mock server closing
 }
 
+void transportInitialization() {
+	using namespace sofiasip;
+	const TmpDir tmpDir{"voicemail"};
+	const auto audioFile = createShortAudioFile(tmpDir);
+	const auto beepFile = bcTesterRes("../share/voicemail/beep.wav");
+	const TmpDir tmpStorageDir{"voicemail-storage"};
+
+	Server server{{
+	    {"global/transports", "sip:127.0.0.1"},
+	    {"voicemail-server/transport", "sip:flexisip-voicemail@127.0.0.1:0;transport=tcp"},
+	    {"voicemail-server/default-announcement-path", audioFile},
+	    {"voicemail-server/voicemail-announcement-path", audioFile},
+	    {"voicemail-server/beep-sound-path", beepFile},
+	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
+	    {"global::flexiapi/url", "https://127.0.0.1:443"},
+	}};
+	const auto& agent = server.getAgent();
+	auto suRoot = agent->getRoot();
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(),
+	                                              flexiapi::createClient(server.getConfigManager(), *agent->getRoot()));
+
+	try {
+		voicemail->init();
+	} catch (exception& e) {
+		BC_HARD_FAIL(("Unexpected exception during voicemail initialization: "s + e.what()).c_str());
+	}
+	CoreAssert asserter{voicemail, suRoot};
+	const auto tcpPort = to_string(voicemail->getTcpPort());
+	const auto serverUri = "sip:127.0.0.1:" + tcpPort + ";transport=tcp";
+
+	const auto serverUriWrongAddress = "sip:127.0.0.2:" + tcpPort + ";transport=tcp";
+
+	// Test connection with the server.
+	NtaAgent client{suRoot, "sip:user-1@127.0.0.1:0;transport=tcp"};
+	const auto clientUri = "<sip:user-1@127.0.0.1:"s + client.getFirstPort() + ";transport=tcp>";
+	MsgSip msg{};
+	msg.makeAndInsert<SipHeaderRequest>(sip_method_options, "sip:user-2@flexisip.example.org");
+	msg.makeAndInsert<SipHeaderFrom>("sip:user-1@flexisip.example.org", "stub-from-tag");
+	msg.makeAndInsert<SipHeaderTo>("sip:user-2@flexisip.example.org");
+	msg.makeAndInsert<SipHeaderCallID>("stub-call-id");
+	msg.makeAndInsert<SipHeaderCSeq>(20u, sip_method_options);
+	msg.makeAndInsert<SipHeaderContact>(clientUri);
+
+	const auto transaction = client.createOutgoingTransaction(msg.msgAsString(), serverUri);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transaction]() { return LOOP_ASSERTION(transaction->isCompleted() and transaction->getStatus() == 200); },
+	        100ms)
+	    .assert_passed();
+
+	const auto transactionWrongAddress = client.createOutgoingTransaction(msg.msgAsString(), serverUriWrongAddress);
+	asserter
+	    .iterateUpTo(
+	        0x20,
+	        [&transactionWrongAddress]() {
+		        return LOOP_ASSERTION(transactionWrongAddress->isCompleted() and
+		                              transactionWrongAddress->getStatus() == 503);
+	        },
+	        100ms)
+	    .assert_passed();
+
+	// Currently, "stop()" always  returns nullptr
+	std::ignore = voicemail->stop();
+}
+
 TestSuite _{
     "Voicemail",
     {
         CLASSY_TEST(answerCallThenHangUp),
         CLASSY_TEST(answerCallRecordVoicemail),
+        CLASSY_TEST(transportInitialization),
     },
 };
 } // namespace

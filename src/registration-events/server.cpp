@@ -251,11 +251,13 @@ void Server::_init() {
 	// Prevent the default log handler from being reset while LinphoneCore construction.
 	coreConfig->setBool("logging", "disable_stdout", true);
 
+	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
+	const auto* transportParameter = config->get<ConfigString>("transport");
+	configuration_utils::setBindAddress(coreConfig, transportParameter);
+
 	mCore = Factory::get()->createCoreWithConfig(coreConfig, nullptr);
 	mCore->enableDatabase(false);
 
-	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("regevent-server");
-	const auto* transportParameter = config->get<ConfigString>("transport");
 	const auto transports = Factory::get()->createTransports();
 	configuration_utils::configureTransport(transports, transportParameter, {"tcp"});
 

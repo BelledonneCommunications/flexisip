@@ -15,7 +15,7 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.7.0] - Alpha
-- **SDK version:** 5.5.16
+- **SDK version:** 5.5.20
 
 ### [Added]
 - **Proxy:**
@@ -48,6 +48,10 @@ Group changes to describe their impact on the project, as follows:
     - Parameter `accounts-refresh-delay` is deprecated. Use `global::domains/refresh-delay` instead.
   - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,
     `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global::domains/domains-configuration` instead.
+
+### [Fixed]
+- **B2BUA - Regevent - Voicemail:** The servers will only listen to the IP address specified in the "transport" field
+  defined in the configuration of each server instead of "*".
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

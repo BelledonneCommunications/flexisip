@@ -86,7 +86,6 @@ void VoicemailServer::_init() {
 
 	const auto transport = factory->createTransports();
 	const auto* transportParam = config->get<ConfigString>("transport");
-	if (transportParam->read().empty()) throw BadConfigurationEmpty{transportParam};
 	configuration_utils::configureTransport(transport, transportParam, {"", "udp", "tcp"});
 
 	// Linphone-sdk configuration.
@@ -101,6 +100,8 @@ void VoicemailServer::_init() {
 	configLinphone->setBool("logging", "disable_stdout", true);
 	// Do not try to change call parameters if a message seems malformed.
 	configLinphone->setBool("sip", "account_strict_matching", true);
+
+	configuration_utils::setBindAddress(configLinphone, transportParam);
 
 	mCore = factory->createCoreWithConfig(configLinphone, nullptr);
 	// Disable DB storage to avoid memory accumulation
