@@ -67,12 +67,15 @@ public:
 		std::unordered_map<std::string, std::vector<std::shared_ptr<Subscription>>> mSubscriptions;
 	};
 
+	static constexpr std::string_view kContentType{"application/reginfo+xml"};
+
 	template <typename SuRootPtr>
 	Server(SuRootPtr&& root, const std::shared_ptr<ConfigManager>& cfg, const std::shared_ptr<RegistrarDb>& registrarDb)
-	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb), mCore() {
-	}
+	    : ServiceServer(std::forward<SuRootPtr>(root)), mConfigManager(cfg), mRegistrarDb(registrarDb), mCore() {}
 
-	static constexpr std::string_view kContentType{"application/reginfo+xml"};
+	int getTcpPort() const {
+		return mCore->getTransportsUsed()->getTcpPort();
+	}
 
 protected:
 	void _init() override;
