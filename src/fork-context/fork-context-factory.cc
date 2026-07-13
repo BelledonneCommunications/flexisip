@@ -23,6 +23,7 @@
 #include "fork-strategy/call-fork-strategy.hh"
 #include "fork-strategy/message-fork-strategy.hh"
 #include "router/fork-manager.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 
@@ -33,6 +34,21 @@ namespace {
 // List of supported status codes to consider for forwarding calls to the voicemail server.
 constexpr std::array<int, 3> kStatusCodes{408, 486, 603};
 
+bool isCallDivertible(const ForkCallContextConfig& cfg, const RequestSipEvent& event) {
+	// feature disabled
+	if (!cfg.mCallDiversionEnabled && cfg.mVoicemailServerUri.empty()) return false;
+
+	// INVITE to non divertible url (can be a chatroom creation)
+	const auto requestUri = SipUri{event.getSip()->sip_to->a_url};
+	if (cfg.mNonDivertibleUris.contains(flexiapi::ApiFormattedUri(requestUri))) {
+		return false;
+	}
+	// INVITE from/to a conference-server chatroom
+	if (uri_utils::getConferenceId(*event.getSip()->sip_from->a_url).has_value()) {
+		return false;
+	}
+	return !uri_utils::getConferenceId(*event.getSip()->sip_to->a_url).has_value();
+}
 } // namespace
 
 ForkContextFactory::ForkContextFactory(Agent* agent,
@@ -56,6 +72,9 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	    moduleRouterConfig->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
 	mCallForkCfg->mCallDiversionEnabled = moduleRouterConfig->get<ConfigBoolean>("enable-call-diversions")->read();
 	setVoicemailConfiguration(moduleRouterConfig);
+	for (const auto& uri : moduleRouterConfig->get<ConfigStringList>("no-diversion-uris")->read()) {
+		mCallForkCfg->mNonDivertibleUris.emplace(SipUri(uri));
+	}
 
 	mMessageForkCfg = make_shared<ForkContextConfig>();
 	mMessageForkCfg->mForkLate = moduleRouterConfig->get<ConfigBoolean>("message-fork-late")->read();
@@ -84,8 +103,8 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkBasicContext(std::uniqu
 
 std::shared_ptr<ForkContext> ForkContextFactory::makeForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
                                                                      sofiasip::MsgSipPriority priority) const {
+	const auto isDivertible = isCallDivertible(*mCallForkCfg, *event);
 	std::weak_ptr<StatPair> statCounter{};
-	const auto isDivertible = mCallForkCfg->mCallDiversionEnabled || !mCallForkCfg->mVoicemailServerUri.empty();
 	if (const auto forkStats = mForkStats.lock())
 		statCounter = isDivertible ? forkStats->mCountDivertibleCallForks : forkStats->mCountCallForks;
 	if (isDivertible)

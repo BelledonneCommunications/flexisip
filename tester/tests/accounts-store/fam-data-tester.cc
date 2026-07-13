@@ -144,12 +144,15 @@ struct TestCommons {
 	    : proxy{{
 	          {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(httpPort)},
 	      }},
-	      data{flexiapi::createRestClient(*proxy.getConfigManager(),
-	                                      flexiapi::createClient(proxy.getConfigManager(), *proxy.getRoot())),
-	           proxy.getRoot(), cacheTimeout, unknownTimeout} {}
+	      data{FAMData::make(
+	          flexiapi::createRestClient(*proxy.getConfigManager(),
+	                                     flexiapi::createClient(proxy.getConfigManager(), *proxy.getRoot())),
+	          proxy.getRoot(),
+	          cacheTimeout,
+	          unknownTimeout)} {}
 
 	Server proxy;
-	FAMData data;
+	std::shared_ptr<FAMData> data;
 	CoreAssert<> asserter{proxy.getRoot()};
 };
 
@@ -169,12 +172,12 @@ void findCallDiversions_Initial() {
 	auto commons = TestCommons{httpPort};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 }
@@ -191,7 +194,7 @@ void findCallDiversions_Intermediate() {
 	};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(
+	commons.data->findCallDiversions(
 	    SipUri("sip:intermediate-callee@sip.example.org"), flexiapi::CallForwarding::ForwardType::Contact,
 	    [&callbackCalled, &expectedDiversions](const std::vector<flexiapi::CallForwarding>& diversions) {
 		    assertDiversionsEqual(diversions, expectedDiversions);
@@ -206,12 +209,12 @@ void findCallDiversions_IntermediateWrongForwardType() {
 	auto commons = TestCommons{httpPort};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:intermediate-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:intermediate-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 }
@@ -228,7 +231,7 @@ void findCallDiversions_Final() {
 	};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(
+	commons.data->findCallDiversions(
 	    SipUri("sip:final-callee@sip.example.org"), flexiapi::CallForwarding::ForwardType::SipUri,
 	    [&callbackCalled, &expectedDiversions](const std::vector<flexiapi::CallForwarding>& diversions) {
 		    assertDiversionsEqual(diversions, expectedDiversions);
@@ -250,12 +253,12 @@ void findCallDiversions_FamKo() {
 	auto commons = TestCommons{httpPort};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 }
@@ -271,12 +274,12 @@ void findCallDiversions_badJsonTemplate(const string& badJson = "") {
 	auto commons = TestCommons{httpPort};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 }
@@ -356,32 +359,32 @@ void cacheHitTest() {
 	auto commons = TestCommons{httpPort};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 }
@@ -391,34 +394,34 @@ void cacheResetTest() {
 	auto commons = TestCommons{httpPort, 1ms};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 
 	commons.asserter.forceIterateThenAssert(10, 5ms, [] { return true; }).assert_passed();
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 2);
 
 	commons.asserter.forceIterateThenAssert(10, 5ms, [] { return true; }).assert_passed();
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                assertDiversionsEqual(diversions, expectedInitialDiversions);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 3);
 }
@@ -436,32 +439,32 @@ void unknownHitTest() {
 	auto commons = TestCommons{httpPort};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 }
@@ -479,34 +482,34 @@ void unknownResetTest() {
 	auto commons = TestCommons{httpPort, 30s, 1ms};
 
 	bool callbackCalled{false};
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 
 	commons.asserter.forceIterateThenAssert(10, 5ms, [] { return true; }).assert_passed();
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 2);
 
 	commons.asserter.forceIterateThenAssert(10, 5ms, [] { return true; }).assert_passed();
 	callbackCalled = false;
-	commons.data.findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
-	                                flexiapi::CallForwarding::ForwardType::SipUri,
-	                                [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
-		                                BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
-		                                callbackCalled = true;
-	                                });
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+		                                 callbackCalled = true;
+	                                 });
 	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 3);
 }

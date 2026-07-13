@@ -19,6 +19,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -35,34 +36,49 @@ class AccountsStore {
 public:
 	static constexpr std::string_view mLogPrefix{"AccountsStore"};
 
+	enum class TargetType {
+		Account,
+		// Group,
+		Voicemail,
+	};
+	struct CallTarget {
+		TargetType type;
+		SipUri uri;
+	};
+	using CallDiversionMap = std::unordered_map<int, CallTarget>;
+	struct ResolvedCallTarget {
+		CallTarget target{};
+		CallDiversionMap divertedMap{};
+	};
+
 	AccountsStore(const std::string& advancedAccountOptions,
 	              const std::shared_ptr<ConfigManager>& configManager,
 	              const std::shared_ptr<Http2Client>& flexiApiClient,
 	              const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	/**
-	 * Resolve the call diversions until a valid uri is found or max-call-diversion is reached.
-	 * This function may suspend the call processing until all call data are available.
+	 * Resolve the call diversions until a valid uri is found or the maximum depth is reached.
+	 * This function may suspend the call processing until all call data is available.
 	 *
-	 * @param uri SipUri of call target
-	 * @param type reason for checking if a call diversion is set, must be in ['Always', 'Busy', 'Timeout']
+	 * @param uri SipUri of initial target
+	 * @param maxDepth maximum depth to resolve diversions
 	 * @param callback function to resume call processing
 	 */
-	void checkCallDiversions(const SipUri& uri,
-	                         flexiapi::CallForwarding::Type type,
-	                         stl_backports::move_only_function<void(const SipUri&)>&& callback);
-
-	void setMaxCallDiversions(int maxCallDiversions) {
-		mMaxCallDiversions = maxCallDiversions;
-	}
+	void resolveCallTarget(SipUri uri,
+	                       int maxDepth,
+	                       stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&,
+	                                                              const int& divertedCnt)>&& callback);
 
 private:
-	void checkPermanentCallDiversion(const SipUri& targetUri,
-	                                 const std::vector<flexiapi::CallForwarding>& callDiversions,
-	                                 int iDivertedCallCnt,
-	                                 stl_backports::move_only_function<void(const SipUri&)>&& finalCallback);
+	// Fetch the call diversions declared for `uri`, then resolve them.
+	void resolveCallTarget(const SipUri& uri,
+	                       int maxDepth,
+	                       const std::vector<flexiapi::CallForwarding>& callDiversions,
+	                       int divertedCnt,
+	                       stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&,
+	                                                              const int& divertedCnt)>&& finalCallback);
 
-	std::unique_ptr<IDataManager> mDataManager;
-	int mMaxCallDiversions{};
+	// Only one instance, but shared to track lifetime.
+	std::shared_ptr<IDataManager> mDataManager;
 };
 } // namespace flexisip

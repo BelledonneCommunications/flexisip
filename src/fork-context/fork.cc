@@ -99,7 +99,7 @@ Fork::Fork(AgentInterface* agent,
           this, string("Fork") + "(" + forkStrategy->getStrategyName().data() + ")")),
       mStrategy(std::move(forkStrategy)), mIncomingReplier(std::move(incoming)) {
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
-	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
+	else LOGD << "Failed to increment counter (std::weak_ptr is empty)";
 
 	if (!mIncomingReplier)
 		mIncomingReplier =
@@ -110,7 +110,7 @@ Fork::~Fork() {
 	LOGD << "Destroy instance";
 
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrFinish();
-	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
+	else LOGD << "Failed to increment counter (std::weak_ptr is empty)";
 
 	if (mWaitingBranches.empty()) return;
 

@@ -32,14 +32,16 @@
 
 namespace flexisip {
 
-class FAMData : public IDataManager {
+class FAMData : public IDataManager, public std::enable_shared_from_this<FAMData> {
 	using HttpRequest = HttpMessage;
 
 public:
-	FAMData(RestClient&& restClient,
-	        const std::shared_ptr<sofiasip::SuRoot>& root,
-	        std::chrono::milliseconds cacheTimeout,
-	        std::chrono::milliseconds unknownTimeout);
+	static std::shared_ptr<FAMData> make(RestClient&& restClient,
+	                                     const std::shared_ptr<sofiasip::SuRoot>& root,
+	                                     std::chrono::milliseconds cacheTimeout,
+	                                     std::chrono::milliseconds unknownTimeout) {
+		return std::shared_ptr<FAMData>(new FAMData(std::move(restClient), root, cacheTimeout, unknownTimeout));
+	}
 
 	void findCallDiversions(const SipUri& uri,
 	                        flexiapi::CallForwarding::ForwardType forwardType,
@@ -47,6 +49,11 @@ public:
 
 private:
 	static constexpr std::string_view mLogPrefix{"AccountsStore::FAMData"};
+
+	FAMData(RestClient&& restClient,
+	        const std::shared_ptr<sofiasip::SuRoot>& root,
+	        std::chrono::milliseconds cacheTimeout,
+	        std::chrono::milliseconds unknownTimeout);
 
 	void onResponseCallback(const std::shared_ptr<HttpRequest>&,
 	                        const std::shared_ptr<HttpResponse>& response,

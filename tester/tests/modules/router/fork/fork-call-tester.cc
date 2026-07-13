@@ -37,6 +37,7 @@
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/uri-utils.hh"
@@ -92,6 +93,68 @@ void callWithEarlyCancel() {
 	BC_ASSERT_PTR_NOT_NULL(callerClient.callWithEarlyCancel(calleeClient));
 
 	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
+	// Assert Fork is destroyed
+	CoreAssert(server, callerClient, calleeClient)
+	    .wait([&moduleRouter = *moduleRouter] {
+		    FAIL_IF(moduleRouter.mStats.mForkStats->mCountCallForks->start->read() != 1);
+		    FAIL_IF(moduleRouter.mStats.mForkStats->mCountCallForks->finish->read() != 1);
+		    return ASSERTION_PASSED();
+	    })
+	    .assert_passed();
+}
+
+void cancelCallBeforeRedisCallback() {
+	auto redis = RedisServer();
+	Server server{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/aliases", "localhost sip.test.org"},
+	    {"module::Forward/enabled", "true"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Router/enabled", "true"},
+	    {"module::Router/fork-late", "true"},
+	    {"module::PushNotification/enabled", "true"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.test.org"},
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", std::to_string(redis.port())},
+	    {"module::MediaRelay/enabled", "false"},
+	    {"module::MediaRelay/prevent-loops", "false"},
+	}};
+	server.start();
+
+	ClientBuilder builder{server.getAgent()};
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	const auto calleeAor = "sip:calleeClient@sip.test.org";
+	auto calleeClient = builder.build(calleeAor);
+
+	auto asserter = CoreAssert{server, callerClient, calleeClient};
+
+	// Wait for client registration.
+	asserter
+	    .waitUntil(2s,
+	               [&calleeClient] {
+		               FAIL_IF(calleeClient.getAccount()->getState() != RegistrationState::Ok);
+		               return ASSERTION_PASSED();
+	               })
+	    .hard_assert_passed();
+
+	auto callerCall = ClientCall::tryFrom(callerClient.invite(calleeAor));
+	BC_HARD_ASSERT(callerCall.has_value());
+	// CANCEL call before iterate to ensure proxy will received CANCEL before Redis response.
+	callerCall->terminate();
+
+	asserter
+	    .waitUntil(2s,
+	               [&] {
+		               FAIL_IF(callerCall->getState() != linphone::Call::State::Released);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+
 	BC_ASSERT_PTR_NOT_NULL(moduleRouter);
 	// Assert Fork is destroyed
 	CoreAssert(server, callerClient, calleeClient)
@@ -1015,6 +1078,57 @@ void expirationWithoutCancelFromCaller() {
 
 } // namespace timerC
 
+void nonDivertibleUri() {
+	Server server{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/aliases", "localhost sip.test.org"},
+	    {"module::DoSProtection/enabled", "false"},
+	    {"module::Router/enabled", "true"},
+	    {"module::Router/fork-late", "true"},
+	    {"module::Router/voicemail-server", "sip:voicemail@sip.test.org"},
+	    {"module::Router/forwarding-status-codes", "603"},
+	    {"module::Router/no-diversion-uris",
+	     "sip:do-not-divert@sip.test.org sip:not-divertible@sip.test.org sip:another-undivertible-uri@sip.test.org"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "sip.test.org"},
+	}};
+	server.start();
+
+	ClientBuilder builder{server.getAgent()};
+	auto voicemailClient = builder.build("sip:voicemail@sip.test.org");
+	auto callerClient = builder.build("sip:callerClient@sip.test.org");
+	const auto calleeAor = "sip:not-divertible@sip.test.org";
+	auto calleeClient = builder.build(calleeAor);
+
+	auto asserter = CoreAssert{server, callerClient, calleeClient, voicemailClient};
+	auto callerCall = ClientCall::tryFrom(callerClient.invite(calleeAor));
+	BC_HARD_ASSERT(callerCall.has_value());
+	asserter
+	    .waitUntil(2s,
+	               [&] {
+		               FAIL_IF(callerCall->getState() != linphone::Call::State::OutgoingRinging);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+
+	const auto callFromCallerToCallee = calleeClient.getCurrentCall();
+	BC_HARD_ASSERT(callFromCallerToCallee.has_value());
+	std::ignore = callFromCallerToCallee->decline(Reason::Declined);
+	const auto& moduleRouter = dynamic_pointer_cast<ModuleRouter>(server.getAgent()->findModuleByRole("Router"));
+	asserter
+	    .waitUntil(2s,
+	               [&] {
+		               FAIL_IF(voicemailClient.getCurrentCall().has_value());
+		               FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->start->read() != 1);
+		               FAIL_IF(moduleRouter->mStats.mForkStats->mCountCallForks->finish->read() != 1);
+		               return ASSERTION_PASSED();
+	               })
+	    .assert_passed();
+
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountDivertibleCallForks->start->read(), 0);
+	BC_ASSERT_CPP_EQUAL(moduleRouter->mStats.mForkStats->mCountDivertibleCallForks->finish->read(), 0);
+}
+
 const std::vector<test_t> sTestList = {
     CLASSY_TEST(basicCall),
     CLASSY_TEST(callWithEarlyCancel),
@@ -1042,9 +1156,18 @@ const std::vector<test_t> sTestList = {
     CLASSY_TEST(timerC::expirationWithoutCancelFromCaller),
 };
 
+std::vector<test_t> getNoMediaRelayTestList() {
+	auto v = sTestList;
+	v.insert(v.cend(), {
+	                       CLASSY_TEST(cancelCallBeforeRedisCallback),
+	                       CLASSY_TEST(nonDivertibleUri),
+	                   });
+	return v;
+}
+
 TestSuite _{
     "ForkCallContext",
-    sTestList,
+    getNoMediaRelayTestList(),
     Hooks().beforeSuite([] {
 	    sDefaultConfig.insert_or_assign("module::MediaRelay/enabled", "false");
 	    return 0;

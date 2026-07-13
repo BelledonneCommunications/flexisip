@@ -39,7 +39,7 @@ void from_json(const nlohmann::json& j, CallForwarding& c);
 NLOHMANN_JSON_SERIALIZE_ENUM(CallForwarding::Type,
                              {
                                  {CallForwarding::Type::Always, toString(CallForwarding::Type::Always)},
-                                 {CallForwarding::Type::Away, toString(CallForwarding::Type::Away)},
+                                 {CallForwarding::Type::NoAnswer, toString(CallForwarding::Type::NoAnswer)},
                                  {CallForwarding::Type::Busy, toString(CallForwarding::Type::Busy)},
                              })
 

@@ -19,7 +19,9 @@
 #include "divertible-fork-context.hh"
 
 #include <cassert>
+#include <ranges>
 
+#include "call-step.hh"
 #include "divertible-fork-entry.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -98,13 +100,29 @@ DivertibleForkContext::DivertibleForkContext(AgentInterface* agent,
 	mEvent = std::move(event);
 	mIncoming = mEvent->createIncomingTransaction();
 	mInitialTarget = SipUri{mEvent->getSip()->sip_to->a_url};
+
+	// Prevent diversion to caller, but a caller can still explicitely call himself.
+	try {
+		const auto caller = SipUri{mEvent->getSip()->sip_from->a_url};
+		if (flexiapi::ApiFormattedUri(caller) != flexiapi::ApiFormattedUri(mInitialTarget))
+			mDoNotForkUris.emplace(caller);
+	} catch (sofiasip::InvalidUrlError&) {
+		// ignore error, the call can still be processed
+	}
+
+	// Set the default diversion map with all codes configured for the voicemail.
+	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+	for (int code : config->mStatusCodes) {
+		mVoicemailDefaultMap.emplace(code, AccountsStore::CallTarget{.type = AccountsStore::TargetType::Voicemail});
+	}
+
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
 }
 
 DivertibleForkContext::~DivertibleForkContext() {
 	LOGD << "Destroy instance";
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrFinish();
-	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
+	else LOGD << "Failed to increment counter (std::weak_ptr is empty)";
 }
 
 std::shared_ptr<ForkContextListener> DivertibleForkContext::getForkContextListener() const {
@@ -121,11 +139,14 @@ void DivertibleForkContext::registerFork() {
 	forkManager->registerFork(forkEntry, mInitialTarget);
 	mUnregisterCB = [weakEntry = weak_ptr<ForkContext>{forkEntry}, forkListener = mForkManager] {
 		auto entry = weakEntry.lock();
+		assert(entry);
+		if (!entry) return;
 		if (auto listener = forkListener.lock()) listener->onForkContextFinished(entry);
 	};
 }
 
-shared_ptr<ForkContext> DivertibleForkContext::addForkUnit(const unordered_set<int>& filteredCodes, CallStep callStep) {
+shared_ptr<ForkContext> DivertibleForkContext::addForkUnit(const unordered_set<int>& filteredCodes) {
+	CallStep callStep = mDivertedCount == 0 ? CallStep::Initial : CallStep::Diverted;
 	auto callStrategy = std::make_unique<CallForkStrategy>(*mEvent, mCfg, callStep);
 	auto event = make_unique<RequestSipEvent>(*mEvent);
 
@@ -139,10 +160,20 @@ shared_ptr<ForkContext> DivertibleForkContext::addForkUnit(const unordered_set<i
 
 void DivertibleForkContext::addForkToManager(const shared_ptr<ForkContext>& fork,
                                              const SipUri& sipUri,
-                                             stl_backports::move_only_function<void(bool)>&& onEmptyContacts) {
+                                             stl_backports::move_only_function<void()>&& onEmptyContacts) {
 	const auto forkManager = mForkManager.lock();
 	assert(forkManager != nullptr);
-	forkManager->addFork(fork, sipUri, true, std::move(onEmptyContacts));
+	if (mDoNotForkUris.contains(sipUri)) {
+		// Do not fork to an already called AOR.
+		return onEmptyContacts();
+	}
+	forkManager->addFork(fork, sipUri, true,
+	                     [ctx = weak_from_this(), onEmptyContacts = std::move(onEmptyContacts)](bool) mutable {
+		                     auto context = ctx.lock();
+		                     if (!context || context->mCallState != CallState::Processing) return;
+		                     onEmptyContacts();
+	                     });
+	mDoNotForkUris.emplace(sipUri);
 }
 
 void DivertibleForkContext::removeFork(const shared_ptr<Fork>& fork) {
@@ -156,7 +187,9 @@ void DivertibleForkContext::onForkContextFinished(const std::shared_ptr<Fork>& f
 	// Trigger on timeout diversion.
 	divertIfResponseHasBeenFiltered(*fork);
 	removeFork(fork);
-	if (!mForks.empty()) return;
+
+	// Do not go further if we still try to reach a target.
+	if (mCallState == CallState::Processing || !mForks.empty()) return;
 
 	// Remove last fork entry from manager.
 	mUnregisterCB();
@@ -205,27 +238,15 @@ void DivertibleForkContext::onPushSent(PushNotificationContext& aPNCtx, bool aRi
 }
 
 void DivertibleForkContext::onCancel(const sofiasip::MsgSip& ms) {
+	mCallState = CallState::Cancelled;
 	for (auto& fork : mForks) {
 		fork->onCancel(ms);
 	}
 }
 
 bool DivertibleForkContext::isFinished() const {
+	if (mCallState == CallState::Processing) return false;
 	return ranges::all_of(mForks, [](auto& fork) { return fork->isFinished(); });
-}
-
-void DivertibleForkContext::divertIfResponseHasBeenFiltered(Fork& fork) {
-	auto* replier = dynamic_cast<FilteredIncomingReplier*>(&fork.getIncomingReplier());
-	if (!replier) {
-		LOGE << "IncomingReplier of fork (" << &fork << ") is not accessible";
-		return;
-	}
-
-	auto filteredResponse = replier->transferFilteredResponseIfAny();
-	if (!filteredResponse) return;
-	if (!divert(filteredResponse->getStatusCode())) {
-		sendResponse(std::move(filteredResponse));
-	}
 }
 
 std::unique_ptr<ResponseSipEvent> DivertibleForkContext::sendResponse(std::unique_ptr<ResponseSipEvent>&& event) {
@@ -238,38 +259,145 @@ std::unique_ptr<ResponseSipEvent> DivertibleForkContext::sendResponse(std::uniqu
 
 	if (code >= 200) {
 		mIncoming.reset();
+		mCallState = CallState::Answered;
+
+		// Destroy context if all Forks are terminated
+		if (mForks.empty()) {
+			mUnregisterCB();
+		}
 	}
 	return std::move(event);
 }
 
-bool DivertibleForkContext::divert(int code) {
-	// Do nothing if we already have diverted the call.
-	if (mDivertedCount > 0) return false;
+void DivertibleForkContext::fetchTarget(const SipUri& targetUri, stl_backports::move_only_function<void()>&& fallback) {
+	const auto accountStore = mAgent->getSpacesStore()->getAccountsStore(targetUri.getHost());
+	if (!accountStore.has_value()) {
+		LOGE << "Failed to trigger call diversion (AccountsStore is nullptr for " << targetUri.getHost() << ")";
+		// try to continue call
+		forkToAccount(targetUri, {}, std::move(fallback));
+	}
 
-	const auto forkManager = mForkManager.lock();
-	assert(forkManager != nullptr);
+	LOGD << "Checking target '" << targetUri.str() << "' call diversions";
+	accountStore->get().resolveCallTarget(
+	    targetUri, mMaxCallDiversions - mDivertedCount,
+	    [ctx = weak_from_this(), fallback = std::move(fallback)](
+	        optional<AccountsStore::ResolvedCallTarget>&& resolvedTarget, const int& divertedCnt) mutable {
+		    const auto& context = ctx.lock();
+		    if (!context || context->mCallState != CallState::Processing) return;
 
-	const auto request = mIncoming->getIncomingRequest();
+		    context->mDivertedCount += divertedCnt;
+		    if (!resolvedTarget.has_value()) {
+			    // invalid target
+			    fallback();
+			    return;
+		    }
+
+		    switch (resolvedTarget->target.type) {
+			    case AccountsStore::TargetType::Account:
+				    context->forkToAccount(resolvedTarget->target.uri, resolvedTarget->divertedMap,
+				                           std::move(fallback));
+				    break;
+			    case AccountsStore::TargetType::Voicemail:
+				    context->forkToVoicemail(302);
+				    break;
+			    default:
+				    fallback();
+		    }
+	    });
+}
+
+void DivertibleForkContext::forkToAccount(const SipUri& sipUri,
+                                          const AccountsStore::CallDiversionMap& divertedMap,
+                                          stl_backports::move_only_function<void()>&& fallback) {
+	if (mDivertedCount > 0) {
+		LOGD << "Starting call diversion to target '" << sipUri;
+		// Reply to incoming transaction.
+		getEvent().reply(SIP_181_CALL_IS_BEING_FORWARDED, TAG_END());
+	}
+
+	// Set the configured diversions for this target.
+	mDiversionMap = mVoicemailDefaultMap;
+	for (const auto& [code, result] : divertedMap) {
+		mDiversionMap.insert_or_assign(code, result);
+	}
+
+	std::unordered_set<int> filteredCodes{};
+	for (auto key : mDiversionMap | std::views::keys) {
+		filteredCodes.insert(key);
+	}
+	const auto fork = addForkUnit(filteredCodes);
+	addForkToManager(fork, sipUri, std::move(fallback));
+}
+
+void DivertibleForkContext::forkToVoicemail(int code) {
 	const auto voicemailServerUri = static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri;
 	const auto target = uri_utils::escape(mInitialTarget.str(), uri_utils::sipUriParamValueReserved);
 	const auto cause = to_string(code);
 	const auto requestUri = voicemailServerUri.setParameter("target", target).setParameter("cause", cause);
+
 	const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
 	contact->mKey = ContactKey{}.str();
 
 	LOGD << "Starting call diversion with status '" << code << "'";
-	auto fork = addForkUnit({}, CallStep::Diverted);
-	addForkToManager(fork, requestUri, [ctx = weak_from_this()](bool) {
+	auto fork = addForkUnit({});
+	addForkToManager(fork, requestUri, [ctx = weak_from_this()]() {
 		const auto context = ctx.lock();
 		if (!context) return;
 		context->getEvent().reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
 		context->mUnregisterCB();
 	});
-	++mDivertedCount;
 
 	// Reply to incoming transaction.
 	getEvent().reply(SIP_181_CALL_IS_BEING_FORWARDED, TAG_END());
-	return true;
 }
 
+void DivertibleForkContext::divertIfResponseHasBeenFiltered(Fork& fork) {
+	auto* replier = dynamic_cast<FilteredIncomingReplier*>(&fork.getIncomingReplier());
+	if (!replier) {
+		LOGE << "IncomingReplier of fork (" << &fork << ") is not accessible";
+		return;
+	}
+
+	auto filteredResponse = replier->transferFilteredResponseIfAny();
+	if (!filteredResponse) return;
+
+	const auto statusCode = filteredResponse->getStatusCode();
+	divert(statusCode, [ctx = weak_from_this(), filteredResponse = std::move(filteredResponse)]() mutable {
+		const auto context = ctx.lock();
+		if (!context) return;
+		context->sendResponse(std::move(filteredResponse));
+	});
+}
+
+void DivertibleForkContext::divert(int code, stl_backports::move_only_function<void()>&& fallback) {
+	++mDivertedCount;
+	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+
+	// mDiversionMap contains all codes for diversion retrieved from AccountsStore and completed with those for the
+	// voicemail. If we can't find it, we should divert to the voicemail if configured.
+	if (!mDiversionMap.contains(code)) {
+		LOGE << "Failed to trigger call diversion (no diversions configured for code: " << code << ")";
+		if (config->mVoicemailServerUri.empty()) return fallback();
+		return forkToVoicemail(code);
+	}
+
+	auto [targetType, target] = mDiversionMap.at(code);
+	const auto diversionTarget = targetType == AccountsStore::TargetType::Voicemail ? "voicemail" : target.str();
+	LOGD << "Diversion to '" << diversionTarget << "'found with status '" << code << "'";
+
+	switch (targetType) {
+		using TargetType = AccountsStore::TargetType;
+		case TargetType::Account:
+			fetchTarget(target, [ctx = weak_from_this(), code, fallback = std::move(fallback)]() mutable {
+				const auto context = ctx.lock();
+				const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
+				if (config->mVoicemailServerUri.empty()) return fallback();
+				context->forkToVoicemail(code);
+			});
+			break;
+		case TargetType::Voicemail:
+			forkToVoicemail(code);
+			break;
+	}
+}
 } // namespace flexisip

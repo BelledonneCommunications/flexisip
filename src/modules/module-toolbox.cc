@@ -197,7 +197,7 @@ void urlSetHost(su_home_t* home, url_t* url, const char* host) {
 	} else url->url_host = su_strdup(home, host);
 }
 
-bool urlIsResolved(url_t* uri) {
+bool urlIsResolved(const url_t* uri) {
 	return isNumeric(uri->url_host) || (uri->url_port && uri->url_port[0] != '\0');
 }
 

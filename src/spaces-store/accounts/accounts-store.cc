@@ -21,81 +21,92 @@
 #include "fam-data.hh"
 #include "file-data.hh"
 #include "flexiapi/config.hh"
+#include "flexiapi/schemas/account/call-forwarding.hh"
 #include "flexisip/logmanager.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std::chrono_literals;
 using namespace flexisip::flexiapi;
 
 namespace flexisip {
-namespace {
-std::pair<SipUri, CallForwarding::ForwardType>
-findPermanentCallDiversion(const std::vector<CallForwarding>& callDiversions) {
-	for (const auto& d : callDiversions) {
-		if (d.enabled && d.type == CallForwarding::Type::Always) {
-			switch (d.forward_to) {
-				using enum CallForwarding::ForwardType;
-				case Contact:
-				case SipUri:
-					return {d.sip_uri, d.forward_to};
-				case Voicemail:
-					return {flexisip::SipUri{}, d.forward_to};
-			}
-		}
-	}
-	return {SipUri{}, CallForwarding::ForwardType::SipUri};
-}
-} // namespace
 
 AccountsStore::AccountsStore(const std::string& advancedAccountOptions,
                              const std::shared_ptr<ConfigManager>& configManager,
                              const std::shared_ptr<Http2Client>& flexiApiClient,
                              const std::shared_ptr<sofiasip::SuRoot>& root) {
 	if (advancedAccountOptions == "flexiapi") {
-		mDataManager = std::make_unique<FAMData>(createRestClient(*configManager, flexiApiClient), root, 30s, 10min);
+		mDataManager = FAMData::make(createRestClient(*configManager, flexiApiClient), root, 30s, 10min);
 		return;
 	}
-	mDataManager = std::make_unique<FileData>(advancedAccountOptions);
+	mDataManager = std::make_shared<FileData>(advancedAccountOptions);
 }
 
-void AccountsStore::checkCallDiversions(const SipUri& uri,
-                                        CallForwarding::Type type,
-                                        stl_backports::move_only_function<void(const SipUri&)>&& callback) {
-	switch (type) {
-		case CallForwarding::Type::Always:
-		default:
-			checkPermanentCallDiversion(uri, {}, 0, std::move(callback));
+void AccountsStore::resolveCallTarget(
+    SipUri uri,
+    int maxDepth,
+    stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&, const int& divertedCnt)>&& callback) {
+	if (maxDepth < 0) {
+		LOGE << "Invalid maxDepth value";
+		callback(std::nullopt, 0);
 	}
-}
-
-void AccountsStore::checkPermanentCallDiversion(
-    const SipUri& targetUri,
-    const std::vector<CallForwarding>& callDiversions,
-    int iDivertedCallCnt,
-    stl_backports::move_only_function<void(const SipUri&)>&& finalCallback) {
-
-	auto [divertedUri, divertedType] = iDivertedCallCnt == 0 ? std::pair{targetUri, CallForwarding::ForwardType::SipUri}
-	                                                         : findPermanentCallDiversion(callDiversions);
-
-	if (divertedType == CallForwarding::ForwardType::Voicemail) {
-		LOGE << "Voicemail call diversion is not supported yet";
-		return finalCallback({});
-	}
-	if (divertedUri.empty()) {
-		return finalCallback(targetUri);
-	}
-	if (iDivertedCallCnt > mMaxCallDiversions) {
-		LOGI << "Stopping call because the maximum number of call diversion has been reached and no candidate is "
-		        "available";
-		return finalCallback({});
-	}
-
-	LOGD << "Find if '" << divertedUri.str() << "' has a 'Always' type call diversion";
+	// Ask the mDataManager which call diversions are declared for this uri.
 	mDataManager->findCallDiversions(
-	    divertedUri, divertedType,
-	    [this, divertedUri, cnt = iDivertedCallCnt + 1,
-	     callback = std::move(finalCallback)](const std::vector<CallForwarding>& nextDiversions) mutable {
-		    checkPermanentCallDiversion(divertedUri, nextDiversions, cnt, std::move(callback));
+	    uri, CallForwarding::ForwardType::SipUri,
+	    [this, uri, maxDepth, cb = std::move(callback)](const std::vector<CallForwarding>& diversions) mutable {
+		    resolveCallTarget(uri, maxDepth, diversions, 0, std::move(cb));
 	    });
+}
+
+void AccountsStore::resolveCallTarget(const SipUri& uri,
+                                      int maxDepth,
+                                      const std::vector<CallForwarding>& callDiversions,
+                                      int divertedCnt,
+                                      stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&,
+                                                                             const int& divertedCnt)>&& finalCallback) {
+	ResolvedCallTarget result;
+
+	for (const auto& d : callDiversions) {
+		if (!d.enabled) continue;
+		switch (d.type) {
+			case CallForwarding::Type::Always: {
+				++divertedCnt;
+				if (divertedCnt > maxDepth) {
+					LOGI << "Maximum number of call diversion has been reached (" << divertedCnt
+					     << ") and no candidate is available";
+					return finalCallback(std::nullopt, divertedCnt);
+				}
+				if (d.forward_to == CallForwarding::ForwardType::Voicemail) {
+					return finalCallback(ResolvedCallTarget{.target = {TargetType::Voicemail}}, divertedCnt);
+				}
+				// Ask the mDataManager which call diversions are declared for this uri.
+				mDataManager->findCallDiversions(
+				    d.sip_uri, d.forward_to,
+				    [this, uri = d.sip_uri, maxDepth, divertedCnt,
+				     cb = std::move(finalCallback)](const std::vector<CallForwarding>& diversions) mutable {
+					    resolveCallTarget(uri, maxDepth, diversions, divertedCnt, std::move(cb));
+				    });
+				return;
+			}
+			case CallForwarding::Type::NoAnswer: {
+				CallTarget noAnswerTarget{TargetType::Account, d.sip_uri};
+				result.divertedMap.emplace(408, noAnswerTarget);
+				result.divertedMap.emplace(603, noAnswerTarget);
+				break;
+			}
+			case CallForwarding::Type::Busy: {
+				CallTarget busyTarget{TargetType::Account, d.sip_uri};
+				result.divertedMap.emplace(486, busyTarget);
+				break;
+			}
+		}
+	}
+
+	if (divertedCnt == maxDepth) {
+		result.divertedMap.clear();
+	}
+	result.target.type = TargetType::Account;
+	result.target.uri = uri;
+	return finalCallback(std::move(result), divertedCnt);
 }
 
 } // namespace flexisip

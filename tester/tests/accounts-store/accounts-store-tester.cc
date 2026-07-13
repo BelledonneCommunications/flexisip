@@ -17,7 +17,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "flexiapi/config.hh"
 #include "spaces-store/accounts/accounts-store.hh"
 
 #include <fstream>
@@ -31,7 +30,7 @@ namespace flexisip::tester {
 namespace {
 std::optional<TmpDir> kSuiteDir;
 
-const auto accountInitial = R"({
+const auto kAccountInitial = R"({
             "type": "account",
             "payload": {
 				"id": 0,
@@ -58,7 +57,7 @@ const auto accountInitial = R"({
 		        ]
             }
         })";
-const auto accountIntermediate = R"({
+const auto kAccountIntermediate = R"({
             "type": "account",
             "payload": {
 				"id": 0,
@@ -73,7 +72,7 @@ const auto accountIntermediate = R"({
 		        ]
             }
         })";
-const auto accountFinal = R"({
+const auto kAccountFinal = R"({
             "type": "account",
             "payload": {
 				"id": 0,
@@ -81,63 +80,134 @@ const auto accountFinal = R"({
 		        "call_forwardings": [
 			        {
 				        "type": "busy",
-				        "contact_sip_uri": "sip:initial-callee@sip.example.org",
+				        "contact_sip_uri": "sip:busy-callee@sip.example.org",
 				        "forward_to": "contact",
 						"enabled": true
 			        }
 		        ]
             }
         })";
-const auto accounts = "["s + accountInitial + "," + accountIntermediate + "," + accountFinal + "]";
+const auto kAccountToVoicemail = R"({
+            "type": "account",
+            "payload": {
+				"id": 0,
+				"sip_uri": "sip:to-voicemail-callee@sip.example.org",
+		        "call_forwardings": [
+			        {
+				        "type": "always",
+				        "contact_sip_uri": "",
+				        "forward_to": "voicemail",
+						"enabled": true
+			        }
+		        ]
+            }
+        })";
+const auto kAccounts =
+    "["s + kAccountInitial + "," + kAccountIntermediate + "," + kAccountFinal + "," + kAccountToVoicemail + "]";
 
-void findPermanentCallDiversion() {
-	auto accountsFile = kSuiteDir->path() / __func__;
-	std::ofstream(accountsFile) << accounts;
-	AccountsStore store{accountsFile, nullptr, nullptr, nullptr};
-	store.setMaxCallDiversions(5);
-	bool callbackCalled{};
-	store.checkCallDiversions(SipUri("sip:initial-callee@sip.example.org"), flexiapi::CallForwarding::Type::Always,
-	                          [&callbackCalled](const SipUri& uri) {
-		                          BC_ASSERT_CPP_EQUAL(uri.str(), "sip:final-callee@sip.example.org");
-		                          callbackCalled = true;
-	                          });
-	BC_ASSERT_TRUE(callbackCalled);
+class AccountsStoreTest {
+public:
+	explicit AccountsStoreTest(const std::string_view& accounts) {
+		auto accountsFile = kSuiteDir->path() / __func__;
+		std::ofstream(accountsFile) << accounts;
+		mStore = std::make_unique<AccountsStore>(accountsFile, nullptr, nullptr, nullptr);
+	}
+
+	std::optional<AccountsStore::ResolvedCallTarget>
+	resolveCallTarget(const SipUri& uri, int maxDepth, int expectedDivertedCnt) {
+		std::optional<AccountsStore::ResolvedCallTarget> resolvedTarget{};
+		bool callbackCalled{};
+
+		mStore->resolveCallTarget(uri, maxDepth,
+		                          [&expectedDivertedCnt, &resolvedTarget, &callbackCalled](
+		                              optional<AccountsStore::ResolvedCallTarget>&& result, const int& divertedCnt) {
+			                          BC_ASSERT_CPP_EQUAL(divertedCnt, expectedDivertedCnt);
+			                          resolvedTarget = std::move(result);
+			                          callbackCalled = true;
+		                          });
+
+		BC_HARD_ASSERT(callbackCalled);
+		return resolvedTarget;
+	}
+
+protected:
+	std::unique_ptr<AccountsStore> mStore;
+};
+
+void permanentDiversionToVoicemail() {
+	AccountsStoreTest store{kAccounts};
+	const auto maxDepth = 5;
+	const auto expectedDivertedCnt = 1;
+	const auto result =
+	    store.resolveCallTarget(SipUri("sip:to-voicemail-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
+	BC_HARD_ASSERT(result.has_value());
+	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Voicemail);
 }
 
-void findPermanentCallDiversion_noDiversion() {
-	auto accountsFile = kSuiteDir->path() / __func__;
-	std::ofstream(accountsFile) << accounts;
-	AccountsStore store{accountsFile, nullptr, nullptr, nullptr};
-	store.setMaxCallDiversions(5);
-	bool callbackCalled{};
-	store.checkCallDiversions(SipUri("sip:final-callee@sip.example.org"), flexiapi::CallForwarding::Type::Always,
-	                          [&callbackCalled](const SipUri& uri) {
-		                          BC_ASSERT_CPP_EQUAL(uri.str(), "sip:final-callee@sip.example.org");
-		                          callbackCalled = true;
-	                          });
-	BC_ASSERT_TRUE(callbackCalled);
+void noPermanentDiversion() {
+	AccountsStoreTest store{kAccounts};
+	const auto uri = SipUri("sip:final-callee@sip.example.org");
+	const auto maxDepth = 5;
+	const auto expectedDivertedCnt = 0;
+	const auto result = store.resolveCallTarget(uri, maxDepth, expectedDivertedCnt);
+	BC_HARD_ASSERT(result.has_value());
+	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(result->target.uri.str(), uri.str());
+	BC_HARD_ASSERT(result->divertedMap.size() == 1);
+	const auto [code, target] = *result->divertedMap.cbegin();
+	BC_ASSERT_CPP_EQUAL(code, 486);
+	BC_ASSERT_CPP_EQUAL(target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(target.uri.str(), "sip:busy-callee@sip.example.org");
 }
 
-void maxCallDiversion() {
-	auto accountsFile = kSuiteDir->path() / __func__;
-	std::ofstream(accountsFile) << accounts;
-	AccountsStore store{accountsFile, nullptr, nullptr, nullptr};
-	store.setMaxCallDiversions(1);
-	bool callbackCalled{};
-	store.checkCallDiversions(SipUri("sip:initial-callee@sip.example.org"), flexiapi::CallForwarding::Type::Always,
-	                          [&callbackCalled](const SipUri& uri) {
-		                          BC_ASSERT_TRUE(uri.str().empty());
-		                          callbackCalled = true;
-	                          });
-	BC_ASSERT_TRUE(callbackCalled);
+// Check that a target is invalid when maxDepth is reached and the recursion is not finished.
+void maximumDepthExceeded() {
+	AccountsStoreTest store{kAccounts};
+	const auto maxDepth = 1;
+	const auto expectedDivertedCnt = 2;
+	const auto result =
+	    store.resolveCallTarget(SipUri("sip:initial-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
+	BC_ASSERT_FALSE(result.has_value());
+}
+
+// Check the target and its associated call diversion map.
+void permanentAndBusyDiversions() {
+	AccountsStoreTest store{kAccounts};
+	const auto maxDepth = 5;
+	const auto expectedDivertedCnt = 2;
+	const auto result =
+	    store.resolveCallTarget(SipUri("sip:initial-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
+	BC_HARD_ASSERT(result.has_value());
+	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(result->target.uri.str(), "sip:final-callee@sip.example.org");
+	BC_HARD_ASSERT(result->divertedMap.size() == 1);
+	const auto& [code, target] = *result->divertedMap.cbegin();
+	BC_ASSERT_CPP_EQUAL(code, 486);
+	BC_ASSERT_CPP_EQUAL(target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(target.uri.str(), "sip:busy-callee@sip.example.org");
+}
+
+// Check that the target is found but its associated call diversion map is empty.
+void divertedMapResetOnMaxDiversion() {
+	AccountsStoreTest store{kAccounts};
+	const auto maxDepth = 2;
+	const auto expectedDivertedCnt = 2;
+	const auto result =
+	    store.resolveCallTarget(SipUri("sip:initial-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
+	BC_HARD_ASSERT(result.has_value());
+	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(result->target.uri.str(), "sip:final-callee@sip.example.org");
+	BC_HARD_ASSERT(result->divertedMap.size() == 0);
 }
 
 TestSuite kSuite{
     "AccountsStore",
     {
-        CLASSY_TEST(findPermanentCallDiversion),
-        CLASSY_TEST(findPermanentCallDiversion_noDiversion),
-        CLASSY_TEST(maxCallDiversion),
+        CLASSY_TEST(permanentDiversionToVoicemail),
+        CLASSY_TEST(noPermanentDiversion),
+        CLASSY_TEST(maximumDepthExceeded),
+        CLASSY_TEST(permanentAndBusyDiversions),
+        CLASSY_TEST(divertedMapResetOnMaxDiversion),
     },
     Hooks()
         .beforeSuite([] {

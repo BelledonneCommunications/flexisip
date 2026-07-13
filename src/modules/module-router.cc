@@ -261,6 +261,16 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        "false",
 	    },
 	    {
+	        StringList,
+	        "no-diversion-uris",
+	        "List of white space separated SIP URIs for which call diversion is disabled.\n"
+	        "If a conference server is configured, please add your 'conference-factory-uris' as defined in the "
+	        "'flexisip-conference.conf' file.\n"
+	        "This list has no effect if 'enable-call-diversion' is off and no voicemail is configured."
+	        "Example: sip:conference-factory@sip.linphone.org sip:do-not-divert@sip.linphone.org",
+	        "",
+	    },
+	    {
 	        Integer,
 	        "max-call-diversions",
 	        "Maximum number of call diversions allowed when 'enable-call-diversions' option is set.\n"
@@ -337,12 +347,6 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 
 	const auto* enableCallDiversionsParam = mc->get<ConfigBoolean>("enable-call-diversions");
 	routingConfig.mEnableCallDiversions = enableCallDiversionsParam->read();
-	if (routingConfig.mEnableCallDiversions && mSpacesStore) {
-		const auto accountStore = mSpacesStore->getAccountsStore(SpacesStore::kLegacyDomainName);
-		if (!accountStore.has_value()) throw BadConfigurationValue{enableCallDiversionsParam};
-		accountStore->get().setMaxCallDiversions(1);
-	}
-
 	routingConfig.mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
 
 	const auto* noDevicesRegisteredReturnCodeParam = mc->get<ConfigInt>("no-contact-for-aor-return-code");

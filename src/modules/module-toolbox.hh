@@ -72,7 +72,7 @@ std::string getHost(const char* host);
 
 std::string urlGetHost(url_t* url);
 void urlSetHost(su_home_t* home, url_t* url, const char* host);
-bool urlIsResolved(url_t* uri);
+bool urlIsResolved(const url_t* uri);
 
 /**
  * @return true if via and url represent the same network address

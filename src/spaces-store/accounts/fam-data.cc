@@ -56,23 +56,38 @@ void FAMData::findCallDiversions(const SipUri& uri,
 	}
 
 	// Ask FlexiApi
+	// HttpClient can survive to this class, callbacks must check lifetime.
 	std::queue<CallDiversionsCallback> q;
 	q.push(std::move(callback));
 	mWaitingAccounts.try_emplace(apiUri, std::move(q));
 	if (forwardType == CallForwarding::ForwardType::Contact) {
 		mFlexiApiClient.accountSearchByUri(
 		    apiUri,
-		    [this, apiUri](const std::shared_ptr<HttpRequest>& req, const std::shared_ptr<HttpResponse>& res) {
-			    onResponseCallback(req, res, apiUri, UriType::Account);
+		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,
+		                                           const std::shared_ptr<HttpResponse>& res) {
+			    const auto thiz = weak_thiz.lock();
+			    if (!thiz) return;
+			    thiz->onResponseCallback(req, res, apiUri, UriType::Account);
 		    },
-		    [this, apiUri](const std::shared_ptr<HttpRequest>& req) { onErrorCallback(req, apiUri); });
+		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req) {
+			    const auto thiz = weak_thiz.lock();
+			    if (!thiz) return;
+			    thiz->onErrorCallback(req, apiUri);
+		    });
 	} else {
 		mFlexiApiClient.resolveByUri(
 		    apiUri,
-		    [this, apiUri](const std::shared_ptr<HttpRequest>& req, const std::shared_ptr<HttpResponse>& res) {
-			    onResponseCallback(req, res, apiUri, UriType::Unknown);
+		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,
+		                                           const std::shared_ptr<HttpResponse>& res) {
+			    const auto thiz = weak_thiz.lock();
+			    if (!thiz) return;
+			    thiz->onResponseCallback(req, res, apiUri, UriType::Unknown);
 		    },
-		    [this, apiUri](const std::shared_ptr<HttpRequest>& req) { onErrorCallback(req, apiUri); });
+		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req) {
+			    const auto thiz = weak_thiz.lock();
+			    if (!thiz) return;
+			    thiz->onErrorCallback(req, apiUri);
+		    });
 	}
 }
 

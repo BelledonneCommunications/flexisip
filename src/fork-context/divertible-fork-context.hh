@@ -24,9 +24,8 @@
 #include <unordered_set>
 
 #include "agent-interface.hh"
-#include "agent.hh"
 #include "branch-info.hh"
-#include "call-step.hh"
+#include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/event.hh"
 #include "flexisip/utils/sip-uri.hh"
@@ -34,6 +33,7 @@
 #include "fork-context.hh"
 #include "fork.hh"
 #include "router/injector.hh"
+#include "spaces-store/accounts/accounts-store.hh"
 #include "transaction/incoming-transaction.hh"
 
 namespace flexisip {
@@ -44,6 +44,7 @@ struct ForkCallContextConfig : ForkContextConfig {
 	bool mCallDiversionEnabled{};
 	SipUri mVoicemailServerUri{};
 	std::unordered_set<int> mStatusCodes{};
+	std::unordered_set<flexiapi::ApiFormattedUri> mNonDivertibleUris;
 };
 
 /**
@@ -57,46 +58,37 @@ public:
 		context->registerFork();
 
 		const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
-		if (!config->mCallDiversionEnabled ||
-		    !context->mAgent->getSpacesStore()->getAccountsStore(SpacesStore::kLegacyDomainName).has_value()) {
-			auto fork = context->addForkUnit(config->mStatusCodes, CallStep::Initial);
-			if (config->mVoicemailServerUri.empty()) return fork;
-
-			context->addForkToManager(fork, context->mInitialTarget, [ctx = std::weak_ptr(context)](bool) {
+		if (!config->mCallDiversionEnabled) {
+			context->forkToAccount(context->mInitialTarget, {}, [ctx = std::weak_ptr(context)]() {
 				const auto context = ctx.lock();
 				if (!context) return;
-				context->divert(404);
+				const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
+				if (!config->mVoicemailServerUri.empty()) {
+					context->forkToVoicemail(404);
+					return;
+				}
+				context->getEvent().reply(SIP_404_NOT_FOUND, TAG_END());
+				context->mUnregisterCB();
 			});
 			return {};
 		}
 
-		// Check if target has an 'Always' diversion.
-		const auto accountStore = context->mAgent->getSpacesStore()->getAccountsStore(SpacesStore::kLegacyDomainName);
-		accountStore->get().checkCallDiversions(
-		    context->mInitialTarget, flexiapi::CallForwarding::Type::Always,
-		    [ctx = std::weak_ptr(context)](const SipUri& target) mutable {
-			    auto context = ctx.lock();
-			    if (!context) return;
-			    if (target.empty()) {
-				    context->getEvent().reply(SIP_482_LOOP_DETECTED, TAG_END());
-				    // destroy context
-				    context->mUnregisterCB();
-				    return;
-			    }
+		context->fetchTarget(context->mInitialTarget, [ctx = std::weak_ptr(context)]() {
+			auto context = ctx.lock();
+			if (!context) return;
 
-			    const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
-			    auto fork = context->addForkUnit(config->mStatusCodes, CallStep::Initial);
-			    context->addForkToManager(fork, target, [ctx](bool) {
-				    const auto context = ctx.lock();
-				    if (!context) return;
-				    const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
-				    if (!config->mVoicemailServerUri.empty() && context->divert(404)) {
-					    return;
-				    }
-				    context->getEvent().reply(SIP_404_NOT_FOUND, TAG_END());
-				    context->mUnregisterCB();
-			    });
-		    });
+			const auto excededMax = context->mDivertedCount > context->mMaxCallDiversions;
+			const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
+			// always try to reach voicemail of initial target
+			if (!config->mVoicemailServerUri.empty()) {
+				context->forkToVoicemail(excededMax ? 302 : 404);
+				return;
+			}
+			if (excededMax) context->getEvent().reply(SIP_482_LOOP_DETECTED, TAG_END());
+			else context->getEvent().reply(SIP_404_NOT_FOUND, TAG_END());
+			// destroy context
+			context->mUnregisterCB();
+		});
 		return {};
 	}
 
@@ -141,6 +133,12 @@ public:
 	}
 
 private:
+	enum CallState {
+		Processing,
+		Cancelled,
+		Answered,
+	};
+
 	DivertibleForkContext(AgentInterface* agent,
 	                      const std::shared_ptr<ForkContextConfig>& cfg,
 	                      const std::weak_ptr<InjectorListener>& injectorListener,
@@ -156,10 +154,9 @@ private:
 	 * Add a fork to the managed fork list.
 	 * @param filteredCodes the fork response codes that must be intercepted instead of sending them to the incoming
 	 * transaction.
-	 * @param callStep the step of call among Initial and Diverted.
 	 * @return generated DivertibleForkEntry.
 	 */
-	std::shared_ptr<ForkContext> addForkUnit(const std::unordered_set<int>& filterCodes, CallStep callStep);
+	std::shared_ptr<ForkContext> addForkUnit(const std::unordered_set<int>& filterCodes);
 
 	/**
 	 * Delegate fork preparation to ForkManager.
@@ -169,18 +166,38 @@ private:
 	 */
 	void addForkToManager(const std::shared_ptr<ForkContext>& fork,
 	                      const SipUri& sipUri,
-	                      stl_backports::move_only_function<void(bool)>&& onEmptyContacts);
+	                      stl_backports::move_only_function<void()>&& onEmptyContacts);
+	/**
+	 * Ask for the call diversions of a call target.
+	 * @param targetUri the sip URI of the target.
+	 * @param fallback the callback when a fork shouldn't be started after the fetch result.
+	 */
+	void fetchTarget(const SipUri& targetUri, stl_backports::move_only_function<void()>&& fallback);
+	/**
+	 * Create a new fork to a specific account.
+	 * @param sipUri the AOR of the account.
+	 * @param divertedMap the map of call diversion of the account.
+	 * @param fallback the callback when no valid contacts are found.
+	 */
+	void forkToAccount(const SipUri& sipUri,
+	                   const AccountsStore::CallDiversionMap& divertedMap,
+	                   stl_backports::move_only_function<void()>&& fallback);
+	/**
+	 * Create a new fork to divert the call to the voicemail.
+	 * @param code the 'cause' code to insert into the request URI.
+	 */
+	void forkToVoicemail(int code);
 	/**
 	 * If a response to the incoming transaction has been filtered, try to divert the call.
 	 * @param fork the fork to consider
 	 */
 	void divertIfResponseHasBeenFiltered(Fork& fork);
 	/**
-	 * Try to create a new fork to divert the call.
-	 * @param code the 'cause' code to insert into the request URI.
-	 * @return true on success.
+	 * Divert the call to another target.
+	 * @param code the 'cause' code of the diversion.
+	 * @param fallback the callback when the diversion fails.
 	 */
-	bool divert(int code);
+	void divert(int code, stl_backports::move_only_function<void()>&& fallback);
 
 	AgentInterface* mAgent;
 	sofiasip::MsgSipPriority mMsgPriority = sofiasip::MsgSipPriority::Normal;
@@ -190,10 +207,15 @@ private:
 	std::weak_ptr<StatPair> mStatCounter;
 	std::string mLogPrefix;
 	std::function<void()> mUnregisterCB;
-	int mDivertedCount{};
 	std::forward_list<std::shared_ptr<Fork>> mForks;
 	std::unique_ptr<RequestSipEvent> mEvent;
 	std::shared_ptr<IncomingTransaction> mIncoming;
+	CallState mCallState{CallState::Processing};
 	SipUri mInitialTarget{};
+	AccountsStore::CallDiversionMap mVoicemailDefaultMap{};
+	AccountsStore::CallDiversionMap mDiversionMap{};
+	int mMaxCallDiversions{1}; // no recursion, 1 diversion maximum + voicemail if configured
+	int mDivertedCount{};
+	std::unordered_set<flexiapi::ApiFormattedUri> mDoNotForkUris;
 };
 } // namespace flexisip

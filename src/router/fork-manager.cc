@@ -142,7 +142,8 @@ void ForkManager::addFork(const std::shared_ptr<ForkContext>& context,
 	registerFork(context, sipUri);
 
 	// If the sipUri corresponds to the Voicemail, then we do not need to fetch the registrar.
-	if (!mRoutingConfig.mVoicemailServerUri.empty() && mRoutingConfig.mVoicemailServerUri.rfc3261Compare(sipUri)) {
+	if (module_toolbox::urlIsResolved(sipUri.get()) && !mRoutingConfig.mVoicemailServerUri.empty() &&
+	    mRoutingConfig.mVoicemailServerUri.rfc3261Compare(sipUri)) {
 		const auto contact = make_shared<ExtendedContact>(sipUri, "", "");
 		contact->mKey = ContactKey{}.str();
 

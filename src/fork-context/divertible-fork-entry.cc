@@ -118,6 +118,7 @@ void DivertibleForkEntry::onUselessRegisterNotification(const std::shared_ptr<Fo
 void DivertibleForkEntry::onForkContextFinished([[maybe_unused]] const std::shared_ptr<ForkContext>& ctx) {
 	assert(ctx == mFork.lock());
 	mForkContext->onForkContextFinished(mFork.lock());
+	mFork.reset(); // unlink
 
 	if (auto listener = mForkContext->getForkContextListener()) {
 		listener->onForkContextFinished(shared_from_this());

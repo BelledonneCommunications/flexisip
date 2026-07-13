@@ -26,7 +26,7 @@ struct CallForwarding {
 	enum class Type {
 		Always,
 		Busy,
-		Away,
+		NoAnswer,
 	};
 
 	enum class ForwardType {
@@ -62,8 +62,8 @@ inline std::string toString(CallForwarding::Type type) {
 			return "always";
 		case Busy:
 			return "busy";
-		case Away:
-			return "away";
+		case NoAnswer:
+			return "no_answer";
 		default:
 			return "Invalid ForwardType";
 	}

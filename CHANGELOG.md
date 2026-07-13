@@ -19,10 +19,11 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Added]
 - **Proxy:**
-  - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
+  - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
     that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
   - New parameter `global/domains-configuration`: consolidates the configuration of all SIP domains and associated user
     data into a JSON file (previously spread across several modules).
+  - **Router:** Added support for conditional call diversions. `enable-call-diversions` must be set.
 
 ### [Changed]
 - **Proxy:**
