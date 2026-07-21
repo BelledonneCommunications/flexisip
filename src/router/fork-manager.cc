@@ -19,7 +19,9 @@
 #include "fork-manager.hh"
 
 #include "agent-injector.hh"
+#include "eventlogs/events/eventlogs.hh"
 #include "flexisip/module-router.hh"
+#include "fork-fetch-routing-listener.hh"
 #include "inject-context.hh"
 #include "modules/module-toolbox.hh"
 
@@ -33,15 +35,13 @@ using namespace sofiasip;
 
 namespace flexisip {
 
-std::shared_ptr<ForkManager>
-ForkManager::make(Agent* agent, ModuleRouter* router, const GenericStruct* moduleRouterConfig) {
-	const auto manager = shared_ptr<ForkManager>{new ForkManager{}};
+std::shared_ptr<ForkManager> ForkManager::make(Agent* agent,
+                                               ModuleRouter* router,
+                                               const GenericStruct* moduleRouterConfig,
+                                               RoutingConfig&& routingConfig) {
+	const auto manager = shared_ptr<ForkManager>{new ForkManager{std::move(routingConfig)}};
 	manager->mAgent = agent;
 	manager->mStats = router->mStats.mForkStats;
-	manager->mUseGlobalDomain = moduleRouterConfig->get<ConfigBoolean>("use-global-domain")->read();
-	manager->mAllowTargetFactorization = moduleRouterConfig->get<ConfigBoolean>("allow-target-factorization")->read();
-	const GenericStruct* reg = router->getAgent()->findModuleByRole("Registrar")->getConfig();
-	manager->mDomains = reg->get<ConfigStringList>("reg-domains")->read();
 	manager->mFactory = make_shared<ForkContextFactory>(agent, manager->mStats, manager, manager, moduleRouterConfig);
 
 #if ENABLE_SOCI
@@ -64,18 +64,20 @@ ForkManager::make(Agent* agent, ModuleRouter* router, const GenericStruct* modul
 	return manager;
 }
 
+ForkManager::ForkManager(RoutingConfig&& routingConfig) : mRoutingConfig(std::move(routingConfig)) {}
+
 void ForkManager::inject(std::unique_ptr<RequestSipEvent>&& event,
                          const std::shared_ptr<ForkContext>& forkContext,
                          const std::string& contactId) {
 	mInjector->injectRequestEvent(std::move(event), forkContext, contactId);
 }
 
-void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
-                       const url_t* sipUri,
-                       const ForkGroupSorter::ForkContacts& forkContacts) {
+void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev, const SipUri& sipUri) {
 	const auto ms = ev->getMsgSip();
 	const auto* sip = ms->getSip();
 	bool isInviteRequest = false;
+
+	if (!ev->isSuspended()) ev->suspendProcessing();
 
 	if (const auto forkStats = mStats.lock()) {
 		forkStats->mCountForks->incrStart();
@@ -92,35 +94,91 @@ void ForkManager::fork(std::unique_ptr<RequestSipEvent>&& ev,
 
 	if (method == sip_method_invite) {
 		isInviteRequest = true;
-		const auto hasContact = !forkContacts.empty();
-		context = mFactory->makeForkCallContext(std::move(ev), MsgSipPriority::Urgent, hasContact);
+		ev->setEventLog(make_shared<CallLog>(sip));
+		context = mFactory->makeForkCallContext(std::move(ev), MsgSipPriority::Urgent);
 	} else if (method == sip_method_message && !imIsComposingXml && !sipExDeltaIsZero) {
 		// Note: use the basic fork context for "im-iscomposing+xml" messages to prevent storing useless messages.
 		context = mFactory->makeForkMessageContext(std::move(ev), priority);
 	} else {
 		context = mFactory->makeForkBasicContext(std::move(ev), priority);
 	}
-	if (context) addFork(context, sipUri, forkContacts, isInviteRequest);
+
+	// Divertible fork context returns nullptr to wait AccountStore answer and select its callback.
+	if (!context) return;
+
+	addFork(context, sipUri, isInviteRequest, [context, forkManager = shared_from_this(), sipUri](bool nonSipsFound) {
+		if (nonSipsFound) {
+			/*rfc5630 5.3*/
+			LOGUE << "Not dispatching request because SIPS not allowed for "
+			      << url_as_string(context->getEvent().getHome(), sipUri.get());
+			ModuleRouter::sendReply(forkManager->getAgent(), context->getEvent(), SIP_480_TEMPORARILY_UNAVAILABLE, 380,
+			                        "SIPS not allowed");
+		} else {
+			LOGD << "This user is not registered (no valid contact)";
+			LOGUE << "User " << url_as_string(context->getEvent().getHome(), sipUri.get())
+			      << " is not registered (no valid contact)";
+			const auto& routingConfig = forkManager->getRoutingConfig();
+
+			ModuleRouter::sendReply(forkManager->getAgent(), context->getEvent(),
+			                        routingConfig.mNoContactForAorReturnCode,
+			                        sip_status_phrase(routingConfig.mNoContactForAorReturnCode));
+		}
+	});
 }
 
-void ForkManager::addFork(const std::shared_ptr<ForkContext>& context,
-                          const url_t* sipUri,
-                          const ForkGroupSorter::ForkContacts& forkContacts,
-                          bool isInviteRequest) {
-
-	const Record::Key key{sipUri, mUseGlobalDomain};
+void ForkManager::registerFork(const std::shared_ptr<ForkContext>& context, const SipUri& sipUri) {
+	const Record::Key key{sipUri.get(), mRoutingConfig.mUseGlobalDomain};
 	context->addKey(key.asString());
 	mForks.emplace(key.asString(), context);
 	LOGD << "Added new ForkContext[" << context.get() << "] related to key '" << key
 	     << "' (count = " << mForks.count(key.asString()) << ")";
-
-	if (forkContacts.empty()) return;
-
 	if (context->getConfig()->mForkLate) mAgent->getRegistrarDb().subscribe(key, shared_from_this());
+}
+
+void ForkManager::addFork(const std::shared_ptr<ForkContext>& context,
+                          const SipUri& sipUri,
+                          bool isInviteRequest,
+                          stl_backports::move_only_function<void(bool)>&& onEmptyContacts) {
+	registerFork(context, sipUri);
+
+	// If the sipUri corresponds to the Voicemail, then we do not need to fetch the registrar.
+	if (!mRoutingConfig.mVoicemailServerUri.empty() && mRoutingConfig.mVoicemailServerUri.rfc3261Compare(sipUri)) {
+		const auto contact = make_shared<ExtendedContact>(sipUri, "", "");
+		contact->mKey = ContactKey{}.str();
+
+		ForkGroupSorter::ForkContacts forkContacts;
+		sip_contact_t* ct = contact->toSofiaContact(context->getEvent().getMsgSip()->getHome());
+		forkContacts.emplace_back(ct, contact);
+
+		startForking(context, forkContacts, isInviteRequest);
+		return;
+	}
+
+	// Retrieve fork contacts
+	LOGD << "Fetch for url " << sipUri.str();
+	const auto fetchRoutingListener = make_shared<ForkFetchRoutingListener>(
+	    shared_from_this(), context, sipUri, isInviteRequest, std::move(onEmptyContacts));
+
+	if (const auto* targetUrisHeader =
+	        ModuleToolbox::getCustomHeaderByName(context->getEvent().getSip(), "X-Target-Uris")) {
+		// The non-standard "X-Target-Uris" header gives us a list of SIP uri. The request has to be forked to
+		// all of them.
+		const auto fetcher =
+		    make_shared<TargetUriListFetcher>(mAgent, context->getEvent(), fetchRoutingListener, targetUrisHeader);
+		fetcher->fetch(mRoutingConfig.mAllowDomainRegistrations, true);
+	} else {
+		mAgent->getRegistrarDb().fetch(sipUri, fetchRoutingListener, mRoutingConfig.mAllowDomainRegistrations, true);
+	}
+}
+
+void ForkManager::startForking(const std::shared_ptr<ForkContext>& context,
+                               const ForkGroupSorter::ForkContacts& forkContacts,
+                               bool isInviteRequest) {
+	const auto& key = context->getKeys().empty() ? "unknown key" : context->getKeys()[0];
 
 	// Sort the list of 'usable' contacts to form groups (if grouping is allowed).
 	ForkGroupSorter sorter(forkContacts);
-	if (isInviteRequest && mAllowTargetFactorization) {
+	if (isInviteRequest && mRoutingConfig.mAllowTargetFactorization) {
 		sorter.makeGroups();
 	} else {
 		sorter.makeDestinations();
@@ -134,20 +192,21 @@ void ForkManager::addFork(const std::shared_ptr<ForkContext>& context,
 			continue;
 		}
 
-		if (context->getConfig()->mForkLate && ModuleToolbox::isManagedDomain(mAgent, mDomains, ct->m_url)) {
+		if (context->getConfig()->mForkLate &&
+		    ModuleToolbox::isManagedDomain(mAgent, mRoutingConfig.mDomains, ct->m_url)) {
 			auto* tmpContact =
 			    sip_contact_create(ms->getHome(), reinterpret_cast<url_string_t*>(ec->mSipContact->m_url), nullptr);
 
-			if (mUseGlobalDomain) {
+			if (mRoutingConfig.mUseGlobalDomain) {
 				tmpContact->m_url->url_host = "merged";
 				tmpContact->m_url->url_port = nullptr;
 			}
 
-			const Record::Key aliasKey{tmpContact->m_url, mUseGlobalDomain};
+			const Record::Key aliasKey{tmpContact->m_url, mRoutingConfig.mUseGlobalDomain};
 			context->addKey(aliasKey.asString());
 			mForks.emplace(aliasKey.asString(), context);
 			LOGD << "Added new ForkContext[" << context.get() << "] related to key '" << key
-			     << "' (count = " << mForks.count(key.asString()) << ") because it is an alias";
+			     << "' (count = " << mForks.count(key) << ") because it is an alias";
 
 			if (context->getConfig()->mForkLate) mAgent->getRegistrarDb().subscribe(aliasKey, shared_from_this());
 		}

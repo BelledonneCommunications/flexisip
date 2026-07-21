@@ -18,13 +18,17 @@
 
 #pragma once
 
+#include <functional>
+
 #include "flexisip/configmanager.hh"
 #include "flexisip/fork-stats.hh"
 #include "flexisip/registrar/registar-listeners.hh"
+#include "flexisip/utils/stl-backports.hh"
 #include "fork-context/fork-context-factory.hh"
 #include "fork-context/fork-context.hh"
 #include "fork-group-sorter.hh"
 #include "injector.hh"
+#include "routing-config.hh"
 
 #if ENABLE_SOCI
 #include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
@@ -39,14 +43,15 @@ class ModuleRouter;
  * SIP requests along with managing forked contexts during the SIP transaction lifecycle.
  */
 class ForkManager : public InjectorListener,
-                    public DivertibleForkContextListener,
+                    public ForkContextListener,
                     public ContactRegisteredListener,
                     public std::enable_shared_from_this<ForkManager> {
+
 public:
 	~ForkManager() override = default;
 
 	static std::shared_ptr<ForkManager>
-	make(Agent* agent, ModuleRouter* router, const GenericStruct* moduleRouterConfig);
+	make(Agent* agent, ModuleRouter* router, const GenericStruct* moduleRouterConfig, RoutingConfig&& routingConfig);
 
 	/**
 	 * @brief Inject event into the injector.
@@ -62,25 +67,38 @@ public:
 	 *
 	 * @param ev SIP request to be forked
 	 * @param sipUri SIP request URI
-	 * @param forkContacts list of contacts to which the request will be forked
 	 */
-	void
-	fork(std::unique_ptr<RequestSipEvent>&& ev, const url_t* sipUri, const ForkGroupSorter::ForkContacts& forkContacts);
+	void fork(std::unique_ptr<RequestSipEvent>&& ev, const SipUri& sipUri);
 
 	/**
 	 * @brief Add the fork context to the internal list and start it if the contacts list is not empty.
 	 *
 	 * @param context fork to add and start
 	 * @param sipUri SIP request URI
-	 * @param forkContacts list of contacts to which the request will be forked
 	 */
 	void addFork(const std::shared_ptr<ForkContext>& context,
-	             const url_t* sipUri,
-	             const ForkGroupSorter::ForkContacts& forkContacts,
-	             bool isInviteRequest) override;
+	             const SipUri& sipUri,
+	             bool isInviteRequest,
+	             stl_backports::move_only_function<void(bool)>&& onEmptyContacts);
+
+	/**
+	 * @brief Add the fork context to the internal list.
+	 *
+	 * @param context fork context
+	 * @param sipUri SIP request URI
+	 */
+	void registerFork(const std::shared_ptr<ForkContext>& context, const SipUri& sipUri);
 
 	std::shared_ptr<const ForkContextFactory> getFactory() const {
 		return mFactory;
+	}
+
+	const RoutingConfig& getRoutingConfig() const {
+		return mRoutingConfig;
+	}
+
+	Agent* getAgent() {
+		return mAgent;
 	}
 
 	/**
@@ -96,6 +114,19 @@ public:
 	}
 #endif
 
+	/**
+	 * @brief Start the forking of request to each branch.
+	 *
+	 * @param context fork context
+	 * @param forkContacts list of contacts to which the request will be forked
+	 * @param isInviteRequest true if request in an INVITE
+	 */
+	void startForking(const std::shared_ptr<ForkContext>& context,
+	                  const ForkGroupSorter::ForkContacts& forkContacts,
+	                  bool isInviteRequest);
+
+	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
+
 private:
 	using ForkMapElem = std::shared_ptr<ForkContext>;
 	using ForkRefList = std::vector<ForkMapElem>;
@@ -104,7 +135,7 @@ private:
 	static constexpr std::string_view mXTargetUrisHeader{"X-Target-Uris"};
 	static constexpr std::string_view mLogPrefix{"ForkManager"};
 
-	ForkManager() = default;
+	explicit ForkManager(RoutingConfig&& routingConfig);
 
 	std::shared_ptr<BranchInfo> onDispatchNeeded(const std::shared_ptr<ForkContext>& ctx,
 	                                             const std::shared_ptr<ExtendedContact>& newContact) override;
@@ -113,7 +144,6 @@ private:
 	                                   const SipUri& dest,
 	                                   const std::string& uid,
 	                                   DispatchStatus reason) override;
-	void onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) override;
 
 	void onContactRegistered(const std::shared_ptr<Record>& record, const std::string& uid) override;
 
@@ -144,11 +174,9 @@ private:
 	 */
 	bool forkLateModeEnabled() const;
 
+	RoutingConfig mRoutingConfig{};
 	Agent* mAgent{};
 	ForkMap mForks{};
-	bool mUseGlobalDomain{};
-	bool mAllowTargetFactorization{};
-	std::list<std::string> mDomains{};
 	mutable sofiasip::MsgSipPriority mMaxPriorityHandled{sofiasip::MsgSipPriority::Normal};
 	std::weak_ptr<ForkStats> mStats{};
 	std::unique_ptr<Injector> mInjector{};

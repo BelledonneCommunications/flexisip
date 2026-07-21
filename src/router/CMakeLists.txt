@@ -22,6 +22,7 @@
 
 target_sources(flexisip PRIVATE
     agent-injector.hh
+    fork-fetch-routing-listener.cc fork-fetch-routing-listener.hh
     fork-manager.cc fork-manager.hh
     fork-group-sorter.cc fork-group-sorter.hh
     inject-context.cc inject-context.hh

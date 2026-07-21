@@ -18,6 +18,8 @@
 
 #include "divertible-fork-entry.hh"
 
+#include <cassert>
+
 #include "divertible-fork-context.hh"
 #include "flexisip/logmanager.hh"
 #include "fork.hh"
@@ -29,6 +31,12 @@ namespace flexisip {
 DivertibleForkEntry::DivertibleForkEntry(const std::shared_ptr<DivertibleForkContext>& forkContext)
     : mForkContext(forkContext), mLogPrefix(LogManager::makeLogPrefixForInstance(this, string("DivertibleForkEntry"))) {
 	LOGD << "Add entry for DivertibleForkContext: " << mForkContext.get();
+}
+
+DivertibleForkEntry::~DivertibleForkEntry() {
+	// If the fork is still alive, remove it.
+	// This happen when the fork is never started, then onForkContextFinish is never called.
+	if (const auto fork = mFork.lock()) mForkContext->removeFork(fork);
 }
 
 void DivertibleForkEntry::linkForkUnit(const std::shared_ptr<Fork>& fork) {
@@ -72,6 +80,7 @@ void DivertibleForkEntry::onPushSent(PushNotificationContext& aPNCtx, bool aRing
 bool DivertibleForkEntry::isFinished() const {
 	return mForkContext->isFinished();
 }
+
 RequestSipEvent& DivertibleForkEntry::getEvent() {
 	return mForkContext->getEvent();
 }
@@ -85,6 +94,7 @@ const std::shared_ptr<ForkContextConfig>& DivertibleForkEntry::getConfig() const
 }
 
 const ForkContext* DivertibleForkEntry::getPtrForEquality() const {
+	if (const auto fork = mFork.lock()) return fork->getPtrForEquality();
 	return this;
 }
 
@@ -105,8 +115,9 @@ void DivertibleForkEntry::onUselessRegisterNotification(const std::shared_ptr<Fo
 		listener->onUselessRegisterNotification(shared_from_this(), newContact, dest, uid, reason);
 }
 
-void DivertibleForkEntry::onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) {
-	mForkContext->onForkContextFinished(ctx);
+void DivertibleForkEntry::onForkContextFinished([[maybe_unused]] const std::shared_ptr<ForkContext>& ctx) {
+	assert(ctx == mFork.lock());
+	mForkContext->onForkContextFinished(mFork.lock());
 
 	if (auto listener = mForkContext->getForkContextListener()) {
 		listener->onForkContextFinished(shared_from_this());

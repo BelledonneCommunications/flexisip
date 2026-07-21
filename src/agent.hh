@@ -139,7 +139,7 @@ public:
 	RegistrarDb& getRegistrarDb() {
 		return *mRegistrarDb;
 	}
-	std::shared_ptr<SpacesStore> getSpacesStore() const {
+	std::shared_ptr<SpacesStore> getSpacesStore() const override {
 		return mSpacesStore;
 	}
 	nta_agent_t* getSofiaAgent() const override {

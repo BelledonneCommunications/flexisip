@@ -16,6 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <fstream>
+#include <memory>
+
 #include "linphone++/enums.hh"
 
 #include "flexisip/module-router.hh"
@@ -28,6 +31,7 @@
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -35,6 +39,8 @@ using namespace linphone;
 
 namespace flexisip::tester {
 namespace {
+std::optional<TmpDir> kSuiteDir;
+
 // Ensure a CANCEL after the redirection is well processed.
 void cancelCallAfterRedirection() {
 	Server proxy{{
@@ -76,11 +82,136 @@ void cancelCallAfterRedirection() {
 	caller->endCurrentCall(*voicemail);
 }
 
-TestSuite __{
+auto hasReceivedCall(shared_ptr<CoreClient>& core) {
+	if (!core) return false;
+	auto call = core->getCurrentCall();
+	return call && call->getState() == linphone::Call::State::IncomingReceived;
+}
+
+auto hasNoRunningCall(shared_ptr<CoreClient>& core) {
+	if (!core) return false;
+	auto call = core->getCurrentCall();
+	return !call || call->getState() == linphone::Call::State::Released;
+}
+struct DivertedCallTester {
+	DivertedCallTester(const string& maxCallDiversions) {
+		auto accounts = R"(
+    [
+        {
+            "type": "account",
+            "payload": {
+				"id": 1,
+		        "sip_uri": "sip:initial-callee@sip.example.org",
+		        "call_forwardings": [
+			        {
+				        "type": "always",
+				        "sip_uri": "sip:intermediate-callee@sip.example.org",
+				        "forward_to": "sip_uri",
+						"enabled": true
+			        }
+		        ]
+            }
+        },
+        {
+            "type": "account",
+            "payload": {
+				"id": 2,
+		        "sip_uri": "sip:intermediate-callee@sip.example.org",
+		        "call_forwardings": [
+			        {
+				        "type": "always",
+				        "contact_sip_uri": "sip:final-callee@sip.example.org",
+				        "forward_to": "contact",
+						"enabled": true
+			        }
+		        ]
+            }
+        },
+        {
+			"id": 3,
+            "type": "account",
+            "payload": {
+		        "sip_uri": "sip:final-callee@sip.example.org",
+		        "call_forwardings": [
+		        ]
+            }
+        }
+    ]
+)";
+
+		auto accountsFile = kSuiteDir->path() / __func__;
+		std::ofstream(accountsFile) << accounts;
+
+		Server proxy{{
+		    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+		    {"global/advanced-account-data", accountsFile},
+		    {"module::Registrar/reg-domains", "sip.example.org"},
+		    {"module::Router/enable-call-diversions", "true"},
+		    {"module::Router/max-call-diversions", maxCallDiversions},
+		}};
+		proxy.start();
+
+		builder = make_unique<ClientBuilder>(proxy.getAgent());
+		caller = builder->make("sip:caller@sip.example.org");
+		initialCallee = builder->make("sip:initial-callee@sip.example.org");
+		intermediateCallee = builder->make("sip:intermediate-callee@sip.example.org");
+		finalCallee = builder->make("sip:final-callee@sip.example.org");
+
+		CoreAssert asserter{proxy, caller, initialCallee, intermediateCallee, finalCallee};
+
+		// Caller invites callee.
+		callerCall = ClientCall::tryFrom(caller->invite(*initialCallee));
+		BC_HARD_ASSERT(callerCall.has_value());
+		BC_HARD_ASSERT(!hasNoRunningCall(caller));
+
+		// Wait until call is received.
+		asserter
+		    .waitUntil(2s,
+		               [&] {
+			               FAIL_IF(!(hasReceivedCall(initialCallee) || hasReceivedCall(intermediateCallee) ||
+			                         hasReceivedCall(finalCallee) || hasNoRunningCall(caller)));
+			               return ASSERTION_PASSED();
+		               })
+		    .hard_assert_passed();
+	}
+
+	unique_ptr<ClientBuilder> builder;
+	shared_ptr<CoreClient> caller;
+	shared_ptr<CoreClient> initialCallee;
+	shared_ptr<CoreClient> intermediateCallee;
+	shared_ptr<CoreClient> finalCallee;
+	optional<ClientCall> callerCall;
+};
+
+void divertedCall() {
+	DivertedCallTester tester{"5"};
+	BC_ASSERT_TRUE(hasReceivedCall(tester.finalCallee));
+}
+
+void maxDivertedCall() {
+	DivertedCallTester tester{"1"};
+	BC_ASSERT_FALSE(hasReceivedCall(tester.initialCallee));
+	BC_ASSERT_FALSE(hasReceivedCall(tester.intermediateCallee));
+	BC_ASSERT_FALSE(hasReceivedCall(tester.finalCallee));
+	BC_ASSERT_TRUE(hasNoRunningCall(tester.caller));
+}
+
+TestSuite kSuite{
     "DivertibleFork",
     {
         CLASSY_TEST(cancelCallAfterRedirection),
+        CLASSY_TEST(divertedCall),
+        CLASSY_TEST(maxDivertedCall),
     },
+    Hooks()
+        .beforeSuite([] {
+	        kSuiteDir.emplace(kSuite.getName());
+	        return 0;
+        })
+        .afterSuite([] {
+	        kSuiteDir.reset();
+	        return 0;
+        }),
 };
 } // namespace
 } // namespace flexisip::tester

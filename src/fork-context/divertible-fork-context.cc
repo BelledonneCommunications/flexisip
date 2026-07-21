@@ -18,12 +18,14 @@
 
 #include "divertible-fork-context.hh"
 
+#include <cassert>
+
 #include "divertible-fork-entry.hh"
 #include "flexisip/logmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "fork-strategy/call-fork-strategy.hh"
 #include "registrar/extended-contact.hh"
-#include "router/fork-group-sorter.hh"
+#include "router/fork-manager.hh"
 #include "utils/uri-utils.hh"
 
 using namespace std;
@@ -87,15 +89,15 @@ private:
 DivertibleForkContext::DivertibleForkContext(AgentInterface* agent,
                                              const std::shared_ptr<ForkContextConfig>& cfg,
                                              const std::weak_ptr<InjectorListener>& injectorListener,
-                                             const std::weak_ptr<DivertibleForkContextListener>& forkContextListener,
+                                             const std::weak_ptr<ForkManager>& forkManager,
                                              std::unique_ptr<RequestSipEvent>&& event,
                                              sofiasip::MsgSipPriority priority,
                                              const std::weak_ptr<StatPair>& counter)
-    : mAgent(agent), mMsgPriority(priority), mCfg(cfg), mInjectorListener(injectorListener),
-      mForkContextListener(forkContextListener), mStatCounter(counter),
-      mLogPrefix(LogManager::makeLogPrefixForInstance(this, string("DivertibleForkContext"))) {
+    : mAgent(agent), mMsgPriority(priority), mCfg(cfg), mInjectorListener(injectorListener), mForkManager(forkManager),
+      mStatCounter(counter), mLogPrefix(LogManager::makeLogPrefixForInstance(this, string("DivertibleForkContext"))) {
 	mEvent = std::move(event);
 	mIncoming = mEvent->createIncomingTransaction();
+	mInitialTarget = SipUri{mEvent->getSip()->sip_to->a_url};
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
 }
 
@@ -105,12 +107,19 @@ DivertibleForkContext::~DivertibleForkContext() {
 	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 }
 
+std::shared_ptr<ForkContextListener> DivertibleForkContext::getForkContextListener() const {
+	return mForkManager.lock();
+}
+
 void DivertibleForkContext::registerFork() {
+	const auto forkManager = mForkManager.lock();
+	assert(forkManager != nullptr);
+
 	// Register without contacts as this entry is not in charge of a Fork.
 	auto forkEntry = DivertibleForkEntry::make(shared_from_this());
 	ForkContext::setFork(mIncoming, forkEntry);
-	mForkContextListener.lock()->addFork(forkEntry, mEvent->getSip()->sip_request->rq_url, {}, true);
-	mUnregisterCB = [weakEntry = weak_ptr<ForkContext>{forkEntry}, forkListener = mForkContextListener] {
+	forkManager->registerFork(forkEntry, mInitialTarget);
+	mUnregisterCB = [weakEntry = weak_ptr<ForkContext>{forkEntry}, forkListener = mForkManager] {
 		auto entry = weakEntry.lock();
 		if (auto listener = forkListener.lock()) listener->onForkContextFinished(entry);
 	};
@@ -123,25 +132,30 @@ shared_ptr<ForkContext> DivertibleForkContext::addForkUnit(const unordered_set<i
 	auto forkEntry = DivertibleForkEntry::make(shared_from_this());
 	mForks.emplace_front(Fork::make(mAgent, mCfg, mInjectorListener, forkEntry, std::move(event), mMsgPriority,
 	                                weak_ptr<StatPair>(), std::move(callStrategy), false,
-	                                make_unique<FilteredIncomingReplier>(shared_from_this(), filteredCodes)));
+	                                make_unique<FilteredIncomingReplier>(weak_from_this(), filteredCodes)));
 	forkEntry->linkForkUnit(mForks.front());
 	return forkEntry;
 }
 
-void DivertibleForkContext::onForkContextFinished(const std::shared_ptr<ForkContext>& ctx) {
-	if (!ctx) LOGE << "Try to finish a fork unit without providing one";
+void DivertibleForkContext::addForkToManager(const shared_ptr<ForkContext>& fork,
+                                             const SipUri& sipUri,
+                                             stl_backports::move_only_function<void(bool)>&& onEmptyContacts) {
+	const auto forkManager = mForkManager.lock();
+	assert(forkManager != nullptr);
+	forkManager->addFork(fork, sipUri, true, std::move(onEmptyContacts));
+}
 
-	auto* fork = dynamic_cast<Fork*>(ctx.get());
-	if (!fork) {
-		LOGE << "Unexepcted fork type";
-		return;
+void DivertibleForkContext::removeFork(const shared_ptr<Fork>& fork) {
+	if (auto count = erase_if(mForks, [&fork](const auto& it_fork) { return it_fork == fork; }); count != 1) {
+		LOGE << "Expect to find one corresponding fork [" << fork.get() << "], but found " << count;
 	}
+}
+
+void DivertibleForkContext::onForkContextFinished(const std::shared_ptr<Fork>& fork) {
+	assert(fork != nullptr);
 	// Trigger on timeout diversion.
 	divertIfResponseHasBeenFiltered(*fork);
-
-	if (auto count = erase_if(mForks, [&ctx](const auto& fork) { return fork->isEqual(ctx); }); count != 1) {
-		LOGE << "Expect to find one corresponding child fork [" << ctx->getPtrForEquality() << "], but found " << count;
-	}
+	removeFork(fork);
 	if (!mForks.empty()) return;
 
 	// Remove last fork entry from manager.
@@ -232,11 +246,8 @@ bool DivertibleForkContext::divert(int code) {
 	// Do nothing if we already have diverted the call.
 	if (mDivertedCount > 0) return false;
 
-	const auto listener = mForkContextListener.lock();
-	if (listener == nullptr) {
-		LOGE << "Failed to trigger call diversion (ForkContextListener pointer is empty)";
-		return false;
-	}
+	const auto forkManager = mForkManager.lock();
+	assert(forkManager != nullptr);
 
 	const auto request = mIncoming->getIncomingRequest();
 	auto* home = request->getHome();
@@ -248,18 +259,18 @@ bool DivertibleForkContext::divert(int code) {
 	const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
 	contact->mKey = ContactKey{}.str();
 
-	ForkGroupSorter::ForkContacts forkContacts;
-	sip_contact_t* ct = contact->toSofiaContact(getEvent().getMsgSip()->getHome());
-	forkContacts.emplace_back(ct, contact);
-
 	LOGD << "Starting call diversion with status '" << code << "'";
 	auto fork = addForkUnit({}, CallStep::Diverted);
-	listener->addFork(fork, voicemailServerUri.get(), forkContacts, true);
+	addForkToManager(fork, requestUri, [ctx = weak_from_this()](bool) {
+		const auto context = ctx.lock();
+		if (!context) return;
+		context->getEvent().reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		context->mUnregisterCB();
+	});
 	++mDivertedCount;
 
 	// Reply to incoming transaction.
 	getEvent().reply(SIP_181_CALL_IS_BEING_FORWARDED, TAG_END());
-
 	return true;
 }
 

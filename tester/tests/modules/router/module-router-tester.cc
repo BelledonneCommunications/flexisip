@@ -333,14 +333,14 @@ void messageExpires() {
 	}()};
 	server.start();
 
-	auto responseCount = 0;
+	std::vector<int> response;
 	BellesipUtils belleSipUtils{
 	    "0.0.0.0",
 	    0,
 	    "UDP",
-	    [&responseCount](int status) {
+	    [&response](int status) {
 		    if (status != 100) {
-			    ++responseCount;
+			    response.push_back(status);
 		    }
 	    },
 	    nullptr,
@@ -381,8 +381,10 @@ void messageExpires() {
 	           << "Content-Length: 0\r\n\r\n";
 	belleSipUtils.sendRawRequest(rawRequest.str());
 
-	asserter.wait([&responseCount] { return LOOP_ASSERTION(responseCount == 2); }).hard_assert_passed();
-	BC_ASSERT_CPP_EQUAL(forks->read(), 1);
+	asserter.wait([&response] { return LOOP_ASSERTION(response.size() == 2); }).hard_assert_passed();
+	BC_ASSERT_CPP_EQUAL(forks->read(), 2); // 2 forks but one is never start
+	BC_ASSERT_CPP_EQUAL(response[0], 404);
+	BC_ASSERT_CPP_EQUAL(response[1], 200);
 }
 
 struct Contact {
@@ -611,7 +613,7 @@ void customNoContactReturnCode(bool insertContactWithLowExpire) {
 	        << "Via: SIP/2.0/UDP 127.0.0.1:" << belleSipUtils.getListeningPort()
 	        << ";branch=z9hG4bK.custom-no-contact\r\n"
 	        << "From: <sip:caller@127.0.0.1>;tag=custom-no-contact-from\r\n"
-	        << "To: <" << "sip:no-contact@127.0.0.1"s << ">\r\n"
+	        << "To: <sip:no-contact@127.0.0.1>\r\n"
 	        << "CSeq: 1 OPTIONS\r\n"
 	        << "Call-ID: custom-no-contact-return-code\r\n"
 	        << "Max-Forwards: 70\r\n"

@@ -439,6 +439,9 @@ public:
 	const shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
 		return mRoot;
 	}
+	std::shared_ptr<SpacesStore> getSpacesStore() const override {
+		return nullptr;
+	}
 
 private:
 	shared_ptr<sofiasip::SuRoot> mRoot = make_shared<sofiasip::SuRoot>();

@@ -27,6 +27,7 @@
 namespace flexisip {
 
 class ResponseSipEvent;
+class SpacesStore;
 class RequestSipEvent;
 class OutgoingAgent;
 class IncomingAgent;
@@ -47,10 +48,10 @@ public:
 	virtual const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept = 0;
 
 	virtual std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept = 0;
+	virtual std::shared_ptr<SpacesStore> getSpacesStore() const = 0;
 
 	virtual std::shared_ptr<OutgoingAgent> getOutgoingAgent() = 0;
 	virtual std::shared_ptr<IncomingAgent> getIncomingAgent() = 0;
 	virtual nta_agent_t* getSofiaAgent() const = 0;
 };
-
 } // namespace flexisip

@@ -19,7 +19,10 @@
 #include "fork-context-factory.hh"
 
 #include "exceptions/bad-configuration.hh"
-#include "fork-context/fork-strategy/message-fork-strategy.hh"
+#include "fork-strategy/basic-fork-strategy.hh"
+#include "fork-strategy/call-fork-strategy.hh"
+#include "fork-strategy/message-fork-strategy.hh"
+#include "router/fork-manager.hh"
 
 using namespace std;
 
@@ -35,10 +38,9 @@ constexpr std::array<int, 3> kStatusCodes{408, 486, 603};
 ForkContextFactory::ForkContextFactory(Agent* agent,
                                        const std::weak_ptr<ForkStats>& forkStats,
                                        const std::weak_ptr<InjectorListener>& injectorListener,
-                                       const std::weak_ptr<DivertibleForkContextListener>& forkContextListener,
+                                       const std::weak_ptr<ForkManager>& forkManager,
                                        const GenericStruct* moduleRouterConfig)
-    : mAgent(agent), mForkStats(forkStats), mInjectorListener(injectorListener),
-      mForkContextListener(forkContextListener) {
+    : mAgent(agent), mForkStats(forkStats), mInjectorListener(injectorListener), mForkManager(forkManager) {
 	mCallForkCfg = make_shared<ForkCallContextConfig>();
 	mCallForkCfg->mForkLate = moduleRouterConfig->get<ConfigBoolean>("fork-late")->read();
 	mCallForkCfg->mTreatAllErrorsAsUrgent = moduleRouterConfig->get<ConfigBoolean>("treat-all-as-urgent")->read();
@@ -52,7 +54,7 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	    moduleRouterConfig->get<ConfigDuration<chrono::seconds>>("call-fork-current-branches-timeout")->readAndCast();
 	mCallForkCfg->mPermitSelfGeneratedProvisionalResponse =
 	    moduleRouterConfig->get<ConfigBoolean>("permit-self-generated-provisional-response")->read();
-
+	mCallForkCfg->mCallDiversionEnabled = moduleRouterConfig->get<ConfigBoolean>("enable-call-diversions")->read();
 	setVoicemailConfiguration(moduleRouterConfig);
 
 	mMessageForkCfg = make_shared<ForkContextConfig>();
@@ -72,6 +74,28 @@ ForkContextFactory::ForkContextFactory(Agent* agent,
 	mOtherForkCfg->mUrgentTimeout = 20s;
 }
 
+std::shared_ptr<ForkContext> ForkContextFactory::makeForkBasicContext(std::unique_ptr<RequestSipEvent>&& event,
+                                                                      sofiasip::MsgSipPriority priority) const {
+	std::weak_ptr<StatPair> statCounter{};
+	if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountBasicForks;
+	return Fork::make(mAgent, mOtherForkCfg, mInjectorListener, mForkManager, std::move(event), priority, statCounter,
+	                  std::make_unique<BasicForkStrategy>());
+}
+
+std::shared_ptr<ForkContext> ForkContextFactory::makeForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
+                                                                     sofiasip::MsgSipPriority priority) const {
+	std::weak_ptr<StatPair> statCounter{};
+	const auto isDivertible = mCallForkCfg->mCallDiversionEnabled || !mCallForkCfg->mVoicemailServerUri.empty();
+	if (const auto forkStats = mForkStats.lock())
+		statCounter = isDivertible ? forkStats->mCountDivertibleCallForks : forkStats->mCountCallForks;
+	if (isDivertible)
+		return DivertibleForkContext::make(mAgent, mCallForkCfg, mInjectorListener, mForkManager, std::move(event),
+		                                   priority, statCounter);
+	auto callStrategy = std::make_unique<CallForkStrategy>(*event, mCallForkCfg);
+	return Fork::make(mAgent, mCallForkCfg, mInjectorListener, mForkManager, std::move(event), priority, statCounter,
+	                  std::move(callStrategy));
+}
+
 std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::unique_ptr<RequestSipEvent>&& event,
                                                                         sofiasip::MsgSipPriority priority) const {
 	std::weak_ptr<StatPair> statCounter{};
@@ -79,8 +103,8 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::uni
 	if (kind.getCardinality() == MessageKind::Cardinality::ToConferenceServer) {
 		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageConferenceForks;
 		auto forkCfg = make_shared<ForkContextConfig>();
-		return Fork::make(mAgent, forkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
-		                  statCounter, std::make_unique<MessageForkStrategy>(kind, false, forkCfg));
+		return Fork::make(mAgent, forkCfg, mInjectorListener, mForkManager, std::move(event), priority, statCounter,
+		                  std::make_unique<MessageForkStrategy>(kind, false, forkCfg));
 	}
 #if ENABLE_SOCI
 	if (messageStorageInDbEnabled()) {
@@ -89,14 +113,14 @@ std::shared_ptr<ForkContext> ForkContextFactory::makeForkMessageContext(std::uni
 			statCounter = forkStats->mCountMessageProxyForks;
 			forkMessageCounter = forkStats->mCountMessageForks;
 		}
-		return ForkMessageContextDbProxy::make(std::move(event), priority, false, mForkContextListener,
-		                                       mInjectorListener, mForkMessageDatabase, mAgent, mMessageForkCfg,
-		                                       forkMessageCounter, statCounter);
+		return ForkMessageContextDbProxy::make(std::move(event), priority, false, mForkManager, mInjectorListener,
+		                                       mForkMessageDatabase, mAgent, mMessageForkCfg, forkMessageCounter,
+		                                       statCounter);
 	}
 #endif
 	if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountMessageForks;
-	return Fork::make(mAgent, mMessageForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
-	                  statCounter, std::make_unique<MessageForkStrategy>(kind, false, mMessageForkCfg));
+	return Fork::make(mAgent, mMessageForkCfg, mInjectorListener, mForkManager, std::move(event), priority, statCounter,
+	                  std::make_unique<MessageForkStrategy>(kind, false, mMessageForkCfg));
 }
 
 #if ENABLE_SOCI

@@ -25,15 +25,12 @@
 
 #include "flexisip/fork-stats.hh"
 #include "flexisip/module.hh"
-#include "flexisip/registrar/registar-listeners.hh"
-#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip {
 struct RouterStats {
 	std::shared_ptr<ForkStats> mForkStats;
 };
 
-class OnContactRegisteredListener;
 class Injector;
 class Agent;
 class Record;
@@ -55,30 +52,14 @@ public:
 	static void onResponse(ResponseSipEvent& ev);
 	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
 
-	void sendReply(RequestSipEvent& ev, int code, const char* reason, int warn_code = 0, const char* warning = nullptr);
-	void routeRequest(std::unique_ptr<RequestSipEvent>&& ev, const std::shared_ptr<Record>& aor, const url_t* sipUri);
-
-	const std::string& getFallbackRoute() const {
-		return mFallbackRoute;
-	}
-
-	const url_t* getFallbackRouteParsed() const {
-		return mFallbackRouteParsed;
-	}
-
-	bool isFallbackToParentDomainEnabled() const {
-		return mFallbackParentDomain;
-	}
-
-	bool isDomainRegistrationAllowed() const {
-		return mAllowDomainRegistrations;
-	}
+	static void sendReply(Agent* agent,
+	                      RequestSipEvent& ev,
+	                      int code,
+	                      const char* reason,
+	                      int warn_code = 0,
+	                      const char* warning = nullptr);
 
 	bool isManagedDomain(const url_t* url) const;
-
-	const std::shared_ptr<SipBooleanExpression>& getFallbackRouteFilter() const {
-		return mFallbackRouteFilter;
-	}
 
 	static void declareConfig(GenericStruct& moduleConfig);
 
@@ -93,28 +74,17 @@ protected:
 
 	static std::vector<std::string> split(const char* data, const char* delim);
 
-	void fetchRequestUri(std::unique_ptr<RequestSipEvent>&& ev, const SipUri& requestUri);
 	/**
 	 * Allows executing the 'dispatch' function (creation of a new branch) under specific conditions.
 	 */
 	void setDispatchFilter(const std::function<bool(const sip_t*)>& filter);
 
-	bool mResolveRoutes{};
-	std::string mFallbackRoute{};
-	url_t* mFallbackRouteParsed{};
-	std::list<std::string> mDomains{};
-	bool mFallbackParentDomain{};
-	bool mAllowDomainRegistrations{};
-	bool mEnableCallDiversions{};
-	int mNoContactForAorReturnCode{};
-
 private:
 	static ModuleInfo<ModuleRouter> sInfo;
 
-	std::vector<SipUri> mStaticTargets{};
+	bool mResolveRoutes{};
+	std::list<std::string> mDomains{};
 	std::shared_ptr<ForkManager> mForkManager{};
-	std::shared_ptr<SipBooleanExpression> mFallbackRouteFilter{};
-	SipUri mVoicemailServerUri{};
 	std::shared_ptr<SpacesStore> mSpacesStore{};
 };
 

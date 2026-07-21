@@ -26,6 +26,7 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "flexisip/module-router.hh"
 #include "fork-context/branch-info.hh"
+#include "fork-context/fork-strategy/call-fork-strategy.hh"
 #include "router/fork-manager.hh" // IWYU pragma: keep
 #include "sofia-wrapper/su/home.hh"
 #include "utils/asserts.hh"
@@ -605,7 +606,7 @@ void cancelStatusOnCancel() {
 		auto new_ev = make_unique<RequestSipEvent>(*ev);
 		auto msg = ev->getMsgSip();
 		ev->setEventLog(make_shared<CallLog>(msg->getSip()));
-		auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent, true);
+		auto forkCallCtx = forkFactory->makeForkCallContext(std::move(ev), sofiasip::MsgSipPriority::Urgent);
 
 		auto branch =
 		    forkCallCtx->addBranch(std::move(new_ev), make_shared<ExtendedContact>(SipUri{"sip:callee1@127.0.0.1:5360"},
@@ -659,9 +660,8 @@ void cancelStatusOnResponse() {
 	auto ev3 = make_unique<RequestSipEvent>(*ev);
 	ev->setEventLog(make_shared<CallLog>(ev->getMsgSip()->getSip()));
 	// Create call without incoming transaction in order to avoid agent processing.
-	auto cfg =
-	    forkFactory->makeForkCallContext(make_unique<RequestSipEvent>(*ev), sofiasip::MsgSipPriority::Urgent, true)
-	        ->getConfig();
+	auto cfg = forkFactory->makeForkCallContext(make_unique<RequestSipEvent>(*ev), sofiasip::MsgSipPriority::Urgent)
+	               ->getConfig();
 	std::weak_ptr<StatPair> statCounter{};
 	std::weak_ptr<ForkContextListener> forkListener;
 	std::weak_ptr<InjectorListener> injListener;

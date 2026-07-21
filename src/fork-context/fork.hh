@@ -190,6 +190,10 @@ private:
 	 */
 	void onNextBranches();
 	/**
+	 * @brief Start processing of branches.
+	 */
+	void startBranchesProcessing();
+	/**
 	 * @brief Remove a branch from the list of branches (both current and waiting branches lists).
 	 *
 	 * @param br branch to remove

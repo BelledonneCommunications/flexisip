@@ -41,7 +41,7 @@ public:
 		return std::shared_ptr<DivertibleForkEntry>(new DivertibleForkEntry(forkContext));
 	}
 
-	~DivertibleForkEntry() = default;
+	~DivertibleForkEntry() override;
 
 	void linkForkUnit(const std::shared_ptr<Fork>& unit);
 

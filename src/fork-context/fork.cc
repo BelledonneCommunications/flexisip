@@ -98,39 +98,27 @@ Fork::Fork(AgentInterface* agent,
       mLogPrefix(LogManager::makeLogPrefixForInstance(
           this, string("Fork") + "(" + forkStrategy->getStrategyName().data() + ")")),
       mStrategy(std::move(forkStrategy)), mIncomingReplier(std::move(incoming)) {
-	mDecisionTimer.set(
-	    [this] {
-		    if (isRingingSomewhere()) return;
-		    const auto strategy = mStrategy->chooseStrategyOnDecisionTimer();
-		    LOGD << "Decision timer triggered with strategy " << responseStrategyToString(strategy);
-		    applyResponseStrategy(strategy);
-	    },
-	    mCfg->mUrgentTimeout);
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
 	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 
 	if (!mIncomingReplier)
 		mIncomingReplier =
 		    isRestored ? make_unique<BasicIncomingReplier>() : make_unique<BasicIncomingReplier>(agent, mEvent);
-
-	if (!isRestored) {
-		// This timer is for when outgoing transaction all die prematurely, we still need to wait that late register
-		// arrive.
-		if (mCfg->mForkLate) mLateTimer.setForEver([this] { executeOnLateTimeout(); });
-	}
 }
 
 Fork::~Fork() {
 	LOGD << "Destroy instance";
+
+	if (const auto statCounter = mStatCounter.lock()) statCounter->incrFinish();
+	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
+
+	if (mWaitingBranches.empty()) return;
 
 	// Check that no response has been provided, not even by Sofia.
 	if (!mIncomingReplier->hasReceivedFinalAnswer() && mEvent->getIncomingTransaction()->getStatus() < 200) {
 		LOGE << "Fork failed to provide an answer, reply 503.";
 		getEvent().reply(SIP_503_SERVICE_UNAVAILABLE, TAG_END());
 	}
-
-	if (const auto statCounter = mStatCounter.lock()) statCounter->incrFinish();
-	else LOGE << "Failed to increment counter (std::weak_ptr is empty)";
 }
 
 void Fork::executeOnLateTimeout() {
@@ -349,7 +337,7 @@ shared_ptr<BranchInfo> Fork::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
 }
 
 void Fork::onNextBranches() {
-	if (hasNextBranches()) start();
+	if (hasNextBranches()) startBranchesProcessing();
 }
 
 bool Fork::hasNextBranches() const {
@@ -381,18 +369,31 @@ void Fork::nextBranches() {
 }
 
 void Fork::start() {
+	mDecisionTimer.set(
+	    [this] {
+		    if (isRingingSomewhere()) return;
+		    const auto strategy = mStrategy->chooseStrategyOnDecisionTimer();
+		    LOGD << "Decision timer triggered with strategy " << responseStrategyToString(strategy);
+		    applyResponseStrategy(strategy);
+	    },
+	    mCfg->mUrgentTimeout);
+
+	// This timer is for when outgoing transaction all die prematurely, we still need to wait that late register
+	// arrive.
+	if (mCfg->mForkLate) mLateTimer.setForEver([this] { executeOnLateTimeout(); });
+
+	// We want all the branches in the event, so that presumes there are no branches answered yet. We also presume
+	// all branches have been added by now.
+	auto& event = getEvent();
+	if (auto eventLog = mStrategy->makeStartEventLog(*event.getMsgSip(), mWaitingBranches)) event.writeLog(eventLog);
+
+	startBranchesProcessing();
+}
+
+void Fork::startBranchesProcessing() {
 	if (mFinished) {
 		LOGE << "Calling start() on a finished fork: do nothing";
 		return;
-	}
-
-	bool firstStart = mCurrentPriority == -1.f;
-	if (firstStart) {
-		// We want all the branches in the event, so that presumes there are no branches answered yet. We also presume
-		// all branches have been added by now.
-		auto& event = getEvent();
-		if (auto eventLog = mStrategy->makeStartEventLog(*event.getMsgSip(), mWaitingBranches))
-			event.writeLog(eventLog);
 	}
 
 	// Remove existing timer.

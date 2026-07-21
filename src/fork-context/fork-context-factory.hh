@@ -25,8 +25,6 @@
 #include "flexisip/fork-stats.hh"
 #include "fork-context.hh"
 #include "fork-message-context.hh"
-#include "fork-strategy/basic-fork-strategy.hh"
-#include "fork-strategy/call-fork-strategy.hh"
 
 #if ENABLE_SOCI
 #include "fork-context/fork-message-db/fork-message-context-db-proxy.hh"
@@ -34,6 +32,7 @@
 #endif
 
 namespace flexisip {
+class ForkManager;
 
 /**
  * @brief Provides easy-to-use methods for creating ForkContext instances.
@@ -44,35 +43,16 @@ public:
 	ForkContextFactory(Agent* agent,
 	                   const std::weak_ptr<ForkStats>& forkStats,
 	                   const std::weak_ptr<InjectorListener>& injectorListener,
-	                   const std::weak_ptr<DivertibleForkContextListener>& forkContextListener,
+	                   const std::weak_ptr<ForkManager>& forkManager,
 	                   const GenericStruct* moduleRouterConfig);
 
 	~ForkContextFactory() = default;
 
-	template <typename... Args>
 	std::shared_ptr<ForkContext> makeForkBasicContext(std::unique_ptr<RequestSipEvent>&& event,
-	                                                  sofiasip::MsgSipPriority priority) const {
-		std::weak_ptr<StatPair> statCounter{};
-		if (const auto forkStats = mForkStats.lock()) statCounter = forkStats->mCountBasicForks;
-		return Fork::make(mAgent, mOtherForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
-		                  statCounter, std::make_unique<BasicForkStrategy>());
-	}
+	                                                  sofiasip::MsgSipPriority priority) const;
 
-	template <typename... Args>
 	std::shared_ptr<ForkContext> makeForkCallContext(std::unique_ptr<RequestSipEvent>&& event,
-	                                                 sofiasip::MsgSipPriority priority,
-	                                                 bool hasContact) const {
-		std::weak_ptr<StatPair> statCounter{};
-		const auto isDivertible = !mCallForkCfg->mVoicemailServerUri.empty();
-		if (const auto forkStats = mForkStats.lock())
-			statCounter = isDivertible ? forkStats->mCountDivertibleCallForks : forkStats->mCountCallForks;
-		if (isDivertible)
-			return DivertibleForkContext::make(hasContact, mAgent, mCallForkCfg, mInjectorListener,
-			                                   mForkContextListener, std::move(event), priority, statCounter);
-		auto callStrategy = std::make_unique<CallForkStrategy>(*event, mCallForkCfg);
-		return Fork::make(mAgent, mCallForkCfg, mInjectorListener, mForkContextListener, std::move(event), priority,
-		                  statCounter, std::move(callStrategy));
-	}
+	                                                 sofiasip::MsgSipPriority priority) const;
 
 	/**
 	 * @return a ForkMessageContext or a ForkMessageContextDbProxy if storage of MESSAGE requests in the database is
@@ -117,7 +97,7 @@ private:
 	Agent* mAgent{};
 	std::weak_ptr<ForkStats> mForkStats{};
 	std::weak_ptr<InjectorListener> mInjectorListener{};
-	std::weak_ptr<DivertibleForkContextListener> mForkContextListener{};
+	std::weak_ptr<ForkManager> mForkManager{};
 	std::shared_ptr<ForkCallContextConfig> mCallForkCfg{};
 	std::shared_ptr<ForkContextConfig> mOtherForkCfg{};
 	std::shared_ptr<ForkContextConfig> mMessageForkCfg{};
