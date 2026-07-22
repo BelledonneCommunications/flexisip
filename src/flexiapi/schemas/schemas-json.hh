@@ -18,9 +18,11 @@
 
 #pragma once
 
-#include "flexiapi/schemas/api-formatted-uri.hh"
-#include "flexisip/utils/sip-uri.hh"
 #include "lib/nlohmann-json-3-11-2/json.hpp"
+
+#include "flexiapi/schemas/api-formatted-uri.hh"
+#include "flexisip/sofia-wrapper/url.hh"
+#include "flexisip/utils/sip-uri.hh"
 
 namespace flexisip {
 
@@ -31,13 +33,28 @@ inline void to_json(nlohmann::json& j, const SipUri& uri) {
 inline void from_json(const nlohmann::json& j, SipUri& uri) {
 	uri = SipUri(j.get<std::string>());
 }
+
 } // namespace flexisip
 
+namespace sofiasip {
+
+inline void to_json(nlohmann::json& j, const Url& url) {
+	j = url.str();
+}
+
+inline void from_json(const nlohmann::json& j, Url& url) {
+	url = Url(j.get<std::string>());
+}
+
+} // namespace sofiasip
+
 namespace flexisip::flexiapi {
+
 struct ApiFormattedUri::JsonHandler {
 	static void fromJson(const nlohmann::json& j, ApiFormattedUri& a);
 	static void toJson(nlohmann::json& j, const ApiFormattedUri& a);
 };
+
 } // namespace flexisip::flexiapi
 
 NLOHMANN_JSON_NAMESPACE_BEGIN

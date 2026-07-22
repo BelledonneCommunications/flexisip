@@ -329,9 +329,9 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	const auto* enableCallDiversionsParam = mc->get<ConfigBoolean>("enable-call-diversions");
 	mEnableCallDiversions = enableCallDiversionsParam->read();
 	if (mEnableCallDiversions) {
-		if (!mSpacesStore || !mSpacesStore->getAccountsStore()) throw BadConfigurationValue{enableCallDiversionsParam};
-
-		mSpacesStore->getAccountsStore()->setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
+		const auto accountStore = mSpacesStore->getAccountsStore(SpacesStore::kLegacyDomainName);
+		if (!accountStore.has_value()) throw BadConfigurationValue{enableCallDiversionsParam};
+		accountStore->get().setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
 	}
 
 	mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
@@ -736,16 +736,18 @@ unique_ptr<RequestSipEvent> ModuleRouter::onRequest(unique_ptr<RequestSipEvent>&
 			return {};
 		}
 
-		if (sip->sip_request->rq_method == sip_method_invite && mEnableCallDiversions && mSpacesStore) {
-			mSpacesStore->getAccountsStore()->checkCallDiversions(
-			    requestUri, flexiapi::CallForwarding::Type::Always,
-			    [this, event = std::move(ev)](const SipUri& target) mutable {
-				    if (target.empty()) {
-					    return sendReply(*event, SIP_482_LOOP_DETECTED);
-				    }
-				    fetchRequestUri(std::move(event), target);
-			    });
-			return {};
+		if (sip->sip_request->rq_method == sip_method_invite && mEnableCallDiversions) {
+			const auto accountStore = mSpacesStore->getAccountsStore(sip->sip_request->rq_url->url_host);
+			if (accountStore.has_value()) {
+				accountStore->get().checkCallDiversions(requestUri, flexiapi::CallForwarding::Type::Always,
+				                                        [this, event = std::move(ev)](const SipUri& target) mutable {
+					                                        if (target.empty()) {
+						                                        return sendReply(*event, SIP_482_LOOP_DETECTED);
+					                                        }
+					                                        fetchRequestUri(std::move(event), target);
+				                                        });
+				return {};
+			}
 		}
 
 		fetchRequestUri(std::move(ev), requestUri);

@@ -18,10 +18,11 @@
 
 #include "spaces-store/spaces/file-spaces-data.hh"
 
-#include <memory>
-#include <string>
-#include <unordered_set>
+#include <filesystem>
+#include <fstream>
 #include <vector>
+
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include "shared-tests.hh"
 #include "utils/test-patterns/test.hh"
@@ -32,18 +33,46 @@ using namespace std;
 namespace flexisip::tester {
 namespace {
 
+namespace legacy {
+
 /*
- * Test domains loading at initialization.
+ * Test legacy domains loading at initialization.
  */
-void getDomains() {
-	const auto data = make_shared<FileSpacesData>(list<string>{kTestDomains.begin(), kTestDomains.end()});
-	flexisip::tester::getDomains(data, unordered_set<string>{kTestDomains.begin(), kTestDomains.end()});
+void spacesLoading() {
+	vector<flexiapi::Space> actualSpaces{};
+	const auto onSpacesChanged = [&actualSpaces](const std::vector<flexiapi::Space>& spaces) { actualSpaces = spaces; };
+
+	const auto store = make_shared<FileSpacesData>(list<string>{kTestDomains[0], kTestDomains[1]}, onSpacesChanged);
+
+	flexisip::tester::hasSpaces(actualSpaces, kTestSpaces);
+}
+
+} // namespace legacy
+
+/*
+ * Test spaces loading from a JSON data file.
+ */
+void spacesLoading() {
+	vector<flexiapi::Space> actualSpaces{};
+	const auto notifySpacesChangedCb = [&](const vector<flexiapi::Space>& spaces) { actualSpaces = spaces; };
+	const auto filePath = filesystem::temp_directory_path() / "flexisip-file-spaces-data-tester.json";
+
+	{
+		ofstream file{filePath};
+		file << kTestSpacesJson;
+	}
+
+	const auto store = make_shared<FileSpacesData>(filePath.string(), notifySpacesChangedCb);
+
+	flexisip::tester::hasSpaces(actualSpaces, kTestSpaces);
+	filesystem::remove(filePath);
 }
 
 const TestSuite kSuite{
     "FileSpacesData",
     {
-        CLASSY_TEST(getDomains),
+        CLASSY_TEST(legacy::spacesLoading),
+        CLASSY_TEST(spacesLoading),
     },
 };
 

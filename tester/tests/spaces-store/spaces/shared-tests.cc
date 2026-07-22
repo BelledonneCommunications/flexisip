@@ -24,13 +24,11 @@ using namespace std;
 
 namespace flexisip::tester {
 
-void getDomains(const shared_ptr<ISpacesDataManager>& data, const unordered_set<string>& expected) {
-	BC_HARD_ASSERT_NOT_NULL(data);
+void hasSpaces(const std::vector<flexiapi::Space>& value, const std::vector<flexiapi::Space>& expected) {
+	BC_HARD_ASSERT_CPP_EQUAL(value.size(), expected.size());
 
-	const auto& domains = data->getDomains();
-	BC_HARD_ASSERT_CPP_EQUAL(domains.size(), expected.size());
-	for (const auto& domain : domains) {
-		BC_HARD_ASSERT(expected.find(domain) != expected.end());
+	for (size_t i = 0; i < value.size(); ++i) {
+		BC_ASSERT_CPP_EQUAL(value[i].domain, expected[i].domain);
 	}
 }
 

@@ -43,6 +43,7 @@ add_executable(flexisip_tester
 	eventlogs/events/event-id-tester.cc
 	eventlogs/events/event-log-stats-tester.cc
 	flexiapi/schemas/iso-8601-date-tester.cc
+	flexiapi/schemas/space-schema-tester.cc
 	integration/call-tester.cc
 	integration/domotic-tester.cc
 	main-tester.cc
@@ -89,6 +90,7 @@ add_executable(flexisip_tester
 	sofia-wrapper/su/home-tester.cc
 	sofia-wrapper/sip-header-tester.cc
 	sofia-wrapper/su-root-tester.cc
+	spaces-store/spaces-store-tester.cc
 	spaces-store/spaces/file-spaces-data-tester.cc
 	spaces-store/spaces/shared-tests.cc spaces-store/spaces/shared-tests.hh
 	transaction/outgoing-transaction-tester.cc

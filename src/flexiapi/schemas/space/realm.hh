@@ -19,20 +19,25 @@
 #pragma once
 
 #include <filesystem>
-#include <list>
+#include <optional>
 #include <string>
 
-#include "spaces-data-manager.hh"
+#include "auth/bearer-auth.hh"
+#include "flexisip/sofia-wrapper/url.hh"
 
-namespace flexisip {
+namespace flexisip::flexiapi {
 
-class FileSpacesData : public ISpacesDataManager {
-public:
-	static constexpr std::string_view mLogPrefix{"FileSpacesData"};
-
-	explicit FileSpacesData(const std::filesystem::path& domainsConfigFilePath,
-	                        const NotifySpacesChangedCb& notifySpacesChangedCb);
-	explicit FileSpacesData(const std::list<std::string>& domains, const NotifySpacesChangedCb& notifySpacesChangedCb);
+struct Bearer {
+	sofiasip::Url authz_server{};
+	std::string audience{};
+	std::string sip_id_claim{};
+	std::optional<flexisip::Bearer::PubKeyType> public_key_type{flexisip::Bearer::PubKeyType::wellKnown};
+	std::optional<std::filesystem::path> public_key_location{std::nullopt};
 };
 
-} // namespace flexisip
+struct Realm {
+	std::string realm{};
+	std::optional<Bearer> bearer{std::nullopt};
+};
+
+} // namespace flexisip::flexiapi

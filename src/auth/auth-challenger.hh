@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -19,29 +19,23 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
-#include "auth/auth-challenger.hh"
-#include "flexisip/module.hh"
-#include "spaces-store/spaces-store.hh"
+#include <sofia-sip/sip_extra.h>
+
+#include "flexisip/sofia-wrapper/auth-status.hh"
 
 namespace flexisip {
 
-class ModuleAuthorization : public Module {
-	friend std::shared_ptr<Module> ModuleInfo<ModuleAuthorization>::create(Agent*);
-
+class AuthChallenger {
 public:
-	void addAuthChallenger(const std::shared_ptr<AuthChallenger>& challenger) {
-		mAuthChallengers.push_back(challenger);
-	};
+	virtual ~AuthChallenger() = default;
 
-private:
-	ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo);
+	virtual std::shared_ptr<AuthStatus> challenge(sip_method_t method, const std::string& domain) const = 0;
 
-	void onLoad(const GenericStruct*) override {};
-	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
-
-	std::vector<std::shared_ptr<AuthChallenger>> mAuthChallengers{};
-	std::shared_ptr<SpacesStore> mSpacesStore{};
+protected:
+	static std::pair<std::shared_ptr<AuthStatus>, const auth_challenger_t&>
+	makeAuthStatusAndChallenger(sip_method_t method);
 };
 
 } // namespace flexisip

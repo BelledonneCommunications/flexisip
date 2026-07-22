@@ -21,14 +21,26 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
     that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
+  - New parameter `global/domains-configuration`: consolidates the configuration of all SIP domains and associated user
+    data into a JSON file (previously spread across several modules).
 
 ### [Changed]
 - **Proxy:**
   - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
-  - **Authorization:** Parameter `global/advanced-account-data` is not compatible with this module (it cannot be used
-    together). Therefore, the proxy will not start if both `module::Authorization` and `global/advanced-account-data`
-    are enabled/set.
+  - **Authorization:**
+    - Parameter `global/advanced-account-data` is not compatible with this module (it cannot be used together).
+      Therefore, the proxy will not start if both `module::Authorization` and `global/advanced-account-data`
+      are enabled/set.
+    - Parameter `auth-domains` is now empty (instead of `localhost`).
+
+### [Deprecated]
+- **Proxy:**
+  - Parameter `global/advanced-account-data` is deprecated. Use `global/domains-configuration` instead.
+  - **Authorization:** Parameters `auth-domains-mode` and `auth-domains` are deprecated.
+    Use `global/domains-configuration` instead.
+  - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,
+    `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global/domains-configuration` instead.
 
 ## [2.6.1] - Hotfix
 - **SDK version:** 5.5.7

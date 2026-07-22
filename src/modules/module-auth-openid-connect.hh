@@ -19,10 +19,12 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 #include <sofia-sip/auth_module.h>
 
+#include "auth/auth-challenger.hh"
 #include "auth/bearer-auth.hh"
 #include "flexisip/module.hh"
 
@@ -31,19 +33,27 @@ namespace flexisip {
 /**
  * Class that owns the bearer authentication scheme.
  **/
-class ModuleAuthOpenIDConnect : public Module {
+class ModuleAuthOpenIDConnect : public Module,
+                                public AuthChallenger,
+                                public std::enable_shared_from_this<ModuleAuthOpenIDConnect> {
 	friend std::shared_ptr<Module> ModuleInfo<ModuleAuthOpenIDConnect>::create(Agent*);
 
 public:
 	void onLoad(const GenericStruct* mc) override;
+
+	std::shared_ptr<AuthStatus> challenge(sip_method_t method, const std::string& domain) const override;
 
 private:
 	ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo);
 
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
+	std::shared_ptr<Bearer> getAuthScheme(const std::string& domain) const;
+
 	std::unordered_map<RequestSipEvent*, std::unique_ptr<RequestSipEvent>> mSuspendedEvents;
-	std::shared_ptr<Bearer> mBearerAuth;
+	std::vector<std::shared_ptr<Bearer>> mAuthSchemes{};
+	// Association: domain name --> Bearer.
+	std::unordered_map<std::string, std::weak_ptr<Bearer>> mDomainAuthSchemes{};
 };
 
 } // namespace flexisip

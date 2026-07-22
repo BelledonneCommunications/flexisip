@@ -15,12 +15,11 @@
     You should have received a copy of the GNU Affero General Public License
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
-#include <fstream>
 
+#include "auth/auth-challenger.hh"
 #include "modules/module-authorization.hh"
 
 #include "auth-utils.hh"
-#include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/temp-file.hh"
 #include "utils/test-patterns/test.hh"
@@ -40,13 +39,9 @@ const auto clientA = "sip:user1@"s + domainA;
 const auto clientA2 = "sip:user2@"s + domainA;
 const auto clientB = "sip:user1@"s + domainB;
 
-struct ChallengerMock : public AuthScheme {
-	std::string schemeType() const {
-		return "ChallengerMock";
-	}
-	void challenge(AuthStatus&, const auth_challenger_t*) {}
-	State check(const msg_auth_t*, std::function<void(ChallengeResult&&)>&&) {
-		return State::Done;
+struct ChallengerMock : public AuthChallenger {
+	std::shared_ptr<AuthStatus> challenge(sip_method_t method, const std::string&) const override {
+		return AuthChallenger::makeAuthStatusAndChallenger(method).first;
 	}
 };
 
@@ -104,7 +99,7 @@ void rejectUnauthUserOfValidDomain() {
 
 	auto authModule = proxy.getAgent()->findModuleByRole("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
-	auth->addAuthModule(make_shared<ChallengerMock>());
+	auth->addAuthChallenger(make_shared<ChallengerMock>());
 
 	{
 		const auto request = registerRequest(clientA, "1");
@@ -303,7 +298,7 @@ void rejectIdentityFraudMessage() {
 
 	auto authModule = proxy.getAgent()->findModuleByRole("Authorization");
 	auto auth = dynamic_cast<ModuleAuthorization*>(authModule.get());
-	auth->addAuthModule(make_shared<ChallengerMock>());
+	auth->addAuthChallenger(make_shared<ChallengerMock>());
 
 	// clang-format off
 	string request(

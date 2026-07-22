@@ -18,13 +18,16 @@
 
 #include "modules/module-auth-openid-connect.hh"
 
+#include <memory>
+
 #include <sofia-sip/auth_plugin.h>
 #include <sofia-sip/sip_extra.h>
 #include <sofia-sip/sip_status.h>
 
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
-#include "modules/module-authorization.hh"
+#include "flexisip/utils/sip-uri.hh"
+#include "module-authorization.hh"
 
 using namespace std;
 
@@ -40,6 +43,21 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
     ModuleInfoBase::ModuleOid::OpenIDConnectAuthentication,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
+	        {
+	            DurationMIN,
+	            "jwks-refresh-delay",
+	            "The maximum duration in minutes between two refreshes of the jwks cache.",
+	            "15",
+	        },
+	        {
+	            DurationMIN,
+	            "well-known-refresh-delay",
+	            "The maximum duration in minutes between two refreshes of the .well-known content, default is once a "
+	            "day.",
+	            "1440",
+	        },
+
+	        // Deprecated parameters.
 	        {
 	            String,
 	            "authorization-server",
@@ -90,23 +108,28 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 	            "requests.",
 	            "",
 	        },
-	        {
-	            DurationMIN,
-	            "jwks-refresh-delay",
-	            "The maximum duration in minutes between two refreshes of the jwks cache.",
-	            "15",
-	        },
-	        {
-	            DurationMIN,
-	            "well-known-refresh-delay",
-	            "The maximum duration in minutes betweeen two refreshes of the .well-known content, default is once a "
-	            "day.",
-	            "1440",
-	        },
 	        config_item_end,
 	    };
+
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
+
+	    const GenericEntry::DeprecationInfo info{"2026-07-22", "2.7.0", "Use 'global/domains-configuration' instead"};
+
+	    for (const auto& name : {
+	             "authorization-server",
+	             "public-key-type",
+	             "public-key-location",
+	             "realm",
+	             "audience",
+	             "sip-id-claim",
+	         }) {
+		    auto* field = moduleConfig.get<ConfigString>(name);
+		    field->setDeprecated(info);
+	    }
+
+	    auto* scopeField = moduleConfig.get<ConfigStringList>("scope");
+	    scopeField->setDeprecated(info);
     });
 
 auto getAuthHdr(const MsgSip& msg) {
@@ -120,10 +143,10 @@ auto getAuthHdr(const MsgSip& msg) {
 ModuleAuthOpenIDConnect::ModuleAuthOpenIDConnect(Agent* ag, const ModuleInfoBase* moduleInfo)
     : Module(ag, moduleInfo) {}
 
-void ModuleAuthOpenIDConnect::onLoad(const GenericStruct*) {
+void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 	const auto authzModule =
 	    reinterpret_pointer_cast<ModuleAuthorization>(getAgent()->findModuleByRole("Authorization"));
-	if (authzModule->getConfig()->get<ConfigBoolean>("enabled")->read() == false)
+	if (!authzModule || authzModule->getConfig()->get<ConfigBoolean>("enabled")->read() == false)
 		throw BadConfiguration{"the AuthOpenIDConnect module requires the Authorization module to be enabled"};
 
 	const auto spacesStore = getAgent()->getSpacesStore();
@@ -132,27 +155,58 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct*) {
 		throw BadConfiguration{"missing " + this->mLogPrefix + " configuration"};
 	}
 
-	const auto& bearerParams = spacesStore->getBearerParams();
-	if (!bearerParams) {
+	const auto params = spacesStore->getBearerParams();
+	if (params.empty()) {
 		LOGE << "No Bearer settings available: this should not happen";
 		throw BadConfiguration{"missing " + this->mLogPrefix + " Bearer configuration"};
 	}
-	const auto& [params, keyStore] = *bearerParams;
 
-	mBearerAuth = std::make_shared<Bearer>(getAgent()->getRoot(), params, keyStore);
+	for (const auto& [domains, bearer] : params) {
+		const Bearer::KeyStoreParams keyStoreParams{
+		    .keyType = bearer.keyStoreParams.keyType,
+		    .keyPath = bearer.keyStoreParams.keyPath,
+		    .wellKnownRefreshDelay = mc->get<ConfigDuration<chrono::minutes>>("well-known-refresh-delay")->read(),
+		    .jwksRefreshDelay = mc->get<ConfigDuration<chrono::minutes>>("jwks-refresh-delay")->read(),
+		};
+		mAuthSchemes.push_back(make_shared<Bearer>(getAgent()->getRoot(), bearer.params, keyStoreParams));
 
-	authzModule->addAuthModule(mBearerAuth);
+		for (const auto& domain : domains) {
+			mDomainAuthSchemes[domain] = mAuthSchemes.back();
+		}
+	}
+
+	authzModule->addAuthChallenger(shared_from_this());
+}
+
+shared_ptr<AuthStatus> ModuleAuthOpenIDConnect::challenge(sip_method_t method, const string& domain) const {
+	const auto authenticator = getAuthScheme(domain);
+	if (authenticator == nullptr) {
+		return nullptr;
+	}
+
+	LOGD << "Making challenge for domain '" << domain << "'";
+	const auto [status, challenger] = AuthChallenger::makeAuthStatusAndChallenger(method);
+	authenticator->challenge(*status, &challenger);
+
+	return status;
 }
 
 unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	auto msg = ev->getMsgSip();
 	bool registerMethod = msg->getSip()->sip_request->rq_method == sip_method_register;
+	const auto domain = SipUri(msg->getSip()->sip_from->a_url).getHost();
 
 	for (auto* authHdr = getAuthHdr(*msg); authHdr != nullptr; authHdr = authHdr->au_next) {
 		if (strcmp(authHdr->au_scheme, "Bearer") == 0) {
+			const auto bearer = getAuthScheme(domain);
+			if (bearer == nullptr) {
+				LOGD << "No Bearer auth scheme found for domain '" << domain << "': not for us";
+				continue;
+			}
+
 			const auto result =
-			    mBearerAuth->check(authHdr, [event = ev.get(), agent = getAgent(), &suspendedEvents = mSuspendedEvents](
-			                                    AuthScheme::ChallengeResult&& challenge) {
+			    bearer->check(authHdr, [event = ev.get(), agent = getAgent(),
+			                            &suspendedEvents = mSuspendedEvents](AuthScheme::ChallengeResult&& challenge) {
 				    event->addChallengeResult(std::move(challenge));
 
 				    // Was the event suspended? (Pending)
@@ -181,6 +235,19 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 	}
 
 	return std::move(ev);
+}
+
+std::shared_ptr<Bearer> ModuleAuthOpenIDConnect::getAuthScheme(const std::string& domain) const {
+	// Note: if legacy configuration is used, there is only one domain in this struct.
+	const auto legacyAuthSchemeIt = mDomainAuthSchemes.find(SpacesStore::kLegacyDomainName);
+	if (legacyAuthSchemeIt != mDomainAuthSchemes.end()) return legacyAuthSchemeIt->second.lock();
+
+	const auto authSchemeIt = mDomainAuthSchemes.find(domain);
+	if (authSchemeIt == mDomainAuthSchemes.end()) {
+		return nullptr;
+	}
+
+	return authSchemeIt->second.lock();
 }
 
 } // namespace flexisip

@@ -16,18 +16,46 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <list>
+#include "file-spaces-data.hh"
+
+#include <filesystem>
 #include <string>
 
-#include "file-spaces-data.hh"
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
+#include "exceptions/bad-configuration.hh"
+#include "flexiapi/schemas/space/space-json.hh"
+#include "utils/load-file.hh"
 
 using namespace std;
 
 namespace flexisip {
 
-FileSpacesData::FileSpacesData(const list<string>& domains) {
-	for (const auto& domain : domains)
-		mDomains.emplace(domain);
+FileSpacesData::FileSpacesData(const std::filesystem::path& domainsConfigFilePath,
+                               const NotifySpacesChangedCb& notifySpacesChangedCb) {
+	try {
+		vector<flexiapi::Space> spaces{};
+
+		const auto data = loadFromFile(domainsConfigFilePath);
+		const auto config = nlohmann::json::parse(data);
+
+		flexiapi::verifySpacesSchemaIntegrity(config);
+
+		std::transform(config.begin(), config.end(), std::back_inserter(spaces),
+		               [](const nlohmann::json& object) { return object.get<flexiapi::Space>(); });
+
+		notifySpacesChangedCb(spaces);
+	} catch (const nlohmann::json::exception& exception) {
+		throw BadConfiguration{"parsing error (" + domainsConfigFilePath.string() + "): "s + exception.what()};
+	}
+}
+
+FileSpacesData::FileSpacesData(const std::list<std::string>& domains,
+                               const NotifySpacesChangedCb& notifySpacesChangedCb) {
+	vector<flexiapi::Space> spaces{};
+	std::transform(domains.begin(), domains.end(), std::back_inserter(spaces),
+	               [](const std::string& domain) { return flexiapi::Space{.domain = domain}; });
+	notifySpacesChangedCb(spaces);
 }
 
 } // namespace flexisip

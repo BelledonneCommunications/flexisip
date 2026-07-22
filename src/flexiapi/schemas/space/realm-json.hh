@@ -18,21 +18,35 @@
 
 #pragma once
 
-#include <filesystem>
-#include <list>
-#include <string>
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
-#include "spaces-data-manager.hh"
+#include "auth/bearer-auth.hh"
+#include "realm.hh"
 
 namespace flexisip {
 
-class FileSpacesData : public ISpacesDataManager {
-public:
-	static constexpr std::string_view mLogPrefix{"FileSpacesData"};
+NLOHMANN_JSON_SERIALIZE_ENUM(Bearer::PubKeyType,
+                             {
+                                 {Bearer::PubKeyType::file, "file"},
+                                 {Bearer::PubKeyType::wellKnown, "well-known"},
+                             })
 
-	explicit FileSpacesData(const std::filesystem::path& domainsConfigFilePath,
-	                        const NotifySpacesChangedCb& notifySpacesChangedCb);
-	explicit FileSpacesData(const std::list<std::string>& domains, const NotifySpacesChangedCb& notifySpacesChangedCb);
-};
+namespace flexiapi {
+
+void from_json(const nlohmann ::json& nlohmann_json_j, Bearer& nlohmann_json_t);
+
+/**
+ * @throws nlohmann::json::exception if the json schema is invalid
+ */
+void verifyBearerSchemaIntegrity(const nlohmann::json& config);
+
+void from_json(const nlohmann ::json& nlohmann_json_j, Realm& nlohmann_json_t);
+
+/**
+ * @throws nlohmann::json::exception if the json schema is invalid
+ */
+void verifyRealmSchemaIntegrity(const nlohmann::json& config);
+
+} // namespace flexiapi
 
 } // namespace flexisip

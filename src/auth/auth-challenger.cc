@@ -16,34 +16,39 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+#include "auth-challenger.hh"
 
-#include <chrono>
 #include <memory>
 
-#include "flexisip/sofia-wrapper/su-root.hh"
-#include "flexisip/sofia-wrapper/timer.hh"
-#include "spaces-data-manager.hh"
-#include "utils/transport/http/rest-client.hh"
+#include <sofia-sip/sip_extra.h>
+#include <sofia-sip/sip_status.h>
+
+#include "flexisip/sofia-wrapper/auth-status.hh"
+
+using namespace std;
 
 namespace flexisip {
 
-class FAMSpacesData : public ISpacesDataManager {
-public:
-	FAMSpacesData(const std::shared_ptr<sofiasip::SuRoot>& root,
-	              RestClient&& restClient,
-	              std::chrono::milliseconds delay,
-	              const NotifySpacesChangedCb& notifySpacesChangedCb);
-
-private:
-	static constexpr std::string_view mLogPrefix{"FAMSpacesData"};
-
-	void askAccountManager();
-	void onAccountManagerResponse(const std::shared_ptr<HttpResponse>& rep);
-
-	RestClient mFAMClient;
-	sofiasip::Timer mTimer;
-	NotifySpacesChangedCb mNotifySpacesChangedCb;
+static constexpr auth_challenger_t kRegistrarChallenger{
+    401,
+    sip_401_Unauthorized,
+    sip_www_authenticate_class,
+    sip_authentication_info_class,
 };
+static constexpr auth_challenger_t kProxyChallenger{
+    407,
+    sip_407_Proxy_auth_required,
+    sip_proxy_authenticate_class,
+    sip_proxy_authentication_info_class,
+};
+
+std::pair<std::shared_ptr<AuthStatus>, const auth_challenger_t&>
+AuthChallenger::makeAuthStatusAndChallenger(sip_method_t method) {
+	auto status = std::make_shared<AuthStatus>();
+	const auto& challenger = method == sip_method_register ? kRegistrarChallenger : kProxyChallenger;
+	status->status(challenger.ach_status);
+	status->phrase(challenger.ach_phrase);
+	return {status, challenger};
+}
 
 } // namespace flexisip

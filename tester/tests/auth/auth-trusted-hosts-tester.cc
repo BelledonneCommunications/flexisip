@@ -50,8 +50,8 @@ void rejectUnauthRequest() {
 	const auto request = registerRequest(sipUri, "1");
 	const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
 
-	// expect 500 internal error because no authentication challenger module is present
-	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 500);
+	// Expect "403 Forbidden" because no authentication challenger module is present.
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 403);
 }
 
 // Add localhost to trusted-host

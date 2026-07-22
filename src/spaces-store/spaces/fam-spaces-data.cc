@@ -17,10 +17,10 @@
 */
 
 #include "fam-spaces-data.hh"
+#include "flexiapi/schemas/space/space.hh"
 
 #include <list>
 #include <string>
-#include <unordered_set>
 
 using namespace std;
 
@@ -28,21 +28,22 @@ namespace flexisip {
 
 namespace {
 
-constexpr auto kDynamicDomainPath = "/api/spaces";
+constexpr auto kDynamicSpacesPath = "/api/spaces";
 
 } // namespace
 
 FAMSpacesData::FAMSpacesData(const shared_ptr<sofiasip::SuRoot>& root,
                              RestClient&& restClient,
-                             chrono::milliseconds delay)
-    : mFAMClient{std::move(restClient)}, mTimer(root, delay) {
+                             chrono::milliseconds delay,
+                             const NotifySpacesChangedCb& notifySpacesChangedCb)
+    : mFAMClient{std::move(restClient)}, mTimer(root, delay), mNotifySpacesChangedCb(notifySpacesChangedCb) {
 	mTimer.setForEver([this] { askAccountManager(); });
 	askAccountManager();
 }
 
 void FAMSpacesData::askAccountManager() {
 	mFAMClient.get(
-	    kDynamicDomainPath,
+	    kDynamicSpacesPath,
 	    [this](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>& rep) {
 		    onAccountManagerResponse(rep);
 	    },
@@ -60,29 +61,26 @@ void FAMSpacesData::onAccountManagerResponse(const std::shared_ptr<HttpResponse>
 	}
 
 	try {
-		const auto spaces = nlohmann::json::parse(string(rep->getBody().data(), rep->getBody().size()));
-		if (!spaces.is_array()) {
-			LOGE << "Domains not updated, failed to read spaces";
+		const auto rawSpaces = nlohmann::json::parse(string(rep->getBody().data(), rep->getBody().size()));
+		if (!rawSpaces.is_array()) {
+			LOGE << "Failed to read spaces";
 			return;
 		}
 
 		constexpr auto domain = "domain"sv;
-		unordered_set<string> domains{};
+		vector<flexiapi::Space> spaces{};
 
-		for (const auto& space : spaces) {
+		for (const auto& space : rawSpaces) {
 			if (!space.contains(domain) || !space[domain].is_string()) {
-				LOGE << "Domains not updated, expect to have a domain in each space";
+				LOGE << "Spaces not updated, expected to have a 'domain' field in each Space";
 				return;
 			}
-			domains.emplace(space[domain]);
+			spaces.emplace_back(flexiapi::Space{.domain = space[domain]});
 		}
 
-		mDomains.clear();
-		for (const auto& domain : domains) {
-			mDomains.emplace(domain);
-		}
+		mNotifySpacesChangedCb(spaces);
 		LOGD << "Domains updated";
-		if (mDomains.empty()) LOGW << "Domains list is empty (expect all requests to be rejected!)";
+		if (spaces.empty()) LOGW << "Spaces list is empty (expect all requests to be rejected!)";
 	} catch (const exception& e) {
 		LOGE << "Unexpected error while parsing response: " << e.what();
 	}

@@ -18,16 +18,17 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_set>
+#include <functional>
+
+#include "flexiapi/schemas/space/space.hh"
 
 namespace flexisip {
 
 class ISpacesDataManager {
 public:
-	virtual ~ISpacesDataManager() = default;
+	using NotifySpacesChangedCb = std::function<void(const std::vector<flexiapi::Space>& space)>;
 
-	virtual const std::unordered_set<std::string>& getDomains() const = 0;
+	virtual ~ISpacesDataManager() = default;
 };
 
 } // namespace flexisip

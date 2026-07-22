@@ -20,10 +20,10 @@
 
 #include <memory>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "core-assert.hh"
+#include "flexiapi/schemas/space/space.hh"
 #include "shared-tests.hh"
 #include "utils/http-mock/http-mock.hh"
 #include "utils/test-patterns/test.hh"
@@ -36,54 +36,47 @@ namespace flexisip::tester {
 namespace {
 
 const auto apiPath = "/api/spaces";
-const nlohmann::json spaces = {
-    {
-        {"domain", kTestDomains[0]},
-        {"super", true},
-    },
-    {
-        {"domain", kTestDomains[1]},
-        {"super", false},
-    },
-};
 
 /*
  * Test domains loading at initialization and periodic refresh.
  */
-void getDomains() {
+void spacesLoading() {
 	const auto suRoot = make_shared<sofiasip::SuRoot>();
 	CoreAssert asserter{suRoot};
 
+	vector<flexiapi::Space> actualSpaces{};
+	const auto notifySpacesChangedCb = [&](const vector<flexiapi::Space>& spaces) { actualSpaces = spaces; };
+
 	http_mock::HttpMock server{apiPath};
-	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
+	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, kTestSpacesJson.dump()));
 	const auto port = to_string(server.serveAsync());
 	const auto http2Client = Http2Client::make(*suRoot, "localhost", port);
 
-	const auto data = make_shared<FAMSpacesData>(suRoot, RestClient{http2Client}, 500ms);
-	asserter.waitUntil(250ms, [&data] { return !data->getDomains().empty(); }).hard_assert_passed();
+	const auto data = make_shared<FAMSpacesData>(suRoot, RestClient{http2Client}, 500ms, notifySpacesChangedCb);
+	asserter.waitUntil(250ms, [&] { return !actualSpaces.empty(); }).hard_assert_passed();
 
-	flexisip::tester::getDomains(data, unordered_set<string>{kTestDomains.begin(), kTestDomains.end()});
+	flexisip::tester::hasSpaces(actualSpaces, kTestSpaces);
 
 	const string newDomain{"new.example.org"};
-	auto newSpaces = spaces;
+	auto newSpaces = kTestSpacesJson;
 	newSpaces.emplace_back(nlohmann::json{{"domain", newDomain}, {"super", false}});
 	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, newSpaces.dump()));
 
-	asserter
-	    .wait([&data, &newDomain] {
-		    const auto& domains = data->getDomains();
-		    FAIL_IF(domains.find(newDomain) == domains.end());
-		    return ASSERTION_PASSED();
-	    })
-	    .hard_assert_passed();
+	// Expect actual spaces to have one more space after the next refresh.
+	asserter.wait([&] { return LOOP_ASSERTION(actualSpaces.size() == kTestSpaces.size() + 1); }).hard_assert_passed();
 
-	flexisip::tester::getDomains(data, unordered_set<string>{kTestDomains[0], kTestDomains[1], newDomain});
+	const vector<flexiapi::Space> newExpectedSpaces = {
+	    {.domain = kTestDomains[0]},
+	    {.domain = kTestDomains[1]},
+	    {.domain = newDomain},
+	};
+	flexisip::tester::hasSpaces(actualSpaces, newExpectedSpaces);
 }
 
 const TestSuite kSuite{
     "FAMSpacesData",
     {
-        CLASSY_TEST(getDomains),
+        CLASSY_TEST(spacesLoading),
     },
 };
 

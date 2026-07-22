@@ -1101,6 +1101,19 @@ ConfigManager::ConfigManager()
 	    },
 	    {
 	        String,
+	        "domains-configuration",
+	        "Specifies how this server obtains the SIP domains and associated users it manages.\n"
+	        "The server can retrieve the SIP domain and user configuration from:\n"
+	        "\t- 'flexiapi': fetch from a server that implements the FlexiAPI (configure in the [global::flexiapi] "
+	        "section)\n"
+	        "\t- 'path/to/config.json': path to json configuration file (loaded once during startup phase)\n"
+	        "Leave empty to disable the feature.",
+	        "",
+	    },
+
+	    // Deprecated parameters
+	    {
+	        String,
 	        "advanced-account-data",
 	        "Tells the server how to retrieve advanced options for user accounts:\n"
 	        "\t- 'flexiapi' keyword to use the HTTP server that implements the FlexiAPI (configure access in the "
@@ -1109,8 +1122,6 @@ ConfigManager::ConfigManager()
 	        "An empty string disables support for advanced account options.",
 	        "",
 	    },
-
-	    // Deprecated parameters
 	    {
 	        Boolean,
 	        "auto-respawn",
@@ -1211,6 +1222,12 @@ ConfigManager::ConfigManager()
 	global->addChildrenValues(global_conf);
 	global->setConfigListener(this);
 
+	global->get<ConfigString>("advanced-account-data")
+	    ->setDeprecated({
+	        "2026-06-17",
+	        "2.7.0",
+	        "Use 'global/domains-configuration' instead",
+	    });
 	global->get<ConfigBoolean>("auto-respawn")
 	    ->setDeprecated("2026-03-24", "2.6.0",
 	                    "This parameter has no effect anymore. Configure the flexisip-proxy service to restart on "

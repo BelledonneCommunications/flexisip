@@ -22,6 +22,8 @@
 
 #include <jwt/jwt.hpp>
 
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
 #include "auth-utils.hh"
 #include "rsa-keys.hh"
 #include "sofia-wrapper/nta-agent.hh"
@@ -45,6 +47,8 @@ const auto contact = userName + "@" + domainA;
 const auto sipUri = "sip:"s + contact;
 constexpr auto domainB = "b.example.org";
 constexpr auto audienceB = "testDomainB";
+constexpr auto domainC = "c.example.org";
+constexpr auto audienceC = "testDomainC";
 string clientB = "sip:TeddyBear"s + "@" + domainB;
 
 struct SuiteScope {
@@ -343,6 +347,130 @@ void bearerMsgOfAToB() {
 	BC_ASSERT_CPP_EQUAL(expectedProxyAuth, 0);
 }
 
+namespace multidomain {
+
+void bearerAuthWithDomainsConfiguration() {
+	const auto issuerA = "https://issuer-a.example.org"s;
+	const auto issuerB = "https://issuer-b.example.org"s;
+	const auto issuerC = "https://issuer-c.example.org"s;
+	const auto realmA = "realm-a"s;
+	const auto realmB = "realm-b"s;
+	const auto realmC = "realm-c"s;
+	const auto clientA = "sip:alphonse@"s + domainA;
+	const auto clientB = "sip:teddy@"s + domainB;
+	const auto clientC = "sip:charlie@"s + domainC;
+
+	const auto domainsConfigPath = sSuiteScope->dir.path() / "domains-config.json";
+	{
+		nlohmann::json domainsConfig = nlohmann::json::array({
+		    {
+		        {"name", "domain-a"},
+		        {"domain", domainA},
+		        {"realm",
+		         {
+		             {"realm", realmA},
+		             {
+		                 "bearer",
+		                 {
+		                     {"authz_server", issuerA},
+		                     {"audience", audienceA},
+		                     {"sip_id_claim", "sip_identity"},
+		                     {"public_key_type", "file"},
+		                     {"public_key_location", sSuiteScope->rsaPubKey.string()},
+		                 },
+		             },
+		         }},
+		    },
+		    {
+		        {"name", "domain-b"},
+		        {"domain", domainB},
+		        {"realm",
+		         {
+		             {"realm", realmB},
+		             {
+		                 "bearer",
+		                 {
+		                     {"authz_server", issuerB},
+		                     {"audience", audienceB},
+		                     {"sip_id_claim", "sip_identity"},
+		                     {"public_key_type", "file"},
+		                     {"public_key_location", sSuiteScope->rsaPubKey.string()},
+		                 },
+		             },
+		         }},
+		    },
+		    {
+		        {"name", "domain-c"},
+		        {"domain", domainC},
+		        {"realm",
+		         {
+		             {"realm", realmC},
+		             {
+		                 "bearer",
+		                 {
+		                     {"authz_server", issuerC},
+		                     {"audience", audienceC},
+		                     {"sip_id_claim", "sip_identity"},
+		                     {"public_key_type", "file"},
+		                     {"public_key_location", sSuiteScope->rsaPubKey.string()},
+		                 },
+		             },
+		         }},
+		    },
+		});
+		ofstream(domainsConfigPath) << domainsConfig;
+	}
+
+	Server proxy({
+	    {"global/domains-configuration", domainsConfigPath.string()},
+	    {"module::Registrar/reg-domains", "*"},
+	    {"module::AuthOpenIDConnect/enabled", "true"},
+	    {"module::Authorization/enabled", "true"},
+	});
+
+	const auto& root = proxy.getRoot();
+	proxy.start();
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+
+	// Matching issuer, client and audience for domainA: should be accepted.
+	{
+		const auto authorization =
+		    "Authorization: Bearer "s + generateToken(issuerA, clientA, "default", audienceA) + "\r\n";
+		const auto request = registerRequest(clientA, "1", authorization);
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_200_ok);
+	}
+
+	// Matching issuer, client and audience for domainB: should be accepted.
+	{
+		const auto authorization =
+		    "Authorization: Bearer "s + generateToken(issuerB, clientB, "default", audienceB) + "\r\n";
+		const auto request = registerRequest(clientB, "2", authorization);
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_200_ok);
+	}
+
+	// Client from domain A tries to authenticate with domain B's issuer and audience: should be rejected.
+	{
+		const auto authorization =
+		    "Authorization: Bearer "s + generateToken(issuerB, clientA, "default", audienceB) + "\r\n";
+		const auto request = registerRequest(clientA, "3", authorization);
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_401_unauthorized);
+	}
+
+	// Client from domain C tries to authenticate with domain A's issuer and audience: should be rejected.
+	{
+		const auto authorization =
+		    "Authorization: Bearer "s + generateToken(issuerA, clientC, "default", audienceA) + "\r\n";
+		const auto request = registerRequest(clientC, "4", authorization);
+		const auto transaction = sendRequest(UAClient, root, request, proxy.getFirstPort());
+		checkResponse(transaction, response_401_unauthorized);
+	}
+}
+
+} // namespace multidomain
+
 /**
  * SIP RFC: https://datatracker.ietf.org/doc/html/rfc3261#section-22
  * HTTP RFC: https://datatracker.ietf.org/doc/html/rfc2617
@@ -354,6 +482,7 @@ const TestSuite kSuite{
         CLASSY_TEST(rejectDigestAuthReq),
         CLASSY_TEST(bearerAuth),
         CLASSY_TEST(bearerMsgOfAToB),
+        CLASSY_TEST(multidomain::bearerAuthWithDomainsConfiguration),
     },
     Hooks()
         .beforeSuite([]() {

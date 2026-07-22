@@ -18,12 +18,17 @@
 
 #pragma once
 
+#include <filesystem>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <unordered_map>
 
 #include "accounts/accounts-store.hh"
 #include "auth/bearer-auth.hh"
+#include "flexiapi/schemas/space/realm.hh"
+#include "flexiapi/schemas/space/space.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "spaces/spaces-data-manager.hh"
@@ -35,25 +40,50 @@ public:
 	struct Bearer {
 		flexisip::Bearer::BearerParams params{};
 		flexisip::Bearer::KeyStoreParams keyStoreParams{};
+
+		bool operator==(const flexiapi::Bearer& other) const;
 	};
 
+	struct Realm {
+		Realm() = default;
+		explicit Realm(const flexiapi::Realm& realm);
+
+		bool operator==(const flexiapi::Realm& other) const;
+
+		std::string realm{};
+		std::optional<Bearer> bearer{std::nullopt};
+	};
+
+	struct Space {
+		Space() = default;
+		explicit Space(const std::string& name, const std::string& domain, const std::weak_ptr<Realm>& realm = {})
+		    : name(name), domain(domain), realm(realm), accounts(std::nullopt) {}
+		Space(const std::string& name,
+		      const std::string& domain,
+		      std::optional<AccountsStore>&& accountsStore,
+		      const std::weak_ptr<Realm>& realm = {})
+		    : name(name), domain(domain), realm(realm), accounts(std::move(accountsStore)) {}
+
+		std::string name{};
+		std::string domain{};
+		std::weak_ptr<Realm> realm{};
+		std::optional<AccountsStore> accounts{std::nullopt};
+	};
+
+	static const std::string kLegacyDomainName;
 	static constexpr std::string_view mLogPrefix{"SpacesStore"};
 
 	static std::unique_ptr<SpacesStore> make(const std::shared_ptr<sofiasip::SuRoot>& root,
 	                                         const std::shared_ptr<ConfigManager>& cfg,
 	                                         const std::shared_ptr<Http2Client>& flexiApiClient);
 
-	std::optional<AccountsStore>& getAccountsStore() {
-		return mAccountsStore;
+	std::optional<std::reference_wrapper<AccountsStore>> getAccountsStore(const std::string& domain);
+
+	bool hasDomain(const std::string& domain) const {
+		return mSpaces.contains(domain);
 	}
 
-	std::shared_ptr<ISpacesDataManager> getSpacesData() {
-		return mSpacesDataManager;
-	}
-
-	const std::optional<Bearer>& getBearerParams() const {
-		return mBearerParams;
-	}
+	std::vector<std::pair<std::vector<std::string>, const Bearer>> getBearerParams() const;
 
 private:
 	SpacesStore(const std::string& advancedAccountData,
@@ -65,9 +95,14 @@ private:
 	            const std::shared_ptr<ConfigManager>& cfg,
 	            const std::shared_ptr<Http2Client>& flexiApiClient);
 
-	std::optional<Bearer> mBearerParams{};
-	std::optional<AccountsStore> mAccountsStore{};
-	std::shared_ptr<ISpacesDataManager> mSpacesDataManager{};
+	explicit SpacesStore(const std::filesystem::path& domainsConfigFilePath);
+
+	void onSpacesChanged(const std::vector<flexiapi::Space>& spaces);
+
+	// Association: domain name --> Space.
+	std::unordered_map<std::string, Space> mSpaces{};
+	std::vector<std::shared_ptr<Realm>> mRealms{};
+	std::unique_ptr<ISpacesDataManager> mSpacesDataManager{};
 };
 
 } // namespace flexisip

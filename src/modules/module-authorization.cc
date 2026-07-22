@@ -22,7 +22,6 @@
 
 #include "agent.hh"
 #include "auth/preferred-identity.hh"
-#include "exceptions/bad-configuration.hh"
 
 using namespace std;
 using namespace std::string_view_literals;
@@ -31,19 +30,6 @@ using namespace std::string_literals;
 namespace flexisip {
 
 namespace {
-
-constexpr auth_challenger_t kRegistrarChallenger{
-    401,
-    sip_401_Unauthorized,
-    sip_www_authenticate_class,
-    sip_authentication_info_class,
-};
-constexpr auth_challenger_t kProxyChallenger{
-    407,
-    sip_407_Proxy_auth_required,
-    sip_proxy_authenticate_class,
-    sip_proxy_authentication_info_class,
-};
 
 const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     "Authorization",
@@ -55,6 +41,14 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     ModuleInfoBase::ModuleOid::Authorization,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
+	        {
+	            DurationMIN,
+	            "accounts-refresh-delay",
+	            "The duration in minutes between two refreshes of the dynamic domain cache.",
+	            "5",
+	        },
+
+	        // Deprecated parameters.
 	        {
 	            String,
 	            "auth-domains-mode",
@@ -86,54 +80,32 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
 	            "",
 	        },
 	        {
-	            DurationMIN,
-	            "accounts-refresh-delay",
-	            "The duration in minutes between two refreshes of the dynamic domain cache.",
-	            "5",
-	        },
-	        {
 	            StringList,
 	            "auth-domains",
 	            "This parameter is used when no account-manager-server is defined.\n"
 	            "List of whitespace separated domains served by the proxy. "
 	            "Requests from any other domain are rejected.\n",
-	            "localhost",
+	            "",
 	        },
 	        config_item_end,
 	    };
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 
-	    const auto authDomainsModeString = moduleConfig.get<ConfigString>("auth-domains-mode");
-	    authDomainsModeString->setDeprecatedValue({
-	        "2026-02-27",
-	        "2.6.0",
-	        "Don't use 'auth-domains-mode=legacy' but:\n"
-	        " - 'flexiapi' with the global section 'global::flexiapi' for dynamic domain\n"
-	        " - 'static' with the parameters 'auth-domains' for static domains",
-	        "legacy",
-	    });
-	    const auto accountManagerHostString = moduleConfig.get<ConfigString>("account-manager-host");
-	    accountManagerHostString->setDeprecated({
-	        "2026-02-27",
-	        "2.6.0",
-	        "Don't use 'auth-domains-mode=legacy' with 'account-manager-host' but "
-	        "the global section 'global::flexiapi' for dynamic domain.",
-	    });
-	    const auto accountManagerPortString = moduleConfig.get<ConfigString>("account-manager-port");
-	    accountManagerPortString->setDeprecated({
-	        "2026-02-27",
-	        "2.6.0",
-	        "Don't use 'auth-domains-mode=legacy' with 'account-manager-port' but "
-	        "the global section 'global::flexiapi' for dynamic domain.",
-	    });
-	    const auto accountMangerApiKeyString = moduleConfig.get<ConfigString>("account-manager-api-key");
-	    accountMangerApiKeyString->setDeprecated({
-	        "2026-02-27",
-	        "2.6.0",
-	        "Don't use 'auth-domains-mode=legacy' with 'account-manager-api-key' but "
-	        "the global section 'global::flexiapi' for dynamic domain.",
-	    });
+	    const GenericEntry::DeprecationInfo info{"2026-07-22", "2.7.0", "Use 'global/domains-configuration' instead"};
+
+	    for (const auto& fieldName : {
+	             "auth-domains-mode",
+	             "account-manager-host",
+	             "account-manager-port",
+	             "account-manager-api-key",
+	         }) {
+		    auto* field = moduleConfig.get<ConfigString>(fieldName);
+		    field->setDeprecated(info);
+	    }
+
+	    auto* authDomainsField = moduleConfig.get<ConfigStringList>("auth-domains");
+	    authDomainsField->setDeprecated(info);
     });
 
 bool isAuthorized(const MsgSip& msgSip) {
@@ -149,8 +121,8 @@ bool isAuthorized(const MsgSip& msgSip) {
 
 bool isRequestDomainValid(const string& usrDomain,
                           const string& dstDomain,
-                          const unordered_set<string>& authorizedDomains) {
-	if (authorizedDomains.find(usrDomain) == authorizedDomains.cend()) {
+                          const std::shared_ptr<SpacesStore>& spacesStore) {
+	if (!spacesStore || !spacesStore->hasDomain(usrDomain)) {
 		LOGI_CTX(sAuthorizationInfo.getLogPrefix()) << "Unauthorized domain: '" << usrDomain << "'";
 		return false;
 	}
@@ -161,19 +133,11 @@ bool isRequestDomainValid(const string& usrDomain,
 	}
 	return true;
 }
+
 } // namespace
 
 ModuleAuthorization::ModuleAuthorization(Agent* ag, const ModuleInfoBase* moduleInfo)
     : Module(ag, moduleInfo), mSpacesStore(ag->getSpacesStore()) {}
-
-void ModuleAuthorization::onLoad(const GenericStruct*) {
-	if (!mSpacesStore || !mSpacesStore->getSpacesData()) {
-		throw BadConfiguration{
-		    "the authorization module is enabled but no SIP domains configuration provided (configure '" +
-		        this->mLogPrefix + "' section)",
-		};
-	}
-}
 
 unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSipEvent>&& ev) {
 	const auto& authResult = ev->getAuthResult();
@@ -189,9 +153,10 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	const sip_p_preferred_identity_t* ppi = preferredIdentity(msgSip);
 	const auto userUri = sofiasip::Url(ppi ? ppi->ppid_url : sip->sip_from->a_url);
 	const auto dstUri = sofiasip::Url(sip->sip_to->a_url);
+	const auto method = sip->sip_request->rq_method;
 
-	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mSpacesStore->getSpacesData()->getDomains())) {
-		if (sip->sip_request->rq_method == sip_method_ack) {
+	if (!isRequestDomainValid(userUri.getHost(), dstUri.getHost(), mSpacesStore)) {
+		if (method == sip_method_ack) {
 			ev->terminateProcessing(); // ACK of 403 response should not be processed further
 			return {};
 		}
@@ -201,7 +166,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 	}
 
 	// ACK and CANCEL shall never be challenged according to the RFC 3261-22.1
-	if (sip->sip_request->rq_method == sip_method_ack) {
+	if (method == sip_method_ack) {
 		// expect an ACK to be authenticated
 		// the challenge result is not checked, as a valid credential in the INVITE could become invalid in the ACK
 		// (e.g. JWT expiration)
@@ -231,20 +196,15 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 		}
 	}
 
-	AuthStatus as{};
-	const auto& challenger =
-	    sip->sip_request->rq_method == sip_method_register ? kRegistrarChallenger : kProxyChallenger;
-
-	for (const auto& authModule : mAuthModules) {
-		as.status(challenger.ach_status);
-		as.phrase(challenger.ach_phrase);
-		authModule.second->challenge(as, &challenger);
-		break; // stop on first available challenge, see how to get both
+	std::shared_ptr<AuthStatus> as{};
+	for (const auto& challenger : mAuthChallengers) {
+		as = challenger->challenge(method, userUri.getHost());
+		if (as) break; // stop on first available challenge
 	}
 
-	if (as.status() >= 400) {
-		ev->reply(as.status(), as.phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.info())),
-		          SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as.response())),
+	if (as && as->status() >= 400) {
+		ev->reply(as->status(), as->phrase(), SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as->info())),
+		          SIPTAG_HEADER(reinterpret_cast<sip_header_t*>(as->response())),
 		          SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 		return {};
 	}

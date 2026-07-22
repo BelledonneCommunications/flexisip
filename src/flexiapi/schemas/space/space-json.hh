@@ -18,21 +18,17 @@
 
 #pragma once
 
-#include <filesystem>
-#include <list>
-#include <string>
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 
-#include "spaces-data-manager.hh"
+#include "space.hh"
 
-namespace flexisip {
+namespace flexisip::flexiapi {
 
-class FileSpacesData : public ISpacesDataManager {
-public:
-	static constexpr std::string_view mLogPrefix{"FileSpacesData"};
+void from_json(const nlohmann ::json& nlohmann_json_j, Space& nlohmann_json_t);
 
-	explicit FileSpacesData(const std::filesystem::path& domainsConfigFilePath,
-	                        const NotifySpacesChangedCb& notifySpacesChangedCb);
-	explicit FileSpacesData(const std::list<std::string>& domains, const NotifySpacesChangedCb& notifySpacesChangedCb);
-};
+/**
+ * @throws nlohmann::json::exception if the json schema is invalid
+ */
+void verifySpacesSchemaIntegrity(const nlohmann::json& config);
 
-} // namespace flexisip
+} // namespace flexisip::flexiapi

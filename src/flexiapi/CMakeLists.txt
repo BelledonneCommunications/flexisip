@@ -43,6 +43,10 @@ target_sources(flexisip PRIVATE
 	schemas/optional-json.hh
 	schemas/pushnotification/pushnotification.hh
 	schemas/schemas-json.cc schemas/schemas-json.hh
+	schemas/space/realm.hh
+	schemas/space/realm-json.cc schemas/space/realm-json.hh
+	schemas/space/space.hh
+	schemas/space/space-json.cc schemas/space/space-json.hh
 	schemas/voicemail/slot.hh
 	schemas/voicemail/slot-creation.hh
 )

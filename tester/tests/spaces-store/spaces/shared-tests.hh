@@ -16,17 +16,37 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "spaces-store/spaces/spaces-data-manager.hh"
-
 #include <array>
-#include <memory>
 #include <string>
-#include <unordered_set>
+#include <vector>
+
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
+#include "flexiapi/schemas/space/space.hh"
 
 namespace flexisip::tester {
 
-static const std::array<std::string, 2> kTestDomains{"example.org", "other.example.org"};
+static const std::array<std::string, 2> kTestDomains{
+    "example.org",
+    "other.example.org",
+};
+static const std::vector<flexiapi::Space> kTestSpaces{
+    {.name = "space-1", .domain = kTestDomains[0]},
+    {.name = "space-2", .domain = kTestDomains[1]},
+};
+const nlohmann::json kTestSpacesJson = {
+    {
+        {"name", kTestSpaces[0].name},
+        {"domain", kTestSpaces[0].domain},
+        {"super", true},
+    },
+    {
+        {"name", kTestSpaces[1].name},
+        {"domain", kTestSpaces[1].domain},
+        {"super", false},
+    },
+};
 
-void getDomains(const std::shared_ptr<ISpacesDataManager>& data, const std::unordered_set<std::string>& expected);
+void hasSpaces(const std::vector<flexiapi::Space>& value, const std::vector<flexiapi::Space>& expected);
 
 } // namespace flexisip::tester

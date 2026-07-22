@@ -19,20 +19,18 @@
 #pragma once
 
 #include <filesystem>
-#include <list>
+#include <optional>
 #include <string>
 
-#include "spaces-data-manager.hh"
+#include "realm.hh"
 
-namespace flexisip {
+namespace flexisip::flexiapi {
 
-class FileSpacesData : public ISpacesDataManager {
-public:
-	static constexpr std::string_view mLogPrefix{"FileSpacesData"};
-
-	explicit FileSpacesData(const std::filesystem::path& domainsConfigFilePath,
-	                        const NotifySpacesChangedCb& notifySpacesChangedCb);
-	explicit FileSpacesData(const std::list<std::string>& domains, const NotifySpacesChangedCb& notifySpacesChangedCb);
+struct Space {
+	std::string name{};
+	std::string domain{};
+	std::optional<Realm> realm{std::nullopt};
+	std::optional<std::filesystem::path> accounts{std::nullopt};
 };
 
-} // namespace flexisip
+} // namespace flexisip::flexiapi
