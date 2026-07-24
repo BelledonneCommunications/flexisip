@@ -80,7 +80,7 @@ function(add_linphonesdk)
 	set(BUILD_XERCESC OFF)
 	set(BUILD_ZLIB OFF)
 
-	set(ENABLE_ADVANCED_IM ON)
+	set(ENABLE_ADVANCED_IM OFF)
 	set(ENABLE_AMRNB OFF)
 	set(ENABLE_AMRWB OFF)
 	set(ENABLE_ASSETS OFF)
@@ -103,7 +103,7 @@ function(add_linphonesdk)
 	set(ENABLE_LDAP OFF)
 	set(ENABLE_LIBYUV OFF)
 	set(ENABLE_LIME OFF)
-	set(ENABLE_LIME_X3DH ${BUILD_LIBLINPHONE})
+	set(ENABLE_LIME_X3DH OFF)
 
 	# ENABLE_MBEDTLS must be a cache variable because this option is declared by
 	# libsrtp2 project as cache variable instead of using option() command. That avoid Flexisip
@@ -169,15 +169,6 @@ function(add_linphonesdk)
 	# Belle-sip specific config
 	if(BUILD_BELLESIP)
 		set(ENABLE_RTP_MAP_ALWAYS_IN_SDP OFF)
-	endif()
-
-	# Lime specific config
-	if(ENABLE_LIME_X3DH)
-		set(ENABLE_CURVE25519 YES)
-		set(ENABLE_CURVE448 YES)
-		set(ENABLE_PROFILING NO)
-		set(ENABLE_C_INTERFACE NO)
-		set(ENABLE_JNI NO)
 	endif()
 
 	set(LINPHONESDK_BUILD_TYPE "Flexisip")
