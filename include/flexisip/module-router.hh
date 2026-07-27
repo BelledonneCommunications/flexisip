@@ -27,7 +27,6 @@
 #include "flexisip/module.hh"
 #include "flexisip/registrar/registar-listeners.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "spaces-store/spaces-store.hh"
 
 namespace flexisip {
 struct RouterStats {
@@ -39,6 +38,7 @@ class Injector;
 class Agent;
 class Record;
 class ForkManager;
+class SpacesStore;
 
 class ModuleRouter : public Module, public std::enable_shared_from_this<ModuleRouter> {
 
