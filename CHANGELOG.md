@@ -14,7 +14,7 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
-## [2.6.1] - Hotfix
+## [2.6.1] - 2026-07-30
 - **SDK version:** 5.5.7
 
 ## [2.6.0] - 2026-07-07
@@ -44,9 +44,6 @@ Group changes to describe their impact on the project, as follows:
 - **Voicemail server:** New server for recording voice messages intended for the recipient of the call when a call is 
   declined or not answered. See [Voicemail Server](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/C.%20Features/Voicemail%20server/)
   for more information.
-- **B2BUA:** Add a Priority header to NOTIFY messages containing Message Waiting Indication (MWI) information. If the
-  MWI notifies new urgent messages, the Priority header is set to 'urgent', otherwise it is set to 'non-urgent'. This
-  has the effect of only sending push notifications for MWI indicating urgent messages.
 - **Build:**
     - Add support for C++20.
     - Add support for Ubuntu 26.04.
