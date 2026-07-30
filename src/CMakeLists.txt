@@ -255,8 +255,6 @@ if(ENABLE_PRESENCE)
 endif()
 if(ENABLE_REGEVENT)
 	target_sources(flexisip PRIVATE
-		registration-events/client.cpp
-		registration-events/client.hh
 		registration-events/server.cpp
 		registration-events/server.hh
 	)
