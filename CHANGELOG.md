@@ -118,7 +118,9 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Removed]
 - **Conference server:** The conference server has been split from Flexisip to ease the release process of all other
-  servers. It now has its own repository [here](https://gitlab.linphone.org/BC/public/flexisip-conference).
+    servers. It now has its own repository [here](https://gitlab.linphone.org/BC/public/flexisip-conference). A
+    [migration guide](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/HOWTOs/Flexisip%202.5%20to%202.6%20migration%20guide/)
+    is available in our wiki to facilitate the transition.
 - **Proxy:**
     - Old Firebase API as it is not supported anymore to send push notifications.
     - `$api-key` is not supported anymore in `module::PushNotification/external-push-uri`. Old Firebase is thus not 
