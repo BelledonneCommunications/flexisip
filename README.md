@@ -1,6 +1,6 @@
 # Flexisip
 
-Flexisip is a comprehensive, modular and scalable SIP server suite written in C++17. It offers a wide range of
+Flexisip is a comprehensive, modular and scalable SIP server suite written in C++20. It offers a wide range of
 functionalities, including:
 
 * **Proxy Server**: acts as a central hub for routing SIP messages.
@@ -10,6 +10,10 @@ functionalities, including:
 * **Back-to-Back User Agent (B2BUA) Server**: enables caller identity translation, media-level transcoding and SIP
   trunking.
 * **RegEvent Server**: notify tier domains of user registration.
+
+> From Flexisip 2.6, the **Conference Server** feature is in another [repository](https://gitlab.linphone.org/BC/public/flexisip-conference) 
+> and is packaged separately. A [migration guide](https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/HOWTOs/Flexisip%202.5%20to%202.6%20migration%20guide/)
+> is available in our wiki.
 
 ## Deployment and Applications:
 
