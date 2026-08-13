@@ -196,12 +196,98 @@ void maxDivertedCall() {
 	BC_ASSERT_TRUE(hasNoRunningCall(tester.caller));
 }
 
+void redirectToInitialTargetVoicemail() {
+	auto accounts = R"(
+    [
+        {
+            "type": "account",
+            "payload": {
+				"id": 1,
+		        "sip_uri": "sip:initial-callee@sip.example.org",
+		        "call_forwardings": [
+			        {
+				        "type": "always",
+				        "sip_uri": "sip:final-callee@sip.example.org",
+				        "forward_to": "sip_uri",
+						"enabled": true
+			        }
+		        ]
+            }
+        },
+        {
+			"id": 2,
+            "type": "account",
+            "payload": {
+		        "sip_uri": "sip:final-callee@sip.example.org",
+		        "call_forwardings": [
+		        ]
+            }
+        }
+    ]
+)";
+
+	auto accountsFile = kSuiteDir->path() / __func__;
+	std::ofstream(accountsFile) << accounts;
+
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global/advanced-account-data", accountsFile},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Router/enable-call-diversions", "true"},
+	    {"module::Router/max-call-diversions", "1"},
+	}};
+	proxy.start();
+
+	ClientBuilder voicemailBuilder{proxy.getAgent()};
+	auto voicemail =
+	    make_shared<CoreClient>(voicemailBuilder.setRegistration(OnOff::Off).build("sip:voicemail@127.0.0.2"));
+	const auto& config = *proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Router");
+	const auto voicemailAddress = "sip:127.0.0.2:" + to_string(voicemail->getTcpPort()) + ";transport=tcp";
+	config.get<ConfigString>("voicemail-server")->set(voicemailAddress);
+	const auto router = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
+	router->reload();
+
+	ClientBuilder clientBuilder{proxy.getAgent()};
+	auto caller = clientBuilder.make("sip:caller@sip.example.org");
+	auto initialCallee = clientBuilder.make("sip:initial-callee@sip.example.org");
+	auto finalCallee = clientBuilder.make("sip:final-callee@sip.example.org");
+
+	CoreAssert asserter{proxy, caller, initialCallee, finalCallee, *voicemail};
+	// Caller invites callee.
+	const auto* initialCalleeAor = "sip:initial-callee@sip.example.org";
+	auto callToInitialCallee = ClientCall::tryFrom(caller->invite(initialCalleeAor));
+	BC_HARD_ASSERT(callToInitialCallee.has_value());
+
+	// Wait until call is received.
+	asserter
+	    .waitUntil(2s,
+	               [&] {
+		               FAIL_IF(hasReceivedCall(initialCallee));
+		               FAIL_IF(!hasReceivedCall(finalCallee));
+		               return ASSERTION_PASSED();
+	               })
+	    .hard_assert_passed();
+
+	BC_HARD_ASSERT(hasReceivedCall(finalCallee));
+	finalCallee->getCurrentCall()->decline(Reason::Declined);
+
+	voicemail->hasReceivedCallFrom(*caller, asserter).hard_assert_passed();
+
+	auto callFromCallerToVoicemail = voicemail->getCurrentCall();
+	BC_HARD_ASSERT(callFromCallerToVoicemail.has_value());
+
+	// Verify the content of the request URI.
+	const SipUri requestUri{callFromCallerToVoicemail->getRequestAddress()->asStringUriOnly()};
+	BC_ASSERT_CPP_EQUAL(uri_utils::unescape(requestUri.getParam("target")), initialCalleeAor);
+}
+
 TestSuite kSuite{
     "DivertibleFork",
     {
         CLASSY_TEST(cancelCallAfterRedirection),
         CLASSY_TEST(divertedCall),
         CLASSY_TEST(maxDivertedCall),
+        CLASSY_TEST(redirectToInitialTargetVoicemail),
     },
     Hooks()
         .beforeSuite([] {

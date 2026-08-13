@@ -250,10 +250,8 @@ bool DivertibleForkContext::divert(int code) {
 	assert(forkManager != nullptr);
 
 	const auto request = mIncoming->getIncomingRequest();
-	auto* home = request->getHome();
-	const auto* sip = request->getSip();
 	const auto voicemailServerUri = static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri;
-	const auto target = uri_utils::escape(url_as_string(home, sip->sip_to->a_url), uri_utils::sipUriParamValueReserved);
+	const auto target = uri_utils::escape(mInitialTarget.str(), uri_utils::sipUriParamValueReserved);
 	const auto cause = to_string(code);
 	const auto requestUri = voicemailServerUri.setParameter("target", target).setParameter("cause", cause);
 	const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
