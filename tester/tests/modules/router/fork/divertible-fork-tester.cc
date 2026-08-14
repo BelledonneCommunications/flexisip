@@ -18,6 +18,7 @@
 
 #include <fstream>
 #include <memory>
+#include <string_view>
 
 #include "linphone++/enums.hh"
 
@@ -40,6 +41,35 @@ using namespace linphone;
 namespace flexisip::tester {
 namespace {
 std::optional<TmpDir> kSuiteDir;
+
+constexpr string_view kAccounts = R"(
+    [
+		{
+			"type": "account",
+			"payload": {
+				"id": 1,
+				"sip_uri": "sip:initial-callee@sip.example.org",
+				"call_forwardings": [
+					{
+						"type": "always",
+						"sip_uri": "sip:final-callee@sip.example.org",
+						"forward_to": "sip_uri",
+						"enabled": true
+					}
+				]
+			}
+		},
+		{
+			"type": "account",
+			"payload": {
+				"id": 2,
+				"sip_uri": "sip:final-callee@sip.example.org",
+				"call_forwardings": [
+				]
+			}
+		}
+	]
+)";
 
 // Ensure a CANCEL after the redirection is well processed.
 void cancelCallAfterRedirection() {
@@ -94,51 +124,7 @@ auto hasNoRunningCall(shared_ptr<CoreClient>& core) {
 	return !call || call->getState() == linphone::Call::State::Released;
 }
 struct DivertedCallTester {
-	DivertedCallTester(const string& maxCallDiversions) {
-		auto accounts = R"(
-    [
-        {
-            "type": "account",
-            "payload": {
-				"id": 1,
-		        "sip_uri": "sip:initial-callee@sip.example.org",
-		        "call_forwardings": [
-			        {
-				        "type": "always",
-				        "sip_uri": "sip:intermediate-callee@sip.example.org",
-				        "forward_to": "sip_uri",
-						"enabled": true
-			        }
-		        ]
-            }
-        },
-        {
-            "type": "account",
-            "payload": {
-				"id": 2,
-		        "sip_uri": "sip:intermediate-callee@sip.example.org",
-		        "call_forwardings": [
-			        {
-				        "type": "always",
-				        "contact_sip_uri": "sip:final-callee@sip.example.org",
-				        "forward_to": "contact",
-						"enabled": true
-			        }
-		        ]
-            }
-        },
-        {
-			"id": 3,
-            "type": "account",
-            "payload": {
-		        "sip_uri": "sip:final-callee@sip.example.org",
-		        "call_forwardings": [
-		        ]
-            }
-        }
-    ]
-)";
-
+	DivertedCallTester(string_view accounts) {
 		auto accountsFile = kSuiteDir->path() / __func__;
 		std::ofstream(accountsFile) << accounts;
 
@@ -147,7 +133,6 @@ struct DivertedCallTester {
 		    {"global/advanced-account-data", accountsFile},
 		    {"module::Registrar/reg-domains", "sip.example.org"},
 		    {"module::Router/enable-call-diversions", "true"},
-		    {"module::Router/max-call-diversions", maxCallDiversions},
 		}};
 		proxy.start();
 
@@ -175,6 +160,10 @@ struct DivertedCallTester {
 		    .hard_assert_passed();
 	}
 
+	~DivertedCallTester() {
+		if (callerCall) std::ignore = callerCall->terminate();
+	}
+
 	unique_ptr<ClientBuilder> builder;
 	shared_ptr<CoreClient> caller;
 	shared_ptr<CoreClient> initialCallee;
@@ -184,12 +173,56 @@ struct DivertedCallTester {
 };
 
 void divertedCall() {
-	DivertedCallTester tester{"5"};
+	DivertedCallTester tester{kAccounts};
 	BC_ASSERT_TRUE(hasReceivedCall(tester.finalCallee));
 }
 
 void maxDivertedCall() {
-	DivertedCallTester tester{"1"};
+	constexpr string_view recursiveDiversions = R"(
+	[
+		{
+			"type": "account",
+			"payload": {
+				"id": 1,
+				"sip_uri": "sip:initial-callee@sip.example.org",
+				"call_forwardings": [
+					{
+						"type": "always",
+						"sip_uri": "sip:intermediate-callee@sip.example.org",
+						"forward_to": "sip_uri",
+						"enabled": true
+					}
+				]
+			}
+		},
+		{
+			"type": "account",
+			"payload": {
+				"id": 2,
+				"sip_uri": "sip:intermediate-callee@sip.example.org",
+				"call_forwardings": [
+					{
+						"type": "always",
+						"contact_sip_uri": "sip:final-callee@sip.example.org",
+						"forward_to": "contact",
+						"enabled": true
+					}
+				]
+			}
+		},
+		{
+			"id": 3,
+			"type": "account",
+			"payload": {
+				"sip_uri": "sip:final-callee@sip.example.org",
+				"call_forwardings": [
+				]
+			}
+		}
+	]
+)";
+
+	DivertedCallTester tester{recursiveDiversions};
 	BC_ASSERT_FALSE(hasReceivedCall(tester.initialCallee));
 	BC_ASSERT_FALSE(hasReceivedCall(tester.intermediateCallee));
 	BC_ASSERT_FALSE(hasReceivedCall(tester.finalCallee));
@@ -197,44 +230,14 @@ void maxDivertedCall() {
 }
 
 void redirectToInitialTargetVoicemail() {
-	auto accounts = R"(
-    [
-        {
-            "type": "account",
-            "payload": {
-				"id": 1,
-		        "sip_uri": "sip:initial-callee@sip.example.org",
-		        "call_forwardings": [
-			        {
-				        "type": "always",
-				        "sip_uri": "sip:final-callee@sip.example.org",
-				        "forward_to": "sip_uri",
-						"enabled": true
-			        }
-		        ]
-            }
-        },
-        {
-			"id": 2,
-            "type": "account",
-            "payload": {
-		        "sip_uri": "sip:final-callee@sip.example.org",
-		        "call_forwardings": [
-		        ]
-            }
-        }
-    ]
-)";
-
 	auto accountsFile = kSuiteDir->path() / __func__;
-	std::ofstream(accountsFile) << accounts;
+	std::ofstream(accountsFile) << kAccounts;
 
 	Server proxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 	    {"global/advanced-account-data", accountsFile},
 	    {"module::Registrar/reg-domains", "sip.example.org"},
 	    {"module::Router/enable-call-diversions", "true"},
-	    {"module::Router/max-call-diversions", "1"},
 	}};
 	proxy.start();
 
@@ -279,6 +282,8 @@ void redirectToInitialTargetVoicemail() {
 	// Verify the content of the request URI.
 	const SipUri requestUri{callFromCallerToVoicemail->getRequestAddress()->asStringUriOnly()};
 	BC_ASSERT_CPP_EQUAL(uri_utils::unescape(requestUri.getParam("target")), initialCalleeAor);
+
+	if (callFromCallerToVoicemail) callFromCallerToVoicemail->terminate();
 }
 
 TestSuite kSuite{

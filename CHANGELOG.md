@@ -37,6 +37,7 @@ Group changes to describe their impact on the project, as follows:
 ### [Deprecated]
 - **Proxy:**
   - Parameter `global/advanced-account-data` is deprecated. Use `global/domains-configuration` instead.
+  - Parameter `module::Router/max-call-diversions` was experimental and is now deprecated.
   - **Authorization:** Parameters `auth-domains-mode` and `auth-domains` are deprecated.
     Use `global/domains-configuration` instead.
   - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,

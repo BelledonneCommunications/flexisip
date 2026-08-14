@@ -278,6 +278,10 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	};
 	moduleConfig.addChildrenValues(configs);
 
+	const auto maxCallDiversionParam = moduleConfig.get<ConfigInt>("max-call-diversions");
+	maxCallDiversionParam->setDeprecated(
+	    {"2026-07-21", "2.7.0", "'max-call-diversions' is deprecated and has no effect anymore."});
+
 	moduleConfig.createStatPair("count-forks", "Number of forks");
 	moduleConfig.createStatPair("count-basic-forks", "Number of basic forks");
 	moduleConfig.createStatPair("count-call-forks", "Number of call forks");
@@ -336,7 +340,7 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 	if (routingConfig.mEnableCallDiversions && mSpacesStore) {
 		const auto accountStore = mSpacesStore->getAccountsStore(SpacesStore::kLegacyDomainName);
 		if (!accountStore.has_value()) throw BadConfigurationValue{enableCallDiversionsParam};
-		accountStore->get().setMaxCallDiversions(mc->get<ConfigInt>("max-call-diversions")->read());
+		accountStore->get().setMaxCallDiversions(1);
 	}
 
 	routingConfig.mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
