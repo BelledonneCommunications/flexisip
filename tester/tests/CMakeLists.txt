@@ -149,16 +149,14 @@ if(ENABLE_SOCI)
 	endif()
 endif()
 
-if(ENABLE_FLEXIAPI)
+target_sources(flexisip_tester PRIVATE
+	flexiapi/flexi-stats-tester.cc
+	pushnotification/push-notification-flexiapi-tester.cc
+)
+if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
-		flexiapi/flexi-stats-tester.cc
-		pushnotification/push-notification-flexiapi-tester.cc
+		eventlogs/writers/flexi-stats-event-log-writer-tester.cc
 	)
-	if(ENABLE_SOCI)
-		target_sources(flexisip_tester PRIVATE
-			eventlogs/writers/flexi-stats-event-log-writer-tester.cc
-		)
-	endif()
 endif()
 if(HAS_GCC_BUG_105562)
 	set_source_files_properties(
