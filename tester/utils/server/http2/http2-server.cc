@@ -100,12 +100,20 @@ const UriRef& RequestState::getUri() const {
 	return mUri;
 }
 
+const string& RequestState::getAuthority() const {
+	return mAuthority;
+}
+
 void RequestState::setMethod(string method) {
 	mMethod = std::move(method);
 }
 
 void RequestState::setUri(UriRef uri) {
 	mUri = std::move(uri);
+}
+
+void RequestState::setAuthority(string authority) {
+	mAuthority = std::move(authority);
 }
 
 void RequestState::addHeader(string name, HeaderValue value) {
@@ -298,6 +306,11 @@ const HeaderMap& Request::getHeaders() const {
 const UriRef& Request::getUri() const {
 	static const UriRef empty{};
 	return mState ? mState->getUri() : empty;
+}
+
+const string& Request::getAuthority() const {
+	static const string empty{};
+	return mState ? mState->getAuthority() : empty;
 }
 
 void Request::onData(DataCb cb) const {

@@ -34,7 +34,7 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 	    {
 	        Boolean,
 	        "enabled",
-	        "Enable event logs.",
+	        "Enable event logs. Requires 'global::flexiapi' connection config.",
 	        "false",
 	    },
 	    {
@@ -87,7 +87,7 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 	        "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
 	        "10",
 	    },
-	    ////////////////// Flexiapi //////////////////
+	    ////////////////// Flexiapi: deprecated parameters //////////////////
 	    {
 	        String,
 	        "flexiapi-host",
@@ -104,15 +104,15 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 	    },
 	    {
 	        String,
-	        "flexiapi-prefix",
-	        "Path prefix for FlexiAPI requests. See `flexiapi-host` for details.",
-	        "/api/stats/",
-	    },
-	    {
-	        String,
 	        "flexiapi-api-key",
 	        "API authentication key for the FlexiAPI",
 	        "",
+	    },
+	    {
+	        String,
+	        "flexiapi-prefix",
+	        "Path prefix for FlexiAPI requests. See `flexiapi-host` for details.",
+	        "/api/stats/",
 	    },
 	    config_item_end,
 	};
@@ -145,6 +145,12 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 	    "2026-02-27",
 	    "2.6.0",
 	    "Don't use 'flexiapi-api-key', but the global section 'global::flexiapi' to set up the FlexiAPI.",
+	});
+	const auto flexiApiPrefixString = ev->get<ConfigString>("flexiapi-prefix");
+	flexiApiPrefixString->setDeprecated({
+	    "2026-08-18",
+	    "2.6.2",
+	    "Don't use 'flexiapi-prefix', but the global section 'global::flexiapi' to set up the FlexiAPI.",
 	});
 });
 

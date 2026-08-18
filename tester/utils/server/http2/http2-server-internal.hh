@@ -56,13 +56,16 @@ public:
 	const std::string& getMethod() const;
 	const HeaderMap& getHeaders() const;
 	const UriRef& getUri() const;
+	const std::string& getAuthority() const;
 
 	void setMethod(std::string method);
 	void setUri(UriRef uri);
+	void setAuthority(std::string authority);
 	void addHeader(std::string name, HeaderValue value);
 
 private:
 	std::string mMethod{};
+	std::string mAuthority{};
 	HeaderMap mHeaders{};
 	UriRef mUri{};
 	std::mutex mCallbacksMutex{};

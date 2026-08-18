@@ -82,6 +82,7 @@ void HttpMock::handleRequest(const server::Request& req, const server::Response&
 		}
 	}
 	requestReceived->path = req.getUri().getPath();
+	requestReceived->authority = req.getAuthority();
 	mRequestsReceived.push(requestReceived);
 
 	res.writeHead(200);

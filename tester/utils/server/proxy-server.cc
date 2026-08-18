@@ -25,6 +25,7 @@
 #include "sofia-sip/nta_tport.h"
 
 #include "bc-utils.hh"
+#include "flexiapi/config.hh"
 #include "registrar/registrar-db.hh"
 #include "spaces-store/spaces-store.hh"
 #include "test-patterns/test.hh"
@@ -87,8 +88,9 @@ Server::Server(const std::string& configFilePath, InjectedHooks* injectedHooks)
 	const auto root = std::make_shared<sofiasip::SuRoot>();
 	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
+	auto flexiApiClient = flexisip::flexiapi::createClient(mConfigManager, *root);
 	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb,
-	                                 SpacesStore::make(root, mConfigManager, nullptr));
+	                                 SpacesStore::make(root, mConfigManager, flexiApiClient), flexiApiClient);
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
@@ -113,8 +115,9 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 
 	mAuthDb = std::make_shared<AuthDb>(mConfigManager);
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
+	auto flexiApiClient = flexisip::flexiapi::createClient(mConfigManager, *root);
 	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb,
-	                                 SpacesStore::make(root, mConfigManager, nullptr));
+	                                 SpacesStore::make(root, mConfigManager, flexiApiClient), flexiApiClient);
 }
 
 Server::~Server() {

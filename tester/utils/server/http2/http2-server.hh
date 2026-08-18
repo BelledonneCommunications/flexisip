@@ -72,6 +72,7 @@ public:
 	const std::string& getMethod() const;
 	const HeaderMap& getHeaders() const;
 	const UriRef& getUri() const;
+	const std::string& getAuthority() const;
 	void onData(DataCb cb) const;
 
 private:

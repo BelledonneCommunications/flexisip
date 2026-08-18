@@ -70,7 +70,7 @@ public:
 		configureAgent();
 		mRegistrarDb = std::make_shared<RegistrarDb>(mRoot, mConfigManager);
 		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDb, mRegistrarDb,
-		                                 SpacesStore::make(mRoot, mConfigManager, nullptr));
+		                                 SpacesStore::make(mRoot, mConfigManager, nullptr), nullptr);
 		onAgentConfigured();
 		if (mRunAgent) {
 			mAgent->start("", "");

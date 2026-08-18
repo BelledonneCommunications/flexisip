@@ -56,19 +56,12 @@ RestClient getRestClient(sofiasip::SuRoot& root, const string& host, int port, c
 	                               }};
 }
 
-void callStartedAndEnded() {
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
-	int port = flexiapiServer.serveAsync();
-	BC_HARD_ASSERT_TRUE(port > -1);
+void startCallAndCheckAuthority(const shared_ptr<flexisip::tester::Server>& proxy,
+                                HttpMock& flexiapiServer,
+                                std::atomic_int& eventLogRequestsReceivedCount,
+                                const string& expectedAuthority) {
 
-	// See makeAndStartProxy for event-log configuration
-	const auto proxy = makeAndStartProxy({{"event-logs/enabled", "true"},
-	                                      {"event-logs/logger", "flexiapi"},
-	                                      {"event-logs/flexiapi-host", "127.0.0.1"},
-	                                      {"event-logs/flexiapi-port", to_string(port)},
-	                                      {"event-logs/flexiapi-prefix", "api/stats"},
-	                                      {"event-logs/flexiapi-api-key", "aRandomApiToken"}});
+	eventLogRequestsReceivedCount = 0;
 	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -87,6 +80,164 @@ void callStartedAndEnded() {
 	BC_HARD_ASSERT(startedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/stats/calls");
+	BC_ASSERT_CPP_EQUAL(startedEvent->authority, expectedAuthority);
+}
+
+void startLogWriter() {
+
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
+	BC_HARD_ASSERT_TRUE(port > -1);
+	{
+		// No parameters, nor default value for host.
+		std::map<std::string, std::string> customConfigs = {
+		    {"event-logs/enabled", "true"},
+		    {"event-logs/logger", "flexiapi"},
+		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
+		};
+		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
+	}
+	{
+		// global::flexiapi/url is empty.
+		std::map<std::string, std::string> customConfigs = {
+		    {"event-logs/enabled", "true"},
+		    {"event-logs/logger", "flexiapi"},
+		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
+		    {"global::flexiapi/url", ""}};
+		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
+	}
+	{
+		// global::flexiapi/api-key is empty.
+		std::map<std::string, std::string> customConfigs = {
+		    {"event-logs/enabled", "true"},
+		    {"event-logs/logger", "flexiapi"},
+		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
+		    {"global::flexiapi/url", "https://flexiapi.com"}};
+		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
+	}
+	{
+		// global::flexiapi parameters are empty, the (deprecated) default values for event-logs are used.
+		std::map<std::string, std::string> customConfigs = {{"event-logs/enabled", "true"},
+		                                                    {"event-logs/logger", "flexiapi"}};
+		makeAndStartProxy(customConfigs);
+	}
+	{
+		// Set deprecated parameters from event-logs section.
+		std::map<std::string, std::string> customConfigs = {{"event-logs/enabled", "true"},
+		                                                    {"event-logs/logger", "flexiapi"},
+		                                                    {"event-logs/flexiapi-host", "127.0.0.1"},
+		                                                    {"event-logs/flexiapi-port", to_string(port)},
+		                                                    {"event-logs/flexiapi-prefix", "api/stats"},
+		                                                    {"event-logs/flexiapi-api-key", "aRandomApiToken"}};
+		makeAndStartProxy(customConfigs);
+	}
+	{
+		// global::flexiapi/url isn't a https url.
+		std::map<std::string, std::string> customConfigs = {
+		    {"event-logs/enabled", "true"},
+		    {"event-logs/logger", "flexiapi"},
+		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
+		    {"global::flexiapi/url", "flexiapi.com:"s + to_string(port)},
+		    {"global::flexiapi/api-key", "aRandomApiToken"}};
+		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationValue);
+	}
+}
+
+void startLogWriterMissingUrl() {
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
+	BC_HARD_ASSERT_TRUE(port > -1);
+	// Event-logs parameters are used as global::flexiapi/url is missing .
+	std::map<std::string, std::string> customConfigs = {{"event-logs/enabled", "true"},
+	                                                    {"event-logs/logger", "flexiapi"},
+	                                                    {"event-logs/flexiapi-host", "127.0.0.1"},
+	                                                    {"event-logs/flexiapi-port", to_string(port)},
+	                                                    {"event-logs/flexiapi-prefix", "api/stats"},
+	                                                    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
+	                                                    {"global::flexiapi/api-key", "aRandomApiToken"}};
+	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
+	const auto proxy = makeAndStartProxy(customConfigs);
+	startCallAndCheckAuthority(proxy, flexiapiServer, eventLogRequestsReceivedCount, expectedAuthority);
+}
+
+void startLogWriterMissingApikey() {
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
+	BC_HARD_ASSERT_TRUE(port > -1);
+	// Event-logs parameters are used as global::flexiapi/api-key is missing.
+	std::map<std::string, std::string> customConfigs = {
+	    {"event-logs/enabled", "true"},
+	    {"event-logs/logger", "flexiapi"},
+	    {"event-logs/flexiapi-host", "127.0.0.1"},
+	    {"event-logs/flexiapi-port", to_string(port)},
+	    {"event-logs/flexiapi-prefix", "api/stats"},
+	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
+	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)}};
+	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
+	const auto proxy = makeAndStartProxy(customConfigs);
+	startCallAndCheckAuthority(proxy, flexiapiServer, eventLogRequestsReceivedCount, expectedAuthority);
+}
+
+void startLogWriterGlobalOverrides() {
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
+	BC_HARD_ASSERT_TRUE(port > -1);
+	// global::flexiapi parameters overrides those from event-logs section.
+	std::map<std::string, std::string> customConfigs = {
+	    {"event-logs/enabled", "true"},
+	    {"event-logs/logger", "flexiapi"},
+	    {"event-logs/flexiapi-host", "127.0.0.1"},
+	    {"event-logs/flexiapi-port", to_string(port)},
+	    {"event-logs/flexiapi-prefix", "api/stats"},
+	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
+	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)},
+	    {"global::flexiapi/api-key", "aRandomApiToken"}};
+	const string expectedAuthority = "localhost:"s + to_string(port);
+	const auto proxy = makeAndStartProxy(customConfigs);
+	startCallAndCheckAuthority(proxy, flexiapiServer, eventLogRequestsReceivedCount, expectedAuthority);
+}
+
+void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
+	std::atomic_int eventLogRequestsReceivedCount{0};
+	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	int port = flexiapiServer.serveAsync();
+	string authority;
+	BC_HARD_ASSERT_TRUE(port > -1);
+	if (customConfigs.find("event-logs/flexiapi-port") != customConfigs.end()) {
+		customConfigs["event-logs/flexiapi-port"] = to_string(port);
+		authority = customConfigs["event-logs/flexiapi-host"] + ":" + to_string(port);
+	}
+	if (auto it = customConfigs.find("global::flexiapi/url"); it != customConfigs.end()) {
+		it->second += ":" + to_string(port);
+		authority = it->second.substr(8);
+	}
+
+	// See makeAndStartProxy for event-log configuration
+	const auto proxy = makeAndStartProxy(customConfigs);
+
+	const ClientBuilder builder{proxy->getAgent()};
+	const string expectedFrom = "tony@sip.example.org";
+	const string expectedTo = "mike@sip.example.org";
+	auto tony = builder.build(expectedFrom);
+	auto mike = builder.build(expectedTo);
+	const auto expectedDeviceId = mike.getGruu();
+
+	const auto expectedCallId = tony.call(mike)->getCallLog()->getCallId();
+	// expect to received 3 event logs: INVITE, 180 Ringing, 200 OK
+
+	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
+	BC_HARD_ASSERT_TRUE(
+	    asserter.iterateUpTo(5, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 3; }));
+
+	const auto startedEvent = flexiapiServer.popRequestReceived();
+	BC_HARD_ASSERT(startedEvent != nullptr);
+	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
+	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/stats/calls");
+	BC_ASSERT_CPP_EQUAL(startedEvent->authority, authority);
 	json actualJson;
 	try {
 		actualJson = json::parse(startedEvent->body);
@@ -152,6 +303,28 @@ void callStartedAndEnded() {
 		BC_FAIL("json::parse exception with received body");
 	}
 	BC_ASSERT_TRUE(actualJson.contains("ended_at"));
+}
+
+void callStartedAndEndedWithEventLogConfig() {
+	std::map<std::string, std::string> customConfigs = {
+	    {"event-logs/enabled", "true"},
+	    {"event-logs/logger", "flexiapi"},
+	    {"event-logs/flexiapi-host", "127.0.0.1"},
+	    {"event-logs/flexiapi-port", ""},
+	    {"event-logs/flexiapi-prefix", "api/stats"},
+	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
+	};
+	callStartedAndEnded(customConfigs);
+}
+
+void callStartedAndEndedWithGlobalConfig() {
+	std::map<std::string, std::string> customConfigs = {
+	    {"event-logs/enabled", "true"},
+	    {"event-logs/logger", "flexiapi"},
+	    {"global::flexiapi/url", "https://localhost"},
+	    {"global::flexiapi/api-key", "aRandomApiToken"},
+	};
+	callStartedAndEnded(customConfigs);
 }
 
 void messageSentAndReceived() {
@@ -402,7 +575,12 @@ namespace {
 TestSuite _{
     "FlexiStatsEventLogWriter",
     {
-        CLASSY_TEST(callStartedAndEnded),
+        CLASSY_TEST(startLogWriter),
+        CLASSY_TEST(startLogWriterMissingUrl),
+        CLASSY_TEST(startLogWriterMissingApikey),
+        CLASSY_TEST(startLogWriterGlobalOverrides),
+        CLASSY_TEST(callStartedAndEndedWithGlobalConfig),
+        CLASSY_TEST(callStartedAndEndedWithEventLogConfig),
         CLASSY_TEST(messageSentAndReceived),
         CLASSY_TEST(messageDeviceUnavailable),
     },

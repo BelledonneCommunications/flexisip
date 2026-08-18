@@ -444,7 +444,7 @@ void duplicatePushTokenRegisterInternalDbTest() {
 	const auto* registrarConf = cfg->getRoot()->get<GenericStruct>("module::Registrar");
 	registrarConf->get<ConfigStringList>("reg-domains")->set("sip.example.org");
 	const auto& agent = make_shared<Agent>(root, cfg, make_shared<AuthDb>(cfg), make_shared<RegistrarDb>(root, cfg),
-	                                       SpacesStore::make(root, cfg, nullptr));
+	                                       SpacesStore::make(root, cfg, nullptr), nullptr);
 	startTest(*agent);
 }
 

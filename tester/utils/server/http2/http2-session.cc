@@ -165,6 +165,8 @@ int Http2Session::onHeader(nghttp2_session*,
 		streamIt->second->mRequestState->setMethod(headerValue);
 	} else if (headerName == ":path") {
 		streamIt->second->mRequestState->setUri(UriRef{extractPath(headerValue)});
+	} else if (headerName == ":authority") {
+		streamIt->second->mRequestState->setAuthority(headerValue);
 	} else if (!headerName.empty() && headerName[0] != ':') {
 		streamIt->second->mRequestState->addHeader(string_utils::toLower(headerName), HeaderValue{headerValue});
 	}

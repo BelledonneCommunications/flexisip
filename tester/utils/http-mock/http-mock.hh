@@ -35,6 +35,7 @@ public:
 	std::string body;
 	std::string method;
 	std::string path;
+	std::string authority;
 	HeaderMap headers;
 };
 
