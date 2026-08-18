@@ -81,7 +81,7 @@ void callStartedAndEnded() {
 
 	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
 	BC_HARD_ASSERT_TRUE(
-	    asserter.iterateUpTo(0, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 3; }));
+	    asserter.iterateUpTo(5, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 3; }));
 
 	const auto startedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(startedEvent != nullptr);
@@ -168,8 +168,9 @@ void messageSentAndReceived() {
 	const string expectedTo = "mike@sip.example.org";
 	const auto tony = builder.build(expectedFrom);
 	// Send IMDNs as CPIM so as to camouflage the content type.
-	// The stats writer will have to rely on the priority to determine whether to log the message or not
-	const auto mike = builder.setCpimInBasicChatroom(OnOff::On).build(expectedTo);
+	// The stats writer will have to rely on the priority to determine whether to log the message or not.
+	// Note: no IMDN are sent anymore since the SDk is built without ENABLE_ADVANCED_IM.
+	const auto mike = builder.build(expectedTo);
 	const auto directChat = tony.chatroomBuilder().build({mike.getMe()});
 	const auto& forkMessageContextsStats =
 	    dynamic_cast<ModuleRouter&>(*agent->findModuleByRole("Router")).mStats.mForkStats->mCountMessageForks;
@@ -181,11 +182,11 @@ void messageSentAndReceived() {
 
 	directChat->createMessageFromUtf8("We're out of lemon tea...")->send();
 	asserter
-	    .iterateUpTo(6,
+	    .iterateUpTo(12,
 	                 [&forkMessageContextsStats, &eventLogRequestsReceivedCount]() {
 		                 FAIL_IF(eventLogRequestsReceivedCount < 2 /* Sent + Delivered */);
 		                 const auto started = forkMessageContextsStats->start->read();
-		                 FAIL_IF(started < 2 /* MSG + IMDN */);
+		                 FAIL_IF(started < 1 /* 1 MSG */);
 		                 FAIL_IF(forkMessageContextsStats->finish->read() != started);
 		                 return ASSERTION_PASSED();
 	                 })
@@ -273,8 +274,7 @@ void messageDeviceUnavailable() {
 	        [&forkMessageContextsStats, &eventLogRequestsReceivedCount]() {
 		        FAIL_IF(eventLogRequestsReceivedCount < 3 /* Sent + Delivered x 2 */);
 		        const auto started = forkMessageContextsStats->start->read();
-		        FAIL_IF(started < 2 /* MSG + IMDN */);
-		        FAIL_IF(forkMessageContextsStats->finish->read() < 1);
+		        FAIL_IF(started < 1 /* 1 MSG */);
 		        return ASSERTION_PASSED();
 	        },
 	        1s)
@@ -367,7 +367,7 @@ void messageDeviceUnavailable() {
 		        FAIL_IF(mikeDesktopAccount.getState() != linphone::RegistrationState::Ok);
 		        FAIL_IF(eventLogRequestsReceivedCount < 1);
 		        const auto started = forkMessageContextsStats->start->read();
-		        FAIL_IF(started < 3);
+		        FAIL_IF(started < 1);
 		        FAIL_IF(forkMessageContextsStats->finish->read() != started);
 		        return ASSERTION_PASSED();
 	        },
