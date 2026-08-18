@@ -69,7 +69,7 @@ public:
 	void operator()() final {
 		configureAgent();
 		mRegistrarDb = std::make_shared<RegistrarDb>(mRoot, mConfigManager);
-		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDb, mRegistrarDb);
+		mAgent = std::make_shared<Agent>(mRoot, mConfigManager, mAuthDb, mRegistrarDb, nullptr);
 		onAgentConfigured();
 		if (mRunAgent) {
 			mAgent->start("", "");

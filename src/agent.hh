@@ -77,7 +77,7 @@ public:
 	      const std::shared_ptr<ConfigManager>& cm,
 	      const std::shared_ptr<AuthDb>& authDb,
 	      const std::shared_ptr<RegistrarDb>& registrarDb,
-	      const std::shared_ptr<Http2Client>& flexiApiClient = nullptr);
+	      const std::shared_ptr<Http2Client>& flexiApiClient);
 
 	~Agent() override;
 
@@ -225,8 +225,8 @@ private:
 		}
 
 	private:
-		struct sockaddr_storage mPrefix {};
-		struct sockaddr_storage mMask {};
+		struct sockaddr_storage mPrefix{};
+		struct sockaddr_storage mMask{};
 		std::string mIP{};
 	};
 

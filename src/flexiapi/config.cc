@@ -56,8 +56,8 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	auto uS = std::make_unique<GenericStruct>(
 	    configSection,
 	    "Configuration parameters for establishing a connection to the HTTP server that implements the FlexiAPI "
-	    "interface. For now, these settings are used for the push notification gateway functionality and the voicemail "
-	    "server.",
+	    "interface. For now, these settings are used for the push notification gateway functionality, the voicemail "
+	    "server and the event logs. They override the parameters given in 'event-logs' section.",
 	    0);
 	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
