@@ -13,5 +13,3 @@ Diagnostics:
 InlayHints:
     Designators: false
     DefaultArguments: true
-CompileFlags:
-    CompilationDatabase: build/

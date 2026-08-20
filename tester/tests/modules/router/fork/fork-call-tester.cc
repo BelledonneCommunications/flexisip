@@ -17,12 +17,12 @@
 */
 
 #include "belle-sip/belle-sip.h"
-
 #include "linphone++/enums.hh"
 
 #include "sofia-sip/nta.h"
 #include "sofia-sip/nta_tag.h"
 
+#include "belle-sip/transaction.h"
 #include "eventlogs/events/eventlogs.hh"
 #include "flexisip/module-router.hh"
 #include "fork-context/branch-info.hh"
@@ -238,20 +238,7 @@ void callWithEarlyCancelCalleeOnlyOneDevice(CallWithEarlyCancelCalleeOnlyOneDevi
 
 	CoreAssert asserter{server, callerClient};
 
-	bool isRequestAccepted = false;
-	bool isCancelRequestAccepted = false;
-	BellesipUtils belleSipUtils{
-	    "127.0.0.1",
-	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
-	    "TCP",
-	    [&isRequestAccepted, &isCancelRequestAccepted](int status) {
-		    if (status == 100) isRequestAccepted = true;
-		    if (!isRequestAccepted) return;
-
-		    if (status == 200) isCancelRequestAccepted = true;
-	    },
-	    nullptr,
-	};
+	BellesipUtils belleSipUtils{"127.0.0.1", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, "TCP", nullptr};
 	asserter.registerSteppable(belleSipUtils);
 
 	stringstream request{};
@@ -270,22 +257,13 @@ void callWithEarlyCancelCalleeOnlyOneDevice(CallWithEarlyCancelCalleeOnlyOneDevi
 	           "<sip:callerClient@sip.test.org>;+sip.instance=\"<urn:uuid:6e87dc22-b1bc-00ff-b0ab-cc59670f7cdd>\"\r\n"
 	        << "User-Agent: BelleSipUtils\r\n"
 	        << "Content-Length: 0\r\n\r\n";
-	belleSipUtils.sendRawRequest(request.str());
+	const auto inviteTransaction = belleSipUtils.sendRequest(request.str());
 
-	asserter.wait([&] { return LOOP_ASSERTION(isRequestAccepted); }).hard_assert_passed();
+	// Assert INVITE request has been accepted by the proxy.
+	asserter.wait([&] { return LOOP_ASSERTION(inviteTransaction.getState() == BELLE_SIP_TRANSACTION_PROCEEDING); })
+	    .hard_assert_passed();
 
-	request = {};
-	request << "CANCEL sip:calleeClient@sip.test.org SIP/2.0\r\n"
-	        << "Via: SIP/2.0/TCP 127.0.0.1:" << belleSipUtils.getListeningPort() << ";branch=z9hG4bK.L~E42YLQ0\r\n"
-	        << "From: <sip:callerClient@sip.test.org>;tag=6er0DzzuB\r\n"
-	        << "To: <sip:calleeClient@sip.test.org>\r\n"
-	        << "CSeq: 20 CANCEL\r\n"
-	        << "Call-ID: AMVyfHFNUI\r\n"
-	        << "Max-Forwards: 70\r\n"
-	        << "Route: <sip:127.0.0.1:" << server.getFirstPort() << ";transport=tcp;lr>\r\n"
-	        << "User-Agent: BelleSipUtils\r\n"
-	        << "Content-Length: 0\r\n\r\n";
-	belleSipUtils.sendRawRequest(request.str());
+	const auto cancelTransaction = belleSipUtils.cancel(inviteTransaction);
 
 	// Case 1: iOS client is "properly" offline.
 	if (testCase == DisconnectThenReconnect) {
@@ -293,7 +271,9 @@ void callWithEarlyCancelCalleeOnlyOneDevice(CallWithEarlyCancelCalleeOnlyOneDevi
 		asserter.registerSteppable(calleeIdleClient);
 	}
 
-	asserter.wait([&] { return LOOP_ASSERTION(isCancelRequestAccepted == true); }).hard_assert_passed();
+	// Assert that CANCEL request has been accepted by the proxy.
+	asserter.wait([&] { return LOOP_ASSERTION(cancelTransaction.getState() == BELLE_SIP_TRANSACTION_TERMINATED); })
+	    .hard_assert_passed();
 
 	// Case 3: iOs client is not properly offline
 	if (testCase == AnsweringLate) asserter.registerSteppable(calleeIdleClient);

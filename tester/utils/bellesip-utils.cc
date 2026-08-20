@@ -98,22 +98,72 @@ BellesipUtils::BellesipUtils(const std::string& ipaddress,
     : BellesipUtils(ipaddress, port, transport, processResponseStatusCb, nullptr) {}
 
 BellesipUtils::~BellesipUtils() {
-	belle_sip_object_unref(mListener);
+	// Warning: keep this order to prevent heap-use-after-free.
 	belle_sip_object_unref(mProvider);
+	belle_sip_object_unref(mListener);
 	belle_sip_object_unref(mStack);
 }
 
-void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBody) {
+namespace {
+
+belle_sip_request_t* parseRawRequest(const string& rawMessage, const string& rawBody) {
 	belle_sip_message_t* message = belle_sip_message_parse(rawMessage.c_str());
 	if (!message) throw FlexisipException{"failed to parse provided raw message"};
 	belle_sip_request_t* request = BELLE_SIP_REQUEST(message);
-	if (!request) throw FlexisipException{"failed to create request from message"};
+	if (!request) {
+		throw FlexisipException{"failed to create request from message"};
+	}
 
 	if (!rawBody.empty()) {
 		belle_sip_message_set_body(BELLE_SIP_MESSAGE(request), rawBody.c_str(), rawBody.size());
 	}
 
+	return request;
+}
+
+} // namespace
+
+void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBody) {
+	auto* request = parseRawRequest(rawMessage, rawBody);
 	belle_sip_provider_send_request(mProvider, request);
+}
+
+BellesipTransaction BellesipUtils::sendRequest(const string& rawMessage, const string& rawBody) {
+	auto* request = parseRawRequest(rawMessage, rawBody);
+	auto* transaction = belle_sip_provider_create_client_transaction(mProvider, request);
+	if (!transaction) {
+		belle_sip_object_unref(request);
+		throw FlexisipException{"failed to create client transaction from provided raw request"};
+	}
+
+	if (belle_sip_client_transaction_send_request(transaction) != 0) {
+		belle_sip_transaction_terminate(BELLE_SIP_TRANSACTION(transaction));
+		throw FlexisipException{"failed to send request through client transaction"};
+	}
+
+	return BellesipTransaction{transaction};
+}
+
+BellesipTransaction BellesipUtils::cancel(const BellesipTransaction& inviteTransaction) {
+	if (!inviteTransaction) throw FlexisipException{"failed to create CANCEL without an existing INVITE transaction"};
+
+	auto* cancelRequest = inviteTransaction.createCancel();
+	if (!cancelRequest) {
+		belle_sip_object_unref(cancelRequest);
+		throw FlexisipException{"failed to create CANCEL request from INVITE transaction"};
+	}
+
+	auto* cancelTransaction = belle_sip_provider_create_client_transaction(mProvider, cancelRequest);
+	if (!cancelTransaction) {
+		throw FlexisipException{"failed to create CANCEL client transaction"};
+	}
+
+	if (belle_sip_client_transaction_send_request(cancelTransaction) != 0) {
+		belle_sip_transaction_terminate(BELLE_SIP_TRANSACTION(cancelTransaction));
+		throw FlexisipException{"failed to send CANCEL through client transaction"};
+	}
+
+	return BellesipTransaction{cancelTransaction};
 }
 
 void BellesipUtils::stackSleep(unsigned int milliseconds) {

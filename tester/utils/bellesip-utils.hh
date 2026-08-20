@@ -24,6 +24,8 @@
 #include "belle-sip/listener.h"
 #include "belle-sip/types.h"
 
+#include "bellesip-transaction.hh"
+
 namespace flexisip {
 
 class BellesipUtils {
@@ -51,7 +53,14 @@ public:
 	              const ProcessResponseStatusCb& processResponseStatusCb);
 
 	~BellesipUtils();
+
+	/**
+	 * Send a raw request without creating a client transaction.
+	 */
 	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
+	BellesipTransaction sendRequest(const std::string& rawMessage, const std::string& rawBody = "");
+	BellesipTransaction cancel(const BellesipTransaction& inviteTransaction);
+
 	void stackSleep(unsigned int milliseconds = 1);
 	int getListeningPort();
 

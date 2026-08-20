@@ -24,6 +24,7 @@ add_library(flexisip_tester_utils
 	asserts.hh
 	audio/wave.cc audio/wave.hh
 	bc-utils.cc bc-utils.hh
+	bellesip-transaction.cc bellesip-transaction.hh
 	bellesip-utils.cc bellesip-utils.hh
 	call-assert.hh
 	call-builder.cc call-builder.hh
