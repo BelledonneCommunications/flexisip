@@ -20,19 +20,19 @@
 
 #include "belle-sip/belle-sip.h"
 
-namespace flexisip {
+namespace belle_sip {
 
-class BellesipTransaction {
+class Transaction {
 public:
-	BellesipTransaction() = default;
-	explicit BellesipTransaction(belle_sip_client_transaction_t* transaction);
-	BellesipTransaction(const BellesipTransaction& other);
-	BellesipTransaction(BellesipTransaction&& other) noexcept;
+	Transaction() = default;
+	explicit Transaction(belle_sip_client_transaction_t* transaction);
+	Transaction(const Transaction& other);
+	Transaction(Transaction&& other) noexcept;
 
-	~BellesipTransaction();
+	~Transaction();
 
-	BellesipTransaction& operator=(const BellesipTransaction& other);
-	BellesipTransaction& operator=(BellesipTransaction&& other) noexcept;
+	Transaction& operator=(const Transaction& other);
+	Transaction& operator=(Transaction&& other) noexcept;
 	explicit operator bool() const noexcept;
 
 	belle_sip_transaction_state_t getState() const;
@@ -43,4 +43,4 @@ private:
 	belle_sip_client_transaction_t* mTransaction{nullptr};
 };
 
-} // namespace flexisip
+} // namespace belle_sip

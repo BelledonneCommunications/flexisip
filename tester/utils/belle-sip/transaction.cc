@@ -16,21 +16,21 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bellesip-transaction.hh"
+#include "transaction.hh"
 
-namespace flexisip {
+namespace belle_sip {
 
-BellesipTransaction::BellesipTransaction(belle_sip_client_transaction_t* transaction) : mTransaction(transaction) {
+Transaction::Transaction(belle_sip_client_transaction_t* transaction) : mTransaction(transaction) {
 	if (mTransaction) belle_sip_object_ref(mTransaction);
 }
 
-BellesipTransaction::BellesipTransaction(const BellesipTransaction& other) : BellesipTransaction(other.mTransaction) {}
+Transaction::Transaction(const Transaction& other) : Transaction(other.mTransaction) {}
 
-BellesipTransaction::BellesipTransaction(BellesipTransaction&& other) noexcept : mTransaction(other.mTransaction) {
+Transaction::Transaction(Transaction&& other) noexcept : mTransaction(other.mTransaction) {
 	other.mTransaction = nullptr;
 }
 
-BellesipTransaction& BellesipTransaction::operator=(const BellesipTransaction& other) {
+Transaction& Transaction::operator=(const Transaction& other) {
 	if (this == &other) return *this;
 
 	auto* transaction = other.mTransaction;
@@ -40,7 +40,7 @@ BellesipTransaction& BellesipTransaction::operator=(const BellesipTransaction& o
 	return *this;
 }
 
-BellesipTransaction& BellesipTransaction::operator=(BellesipTransaction&& other) noexcept {
+Transaction& Transaction::operator=(Transaction&& other) noexcept {
 	if (this == &other) return *this;
 
 	if (mTransaction) belle_sip_object_unref(mTransaction);
@@ -49,26 +49,26 @@ BellesipTransaction& BellesipTransaction::operator=(BellesipTransaction&& other)
 	return *this;
 }
 
-BellesipTransaction::~BellesipTransaction() {
+Transaction::~Transaction() {
 	if (mTransaction) belle_sip_object_unref(mTransaction);
 }
 
-belle_sip_transaction_state_t BellesipTransaction::getState() const {
+belle_sip_transaction_state_t Transaction::getState() const {
 	if (!mTransaction) return BELLE_SIP_TRANSACTION_TERMINATED;
 	return belle_sip_transaction_get_state(BELLE_SIP_TRANSACTION(mTransaction));
 }
 
-belle_sip_request_t* BellesipTransaction::createCancel() const {
+belle_sip_request_t* Transaction::createCancel() const {
 	if (!mTransaction) return nullptr;
 	return belle_sip_client_transaction_create_cancel(mTransaction);
 }
 
-belle_sip_client_transaction_t* BellesipTransaction::get() const {
+belle_sip_client_transaction_t* Transaction::get() const {
 	return mTransaction;
 }
 
-BellesipTransaction::operator bool() const noexcept {
+Transaction::operator bool() const noexcept {
 	return mTransaction != nullptr;
 }
 
-} // namespace flexisip
+} // namespace belle_sip

@@ -16,7 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bellesip-utils.hh"
+#include "agent.hh"
 
 #include "bctoolbox/tester.h"
 
@@ -25,15 +25,16 @@
 #include "flexisip/flexisip-exception.hh"
 
 using namespace std;
+using namespace flexisip;
 
-namespace flexisip {
+namespace belle_sip {
 
-BellesipUtils::BellesipUtils(const string& ipaddress,
-                             int port,
-                             const string& transport,
-                             const ProcessResponseStatusCb& processResponseStatusCb,
-                             const ProcessRequestEventCb& processRequestEventCb,
-                             bool default200Response)
+Agent::Agent(const string& ipaddress,
+             int port,
+             const string& transport,
+             const ProcessResponseStatusCb& processResponseStatusCb,
+             const ProcessRequestEventCb& processRequestEventCb,
+             bool default200Response)
     : mSendDefault200Response(default200Response), mProcessResponseStatusCb(processResponseStatusCb),
       mProcessRequestEventCb(processRequestEventCb) {
 	mStack = belle_sip_stack_new(nullptr);
@@ -44,7 +45,7 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
 	belle_sip_listener_callbacks_t listener_callbacks{};
 	listener_callbacks.process_response_event = [](void* userCtx, const belle_sip_response_event_t* event) {
 		int status;
-		auto thiz = static_cast<BellesipUtils*>(userCtx);
+		auto thiz = static_cast<Agent*>(userCtx);
 		if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_response_event_get_response(event))) {
 			return;
 		}
@@ -66,7 +67,7 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
 		}
 		belle_sip_message("caller_process_request_event received [%s] message",
 		                  belle_sip_request_get_method(belle_sip_request_event_get_request(event)));
-		auto thiz = static_cast<BellesipUtils*>(userCtx);
+		auto thiz = static_cast<Agent*>(userCtx);
 		if (thiz->mSendDefault200Response) {
 			belle_sip_response_t* resp;
 			resp = belle_sip_response_create_from_request(belle_sip_request_event_get_request(event), 200);
@@ -82,22 +83,22 @@ BellesipUtils::BellesipUtils(const string& ipaddress,
 	belle_sip_provider_add_sip_listener(mProvider, BELLE_SIP_LISTENER(mListener));
 }
 
-BellesipUtils::BellesipUtils(const std::string& ipaddress,
-                             int port,
-                             const std::string& transport,
-                             const ProcessResponseEventCb& processResponseEventCb,
-                             const ProcessRequestEventCb& processRequestEventCb)
-    : BellesipUtils(ipaddress, port, transport, (ProcessResponseStatusCb) nullptr, processRequestEventCb) {
+Agent::Agent(const std::string& ipaddress,
+             int port,
+             const std::string& transport,
+             const ProcessResponseEventCb& processResponseEventCb,
+             const ProcessRequestEventCb& processRequestEventCb)
+    : Agent(ipaddress, port, transport, (ProcessResponseStatusCb) nullptr, processRequestEventCb) {
 	mProcessResponseEventCb = processResponseEventCb;
 }
 
-BellesipUtils::BellesipUtils(const std::string& ipaddress,
-                             int port,
-                             const std::string& transport,
-                             const ProcessResponseStatusCb& processResponseStatusCb)
-    : BellesipUtils(ipaddress, port, transport, processResponseStatusCb, nullptr) {}
+Agent::Agent(const std::string& ipaddress,
+             int port,
+             const std::string& transport,
+             const ProcessResponseStatusCb& processResponseStatusCb)
+    : Agent(ipaddress, port, transport, processResponseStatusCb, nullptr) {}
 
-BellesipUtils::~BellesipUtils() {
+Agent::~Agent() {
 	// Warning: keep this order to prevent heap-use-after-free.
 	belle_sip_object_unref(mProvider);
 	belle_sip_object_unref(mListener);
@@ -123,12 +124,12 @@ belle_sip_request_t* parseRawRequest(const string& rawMessage, const string& raw
 
 } // namespace
 
-void BellesipUtils::sendRawRequest(const string& rawMessage, const string& rawBody) {
+void Agent::sendRawRequest(const string& rawMessage, const string& rawBody) {
 	auto* request = parseRawRequest(rawMessage, rawBody);
 	belle_sip_provider_send_request(mProvider, request);
 }
 
-BellesipTransaction BellesipUtils::sendRequest(const string& rawMessage, const string& rawBody) {
+Transaction Agent::sendRequest(const string& rawMessage, const string& rawBody) {
 	auto* request = parseRawRequest(rawMessage, rawBody);
 	auto* transaction = belle_sip_provider_create_client_transaction(mProvider, request);
 	if (!transaction) {
@@ -141,10 +142,10 @@ BellesipTransaction BellesipUtils::sendRequest(const string& rawMessage, const s
 		throw FlexisipException{"failed to send request through client transaction"};
 	}
 
-	return BellesipTransaction{transaction};
+	return Transaction{transaction};
 }
 
-BellesipTransaction BellesipUtils::cancel(const BellesipTransaction& inviteTransaction) {
+Transaction Agent::cancel(const Transaction& inviteTransaction) {
 	if (!inviteTransaction) throw FlexisipException{"failed to create CANCEL without an existing INVITE transaction"};
 
 	auto* cancelRequest = inviteTransaction.createCancel();
@@ -163,23 +164,23 @@ BellesipTransaction BellesipUtils::cancel(const BellesipTransaction& inviteTrans
 		throw FlexisipException{"failed to send CANCEL through client transaction"};
 	}
 
-	return BellesipTransaction{cancelTransaction};
+	return Transaction{cancelTransaction};
 }
 
-void BellesipUtils::stackSleep(unsigned int milliseconds) {
+void Agent::stackSleep(unsigned int milliseconds) {
 	belle_sip_stack_sleep(mStack, milliseconds);
 }
 
-int BellesipUtils::getListeningPort() {
+int Agent::getListeningPort() {
 	return ::belle_sip_listening_point_get_port(mListeningPoint);
 }
 
-void BellesipUtils::setBindPort(int port) {
+void Agent::setBindPort(int port) {
 	belle_sip_stack_set_client_bind_port(mStack, port);
 }
 
-belle_sip_provider_t* BellesipUtils::getProvider() {
+belle_sip_provider_t* Agent::getProvider() {
 	return mProvider;
 }
 
-} // namespace flexisip
+} // namespace belle_sip

@@ -25,7 +25,7 @@
 #include "conference/chatroom-prefix.hh"
 #include "flexisip/module-router.hh"
 #include "utils/asserts.hh"
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/client-builder.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
@@ -49,7 +49,7 @@ void sipMessageRequestIntendedForChatroom(bool messageDatabaseEnabled, const str
 	BC_HARD_ASSERT(router != nullptr);
 
 	auto isRequestReceived = false;
-	BellesipUtils senderClient{
+	belle_sip::Agent senderClient{
 	    "127.0.0.1",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",

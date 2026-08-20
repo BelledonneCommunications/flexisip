@@ -18,14 +18,9 @@
 
 #include "modules/module-toolbox.hh"
 
-#include <functional>
-
-#include "flexisip/module-router.hh"
 #include "flexisip/utils/sip-uri.hh"
-#include "utils/bc-utils.hh"
-#include "utils/bellesip-utils.hh"
 #include "utils/server/proxy-server.hh"
-#include "utils/test-patterns/registrardb-test.hh"
+#include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 #include "utils/tls/certificate.hh"
 #include "utils/tls/private-key.hh"

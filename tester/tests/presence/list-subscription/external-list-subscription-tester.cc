@@ -22,7 +22,7 @@
 
 #include "presence/subscription/external-list-subscription.hh"
 
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/core-assert.hh"
 #include "utils/string-formatter.hh"
 #include "utils/test-patterns/test.hh"
@@ -55,7 +55,7 @@ void getUsersListAppendsListenersToTheBack() {
 	const auto expectedSipIdentity = "sip:user-1@localhost"sv;
 
 	// Initialize test tools.
-	BellesipUtils utils{"127.0.0.1", 0, "tcp", [](int) {}, [](const belle_sip_request_event_t*) {}};
+	belle_sip::Agent utils{"127.0.0.1", 0, "tcp", [](int) {}, [](const belle_sip_request_event_t*) {}};
 	CoreAssert asserter{utils};
 	AutoThreadPool threadPool{2, 0};
 	connection_pool connectionPool{1};

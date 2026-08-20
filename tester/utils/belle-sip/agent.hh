@@ -24,42 +24,42 @@
 #include "belle-sip/listener.h"
 #include "belle-sip/types.h"
 
-#include "bellesip-transaction.hh"
+#include "transaction.hh"
 
-namespace flexisip {
+namespace belle_sip {
 
-class BellesipUtils {
+class Agent {
 public:
 	using ProcessResponseStatusCb = std::function<void(int status)>;
 	using ProcessResponseEventCb = std::function<void(int status, const belle_sip_response_event*)>;
 	using ProcessRequestEventCb = std::function<void(const belle_sip_request_event_t*)>;
 
-	BellesipUtils(const std::string& ipaddress,
-	              int port,
-	              const std::string& transport,
-	              const ProcessResponseStatusCb& processResponseStatusCb,
-	              const ProcessRequestEventCb& processRequestEventCb,
-	              bool default200Response = true);
+	Agent(const std::string& ipaddress,
+	      int port,
+	      const std::string& transport,
+	      const ProcessResponseStatusCb& processResponseStatusCb,
+	      const ProcessRequestEventCb& processRequestEventCb,
+	      bool default200Response = true);
 
-	BellesipUtils(const std::string& ipaddress,
-	              int port,
-	              const std::string& transport,
-	              const ProcessResponseEventCb& processResponseEventCb,
-	              const ProcessRequestEventCb& processRequestEventCb);
+	Agent(const std::string& ipaddress,
+	      int port,
+	      const std::string& transport,
+	      const ProcessResponseEventCb& processResponseEventCb,
+	      const ProcessRequestEventCb& processRequestEventCb);
 
-	BellesipUtils(const std::string& ipaddress,
-	              int port,
-	              const std::string& transport,
-	              const ProcessResponseStatusCb& processResponseStatusCb);
+	Agent(const std::string& ipaddress,
+	      int port,
+	      const std::string& transport,
+	      const ProcessResponseStatusCb& processResponseStatusCb);
 
-	~BellesipUtils();
+	~Agent();
 
 	/**
 	 * Send a raw request without creating a client transaction.
 	 */
 	void sendRawRequest(const std::string& rawMessage, const std::string& rawBody = "");
-	BellesipTransaction sendRequest(const std::string& rawMessage, const std::string& rawBody = "");
-	BellesipTransaction cancel(const BellesipTransaction& inviteTransaction);
+	Transaction sendRequest(const std::string& rawMessage, const std::string& rawBody = "");
+	Transaction cancel(const Transaction& inviteTransaction);
 
 	void stackSleep(unsigned int milliseconds = 1);
 	int getListeningPort();
@@ -85,4 +85,4 @@ private:
 	ProcessResponseEventCb mProcessResponseEventCb = nullptr;
 };
 
-} // namespace flexisip
+} // namespace belle_sip

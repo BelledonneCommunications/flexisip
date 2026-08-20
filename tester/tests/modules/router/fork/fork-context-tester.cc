@@ -28,7 +28,7 @@
 #include "fork-context/message-kind.hh"
 #include "registrar/binding-parameters.hh"
 #include "utils/bc-utils.hh"
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/chat-room-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/contact-inserter.hh"
@@ -61,7 +61,7 @@ void nullMaxForwardAndForkBasicContext() {
 	inserter.withGruu(true).setExpire(1000s).setAor("sip:participant1@localhost").insert();
 
 	bool responseReceived = false;
-	BellesipUtils client{
+	belle_sip::Agent client{
 	    "127.0.0.1",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -113,7 +113,7 @@ void notEnoughRtpPortAndForkCallContext() {
 	inserter.withGruu(true).setExpire(1000s).setAor("sip:participant1@localhost").insert();
 
 	bool responseReceived = false;
-	BellesipUtils client{
+	belle_sip::Agent client{
 	    "127.0.0.1",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -170,7 +170,7 @@ void referRequestUsesForkBasicContext() {
 	proxy.start();
 
 	bool responseReceived = false;
-	BellesipUtils client{
+	belle_sip::Agent client{
 	    "127.0.0.1",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -231,7 +231,7 @@ void globalOrderTestNoSql() {
 	receiver.disconnect();
 
 	auto isRequestAccepted = 0U;
-	BellesipUtils sender{
+	belle_sip::Agent sender{
 	    "127.0.0.1",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",

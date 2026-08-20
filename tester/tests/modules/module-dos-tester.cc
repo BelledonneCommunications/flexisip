@@ -24,10 +24,8 @@
 
 #include "dos/dos-executor/ban-executor.hh"
 #include "sofia-wrapper/nta-agent.hh"
-#include "utils/bellesip-utils.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
-#include "utils/test-patterns/agent-test.hh"
 #include "utils/test-suite.hh"
 
 using namespace std;

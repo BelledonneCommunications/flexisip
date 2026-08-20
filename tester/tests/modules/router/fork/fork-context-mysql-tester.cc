@@ -30,7 +30,7 @@
 #include "fork-context/fork-message-db/fork-message-context-soci-repository.hh"
 #include "router/fork-manager.hh"
 #include "utils/asserts.hh"
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-core.hh"
 #include "utils/core-assert.hh"
@@ -262,7 +262,7 @@ void globalTest() {
 	receiverClient.disconnect();
 
 	bool isRequestAccepted = false;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -369,7 +369,7 @@ void globalTestMultipleDevices() {
 
 	SLOGD << "Step 2: Send message";
 	bool isRequestAccepted = false;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -516,7 +516,7 @@ void testDBAccessOptimization() {
 	clientOffDevice.disconnect();
 
 	bool isRequestAccepted = false;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -649,7 +649,7 @@ static void globalTestMultipleMessages() {
 	receiverClient->getCore()->setNetworkReachable(false);
 
 	unsigned nbAcceptedMessages = 0;
-	BellesipUtils bellesipUtils{"0.0.0.0", -1, "TCP",
+	belle_sip::Agent bellesipUtils{"0.0.0.0", -1, "TCP",
 	                            [&nbAcceptedMessages](int status) {
 		                            if (status != 100) {
 			                            BC_ASSERT_EQUAL(status, 202, int, "%i");
@@ -742,7 +742,7 @@ void globalTestDatabaseDeleted() {
 	receiverClient.disconnect();
 
 	bool isRequestAccepted = false;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -835,7 +835,7 @@ void globalOrderTest() {
 	receiverClient.disconnect();
 
 	uint isRequestAccepted = 0;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
