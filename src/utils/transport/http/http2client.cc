@@ -19,6 +19,7 @@
 #include "http2client.hh"
 
 #include <array>
+#include <iterator>
 #include <sstream>
 
 #include <nghttp2/nghttp2.h>
@@ -78,8 +79,17 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                   std::move(sessionSettings)) {}
 
 void Http2Client::sendAllPendingRequests() {
-	for (auto it = mPendingHttpContexts.begin(); it != mPendingHttpContexts.end();
-	     it = mPendingHttpContexts.erase(it)) {
+	HttpContextList pendingHttpContexts{};
+	pendingHttpContexts.swap(mPendingHttpContexts);
+
+	for (auto it = pendingHttpContexts.begin(); it != pendingHttpContexts.end(); ++it) {
+		if (mState != State::Connected) {
+			// Keep requests that were already pending ahead of requests queued while handling the connection error.
+			mPendingHttpContexts.insert(mPendingHttpContexts.begin(), std::move_iterator(it),
+			                            std::move_iterator(pendingHttpContexts.end()));
+			return;
+		}
+
 		send(it->get()->getRequest(), it->get()->getOnResponseCb(), it->get()->getOnErrorCb());
 	}
 }

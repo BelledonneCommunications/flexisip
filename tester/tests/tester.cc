@@ -18,9 +18,9 @@
 
 #include "tester.hh"
 
+#include <csignal>
 #include <cstddef>
 #include <cstdlib>
-#include <stdexcept>
 #include <string>
 
 #include "bctoolbox/logging.h"
@@ -116,6 +116,10 @@ void flexisip_tester_init() {
 	flexisip_tester_add_grammar_loader_path(kLibLinphoneLocalGrammarLocation);
 
 	flexisip_tester_set_factory_resources_path(FLEXISIP_ROOT_DIR);
+
+	// We must ignore SIGPIPE to avoid the process being killed when a socket is closed by the peer.
+	// Therefore, we are able to test error cases.
+	signal(SIGPIPE, SIG_IGN);
 }
 
 void flexisip_tester_uninit() {
