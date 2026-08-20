@@ -14,7 +14,15 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.5.4] - Hotfix
+- **SDK version:** 5.4.123
+
+### [Fixed]
+- **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
+
 ## [2.5.3] - 2026-07-02
+- **SDK version:** 5.4.123
+
 ### [Added]
 - **Proxy:**
   - **Router:** New parameter `no-contact-for-aor-return-code` to configure the SIP response code to send when the
@@ -181,6 +189,12 @@ Group changes to describe their impact on the project, as follows:
       - Parameter `use-maddr` (deprecated in 2.0.0).
       - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
 - **Plugin:** JweAuth.
+
+## [2.4.6] - Hotfix
+- **SDK version:** 5.3.115
+
+### [Fixed]
+- **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
 
 ## [2.4.5] - 2026-06-26
 - **SDK version:** 5.3.115

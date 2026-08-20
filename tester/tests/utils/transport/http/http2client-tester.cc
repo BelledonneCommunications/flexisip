@@ -20,11 +20,13 @@
 
 #include <atomic>
 #include <chrono>
+#include <future>
+#include <initializer_list>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "utils/core-assert.hh"
@@ -197,6 +199,126 @@ void reconnectAfterConnectionResetByPeer() {
 	}
 }
 
+/**
+ * Requests queued before a connection is established are sent once the connection is ready.
+ */
+void requestsQueuedBeforeConnectionSetupAreSentInOrder() {
+	sofiasip::SuRoot root{};
+
+	atomic_int responsesReceivedCount{0};
+	const auto onResponse = [&responsesReceivedCount](const auto&, const auto&) { ++responsesReceivedCount; };
+	atomic_int errorsCount{0};
+	const auto onError = [&errorsCount](const auto&) { ++errorsCount; };
+
+	HttpMock httpMock{{"/"}};
+	const auto portInt = httpMock.serveAsync();
+	BC_HARD_ASSERT_TRUE(portInt > -1);
+	const auto port = to_string(portInt);
+
+	auto client = Http2Client::make(root, "127.0.0.1", port);
+	const HttpHeaders headers = {
+	    {":method"s, "POST"s},
+	    {":scheme", "https"},
+	    {":authority", "127.0.0.1:" + port},
+	    {":path", "/"},
+	};
+	const vector<string> requestBodies{"request_1", "request_2", "request_3"};
+
+	for (const auto& body : requestBodies) {
+		// Note: the client initiates the connection on the first send, so the first request is queued while the
+		// connection is being established. Following requests are queued while the connection is being established, and
+		// sent in order once the connection is ready.
+		client->send(make_shared<Http2Client::HttpRequest>(headers, body), onResponse, onError);
+	}
+
+	CoreAssert asserter{root};
+	asserter.wait([&responsesReceivedCount] { return LOOP_ASSERTION(responsesReceivedCount == 3); })
+	    .hard_assert_passed();
+
+	for (const auto& expectedBody : requestBodies) {
+		const auto request = httpMock.popRequestReceived();
+		BC_HARD_ASSERT_TRUE(request != nullptr);
+		BC_ASSERT_STRING_EQUAL(request->body.c_str(), expectedBody.c_str());
+	}
+
+	BC_ASSERT(httpMock.popRequestReceived() == nullptr);
+}
+
+/**
+ * A send failure during pending-request draining must preserve the remaining requests and their order.
+ */
+void pendingRequestsRemainOrderedAfterDrainFailure() {
+	sofiasip::SuRoot root{};
+
+	atomic_int responsesReceivedCount{0};
+	const auto onResponse = [&responsesReceivedCount](const auto&, const auto&) { ++responsesReceivedCount; };
+	vector<string> errorBodies{};
+	const auto onError = [&errorBodies](const shared_ptr<Http2Client::HttpRequest>& request) {
+		errorBodies.emplace_back(request->getBody().begin(), request->getBody().end());
+	};
+
+	auto firstServer = make_unique<TlsServer>();
+	const auto serverPort = firstServer->getPort();
+
+	auto client = Http2Client::make(root, "127.0.0.1", to_string(serverPort));
+	client->setRequestTimeout(1s);
+	client->enableInsecureTestMode();
+
+	const HttpHeaders headers = {
+	    {":method"s, "POST"s},
+	    {":scheme", "https"},
+	    {":authority", "127.0.0.1:" + to_string(serverPort)},
+	    {":path", "/"},
+	};
+	vector<string> requestBodies{"request_1", "request_2", "request_3"};
+
+	auto firstConnection = async(launch::async, [&firstServer] {
+		firstServer->accept();
+		// Simulate a connection drop after the first request is received.
+		firstServer.reset();
+	});
+
+	// Try to send requests that will be queued while the connection is being established. The first request will fail,
+	// and the connection will be closed, leaving the other requests pending.
+	for (const auto& body : requestBodies) {
+		client->send(make_shared<Http2Client::HttpRequest>(headers, body), onResponse, onError);
+	}
+
+	CoreAssert asserter{root};
+	// Wait until the first request fails and the connection is closed, leaving the other requests pending.
+	asserter.wait([&] { return LOOP_ASSERTION(errorBodies.size() == 1); }).hard_assert_passed();
+	asserter.wait([&] { return LOOP_ASSERTION(!client->isConnected()); }).hard_assert_passed();
+	BC_HARD_ASSERT(errorBodies.front() == requestBodies.front());
+	requestBodies.erase(requestBodies.begin());
+
+	// Reopen the server with the same port.
+	auto secondServer = make_unique<HttpMock>(initializer_list<string>{"/"});
+	BC_ASSERT(secondServer->serveAsync(to_string(serverPort)) == serverPort);
+
+	// Send a new request to trigger reconnection and draining of the pending requests.
+	requestBodies.emplace_back("request_4");
+	client->send(make_shared<Http2Client::HttpRequest>(headers, requestBodies.back()), onResponse, onError);
+
+	asserter
+	    .wait([&] {
+		    FAIL_IF(!client->isConnected());
+		    FAIL_IF(errorBodies.size() != 1);
+		    FAIL_IF(responsesReceivedCount != 3);
+		    FAIL_IF(!client->isIdle());
+		    return ASSERTION_PASSED();
+	    })
+	    .hard_assert_passed();
+
+	// Assert that all the pending requests were sent in order after the first request failed.
+	for (const auto& expectedBody : requestBodies) {
+		const auto request = secondServer->popRequestReceived();
+		BC_HARD_ASSERT_TRUE(request != nullptr);
+		BC_ASSERT_STRING_EQUAL(request->body.c_str(), expectedBody.c_str());
+	}
+
+	BC_ASSERT(secondServer->popRequestReceived() == nullptr);
+}
+
 namespace {
 
 TestSuite _{
@@ -205,6 +327,8 @@ TestSuite _{
         CLASSY_TEST(partiallySentRequestCanceledByTimeout),
         CLASSY_TEST(partiallySentRequestResumedAtWindowUpdate),
         CLASSY_TEST(reconnectAfterConnectionResetByPeer),
+        CLASSY_TEST(requestsQueuedBeforeConnectionSetupAreSentInOrder),
+        CLASSY_TEST(pendingRequestsRemainOrderedAfterDrainFailure),
     },
 };
 
