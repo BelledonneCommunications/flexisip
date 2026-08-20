@@ -28,6 +28,7 @@ Group changes to describe their impact on the project, as follows:
 ### [Fixed]
 - **Proxy/ContactRouteInserter**: Restore domain-based `CtRt` parameters, fixing Push Gateway routing when
   `insert-domain=true`.
+- **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
 
 ## [2.6.1] - 2026-07-30
 - **SDK version:** 5.5.7
@@ -162,6 +163,12 @@ Group changes to describe their impact on the project, as follows:
     - MSGPACK feature (deprecated in 2.4.0).
 - **All servers:** The launcher and watchdog processus are replaced by the SystemD startup with `Type=notify` and its
   watchdog.
+
+## [2.5.4] - Hotfix
+- **SDK version:** 5.4.123
+
+### [Fixed]
+- **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
 
 ## [2.5.3] - 2026-07-02
 - **SDK version:** 5.4.123
@@ -333,6 +340,12 @@ Group changes to describe their impact on the project, as follows:
         - Parameter `use-maddr` (deprecated in 2.0.0).
         - Parameter `use-rfc2543-record-route` (deprecated in 2.2.0).
 - **Plugin:** JweAuth.
+
+## [2.4.6] - Hotfix
+- **SDK version:** 5.3.115
+
+### [Fixed]
+- **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
 
 ## [2.4.5] - 2026-06-26
 - **SDK version:** 5.3.115
