@@ -1,5 +1,5 @@
 /*
-Flexisip, a flexible SIP proxy server with media capabilities.
+    Flexisip, a flexible SIP proxy server with media capabilities.
     Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@ Flexisip, a flexible SIP proxy server with media capabilities.
 
 #include "contact-masquerader.hh"
 
+#include "sofia-sip/url.h"
 #include "sofia-wrapper/nta-agent.hh"
 #include "utils/asserts.hh"
 #include "utils/test-patterns/test.hh"
@@ -31,13 +32,13 @@ namespace {
 
 constexpr bool kUsingDomainInFrom = true;
 constexpr bool kUsingHostPortInContact = false;
+constexpr auto kCtRtParamName = "CtRtstubuniqueid";
 
 template <const bool insertDomain>
 void masqueradeRegisterRequest() {
 	const string username{"user"};
 	const string domain{"localhost"};
 	const string identity{username + "@" + domain};
-	const string paramName{"CtRtstubuniqueid"};
 
 	const auto root = make_shared<SuRoot>();
 	// Note: this agent only exists to create a tport_t instance.
@@ -68,7 +69,7 @@ void masqueradeRegisterRequest() {
 	SLOGD << "Transport: " << transportUri.str();
 	SLOGD << "Before:\n" << msg.msgAsString();
 
-	contact_masquerader::masquerade(msg, paramName, transport, insertDomain);
+	contact_masquerader::masquerade(msg, kCtRtParamName, transport, insertDomain);
 
 	SLOGD << "After:\n" << msg.msgAsString();
 
@@ -91,7 +92,7 @@ void masqueradeRegisterRequest() {
 		BC_ASSERT_CPP_EQUAL(uri.getPort(), transportUri.getPort());
 		BC_ASSERT_CPP_EQUAL(uri.getParam("transport"), transportUri.getParam("transport"));
 
-		BC_ASSERT_CPP_EQUAL(uri.getParam(paramName), makeContactRouteParameter(contactInRegister));
+		BC_ASSERT_CPP_EQUAL(uri.getParam(kCtRtParamName), makeContactRouteParameter(contactInRegister));
 
 		if (contact->m_next != nullptr) contact = contact->m_next;
 	}
@@ -101,11 +102,64 @@ void masqueradeRegisterRequest() {
 	BC_ASSERT(contact->m_next == nullptr);
 }
 
+void restoreDomain() {
+	Home home{};
+	auto* destination = url_make(home.home(), "sip:user@proxy.example.org:5062;transport=tcp;maddr=proxy.example.org");
+	url_param_add(home.home(), destination, kCtRtParamName);
+	BC_HARD_ASSERT(destination != nullptr);
+
+	contact_masquerader::restore(home.home(), destination, kCtRtParamName, "udp:managed.example.org", "doroute");
+
+	const SipUri restored{destination};
+	BC_ASSERT_CPP_EQUAL(restored.getHost(), "managed.example.org");
+	BC_ASSERT(restored.getPort().empty());
+	BC_ASSERT_FALSE(restored.hasParam(kCtRtParamName));
+	BC_ASSERT_FALSE(restored.hasParam("maddr"));
+	BC_ASSERT_FALSE(restored.hasParam("transport"));
+	BC_ASSERT_TRUE(restored.hasParam("doroute"));
+}
+
+void restoreHostPort() {
+	Home home{};
+	auto* destination = url_make(home.home(), "sip:user@proxy.example.org:5062;transport=udp;maddr=proxy.example.org");
+	url_param_add(home.home(), destination, kCtRtParamName);
+	BC_HARD_ASSERT(destination != nullptr);
+
+	contact_masquerader::restore(home.home(), destination, kCtRtParamName, "tcp:10.0.0.10:5070", "doroute");
+
+	const SipUri restored{destination};
+	BC_ASSERT_CPP_EQUAL(restored.getHost(), "10.0.0.10");
+	BC_ASSERT_CPP_EQUAL(restored.getPort(), "5070");
+	BC_ASSERT_CPP_EQUAL(restored.getParam("transport"), "tcp");
+	BC_ASSERT_FALSE(restored.hasParam(kCtRtParamName));
+	BC_ASSERT_FALSE(restored.hasParam("maddr"));
+	BC_ASSERT_TRUE(restored.hasParam("doroute"));
+}
+
+void restoreRejectsMalformedParameter() {
+	for (const auto& param : {"udp", "udp:host:5060:extra", "udp:", ":host", "udp:host:"}) {
+		Home home{};
+		auto* destination =
+		    url_make(home.home(), "sip:user@proxy.example.org:5062;transport=tcp;maddr=proxy.example.org");
+		url_param_add(home.home(), destination, kCtRtParamName);
+		BC_HARD_ASSERT(destination != nullptr);
+		const SipUri before{destination};
+
+		contact_masquerader::restore(home.home(), destination, kCtRtParamName, param, "doroute");
+
+		const SipUri after{destination};
+		BC_ASSERT_TRUE(before.compareAll(after));
+	}
+}
+
 TestSuite _{
     "ContactMasquerader",
     {
         CLASSY_TEST(masqueradeRegisterRequest<kUsingDomainInFrom>),
         CLASSY_TEST(masqueradeRegisterRequest<kUsingHostPortInContact>),
+        CLASSY_TEST(restoreDomain),
+        CLASSY_TEST(restoreHostPort),
+        CLASSY_TEST(restoreRejectsMalformedParameter),
     },
 };
 
