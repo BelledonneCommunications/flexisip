@@ -25,6 +25,10 @@ Group changes to describe their impact on the project, as follows:
   counters have not been incremented, therefore preventing a push notification to be sent and waking a client for a
   useless information.
 
+### [Fixed]
+- **Proxy/ContactRouteInserter**: Restore domain-based `CtRt` parameters, fixing Push Gateway routing when
+  `insert-domain=true`.
+
 ## [2.6.1] - 2026-07-30
 - **SDK version:** 5.5.7
 

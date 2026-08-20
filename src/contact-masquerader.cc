@@ -95,11 +95,29 @@ void masquerade(MsgSip& ms, const string& ctrtParamName, const tport_t* primary,
 }
 
 void restore(su_home_t* home, url_t* dest, const string& ctrtParamName, const string& param, const string& newParam) {
+	static constexpr string_view warning{
+	    "Restoration of masqueraded contact failed, further routing operations may be impacted",
+	};
+
 	SipUri uri{};
 	try {
 		uri = SipUri{dest};
 	} catch (const std::exception& exception) {
 		LOGD_CTX(kLogPrefix) << "Provided URI is invalid (" << exception.what() << "): aborting";
+		LOGW_CTX(kLogPrefix) << warning;
+		return;
+	}
+
+	const auto paramParsingResult = string_utils::split(param, ":");
+	const bool validFormat =
+	    (paramParsingResult.size() == 2 || (paramParsingResult.size() == 3 && !paramParsingResult[2].empty())) &&
+	    !paramParsingResult[0].empty() && !paramParsingResult[1].empty();
+
+	if (!validFormat) {
+		LOGD_CTX(kLogPrefix) << "Contact parameter '" << param
+		                     << "' does not have the expected format transport:domain or transport:host:port: "
+		                        "aborting";
+		LOGW_CTX(kLogPrefix) << warning;
 		return;
 	}
 
@@ -107,20 +125,13 @@ void restore(su_home_t* home, url_t* dest, const string& ctrtParamName, const st
 	uri.removeParam("maddr");
 	uri.removeParam("transport");
 
-	const auto paramParsingResult = string_utils::split(param, ":");
-	if (paramParsingResult.size() != 3) {
-		LOGD_CTX(kLogPrefix) << "Contact parameter '" << param << "' does not have the right format: aborting";
-		return;
-	}
-
 	const auto& transport = paramParsingResult[0];
 	const auto& host = paramParsingResult[1];
-	const auto& port = paramParsingResult[2];
 
 	if (!string_utils::iequals(transport, "udp")) uri = uri.setParameter("transport", transport);
 
 	uri = uri.replaceHost(host);
-	uri = uri.replacePort(port);
+	uri = uri.replacePort(paramParsingResult.size() == 3 ? paramParsingResult[2] : "");
 
 	if (!newParam.empty()) uri = uri.setParameter(newParam, "");
 

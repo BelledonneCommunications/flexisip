@@ -25,8 +25,8 @@
 namespace flexisip::contact_masquerader {
 
 /**
- * Add a parameter in the form "CtRt15.128.128.2=tcp:201.45.118.16:50025" into the contact header field. Thus, we know
- * the transport to use to forward requests back to the client.
+ * Add a parameter in the form "CtRt15.128.128.2=tcp:201.45.118.16:50025" or "CtRt15.128.128.2=udp:example.org"
+ * into the contact header field. Thus, we know the transport to use to forward requests back to the client.
  *
  * @param home home to store the new contact url
  * @param contact contact to masquerade
@@ -59,7 +59,7 @@ void masquerade(MsgSip& ms, const std::string& ctrtParamName, const tport_t* pri
  * @param home home to store the restored uri
  * @param dest uri that will be set to the restored uri
  * @param ctrtParamName name of the custom contact route inserter parameter
- * @param param the contact route parameter
+ * @param param the contact route parameter in the form "transport:domain" or "transport:host:port"
  * @param newParam a new parameter to add
  */
 void restore(su_home_t* home,
