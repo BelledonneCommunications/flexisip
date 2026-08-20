@@ -34,7 +34,7 @@
 #include "sofia-wrapper/sip-header-private.hh"
 #include "utils/asserts.hh"
 #include "utils/bc-utils.hh"
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/listeners.hh"
@@ -159,7 +159,7 @@ void sendRegisterRequest(const shared_ptr<SuRoot>& root,
                          const string& paramList,
                          const string& uuid) {
 
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "UDP",
@@ -970,7 +970,7 @@ void portHijackingProtection() {
 
 		explicit Client(const string& username, const optional<OnResponse>& onResponse = nullopt)
 		    : mUsername(username), mOnResponse(onResponse) {
-			mClient = make_unique<BellesipUtils>(
+			mClient = make_unique<belle_sip::Agent>(
 			    "127.0.0.1", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, "tcp",
 			    [this](int status) {
 				    if (mRegistered == false && status == 200) {
@@ -1008,7 +1008,7 @@ void portHijackingProtection() {
 		string mUsername{};
 		optional<OnResponse> mOnResponse{};
 		bool mRegistered{};
-		unique_ptr<BellesipUtils> mClient{};
+		unique_ptr<belle_sip::Agent> mClient{};
 	};
 
 	Server proxy{{{"global/transports", "sip:127.0.0.1:0;transport=tcp"}}};

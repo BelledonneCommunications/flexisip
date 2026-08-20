@@ -28,8 +28,7 @@
 #include "module-router-message-shared-tests.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "utils/asserts.hh"
-#include "utils/bellesip-utils.hh"
-#include "utils/client-builder.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/core-assert.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/string-utils.hh"
@@ -56,15 +55,15 @@ void fallbackRouteFilter() {
 	server.start();
 
 	bool requestReceived = false;
-	BellesipUtils belleSipUtilsFallback{
+	belle_sip::Agent belleSipUtilsFallback{
 	    "0.0.0.0",
 	    fallbackPort,
 	    "UDP",
-	    static_cast<BellesipUtils::ProcessResponseStatusCb>(nullptr),
+	    static_cast<belle_sip::Agent::ProcessResponseStatusCb>(nullptr),
 	    [&requestReceived](const belle_sip_request_event_t*) { requestReceived = true; },
 	};
 	bool responseReceived = false;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "UDP",
@@ -103,7 +102,7 @@ void fallbackRouteFilter() {
 
 	responseReceived = false;
 	requestReceived = false;
-	BellesipUtils belleSipUtilsBis{
+	belle_sip::Agent belleSipUtilsBis{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "UDP",
@@ -159,11 +158,11 @@ void selfRouteHeaderRemoving() {
 	server.start();
 
 	bool isRequestReceived = false;
-	BellesipUtils belleSipUtilsReceiver{
+	belle_sip::Agent belleSipUtilsReceiver{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
-	    static_cast<BellesipUtils::ProcessResponseStatusCb>(nullptr),
+	    static_cast<belle_sip::Agent::ProcessResponseStatusCb>(nullptr),
 	    [&isRequestReceived](const belle_sip_request_event_t* event) {
 		    isRequestReceived = true;
 		    if (!BC_ASSERT_PTR_NOT_NULL(belle_sip_request_event_get_request(event))) {
@@ -178,7 +177,7 @@ void selfRouteHeaderRemoving() {
 	    },
 	};
 	bool isRequestAccepted = false;
-	BellesipUtils belleSipUtilsSender{
+	belle_sip::Agent belleSipUtilsSender{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -246,11 +245,11 @@ void otherRouteHeaderNotRemoved() {
 
 	bool isRequestReceived = false;
 	auto belleSipUtilsReceiverPort = "0"s;
-	BellesipUtils belleSipUtilsReceiver{
+	belle_sip::Agent belleSipUtilsReceiver{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
-	    static_cast<BellesipUtils::ProcessResponseStatusCb>(nullptr),
+	    static_cast<belle_sip::Agent::ProcessResponseStatusCb>(nullptr),
 	    [&isRequestReceived, &belleSipUtilsReceiverPort](const belle_sip_request_event_t* event) {
 		    isRequestReceived = true;
 		    const auto* request = belle_sip_request_event_get_request(event);
@@ -273,7 +272,7 @@ void otherRouteHeaderNotRemoved() {
 	belleSipUtilsReceiverPort = to_string(belleSipUtilsReceiver.getListeningPort());
 
 	bool isRequestAccepted = false;
-	BellesipUtils belleSipUtilsSender{
+	belle_sip::Agent belleSipUtilsSender{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "TCP",
@@ -334,7 +333,7 @@ void messageExpires() {
 	server.start();
 
 	auto responseCount = 0;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    0,
 	    "UDP",
@@ -584,7 +583,7 @@ void customNoContactReturnCode(bool insertContactWithLowExpire) {
 	}
 
 	auto responseReceived = false;
-	BellesipUtils belleSipUtils{
+	belle_sip::Agent belleSipUtils{
 	    "0.0.0.0",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "UDP",

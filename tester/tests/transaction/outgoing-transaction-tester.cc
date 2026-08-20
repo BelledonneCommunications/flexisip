@@ -30,7 +30,7 @@
 #include "transaction/incoming-transaction.hh"
 #include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/core-assert.hh"
 #include "utils/override-static.hh"
 #include "utils/server/proxy-server.hh"
@@ -80,7 +80,7 @@ void resilienceToNetworkError() {
 
 	int ackCounter = 0;
 	// Create a client that will send (a 100 response to avoid repetitions) a 503 response and then a 200.
-	BellesipUtils unstableClient{
+	belle_sip::Agent unstableClient{
 	    "127.0.0.1",
 	    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 	    "UDP",

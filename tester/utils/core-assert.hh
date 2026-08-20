@@ -22,7 +22,7 @@
 
 #include "agent.hh"
 #include "asserts.hh"
-#include "bellesip-utils.hh"
+#include "belle-sip/agent.hh"
 #include "client-core.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "server/proxy-server.hh"
@@ -43,7 +43,7 @@ public:
 		using namespace std::chrono_literals;
 		return [&root] { root.step(1ms); };
 	}
-	static std::function<void()> stepperFrom(BellesipUtils& belleSip) {
+	static std::function<void()> stepperFrom(belle_sip::Agent& belleSip) {
 		return [&belleSip] { belleSip.stackSleep(); };
 	}
 	static std::function<void()> stepperFrom(ServiceServer& server) {

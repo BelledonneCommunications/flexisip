@@ -16,7 +16,7 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/core-assert.hh"
 #include "utils/test-patterns/presence-test.hh"
 #include "utils/test-patterns/test.hh"
@@ -91,8 +91,8 @@ protected:
 	int isNotifyReceived = 0;
 	int isNotifyReceivedPublisher = 0;
 	string mNotifiesBodyConcat{};
-	unique_ptr<BellesipUtils> belleSipSubscriber;
-	unique_ptr<BellesipUtils> belleSipPublisher;
+	unique_ptr<belle_sip::Agent> belleSipSubscriber;
+	unique_ptr<belle_sip::Agent> belleSipPublisher;
 	string mEtag{};
 	bool mLegacySupported = true;
 
@@ -468,7 +468,7 @@ TestSuite _("PublishPresence",
                 CLASSY_TEST(AwayPublish),
                 CLASSY_TEST(DoubleAwayDateAfterPublish),
                 CLASSY_TEST(DoubleAwayDateBeforePublish),
-            	CLASSY_TEST(DoubleAwayDateBeforePublishNoLegacySupport),
+                CLASSY_TEST(DoubleAwayDateBeforePublishNoLegacySupport),
                 CLASSY_TEST(SipIfMatch),
             });
 
@@ -481,7 +481,7 @@ void PublishTest::crossSubscribe(const string& aorPublisher, const string& aorSu
 	insertRegistrarContact(aorPublisher, "8888");
 	insertRegistrarContact(aorSubscriber, "9999");
 
-	belleSipSubscriber = make_unique<BellesipUtils>(
+	belleSipSubscriber = make_unique<belle_sip::Agent>(
 	    "0.0.0.0", 9999, "TCP",
 	    [this](int status) {
 		    if (status != 100) {
@@ -499,19 +499,19 @@ void PublishTest::crossSubscribe(const string& aorPublisher, const string& aorSu
 		    mNotifiesBodyConcat += belle_sip_message_get_body(message);
 		    if (auto eventHeader = belle_sip_message_get_header(message, "Event")) {
 			    if (mLegacySupported) {
-			    	BC_ASSERT_STRING_EQUAL(belle_sip_header_get_unparsed_value(eventHeader), "Presence");
+				    BC_ASSERT_STRING_EQUAL(belle_sip_header_get_unparsed_value(eventHeader), "Presence");
 			    } else {
 				    BC_ASSERT_STRING_EQUAL(belle_sip_header_get_unparsed_value(eventHeader), "presence");
 			    }
 		    }
-	    	if (auto contentIdHeader = belle_sip_message_get_header(message, "Content-Id")) {
-	    		string contentIdValue = belle_sip_header_get_unparsed_value(contentIdHeader);
-	    		if (mLegacySupported) {
-					BC_ASSERT_TRUE(contentIdValue.front() != '<' && contentIdValue.back() != '>');
-				} else {
-					BC_ASSERT_TRUE(contentIdValue.front() == '<' && contentIdValue.back() == '>');
-				}
-			}
+		    if (auto contentIdHeader = belle_sip_message_get_header(message, "Content-Id")) {
+			    string contentIdValue = belle_sip_header_get_unparsed_value(contentIdHeader);
+			    if (mLegacySupported) {
+				    BC_ASSERT_TRUE(contentIdValue.front() != '<' && contentIdValue.back() != '>');
+			    } else {
+				    BC_ASSERT_TRUE(contentIdValue.front() == '<' && contentIdValue.back() == '>');
+			    }
+		    }
 	    });
 
 	const auto bodyPublisher = getSubscribeBody(aorPublisher, "8888");
@@ -521,7 +521,7 @@ void PublishTest::crossSubscribe(const string& aorPublisher, const string& aorSu
 	asserter.wait([this]() { return LOOP_ASSERTION(isRequestAccepted == 1 && isNotifyReceived == 2); })
 	    .hard_assert_passed();
 
-	belleSipPublisher = make_unique<BellesipUtils>(
+	belleSipPublisher = make_unique<belle_sip::Agent>(
 	    "0.0.0.0", 8888, "TCP",
 	    [this](int status, const belle_sip_response_event_t* event) {
 		    if (status != 100) {

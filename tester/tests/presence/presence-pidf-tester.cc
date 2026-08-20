@@ -17,7 +17,7 @@
 */
 
 #include "utils/background-thread.hh"
-#include "utils/bellesip-utils.hh"
+#include "utils/belle-sip/agent.hh"
 #include "utils/core-assert.hh"
 #include "utils/http-mock/http1-mock.hh"
 #include "utils/test-patterns/presence-test.hh"
@@ -39,7 +39,7 @@ public:
 
 		auto isRequestAccepted = false;
 		auto isNotifyReceived = 0;
-		BellesipUtils belleSipUtils{
+		belle_sip::Agent belleSipUtils{
 		    "0.0.0.0",
 		    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 		    "tcp",
@@ -206,7 +206,7 @@ public:
 
 		auto isBadRequestReceived = false;
 
-		BellesipUtils belleSipUtils{
+		belle_sip::Agent belleSipUtils{
 		    "0.0.0.0",
 		    BELLE_SIP_LISTENING_POINT_RANDOM_PORT,
 		    "tcp",

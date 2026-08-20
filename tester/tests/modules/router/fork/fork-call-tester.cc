@@ -22,7 +22,8 @@
 #include "sofia-sip/nta.h"
 #include "sofia-sip/nta_tag.h"
 
-#include "belle-sip/transaction.h"
+#include "belle-sip/agent.hh"
+#include "belle-sip/transaction.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "flexisip/module-router.hh"
 #include "fork-context/branch-info.hh"
@@ -237,7 +238,7 @@ void callWithEarlyCancelCalleeOnlyOneDevice(CallWithEarlyCancelCalleeOnlyOneDevi
 
 	CoreAssert asserter{server, callerClient};
 
-	BellesipUtils belleSipUtils{"127.0.0.1", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, "TCP", nullptr};
+	belle_sip::Agent belleSipUtils{"127.0.0.1", BELLE_SIP_LISTENING_POINT_RANDOM_PORT, "TCP", nullptr};
 	asserter.registerSteppable(belleSipUtils);
 
 	stringstream request{};
