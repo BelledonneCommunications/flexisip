@@ -17,7 +17,8 @@
 */
 
 #include "tester.hh"
-#include "utils/rand.hh"
+
+#include <signal.h>
 
 #include <cstddef>
 #include <cstdlib>
@@ -38,7 +39,8 @@
 #endif
 
 #include "flexisip-tester-config.hh"
-#include <flexisip/logmanager.hh>
+#include "flexisip/logmanager.hh"
+#include "utils/rand.hh"
 
 namespace flexisip::tester {
 
@@ -160,6 +162,10 @@ void flexisip_tester_init() {
 	flexisip_tester_add_grammar_loader_path(kLibLinphoneLocalGrammarLocation);
 
 	flexisip_tester_set_factory_resources_path(FLEXISIP_ROOT_DIR);
+
+	// We must ignore SIGPIPE to avoid the process being killed when a socket is closed by the peer.
+	// Therefore, we are able to test error cases.
+	signal(SIGPIPE, SIG_IGN);
 }
 
 void flexisip_tester_uninit(void) {
