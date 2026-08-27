@@ -15,7 +15,7 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.6.2] - Hotfix
-- **SDK version:** 5.5.7
+- **SDK version:** 5.5.16
 
 ### [Added]
 - **Proxy:**
@@ -171,7 +171,7 @@ Group changes to describe their impact on the project, as follows:
   watchdog.
 
 ## [2.5.4] - Hotfix
-- **SDK version:** 5.4.123
+- **SDK version:** 5.4.125
 
 ### [Fixed]
 - **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
