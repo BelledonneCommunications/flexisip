@@ -160,7 +160,9 @@
     DEPLOY_SCRIPT: 'wget -qO- --header="PRIVATE-TOKEN: ${TOOLS_REPOSITORY_TOKEN}" https://gitlab.linphone.org/api/v4/projects/368/repository/files/deploy_packages.sh/raw?ref=58a7c34c'
   before_script:
     - *add-deploy-keys
-  script: 'bash <(eval ${DEPLOY_SCRIPT}) ${DISTRIB} ${RELEASE}'
+  script:
+    - if [ -z ${DEPLOY_SCRIPT:-} ]; then echo "Failed to retrieve deploy script from tools repository (access token expired?)"; exit 1; fi
+    - bash <(eval ${DEPLOY_SCRIPT}) ${DISTRIB} ${RELEASE}
 
 #################################################
 # DOCKER
