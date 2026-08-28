@@ -704,7 +704,13 @@ ConfigBooleanExpression::ConfigBooleanExpression(const string& name,
     : ConfigValue(name, BooleanExpr, help, default_value, oid_index) {}
 
 shared_ptr<SipBooleanExpression> ConfigBooleanExpression::read() const {
-	return SipBooleanExpressionBuilder::get().parse(get());
+	const auto name = getCompleteName().empty() ? getName() : getCompleteName();
+	auto expression = SipBooleanExpressionBuilder::get().parse(get(), name);
+	if (expression == nullptr) {
+		throw BadConfiguration{"invalid boolean expression '" + get() + "' for '" + name + "'"};
+	}
+
+	return expression;
 }
 
 std::vector<std::function<void(GenericStruct&)>>& ConfigManager::defaultInit() {

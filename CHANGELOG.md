@@ -42,6 +42,9 @@ Group changes to describe their impact on the project, as follows:
   - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,
     `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global/domains-configuration` instead.
 
+### [Removed]
+- **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).
+
 ## [2.6.2] - Hotfix
 - **SDK version:** 5.5.16
 

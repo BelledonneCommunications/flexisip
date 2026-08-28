@@ -18,12 +18,10 @@
 
 #pragma once
 
-#include <list>
 #include <memory>
 #include <string>
 
 #include "flexisip/configmanager.hh"
-#include "flexisip/expressionparser.hh"
 
 namespace flexisip {
 
@@ -32,8 +30,7 @@ namespace flexisip {
  **/
 class EntryFilter {
 public:
-	virtual void loadConfig([[maybe_unused]] const GenericStruct* module_config) {
-	}
+	virtual void loadConfig([[maybe_unused]] const GenericStruct* mc) {}
 	virtual bool canEnter(const std::shared_ptr<MsgSip>& ms) = 0;
 	virtual bool isEnabled() = 0;
 	virtual ~EntryFilter() = default;
@@ -44,9 +41,9 @@ class ConfigEntryFilter : public EntryFilter {
 	StatCounter64* mCountEvalFalse = nullptr;
 
 public:
-	ConfigEntryFilter(GenericStruct& module_config);
-	static void declareConfig(GenericStruct& moduleConfig);
-	void loadConfig(const GenericStruct* module_config) override;
+	ConfigEntryFilter(GenericStruct& mc);
+	static void declareConfig(GenericStruct& mc);
+	void loadConfig(const GenericStruct* mc) override;
 	bool canEnter(const std::shared_ptr<MsgSip>& ms) override;
 	bool isEnabled() override;
 

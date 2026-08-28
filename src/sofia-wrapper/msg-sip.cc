@@ -31,6 +31,7 @@ using namespace string_literals;
 namespace sofiasip {
 
 shared_ptr<SipBooleanExpression> MsgSip::sShowBodyFor{};
+static const string kShowBodyForParamName{"show-body-for"};
 
 MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
 	serialize();
@@ -150,11 +151,14 @@ void MsgSip::setShowBodyFor(const string& filterString) {
 	if (filterString.empty()) {
 		throw invalid_argument("show_body-for-filter can't be empty. Use true to see all body, false to see none.");
 	}
-	sShowBodyFor = SipBooleanExpressionBuilder::get().parse(filterString);
+	sShowBodyFor = SipBooleanExpressionBuilder::get().parse(filterString, kShowBodyForParamName);
 }
 
 std::shared_ptr<SipBooleanExpression>& MsgSip::getShowBodyForFilter() {
-	if (!sShowBodyFor) sShowBodyFor = SipBooleanExpressionBuilder::get().parse("content-type == 'application/sdp'");
+	if (!sShowBodyFor) {
+		sShowBodyFor =
+		    SipBooleanExpressionBuilder::get().parse("content-type == 'application/sdp'", kShowBodyForParamName);
+	}
 	return sShowBodyFor;
 }
 

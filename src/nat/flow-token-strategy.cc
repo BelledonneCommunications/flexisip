@@ -65,7 +65,7 @@ const std::shared_ptr<SipBooleanExpression>& FlowTokenStrategy::Helper::getForce
 }
 
 FlowTokenStrategy::FlowTokenStrategy(Agent* agent,
-                                     const std::shared_ptr<BooleanExpression<sip_s>>& forceStrategyBoolExpr,
+                                     const std::shared_ptr<SipBooleanExpression>& forceStrategyBoolExpr,
                                      const std::filesystem::path& hashKeyFilePath)
     : NatTraversalStrategy(agent), mHelper(forceStrategyBoolExpr, hashKeyFilePath) {}
 

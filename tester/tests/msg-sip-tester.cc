@@ -24,8 +24,7 @@
 
 using namespace std;
 
-namespace flexisip {
-namespace tester {
+namespace flexisip::tester {
 
 string rawMessage = "MESSAGE sip:francois.grisez@sip.linphone.org SIP/2.0\r\n"
                     "Via: SIP/2.0/TLS [2a01:e0a:278:9f60:7a23:c334:1651:2503]:36676;branch=z9hG4bK.ChN0lTDpQ;rport\r\n"
@@ -120,36 +119,29 @@ string rawInvite =
     "a=rtpmap:99 MP4V-ES/90000\r\n"
     "a=fmtp:99 profile-level-id=3\r\n";
 
-class MsgSipLogTest : public Test {
-public:
-	void operator()() override {
-		MsgSip invite{0, rawInvite};
+void sipLog() {
+	stringstream out;
+	string invitePrinted;
+	MsgSip invite{0, rawInvite};
 
-		/*
-		 * CASE : NOT IN SHOW BODY FOR
-		 */
-		MsgSip::setShowBodyFor("request.method == 'MESSAGE'"s);
-		stringstream out;
+	{ // CASE: NOT IN SHOW BODY FOR
+		MsgSip::setShowBodyFor("request.method == 'MESSAGE'");
 		out << invite;
-		auto invitePrinted = out.str();
+		invitePrinted = out.str();
 		BC_ASSERT_TRUE(invitePrinted != invite.msgAsString());
 		BC_ASSERT_TRUE(invitePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(invitePrinted.find("v=0\r\n") == string::npos);
-		/*-------------------------------*/
+	}
 
-		/*
-		 * CASE : ADDED IN SHOW BODY FOR
-		 */
-		MsgSip::setShowBodyFor("request.method == 'INVITE'"s);
+	{ // CASE: ADDED IN SHOW BODY FOR
+		MsgSip::setShowBodyFor("request.method == 'INVITE'");
 		out.str("");
 		out << invite;
 		invitePrinted = out.str();
 		BC_ASSERT_TRUE(invitePrinted == invite.msgAsString());
-		/*-------------------------------*/
+	}
 
-		/*
-		 * CASE : FALSE SHOW BODY FOR
-		 */
+	{ // CASE: FALSE SHOW BODY FOR
 		MsgSip::setShowBodyFor("false");
 		out.str("");
 		out << invite;
@@ -157,12 +149,12 @@ public:
 		BC_ASSERT_TRUE(invitePrinted != invite.msgAsString());
 		BC_ASSERT_TRUE(invitePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(invitePrinted.find("v=0\r\n") == string::npos);
-		/*-------------------------------*/
+	}
 
-		/*
-		 * CASE : COMPLEX CASE WITH MULTIPLE SIP METHOD
-		 */
-		MsgSip message{0, rawMessage};
+	MsgSip message{0, rawMessage};
+	string messagePrinted{};
+
+	{ // CASE: COMPLEX CASE WITH MULTIPLE SIP METHOD
 		MsgSip registerSip{0, rawRegister};
 		MsgSip subscribe{0, rawSubscribe};
 		MsgSip emptySubscribe{0, rawEmptySubscribe};
@@ -176,7 +168,7 @@ public:
 
 		out.str("");
 		out << message;
-		auto messagePrinted = out.str();
+		messagePrinted = out.str();
 		BC_ASSERT_TRUE(messagePrinted == message.msgAsString());
 
 		out.str("");
@@ -196,10 +188,9 @@ public:
 		auto emptySubscribePrinted = out.str();
 		// Not in the list, but empty body, nothing to remove
 		BC_ASSERT_TRUE(emptySubscribePrinted == emptySubscribe.msgAsString());
+	}
 
-		/*
-		 * CASE : FILTER ON CONTENT-TYPE
-		 */
+	{ // CASE : FILTER ON CONTENT-TYPE
 		MsgSip::setShowBodyFor("content-type == 'application/sdp'");
 
 		// Invite content-type is application/sdp
@@ -215,10 +206,9 @@ public:
 		BC_ASSERT_TRUE(messagePrinted != message.msgAsString());
 		BC_ASSERT_TRUE(messagePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(messagePrinted.find("1234") == string::npos);
+	}
 
-		/*
-		 * CASE : COMPLEX WITH CONTENT-TYPE AND METHOD
-		 */
+	{ // CASE : COMPLEX WITH CONTENT-TYPE AND METHOD
 		MsgSip::setShowBodyFor("content-type == 'application/sdp' && request.method == 'MESSAGE'");
 
 		// Invite content-type is application/sdp
@@ -237,13 +227,17 @@ public:
 		BC_ASSERT_TRUE(messagePrinted.find(" bytes of body hidden]") != string::npos);
 		BC_ASSERT_TRUE(messagePrinted.find("1234") == string::npos);
 	}
-};
+}
 
 namespace {
-TestSuite _("MsgSip unit tests",
-            {
-                TEST_NO_TAG("Test the MsgSip stream insertion operator.", run<MsgSipLogTest>),
-            });
+
+TestSuite _{
+    "MsgSip",
+    {
+        CLASSY_TEST(sipLog),
+    },
+};
+
 }
-} // namespace tester
-} // namespace flexisip
+
+} // namespace flexisip::tester

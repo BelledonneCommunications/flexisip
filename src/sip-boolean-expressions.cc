@@ -27,6 +27,14 @@ namespace flexisip {
 
 shared_ptr<SipBooleanExpressionBuilder> SipBooleanExpressionBuilder::sInstance;
 
+bool SipBooleanExpression::eval(const sip_t& sip) {
+	const auto result = mExpression->eval(sip);
+	if (!result && !mName.empty()) {
+		LOGD_CTX("SipBooleanExpression") << "Filter '" << mName << "' evaluated to false";
+	}
+	return result;
+}
+
 static inline string stringFromC(const char* s) {
 	return s ? string(s) : string();
 }
@@ -178,8 +186,7 @@ static ExpressionRules<sip_t> rules = {
     },
 };
 
-SipBooleanExpressionBuilder::SipBooleanExpressionBuilder() : BooleanExpressionBuilder<sip_t>(rules) {
-}
+SipBooleanExpressionBuilder::SipBooleanExpressionBuilder() : BooleanExpressionBuilder<sip_t>(rules) {}
 
 SipBooleanExpressionBuilder& SipBooleanExpressionBuilder::get() {
 	if (!sInstance) {
@@ -188,8 +195,8 @@ SipBooleanExpressionBuilder& SipBooleanExpressionBuilder::get() {
 	return *sInstance;
 }
 
-shared_ptr<SipBooleanExpression> SipBooleanExpressionBuilder::parse(const string& expression) {
-	return BooleanExpressionBuilder<sip_t>::parse(expression);
+shared_ptr<SipBooleanExpression> SipBooleanExpressionBuilder::parse(const string& expression, const string& name) {
+	return make_shared<SipBooleanExpression>(BooleanExpressionBuilder<sip_t>::parse(expression), name);
 }
 
 } // namespace flexisip

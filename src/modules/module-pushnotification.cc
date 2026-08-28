@@ -167,7 +167,7 @@ ModuleInfo<PushNotification> PushNotification::sInfo{
 	            "false",
 	        },
 	        {
-	            String,
+	            BooleanExpr,
 	            "add-to-tag-filter",
 	            "Boolean expression to be applied on the incoming request which has triggered the current push "
 	            "notification.\n"
@@ -440,12 +440,10 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	mPNS = make_unique<pushnotification::Service>(getAgent()->getRoot(), maxQueueSize, httpsProxyCfg);
 
-	// Load the 'add-to-tag-filter' parameter
-	const auto* addToTagFilterCfg = mc->get<ConfigString>("add-to-tag-filter");
-	const auto& addToTagFilterStr = addToTagFilterCfg->read();
+	const auto* addToTagFilterCfg = mc->get<ConfigBooleanExpression>("add-to-tag-filter");
+	const auto& addToTagFilterStr = addToTagFilterCfg->get();
 	if (!addToTagFilterStr.empty()) {
-		mAddToTagFilter = SipBooleanExpressionBuilder::get().parse(addToTagFilterStr);
-		if (mAddToTagFilter == nullptr) throw BadConfigurationValue{addToTagFilterCfg, "invalid boolean expression"};
+		mAddToTagFilter = addToTagFilterCfg->read();
 	}
 
 	auto* externalPushFlexiApiCfg = mc->get<ConfigBoolean>("external-push-flexiapi");

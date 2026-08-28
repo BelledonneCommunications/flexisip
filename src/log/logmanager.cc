@@ -80,12 +80,10 @@ void LogManager::FileLogHandler::reopen() const {
 
 LogManager::LogHandler::LogHandler(BctbxLogHandlerFunc func)
     : BctbxLogHandler(
-          bctbx_create_log_handler(func, [](bctbx_log_handler_t* handler) { bctbx_free(handler); }, nullptr)) {
-}
+          bctbx_create_log_handler(func, [](bctbx_log_handler_t* handler) { bctbx_free(handler); }, nullptr)) {}
 
 LogManager::FileLogHandler::FileLogHandler(size_t maxSize, string_view path, string_view name)
-    : BctbxLogHandler(bctbx_create_file_log_handler(maxSize, path.data(), name.data())) {
-}
+    : BctbxLogHandler(bctbx_create_file_log_handler(maxSize, path.data(), name.data())) {}
 
 LogManager::LogManager() = default;
 
@@ -213,7 +211,7 @@ int LogManager::setContextualFilter(const string& expression) {
 
 	shared_ptr<SipBooleanExpression> expr;
 	try {
-		expr = SipBooleanExpressionBuilder::get().parse(expression);
+		expr = SipBooleanExpressionBuilder::get().parse(expression, "contextual-log-filter");
 	} catch (...) {
 		LOGE << "Invalid contextual expression filter: '" << expression << "'";
 		return -1;

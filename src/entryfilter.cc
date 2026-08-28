@@ -18,17 +18,12 @@
 
 #include "entryfilter.hh"
 
-#include <stdexcept>
-
-#include "flexisip/module.hh"
-#include "flexisip/sip-boolean-expressions.hh"
-
-#include "exceptions/bad-configuration.hh"
+#include "flexisip/sofia-wrapper/msg-sip.hh"
 
 using namespace std;
 using namespace flexisip;
 
-void ConfigEntryFilter::declareConfig(GenericStruct& moduleConfig) {
+void ConfigEntryFilter::declareConfig(GenericStruct& mc) {
 	ConfigItemDescriptor config[] = {
 	    {
 	        Boolean,
@@ -45,57 +40,28 @@ void ConfigEntryFilter::declareConfig(GenericStruct& moduleConfig) {
 	        "https://wiki.linphone.org/xwiki/wiki/public/view/Flexisip/Configuration/Filter%20syntax/",
 	        "",
 	    },
-
-	    // Deprecated parameters
-	    {
-	        String,
-	        "from-domains",
-	        "Deprecated: List of domain names in sip from allowed to enter the module.",
-	        "*",
-	    },
-	    {
-	        String,
-	        "to-domains",
-	        "Deprecated: List of domain names in sip to allowed to enter the module.",
-	        "*",
-	    },
 	    config_item_end,
 	};
 
-	moduleConfig.addChildrenValues(config, false);
-	moduleConfig.deprecateChild("from-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
-	moduleConfig.deprecateChild("to-domains", {"2012-09-04", "0.5.0", "Use 'filter' setting instead."});
-	moduleConfig.createStat("count-eval-true", "Number of filter evaluations to true.");
-	moduleConfig.createStat("count-eval-false", "Number of filter evaluations to false.");
+	mc.addChildrenValues(config, false);
+	mc.createStat("count-eval-true", "Number of filter evaluations to true.");
+	mc.createStat("count-eval-false", "Number of filter evaluations to false.");
 }
 
-ConfigEntryFilter::ConfigEntryFilter(GenericStruct& moduleConfig) {
-	mCountEvalTrue = moduleConfig.getStat("count-eval-true");
-	mCountEvalFalse = moduleConfig.getStat("count-eval-false");
+ConfigEntryFilter::ConfigEntryFilter(GenericStruct& mc) {
+	mCountEvalTrue = mc.getStat("count-eval-true");
+	mCountEvalFalse = mc.getStat("count-eval-false");
 }
 
 void ConfigEntryFilter::loadConfig(const GenericStruct* mc) {
-	string filter = mc->get<ConfigValue>("filter")->get();
-
-	if (filter.empty()) {
-		string fromDomains = mc->get<ConfigString>("from-domains")->read();
-		if (!fromDomains.empty() && fromDomains != "*") {
-			filter = "(from.uri.domain in '" + fromDomains + "')";
-		}
-
-		string toDomains = mc->get<ConfigString>("to-domains")->read();
-		if (!toDomains.empty() && toDomains != "*") {
-			if (!filter.empty()) filter += " && ";
-			filter += "(to.uri.domain in '" + toDomains + "')";
-		}
-	}
 	mEnabled = mc->get<ConfigBoolean>("enabled")->read();
-	try {
-		mBooleanExprFilter = SipBooleanExpressionBuilder::get().parse(filter);
-	} catch (exception& e) {
-		throw BadConfiguration{"could not parse entry filter for module '" + mc->getName() + "' (" + e.what() + ")"};
+	if (!mEnabled) {
+		return;
 	}
+
 	mEntryName = mc->getName();
+	mBooleanExprFilter = mc->get<ConfigBooleanExpression>("filter")->read();
+	mBooleanExprFilter->disableLogging();
 }
 
 bool ConfigEntryFilter::canEnter(const shared_ptr<MsgSip>& ms) {
