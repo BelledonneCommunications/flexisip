@@ -21,13 +21,12 @@
  * This file must be included from the compilation unit where the template is instanciated.
  */
 
-#include <algorithm>
+#include "expressionparser.hh"
+
 #include <cstring>
 #include <regex>
-#include <sstream>
 
-#include "flexisip/expressionparser.hh"
-#include "flexisip/flexisip-exception.hh"
+#include "flexisip-exception.hh"
 #include "flexisip/logmanager.hh"
 
 using namespace std;
@@ -37,33 +36,38 @@ namespace flexisip {
 template <typename _valuesT>
 class ConstantBooleanExpression : public BooleanExpression<_valuesT> {
 public:
-	ConstantBooleanExpression(bool ret) : mRet(ret){};
-	virtual bool eval([[maybe_unused]] const _valuesT& args) override {
+	explicit ConstantBooleanExpression(bool ret) : mRet(ret){};
+
+	bool eval(const _valuesT& /*unused*/) override {
 		return mRet;
 	}
+
 	bool mRet;
 };
 
 template <typename _valuesT>
 class LogicalAnd : public BooleanExpression<_valuesT> {
-private:
-	using Expr = BooleanExpression<_valuesT>;
-	shared_ptr<Expr> mExp1, mExp2;
-
 public:
+	using Expr = BooleanExpression<_valuesT>;
+
 	LogicalAnd(const shared_ptr<Expr>& exp1, const shared_ptr<Expr>& exp2) : mExp1(exp1), mExp2(exp2){};
-	virtual bool eval(const _valuesT& args) override {
+
+	bool eval(const _valuesT& args) override {
 		return mExp1->eval(args) && mExp2->eval(args);
 	}
+
+private:
+	shared_ptr<Expr> mExp1, mExp2;
 };
 
 template <typename _valuesT>
 class LogicalOr : public BooleanExpression<_valuesT> {
 public:
 	using Expr = BooleanExpression<_valuesT>;
-	LogicalOr(const shared_ptr<Expr>& exp1, const shared_ptr<Expr>& exp2) : mExp1(exp1), mExp2(exp2) {
-	}
-	virtual bool eval(const _valuesT& args) override {
+
+	LogicalOr(const shared_ptr<Expr>& exp1, const shared_ptr<Expr>& exp2) : mExp1(exp1), mExp2(exp2) {}
+
+	bool eval(const _valuesT& args) override {
 		return mExp1->eval(args) || mExp2->eval(args);
 	}
 
@@ -75,9 +79,10 @@ template <typename _valuesT>
 class LogicalNot : public BooleanExpression<_valuesT> {
 public:
 	using Expr = BooleanExpression<_valuesT>;
-	LogicalNot(const shared_ptr<Expr>& exp) : mExp(exp) {
-	}
-	virtual bool eval(const _valuesT& args) override {
+
+	explicit LogicalNot(const shared_ptr<Expr>& exp) : mExp(exp) {}
+
+	bool eval(const _valuesT& args) override {
 		return !mExp->eval(args);
 	}
 
@@ -89,9 +94,10 @@ template <typename _valuesT>
 class EqualsOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
-	EqualsOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {
-	}
-	virtual bool eval(const _valuesT& args) override {
+
+	EqualsOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {}
+
+	bool eval(const _valuesT& args) override {
 		return mVar1->get(args) == mVar2->get(args);
 	}
 
@@ -103,9 +109,10 @@ template <typename _valuesT>
 class UnEqualsOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
-	UnEqualsOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {
-	}
-	virtual bool eval(const _valuesT& args) override {
+
+	UnEqualsOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {}
+
+	bool eval(const _valuesT& args) override {
 		return mVar1->get(args) != mVar2->get(args);
 	}
 
@@ -120,9 +127,10 @@ template <typename _valuesT>
 class NumericOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
-	NumericOp(const shared_ptr<Var>& var) : mVar(var) {
-	}
-	virtual bool eval(const _valuesT& args) override {
+
+	explicit NumericOp(const shared_ptr<Var>& var) : mVar(var) {}
+
+	bool eval(const _valuesT& args) override {
 		string var = mVar->get(args);
 		bool res = true;
 		for (auto it = var.begin(); it != var.end(); ++it) {
@@ -146,9 +154,10 @@ template <typename _valuesT>
 class DefinedOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
-	DefinedOp(const shared_ptr<Var>& var) : mVar(var) {
-	}
-	virtual bool eval(const _valuesT& args) {
+
+	explicit DefinedOp(const shared_ptr<Var>& var) : mVar(var) {}
+
+	bool eval(const _valuesT& args) override {
 		return mVar->defined(args);
 	}
 
@@ -162,14 +171,10 @@ public:
 	using Var = Variable<_valuesT>;
 
 	RegexpOp(const shared_ptr<Var>& input, const shared_ptr<Constant<_valuesT>>& pattern)
-	    : mInput(input), mRegex(pattern->get(), std::regex::ECMAScript | std::regex::nosubs) {
-	}
+	    : mInput(input), mRegex(pattern->get(), std::regex::ECMAScript | std::regex::nosubs) {}
 
-	virtual bool eval(const _valuesT& args) {
-		if (regex_match(mInput->get(args), mRegex)) {
-			return true;
-		}
-		return false;
+	bool eval(const _valuesT& args) override {
+		return static_cast<bool>(regex_match(mInput->get(args), mRegex));
 	}
 
 private:
@@ -181,9 +186,10 @@ template <typename _valuesT>
 class ContainsOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
-	ContainsOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {
-	}
-	virtual bool eval(const _valuesT& args) override {
+
+	ContainsOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {}
+
+	bool eval(const _valuesT& args) override {
 		string var1 = mVar1->get(args);
 		string var2 = mVar2->get(args);
 		return var1.find(var2) != string::npos;
@@ -200,9 +206,10 @@ template <typename _valuesT>
 class InOp : public BooleanExpression<_valuesT> {
 public:
 	using Var = Variable<_valuesT>;
-	InOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {
-	}
-	virtual bool eval(const _valuesT& args) {
+
+	InOp(const shared_ptr<Var>& var1, const shared_ptr<Var>& var2) : mVar1(var1), mVar2(var2) {}
+
+	bool eval(const _valuesT& args) override {
 		bool res = false;
 		list<string> values = mVar2->getAsList(args);
 		string varValue = mVar1->get(args);
@@ -311,20 +318,20 @@ bool BooleanExpressionBuilder<_valuesT>::isKeyword(const string& expr, size_t* n
 	return true;
 }
 
-template< typename _valuesT>
-void BooleanExpressionBuilder<_valuesT>::checkRulesOverlap(){
-	for(const string & builtin :  sBuiltinOperators){
-		if (mRules.variables.find(builtin) != mRules.variables.end()){
+template <typename _valuesT>
+void BooleanExpressionBuilder<_valuesT>::checkRulesOverlap() {
+	for (const string& builtin : kBuiltinOperators) {
+		if (mRules.variables.find(builtin) != mRules.variables.end()) {
 			throw FlexisipException{"variable name '" + builtin +
 			                        "' conflicts with builtin operator name (BooleanExpressionBuilder)"};
 		}
-		if (mRules.operators.find(builtin) != mRules.operators.end()){
+		if (mRules.operators.find(builtin) != mRules.operators.end()) {
 			throw FlexisipException{"variable name '" + builtin +
 			                        "' conflicts with builtin operator name (BooleanExpressionBuilder)"};
 		}
 	}
-	for (auto p : mRules.operators){
-		if (mRules.variables.find(p.first) != mRules.variables.end()){
+	for (auto p : mRules.operators) {
+		if (mRules.variables.find(p.first) != mRules.variables.end()) {
 			throw FlexisipException{"variable name '" + p.first +
 			                        "' conflicts with builtin operator name (BooleanExpressionBuilder)"};
 		}
@@ -346,7 +353,7 @@ std::shared_ptr<BooleanExpression<_valuesT>> BooleanExpressionBuilder<_valuesT>:
 }
 
 template <typename _valuesT>
-const std::list<std::string> BooleanExpressionBuilder<_valuesT>::sBuiltinOperators = {
+const std::list<std::string> BooleanExpressionBuilder<_valuesT>::kBuiltinOperators = {
     "&&",  "||",      "!",      "==",    "!=",      "contains", "in",   "notin",
     "nin", "defined", "regexp", "regex", "numeric", "true",     "false"};
 
