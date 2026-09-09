@@ -141,6 +141,7 @@ if(ENABLE_SOCI)
 	target_sources(flexisip_tester PRIVATE
 		auth/db/authdb-soci-tester.cc
 		eventlogs/writers/database-event-log-writer-tester.cc
+		modules/router/fork/divertible-fork-soci-tester.cc
 		modules/router/fork/fork-context-mysql-tester.cc
 		modules/router/fork/fork-message-context-soci-repository-tester.cc
 		modules/router/module-router-sql-tester.cc

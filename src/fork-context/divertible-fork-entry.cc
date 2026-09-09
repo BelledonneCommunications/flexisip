@@ -46,23 +46,34 @@ void DivertibleForkEntry::linkForkUnit(const std::shared_ptr<Fork>& fork) {
 
 std::shared_ptr<BranchInfo> DivertibleForkEntry::addBranch(std::unique_ptr<RequestSipEvent>&& ev,
                                                            const std::shared_ptr<ExtendedContact>& contact) {
-	auto branch = mForkContext->addBranch(mFork.lock(), std::move(ev), contact);
+	const auto fork = mFork.lock();
+	if (!fork) return nullptr;
+	auto branch = mForkContext->addBranch(fork, std::move(ev), contact);
 	if (branch) branch->setForkContext(shared_from_this());
 	return branch;
 }
 
 void DivertibleForkEntry::start() {
-	mForkContext->start(mFork.lock());
+	const auto fork = mFork.lock();
+	if (!fork) return;
+	mForkContext->start(fork);
 }
 
 void DivertibleForkEntry::onResponse(const std::shared_ptr<BranchInfo>& br, ResponseSipEvent& ev) {
-	mForkContext->onResponse(mFork.lock(), br, ev);
+	const auto fork = mFork.lock();
+	if (!fork) return;
+	mForkContext->onResponse(fork, br, ev);
 }
 
 void DivertibleForkEntry::onNewRegister(const SipUri& dest,
                                         const std::string& uid,
                                         const std::shared_ptr<ExtendedContact>& newContact) {
-	mForkContext->onNewRegister(mFork.lock(), dest, uid, newContact);
+	const auto fork = mFork.lock();
+	if (!fork) {
+		// Always reply to this notification, necessary to clean the SchedulorInjector list.
+		return onUselessRegisterNotification(nullptr, newContact, dest, uid, DispatchStatus::DispatchNotNeeded);
+	}
+	mForkContext->onNewRegister(fork, dest, uid, newContact);
 }
 
 void DivertibleForkEntry::processInternalError(int status, const char* phrase) {

@@ -198,19 +198,19 @@ void DivertibleForkContext::onForkContextFinished(const std::shared_ptr<Fork>& f
 std::shared_ptr<BranchInfo> DivertibleForkContext::addBranch(const std::shared_ptr<Fork>& fork,
                                                              std::unique_ptr<RequestSipEvent>&& ev,
                                                              const std::shared_ptr<ExtendedContact>& contact) {
-	if (!fork) return nullptr;
+	assert(fork != nullptr);
 	return fork->addBranch(std::move(ev), contact);
 }
 
 void DivertibleForkContext::start(const std::shared_ptr<Fork>& fork) {
-	if (!fork) return;
+	assert(fork != nullptr);
 	fork->start();
 }
 
 void DivertibleForkContext::onResponse(const std::shared_ptr<Fork>& fork,
                                        const std::shared_ptr<BranchInfo>& br,
                                        ResponseSipEvent& ev) {
-	if (!fork) return;
+	assert(fork != nullptr);
 	fork->onResponse(br, ev);
 	// If the call must be diverted on this response code, then the replier has intercepted the response.
 	divertIfResponseHasBeenFiltered(*fork);
@@ -220,7 +220,7 @@ void DivertibleForkContext::onNewRegister(const std::shared_ptr<Fork>& fork,
                                           const SipUri& dest,
                                           const std::string& uid,
                                           const std::shared_ptr<ExtendedContact>& newContact) {
-	if (!fork) return;
+	assert(fork != nullptr);
 	fork->onNewRegister(dest, uid, newContact);
 }
 
