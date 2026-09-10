@@ -79,7 +79,7 @@ void startCallAndCheckAuthority(const shared_ptr<flexisip::tester::Server>& prox
 	const auto startedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(startedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
-	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/stats/calls");
+	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/statistics/calls");
 	BC_ASSERT_CPP_EQUAL(startedEvent->authority, expectedAuthority);
 }
 
@@ -128,7 +128,7 @@ void startLogWriter() {
 		                                                    {"event-logs/logger", "flexiapi"},
 		                                                    {"event-logs/flexiapi-host", "127.0.0.1"},
 		                                                    {"event-logs/flexiapi-port", to_string(port)},
-		                                                    {"event-logs/flexiapi-prefix", "api/stats"},
+		                                                    {"event-logs/flexiapi-prefix", "api/statistics"},
 		                                                    {"event-logs/flexiapi-api-key", "aRandomApiToken"}};
 		makeAndStartProxy(customConfigs);
 	}
@@ -154,7 +154,7 @@ void startLogWriterMissingUrl() {
 	                                                    {"event-logs/logger", "flexiapi"},
 	                                                    {"event-logs/flexiapi-host", "127.0.0.1"},
 	                                                    {"event-logs/flexiapi-port", to_string(port)},
-	                                                    {"event-logs/flexiapi-prefix", "api/stats"},
+	                                                    {"event-logs/flexiapi-prefix", "api/statistics"},
 	                                                    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
 	                                                    {"global::flexiapi/api-key", "aRandomApiToken"}};
 	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
@@ -173,7 +173,7 @@ void startLogWriterMissingApikey() {
 	    {"event-logs/logger", "flexiapi"},
 	    {"event-logs/flexiapi-host", "127.0.0.1"},
 	    {"event-logs/flexiapi-port", to_string(port)},
-	    {"event-logs/flexiapi-prefix", "api/stats"},
+	    {"event-logs/flexiapi-prefix", "api/statistics"},
 	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
 	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)}};
 	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
@@ -192,7 +192,7 @@ void startLogWriterGlobalOverrides() {
 	    {"event-logs/logger", "flexiapi"},
 	    {"event-logs/flexiapi-host", "127.0.0.1"},
 	    {"event-logs/flexiapi-port", to_string(port)},
-	    {"event-logs/flexiapi-prefix", "api/stats"},
+	    {"event-logs/flexiapi-prefix", "api/statistics"},
 	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
 	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)},
 	    {"global::flexiapi/api-key", "aRandomApiToken"}};
@@ -236,7 +236,7 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	const auto startedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(startedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
-	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/stats/calls");
+	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/statistics/calls");
 	BC_ASSERT_CPP_EQUAL(startedEvent->authority, authority);
 	json actualJson;
 	try {
@@ -262,7 +262,7 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	const auto ringingEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(ringingEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(ringingEvent->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(ringingEvent->path, "/api/stats/calls/" + logId + "/devices/" + expectedDeviceId);
+	BC_ASSERT_CPP_EQUAL(ringingEvent->path, "/api/statistics/calls/" + logId + "/devices/" + expectedDeviceId);
 	try {
 		actualJson = json::parse(ringingEvent->body);
 	} catch (const exception&) {
@@ -272,7 +272,7 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	const auto acceptedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(acceptedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(acceptedEvent->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(acceptedEvent->path, "/api/stats/calls/" + logId + "/devices/" + expectedDeviceId);
+	BC_ASSERT_CPP_EQUAL(acceptedEvent->path, "/api/statistics/calls/" + logId + "/devices/" + expectedDeviceId);
 	try {
 		actualJson = json::parse(acceptedEvent->body);
 	} catch (const exception&) {
@@ -296,7 +296,7 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 
 	const auto endedEvent = flexiapiServer.popRequestReceived();
 	BC_ASSERT_CPP_EQUAL(endedEvent->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(endedEvent->path, "/api/stats/calls/" + logId);
+	BC_ASSERT_CPP_EQUAL(endedEvent->path, "/api/statistics/calls/" + logId);
 	try {
 		actualJson = json::parse(endedEvent->body);
 	} catch (const exception&) {
@@ -311,7 +311,7 @@ void callStartedAndEndedWithEventLogConfig() {
 	    {"event-logs/logger", "flexiapi"},
 	    {"event-logs/flexiapi-host", "127.0.0.1"},
 	    {"event-logs/flexiapi-port", ""},
-	    {"event-logs/flexiapi-prefix", "api/stats"},
+	    {"event-logs/flexiapi-prefix", "api/statistics"},
 	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
 	};
 	callStartedAndEnded(customConfigs);
@@ -335,7 +335,7 @@ void messageSentAndReceived() {
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(
-	    getRestClient(*agent->getRoot(), "127.0.0.1", port, "aRandomApiToken"), "/api/stats/"));
+	    getRestClient(*agent->getRoot(), "127.0.0.1", port, "aRandomApiToken"), "/api/statistics/"));
 	ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -369,7 +369,7 @@ void messageSentAndReceived() {
 	const auto sentEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
-	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/api/stats/messages");
+	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/api/statistics/messages");
 	json actualJson;
 	try {
 		actualJson = json::parse(sentEvent->body);
@@ -398,7 +398,7 @@ void messageSentAndReceived() {
 	BC_HARD_ASSERT(deliveredEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(deliveredEvent->path,
-	                    "/api/stats/messages/" + logId + "/to/" + expectedTo + "/devices/" + expectedDeviceId);
+	                    "/api/statistics/messages/" + logId + "/to/" + expectedTo + "/devices/" + expectedDeviceId);
 	try {
 		actualJson = json::parse(deliveredEvent->body);
 	} catch (const exception&) {
