@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 
@@ -111,6 +112,7 @@ public:
 	 * Force audio codec
 	 */
 	ClientBuilder& setAudioCodec(AudioCodec);
+	ClientBuilder& setTransport(linphone::TransportType transport);
 
 	ClientBuilder& setMwiServerAddress(const std::shared_ptr<linphone::Address>& address);
 	ClientBuilder& setAutoAnswerReplacingCalls(OnOff);
@@ -148,6 +150,7 @@ private:
 	std::string mUserAgentName{"Linphone (Flexisip tester)"};
 	std::string mUserAgentVersion{FLEXISIP_GIT_VERSION};
 	std::string mRemoteAddress{};
+	std::optional<linphone::TransportType> mTransport{};
 };
 
 } // namespace tester

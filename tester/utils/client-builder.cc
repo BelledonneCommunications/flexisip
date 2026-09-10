@@ -80,6 +80,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress, const std::strin
 		if (route->getPort() == 0) {
 			if (mAgent) route->setPort(std::atoi(getFirstPort(*mAgent)));
 		}
+		if (mTransport) route->setTransport(*mTransport);
 
 		accountParams->setServerAddress(route);
 		accountParams->setRoutesAddresses({route});
@@ -332,6 +333,11 @@ ClientBuilder& ClientBuilder::setAudioOutputFilePath(const std::filesystem::path
 
 ClientBuilder& ClientBuilder::setAudioCodec(AudioCodec codec) {
 	mAudioCodec = codec;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setTransport(linphone::TransportType transport) {
+	mTransport = transport;
 	return *this;
 }
 
