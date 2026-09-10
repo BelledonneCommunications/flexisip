@@ -85,7 +85,7 @@ void flexiStatTestFunc(const SendReqFunc& sendRequest,
 	                                     {"accept", "application/json"},
 	                                     {"x-api-key"s, "aRandomApiToken"},
 	                                 }},
-	                      "api////stats//"};
+	                      "api////statistics//"};
 
 	sendRequest(flexiStats);
 
@@ -156,7 +156,7 @@ void postMessageFullSendRequest(FlexiStats& flexiStats) {
 }
 void postMessageFullCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/messages");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/messages");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -212,7 +212,7 @@ void postMessageMinimalRequest(FlexiStats& flexiStats) {
 }
 void postMessageMinimalCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/messages");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/messages");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -245,7 +245,7 @@ void notifyMessageDeviceResponseSendRequest(FlexiStats& flexiStats) {
 }
 void notifyMessageDeviceResponseCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/messages/84c937d1/to/user1@domain.org/devices/device_id");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/messages/84c937d1/to/user1@domain.org/devices/device_id");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -300,7 +300,7 @@ void postCallFullSendRequest(FlexiStats& flexiStats) {
 }
 void postCallFullCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -357,7 +357,7 @@ void postCallMinimalSendRequest(FlexiStats& flexiStats) {
 }
 void postCallMinimalCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -391,7 +391,7 @@ void updateCallDeviceStateFullSendRequest(FlexiStats& flexiStats) {
 }
 void updateCallDeviceStateFullCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls/4722b0233/devices/device_id");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls/4722b0233/devices/device_id");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -422,7 +422,7 @@ void updateCallDeviceStateRangOnlySendRequest(FlexiStats& flexiStats) {
 }
 void updateCallDeviceStateRangOnlyCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls/4722b0233/devices/device_id_1");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls/4722b0233/devices/device_id_1");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -449,7 +449,7 @@ void updateCallDeviceStateTerminatedOnlySendRequest(FlexiStats& flexiStats) {
 }
 void updateCallDeviceStateTerminatedOnlyCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls/4722b0233/devices/device_id_1");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls/4722b0233/devices/device_id_1");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -480,7 +480,7 @@ void updateCallDeviceStateEmptySendRequest(FlexiStats& flexiStats) {
 }
 void updateCallDeviceStateEmptyCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls/4722b0233/devices/device_id_1");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls/4722b0233/devices/device_id_1");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -501,7 +501,7 @@ void updateCallStateSendRequest(FlexiStats& flexiStats) {
 }
 void updateCallStateCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/calls/4722b0233");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/calls/4722b0233");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -545,7 +545,7 @@ void postConferenceFullSendRequest(FlexiStats& flexiStats) {
 }
 void postConferenceFullCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/conferences");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/conferences");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -575,7 +575,7 @@ void postConferenceMinimalSendRequest(FlexiStats& flexiStats) {
 }
 void postConferenceMinimalCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/conferences");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/conferences");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -603,7 +603,7 @@ void notifyConferenceEndedSendRequest(FlexiStats& flexiStats) {
 }
 void notifyConferenceEndedCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "PATCH");
-	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/stats/conferences/iHVDMq6MxSKp60bT");
+	BC_ASSERT_CPP_EQUAL(actualRequest->path, "/api/statistics/conferences/iHVDMq6MxSKp60bT");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -631,7 +631,7 @@ void conferenceAddParticipantEventSendRequest(FlexiStats& flexiStats) {
 void conferenceAddParticipantEventCustomAssert(const shared_ptr<Request>& actualRequest) {
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
 	BC_ASSERT_CPP_EQUAL(actualRequest->path,
-	                    "/api/stats/conferences/iHVDMq6MxSKp60bT/participants/user1@domain.org/events");
+	                    "/api/statistics/conferences/iHVDMq6MxSKp60bT/participants/user1@domain.org/events");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);
@@ -661,7 +661,7 @@ void conferenceAddParticipantDeviceEventCustomAssert(const shared_ptr<Request>& 
 	BC_ASSERT_CPP_EQUAL(actualRequest->method, "POST");
 	BC_ASSERT_CPP_EQUAL(
 	    actualRequest->path,
-	    "/api/stats/conferences/iHVDMq6MxSKp60bT/participants/user1@domain.org/devices/device_id/events");
+	    "/api/statistics/conferences/iHVDMq6MxSKp60bT/participants/user1@domain.org/devices/device_id/events");
 	json actualJson;
 	try {
 		actualJson = json::parse(actualRequest->body);

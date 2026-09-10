@@ -34,6 +34,7 @@ Group changes to describe their impact on the project, as follows:
   - **ContactRouteInserter**: Restore domain-based `CtRt` parameters, fixing Push Gateway routing when
     `insert-domain=true`.
   - **Flexiapi**: `Global::flexiapi` parameters overrides the settings of `event-logs` section.
+  - **EventLogs**: Default value set to `/api/statistics/` which is the Flexisip Account Manager correct path.
 - **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
 
 ## [2.6.1] - 2026-07-30

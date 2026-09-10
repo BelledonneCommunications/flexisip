@@ -37,6 +37,8 @@ using namespace std;
 
 namespace flexisip {
 
+static constexpr auto kEventLogApiPrefix = "/api/statistics/";
+
 void Agent::startLogWriter() {
 	GenericStruct const* cr = mConfigManager->getRoot()->get<GenericStruct>("event-logs");
 
@@ -68,7 +70,7 @@ void Agent::startLogWriter() {
 					        "'flexiapi-prefix' of 'event-logs' section.";
 				}
 				mLogWriter = make_unique<FlexiStatsEventLogWriter>(
-				    flexiapi::createRestClient(*mConfigManager, mFlexiApiClient), "/api/stats/");
+				    flexiapi::createRestClient(*mConfigManager, mFlexiApiClient), kEventLogApiPrefix);
 			} else if (!host.empty()) {
 				LOGW << "'flexiapi-host' 'flexiapi-port' 'flexiapi-api-key' and 'flexiapi-prefix' parameters are "
 				        "deprecated, use 'global::flexiapi::url' and 'global::flexiapi::api-key' instead.";

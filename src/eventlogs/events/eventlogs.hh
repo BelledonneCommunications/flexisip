@@ -149,8 +149,7 @@ public:
 	// Explicit values is necessary for soci. Do not change this.
 	enum class ReportType { ResponseToSender = 0, ResponseFromRecipient = 1 };
 
-	MessageLog(const sip_t& sip) : EventLog(&sip) {
-	}
+	MessageLog(const sip_t& sip) : EventLog(&sip) {}
 	virtual ~MessageLog() = default;
 
 	virtual ReportType getReportType() const {
