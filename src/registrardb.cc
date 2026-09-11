@@ -568,13 +568,20 @@ void RegistrarDb::clear(const url_t *url,
                         const std::string& callId,
                         const std::shared_ptr<RegistrarDbListener>& listener) {
 	// Forged message
-	MsgSip msg(nta_msg_create(mAgent->getSofiaAgent(), 0));
-	auto home = msg.getHome();
-	auto sip = msg.getSip();
-	sip->sip_from = sip_from_create(home, reinterpret_cast<const url_string_t*>(url));
-	sip->sip_call_id = sip_call_id_make(home, callId.c_str());
-	sip->sip_cseq = sip_cseq_create(home, 0xDEADC0DE, SIP_METHOD_REGISTER); // Placeholder
-	clear(sip, listener);
+	// The MsgSip(msg_t*) constructor calls msg_ref_create() (refcount 1->2) and ~MsgSip()
+	// calls msg_destroy() (refcount 2->1), leaking the original reference. We keep a handle
+	// on the raw msg_t and destroy it ourselves after MsgSip is gone.
+	msg_t *raw = nta_msg_create(mAgent->getSofiaAgent(), 0);
+	{
+		MsgSip msg(raw);
+		auto home = msg.getHome();
+		auto sip = msg.getSip();
+		sip->sip_from = sip_from_create(home, reinterpret_cast<const url_string_t*>(url));
+		sip->sip_call_id = sip_call_id_make(home, callId.c_str());
+		sip->sip_cseq = sip_cseq_create(home, 0xDEADC0DE, SIP_METHOD_REGISTER); // Placeholder
+		clear(sip, listener);
+	} // ~MsgSip: msg_destroy(msg) -> refcount 2->1
+	msg_destroy(raw); // refcount 1->0, freed
 }
 
 class RecursiveRegistrarDbListener : public RegistrarDbListener,
