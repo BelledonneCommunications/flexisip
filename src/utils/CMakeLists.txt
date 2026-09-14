@@ -27,7 +27,6 @@ target_sources(flexisip PRIVATE
 	flow.cc flow.hh
 	flow-data.cc flow-data.hh
 	flow-factory.cc flow-factory.hh
-	http-url.cc
 	limited-unordered-map.hh
 	load-file.hh
 	observable.hh
@@ -59,6 +58,8 @@ target_sources(flexisip PRIVATE
 	transport/tls/tls-direct-connection-establishment-strategy.cc transport/tls/tls-direct-connection-establishment-strategy.hh
 	transport/tls/tls-proxy-connection-establishment-strategy.cc transport/tls/tls-proxy-connection-establishment-strategy.hh
 	uri-utils.cc uri-utils.hh
+	url/http-url.cc
+	url/http-url-error.hh
 	utf8-string.cc utf8-string.hh
 	variant-utils.hh
 	xsd-utils.hh

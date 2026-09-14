@@ -20,6 +20,8 @@
 
 #include <filesystem>
 
+#include "http-url-error.hh"
+
 using namespace std;
 
 namespace flexisip {
@@ -74,7 +76,7 @@ std::optional<std::string> HttpUrl::hasParsingError(const sofiasip::Url& url) no
 
 void HttpUrl::checkUrl(const sofiasip::Url& url) {
 	auto parsingError = hasParsingError(url);
-	if (parsingError) throw sofiasip::InvalidUrlError(url.str(), parsingError.value());
+	if (parsingError) throw HttpUrlError(parsingError.value() + "(" + url.str() + ")");
 }
 
 std::string HttpUrl::normalizePath(std::string_view path) {

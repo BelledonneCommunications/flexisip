@@ -29,6 +29,7 @@
 #include "pushnotification/pushnotification-context.hh"
 #include "utils/transport/http/https-proxy-cfg.hh"
 #include "utils/uri-utils.hh"
+#include "utils/url/http-url-error.hh"
 
 using namespace std;
 
@@ -469,7 +470,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 			// Append push notification endpoint to the generic api path
 			auto pnUrl = HttpUrl(flexiApiUrl).appendPath(kFlexiApiPushNotificationPath);
 			mPNS->setupGenericJsonClient(pnUrl, flexiApiKey, FlexiApiBodyGenerationFunc, flexiApiClient);
-		} catch (const sofiasip::InvalidUrlError& e) {
+		} catch (const HttpUrlError& e) {
 			throw BadConfiguration{"invalid value for parameter '" + flexiApiUrlCfg->getCompleteName() + "' (" +
 			                       e.what() + +")"};
 		}
@@ -484,7 +485,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 			if (!externalPushUri.empty()) {
 				mPNS->setupGenericClient(externalPushUri, externalPushMethod, externalPushProtocol);
 			}
-		} catch (const sofiasip::InvalidUrlError& e) {
+		} catch (const HttpUrlError& e) {
 			throw BadConfigurationValue{externalUriCfg, "("s + e.what() + +")"};
 		} catch (const InvalidMethodError& e) {
 			throw BadConfigurationValue{externalPushMethodCfg, "("s + e.what() + ")"};
