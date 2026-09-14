@@ -93,10 +93,14 @@ void HttpMock::handleRequest(const server::Request& req, const server::Response&
 	res.send(kDefaultResponse);
 }
 
+void HttpMock::setListeningAddress(const std::string& ipAddress) {
+	mAddress = ipAddress;
+}
+
 int HttpMock::serveAsync(const std::string& port) {
 	boost::system::error_code ec{};
 
-	if (mServer.listenAndServe(ec, mCtx, "127.0.0.1", port)) {
+	if (mServer.listenAndServe(ec, mCtx, mAddress, port)) {
 		LOGE_CTX(mLogPrefix) << "error: " << ec.message();
 		return -1;
 	}

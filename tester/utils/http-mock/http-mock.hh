@@ -57,6 +57,13 @@ public:
 		forceCloseServer();
 	}
 
+	/**
+	 * Set the IP address that will be bind.
+	 * MUST be called before 'serverAsync' otherwise the mock will listen to 127.0.0.1.
+	 * @param ipAddress
+	 */
+	void setListeningAddress(const std::string& ipAddress);
+
 	int serveAsync(const std::string& port = "0");
 	void forceCloseServer();
 	std::shared_ptr<Request> popRequestReceived();
@@ -82,6 +89,7 @@ private:
 	std::queue<std::shared_ptr<Request>> mRequestsReceived{};
 	std::atomic<int>* mRequestReceivedCount{nullptr};
 	std::map<std::string, std::string> mGETResponse;
+	std::string mAddress = "127.0.0.1";
 };
 
 } // namespace flexisip::tester::http_mock
