@@ -49,7 +49,13 @@ public:
 	HttpUrl& operator=(const HttpUrl& src) noexcept = default;
 	HttpUrl& operator=(HttpUrl&& src) noexcept = default;
 
+	bool operator==(const HttpUrl& other) const;
 	Scheme getSchemeType() const noexcept;
+
+	/**
+	 * Replace the URL host.
+	 */
+	[[nodiscard]] HttpUrl replaceHost(std::string_view path) const;
 
 	/**
 	 * Replace the URL path.

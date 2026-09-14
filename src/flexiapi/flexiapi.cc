@@ -20,12 +20,19 @@
 
 #include <filesystem>
 
+#include "config.hh"
 #include "flexiapi/schemas/voicemail/slot-creation-json.hh"
 
 using namespace std;
 using namespace flexisip;
 using namespace flexiapi;
 using namespace nlohmann;
+
+FlexiApi::FlexiApi(const HttpUrl& url, const std::string& apiKey, const std::shared_ptr<sofiasip::SuRoot>& root)
+    : mRestClient(createRestClient(*root, url, apiKey)) {
+	auto path = url.getPath();
+	mApiPrefix = path.empty() ? "/api/" : filesystem::path{"/" + path + "/."}.lexically_normal().string();
+}
 
 FlexiApi::FlexiApi(RestClient&& restClient, const std::string& apiPrefix)
     : mRestClient(std::move(restClient)),

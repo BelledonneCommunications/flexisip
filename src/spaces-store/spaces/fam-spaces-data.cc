@@ -17,9 +17,9 @@
 */
 
 #include "fam-spaces-data.hh"
+#include "flexiapi/schemas/space/space-json.hh"
 #include "flexiapi/schemas/space/space.hh"
 
-#include <list>
 #include <string>
 
 using namespace std;
@@ -61,7 +61,7 @@ void FAMSpacesData::onAccountManagerResponse(const std::shared_ptr<HttpResponse>
 	}
 
 	try {
-		const auto rawSpaces = nlohmann::json::parse(string(rep->getBody().data(), rep->getBody().size()));
+		const auto rawSpaces = nlohmann::json::parse(rep->getBodyAsString());
 		if (!rawSpaces.is_array()) {
 			LOGE << "Failed to read spaces";
 			return;
@@ -72,10 +72,14 @@ void FAMSpacesData::onAccountManagerResponse(const std::shared_ptr<HttpResponse>
 
 		for (const auto& space : rawSpaces) {
 			if (!space.contains(domain) || !space[domain].is_string()) {
-				LOGE << "Spaces not updated, expected to have a 'domain' field in each Space";
+				LOGW << "Spaces not updated, expected to have a 'domain' field in each Space";
 				return;
 			}
-			spaces.emplace_back(flexiapi::Space{.domain = space[domain]});
+			try {
+				spaces.emplace_back(space.get<flexiapi::Space>());
+			} catch (exception& e) {
+				LOGW << "Failed to parse space for domain " << space[domain] << ": " << e.what();
+			}
 		}
 
 		mNotifySpacesChangedCb(spaces);

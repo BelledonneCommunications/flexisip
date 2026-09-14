@@ -21,6 +21,7 @@
 ############################################################################
 
 target_sources(flexisip PRIVATE
+	domain-config.cc
 	spaces-store.cc spaces-store.hh
 )
 

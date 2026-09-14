@@ -38,12 +38,12 @@ const nlohmann::json kTestSpacesJson = {
     {
         {"name", kTestSpaces[0].name},
         {"domain", kTestSpaces[0].domain},
-        {"super", true},
+        {"host", kTestSpaces[0].domain},
     },
     {
         {"name", kTestSpaces[1].name},
         {"domain", kTestSpaces[1].domain},
-        {"super", false},
+        {"host", kTestSpaces[1].domain},
     },
 };
 

@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -65,32 +65,7 @@ auto sendRequest(sofiasip::NtaAgent& UAC, const std::string& dstPort, int CSeq) 
 	return UAC.createOutgoingTransaction(request, "sip:127.0.0.1:"s + dstPort);
 }
 
-void dynamicDomainLoading() {
-	constexpr auto apiPath = "/api/spaces";
-	http_mock::HttpMock server{apiPath};
-	nlohmann::json spaces = {
-	    {
-	        {"domain", "example.org"},
-	        {"super", true},
-	    },
-	    {
-	        {"domain", domain},
-	        {"super", false},
-	    },
-	};
-
-	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
-	const auto port = server.serveAsync();
-
-	Server proxy(
-	    {
-	        {"module::Registrar/reg-domains", "*.example.org"},
-	        {"module::Authorization/enabled", "true"},
-	        {"module::Authorization/account-manager-host", "127.0.0.1"},
-	        {"module::Authorization/account-manager-port", to_string(port)},
-	    },
-	    &forceTrustedHost);
-
+void runDynamicDomainLoadingTest(Server& proxy, http_mock::HttpMock& server) {
 	proxy.start();
 	auto root = proxy.getRoot();
 
@@ -116,8 +91,65 @@ void dynamicDomainLoading() {
 	root->step(10ms); // needed to acknowledge mock server closing
 }
 
+
+void dynamicDomainLoading() {
+	constexpr auto apiPath = "/api/spaces";
+	http_mock::HttpMock server{apiPath};
+	nlohmann::json spaces = {
+	    {
+	        {"domain", "example.org"},
+	        {"name", "example"},
+	    },
+	    {
+	        {"domain", domain},
+	        {"name", "a"},
+	    },
+	};
+
+	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
+	const auto port = server.serveAsync();
+
+	Server proxy({{"module::Registrar/reg-domains", "*.example.org"},
+	              {"module::Authorization/enabled", "true"},
+	              {"global::domains/domains-configuration", "flexiapi"},
+	              {"global::flexiapi/url", "https://127.0.0.1:" + to_string(port)}},
+	             &forceTrustedHost);
+
+	runDynamicDomainLoadingTest(proxy, server);
+}
+
+void legacyDynamicDomainLoading() {
+	constexpr auto apiPath = "/api/spaces";
+	http_mock::HttpMock server{apiPath};
+	nlohmann::json spaces = {
+	    {
+	        {"domain", "example.org"},
+	        {"name", "example"},
+	    },
+	    {
+	        {"domain", domain},
+	        {"name", "a"},
+	    },
+	};
+
+	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
+	const auto port = server.serveAsync();
+
+	Server proxy(
+	    {
+	        {"module::Registrar/reg-domains", "*.example.org"},
+	        {"module::Authorization/enabled", "true"},
+	        {"module::Authorization/account-manager-host", "127.0.0.1"},
+	        {"module::Authorization/account-manager-port", to_string(port)},
+	    },
+	    &forceTrustedHost);
+
+	runDynamicDomainLoadingTest(proxy, server);
+}
+
 const TestSuite kSuite{"AuthorizationWithFAM",
                        {
                            CLASSY_TEST(dynamicDomainLoading),
+                           CLASSY_TEST(legacyDynamicDomainLoading),
                        }};
 } // namespace

@@ -39,8 +39,17 @@ HttpUrl::HttpUrl(sofiasip::Url&& src) {
 	static_cast<sofiasip::Url*>(this)->operator=(std::move(src));
 }
 
+bool HttpUrl::operator==(const HttpUrl& other) const {
+	return getSchemeType() == other.getSchemeType() && getHost() == other.getHost() && getPort() == other.getPort() &&
+	       getPath() == other.getPath();
+}
+
 HttpUrl::Scheme HttpUrl::getSchemeType() const noexcept {
 	return static_cast<Scheme>(getType());
+}
+
+HttpUrl HttpUrl::replaceHost(std::string_view path) const {
+	return HttpUrl{Url::replace(&url_t::url_host, path)};
 }
 
 HttpUrl HttpUrl::replacePath(std::string_view path) const {

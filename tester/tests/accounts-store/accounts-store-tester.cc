@@ -110,7 +110,7 @@ public:
 	explicit AccountsStoreTest(const std::string_view& accounts) {
 		auto accountsFile = kSuiteDir->path() / __func__;
 		std::ofstream(accountsFile) << accounts;
-		mStore = std::make_unique<AccountsStore>(accountsFile, nullptr, nullptr, nullptr);
+		mStore = std::make_unique<AccountsStore>(accountsFile);
 	}
 
 	std::optional<AccountsStore::ResolvedCallTarget>

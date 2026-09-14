@@ -35,6 +35,7 @@ add_executable(flexisip_tester
 	auth/auth-domains-tester.cc
 	auth/auth-tls-client-tester.cc
 	auth/auth-trusted-hosts-tester.cc
+	auth/module-authorization-FAM-tester.cc
 	auth/module-authorization-tester.cc
 	auth/rsa-keys.hh
 	callcontext-mediarelay-tester.cc

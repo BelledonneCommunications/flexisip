@@ -23,14 +23,20 @@
 
 #include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
+#include "flexisip/utils/http-url.hh"
 #include "utils/transport/http/rest-client.hh"
 
 namespace flexisip::flexiapi {
 
-class FlexiApi {
+class FlexiApi : public std::enable_shared_from_this<FlexiApi> {
 public:
 	using OnErrorCb = HttpMessageContext::OnErrorCb;
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
+
+	template <typename... Args>
+	static std::shared_ptr<FlexiApi> make(Args&&... args) {
+		return std::shared_ptr<FlexiApi>{new FlexiApi{std::forward<Args>(args)...}};
+	}
 
 	explicit FlexiApi(RestClient&& restClient, const std::string& apiPrefix = "/api/");
 
@@ -52,6 +58,8 @@ public:
 
 private:
 	static constexpr std::string_view mLogPrefix{"FlexiApi"};
+
+	FlexiApi(const HttpUrl& url, const std::string& apiKey, const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	std::string toApiPath(const std::string& methodPath) const;
 

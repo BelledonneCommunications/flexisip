@@ -30,15 +30,13 @@ using namespace flexisip::flexiapi;
 
 namespace flexisip {
 
-AccountsStore::AccountsStore(const std::string& advancedAccountOptions,
-                             const std::shared_ptr<ConfigManager>& configManager,
-                             const std::shared_ptr<Http2Client>& flexiApiClient,
+AccountsStore::AccountsStore(const std::string& advancedAccountOptions) {
+	mDataManager = FileData::make(advancedAccountOptions);
+}
+
+AccountsStore::AccountsStore(const std::shared_ptr<FlexiApi>& flexiApiClient,
                              const std::shared_ptr<sofiasip::SuRoot>& root) {
-	if (advancedAccountOptions == "flexiapi") {
-		mDataManager = FAMData::make(createRestClient(*configManager, flexiApiClient), root, 30s, 10min);
-		return;
-	}
-	mDataManager = std::make_shared<FileData>(advancedAccountOptions);
+	mDataManager = FAMData::make(flexiApiClient, root, 30s, 10min);
 }
 
 void AccountsStore::resolveCallTarget(

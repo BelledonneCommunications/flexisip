@@ -23,9 +23,10 @@
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/configmanager.hh"
-#include "flexisip/utils/sip-uri.hh"
+#include "flexisip/utils/http-url.hh"
 #include "utils/transport/http/http2client.hh"
 #include "utils/transport/http/rest-client.hh"
+#include "utils/url/http-url-error.hh"
 
 using namespace std::string_literals;
 
@@ -68,7 +69,7 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
 	const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>(configSection);
 	const auto* flexiApiUrlParameter = flexiApiConfigSection->get<ConfigString>("url");
 	try {
-		const sofiasip::Url flexiApiUrl{flexiApiUrlParameter->read()};
+		const HttpUrl flexiApiUrl{flexiApiUrlParameter->read()};
 		if (flexiApiUrl.empty()) {
 			LOGD_CTX(kLogPrefix) << "No flexiapi URL defined";
 			return nullptr;
@@ -88,13 +89,29 @@ RestClient createRestClient(const ConfigManager& cfg, const std::shared_ptr<Http
 	const auto* flexiApiConfigSection = cfg.getRoot()->get<GenericStruct>(configSection);
 	const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
 	const auto* flexiApiUrlParameter = flexiApiConfigSection->get<ConfigString>("url");
-	const sofiasip::Url flexiApiUrl{flexiApiUrlParameter->read()};
+	const HttpUrl flexiApiUrl{flexiApiUrlParameter->read()};
 
 	const auto pathPrefix = flexiApiUrl.getPath();
 
 	HttpHeaders httpHeaders{};
 	httpHeaders.add("accept", "application/json");
 	if (!flexiApiKey.empty()) httpHeaders.add("x-api-key", flexiApiKey);
+
+	return {http2Client, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
+}
+
+RestClient createRestClient(sofiasip::SuRoot& root, const HttpUrl& url, const std::string& apiKey) {
+	// Create the HTTP Client that should be used for the FlexiAPI
+	if (url.getType() != url_https) {
+		throw HttpUrlError{"URL scheme MUST be 'HTTPS' (" + url.str() + ")"};
+	}
+
+	auto http2Client = Http2Client::make(root, url.getHost(), std::string{url.getPortWithFallback()});
+	const auto pathPrefix = url.getPath();
+
+	HttpHeaders httpHeaders{};
+	httpHeaders.add("accept", "application/json");
+	if (!apiKey.empty()) httpHeaders.add("x-api-key", apiKey);
 
 	return {http2Client, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
 }

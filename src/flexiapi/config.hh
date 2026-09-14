@@ -20,6 +20,7 @@
 
 #include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
+#include "flexisip/utils/http-url.hh"
 #include "utils/transport/http/http2client.hh"
 #include "utils/transport/http/rest-client.hh"
 
@@ -39,5 +40,10 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
  * @throws BadConfiguration if the configuration fields contains invalid or empty values.
  */
 RestClient createRestClient(const ConfigManager& cfg, const std::shared_ptr<Http2Client>& http2Client);
+
+/**
+ * Create a RestClient for the flexiapi with dynamic options.
+ */
+RestClient createRestClient(sofiasip::SuRoot& root, const HttpUrl& url, const std::string& apiKey);
 
 } // namespace flexisip::flexiapi

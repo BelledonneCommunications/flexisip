@@ -29,6 +29,7 @@ namespace flexisip::flexiapi {
 struct Space {
 	std::string name{};
 	std::string domain{};
+	std::optional<std::string> host{};
 	std::optional<Realm> realm{std::nullopt};
 	std::optional<std::filesystem::path> accounts{std::nullopt};
 };

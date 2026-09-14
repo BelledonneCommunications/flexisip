@@ -32,6 +32,7 @@ public:
 
 	explicit FileSpacesData(const std::filesystem::path& domainsConfigFilePath,
 	                        const NotifySpacesChangedCb& notifySpacesChangedCb);
+	// For legacy purpose
 	explicit FileSpacesData(const std::list<std::string>& domains, const NotifySpacesChangedCb& notifySpacesChangedCb);
 };
 

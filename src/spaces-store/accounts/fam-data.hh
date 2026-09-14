@@ -36,11 +36,9 @@ class FAMData : public IDataManager, public std::enable_shared_from_this<FAMData
 	using HttpRequest = HttpMessage;
 
 public:
-	static std::shared_ptr<FAMData> make(RestClient&& restClient,
-	                                     const std::shared_ptr<sofiasip::SuRoot>& root,
-	                                     std::chrono::milliseconds cacheTimeout,
-	                                     std::chrono::milliseconds unknownTimeout) {
-		return std::shared_ptr<FAMData>(new FAMData(std::move(restClient), root, cacheTimeout, unknownTimeout));
+	template <typename... Args>
+	static std::shared_ptr<FAMData> make(Args&&... args) {
+		return std::shared_ptr<FAMData>{new FAMData{std::forward<Args>(args)...}};
 	}
 
 	void findCallDiversions(const SipUri& uri,
@@ -50,7 +48,7 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"AccountsStore::FAMData"};
 
-	FAMData(RestClient&& restClient,
+	FAMData(const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
 	        const std::shared_ptr<sofiasip::SuRoot>& root,
 	        std::chrono::milliseconds cacheTimeout,
 	        std::chrono::milliseconds unknownTimeout);
@@ -66,7 +64,7 @@ private:
 	void startCacheTimer(const flexiapi::ApiFormattedUri& apiUri);
 	void startUnknownTimer(const flexiapi::ApiFormattedUri& apiUri);
 
-	flexiapi::FlexiApi mFlexiApiClient;
+	std::shared_ptr<flexiapi::FlexiApi> mFlexiApiClient;
 	Accounts mAccounts;
 	std::shared_ptr<sofiasip::SuRoot> mRoot;
 	std::unordered_map<flexiapi::ApiFormattedUri, std::queue<CallDiversionsCallback>> mWaitingAccounts;

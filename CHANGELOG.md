@@ -21,9 +21,12 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
     that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
-  - New parameter `global/domains-configuration`: consolidates the configuration of all SIP domains and associated user
-    data into a JSON file (previously spread across several modules).
   - **Router:** Added support for conditional call diversions. `enable-call-diversions` must be set.
+- **Global:**
+  - New parameter `global::domains/domains-configuration`: consolidates the configuration of all SIP domains and
+    associated user data into a JSON file (previously spread across several modules).
+  - New parameter `global::domains/refresh-delay`: configures the delay before refreshing the domains information when
+    using `global::domains/domains-configuration` is set with `flexiapi`.
 
 ### [Changed]
 - **Proxy:**
@@ -37,12 +40,14 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Deprecated]
 - **Proxy:**
-  - Parameter `global/advanced-account-data` is deprecated. Use `global/domains-configuration` instead.
+  - Parameter `global/advanced-account-data` is deprecated. Use `global::domains/domains-configuration` instead.
   - Parameter `module::Router/max-call-diversions` was experimental and is now deprecated.
-  - **Authorization:** Parameters `auth-domains-mode` and `auth-domains` are deprecated.
-    Use `global/domains-configuration` instead.
+  - **Authorization:**
+    - Parameters `auth-domains-mode` and `auth-domains` are deprecated. Use `global::domains/domains-configuration`
+      instead.
+    - Parameter `accounts-refresh-delay` is deprecated. Use `global::domains/refresh-delay` instead.
   - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,
-    `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global/domains-configuration` instead.
+    `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global::domains/domains-configuration` instead.
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

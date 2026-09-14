@@ -59,7 +59,7 @@ void spacesLoading() {
 
 	const string newDomain{"new.example.org"};
 	auto newSpaces = kTestSpacesJson;
-	newSpaces.emplace_back(nlohmann::json{{"domain", newDomain}, {"super", false}});
+	newSpaces.emplace_back(nlohmann::json{{"domain", newDomain}, {"name", "new"}});
 	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, newSpaces.dump()));
 
 	// Expect actual spaces to have one more space after the next refresh.

@@ -27,12 +27,11 @@ using namespace std;
 using namespace flexisip::flexiapi;
 namespace flexisip {
 
-FAMData::FAMData(RestClient&& restClient,
+FAMData::FAMData(const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
                  const std::shared_ptr<sofiasip::SuRoot>& root,
                  std::chrono::milliseconds cacheTimeout,
                  std::chrono::milliseconds unknownTimeout)
-    : mFlexiApiClient{std::move(restClient)}, mRoot{root}, mCacheTimeout(cacheTimeout),
-      mUnknownTimeout(unknownTimeout) {}
+    : mFlexiApiClient{flexiApiClient}, mRoot{root}, mCacheTimeout(cacheTimeout), mUnknownTimeout(unknownTimeout) {}
 
 void FAMData::findCallDiversions(const SipUri& uri,
                                  CallForwarding::ForwardType forwardType,
@@ -61,7 +60,7 @@ void FAMData::findCallDiversions(const SipUri& uri,
 	q.push(std::move(callback));
 	mWaitingAccounts.try_emplace(apiUri, std::move(q));
 	if (forwardType == CallForwarding::ForwardType::Contact) {
-		mFlexiApiClient.accountSearchByUri(
+		mFlexiApiClient->accountSearchByUri(
 		    apiUri,
 		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,
 		                                           const std::shared_ptr<HttpResponse>& res) {
@@ -75,7 +74,7 @@ void FAMData::findCallDiversions(const SipUri& uri,
 			    thiz->onErrorCallback(req, apiUri);
 		    });
 	} else {
-		mFlexiApiClient.resolveByUri(
+		mFlexiApiClient->resolveByUri(
 		    apiUri,
 		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,
 		                                           const std::shared_ptr<HttpResponse>& res) {

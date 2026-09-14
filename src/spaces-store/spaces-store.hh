@@ -21,17 +21,20 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 #include "accounts/accounts-store.hh"
 #include "auth/bearer-auth.hh"
-#include "flexiapi/schemas/space/realm.hh"
+#include "flexiapi/flexiapi.hh"
 #include "flexiapi/schemas/space/space.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "spaces/spaces-data-manager.hh"
+#include "utils/observable.hh"
 
 namespace flexisip {
 
@@ -57,27 +60,34 @@ public:
 	struct Space {
 		Space() = default;
 		explicit Space(const std::string& name, const std::string& domain, const std::weak_ptr<Realm>& realm = {})
-		    : name(name), domain(domain), realm(realm), accounts(std::nullopt) {}
+		    : name(name), domain(domain), realm(realm) {}
 		Space(const std::string& name,
 		      const std::string& domain,
-		      std::optional<AccountsStore>&& accountsStore,
+		      const std::shared_ptr<flexiapi::FlexiApi> flexiApiClient,
+		      const std::optional<AccountsStore>&& accountsStore,
 		      const std::weak_ptr<Realm>& realm = {})
-		    : name(name), domain(domain), realm(realm), accounts(std::move(accountsStore)) {}
+		    : name(name), domain(domain), realm(realm), flexiApiClient(flexiApiClient), accountsStore(accountsStore) {}
+
+		void setRealm(const std::weak_ptr<Realm>& newRealm) {
+			realm = newRealm;
+		}
 
 		std::string name{};
 		std::string domain{};
 		std::weak_ptr<Realm> realm{};
-		std::optional<AccountsStore> accounts{std::nullopt};
+		std::shared_ptr<flexiapi::FlexiApi> flexiApiClient{};
+		std::optional<AccountsStore> accountsStore{};
 	};
 
 	static const std::string kLegacyDomainName;
 	static constexpr std::string_view mLogPrefix{"SpacesStore"};
 
-	static std::unique_ptr<SpacesStore> make(const std::shared_ptr<sofiasip::SuRoot>& root,
+	static std::shared_ptr<SpacesStore> make(const std::shared_ptr<sofiasip::SuRoot>& root,
 	                                         const std::shared_ptr<ConfigManager>& cfg,
 	                                         const std::shared_ptr<Http2Client>& flexiApiClient);
 
 	std::optional<std::reference_wrapper<AccountsStore>> getAccountsStore(const std::string& domain);
+	std::weak_ptr<flexiapi::FlexiApi> getFlexiApiClient(const std::string& domain);
 
 	bool hasDomain(const std::string& domain) const {
 		return mSpaces.contains(domain);
@@ -86,23 +96,27 @@ public:
 	std::vector<std::pair<std::vector<std::string>, const Bearer>> getBearerParams() const;
 
 private:
+	struct FlexiApiConfig {
+		HttpUrl url;
+		std::string apiKey;
+	};
+
+	SpacesStore(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot(root) {}
 	SpacesStore(const std::string& advancedAccountData,
 	            const std::shared_ptr<ConfigManager>& cfg,
 	            const std::shared_ptr<Http2Client>& flexiApiClient,
 	            const std::shared_ptr<sofiasip::SuRoot>& root);
 
-	SpacesStore(const std::shared_ptr<sofiasip::SuRoot>& root,
-	            const std::shared_ptr<ConfigManager>& cfg,
-	            const std::shared_ptr<Http2Client>& flexiApiClient);
-
-	explicit SpacesStore(const std::filesystem::path& domainsConfigFilePath);
-
 	void onSpacesChanged(const std::vector<flexiapi::Space>& spaces);
+	void createSpace(const flexiapi::Space& space);
+	std::shared_ptr<Realm> createRealm(const flexiapi::Space& space);
 
 	// Association: domain name --> Space.
 	std::unordered_map<std::string, Space> mSpaces{};
 	std::vector<std::shared_ptr<Realm>> mRealms{};
 	std::unique_ptr<ISpacesDataManager> mSpacesDataManager{};
+	std::optional<FlexiApiConfig> mFlexiApiConfig{};
+	std::shared_ptr<sofiasip::SuRoot> mRoot;
 };
 
 } // namespace flexisip

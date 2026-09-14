@@ -20,19 +20,32 @@
 
 #include <string>
 
+#include "flexiapi/schemas/optional-json.hh"
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
-#include "flexiapi/schemas/optional-json.hh"
 #include "realm-json.hh"
 
 using namespace std;
 
+namespace {
+void ensureMandatoryStringPresence(const nlohmann::basic_json<>& jsonBody, const std::string& paramName) {
+	if (!jsonBody.contains(paramName)) {
+		throw nlohmann::json::out_of_range::create(403, "field '" + paramName + "' is missing", &jsonBody);
+	}
+	if (!jsonBody[paramName].is_string()) {
+		throw nlohmann::json::type_error::create(302, "field '" + paramName + "' must be a string", &jsonBody);
+	}
+}
+} // namespace
+
 namespace flexisip::flexiapi {
 
-void from_json(const nlohmann ::json& nlohmann_json_j, Space& nlohmann_json_t) {
+void from_json(const nlohmann::json& nlohmann_json_j, Space& nlohmann_json_t) {
+	verifySpaceSchemaIntegrity(nlohmann_json_j);
 	Space nlohmann_json_default_obj{};
 	NLOHMANN_JSON_FROM(name);
 	NLOHMANN_JSON_FROM(domain);
+	NLOHMANN_JSON_FROM_WITH_DEFAULT(host);
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(realm);
 	NLOHMANN_JSON_FROM_WITH_DEFAULT(accounts);
 }
@@ -44,38 +57,34 @@ void verifySpacesSchemaIntegrity(const nlohmann::json& config) {
 
 	vector<string> domains{};
 	for (const auto& space : config) {
-		if (!space.is_object()) {
-			throw nlohmann::json::type_error::create(302, "type must be object", &space);
-		}
-
-		if (!space.contains("name")) {
-			throw nlohmann::json::out_of_range::create(403, "field 'name' is missing", &space);
-		}
-		if (!space["name"].is_string()) {
-			throw nlohmann::json::type_error::create(302, "field 'name' must be a string", &space);
-		}
-
-		if (!space.contains("domain")) {
-			throw nlohmann::json::out_of_range::create(403, "field 'domain' is missing", &space);
-		}
-		if (!space["domain"].is_string()) {
-			throw nlohmann::json::type_error::create(302, "field 'domain' must be a string", &space);
-		}
-
+		verifySpaceSchemaIntegrity(space);
 		const string& domain = space["domain"];
 		if (find(domains.begin(), domains.end(), domain) != domains.end()) {
 			throw nlohmann::json::other_error::create(500, "duplicate field 'domain' found: " + domain, &space);
 		} else {
 			domains.push_back(domain);
 		}
+	}
+}
 
-		if (space.contains("accounts") && !space["accounts"].is_string()) {
-			throw nlohmann::json::type_error::create(302, "field 'accounts' must be a string", &space);
-		}
+void verifySpaceSchemaIntegrity(const nlohmann::json& space) {
+	if (!space.is_object()) {
+		throw nlohmann::json::type_error::create(302, "type must be object", &space);
+	}
 
-		if (space.contains("realm")) {
-			verifyRealmSchemaIntegrity(space["realm"]);
-		}
+	ensureMandatoryStringPresence(space, "name");
+	ensureMandatoryStringPresence(space, "domain");
+
+	if (space.contains("host") && !space["host"].is_string()) {
+		throw nlohmann::json::type_error::create(302, "field 'host' must be a string", &space);
+	}
+
+	if (space.contains("accounts") && !space["accounts"].is_string()) {
+		throw nlohmann::json::type_error::create(302, "field 'accounts' must be a string", &space);
+	}
+
+	if (space.contains("realm")) {
+		verifyRealmSchemaIntegrity(space["realm"]);
 	}
 }
 

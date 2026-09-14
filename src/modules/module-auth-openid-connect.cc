@@ -114,7 +114,8 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 
-	    const GenericEntry::DeprecationInfo info{"2026-07-22", "2.7.0", "Use 'global/domains-configuration' instead"};
+	    const GenericEntry::DeprecationInfo info{"2026-07-22", "2.7.0",
+	                                             "Use 'global::domains/domains-configuration' instead"};
 
 	    for (const auto& name : {
 	             "authorization-server",

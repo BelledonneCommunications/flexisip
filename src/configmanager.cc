@@ -1105,17 +1105,6 @@ ConfigManager::ConfigManager()
 	        "Set to 0 in order to disable the feature.",
 	        "0",
 	    },
-	    {
-	        String,
-	        "domains-configuration",
-	        "Specifies how this server obtains the SIP domains and associated users it manages.\n"
-	        "The server can retrieve the SIP domain and user configuration from:\n"
-	        "\t- 'flexiapi': fetch from a server that implements the FlexiAPI (configure in the [global::flexiapi] "
-	        "section)\n"
-	        "\t- 'path/to/config.json': path to json configuration file (loaded once during startup phase)\n"
-	        "Leave empty to disable the feature.",
-	        "",
-	    },
 
 	    // Deprecated parameters
 	    {

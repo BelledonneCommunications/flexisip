@@ -20,13 +20,16 @@
 
 #include <memory>
 #include <optional>
+#include <set>
 
 #include "exceptions/bad-configuration.hh"
 #include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
+#include "flexisip/utils/http-url.hh"
 #include "spaces-store/spaces/spaces-data-manager.hh"
 #include "spaces/fam-spaces-data.hh"
 #include "spaces/file-spaces-data.hh"
+#include "utils/url/http-url-error.hh"
 
 using namespace std;
 
@@ -39,10 +42,12 @@ namespace legacy {
 /**
  * @throw BadConfiguration if 'global/advanced-account-data' is set.
  * @throw BadConfiguration if legacy configuration parameters are used together with the new
- * 'global/domains-configuration' parameter.
+ * 'global::domains/domains-configuration' parameter.
  */
 void checkBearerConfigConflict(const std::shared_ptr<ConfigManager>& cfg) {
-	const auto domainsConfigParam = cfg->getGlobal()->get<ConfigString>("domains-configuration");
+
+	const auto domainsConfigParam =
+	    cfg->getRoot()->get<GenericStruct>("global::domains")->get<ConfigString>("domains-configuration");
 	if (domainsConfigParam->read().empty()) {
 		const auto advancedAccountDataParam = cfg->getGlobal()->get<ConfigString>("advanced-account-data");
 		if (advancedAccountDataParam->read().empty()) return;
@@ -93,7 +98,7 @@ std::shared_ptr<SpacesStore::Realm> makeRealm(const std::shared_ptr<ConfigManage
 		auto value = configValue->read();
 		if (value.empty()) {
 			LOGW_CTX(mc->getName(), "onLoad") << "You are configuring Flexisip with deprecated parameters, update your "
-			                                     "configuration to use 'global/domains-configuration' instead";
+			                                     "configuration to use 'global::domains/domains-configuration' instead";
 			throw BadConfigurationWithHelp{
 			    configValue,
 			    "legacy parameter '" + configValue->getCompleteName() + "' must be set",
@@ -105,11 +110,15 @@ std::shared_ptr<SpacesStore::Realm> makeRealm(const std::shared_ptr<ConfigManage
 	SpacesStore::Bearer bearer{};
 
 	const auto issuer = readMandatoryString("authorization-server");
-	auto issUrl = sofiasip::Url(issuer);
-	if (issUrl.getType() != url_https) {
-		throw BadConfigurationValue{mc->get<ConfigString>("authorization-server"), "it must be a HTTPS url"};
+	try {
+		HttpUrl issUrl = HttpUrl(issuer);
+		if (issUrl.getSchemeType() != HttpUrl::Scheme::https) {
+			throw HttpUrlError("it must be a HTTPS url");
+		}
+		bearer.params.issuer = issUrl;
+	} catch (HttpUrlError& e) {
+		throw BadConfigurationValue{mc->get<ConfigString>("authorization-server"), e.what()};
 	}
-	bearer.params.issuer = issUrl;
 	bearer.params.realm = readMandatoryString("realm");
 	bearer.params.audience = readMandatoryString("audience");
 	bearer.params.idClaimer = readMandatoryString("sip-id-claim");
@@ -213,12 +222,13 @@ bool SpacesStore::Realm::operator==(const flexiapi::Realm& other) const {
 	return true;
 }
 
-std::unique_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::SuRoot>& root,
+std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::SuRoot>& root,
                                                const std::shared_ptr<ConfigManager>& cfg,
                                                const std::shared_ptr<Http2Client>& flexiApiClient) {
 	const auto* global = cfg->getGlobal();
 
-	const auto* modeParam = global->get<ConfigString>("domains-configuration");
+	const auto* domainsConfigSection = cfg->getRoot()->get<GenericStruct>("global::domains");
+	const auto* modeParam = domainsConfigSection->get<ConfigString>("domains-configuration");
 	const auto& mode = modeParam->read();
 
 	// Legacy options management for backward compatibility
@@ -266,12 +276,35 @@ std::unique_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 			        " but legacy configuration is also enabled (please remove legacy configuration)",
 			};
 		}
-
 		if (hasAccountsStore) {
-			return unique_ptr<SpacesStore>{new SpacesStore(advancedAccountData, cfg, flexiApiClient, root)};
+			return shared_ptr<SpacesStore>{new SpacesStore(advancedAccountData, cfg, flexiApiClient, root)};
 		}
 		if (hasSpacesData) {
-			return unique_ptr<SpacesStore>{new SpacesStore(root, cfg, flexiApiClient)};
+			auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
+			spacesStore->mRealms = {legacy::makeRealm(cfg)};
+			auto dataManager = legacy::makeSpacesDataManager(
+			    root, cfg, flexiApiClient,
+			    [maybeSpacesStore = weak_ptr(spacesStore)](const std::vector<flexiapi::Space>& spaces) {
+				    if (const auto store = maybeSpacesStore.lock()) {
+					    for (const auto& space : spaces) {
+						    store->mSpaces.emplace(
+						        space.domain, Space{
+						                          space.name,
+						                          space.domain,
+						                          store->mRealms.empty() ? weak_ptr<Realm>{} : store->mRealms.front(),
+						                      });
+					    }
+				    }
+			    });
+
+			if (authDomainsMode == "flexiapi") {
+				const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
+				const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
+				const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
+				spacesStore->mFlexiApiConfig = FlexiApiConfig{.url = HttpUrl(flexiApiUrl), .apiKey = flexiApiKey};
+			}
+			spacesStore->mSpacesDataManager = std::move(dataManager);
+			return spacesStore;
 		}
 	}
 
@@ -279,11 +312,32 @@ std::unique_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 		LOGD << "The parameter '" << modeParam->getCompleteName() << "' is empty, no spaces will be configured";
 		return nullptr;
 	}
+
+	auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
 	if (mode == "flexiapi") {
-		throw BadConfigurationValue{modeParam, "'flexiapi' mode is not supported yet"};
+		const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
+		const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
+		const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
+		spacesStore->mFlexiApiConfig = FlexiApiConfig{.url = HttpUrl(flexiApiUrl), .apiKey = flexiApiKey};
+
+		const auto refreshDelay = domainsConfigSection->get<ConfigDuration<chrono::minutes>>("refresh-delay")->read();
+		auto client = flexiapi::createRestClient(*cfg, flexiApiClient);
+		spacesStore->mSpacesDataManager = make_unique<FAMSpacesData>(
+		    root, std::move(client), refreshDelay,
+		    [maybeSpacesStore = weak_ptr(spacesStore)](const std::vector<flexiapi::Space>& spaces) {
+			    if (const auto store = maybeSpacesStore.lock()) store->onSpacesChanged(spaces);
+		    });
+
+		return spacesStore;
 	}
 	if (filesystem::exists(mode)) {
-		return unique_ptr<SpacesStore>{new SpacesStore(mode)};
+		spacesStore->mSpacesDataManager = make_unique<FileSpacesData>(
+		    mode, [maybeSpacesStore = weak_ptr(spacesStore)](const std::vector<flexiapi::Space>& spaces) {
+			    if (const auto store = maybeSpacesStore.lock()) {
+				    store->onSpacesChanged(spaces);
+			    }
+		    });
+		return spacesStore;
 	} else {
 		LOGE << "The path '" << mode << "' does not exist or is not accessible";
 	}
@@ -291,52 +345,46 @@ std::unique_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 	throw BadConfigurationValue{modeParam, "expected 'flexiapi' or a valid path to a configuration file"};
 }
 
+// Legacy (use of "advanced-account-data"), no information on domains
 SpacesStore::SpacesStore(const std::string& advancedAccountData,
                          const std::shared_ptr<ConfigManager>& cfg,
-                         const std::shared_ptr<Http2Client>& flexiApiClient,
+                         const std::shared_ptr<Http2Client>& http2Client,
                          const std::shared_ptr<sofiasip::SuRoot>& root) {
-	mSpaces.emplace(kLegacyDomainName,
-	                Space{
-	                    "Legacy",
-	                    kLegacyDomainName,
-	                    optional<AccountsStore>{AccountsStore{advancedAccountData, cfg, flexiApiClient, root}},
-	                });
+	if (advancedAccountData == "flexiapi") {
+		auto flexiApiClient = flexiapi::FlexiApi::make(flexiapi::createRestClient(*cfg, http2Client));
+		mSpaces.emplace(kLegacyDomainName, Space{
+		                                       "Legacy",
+		                                       kLegacyDomainName,
+		                                       flexiApiClient,
+		                                       optional{AccountsStore{flexiApiClient, root}},
+		                                   });
+	} else {
+		mSpaces.emplace(kLegacyDomainName, Space{
+		                                       "Legacy",
+		                                       kLegacyDomainName,
+		                                       nullptr,
+		                                       optional{AccountsStore{advancedAccountData}},
+		                                   });
+	}
 }
-
-SpacesStore::SpacesStore(const std::shared_ptr<sofiasip::SuRoot>& root,
-                         const std::shared_ptr<ConfigManager>& cfg,
-                         const std::shared_ptr<Http2Client>& flexiApiClient)
-    : mRealms{legacy::makeRealm(cfg)},
-      mSpacesDataManager(
-          legacy::makeSpacesDataManager(root, cfg, flexiApiClient, [this](const std::vector<flexiapi::Space>& spaces) {
-	          mSpaces.clear();
-
-	          for (const auto& space : spaces) {
-		          mSpaces.emplace(space.domain, Space{
-		                                            space.name,
-		                                            space.domain,
-		                                            mRealms.empty() ? weak_ptr<Realm>{} : mRealms.front(),
-		                                        });
-	          }
-          })) {}
-
-SpacesStore::SpacesStore(const std::filesystem::path& domainsConfigFilePath)
-    : mSpacesDataManager(make_unique<FileSpacesData>(
-          domainsConfigFilePath, [this](const std::vector<flexiapi::Space>& spaces) { onSpacesChanged(spaces); })) {}
 
 std::optional<std::reference_wrapper<AccountsStore>> SpacesStore::getAccountsStore(const std::string& domain) {
 	// Note: there is always only one domain when using legacy accounts store, so we check for it first.
 	if (hasDomain(kLegacyDomainName)) {
-		auto& store = mSpaces.at(kLegacyDomainName).accounts;
+		auto& store = mSpaces.at(kLegacyDomainName).accountsStore;
 		if (store.has_value()) return std::ref(store.value());
 	}
 
 	if (!hasDomain(domain)) return nullopt;
 
-	auto& store = mSpaces[domain].accounts;
+	auto& store = mSpaces[domain].accountsStore;
 	if (!store.has_value()) return nullopt;
 
 	return std::ref(store.value());
+}
+
+std::weak_ptr<flexiapi::FlexiApi> SpacesStore::getFlexiApiClient(const std::string& domain) {
+	return hasDomain(domain) ? mSpaces[domain].flexiApiClient : std::weak_ptr<flexiapi::FlexiApi>();
 }
 
 std::vector<std::pair<std::vector<std::string>, const SpacesStore::Bearer>> SpacesStore::getBearerParams() const {
@@ -358,25 +406,52 @@ std::vector<std::pair<std::vector<std::string>, const SpacesStore::Bearer>> Spac
 
 void SpacesStore::onSpacesChanged(const std::vector<flexiapi::Space>& spaces) {
 	mRealms.clear();
-	mSpaces.clear();
-
 	for (const auto& space : spaces) {
-		optional<AccountsStore> accountsStore{nullopt};
-		if (space.accounts.has_value()) accountsStore.emplace(space.accounts.value(), nullptr, nullptr, nullptr);
-
-		shared_ptr<Realm> realm{};
-		if (space.realm.has_value()) {
-			const auto realmIt = find_if(mRealms.begin(), mRealms.end(),
-			                             [&](const auto& realm) { return *realm == space.realm.value(); });
-			if (realmIt != mRealms.end()) {
-				realm = *realmIt;
-			} else {
-				realm = mRealms.emplace_back(std::make_shared<Realm>(space.realm.value()));
-			}
+		if (!hasDomain(space.domain)) {
+			createSpace(space);
+			continue;
 		}
-
-		mSpaces.emplace(space.domain, Space{space.name, space.domain, std::move(accountsStore), realm});
+		auto& currentSpace = mSpaces[space.domain];
+		auto currentRealm = currentSpace.realm.lock();
+		if (space.realm.has_value() && *currentRealm != space.realm.value()) {
+			shared_ptr<Realm> realm = createRealm(space);
+			currentSpace.setRealm(realm);
+		}
 	}
+}
+
+void SpacesStore::createSpace(const flexiapi::Space& space) {
+	optional<AccountsStore> accountsStore{};
+	shared_ptr<flexiapi::FlexiApi> flexiApiClient{};
+	if (space.host.has_value() && !space.host.value().empty() && mFlexiApiConfig.has_value()) {
+		try {
+			auto url = mFlexiApiConfig->url.replaceHost(space.host.value());
+			flexiApiClient = flexiapi::FlexiApi::make(url, mFlexiApiConfig->apiKey, mRoot);
+			accountsStore.emplace(flexiApiClient, mRoot);
+		} catch (exception& e) {
+			LOGD << "Failed to create FlexiApiClient: " << e.what();
+		}
+	}
+
+	if (space.accounts.has_value()) accountsStore.emplace(space.accounts.value());
+
+	shared_ptr<Realm> realm = createRealm(space);
+
+	mSpaces.emplace(space.domain, Space{space.name, space.domain, flexiApiClient, std::move(accountsStore), realm});
+}
+
+std::shared_ptr<SpacesStore::Realm> SpacesStore::createRealm(const flexiapi::Space& space) {
+	shared_ptr<Realm> realm{};
+	if (space.realm.has_value()) {
+		const auto realmIt =
+		    find_if(mRealms.begin(), mRealms.end(), [&](const auto& realm) { return *realm == space.realm.value(); });
+		if (realmIt != mRealms.end()) {
+			realm = *realmIt;
+		} else {
+			realm = mRealms.emplace_back(std::make_shared<Realm>(space.realm.value()));
+		}
+	}
+	return realm;
 }
 
 } // namespace flexisip

@@ -31,4 +31,9 @@ void from_json(const nlohmann ::json& nlohmann_json_j, Space& nlohmann_json_t);
  */
 void verifySpacesSchemaIntegrity(const nlohmann::json& config);
 
+/**
+ * @throws nlohmann::json::exception if the json schema is invalid
+ */
+void verifySpaceSchemaIntegrity(const nlohmann::json& space);
+
 } // namespace flexisip::flexiapi

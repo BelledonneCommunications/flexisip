@@ -422,7 +422,7 @@ void bearerAuthWithDomainsConfiguration() {
 	}
 
 	Server proxy({
-	    {"global/domains-configuration", domainsConfigPath.string()},
+	    {"global::domains/domains-configuration", domainsConfigPath.string()},
 	    {"module::Registrar/reg-domains", "*"},
 	    {"module::AuthOpenIDConnect/enabled", "true"},
 	    {"module::Authorization/enabled", "true"},

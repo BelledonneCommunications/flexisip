@@ -16,14 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "spaces-store/spaces-store.hh"
+
 #include <fstream>
 #include <memory>
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
+#include "core-assert.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
-#include "spaces-store/spaces-store.hh"
+#include "http-mock/http-mock.hh"
 #include "utils/string-utils.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -31,6 +35,7 @@
 
 using namespace std;
 using namespace flexisip;
+using namespace flexisip::flexiapi;
 using namespace flexisip::tester;
 
 namespace {
@@ -149,22 +154,30 @@ void accountsStoreAndSpacesData() {
 }
 
 /*
- * Test that legacy configuration cannot be used together with new 'global/domains-configuration' for AccountsStore.
+ * Test that legacy configuration cannot be used together with new 'global::domains/domains-configuration' for
+ * AccountsStore.
  */
 void accountsStoreConfigConflict() {
 	const auto cfg = make_shared<ConfigManager>();
 	cfg->getGlobal()->get<ConfigString>("advanced-account-data")->set("legacy-options");
-	cfg->getGlobal()->get<ConfigString>("domains-configuration")->set("/some/path");
+	cfg->getRoot()
+	    ->get<GenericStruct>("global::domains")
+	    ->get<ConfigString>("domains-configuration")
+	    ->set("/some/path");
 
 	BC_ASSERT_THROWN(SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr), BadConfiguration);
 }
 
 /**
- * Test that legacy configuration cannot be used together with new 'global/domains-configuration' for SpacesData.
+ * Test that legacy configuration cannot be used together with new 'global::domains/domains-configuration' for
+ * SpacesData.
  */
 void spacesDataConfigConflict() {
 	const auto cfg = make_shared<ConfigManager>();
-	cfg->getGlobal()->get<ConfigString>("domains-configuration")->set("/some/path");
+	cfg->getRoot()
+	    ->get<GenericStruct>("global::domains")
+	    ->get<ConfigString>("domains-configuration")
+	    ->set("/some/path");
 	const auto authzCfg = cfg->getRoot()->getModuleSectionByRole("Authorization");
 	authzCfg->get<ConfigBoolean>("enabled")->set("true");
 	authzCfg->get<ConfigString>("auth-domains-mode")->set("static");
@@ -184,9 +197,9 @@ void spacesDataConfigConflict() {
 } // namespace legacy
 
 /**
- * Test successful creation of SpacesStore with valid 'global/domains-configuration' configuration.
+ * Test successful creation of SpacesStore with valid 'global::domains/domains-configuration' file configuration.
  */
-void createSpacesStore() {
+void createSpacesStoreWithFile() {
 	const TmpDir dir("spaces-config");
 	const auto domainsConfigFilePath = dir.path() / "spaces.json";
 
@@ -208,9 +221,13 @@ void createSpacesStore() {
 	}
 
 	const auto cfg = make_shared<ConfigManager>();
-	cfg->getGlobal()->get<ConfigString>("domains-configuration")->set(domainsConfigFilePath.string());
+	cfg->getRoot()
+	    ->get<GenericStruct>("global::domains")
+	    ->get<ConfigString>("domains-configuration")
+	    ->set(domainsConfigFilePath.string());
 
 	const auto spacesStore = SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr);
+
 	BC_ASSERT_TRUE(spacesStore != nullptr);
 
 	for (const auto& domain : kTestDomains) {
@@ -229,7 +246,10 @@ void createSpacesStoreInvalidJson() {
 	}
 
 	const auto cfg = make_shared<ConfigManager>();
-	cfg->getGlobal()->get<ConfigString>("domains-configuration")->set(domainsConfigFilePath.string());
+	cfg->getRoot()
+	    ->get<GenericStruct>("global::domains")
+	    ->get<ConfigString>("domains-configuration")
+	    ->set(domainsConfigFilePath.string());
 
 	BC_ASSERT_THROWN(SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr), BadConfiguration);
 }
@@ -244,9 +264,77 @@ void createSpacesStoreInvalidJsonSchema() {
 	}
 
 	const auto cfg = make_shared<ConfigManager>();
-	cfg->getGlobal()->get<ConfigString>("domains-configuration")->set(domainsConfigFilePath.string());
+	cfg->getRoot()
+	    ->get<GenericStruct>("global::domains")
+	    ->get<ConfigString>("domains-configuration")
+	    ->set(domainsConfigFilePath.string());
 
 	BC_ASSERT_THROWN(SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr), BadConfiguration);
+}
+
+/**
+ * Test successful creation of SpacesStore with valid 'global::domains/domains-configuration' flexiapi configuration.
+ * Also check that the 'host' field of the spaces is used to reach the account-manager for sub-spaces.
+ */
+void createSpacesStoreWithFlexiapi() {
+	// HTTP mocks creation
+	constexpr auto apiPath = "/api/spaces";
+	constexpr auto subDomainApiPath = "/api/resolve/user@domain";
+	std::string subDomainHost{"127.0.0.2"};
+	std::string subDomain{"a.example.org"};
+
+	http_mock::HttpMock server{apiPath};
+	nlohmann::json spaces = {
+	    {
+	        {"domain", "example.org"},
+	        {"name", "example"},
+	        {"host", "127.0.0.1"},
+	    },
+	    {
+	        {"domain", subDomain},
+	        {"name", "a"},
+	        {"host", subDomainHost},
+	    },
+	};
+
+	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
+	const auto port = server.serveAsync();
+
+	std::atomic_int requestsReceived = 0;
+	http_mock::HttpMock subDomainServer{{subDomainApiPath}, &requestsReceived};
+	subDomainServer.setListeningAddress(subDomainHost);
+	BC_HARD_ASSERT_CPP_EQUAL(subDomainServer.serveAsync(to_string(port)), port);
+
+	// SpacesStore creation
+	const auto cfg = make_shared<ConfigManager>();
+	cfg->getRoot()->get<GenericStruct>("global::domains")->get<ConfigString>("domains-configuration")->set("flexiapi");
+	cfg->getRoot()
+	    ->get<GenericStruct>("global::flexiapi")
+	    ->get<ConfigString>("url")
+	    ->set("https://127.0.0.1:" + to_string(port));
+
+	auto sofiaRoot = make_shared<sofiasip::SuRoot>();
+	auto http2Client = flexiapi::createClient(cfg, *sofiaRoot);
+	const auto spacesStore = SpacesStore::make(sofiaRoot, cfg, http2Client);
+
+	// Check initial request made by the SpacesStore to /api/spaces
+	CoreAssert asserter{sofiaRoot};
+	asserter
+	    .iterateUpTo(
+	        10, [&spacesStore, &subDomain] { return LOOP_ASSERTION(spacesStore->hasDomain(subDomain)); }, 200ms)
+	    .hard_assert_passed();
+
+	// Check that subdomains use their own FlexiAPI client
+	auto flexiApiClient = spacesStore->getFlexiApiClient(subDomain).lock();
+	BC_HARD_ASSERT_NOT_NULL(flexiApiClient);
+	flexiApiClient->resolveByUri(
+	    flexiapi::ApiFormattedUri(SipUri("sip:user@domain")),
+	    [](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>&) {},
+	    [](const std::shared_ptr<HttpMessage>&) {});
+
+	asserter.iterateUpTo(
+	            10, [&requestsReceived] { return LOOP_ASSERTION(requestsReceived == 1); }, 200ms)
+	    .assert_passed();
 }
 
 const TestSuite kSuite = {
@@ -257,9 +345,10 @@ const TestSuite kSuite = {
         CLASSY_TEST(legacy::accountsStoreAndSpacesData),
         CLASSY_TEST(legacy::accountsStoreConfigConflict),
         CLASSY_TEST(legacy::spacesDataConfigConflict),
-        CLASSY_TEST(createSpacesStore),
+        CLASSY_TEST(createSpacesStoreWithFile),
         CLASSY_TEST(createSpacesStoreInvalidJson),
         CLASSY_TEST(createSpacesStoreInvalidJsonSchema),
+        CLASSY_TEST(createSpacesStoreWithFlexiapi),
     },
 };
 } // namespace

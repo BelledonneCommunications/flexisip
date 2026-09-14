@@ -25,10 +25,9 @@
 #include <vector>
 
 #include "accounts-data-manager.hh"
-#include "flexisip/configmanager.hh"
+#include "flexiapi/flexiapi.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "flexisip/utils/stl-backports.hh"
-#include "utils/transport/http/http2client.hh"
 
 namespace flexisip {
 
@@ -51,9 +50,8 @@ public:
 		CallDiversionMap divertedMap{};
 	};
 
-	AccountsStore(const std::string& advancedAccountOptions,
-	              const std::shared_ptr<ConfigManager>& configManager,
-	              const std::shared_ptr<Http2Client>& flexiApiClient,
+	explicit AccountsStore(const std::string& advancedAccountOptions);
+	AccountsStore(const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
 	              const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	/**

@@ -26,15 +26,20 @@
 
 namespace flexisip {
 
-class FileData : public IDataManager {
+class FileData : public IDataManager, public std::enable_shared_from_this<FileData> {
 public:
-	explicit FileData(const std::filesystem::path& filePath);
+	template <typename... Args>
+	static std::shared_ptr<FileData> make(Args&&... args) {
+		return std::shared_ptr<FileData>{new FileData{std::forward<Args>(args)...}};
+	}
 
 	void findCallDiversions(const SipUri& uri,
 	                        flexiapi::CallForwarding::ForwardType forwardType,
 	                        CallDiversionsCallback&& callback) override;
 
 private:
+	explicit FileData(const std::filesystem::path& filePath);
+
 	static constexpr std::string_view mLogPrefix{"AccountsStore::FileData"};
 
 	Accounts mAccounts;

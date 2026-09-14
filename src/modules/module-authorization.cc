@@ -41,14 +41,13 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
     ModuleInfoBase::ModuleOid::Authorization,
     [](GenericStruct& moduleConfig) {
 	    ConfigItemDescriptor items[] = {
+	        // Deprecated parameters.
 	        {
 	            DurationMIN,
 	            "accounts-refresh-delay",
 	            "The duration in minutes between two refreshes of the dynamic domain cache.",
 	            "5",
 	        },
-
-	        // Deprecated parameters.
 	        {
 	            String,
 	            "auth-domains-mode",
@@ -92,7 +91,8 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
 	    moduleConfig.addChildrenValues(items);
 	    moduleConfig.get<ConfigBoolean>("enabled")->setDefault("false");
 
-	    const GenericEntry::DeprecationInfo info{"2026-07-22", "2.7.0", "Use 'global/domains-configuration' instead"};
+	    const GenericEntry::DeprecationInfo info{"2026-07-22", "2.7.0",
+	                                             "Use 'global::domains/domains-configuration' instead"};
 
 	    for (const auto& fieldName : {
 	             "auth-domains-mode",
@@ -103,6 +103,13 @@ const auto sAuthorizationInfo = ModuleInfo<ModuleAuthorization>(
 		    auto* field = moduleConfig.get<ConfigString>(fieldName);
 		    field->setDeprecated(info);
 	    }
+
+	    const auto refreshDelayParam = moduleConfig.get<ConfigDuration<chrono::minutes>>("accounts-refresh-delay");
+	    refreshDelayParam->setDeprecated({
+	        "2026-08-27",
+	        "2.7.0",
+	        "Don't use 'accounts-refresh-delay', but the global section 'global::domains/refresh-delay' instead.",
+	    });
 
 	    auto* authDomainsField = moduleConfig.get<ConfigStringList>("auth-domains");
 	    authDomainsField->setDeprecated(info);
