@@ -20,6 +20,8 @@
 
 #include <filesystem>
 
+#include "flexiapi/schemas/voicemail/slot-creation-json.hh"
+
 using namespace std;
 using namespace flexisip;
 using namespace flexiapi;

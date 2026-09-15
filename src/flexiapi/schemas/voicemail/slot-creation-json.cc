@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,19 +16,19 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
-#include <string>
-
-#undef sip_from
+#include "slot-creation-json.hh"
 
 namespace flexisip::flexiapi {
 
-struct SlotCreation {
-	// SIP URI of the caller
-	std::string sip_from{};
-	// Content type of the audio file to upload (`audio/opus` or `audio/wav`)
-	std::string content_type{};
-};
+void from_json(const nlohmann::json& nlohmann_json_j, SlotCreation& nlohmann_json_t) {
+	SlotCreation nlohmann_json_default_obj{};
+	NLOHMANN_JSON_FROM(sip_from);
+	NLOHMANN_JSON_FROM(content_type);
+}
+
+void to_json(nlohmann::json& nlohmann_json_j, const SlotCreation& nlohmann_json_t) {
+	nlohmann_json_j["sip_from"] = nlohmann_json_t.sip_from;
+	nlohmann_json_j["content_type"] = nlohmann_json_t.content_type;
+}
 
 } // namespace flexisip::flexiapi

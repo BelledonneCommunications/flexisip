@@ -20,6 +20,7 @@
 
 #include "flexiapi/config.hh"
 #include "flexiapi/schemas/schemas-json.hh"
+#include "flexiapi/schemas/voicemail/slot-creation-json.hh"
 #include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "utils/asserts.hh"

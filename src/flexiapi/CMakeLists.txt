@@ -49,4 +49,5 @@ target_sources(flexisip PRIVATE
 	schemas/space/space-json.cc schemas/space/space-json.hh
 	schemas/voicemail/slot.hh
 	schemas/voicemail/slot-creation.hh
+	schemas/voicemail/slot-creation-json.cc schemas/voicemail/slot-creation-json.hh
 )
