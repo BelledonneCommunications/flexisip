@@ -63,17 +63,24 @@ static int silent_arg_func([[maybe_unused]] const char* arg) {
 }
 
 static void log_handler(int lev, const char* fmt, va_list args) {
+	// We still need this part for the CI to show BCUnit logs when
+	// "--disable-stdout" is used.
+	if (!params.enableStandardOutput) {
 #ifdef _WIN32
-	vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, args);
-	fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
+		vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, args);
+		fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
 #else
-	va_list cap;
-	va_copy(cap, args);
-	/* Otherwise, we must use stdio to avoid log formatting (for autocompletion etc.) */
-	vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, cap);
-	fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
-	va_end(cap);
+		va_list cap;
+		va_copy(cap, args);
+		/* Otherwise, we must use stdio to avoid log formatting (for autocompletion etc.) */
+		vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, cap);
+		fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
+		va_end(cap);
 #endif
+	}
+
+	// Route through bctbx logging so the file handler (--log-file) captures it.
+	bctbx_logv("bc-tester", static_cast<BctbxLogLevel>(lev), fmt, args);
 }
 
 void flexisip_tester_add_grammar_loader_path(const std::string& path) {
