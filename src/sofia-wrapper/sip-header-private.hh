@@ -275,6 +275,11 @@ public:
 	SipHeaderCallID(std::string_view domain) {
 		setNativePtr(sip_call_id_create(mHome.home(), domain.data()));
 	}
+	SipHeaderCallID(const SipHeaderCallID& src) : SipHeader(src) {}
+	SipHeaderCallID& operator=(const SipHeaderCallID& src) {
+		if (this != &src) mNativePtr = msg_header_dup(mHome.home(), src.mNativePtr);
+		return *this;
+	}
 };
 
 /**
