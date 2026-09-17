@@ -212,7 +212,7 @@ void CallHandler::reserveSlot() {
 	}
 
 	LOGD << "Searching for the account ID of the user on the FAM";
-	mFlexiApiClient.accountSearchByUri(
+	mFlexiApiClient->accountSearchByUri(
 	    targetUri,
 	    [maybe_thiz = weak_from_this(), logPrefix = mLogPrefix](const std::shared_ptr<HttpMessage>&,
 	                                                            const std::shared_ptr<HttpResponse>& rep) {
@@ -245,7 +245,7 @@ void CallHandler::reserveSlot() {
 
 void CallHandler::sendSlotRequest(const int accountId) {
 	LOGD << "Reserving a slot to upload a voicemail";
-	mFlexiApiClient.slotCreationByAccountId(
+	mFlexiApiClient->slotCreationByAccountId(
 	    accountId, flexiapi::SlotCreation{mCall->getRemoteAddress()->asStringUriOnly(), "audio/wav"},
 	    [maybe_thiz = weak_from_this(), logPrefix = mLogPrefix](const std::shared_ptr<HttpMessage>&,
 	                                                            const std::shared_ptr<HttpResponse>& rep) {
@@ -339,7 +339,7 @@ void CallHandler::uploadVoicemail(const sofiasip::Url& url) {
 		return;
 	}
 
-	mFlexiApiClient.uploadVoicemail(
+	mFlexiApiClient->uploadVoicemail(
 	    url, mRecordPath.string(), fileContent,
 	    [maybe_thiz = weak_from_this(), logPrefix = mLogPrefix](const std::shared_ptr<HttpMessage>&,
 	                                                            const std::shared_ptr<HttpResponse>& rep) {

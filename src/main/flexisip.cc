@@ -771,9 +771,25 @@ int flexisip::main(int argc, const char* argv[]) {
 	// Create an Agent in all cases because it will declare configuration items that are necessary for presence server.
 	const auto authDb = std::make_shared<AuthDb>(cfg);
 	const auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
+
 	auto flexiApiClient = flexiapi::createClient(cfg, *root);
-	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb, SpacesStore::make(root, cfg, flexiApiClient),
-	                                flexiApiClient);
+	auto spacesStore = SpacesStore::make(root, cfg, flexiApiClient);
+
+	// Wait for the spaces to be created if we are using the FAM.
+	if (flexiApiClient && spacesStore) {
+		constexpr auto waitTimeout = 30s;
+		const auto deadline = chrono::system_clock::now() + waitTimeout;
+		while (!spacesStore->isReady()) {
+			if (chrono::system_clock::now() > deadline) {
+				throw ExitFailure{
+				    "Could not retrieve spaces from Flexisip Account Manager, please check your configuration."};
+			}
+			root->step(10ms);
+		}
+	}
+
+	auto agent = make_shared<Agent>(root, cfg, authDb, registrarDb, spacesStore);
+
 	setOpenSSLThreadSafe();
 
 #ifdef ENABLE_SNMP
@@ -845,8 +861,7 @@ int flexisip::main(int argc, const char* argv[]) {
 
 	if (startVoicemail) {
 #if ENABLE_VOICEMAIL
-		if (!flexiApiClient) flexiApiClient = flexiapi::createClient(cfg, *agent->getRoot());
-		auto voicemailServer = make_shared<VoicemailServer>(root, cfg, flexiApiClient);
+		auto voicemailServer = make_shared<VoicemailServer>(root, cfg, spacesStore);
 		voicemailServer->init();
 		serviceServers.emplace_back(std::move(voicemailServer));
 #endif // ENABLE_B2BUA

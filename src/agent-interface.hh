@@ -47,7 +47,6 @@ public:
 
 	virtual const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept = 0;
 
-	virtual std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept = 0;
 	virtual std::shared_ptr<SpacesStore> getSpacesStore() const = 0;
 
 	virtual std::shared_ptr<OutgoingAgent> getOutgoingAgent() = 0;

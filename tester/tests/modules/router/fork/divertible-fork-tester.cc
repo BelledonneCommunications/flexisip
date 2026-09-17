@@ -138,6 +138,7 @@ struct DivertedCallTester {
 		std::ofstream(accountsParameter) << accounts;
 		std::map<string, string> config{{"global/transports", "sip:127.0.0.1:0;transport=tcp"},
 		                                {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(httpPort)},
+		                                {"global::flexiapi/api-key", "aRandomToken"},
 		                                {"global/advanced-account-data", accountsParameter},
 		                                {"module::Registrar/reg-domains", "sip.example.org"},
 		                                {"module::Router/enable-call-diversions", "true"},

@@ -63,7 +63,7 @@ public:
 		    : name(name), domain(domain), realm(realm) {}
 		Space(const std::string& name,
 		      const std::string& domain,
-		      const std::shared_ptr<flexiapi::FlexiApi> flexiApiClient,
+		      const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
 		      const std::optional<AccountsStore>&& accountsStore,
 		      const std::weak_ptr<Realm>& realm = {})
 		    : name(name), domain(domain), realm(realm), flexiApiClient(flexiApiClient), accountsStore(accountsStore) {}
@@ -89,8 +89,16 @@ public:
 	std::optional<std::reference_wrapper<AccountsStore>> getAccountsStore(const std::string& domain);
 	std::weak_ptr<flexiapi::FlexiApi> getFlexiApiClient(const std::string& domain);
 
+	std::shared_ptr<Http2Client> getGlobalFlexiApiClient() const {
+		return mGlobalFlexiApiClient;
+	}
+
 	bool hasDomain(const std::string& domain) const {
 		return mSpaces.contains(domain);
+	}
+
+	bool isReady() const {
+		return !mSpaces.empty();
 	}
 
 	std::vector<std::pair<std::vector<std::string>, const Bearer>> getBearerParams() const;
@@ -117,6 +125,7 @@ private:
 	std::unique_ptr<ISpacesDataManager> mSpacesDataManager{};
 	std::optional<FlexiApiConfig> mFlexiApiConfig{};
 	std::shared_ptr<sofiasip::SuRoot> mRoot;
+	std::shared_ptr<Http2Client> mGlobalFlexiApiClient{};
 };
 
 } // namespace flexisip

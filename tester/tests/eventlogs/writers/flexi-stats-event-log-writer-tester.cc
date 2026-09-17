@@ -17,6 +17,7 @@
 */
 
 #include "eventlogs/writers/flexi-stats-event-log-writer.hh"
+#include "flexiapi-builder.hh"
 
 #include <atomic>
 #include <memory>
@@ -58,10 +59,10 @@ RestClient getRestClient(sofiasip::SuRoot& root, const string& host, int port, c
 
 void startCallAndCheckAuthority(const shared_ptr<flexisip::tester::Server>& proxy,
                                 HttpMock& flexiapiServer,
-                                std::atomic_int& eventLogRequestsReceivedCount,
                                 const string& expectedAuthority) {
-
-	eventLogRequestsReceivedCount = 0;
+	// Pop the /api/spaces request
+	std::ignore = flexiapiServer.popRequestReceived();
+	flexiapiServer.resetRequestReceivedCount();
 	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -74,7 +75,7 @@ void startCallAndCheckAuthority(const shared_ptr<flexisip::tester::Server>& prox
 
 	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
 	BC_HARD_ASSERT_TRUE(
-	    asserter.iterateUpTo(5, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 3; }));
+	    asserter.iterateUpTo(5, [&flexiapiServer] { return flexiapiServer.getRequestReceivedCount() == 3; }));
 
 	const auto startedEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(startedEvent != nullptr);
@@ -84,10 +85,9 @@ void startCallAndCheckAuthority(const shared_ptr<flexisip::tester::Server>& prox
 }
 
 void startLogWriter() {
-
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
-	int port = flexiapiServer.serveAsync();
+	FlexiapiBuilder builder{};
+	auto flexiapiServer = builder.addEndpoint("/").build();
+	int port = flexiapiServer->getFirstPort();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	{
 		// No parameters, nor default value for host.
@@ -145,8 +145,7 @@ void startLogWriter() {
 }
 
 void startLogWriterMissingUrl() {
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	HttpMock flexiapiServer{{"/"}};
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	// Event-logs parameters are used as global::flexiapi/url is missing .
@@ -159,13 +158,13 @@ void startLogWriterMissingUrl() {
 	                                                    {"global::flexiapi/api-key", "aRandomApiToken"}};
 	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
 	const auto proxy = makeAndStartProxy(customConfigs);
-	startCallAndCheckAuthority(proxy, flexiapiServer, eventLogRequestsReceivedCount, expectedAuthority);
+	startCallAndCheckAuthority(proxy, flexiapiServer, expectedAuthority);
 }
 
 void startLogWriterMissingApikey() {
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
-	int port = flexiapiServer.serveAsync();
+	FlexiapiBuilder builder{};
+	auto flexiapiServer = builder.addEndpoint("/").build();
+	int port = flexiapiServer->getFirstPort();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	// Event-logs parameters are used as global::flexiapi/api-key is missing.
 	std::map<std::string, std::string> customConfigs = {
@@ -176,15 +175,13 @@ void startLogWriterMissingApikey() {
 	    {"event-logs/flexiapi-prefix", "api/statistics"},
 	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
 	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)}};
-	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
-	const auto proxy = makeAndStartProxy(customConfigs);
-	startCallAndCheckAuthority(proxy, flexiapiServer, eventLogRequestsReceivedCount, expectedAuthority);
+	BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
 }
 
 void startLogWriterGlobalOverrides() {
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
-	int port = flexiapiServer.serveAsync();
+	FlexiapiBuilder builder{};
+	auto flexiapiServer = builder.addEndpoint("/").build();
+	int port = flexiapiServer->getFirstPort();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	// global::flexiapi parameters overrides those from event-logs section.
 	std::map<std::string, std::string> customConfigs = {
@@ -198,13 +195,13 @@ void startLogWriterGlobalOverrides() {
 	    {"global::flexiapi/api-key", "aRandomApiToken"}};
 	const string expectedAuthority = "localhost:"s + to_string(port);
 	const auto proxy = makeAndStartProxy(customConfigs);
-	startCallAndCheckAuthority(proxy, flexiapiServer, eventLogRequestsReceivedCount, expectedAuthority);
+	startCallAndCheckAuthority(proxy, *flexiapiServer, expectedAuthority);
 }
 
 void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
-	int port = flexiapiServer.serveAsync();
+	FlexiapiBuilder apiBuilder{};
+	auto flexiapiServer = apiBuilder.addEndpoint("/").build();
+	int port = flexiapiServer->getFirstPort();
 	string authority;
 	BC_HARD_ASSERT_TRUE(port > -1);
 	if (customConfigs.find("event-logs/flexiapi-port") != customConfigs.end()) {
@@ -219,6 +216,10 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	// See makeAndStartProxy for event-log configuration
 	const auto proxy = makeAndStartProxy(customConfigs);
 
+	// Pop the /api/spaces request
+	flexiapiServer->popRequestReceived();
+	flexiapiServer->resetRequestReceivedCount();
+
 	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -231,9 +232,9 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 
 	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
 	BC_HARD_ASSERT_TRUE(
-	    asserter.iterateUpTo(5, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 3; }));
+	    asserter.iterateUpTo(5, [&flexiapiServer] { return flexiapiServer->getRequestReceivedCount() == 3; }));
 
-	const auto startedEvent = flexiapiServer.popRequestReceived();
+	const auto startedEvent = flexiapiServer->popRequestReceived();
 	BC_HARD_ASSERT(startedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/statistics/calls");
@@ -259,7 +260,7 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	     }},
 	};
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
-	const auto ringingEvent = flexiapiServer.popRequestReceived();
+	const auto ringingEvent = flexiapiServer->popRequestReceived();
 	BC_HARD_ASSERT(ringingEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(ringingEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(ringingEvent->path, "/api/statistics/calls/" + logId + "/devices/" + expectedDeviceId);
@@ -269,7 +270,7 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 		BC_FAIL("json::parse exception with received body");
 	}
 	BC_ASSERT_TRUE(actualJson.contains("rang_at"));
-	const auto acceptedEvent = flexiapiServer.popRequestReceived();
+	const auto acceptedEvent = flexiapiServer->popRequestReceived();
 	BC_HARD_ASSERT(acceptedEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(acceptedEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(acceptedEvent->path, "/api/statistics/calls/" + logId + "/devices/" + expectedDeviceId);
@@ -287,14 +288,14 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	}
 	)"_json;
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
-	eventLogRequestsReceivedCount = 0;
+	flexiapiServer->resetRequestReceivedCount();
 
 	tony.endCurrentCall(mike);
 
 	BC_HARD_ASSERT_TRUE(
-	    asserter.iterateUpTo(10, [&eventLogRequestsReceivedCount] { return eventLogRequestsReceivedCount == 1; }));
+	    asserter.iterateUpTo(10, [&flexiapiServer] { return flexiapiServer->getRequestReceivedCount() == 1; }));
 
-	const auto endedEvent = flexiapiServer.popRequestReceived();
+	const auto endedEvent = flexiapiServer->popRequestReceived();
 	BC_ASSERT_CPP_EQUAL(endedEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(endedEvent->path, "/api/statistics/calls/" + logId);
 	try {
@@ -330,8 +331,7 @@ void callStartedAndEndedWithGlobalConfig() {
 void messageSentAndReceived() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	HttpMock flexiapiServer{{"/"}};
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(
@@ -356,8 +356,8 @@ void messageSentAndReceived() {
 	directChat->createMessageFromUtf8("We're out of lemon tea...")->send();
 	asserter
 	    .iterateUpTo(12,
-	                 [&forkMessageContextsStats, &eventLogRequestsReceivedCount]() {
-		                 FAIL_IF(eventLogRequestsReceivedCount < 2 /* Sent + Delivered */);
+	                 [&forkMessageContextsStats, &flexiapiServer]() {
+		                 FAIL_IF(flexiapiServer.getRequestReceivedCount() < 2 /* Sent + Delivered */);
 		                 const auto started = forkMessageContextsStats->start->read();
 		                 FAIL_IF(started < 1 /* 1 MSG */);
 		                 FAIL_IF(forkMessageContextsStats->finish->read() != started);
@@ -365,7 +365,7 @@ void messageSentAndReceived() {
 	                 })
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(eventLogRequestsReceivedCount, 2);
+	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer.getRequestReceivedCount(), 2);
 	const auto sentEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
@@ -419,8 +419,7 @@ void messageSentAndReceived() {
 void messageDeviceUnavailable() {
 	const auto proxy = makeAndStartProxy();
 	const auto& agent = proxy->getAgent();
-	std::atomic_int eventLogRequestsReceivedCount{0};
-	HttpMock flexiapiServer{{"/"}, &eventLogRequestsReceivedCount};
+	HttpMock flexiapiServer{{"/"}};
 	int port = flexiapiServer.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	agent->setEventLogWriter(
@@ -444,8 +443,8 @@ void messageDeviceUnavailable() {
 	asserter
 	    .iterateUpTo(
 	        8,
-	        [&forkMessageContextsStats, &eventLogRequestsReceivedCount]() {
-		        FAIL_IF(eventLogRequestsReceivedCount < 3 /* Sent + Delivered x 2 */);
+	        [&forkMessageContextsStats, &flexiapiServer]() {
+		        FAIL_IF(flexiapiServer.getRequestReceivedCount() < 3 /* Sent + Delivered x 2 */);
 		        const auto started = forkMessageContextsStats->start->read();
 		        FAIL_IF(started < 1 /* 1 MSG */);
 		        return ASSERTION_PASSED();
@@ -453,7 +452,7 @@ void messageDeviceUnavailable() {
 	        1s)
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(eventLogRequestsReceivedCount, 3);
+	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer.getRequestReceivedCount(), 3);
 	const auto sentEvent = flexiapiServer.popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
@@ -529,16 +528,15 @@ void messageDeviceUnavailable() {
 		BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 		BC_ASSERT_TRUE(sentAt <= receivedAt);
 	}
-	eventLogRequestsReceivedCount = 0;
+	flexiapiServer.resetRequestReceivedCount();
 
 	mikeDesktop.reconnect();
 	asserter
 	    .iterateUpTo(
 	        4,
-	        [&forkMessageContextsStats, &eventLogRequestsReceivedCount,
-	         &mikeDesktopAccount = *mikeDesktop.getAccount()]() {
+	        [&forkMessageContextsStats, &flexiapiServer, &mikeDesktopAccount = *mikeDesktop.getAccount()]() {
 		        FAIL_IF(mikeDesktopAccount.getState() != linphone::RegistrationState::Ok);
-		        FAIL_IF(eventLogRequestsReceivedCount < 1);
+		        FAIL_IF(flexiapiServer.getRequestReceivedCount() < 1);
 		        const auto started = forkMessageContextsStats->start->read();
 		        FAIL_IF(started < 1);
 		        FAIL_IF(forkMessageContextsStats->finish->read() != started);
@@ -547,7 +545,7 @@ void messageDeviceUnavailable() {
 	        1s)
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(eventLogRequestsReceivedCount, 1);
+	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer.getRequestReceivedCount(), 1);
 	{
 		const auto& deliveredEvent = flexiapiServer.popRequestReceived();
 		BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");

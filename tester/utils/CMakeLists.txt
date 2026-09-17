@@ -37,6 +37,7 @@ add_library(flexisip_tester_utils
 	custom-user-agent-behavior.hh
 	eventlogs/event-logs.cc eventlogs/event-logs.hh
 	eventlogs/writers/event-log-writer-visitor-adapter.hh
+	flexiapi-builder.cc flexiapi-builder.hh
 	flow-test-helper.cc flow-test-helper.hh
 	http-mock/http1-mock.cc http-mock/http1-mock.hh
 	server/http2/http2-server.cc server/http2/http2-server.hh

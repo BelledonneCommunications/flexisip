@@ -41,7 +41,7 @@ using namespace http_mock;
 
 class GlobalPushTest : public AgentTest {
 public:
-	GlobalPushTest() : mHttpMock{{"/"}, &mRequestReceivedCount}, mMockPort{mHttpMock.serveAsync()} {
+	GlobalPushTest() : mHttpMock{{"/"}}, mMockPort{mHttpMock.serveAsync()} {
 		BC_HARD_ASSERT_TRUE(mMockPort > -1);
 	}
 
@@ -50,12 +50,12 @@ public:
 		executeScenario();
 
 		BcAssert asserter{[this] { mRoot->step(1ms); }};
-		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(10, [this] { return mRequestReceivedCount == 1; }));
+		BC_HARD_ASSERT_TRUE(asserter.iterateUpTo(10, [this] { return mHttpMock.getRequestReceivedCount() == 1; }));
 
 		mHttpMock.forceCloseServer();
 		mRoot->step(10ms); // needed to acknowledge mock server closing
 
-		BC_HARD_ASSERT_CPP_EQUAL(mRequestReceivedCount, 1);
+		BC_HARD_ASSERT_CPP_EQUAL(mHttpMock.getRequestReceivedCount(), 1);
 		const auto actualRequest = mHttpMock.popRequestReceived();
 		BC_HARD_ASSERT_NOT_NULL(actualRequest);
 
@@ -95,7 +95,6 @@ public:
 	}
 
 private:
-	std::atomic_int mRequestReceivedCount{0};
 	HttpMock mHttpMock;
 	int mMockPort;
 };

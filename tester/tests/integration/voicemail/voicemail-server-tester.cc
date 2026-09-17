@@ -18,6 +18,7 @@
 
 #include "voicemail/voicemail-server.hh"
 
+#include "flexiapi-builder.hh"
 #include "flexiapi/config.hh"
 #include "flexiapi/schemas/schemas-json.hh"
 #include "flexiapi/schemas/voicemail/slot-creation-json.hh"
@@ -51,6 +52,16 @@ void answerCallThenHangUp() {
 	const auto beepFile = bcTesterRes("../share/voicemail/beep.wav");
 	const TmpDir tmpStorageDir{"voicemail-storage"};
 
+	FlexiapiBuilder builder{};
+	auto httpServer = builder
+	                      .setSpaces({{
+	                          {"domain", "sip.test.org"},
+	                          {"name", "test"},
+	                          {"host", "127.0.0.1"},
+	                      }})
+	                      .build();
+	const auto httpPort = httpServer->getFirstPort();
+
 	Server server{{
 	    {"global/transports", "sip:127.0.0.1"},
 	    {"voicemail-server/transport", "sip:flexisip-voicemail@localhost:0;maddr=127.0.0.1;transport=tcp"},
@@ -58,12 +69,15 @@ void answerCallThenHangUp() {
 	    {"voicemail-server/voicemail-announcement-path", audioFile},
 	    {"voicemail-server/beep-sound-path", beepFile},
 	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
-	    {"global::flexiapi/url", "https://127.0.0.1:443"},
+	    {"global::flexiapi/url", "https://127.0.0.1:" + to_string(httpPort)},
+	    {"global::flexiapi/api-key", "aRandomToken"},
 	}};
 	const auto& agent = server.getAgent();
 
-	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(),
-	                                              flexiapi::createClient(server.getConfigManager(), *agent->getRoot()));
+	// Wait for the spaces store to be ready.
+	server.waitForSpacesStore();
+
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(), agent->getSpacesStore());
 	voicemail->init();
 
 	ClientBuilder clientBuilder{"sip:flexisip-voicemail@localhost:" + to_string(voicemail->getTcpPort()) +
@@ -178,9 +192,17 @@ void answerCallRecordVoicemail() {
 		fileUploaded = true;
 		postFileHandler(mock, req, res);
 	};
-	http_mock::HttpMock httpServer{handlers};
 
-	const auto httpPort = httpServer.serveAsync();
+	FlexiapiBuilder builder{};
+	auto httpServer = builder
+	                      .setSpaces({{
+	                          {"domain", "sip.test.org"},
+	                          {"name", "test"},
+	                          {"host", "127.0.0.1"},
+	                      }})
+	                      .setHandlers(handlers)
+	                      .build();
+	const auto httpPort = httpServer->getFirstPort();
 
 	Server proxy{{
 	    {"voicemail-server/transport", "sip:127.0.0.1:0;transport=tcp"},
@@ -189,11 +211,15 @@ void answerCallRecordVoicemail() {
 	    {"voicemail-server/beep-sound-path", beepFile},
 	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
 	    {"global::flexiapi/url", "https://127.0.0.1:" + to_string(httpPort)},
+	    {"global::flexiapi/api-key", "aRandomToken"},
 	}};
 	const auto& agent = proxy.getAgent();
+
+	// Wait for the spaces store to be ready.
+	proxy.waitForSpacesStore();
+
 	LOGD_CTX("answerCallRecordVoicemail") << "Root address" << agent->getRoot().get();
-	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), proxy.getConfigManager(),
-	                                              flexiapi::createClient(proxy.getConfigManager(), *agent->getRoot()));
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), proxy.getConfigManager(), agent->getSpacesStore());
 	try {
 		voicemail->init();
 	} catch (exception& e) {
@@ -231,7 +257,7 @@ void answerCallRecordVoicemail() {
 	std::ignore = asserter.iterateUpTo(5, [&fileUploaded] { return LOOP_ASSERTION(fileUploaded); }, 2s).assert_passed();
 
 	std::ignore = voicemail->stop();
-	httpServer.forceCloseServer();
+	httpServer->forceCloseServer();
 	agent->getRoot()->step(10ms); // needed to acknowledge mock server closing
 }
 
@@ -250,11 +276,11 @@ void transportInitialization() {
 	    {"voicemail-server/beep-sound-path", beepFile},
 	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
 	    {"global::flexiapi/url", "https://127.0.0.1:443"},
+	    {"global::flexiapi/api-key", "aRandomToken"},
 	}};
 	const auto& agent = server.getAgent();
 	auto suRoot = agent->getRoot();
-	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(),
-	                                              flexiapi::createClient(server.getConfigManager(), *agent->getRoot()));
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(), agent->getSpacesStore());
 
 	try {
 		voicemail->init();

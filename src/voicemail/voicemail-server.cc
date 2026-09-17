@@ -31,6 +31,7 @@
 #include "utils/configuration/transport.hh"
 #include "utils/digest.hh"
 #include "utils/string-utils.hh"
+#include "utils/uri-utils.hh"
 
 using namespace std;
 
@@ -46,9 +47,15 @@ string getCallKey(const std::shared_ptr<linphone::Call>& call) {
 
 VoicemailServer::VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root,
                                  const std::shared_ptr<ConfigManager>& cfg,
-                                 const std::shared_ptr<Http2Client>& http2Client)
-    : ServiceServer(root), mConfigManager(cfg),
-      mFlexiApiClient(flexiapi::createRestClient(*mConfigManager, http2Client)) {}
+                                 const std::shared_ptr<SpacesStore>& spacesStore)
+    : ServiceServer(root), mConfigManager(cfg), mSpacesStore(spacesStore) {
+	const auto* flexiApiConfigSection = mConfigManager->getRoot()->get<GenericStruct>("global::flexiapi");
+	const auto* flexiApiUrlParam = flexiApiConfigSection->get<ConfigString>("url");
+	if (flexiApiUrlParam->read().empty())
+		throw BadConfiguration{"Voicemail server cannot start without 'global::flexiapi' configured"};
+	const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
+	if (flexiApiKeyParam->read().empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
+}
 
 void VoicemailServer::_init() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("voicemail-server");
@@ -226,17 +233,35 @@ void VoicemailServer::onCallStateIncomingReceived(const std::shared_ptr<linphone
 	LOGD << "Incoming call received from " << remoteAddress << " [" << call << "]";
 
 	auto callKey = getCallKey(call);
+
+	// Retrieve the target parameter of the call
+	SipUri targetUri;
+	try {
+		targetUri = SipUri(uri_utils::unescape(call->getRequestAddress()->getUriParam("target")));
+	} catch (sofiasip::InvalidUrlError& e) {
+		LOGE << "Could not parse target parameter of call [" << call << "]: " << e.what() << ", declining call";
+		call->decline(linphone::Reason::AddressIncomplete);
+		return;
+	}
+
+	// Retrieve the correct FlexiAPI client depending on the target.
+	const auto flexiApiClient = mSpacesStore->getFlexiApiClient(targetUri.getHost()).lock();
+
+	if (!flexiApiClient) {
+		LOGE << "No FlexiAPI client found for domain [" << targetUri.getHost() << "]: declining call";
+		call->decline(linphone::Reason::NotFound);
+		return;
+	}
+
 	auto callHandlerInserted =
 	    mCallHandlers
-	        .emplace(callKey, make_shared<voicemail::CallHandler>(call, mCore, mRoot, mFlexiApiClient,
+	        .emplace(callKey, make_shared<voicemail::CallHandler>(call, mCore, mRoot, flexiApiClient,
 	                                                              mAnnouncementsPaths, mRecordingParameters))
 	        .second;
+
 	if (!callHandlerInserted) {
 		LOGE << "Could not create handler for call [" << call << "]: declining call";
-
-		const auto errorInfo = linphone::Factory::get()->createErrorInfo();
-		errorInfo->setReason(linphone::Reason::Busy);
-		call->declineWithErrorInfo(errorInfo);
+		call->decline(linphone::Reason::Busy);
 		return;
 	}
 
@@ -329,11 +354,12 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    config_item_end,
 	};
 
-	root.addChild(
-	        make_unique<GenericStruct>(voicemail::configSection,
-	                                   "Flexisip voicemail server parameters.\n"
-	                                   "The 'global::flexiapi' section must be configured for the server to start.",
-	                                   0))
+	root
+	    .addChild(make_unique<GenericStruct>(
+	        voicemail::configSection,
+	        "Flexisip voicemail server parameters.\n"
+	        "The 'global::flexiapi' and 'global::domains' sections must be configured for the server to start.",
+	        0))
 	    ->addChildrenValues(items);
 });
 

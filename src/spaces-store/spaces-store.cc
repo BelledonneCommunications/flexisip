@@ -48,7 +48,7 @@ void checkBearerConfigConflict(const std::shared_ptr<ConfigManager>& cfg) {
 
 	const auto domainsConfigParam =
 	    cfg->getRoot()->get<GenericStruct>("global::domains")->get<ConfigString>("domains-configuration");
-	if (domainsConfigParam->read().empty()) {
+	if (domainsConfigParam->read() == "legacy") {
 		const auto advancedAccountDataParam = cfg->getGlobal()->get<ConfigString>("advanced-account-data");
 		if (advancedAccountDataParam->read().empty()) return;
 
@@ -262,7 +262,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 			};
 		}
 
-		if (!mode.empty() && (hasAccountsStore || hasSpacesData)) {
+		if (mode != "legacy" && (hasAccountsStore || hasSpacesData)) {
 			if (hasAccountsStore) {
 				LOGE << "Legacy '" + advancedAccountDataParam->getCompleteName() + "' option is set to "
 				     << advancedAccountData;
@@ -281,6 +281,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 		}
 		if (hasSpacesData) {
 			auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
+			spacesStore->mGlobalFlexiApiClient = flexiApiClient;
 			spacesStore->mRealms = {legacy::makeRealm(cfg)};
 			auto dataManager = legacy::makeSpacesDataManager(
 			    root, cfg, flexiApiClient,
@@ -299,8 +300,11 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 
 			if (authDomainsMode == "flexiapi") {
 				const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
-				const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
 				const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
+				const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
+				const auto flexiApiKey = flexiApiKeyParam->read();
+				if (flexiApiKey.empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
+
 				spacesStore->mFlexiApiConfig = FlexiApiConfig{.url = HttpUrl(flexiApiUrl), .apiKey = flexiApiKey};
 			}
 			spacesStore->mSpacesDataManager = std::move(dataManager);
@@ -308,17 +312,28 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 		}
 	}
 
-	if (mode.empty()) {
-		LOGD << "The parameter '" << modeParam->getCompleteName() << "' is empty, no spaces will be configured";
-		return nullptr;
+	// Always create a SpacesStore no matter what.
+	auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
+
+	if (mode == "legacy" && !flexiApiClient) {
+		spacesStore->mSpaces.emplace(kLegacyDomainName, Space{"Legacy", kLegacyDomainName, nullptr, nullopt});
+		return spacesStore;
 	}
 
-	auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
-	if (mode == "flexiapi") {
+	if ((mode == "legacy" && flexiApiClient) || mode == "flexiapi") {
+		if (mode == "legacy")
+			LOGW << "global::domains/domains-configuration was set as 'legacy' but global::flexiapi is set, using it "
+			        "as 'flexiapi'";
+
 		const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
-		const auto flexiApiKey = flexiApiConfigSection->get<ConfigString>("api-key")->read();
 		const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
+		const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
+		const auto flexiApiKey = flexiApiKeyParam->read();
+		if (flexiApiKey.empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
+
 		spacesStore->mFlexiApiConfig = FlexiApiConfig{.url = HttpUrl(flexiApiUrl), .apiKey = flexiApiKey};
+
+		spacesStore->mGlobalFlexiApiClient = flexiApiClient;
 
 		const auto refreshDelay = domainsConfigSection->get<ConfigDuration<chrono::minutes>>("refresh-delay")->read();
 		auto client = flexiapi::createRestClient(*cfg, flexiApiClient);
@@ -330,6 +345,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 
 		return spacesStore;
 	}
+
 	if (filesystem::exists(mode)) {
 		spacesStore->mSpacesDataManager = make_unique<FileSpacesData>(
 		    mode, [maybeSpacesStore = weak_ptr(spacesStore)](const std::vector<flexiapi::Space>& spaces) {
@@ -358,6 +374,7 @@ SpacesStore::SpacesStore(const std::string& advancedAccountData,
 		                                       flexiApiClient,
 		                                       optional{AccountsStore{flexiApiClient, root}},
 		                                   });
+		mGlobalFlexiApiClient = http2Client;
 	} else {
 		mSpaces.emplace(kLegacyDomainName, Space{
 		                                       "Legacy",
@@ -384,6 +401,11 @@ std::optional<std::reference_wrapper<AccountsStore>> SpacesStore::getAccountsSto
 }
 
 std::weak_ptr<flexiapi::FlexiApi> SpacesStore::getFlexiApiClient(const std::string& domain) {
+	// If we are in legacy mode, then return the FlexiApi from the Legacy space.
+	if (hasDomain(kLegacyDomainName)) {
+		return mSpaces[kLegacyDomainName].flexiApiClient;
+	}
+
 	return hasDomain(domain) ? mSpaces[domain].flexiApiClient : std::weak_ptr<flexiapi::FlexiApi>();
 }
 

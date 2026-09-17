@@ -26,6 +26,7 @@
 #include "flexisip/configmanager.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "service-server/service-server.hh"
+#include "spaces-store/spaces-store.hh"
 #include "utils/transport/http/rest-client.hh"
 
 namespace flexisip {
@@ -42,7 +43,7 @@ class VoicemailServer : public ServiceServer,
 public:
 	VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root,
 	                const std::shared_ptr<ConfigManager>& cfg,
-	                const std::shared_ptr<Http2Client>& http2Client);
+	                const std::shared_ptr<SpacesStore>& spacesStore);
 	~VoicemailServer() override = default;
 
 	void _init() override;
@@ -69,7 +70,7 @@ private:
 	std::shared_ptr<linphone::Core> mCore{};
 
 	std::shared_ptr<ConfigManager> mConfigManager{};
-	flexiapi::FlexiApi mFlexiApiClient;
+	std::shared_ptr<SpacesStore> mSpacesStore{};
 	voicemail::CallHandler::RecordingParameters mRecordingParameters;
 	voicemail::CallHandler::AnnouncementPaths mAnnouncementsPaths{};
 

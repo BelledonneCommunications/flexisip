@@ -73,9 +73,8 @@ void flexiStatTestFunc(const SendReqFunc& sendRequest,
                        const CustomAssertFunc& customAssert,
                        int requestReceivedExpectedCount = 1) {
 	sofiasip::SuRoot mRoot{};
-	std::atomic_int mRequestReceivedCount{0};
 
-	HttpMock httpMock{{"/"}, &mRequestReceivedCount};
+	HttpMock httpMock{{"/"}};
 	int port = httpMock.serveAsync();
 	BC_HARD_ASSERT_TRUE(port > -1);
 
@@ -91,16 +90,16 @@ void flexiStatTestFunc(const SendReqFunc& sendRequest,
 
 	CoreAssert asserter{mRoot};
 	asserter
-	    .wait([&mRequestReceivedCount, &requestReceivedExpectedCount] {
-		    return LOOP_ASSERTION(mRequestReceivedCount == requestReceivedExpectedCount);
+	    .wait([&httpMock, &requestReceivedExpectedCount] {
+		    return LOOP_ASSERTION(httpMock.getRequestReceivedCount() == requestReceivedExpectedCount);
 	    })
 	    .assert_passed();
-	BC_HARD_ASSERT_CPP_EQUAL(mRequestReceivedCount, requestReceivedExpectedCount);
+	BC_HARD_ASSERT_CPP_EQUAL(httpMock.getRequestReceivedCount(), requestReceivedExpectedCount);
 
 	httpMock.forceCloseServer();
 	mRoot.step(10ms); // needed to acknowledge mock server closing
 
-	BC_HARD_ASSERT_CPP_EQUAL(mRequestReceivedCount, requestReceivedExpectedCount);
+	BC_HARD_ASSERT_CPP_EQUAL(httpMock.getRequestReceivedCount(), requestReceivedExpectedCount);
 	vector<shared_ptr<Request>> actualRequests;
 	while (auto actualRequest = httpMock.popRequestReceived()) {
 		actualRequests.emplace_back(actualRequest);

@@ -78,8 +78,7 @@ public:
 	      const std::shared_ptr<ConfigManager>& cm,
 	      const std::shared_ptr<AuthDb>& authDb,
 	      const std::shared_ptr<RegistrarDb>& registrarDb,
-	      const std::shared_ptr<SpacesStore>& spacesStore,
-	      const std::shared_ptr<Http2Client>& flexiApiClient);
+	      const std::shared_ptr<SpacesStore>& spacesStore);
 
 	~Agent() override;
 
@@ -121,10 +120,6 @@ public:
 	}
 	void setEventLogWriter(std::unique_ptr<EventLogWriter>&& value) {
 		mLogWriter = std::move(value);
-	}
-
-	std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept override {
-		return mFlexiApiClient;
 	}
 
 	const std::shared_ptr<sofiasip::SuRoot>& getRoot() const noexcept override {
@@ -299,7 +294,6 @@ private:
 	DomainRegistrationManager* mDrm = nullptr;
 	std::unique_ptr<EventLogWriter> mLogWriter;
 	std::weak_ptr<ISupervisorNotifier> mNotifier;
-	std::shared_ptr<Http2Client> mFlexiApiClient = nullptr;
 	std::shared_ptr<NatTraversalStrategy> mNatTraversalStrategy;
 #if ENABLE_MDNS
 	std::vector<belle_sip_mdns_register_t*> mMdnsRegisterList;

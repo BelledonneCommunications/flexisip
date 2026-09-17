@@ -91,7 +91,6 @@ void runDynamicDomainLoadingTest(Server& proxy, http_mock::HttpMock& server) {
 	root->step(10ms); // needed to acknowledge mock server closing
 }
 
-
 void dynamicDomainLoading() {
 	constexpr auto apiPath = "/api/spaces";
 	http_mock::HttpMock server{apiPath};
@@ -109,11 +108,15 @@ void dynamicDomainLoading() {
 	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
 	const auto port = server.serveAsync();
 
-	Server proxy({{"module::Registrar/reg-domains", "*.example.org"},
-	              {"module::Authorization/enabled", "true"},
-	              {"global::domains/domains-configuration", "flexiapi"},
-	              {"global::flexiapi/url", "https://127.0.0.1:" + to_string(port)}},
-	             &forceTrustedHost);
+	Server proxy(
+	    {
+	        {"module::Registrar/reg-domains", "*.example.org"},
+	        {"module::Authorization/enabled", "true"},
+	        {"global::domains/domains-configuration", "flexiapi"},
+	        {"global::flexiapi/url", "https://127.0.0.1:" + to_string(port)},
+	        {"global::flexiapi/api-key", "aRandomToken"},
+	    },
+	    &forceTrustedHost);
 
 	runDynamicDomainLoadingTest(proxy, server);
 }

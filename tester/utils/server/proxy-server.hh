@@ -123,6 +123,11 @@ public:
 	 */
 	void runFor(std::chrono::milliseconds duration);
 
+	/**
+	 * @brief Wait for the SpacesStores to be ready if necessary.
+	 */
+	void waitForSpacesStore() const;
+
 private:
 	const std::optional<InjectedModuleInfo> mInjectedModule{std::nullopt};
 	std::shared_ptr<ConfigManager> mConfigManager{std::make_shared<ConfigManager>()};

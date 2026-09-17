@@ -70,7 +70,8 @@ void Agent::startLogWriter() {
 					        "'flexiapi-prefix' of 'event-logs' section.";
 				}
 				mLogWriter = make_unique<FlexiStatsEventLogWriter>(
-				    flexiapi::createRestClient(*mConfigManager, mFlexiApiClient), kEventLogApiPrefix);
+				    flexiapi::createRestClient(*mConfigManager, mSpacesStore->getGlobalFlexiApiClient()),
+				    kEventLogApiPrefix);
 			} else if (!host.empty()) {
 				LOGW << "'flexiapi-host' 'flexiapi-port' 'flexiapi-api-key' and 'flexiapi-prefix' parameters are "
 				        "deprecated, use 'global::flexiapi::url' and 'global::flexiapi::api-key' instead.";

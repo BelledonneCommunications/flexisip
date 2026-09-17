@@ -173,7 +173,7 @@ void moduleReplacement() {
 	auto authDb = std::make_shared<AuthDb>(cfg);
 	auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
 	auto agent =
-	    std::make_shared<Agent>(root, cfg, authDb, registrarDb, SpacesStore::make(root, cfg, nullptr), nullptr);
+	    std::make_shared<Agent>(root, cfg, authDb, registrarDb, SpacesStore::make(root, cfg, nullptr));
 	agent->start("", "");
 	auto router = dynamic_pointer_cast<DummyRouterModule>(agent->findModuleByRole("Router"));
 	BC_HARD_ASSERT_TRUE(router != nullptr);

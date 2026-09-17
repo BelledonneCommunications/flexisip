@@ -25,6 +25,7 @@
 
 #include "core-assert.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexiapi-builder.hh"
 #include "flexiapi/config.hh"
 #include "flexisip/configmanager.hh"
 #include "http-mock/http-mock.hh"
@@ -278,12 +279,10 @@ void createSpacesStoreInvalidJsonSchema() {
  */
 void createSpacesStoreWithFlexiapi() {
 	// HTTP mocks creation
-	constexpr auto apiPath = "/api/spaces";
 	constexpr auto subDomainApiPath = "/api/resolve/user@domain";
 	std::string subDomainHost{"127.0.0.2"};
 	std::string subDomain{"a.example.org"};
 
-	http_mock::HttpMock server{apiPath};
 	nlohmann::json spaces = {
 	    {
 	        {"domain", "example.org"},
@@ -297,13 +296,12 @@ void createSpacesStoreWithFlexiapi() {
 	    },
 	};
 
-	BC_HARD_ASSERT_TRUE(server.addResponseToGET(apiPath, spaces.dump()));
-	const auto port = server.serveAsync();
+	FlexiapiBuilder builder{};
+	auto server = builder.setSpaces(spaces).build();
+	const auto port = server->getFirstPort();
 
-	std::atomic_int requestsReceived = 0;
-	http_mock::HttpMock subDomainServer{{subDomainApiPath}, &requestsReceived};
-	subDomainServer.setListeningAddress(subDomainHost);
-	BC_HARD_ASSERT_CPP_EQUAL(subDomainServer.serveAsync(to_string(port)), port);
+	auto subDomainServer = builder.setSpaces({}).addEndpoint(subDomainApiPath).build(subDomainHost, to_string(port));
+	BC_HARD_ASSERT_CPP_EQUAL(subDomainServer->getFirstPort(), port);
 
 	// SpacesStore creation
 	const auto cfg = make_shared<ConfigManager>();
@@ -312,6 +310,7 @@ void createSpacesStoreWithFlexiapi() {
 	    ->get<GenericStruct>("global::flexiapi")
 	    ->get<ConfigString>("url")
 	    ->set("https://127.0.0.1:" + to_string(port));
+	cfg->getRoot()->get<GenericStruct>("global::flexiapi")->get<ConfigString>("api-key")->set("aRandomApiToken");
 
 	auto sofiaRoot = make_shared<sofiasip::SuRoot>();
 	auto http2Client = flexiapi::createClient(cfg, *sofiaRoot);
@@ -332,8 +331,9 @@ void createSpacesStoreWithFlexiapi() {
 	    [](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>&) {},
 	    [](const std::shared_ptr<HttpMessage>&) {});
 
-	asserter.iterateUpTo(
-	            10, [&requestsReceived] { return LOOP_ASSERTION(requestsReceived == 1); }, 200ms)
+	asserter
+	    .iterateUpTo(
+	        10, [&subDomainServer] { return LOOP_ASSERTION(subDomainServer->getRequestReceivedCount() == 1); }, 200ms)
 	    .assert_passed();
 }
 

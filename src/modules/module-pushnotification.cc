@@ -455,7 +455,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 		auto flexiApiUrl = flexiApiUrlCfg->read();
 		auto flexiApiKey = flexiApiKeyCfg->read();
 
-		auto flexiApiClient = mAgent->getFlexiApiClient();
+		auto flexiApiClient = mAgent->getSpacesStore()->getGlobalFlexiApiClient();
 
 		if (flexiApiUrl.empty() || flexiApiKey.empty()) {
 			throw BadConfiguration{"`" + flexiApiUrlCfg->getCompleteName() + "` and `" +

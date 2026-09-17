@@ -423,9 +423,6 @@ public:
 	std::shared_ptr<IncomingAgent> getIncomingAgent() override {
 		return {};
 	}
-	std::shared_ptr<Http2Client> getFlexiApiClient() const noexcept override {
-		return nullptr;
-	}
 	nta_agent_t* getSofiaAgent() const override {
 		return nullptr;
 	}
@@ -475,7 +472,7 @@ public:
 	void addFakeBranch(const std::shared_ptr<BranchInfoTest>& br) {
 		mWaitingBranches.push_back(br);
 	}
-	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override{};
+	void onNewRegister(const SipUri&, const std::string&, const std::shared_ptr<ExtendedContact>&) override {};
 	shared_ptr<BranchInfo> pubFindBestBranch(bool avoid503And408) {
 		return this->findBestBranch(avoid503And408);
 	}

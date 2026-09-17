@@ -33,10 +33,11 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Specifies how this server obtains the SIP domains and associated users it manages.\n"
 	        "The server can retrieve the SIP domain and user configuration from:\n"
 	        "\t- 'flexiapi': fetch from a server that implements the FlexiAPI (configure in the [global::flexiapi] "
-	        "section)\n"
-	        "\t- 'path/to/config.json': path to json configuration file (loaded once during startup phase)\n"
-	        "Leave empty to disable the feature.",
-	        "",
+	        "section).\n"
+	        "\t- 'path/to/config.json': path to json configuration file (loaded once during startup phase).\n"
+	        "\t- 'legacy': used for backward compatibility but if the [global::flexiapi] section is defined, this "
+	        "value is handled as if it were 'flexiapi'.\n",
+	        "legacy",
 	    },
 	    {
 	        DurationMIN,
@@ -52,6 +53,13 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	                                          "Configuration parameters for multi-domains uses of Flexisip", 0);
 	auto* s = root.addChild(std::move(uS));
 	s->addChildrenValues(items);
+
+	s->get<ConfigString>("domains-configuration")
+	    ->setDeprecatedValue(
+	        "2026-09-14", "2.7",
+	        "This value is only used for backward compatibility, please set this parameter to 'flexiapi' or to a path "
+	        "to a configuration file.",
+	        "legacy");
 });
 } // namespace
 } // namespace flexisip::space_store

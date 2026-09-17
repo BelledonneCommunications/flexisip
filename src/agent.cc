@@ -748,10 +748,9 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
              const std::shared_ptr<ConfigManager>& cm,
              const std::shared_ptr<AuthDb>& authDb,
              const std::shared_ptr<RegistrarDb>& registrarDb,
-             const std::shared_ptr<SpacesStore>& spacesStore,
-             const std::shared_ptr<Http2Client>& flexiApiClient)
+             const std::shared_ptr<SpacesStore>& spacesStore)
     : mRoot{root}, mConfigManager{cm}, mAuthDb{authDb}, mRegistrarDb{registrarDb}, mSpacesStore(spacesStore),
-      mFlexiApiClient{flexiApiClient}, mTimer(mRoot, 5s) {
+      mTimer(mRoot, 5s) {
 
 	LOGD << "New Agent instance: " << this;
 

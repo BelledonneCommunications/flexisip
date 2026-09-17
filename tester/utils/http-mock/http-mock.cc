@@ -31,28 +31,34 @@ using namespace boost::asio::ssl;
 
 namespace flexisip::tester::http_mock {
 
-HttpMock::HttpMock(const std::map<std::string, HttpMockHandler>& handlers) : mCtx(ssl::context::tls) {
+HttpMock::HttpMock() : mCtx(ssl::context::tls) {
 	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
 	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
+}
 
-	for (const auto& kv : handlers) {
-		mServer.handle(kv.first, [this, &kv](const server::Request& req, const server::Response& res) {
-			kv.second(*this, req, res);
-		});
+HttpMock::HttpMock(const std::map<std::string, HttpMockHandler>& handlers) : HttpMock() {
+	for (const auto& [path, handler] : handlers) {
+		addHandler(path, handler);
 	}
 }
 
-HttpMock::HttpMock(const std::initializer_list<std::string> endpoints, std::atomic_int* requestReceivedCount)
-    : mCtx(ssl::context::tls), mRequestReceivedCount(requestReceivedCount) {
-	mCtx.use_private_key_file(bcTesterRes("cert/self.signed.key.test.pem"), context::pem);
-	mCtx.use_certificate_chain_file(bcTesterRes("cert/self.signed.cert.test.pem"));
-
+HttpMock::HttpMock(const std::initializer_list<std::string> endpoints) : HttpMock() {
 	for (const auto& handle : endpoints) {
-		mServer.handle(handle, [this, handle](const server::Request& req, const server::Response& res) {
-			handleRequest(req, res, handle);
-		});
-		mGETResponse[handle] = kDefaultResponse;
+		addEndpoint(handle);
 	}
+}
+
+void HttpMock::addHandler(const std::string& path, const HttpMockHandler& handler) {
+	mServer.handle(path, [this, &handler](const server::Request& req, const server::Response& res) {
+		++mRequestReceivedCount;
+		handler(*this, req, res);
+	});
+}
+
+void HttpMock::addEndpoint(const std::string& path, const std::string& response) {
+	mServer.handle(
+	    path, [this, path](const server::Request& req, const server::Response& res) { handleRequest(req, res, path); });
+	mGETResponse[path] = response.empty() ? kDefaultResponse : response;
 }
 
 std::lock_guard<std::recursive_mutex> HttpMock::pauseProcessing() {
@@ -68,18 +74,14 @@ void HttpMock::handleRequest(const server::Request& req, const server::Response&
 		if (len > 0) {
 			string body{reinterpret_cast<const char*>(data), len};
 			requestReceived->body += body;
-			if (mRequestReceivedCount) {
-				(*mRequestReceivedCount)++;
-			}
+			++mRequestReceivedCount;
 		}
 	});
 	requestReceived->method = req.getMethod();
 	requestReceived->headers = req.getHeaders();
 	if (requestReceived->headers.count("content-length") == 1 &&
 	    requestReceived->headers.find("content-length")->second.getValue() == "0") {
-		if (mRequestReceivedCount) {
-			(*mRequestReceivedCount)++;
-		}
+		++mRequestReceivedCount;
 	}
 	requestReceived->path = req.getUri().getPath();
 	requestReceived->authority = req.getAuthority();
@@ -131,6 +133,14 @@ bool HttpMock::addResponseToGET(const std::string& endpoint, const std::string& 
 int HttpMock::getFirstPort() const {
 	const auto ports = mServer.getPorts();
 	return ports.empty() ? -1 : ports.front();
+}
+
+int HttpMock::getRequestReceivedCount() const {
+	return mRequestReceivedCount;
+}
+
+void HttpMock::resetRequestReceivedCount() {
+	mRequestReceivedCount = 0;
 }
 
 } // namespace flexisip::tester::http_mock

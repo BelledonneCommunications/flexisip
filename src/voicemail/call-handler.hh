@@ -64,7 +64,7 @@ public:
 	CallHandler(const std::shared_ptr<linphone::Call>& call,
 	            const std::shared_ptr<linphone::Core>& core,
 	            const std::shared_ptr<sofiasip::SuRoot>& root,
-	            flexiapi::FlexiApi& flexiApiClient,
+	            const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
 	            const AnnouncementPaths& announcementsPaths,
 	            const RecordingParameters& params)
 	    : mLogPrefix(LogManager::makeLogPrefixForInstance(this, "CallHandler")), mCore(core), mCall(call),
@@ -126,7 +126,7 @@ private:
 	const std::string mLogPrefix;
 	std::shared_ptr<linphone::Core> mCore;
 	const std::shared_ptr<linphone::Call> mCall;
-	flexiapi::FlexiApi& mFlexiApiClient;
+	std::shared_ptr<flexiapi::FlexiApi> mFlexiApiClient;
 	sofiasip::Timer mTimer;
 
 	const AnnouncementPaths& mAnnouncementsPaths;

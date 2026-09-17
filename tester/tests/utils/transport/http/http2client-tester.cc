@@ -48,8 +48,7 @@ namespace {
 
 struct Arrange {
 	sofiasip::SuRoot root{};
-	std::atomic_int requestsReceivedCount{0};
-	HttpMock httpMock{{"/"}, &requestsReceivedCount};
+	HttpMock httpMock{{"/"}};
 
 	std::shared_ptr<Http2Client> client;
 	HttpHeaders headers;

@@ -25,6 +25,7 @@
 #include "sofia-sip/nta_tport.h"
 
 #include "bc-utils.hh"
+#include "core-assert.hh"
 #include "flexiapi/config.hh"
 #include "registrar/registrar-db.hh"
 #include "spaces-store/spaces-store.hh"
@@ -90,7 +91,7 @@ Server::Server(const std::string& configFilePath, InjectedHooks* injectedHooks)
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
 	auto flexiApiClient = flexisip::flexiapi::createClient(mConfigManager, *root);
 	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb,
-	                                 SpacesStore::make(root, mConfigManager, flexiApiClient), flexiApiClient);
+	                                 SpacesStore::make(root, mConfigManager, flexiApiClient));
 }
 
 Server::Server(const std::map<std::string, std::string>& customConfig, InjectedHooks* injectedHooks)
@@ -117,7 +118,7 @@ Server::Server(const std::map<std::string, std::string>& customConfig,
 	mRegistrarDb = std::make_shared<RegistrarDb>(root, mConfigManager);
 	auto flexiApiClient = flexisip::flexiapi::createClient(mConfigManager, *root);
 	mAgent = std::make_shared<Agent>(root, mConfigManager, mAuthDb, mRegistrarDb,
-	                                 SpacesStore::make(root, mConfigManager, flexiApiClient), flexiApiClient);
+	                                 SpacesStore::make(root, mConfigManager, flexiApiClient));
 }
 
 Server::~Server() {
@@ -155,6 +156,8 @@ tport_t* Server::getFirstTransport(sa_family_t ipAddressFamily) const {
 }
 
 void Server::start() {
+	waitForSpacesStore();
+
 	mAgent->start("", "");
 
 	// Update transports config with the auto-assigned ports
@@ -177,6 +180,18 @@ void Server::start() {
 	if (!dirty) return;
 
 	globalTransports->set(newConfigTransports);
+}
+
+void Server::waitForSpacesStore() const {
+	// Wait for the SpacesStore to be ready.
+	CoreAssert asserter{mAgent->getRoot()};
+	asserter
+	    .waitUntil(2s,
+	               [this] {
+		               FAIL_IF(!mAgent->getSpacesStore()->isReady());
+		               return ASSERTION_PASSED();
+	               })
+	    .hard_assert_passed();
 }
 
 } // namespace flexisip::tester
