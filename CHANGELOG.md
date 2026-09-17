@@ -14,6 +14,13 @@ Group changes to describe their impact on the project, as follows:
 | Security       | To invite users to upgrade in case of vulnerabilities                       |
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
+## [2.6.3] - Hotfix
+
+### [Fixed]
+- **RegistrationEvent**: Subscriptions are now matched by dialog identifier (Call-ID + From URI) instead of the From URI
+  only. Previously, a new subscription from a subscriber whose URI was already subscribed could overwrite or remove
+  another subscription from the same URI.
+
 ## [2.6.2] - Hotfix
 - **SDK version:** 5.5.16
 
