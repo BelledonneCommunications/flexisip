@@ -36,7 +36,9 @@
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/random.hh"
+#include "utils/redis-sync-access.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/server/regevent-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -269,6 +271,9 @@ void multipleSubscribersToOneRecordKey() {
 
 	// Replace subscription from 'subscriber' to topic.
 	Subscriber subscriberBis{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	// Ensure subscriberBis is in the same dialog as subscribe
+	subscriberBis.mCallId = subscriber.mCallId;
+	subscriberBis.mFromTag = subscriber.mFromTag;
 	asserter.registerSteppable(subscriberBis.mSuRoot);
 	const auto newSubscriptionFromSubscriber = subscriberBis.subscribe(aorOfInterest, regEventUri);
 
@@ -422,6 +427,7 @@ void replaceSubscriptionWithOnlyOneSubscriber() {
 
 	// Replace subscription from 'subscriber' to topic.
 	Subscriber subscriberBis{SipUri{"sip:subscriber@sip.example.org"}, onSubscriberResponse, rsg};
+	subscriberBis.mCallId = subscriber.mCallId;
 	asserter.registerSteppable(subscriberBis.mSuRoot);
 	const auto newSubscriptionFromSubscriber = subscriberBis.subscribe(aorOfInterest, regEventUri);
 
@@ -564,6 +570,125 @@ void transportInitialization() {
 	std::ignore = regEvent.stop();
 }
 
+/**
+ * Test that two subscribers in distinct dialogs but sharing the same From URI both receive reginfo
+ * notifications when a new contact is added and a Redis PUBLISH is simulated.
+ *
+ * This test uses a Redis-backed RegistrarDB and the RegEvent server. The Redis PUBLISH is sent from an
+ * external client, as another Flexisip instance would do.
+ */
+void multipleSubscribersWithRedisPublish() {
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	SLOGD << "1. Start Redis.";
+	RedisServer redis{};
+
+	SLOGD << "2. Configure RegistrarDB to use Redis.";
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	configuration->getRoot()
+	    ->get<GenericStruct>("module::Registrar")
+	    ->get<ConfigValue>("db-implementation")
+	    ->set("redis");
+	configuration->getRoot()
+	    ->get<GenericStruct>("module::Registrar")
+	    ->get<ConfigValue>("redis-server-domain")
+	    ->set("localhost");
+	configuration->getRoot()
+	    ->get<GenericStruct>("module::Registrar")
+	    ->get<ConfigValue>("redis-server-port")
+	    ->set(to_string(redis.port()));
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	CoreAssert{suRoot}.iterateUpTo(10, [&] { return LOOP_ASSERTION(registrarDb->isWritable()); }).assert_passed();
+
+	SLOGD << "3. Populate the RegistrarDB with a user.";
+	const string aorOfInterest{"sip:user@example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+	ContactInserter inserter{*registrarDb, make_shared<AcceptUpdatesListener>()};
+	inserter.withGruu(true).setExpire(100s).setAor(aorOfInterest).insert({.uniqueId = rsg.generate(25)});
+	CoreAssert{suRoot}.iterateUpTo(10, [&] { return LOOP_ASSERTION(inserter.finished()); }).assert_passed();
+
+	SLOGD << "4. Create the RegEvent server backed by the Redis RegistrarDB.";
+	RegEventServer regEvent{registrarDb};
+	const auto regEventUri = regEvent.getTransport().str();
+
+	SLOGD << "5. Create two subscribers in distinct dialogs but with the same From URI.";
+	const auto onSubscriberResponse = [](nta_agent_magic_t* magic, nta_agent_t* agent, msg_t* msg, sip_t* sip) {
+		auto* subscriber = reinterpret_cast<Subscriber*>(magic);
+
+		if (sip->sip_request and sip->sip_request->rq_method == sip_method_notify) subscriber->mTotalNotifyReceived++;
+
+		if (subscriber->mToHeader.empty()) {
+			sofiasip::Home home{};
+			subscriber->mToHeader =
+			    "<"s + url_as_string(home.home(), sip->sip_from->a_url) + ">;tag=" + sip->sip_from->a_tag;
+		}
+
+		nta_msg_treply(agent, msg, 200, "Notification received", TAG_END());
+		return 0;
+	};
+
+	Subscriber subscriberA{SipUri{"sip:subscriber@example.org"}, onSubscriberResponse, rsg};
+	const auto subscriptionFromSubscriberA = subscriberA.subscribe(aorOfInterest, regEventUri);
+	Subscriber subscriberB{SipUri{"sip:subscriber@example.org"}, onSubscriberResponse, rsg};
+	const auto subscriptionFromSubscriberB = subscriberB.subscribe(aorOfInterest, regEventUri);
+
+	SLOGD << "6. Both subscribers should receive the initial reginfo (1 NOTIFY each).";
+	CoreAssert asserter{regEvent.getCore(), suRoot, subscriberA.mSuRoot, subscriberB.mSuRoot};
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!subscriptionFromSubscriberA->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriberA->getStatus() != 200);
+		        FAIL_IF(subscriberA.mTotalNotifyReceived != 1);
+		        FAIL_IF(!subscriptionFromSubscriberB->isCompleted());
+		        FAIL_IF(subscriptionFromSubscriberB->getStatus() != 200);
+		        FAIL_IF(subscriberB.mTotalNotifyReceived != 1);
+		        return ASSERTION_PASSED();
+	        },
+	        5s)
+	    .hard_assert_passed();
+
+	SLOGD << "7. Add a new contact and simulate a Redis PUBLISH (as another Flexisip instance would).";
+	inserter.insert({.uniqueId = rsg.generate(25)});
+	asserter.iterateUpTo(10, [&] { return LOOP_ASSERTION(inserter.finished()); }).assert_passed();
+
+	RedisSyncContext ctx{redisConnect("localhost", redis.port())};
+	ctx.command("PUBLISH %s %s", topic.asString().c_str(), "new-device");
+
+	SLOGD << "8. Both subscribers should receive the updated reginfo (2 NOTIFYs each).";
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(subscriberA.mTotalNotifyReceived != 2);
+		        FAIL_IF(subscriberB.mTotalNotifyReceived != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        5s)
+	    .hard_assert_passed();
+
+	// Unsubscribe both subscribers from the topic.
+	const auto unsubscriptionFromSubscriberA = subscriberA.unsubscribe(aorOfInterest, regEventUri);
+	const auto unsubscriptionFromSubscriberB = subscriberB.unsubscribe(aorOfInterest, regEventUri);
+
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(!unsubscriptionFromSubscriberA->isCompleted());
+		        FAIL_IF(unsubscriptionFromSubscriberA->getStatus() != 200);
+		        FAIL_IF(!unsubscriptionFromSubscriberB->isCompleted());
+		        FAIL_IF(unsubscriptionFromSubscriberB->getStatus() != 200);
+		        return ASSERTION_PASSED();
+	        },
+	        5s)
+	    .hard_assert_passed();
+}
+
 namespace {
 
 TestSuite _{
@@ -575,6 +700,7 @@ TestSuite _{
         CLASSY_TEST(multipleSubscribersToOneRecordKey),
         CLASSY_TEST(replaceSubscriptionWithOnlyOneSubscriber),
         CLASSY_TEST(transportInitialization),
+        CLASSY_TEST(multipleSubscribersWithRedisPublish),
     },
 };
 

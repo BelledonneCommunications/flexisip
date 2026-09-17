@@ -35,6 +35,18 @@ using namespace flexisip::Xsd::XmlSchema;
 
 namespace flexisip::RegistrationEvent {
 
+namespace {
+
+// Match two subscriptions belonging to the same dialog.
+// Per RFC 6665, a subscription is associated with a dialog, identified by Call-ID + From tag (RFC 3261).
+// The linphone::Event API does not expose the From tag, so we use Call-ID + From URI as a best-effort proxy.
+bool sameDialog(const shared_ptr<linphone::Event>& a, const shared_ptr<linphone::Event>& b) {
+	if (a->getCallId() != b->getCallId()) return false;
+	return a->getFromAddress()->asStringUriOnly() == b->getFromAddress()->asStringUriOnly();
+}
+
+} // namespace
+
 Server::Subscription::Subscription(const std::shared_ptr<linphone::Event>& event) : mEvent(event) {}
 
 void Server::Subscription::onRecordFound(const shared_ptr<Record>& record) {
@@ -159,13 +171,12 @@ void Server::Application::onSubscribeReceived(const shared_ptr<Core>&,
 	const auto recordKey = Record::Key(toUri, mRegistrarDb->useGlobalDomain());
 	const auto fromUri = event->getFromAddress()->asStringUriOnly();
 
-	// Manage subscription replacement if subscriber already exists for the same record key.
+	// Manage subscription replacement if the same dialog already has a subscription for this record key.
 	{
 		auto& subscriptions = mSubscriptions[recordKey.asString()];
-		const auto subscriptionIt =
-		    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
-			    return subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri;
-		    });
+		const auto subscriptionIt = std::ranges::find_if(subscriptions, [&event](const auto& subscription) {
+			return subscription && sameDialog(subscription->getEvent(), event);
+		});
 
 		// If subscriber already exists, replace the old subscription with the new one.
 		if (subscriptionIt != subscriptions.end()) {
@@ -217,13 +228,12 @@ void Server::Application::onSubscriptionStateChanged(const shared_ptr<linphone::
 				return;
 			}
 
-			// Remove subscription for current fromUri.
+			// Remove subscription matching the same dialog.
 			auto& subscriptions = mSubscriptions[recordKey];
 			const auto fromUri = event->getFromAddress()->asStringUriOnly();
-			const auto subscriptionIt =
-			    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
-				    return subscription && (subscription->getEvent()->getFromAddress()->asStringUriOnly() == fromUri);
-			    });
+			const auto subscriptionIt = std::ranges::find_if(subscriptions, [&event](const auto& subscription) {
+				return subscription && sameDialog(subscription->getEvent(), event);
+			});
 
 			if (subscriptionIt != subscriptions.end()) {
 				subscriptions.erase(subscriptionIt);
