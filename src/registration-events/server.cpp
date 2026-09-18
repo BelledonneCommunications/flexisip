@@ -34,6 +34,19 @@ using namespace flexisip::Xsd::XmlSchema;
 
 namespace flexisip::RegistrationEvent {
 
+namespace {
+
+// Match two subscriptions belonging to the same dialog.
+// Per RFC 6665, a subscription is associated with a dialog, identified by Call-ID + From tag (RFC 3261).
+// The linphone::Event API on this SDK version does not expose getCallId() or the From tag,
+// so we use Call-ID (via getCustomHeader) + From URI as a best-effort proxy.
+bool sameDialog(const shared_ptr<linphone::Event>& a, const shared_ptr<linphone::Event>& b) {
+	if (a->getCustomHeader("Call-ID") != b->getCustomHeader("Call-ID")) return false;
+	return a->getFrom()->asStringUriOnly() == b->getFrom()->asStringUriOnly();
+}
+
+} // namespace
+
 Server::Subscription::Subscription(const std::shared_ptr<linphone::Event>& event) : mEvent(event) {
 }
 
@@ -170,8 +183,8 @@ void Server::Application::onSubscribeReceived(const shared_ptr<Core>&,
 
 	auto& subscriptions = recordKeyIt->second;
 	const auto subscriptionIt =
-	    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
-		    return subscription->getEvent()->getFrom()->asStringUriOnly() == fromUri;
+	    find_if(subscriptions.begin(), subscriptions.end(), [&event](const auto& subscription) {
+		    return  subscription && sameDialog(subscription->getEvent(), event);
 	    });
 
 	// If subscriber already exists, replace the old subscription with the new one.
@@ -217,12 +230,12 @@ void Server::Application::onSubscriptionStateChanged(const shared_ptr<linphone::
 				return;
 			}
 
-			// Remove subscription for current fromUri.
+			// Remove subscription matching the same dialog.
 			auto& subscriptions = mSubscriptions[recordKey];
 			const auto fromUri = event->getFrom()->asStringUriOnly();
 			const auto subscriptionIt =
-			    find_if(subscriptions.begin(), subscriptions.end(), [&fromUri](const auto& subscription) {
-				    return subscription->getEvent()->getFrom()->asStringUriOnly() == fromUri;
+			    find_if(subscriptions.begin(), subscriptions.end(), [&event](const auto& subscription) {
+				    return  subscription && sameDialog(subscription->getEvent(), event);
 			    });
 
 			if (subscriptionIt != subscriptions.end()) {

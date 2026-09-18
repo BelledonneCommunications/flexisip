@@ -19,6 +19,9 @@ Group changes to describe their impact on the project, as follows:
 
 ### [Fixed]
 - **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
+- **RegistrationEvent**: Subscriptions are now matched by dialog identifier (Call-ID + From URI) instead of the From URI
+  only. Previously, a new subscription from a subscriber whose URI was already subscribed could overwrite or remove
+  another subscription from the same URI.
 
 ## [2.4.5] - 2026-06-26
 - **SDK version:** 5.3.115

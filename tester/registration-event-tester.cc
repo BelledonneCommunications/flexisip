@@ -26,6 +26,7 @@
 #include "flexisip/utils/sip-uri.hh"
 #include "linphone++/linphone.hh"
 #include "registrar/record.hh"
+#include "registration-events/client.hh"
 #include "sofia-wrapper/nta-agent.hh"
 #include "sofia-wrapper/nta-outgoing-transaction.hh"
 #include "sofia-wrapper/sip-header-private.hh"
@@ -35,7 +36,9 @@
 #include "utils/client-core.hh"
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
+#include "utils/redis-sync-access.hh"
 #include "utils/server/proxy-server.hh"
+#include "utils/server/redis-server.hh"
 #include "utils/server/regevent-server.hh"
 #include "utils/server/test-conference-server.hh"
 #include "utils/test-patterns/test.hh"
@@ -510,6 +513,124 @@ void multipleSubscribersToOneRecordKey() {
 	    .assert_passed();
 }
 
+/**
+ * Test that two RegEvent clients (using the RegistrationEvent::Client class) both receive reginfo
+ * notifications when a new contact is added and a Redis PUBLISH is simulated.
+ *
+ * This test uses a Redis-backed RegistrarDB, the RegEvent server, and two RegEvent clients — the same
+ * C++ classes the conference server uses for 'reg' event subscriptions.
+ */
+void multipleSubscribersWithRedisPublish() {
+	auto random = tester::random::random();
+	auto rsg = random.string();
+
+	SLOGD << "1. Start Redis.";
+	RedisServer redis{};
+
+	SLOGD << "2. Configure RegistrarDB to use Redis.";
+	const auto suRoot = make_shared<sofiasip::SuRoot>();
+	const auto configuration = make_shared<ConfigManager>();
+	configuration->getRoot()
+	    ->get<GenericStruct>("module::Registrar")
+	    ->get<ConfigValue>("db-implementation")
+	    ->set("redis");
+	configuration->getRoot()
+	    ->get<GenericStruct>("module::Registrar")
+	    ->get<ConfigValue>("redis-server-domain")
+	    ->set("localhost");
+	configuration->getRoot()
+	    ->get<GenericStruct>("module::Registrar")
+	    ->get<ConfigValue>("redis-server-port")
+	    ->set(to_string(redis.port()));
+	const auto registrarDb = make_shared<RegistrarDb>(suRoot, configuration);
+
+	CoreAssert{suRoot}.iterateUpTo(10, [&] { return LOOP_ASSERTION(registrarDb->isWritable()); }).assert_passed();
+
+	SLOGD << "3. Populate the RegistrarDB with a user.";
+	const string aorOfInterest{"sip:user@example.org"};
+	const auto topic = Record::Key{SipUri{aorOfInterest}, registrarDb->useGlobalDomain()};
+	ContactInserter inserter{*registrarDb, make_shared<AcceptUpdatesListener>()};
+	inserter.withGruu(true).setExpire(100s).setAor(aorOfInterest).insert({.uniqueId = rsg.generate(25)});
+	CoreAssert{suRoot}.iterateUpTo(10, [&] { return LOOP_ASSERTION(inserter.finished()); }).assert_passed();
+
+	SLOGD << "4. Create the RegEvent server backed by the Redis RegistrarDB.";
+	RegEventServer regEvent{registrarDb};
+	const auto regEventUri = regEvent.getTransport().str();
+
+	SLOGD << "5. Create a single linphone::Core, as a conference server would use.";
+	const auto clientCore = tester::minimalCore(*linphone::Factory::get());
+	clientCore->setLabel("conference-server");
+	clientCore->setPrimaryContact("sip:conference-server@example.org");
+	{
+		auto accountParams = clientCore->createAccountParams();
+		accountParams->setIdentityAddress(linphone::Factory::get()->createAddress("sip:conference-server@example.org"));
+		accountParams->enableRegister(false);
+		const auto route = linphone::Factory::get()->createAddress(regEventUri);
+		accountParams->setServerAddress(route);
+		accountParams->setRoutesAddresses({route});
+		const auto account = clientCore->createAccount(accountParams);
+		clientCore->addAccount(account);
+		clientCore->setDefaultAccount(account);
+		clientCore->start();
+	}
+
+	SLOGD << "6. Create two RegEvent clients from the same core/factory (as the conference server does).";
+	// NOTIFYs are counted at the CoreListener level rather than ClientListener, so the test
+	// does not depend on Client::onNotifyReceived parsing (which requires HAVE_ADVANCED_IM).
+	class NotifyCounter : public linphone::CoreListener {
+	public:
+		int mNotifyCount = 0;
+		void onNotifyReceived(const shared_ptr<linphone::Core>&,
+		                      const shared_ptr<linphone::Event>&,
+		                      const string&,
+		                      const shared_ptr<const linphone::Content>&) override {
+			mNotifyCount++;
+		}
+	};
+
+	auto counter = make_shared<NotifyCounter>();
+	clientCore->addListener(counter);
+
+	auto factory = make_shared<RegistrationEvent::ClientFactory>(clientCore);
+	auto client1 = factory->create(linphone::Factory::get()->createAddress(aorOfInterest));
+	auto client2 = factory->create(linphone::Factory::get()->createAddress(aorOfInterest));
+	client1->subscribe();
+	client2->subscribe();
+
+	SLOGD << "7. Both clients should receive the initial reginfo (2 NOTIFYs total).";
+	CoreAssert asserter{regEvent.getCore(), suRoot, clientCore};
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(counter->mNotifyCount != 2);
+		        return ASSERTION_PASSED();
+	        },
+	        5s)
+	    .hard_assert_passed();
+
+	SLOGD << "8. Add a new contact and simulate a Redis PUBLISH (as another Flexisip instance would).";
+	inserter.insert({.uniqueId = rsg.generate(25)});
+	asserter.iterateUpTo(10, [&] { return LOOP_ASSERTION(inserter.finished()); }).assert_passed();
+
+	RedisSyncContext ctx = redisConnect("localhost", redis.port());
+	ctx.command("PUBLISH %s %s", topic.asString().c_str(), "new-device");
+
+	SLOGD << "9. Both clients should receive the updated reginfo (4 NOTIFYs total).";
+	asserter
+	    .iterateUpTo(
+	        32,
+	        [&]() {
+		        FAIL_IF(counter->mNotifyCount != 4);
+		        return ASSERTION_PASSED();
+	        },
+	        5s)
+	    .hard_assert_passed();
+
+	client1->unsubscribe();
+	client2->unsubscribe();
+}
+
 namespace {
 
 TestSuite _("regevent",
@@ -519,6 +640,7 @@ TestSuite _("regevent",
                 CLASSY_TEST(wrongEventHeaderInSubscribeRequest),
                 CLASSY_TEST(wrongAcceptHeaderInSubscribeRequest),
                 CLASSY_TEST(multipleSubscribersToOneRecordKey),
+                CLASSY_TEST(multipleSubscribersWithRedisPublish),
             });
 
 }
