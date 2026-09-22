@@ -216,7 +216,11 @@ void AuthLog::write(EventLogWriter& writer) const {
 }
 
 CallQualityStatisticsLog::CallQualityStatisticsLog(const sip_t* sip)
-    : EventLog(sip), mReport{sip->sip_payload && sip->sip_payload->pl_data ? sip->sip_payload->pl_data : nullptr} {}
+    // Build the report bounded by pl_len. The const char* constructor would read until the next NUL byte, which
+    // overruns into the following SIP message when several are coalesced in the same TCP buffer (no NUL after a body).
+    : EventLog(sip), mReport{(sip->sip_payload && sip->sip_payload->pl_data)
+                                 ? std::string(sip->sip_payload->pl_data, sip->sip_payload->pl_len)
+                                 : std::string()} {}
 
 void CallQualityStatisticsLog::write(EventLogWriter& writer) const {
 	writer.write(*this);
