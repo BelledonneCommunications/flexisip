@@ -25,6 +25,7 @@
 #include <sofia-sip/sip_protos.h>
 
 #include "eventlogs/events/calls/invite-kind.hh"
+#include "eventlogs/events/domain.hh"
 #include "eventlogs/events/event-id.hh"
 #include "eventlogs/events/event-log-write-dispatcher.hh"
 #include "eventlogs/events/identified.hh"
@@ -111,10 +112,10 @@ private:
 	sip_contact_t* mContacts{nullptr};
 };
 
-class CallLog : public EventLog, public Identified, public WithInviteKind {
+class CallLog : public EventLog, public Identified, public WithInviteKind, public WithDomain {
 public:
-	CallLog(const sip_t* sip) : EventLog(sip), Identified(*sip), WithInviteKind(sip->sip_content_type) {
-	}
+	CallLog(const sip_t* sip)
+	    : EventLog(sip), Identified(*sip), WithInviteKind(sip->sip_content_type), WithDomain(*sip) {}
 
 	bool isCancelled() const {
 		return mCancelled;

@@ -23,16 +23,17 @@
 
 #include "event-log-writer.hh"
 #include "flexiapi/flexi-stats.hh"
+#include "spaces-store/spaces-store.hh"
 
 namespace flexisip {
 
 class FlexiStatsEventLogWriter : public EventLogWriter {
 public:
-	FlexiStatsEventLogWriter(RestClient&& restClient, const std::string& apiPrefix);
-
-private:
 	static constexpr std::string_view mLogPrefix{"FlexiStatsEventLogWriter"};
 
+	explicit FlexiStatsEventLogWriter(const std::shared_ptr<SpacesStore>& spacesStore);
+
+private:
 	void write(const CallStartedEventLog&) override;
 	void write(const CallRingingEventLog&) override;
 	void write(const CallLog&) override;
@@ -42,7 +43,7 @@ private:
 
 #define STUB(T)                                                                                                        \
 	void write(const T&) override {                                                                                    \
-		LOGD << "Stubbed: " << __PRETTY_FUNCTION__ << " is not implemented";                                          \
+		LOGD << "Stubbed: " << __PRETTY_FUNCTION__ << " is not implemented";                                           \
 	}
 
 	STUB(RegistrationLog)
@@ -52,7 +53,7 @@ private:
 
 #undef STUB
 
-	flexiapi::FlexiStats mRestClient;
+	std::shared_ptr<SpacesStore> mSpacesStore{};
 };
 
 } // namespace flexisip

@@ -27,6 +27,7 @@
 #include "bctoolbox/tester.h"
 #include "linphone++/enums.hh"
 
+#include "flexiapi-builder.hh"
 #include "flexiapi/schemas/iso-8601-date.hh"
 #include "flexisip/configmanager.hh"
 #include "flexisip/module-router.hh"
@@ -90,112 +91,27 @@ void startLogWriter() {
 	int port = flexiapiServer->getFirstPort();
 	BC_HARD_ASSERT_TRUE(port > -1);
 	{
-		// No parameters, nor default value for host.
-		std::map<std::string, std::string> customConfigs = {
-		    {"event-logs/enabled", "true"},
-		    {"event-logs/logger", "flexiapi"},
-		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
-		};
-		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
-	}
-	{
 		// global::flexiapi/url is empty.
 		std::map<std::string, std::string> customConfigs = {
-		    {"event-logs/enabled", "true"},
-		    {"event-logs/logger", "flexiapi"},
-		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
-		    {"global::flexiapi/url", ""}};
-		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
+		    {"event-logs/enabled", "true"}, {"event-logs/logger", "flexiapi"}, {"global::flexiapi/url", ""}};
+		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfiguration);
 	}
 	{
 		// global::flexiapi/api-key is empty.
-		std::map<std::string, std::string> customConfigs = {
-		    {"event-logs/enabled", "true"},
-		    {"event-logs/logger", "flexiapi"},
-		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
-		    {"global::flexiapi/url", "https://flexiapi.com"}};
-		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
-	}
-	{
-		// global::flexiapi parameters are empty, the (deprecated) default values for event-logs are used.
-		std::map<std::string, std::string> customConfigs = {{"event-logs/enabled", "true"},
-		                                                    {"event-logs/logger", "flexiapi"}};
-		makeAndStartProxy(customConfigs);
-	}
-	{
-		// Set deprecated parameters from event-logs section.
 		std::map<std::string, std::string> customConfigs = {{"event-logs/enabled", "true"},
 		                                                    {"event-logs/logger", "flexiapi"},
-		                                                    {"event-logs/flexiapi-host", "127.0.0.1"},
-		                                                    {"event-logs/flexiapi-port", to_string(port)},
-		                                                    {"event-logs/flexiapi-prefix", "api/statistics"},
-		                                                    {"event-logs/flexiapi-api-key", "aRandomApiToken"}};
-		makeAndStartProxy(customConfigs);
+		                                                    {"global::flexiapi/url", "https://flexiapi.com"}};
+		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
 	}
 	{
 		// global::flexiapi/url isn't a https url.
 		std::map<std::string, std::string> customConfigs = {
 		    {"event-logs/enabled", "true"},
 		    {"event-logs/logger", "flexiapi"},
-		    {"event-logs/flexiapi-host", ""}, // Set to empty, to not get the default value.
 		    {"global::flexiapi/url", "flexiapi.com:"s + to_string(port)},
 		    {"global::flexiapi/api-key", "aRandomApiToken"}};
 		BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationValue);
 	}
-}
-
-void startLogWriterMissingUrl() {
-	HttpMock flexiapiServer{{"/"}};
-	int port = flexiapiServer.serveAsync();
-	BC_HARD_ASSERT_TRUE(port > -1);
-	// Event-logs parameters are used as global::flexiapi/url is missing .
-	std::map<std::string, std::string> customConfigs = {{"event-logs/enabled", "true"},
-	                                                    {"event-logs/logger", "flexiapi"},
-	                                                    {"event-logs/flexiapi-host", "127.0.0.1"},
-	                                                    {"event-logs/flexiapi-port", to_string(port)},
-	                                                    {"event-logs/flexiapi-prefix", "api/statistics"},
-	                                                    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
-	                                                    {"global::flexiapi/api-key", "aRandomApiToken"}};
-	const string expectedAuthority = "127.0.0.1:"s + to_string(port);
-	const auto proxy = makeAndStartProxy(customConfigs);
-	startCallAndCheckAuthority(proxy, flexiapiServer, expectedAuthority);
-}
-
-void startLogWriterMissingApikey() {
-	FlexiapiBuilder builder{};
-	auto flexiapiServer = builder.addEndpoint("/").build();
-	int port = flexiapiServer->getFirstPort();
-	BC_HARD_ASSERT_TRUE(port > -1);
-	// Event-logs parameters are used as global::flexiapi/api-key is missing.
-	std::map<std::string, std::string> customConfigs = {
-	    {"event-logs/enabled", "true"},
-	    {"event-logs/logger", "flexiapi"},
-	    {"event-logs/flexiapi-host", "127.0.0.1"},
-	    {"event-logs/flexiapi-port", to_string(port)},
-	    {"event-logs/flexiapi-prefix", "api/statistics"},
-	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
-	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)}};
-	BC_ASSERT_THROWN(makeAndStartProxy(customConfigs), BadConfigurationEmpty);
-}
-
-void startLogWriterGlobalOverrides() {
-	FlexiapiBuilder builder{};
-	auto flexiapiServer = builder.addEndpoint("/").build();
-	int port = flexiapiServer->getFirstPort();
-	BC_HARD_ASSERT_TRUE(port > -1);
-	// global::flexiapi parameters overrides those from event-logs section.
-	std::map<std::string, std::string> customConfigs = {
-	    {"event-logs/enabled", "true"},
-	    {"event-logs/logger", "flexiapi"},
-	    {"event-logs/flexiapi-host", "127.0.0.1"},
-	    {"event-logs/flexiapi-port", to_string(port)},
-	    {"event-logs/flexiapi-prefix", "api/statistics"},
-	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
-	    {"global::flexiapi/url", "https://localhost:"s + to_string(port)},
-	    {"global::flexiapi/api-key", "aRandomApiToken"}};
-	const string expectedAuthority = "localhost:"s + to_string(port);
-	const auto proxy = makeAndStartProxy(customConfigs);
-	startCallAndCheckAuthority(proxy, *flexiapiServer, expectedAuthority);
 }
 
 void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
@@ -204,13 +120,9 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	int port = flexiapiServer->getFirstPort();
 	string authority;
 	BC_HARD_ASSERT_TRUE(port > -1);
-	if (customConfigs.find("event-logs/flexiapi-port") != customConfigs.end()) {
-		customConfigs["event-logs/flexiapi-port"] = to_string(port);
-		authority = customConfigs["event-logs/flexiapi-host"] + ":" + to_string(port);
-	}
 	if (auto it = customConfigs.find("global::flexiapi/url"); it != customConfigs.end()) {
 		it->second += ":" + to_string(port);
-		authority = it->second.substr(8);
+		authority = "127.0.0.1:"s + to_string(port); // Default space "sip.example.org" has '127.0.0.1' host
 	}
 
 	// See makeAndStartProxy for event-log configuration
@@ -306,18 +218,6 @@ void callStartedAndEnded(std::map<std::string, std::string>& customConfigs) {
 	BC_ASSERT_TRUE(actualJson.contains("ended_at"));
 }
 
-void callStartedAndEndedWithEventLogConfig() {
-	std::map<std::string, std::string> customConfigs = {
-	    {"event-logs/enabled", "true"},
-	    {"event-logs/logger", "flexiapi"},
-	    {"event-logs/flexiapi-host", "127.0.0.1"},
-	    {"event-logs/flexiapi-port", ""},
-	    {"event-logs/flexiapi-prefix", "api/statistics"},
-	    {"event-logs/flexiapi-api-key", "aRandomApiToken"},
-	};
-	callStartedAndEnded(customConfigs);
-}
-
 void callStartedAndEndedWithGlobalConfig() {
 	std::map<std::string, std::string> customConfigs = {
 	    {"event-logs/enabled", "true"},
@@ -329,13 +229,27 @@ void callStartedAndEndedWithGlobalConfig() {
 }
 
 void messageSentAndReceived() {
-	const auto proxy = makeAndStartProxy();
-	const auto& agent = proxy->getAgent();
-	HttpMock flexiapiServer{{"/"}};
-	int port = flexiapiServer.serveAsync();
+	FlexiapiBuilder flexBuilder{};
+	auto flexiapiServer = flexBuilder.addEndpoint("/").build();
+	int port = flexiapiServer->getFirstPort();
 	BC_HARD_ASSERT_TRUE(port > -1);
-	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(
-	    getRestClient(*agent->getRoot(), "127.0.0.1", port, "aRandomApiToken"), "/api/statistics/"));
+
+	// Configure the proxy with multi domain.
+	// flexiapiServer has a "sip.example.org" space by default configured for /api/spaces.
+	const auto proxy = makeAndStartProxy({
+	    {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(port)},
+	    {"global::flexiapi/api-key", "aRandomApiToken"},
+	    {"global::domains/domains-configuration", "flexiapi"},
+	});
+
+	const auto& agent = proxy->getAgent();
+
+	// Pop the first request to /api/spaces and reset the counter.
+	std::ignore = flexiapiServer->popRequestReceived();
+	flexiapiServer->resetRequestReceivedCount();
+
+	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(agent->getSpacesStore()));
+
 	ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
 	const string expectedTo = "mike@sip.example.org";
@@ -357,7 +271,7 @@ void messageSentAndReceived() {
 	asserter
 	    .iterateUpTo(12,
 	                 [&forkMessageContextsStats, &flexiapiServer]() {
-		                 FAIL_IF(flexiapiServer.getRequestReceivedCount() < 2 /* Sent + Delivered */);
+		                 FAIL_IF(flexiapiServer->getRequestReceivedCount() < 2 /* Sent + Delivered */);
 		                 const auto started = forkMessageContextsStats->start->read();
 		                 FAIL_IF(started < 1 /* 1 MSG */);
 		                 FAIL_IF(forkMessageContextsStats->finish->read() != started);
@@ -365,8 +279,8 @@ void messageSentAndReceived() {
 	                 })
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer.getRequestReceivedCount(), 2);
-	const auto sentEvent = flexiapiServer.popRequestReceived();
+	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer->getRequestReceivedCount(), 2);
+	const auto sentEvent = flexiapiServer->popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
 	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/api/statistics/messages");
@@ -394,7 +308,7 @@ void messageSentAndReceived() {
 	};
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 	BC_ASSERT_TRUE(before <= sentAt);
-	const auto deliveredEvent = flexiapiServer.popRequestReceived();
+	const auto deliveredEvent = flexiapiServer->popRequestReceived();
 	BC_HARD_ASSERT(deliveredEvent != nullptr);
 	BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
 	BC_ASSERT_CPP_EQUAL(deliveredEvent->path,
@@ -417,16 +331,40 @@ void messageSentAndReceived() {
 }
 
 void messageDeviceUnavailable() {
-	const auto proxy = makeAndStartProxy();
-	const auto& agent = proxy->getAgent();
-	HttpMock flexiapiServer{{"/"}};
-	int port = flexiapiServer.serveAsync();
+	FlexiapiBuilder flexBuilder{};
+	auto mainDomainServer = flexBuilder
+	                            .addSpace({
+	                                // Add another domain
+	                                {"domain", "sip.test.org"},
+	                                {"name", "test"},
+	                                {"host", "127.0.0.2"},
+	                            })
+	                            .addEndpoint("/")
+	                            .build();
+	int port = mainDomainServer->getFirstPort();
 	BC_HARD_ASSERT_TRUE(port > -1);
-	agent->setEventLogWriter(
-	    std::make_unique<FlexiStatsEventLogWriter>(getRestClient(*agent->getRoot(), "127.0.0.1", port, "toktok"), "/"));
+
+	auto testDomainServer = flexBuilder.setSpaces({}).build("127.0.0.2", to_string(port));
+
+	// Configure the proxy with multi domain.
+	const auto proxy = makeAndStartProxy({
+	    {"module::Registrar/reg-domains", "sip.example.org sip.test.org"},
+	    {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(port)},
+	    {"global::flexiapi/api-key", "aRandomApiToken"},
+	    {"global::domains/domains-configuration", "flexiapi"},
+	});
+
+	const auto& agent = proxy->getAgent();
+
+	// Pop the first request to /api/spaces and reset the counter.
+	std::ignore = mainDomainServer->popRequestReceived();
+	mainDomainServer->resetRequestReceivedCount();
+
+	agent->setEventLogWriter(std::make_unique<FlexiStatsEventLogWriter>(agent->getSpacesStore()));
+
 	const ClientBuilder builder{proxy->getAgent()};
 	const string expectedFrom = "tony@sip.example.org";
-	const string expectedTo = "mike@sip.example.org";
+	const string expectedTo = "mike@sip.test.org";
 	const auto tony = builder.build(expectedFrom);
 	const auto mikePhone = builder.build(expectedTo);
 	const auto mikeDesktop = builder.build(expectedTo);
@@ -443,8 +381,9 @@ void messageDeviceUnavailable() {
 	asserter
 	    .iterateUpTo(
 	        8,
-	        [&forkMessageContextsStats, &flexiapiServer]() {
-		        FAIL_IF(flexiapiServer.getRequestReceivedCount() < 3 /* Sent + Delivered x 2 */);
+	        [&forkMessageContextsStats, &mainDomainServer, &testDomainServer]() {
+		        FAIL_IF(mainDomainServer->getRequestReceivedCount() < 3 /* Sent + Delivered x 2 */);
+		        FAIL_IF(testDomainServer->getRequestReceivedCount() < 3 /* Should receive the same */);
 		        const auto started = forkMessageContextsStats->start->read();
 		        FAIL_IF(started < 1 /* 1 MSG */);
 		        return ASSERTION_PASSED();
@@ -452,11 +391,21 @@ void messageDeviceUnavailable() {
 	        1s)
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer.getRequestReceivedCount(), 3);
-	const auto sentEvent = flexiapiServer.popRequestReceived();
+	BC_HARD_ASSERT_CPP_EQUAL(mainDomainServer->getRequestReceivedCount(), 3);
+	BC_HARD_ASSERT_CPP_EQUAL(testDomainServer->getRequestReceivedCount(), 3);
+
+	const auto sentEvent = mainDomainServer->popRequestReceived();
 	BC_HARD_ASSERT(sentEvent != nullptr);
+
+	// Check that the other domain received the same event
+	const auto sentEventTestDomain = testDomainServer->popRequestReceived();
+	BC_HARD_ASSERT(sentEventTestDomain != nullptr);
+	BC_ASSERT_CPP_EQUAL(sentEvent->body, sentEventTestDomain->body);
+	BC_ASSERT_CPP_EQUAL(sentEvent->method, sentEventTestDomain->method);
+	BC_ASSERT_CPP_EQUAL(sentEvent->path, sentEventTestDomain->path);
+
 	BC_ASSERT_CPP_EQUAL(sentEvent->method, "POST");
-	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/messages");
+	BC_ASSERT_CPP_EQUAL(sentEvent->path, "/api/statistics/messages");
 	json actualJson;
 	try {
 		actualJson = json::parse(sentEvent->body);
@@ -482,14 +431,19 @@ void messageDeviceUnavailable() {
 	};
 	BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 	BC_ASSERT_TRUE(before <= sentAt);
+
 	unordered_map<string, shared_ptr<Request>> deliveredEvents{};
 	auto emplaceDeliveredEvent = [&deliveredEvents](auto event) {
 		BC_ASSERT(event != nullptr);
 		deliveredEvents.emplace(event->path, std::move(event));
 	};
-	emplaceDeliveredEvent(flexiapiServer.popRequestReceived());
-	emplaceDeliveredEvent(flexiapiServer.popRequestReceived());
-	const auto patchMessagePrefix = "/messages/" + logId + "/to/" + expectedTo + "/devices/";
+	emplaceDeliveredEvent(mainDomainServer->popRequestReceived());
+	emplaceDeliveredEvent(mainDomainServer->popRequestReceived());
+
+	testDomainServer->popRequestReceived();
+	testDomainServer->popRequestReceived();
+
+	const auto patchMessagePrefix = "/api/statistics/messages/" + logId + "/to/" + expectedTo + "/devices/";
 	const auto phoneEvent = deliveredEvents.find(patchMessagePrefix + phoneId);
 	const auto desktopEvent = deliveredEvents.find(patchMessagePrefix + desktopId);
 	BC_HARD_ASSERT_TRUE(phoneEvent != deliveredEvents.end());
@@ -528,15 +482,18 @@ void messageDeviceUnavailable() {
 		BC_ASSERT_CPP_EQUAL(actualJson, expectedJson);
 		BC_ASSERT_TRUE(sentAt <= receivedAt);
 	}
-	flexiapiServer.resetRequestReceivedCount();
+	mainDomainServer->resetRequestReceivedCount();
+	testDomainServer->resetRequestReceivedCount();
 
 	mikeDesktop.reconnect();
 	asserter
 	    .iterateUpTo(
 	        4,
-	        [&forkMessageContextsStats, &flexiapiServer, &mikeDesktopAccount = *mikeDesktop.getAccount()]() {
+	        [&forkMessageContextsStats, &mainDomainServer, &testDomainServer,
+	         &mikeDesktopAccount = *mikeDesktop.getAccount()]() {
 		        FAIL_IF(mikeDesktopAccount.getState() != linphone::RegistrationState::Ok);
-		        FAIL_IF(flexiapiServer.getRequestReceivedCount() < 1);
+		        FAIL_IF(mainDomainServer->getRequestReceivedCount() < 1);
+		        FAIL_IF(testDomainServer->getRequestReceivedCount() < 1);
 		        const auto started = forkMessageContextsStats->start->read();
 		        FAIL_IF(started < 1);
 		        FAIL_IF(forkMessageContextsStats->finish->read() != started);
@@ -545,9 +502,16 @@ void messageDeviceUnavailable() {
 	        1s)
 	    .assert_passed();
 
-	BC_HARD_ASSERT_CPP_EQUAL(flexiapiServer.getRequestReceivedCount(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(mainDomainServer->getRequestReceivedCount(), 1);
+	BC_HARD_ASSERT_CPP_EQUAL(testDomainServer->getRequestReceivedCount(), 1);
 	{
-		const auto& deliveredEvent = flexiapiServer.popRequestReceived();
+		const auto& deliveredEvent = mainDomainServer->popRequestReceived();
+		const auto& deliveredEventTestDomain = testDomainServer->popRequestReceived();
+
+		BC_ASSERT_CPP_EQUAL(deliveredEvent->body, deliveredEventTestDomain->body);
+		BC_ASSERT_CPP_EQUAL(deliveredEvent->method, deliveredEventTestDomain->method);
+		BC_ASSERT_CPP_EQUAL(deliveredEvent->path, deliveredEventTestDomain->path);
+
 		BC_ASSERT_CPP_EQUAL(deliveredEvent->method, "PATCH");
 		BC_ASSERT_CPP_EQUAL(deliveredEvent->path, patchMessagePrefix + desktopId);
 		try {
@@ -574,11 +538,7 @@ TestSuite _{
     "FlexiStatsEventLogWriter",
     {
         CLASSY_TEST(startLogWriter),
-        CLASSY_TEST(startLogWriterMissingUrl),
-        CLASSY_TEST(startLogWriterMissingApikey),
-        CLASSY_TEST(startLogWriterGlobalOverrides),
         CLASSY_TEST(callStartedAndEndedWithGlobalConfig),
-        CLASSY_TEST(callStartedAndEndedWithEventLogConfig),
         CLASSY_TEST(messageSentAndReceived),
         CLASSY_TEST(messageDeviceUnavailable),
     },

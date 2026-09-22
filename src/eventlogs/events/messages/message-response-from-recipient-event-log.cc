@@ -32,8 +32,7 @@ MessageResponseFromRecipientEventLog::MessageResponseFromRecipientEventLog(const
                                                                            const ExtendedContact& device,
                                                                            const MessageKind& kind,
                                                                            std::optional<EventId> id)
-    : MessageLog(sip), Identified(id ? *id : EventId(sip)), WithMessageKind(kind), mDevice(device) {
-}
+    : MessageLog(sip), Identified(id ? *id : EventId(sip)), WithMessageKind(kind), WithDomain(sip), mDevice(device) {}
 
 MessageResponseFromRecipientEventLog::ReportType MessageResponseFromRecipientEventLog::getReportType() const {
 	return ReportType::ResponseFromRecipient;

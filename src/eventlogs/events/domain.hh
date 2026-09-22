@@ -1,6 +1,6 @@
 /*
     Flexisip, a flexible SIP proxy server with media capabilities.
-    Copyright (C) 2010-2025 Belledonne Communications SARL, All rights reserved.
+    Copyright (C) 2010-2026 Belledonne Communications SARL, All rights reserved.
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU Affero General Public License as
@@ -16,19 +16,30 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "eventlogs/events/calls/call-ended-event-log.hh"
+#pragma once
 
-#include "eventlogs/events/identified.hh"
-#include "eventlogs/writers/event-log-writer.hh"
-#include "fork-context/branch-info.hh"
+#include <string>
+
+#include "sofia-sip/sip.h"
 
 namespace flexisip {
-using namespace std;
 
-CallEndedEventLog::CallEndedEventLog(const sip_t& sip) : Identified(sip), WithDomain(sip) {}
+class WithDomain {
+public:
+	explicit WithDomain(const sip_t& sip)
+	    : mFromDomain(sip.sip_from->a_url->url_host), mToDomain(sip.sip_to->a_url->url_host) {}
 
-void CallEndedEventLog::write(EventLogWriter& writer) const {
-	writer.write(*this);
-}
+	const std::string& getFromDomain() const {
+		return mFromDomain;
+	}
+
+	const std::string& getToDomain() const {
+		return mToDomain;
+	}
+
+private:
+	std::string mFromDomain{};
+	std::string mToDomain{};
+};
 
 } // namespace flexisip

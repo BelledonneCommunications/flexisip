@@ -119,20 +119,4 @@ RestClient createRestClient(const ConfigManager& cfg, const std::shared_ptr<Http
 	return {http2Client, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
 }
 
-RestClient createRestClient(sofiasip::SuRoot& root, const HttpUrl& url, const std::string& apiKey) {
-	// Create the HTTP Client that should be used for the FlexiAPI
-	if (url.getType() != url_https) {
-		throw HttpUrlError{"URL scheme MUST be 'HTTPS' (" + url.str() + ")"};
-	}
-
-	auto http2Client = Http2Client::make(root, url.getHost(), std::string{url.getPortWithFallback()});
-	const auto pathPrefix = url.getPath();
-
-	HttpHeaders httpHeaders{};
-	httpHeaders.add("accept", "application/json");
-	if (!apiKey.empty()) httpHeaders.add("x-api-key", apiKey);
-
-	return {http2Client, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
-}
-
 } // namespace flexisip::flexiapi

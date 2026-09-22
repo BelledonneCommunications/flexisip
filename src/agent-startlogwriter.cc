@@ -37,8 +37,6 @@ using namespace std;
 
 namespace flexisip {
 
-static constexpr auto kEventLogApiPrefix = "/api/statistics/";
-
 void Agent::startLogWriter() {
 	GenericStruct const* cr = mConfigManager->getRoot()->get<GenericStruct>("event-logs");
 
@@ -59,40 +57,11 @@ void Agent::startLogWriter() {
 			throw FlexisipException{"unable to use database, 'ENABLE_SOCI' is not defined (DataBaseEventLogWriter)"};
 #endif
 		} else if (cr->get<ConfigString>("logger")->read() == "flexiapi") {
-			GenericStruct const* crGlobalFlexiapi = mConfigManager->getRoot()->get<GenericStruct>("global::flexiapi");
-			const auto& host = cr->get<ConfigString>("flexiapi-host")->read();
-			const auto url = crGlobalFlexiapi->get<ConfigString>("url")->read();
-			const auto apiKey = crGlobalFlexiapi->get<ConfigString>("api-key")->read();
-			if (!url.empty() && !apiKey.empty()) {
-				if (!host.empty() && (host != "localhost")) {
-					LOGW << "'global::flexiapi::url' and 'global::flexiapi::api-key' are used in preference to "
-					        "deprecated parameters 'flexiapi-host' 'flexiapi-port' 'flexiapi-api-key' and "
-					        "'flexiapi-prefix' of 'event-logs' section.";
-				}
-				mLogWriter = make_unique<FlexiStatsEventLogWriter>(
-				    flexiapi::createRestClient(*mConfigManager, mSpacesStore->getGlobalFlexiApiClient()),
-				    kEventLogApiPrefix);
-			} else if (!host.empty()) {
-				LOGW << "'flexiapi-host' 'flexiapi-port' 'flexiapi-api-key' and 'flexiapi-prefix' parameters are "
-				        "deprecated, use 'global::flexiapi::url' and 'global::flexiapi::api-key' instead.";
-				const auto port = cr->get<ConfigInt>("flexiapi-port")->read();
-				const auto& evLogApiKey = cr->get<ConfigString>("flexiapi-api-key")->read();
-				const auto& prefix = cr->get<ConfigString>("flexiapi-prefix")->read();
-				const auto http2Client = Http2Client::make(*mRoot, host, to_string(port));
-				mLogWriter = make_unique<FlexiStatsEventLogWriter>(RestClient{http2Client,
-				                                                              HttpHeaders{
-				                                                                  {"accept", "application/json"},
-				                                                                  {"x-api-key"s, evLogApiKey},
-				                                                              }},
-				                                                   prefix);
-			} else {
-				if (url.empty()) {
-					throw BadConfigurationEmpty{crGlobalFlexiapi->get<ConfigString>("url")};
-				}
-				if (apiKey.empty()) {
-					throw BadConfigurationEmpty{crGlobalFlexiapi->get<ConfigString>("api-key")};
-				}
-			}
+			if (!mSpacesStore->getGlobalFlexiApiClient())
+				throw BadConfiguration{
+				    "Eventlogs with 'flexiapi' logger requires 'global::flexiapi' section to be configured"};
+
+			mLogWriter = make_unique<FlexiStatsEventLogWriter>(mSpacesStore);
 		} else if (cr->get<ConfigString>("logger")->read() == "filesystem") {
 			const auto& logdir = cr->get<ConfigString>("filesystem-directory")->read();
 			if (auto lw = std::make_unique<FilesystemEventLogWriter>(logdir); lw->isReady()) mLogWriter = std::move(lw);

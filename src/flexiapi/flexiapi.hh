@@ -28,15 +28,10 @@
 
 namespace flexisip::flexiapi {
 
-class FlexiApi : public std::enable_shared_from_this<FlexiApi> {
+class FlexiApi {
 public:
 	using OnErrorCb = HttpMessageContext::OnErrorCb;
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
-
-	template <typename... Args>
-	static std::shared_ptr<FlexiApi> make(Args&&... args) {
-		return std::shared_ptr<FlexiApi>{new FlexiApi{std::forward<Args>(args)...}};
-	}
 
 	explicit FlexiApi(RestClient&& restClient, const std::string& apiPrefix = "/api/");
 
@@ -58,8 +53,6 @@ public:
 
 private:
 	static constexpr std::string_view mLogPrefix{"FlexiApi"};
-
-	FlexiApi(const HttpUrl& url, const std::string& apiKey, const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	std::string toApiPath(const std::string& methodPath) const;
 

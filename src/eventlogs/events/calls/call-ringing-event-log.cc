@@ -26,8 +26,7 @@ namespace flexisip {
 using namespace std;
 
 CallRingingEventLog::CallRingingEventLog(const sip_t& sip, const BranchInfo* branch)
-    : Identified(sip), mDevice(*branch->getContact()) {
-}
+    : Identified(sip), WithDomain(sip), mDevice(*branch->getContact()) {}
 
 void CallRingingEventLog::write(EventLogWriter& writer) const {
 	writer.write(*this);

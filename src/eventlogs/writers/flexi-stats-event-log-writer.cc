@@ -18,6 +18,7 @@
 
 #include "flexi-stats-event-log-writer.hh"
 
+#include <array>
 #include <optional>
 #include <string>
 
@@ -28,6 +29,7 @@
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/events/messages/message-response-from-recipient-event-log.hh"
 #include "eventlogs/events/messages/message-sent-event-log.hh"
+#include "flexiapi/config.hh"
 #include "flexiapi/schemas/call/terminated.hh"
 #include "flexiapi/schemas/message/message.hh"
 #include "flexisip/logmanager.hh"
@@ -38,11 +40,40 @@
 
 namespace flexisip {
 
-FlexiStatsEventLogWriter::FlexiStatsEventLogWriter(RestClient&& restClient, const std::string& apiPrefix)
-    : mRestClient(std::move(restClient), apiPrefix) {}
+namespace {
+std::list<std::shared_ptr<flexiapi::FlexiStats>> getFlexiStatsClients(const std::shared_ptr<SpacesStore>& spacesStore,
+                                                                      const WithDomain& domains) {
+	std::list<std::shared_ptr<flexiapi::FlexiStats>> clients{};
+
+	const auto fromClient = spacesStore->getFlexiStatsClient(domains.getFromDomain()).lock();
+	if (fromClient) {
+		clients.push_back(fromClient);
+	} else {
+		LOGE_CTX(FlexiStatsEventLogWriter::mLogPrefix)
+		    << "No FlexiStats client found for the domain " << domains.getFromDomain()
+		    << "' (source: 'From' header): no event-log will be produced for this domain";
+	}
+
+	const auto toClient = spacesStore->getFlexiStatsClient(domains.getToDomain()).lock();
+	if (toClient) {
+		if (domains.getFromDomain() != domains.getToDomain()) clients.push_back(toClient);
+	} else {
+		LOGE_CTX(FlexiStatsEventLogWriter::mLogPrefix)
+		    << "No FlexiStats client found for the domain " << domains.getToDomain()
+		    << "' (source: 'To' header): no event-log will be produced for this domain";
+	}
+
+	return clients;
+}
+} // namespace
+
+FlexiStatsEventLogWriter::FlexiStatsEventLogWriter(const std::shared_ptr<SpacesStore>& spacesStore)
+    : mSpacesStore(spacesStore) {}
 
 void FlexiStatsEventLogWriter::write(const CallStartedEventLog& call) {
 	if (call.getInviteKind() != InviteKind::Call) return;
+
+	const auto flexiStatsClients = getFlexiStatsClients(mSpacesStore, call);
 
 	flexiapi::CallDevices devices{};
 	for (const auto& device : call.getDevices()) {
@@ -50,19 +81,26 @@ void FlexiStatsEventLogWriter::write(const CallStartedEventLog& call) {
 	}
 	const auto& to = *call.getTo()->a_url;
 	auto conferenceId = UriUtils::getConferenceId(to);
-	mRestClient.postCall({
-	    call.getId(),
-	    call.getCallId()->i_id,
-	    *call.getFrom()->a_url,
-	    to,
-	    devices,
-	    call.getTimestamp(),
-	    conferenceId,
-	});
+
+	for (const auto& flexiStatsClient : flexiStatsClients) {
+		flexiStatsClient->postCall({
+		    call.getId(),
+		    call.getCallId()->i_id,
+		    *call.getFrom()->a_url,
+		    to,
+		    devices,
+		    call.getTimestamp(),
+		    conferenceId,
+		});
+	}
 }
 
 void FlexiStatsEventLogWriter::write(const CallRingingEventLog& call) {
-	mRestClient.updateCallDeviceState(call.getId(), call.getDevice().mKey, {call.getTimestamp()});
+	const auto flexiStatsClients = getFlexiStatsClients(mSpacesStore, call);
+
+	for (const auto& flexiStatsClient : flexiStatsClients) {
+		flexiStatsClient->updateCallDeviceState(call.getId(), call.getDevice().mKey, {call.getTimestamp()});
+	}
 }
 
 void FlexiStatsEventLogWriter::write(const CallLog& call) {
@@ -73,34 +111,42 @@ void FlexiStatsEventLogWriter::write(const CallLog& call) {
 		return;
 	}
 
-	mRestClient.updateCallDeviceState(call.getId(), call.getDevice()->mKey,
-	                                  {{
-	                                      call.getDate(),
-	                                      [&call]() {
-		                                      using State = flexiapi::TerminatedState;
+	const auto flexiStatsClients = getFlexiStatsClients(mSpacesStore, call);
 
-		                                      if (call.isCancelled()) {
-			                                      switch (call.getForkStatus()) {
-				                                      case ForkStatus::Standard:
-					                                      return State::CANCELED;
-				                                      case ForkStatus::AcceptedElsewhere:
-					                                      return State::ACCEPTED_ELSEWHERE;
-				                                      case ForkStatus::DeclinedElsewhere:
-					                                      return State::DECLINED_ELSEWHERE;
-			                                      }
-		                                      }
+	for (const auto& flexiStatsClient : flexiStatsClients) {
+		flexiStatsClient->updateCallDeviceState(call.getId(), call.getDevice()->mKey,
+		                                        {{
+		                                            call.getDate(),
+		                                            [&call]() {
+			                                            using State = flexiapi::TerminatedState;
 
-		                                      const auto status = call.getStatusCode();
-		                                      if (status == 200) return State::ACCEPTED;
-		                                      if (status == 603) return State::DECLINED;
+			                                            if (call.isCancelled()) {
+				                                            switch (call.getForkStatus()) {
+					                                            case ForkStatus::Standard:
+						                                            return State::CANCELED;
+					                                            case ForkStatus::AcceptedElsewhere:
+						                                            return State::ACCEPTED_ELSEWHERE;
+					                                            case ForkStatus::DeclinedElsewhere:
+						                                            return State::DECLINED_ELSEWHERE;
+				                                            }
+			                                            }
 
-		                                      return State::ERROR;
-	                                      }(),
-	                                  }});
+			                                            const auto status = call.getStatusCode();
+			                                            if (status == 200) return State::ACCEPTED;
+			                                            if (status == 603) return State::DECLINED;
+
+			                                            return State::ERROR;
+		                                            }(),
+		                                        }});
+	}
 }
 
 void FlexiStatsEventLogWriter::write(const CallEndedEventLog& call) {
-	mRestClient.updateCallState(call.getId(), call.getTimestamp());
+	const auto flexiStatsClients = getFlexiStatsClients(mSpacesStore, call);
+
+	for (const auto& flexiStatsClient : flexiStatsClients) {
+		flexiStatsClient->updateCallState(call.getId(), call.getTimestamp());
+	}
 }
 
 void FlexiStatsEventLogWriter::write(const MessageSentEventLog& msg) {
@@ -124,8 +170,13 @@ void FlexiStatsEventLogWriter::write(const MessageSentEventLog& msg) {
 		case _::ToConferenceServer:
 			break;
 	}
-	mRestClient.postMessage({msg.getId(), *msg.getFrom()->a_url, recipients, msg.getTimestamp(), false,
-	                         std::optional<std::string>(kind.getConferenceId())});
+
+	const auto flexiStatsClients = getFlexiStatsClients(mSpacesStore, msg);
+
+	for (const auto& flexiStatsClient : flexiStatsClients) {
+		flexiStatsClient->postMessage({msg.getId(), *msg.getFrom()->a_url, recipients, msg.getTimestamp(), false,
+		                               std::optional<std::string>(kind.getConferenceId())});
+	}
 }
 
 void FlexiStatsEventLogWriter::write(const MessageResponseFromRecipientEventLog& msg) {
@@ -137,8 +188,12 @@ void FlexiStatsEventLogWriter::write(const MessageResponseFromRecipientEventLog&
 		return;
 	}
 
-	mRestClient.notifyMessageDeviceResponse(msg.getId(), *msg.getTo()->a_url, msg.getDevice().mKey,
-	                                        {msg.getStatusCode(), msg.getDate()});
+	const auto flexiStatsClients = getFlexiStatsClients(mSpacesStore, msg);
+
+	for (const auto& flexiStatsClient : flexiStatsClients) {
+		flexiStatsClient->notifyMessageDeviceResponse(msg.getId(), *msg.getTo()->a_url, msg.getDevice().mKey,
+		                                              {msg.getStatusCode(), msg.getDate()});
+	}
 }
 
 } // namespace flexisip

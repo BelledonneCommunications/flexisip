@@ -141,14 +141,20 @@ setupFamMock(const std::map<std::string, http_mock::HttpMockHandler>& customHand
 struct TestCommons {
 	explicit TestCommons(const int httpPort,
 	                     const chrono::milliseconds cacheTimeout = 30s,
-	                     const chrono::milliseconds unknownTimeout = 10min) {
-		data = FAMData::make(
-		    flexiapi::FlexiApi::make(HttpUrl{"https://127.0.0.1:"s + to_string(httpPort)}, "apikey", proxy.getRoot()),
-		    proxy.getRoot(), cacheTimeout, unknownTimeout);
-	}
+	                     const chrono::milliseconds unknownTimeout = 10min)
+	    : proxy{{
+	          {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(httpPort)},
+	          {"global::flexiapi/api-key", "aRandomApiToken"},
+	      }},
+	      data{FAMData::make(
+	          std::make_shared<flexiapi::FlexiApi>(flexiapi::createRestClient(
+	              *proxy.getConfigManager(), flexiapi::createClient(proxy.getConfigManager(), *proxy.getRoot()))),
+	          proxy.getRoot(),
+	          cacheTimeout,
+	          unknownTimeout)} {}
 
-	Server proxy{};
-	std::shared_ptr<FAMData> data{};
+	Server proxy;
+	std::shared_ptr<FAMData> data;
 	CoreAssert<> asserter{proxy.getRoot()};
 };
 

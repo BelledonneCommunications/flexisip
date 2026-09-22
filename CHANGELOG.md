@@ -53,6 +53,13 @@ Group changes to describe their impact on the project, as follows:
   - **AuthOpenIDConnect:** Parameters `authorization-server`, `public-key-type`, `public-key-location`, `realm`,
     `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global::domains/domains-configuration` instead.
 
+## [Removed]
+- **EventLogs**:
+  - Parameter `flexiapi-host`: use `[global::flexiapi]` instead. (deprecated in 2.6.0)
+  - Parameter `flexiapi-port`: use `[global::flexiapi]` instead. (deprecated in 2.6.0)
+  - Parameter `flexiapi-api-key`: use `[global::flexiapi]` instead. (deprecated in 2.6.0)
+  - Parameter `flexiapi-prefix` (deprecated in 2.6.2)
+
 ### [Fixed]
 - **B2BUA - Regevent - Voicemail:** The servers will only listen to the IP address specified in the "transport" field
   defined in the configuration of each server instead of "*".

@@ -29,8 +29,7 @@ namespace flexisip {
 MessageSentEventLog::MessageSentEventLog(const sip_t& sip,
                                          const std::list<std::shared_ptr<BranchInfo>>& branchInfoList,
                                          const MessageKind& kind)
-    : MessageOrCallStarted(sip, branchInfoList), WithMessageKind(kind) {
-}
+    : MessageOrCallStarted(sip, branchInfoList), WithMessageKind(kind), WithDomain(sip) {}
 
 void MessageSentEventLog::write(EventLogWriter& writer) const {
 	writer.write(*this);

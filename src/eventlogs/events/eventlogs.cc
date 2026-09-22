@@ -87,33 +87,6 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 	        "If you get a `database is locked` error with sqlite3, you must set this variable to 1.",
 	        "10",
 	    },
-	    ////////////////// Flexiapi: deprecated parameters //////////////////
-	    {
-	        String,
-	        "flexiapi-host",
-	        "Domain name or IP address of the FlexiAPI host. This setting will be used in combination with "
-	        "flexiapi-port "
-	        "and -prefix to contact the API located at <flexiapi-host>:<flexiapi-port><flexiapi-prefix>",
-	        "localhost",
-	    },
-	    {
-	        Integer,
-	        "flexiapi-port",
-	        "Port on the FlexiAPI host. See `flexiapi-host` for details.",
-	        "443",
-	    },
-	    {
-	        String,
-	        "flexiapi-api-key",
-	        "API authentication key for the FlexiAPI",
-	        "",
-	    },
-	    {
-	        String,
-	        "flexiapi-prefix",
-	        "Path prefix for FlexiAPI requests. See `flexiapi-host` for details.",
-	        "/api/stats/",
-	    },
 	    config_item_end,
 	};
 
@@ -126,32 +99,6 @@ const auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericS
 
 	auto* ev = root.addChild(std::move(uEv));
 	ev->addChildrenValues(items);
-
-	const auto flexiApiHostString = ev->get<ConfigString>("flexiapi-host");
-	flexiApiHostString->setDeprecated({
-	    "2026-02-27",
-	    "2.6.0",
-	    "Don't use 'flexiapi-host', but the global section 'global::flexiapi' to set up the FlexiAPI. WARNING: while "
-	    "this config entry is set, 'global::flexiapi' will be ignored for the event logs.",
-	});
-	const auto flexiApiPortInt = ev->get<ConfigInt>("flexiapi-port");
-	flexiApiPortInt->setDeprecated({
-	    "2026-02-27",
-	    "2.6.0",
-	    "Don't use 'flexiapi-port', but the global section 'global::flexiapi' to set up the FlexiAPI.",
-	});
-	const auto flexiApiKeyString = ev->get<ConfigString>("flexiapi-api-key");
-	flexiApiKeyString->setDeprecated({
-	    "2026-02-27",
-	    "2.6.0",
-	    "Don't use 'flexiapi-api-key', but the global section 'global::flexiapi' to set up the FlexiAPI.",
-	});
-	const auto flexiApiPrefixString = ev->get<ConfigString>("flexiapi-prefix");
-	flexiApiPrefixString->setDeprecated({
-	    "2026-08-18",
-	    "2.6.2",
-	    "Don't use 'flexiapi-prefix', but the global section 'global::flexiapi' to set up the FlexiAPI.",
-	});
 });
 
 } // namespace

@@ -29,6 +29,7 @@
 
 #include "accounts/accounts-store.hh"
 #include "auth/bearer-auth.hh"
+#include "flexiapi/flexi-stats.hh"
 #include "flexiapi/flexiapi.hh"
 #include "flexiapi/schemas/space/space.hh"
 #include "flexisip/configmanager.hh"
@@ -71,9 +72,11 @@ public:
 		Space(const std::string& name,
 		      const std::string& domain,
 		      const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
+		      const std::shared_ptr<flexiapi::FlexiStats>& flexiStatsClient,
 		      const std::optional<AccountsStore>&& accountsStore,
 		      const std::weak_ptr<Realm>& realm = {})
-		    : name(name), domain(domain), realm(realm), flexiApiClient(flexiApiClient), accountsStore(accountsStore) {}
+		    : name(name), domain(domain), realm(realm), flexiApiClient(flexiApiClient),
+		      flexiStatsClient(flexiStatsClient), accountsStore(accountsStore) {}
 
 		void setRealm(const std::weak_ptr<Realm>& newRealm) {
 			realm = newRealm;
@@ -83,6 +86,7 @@ public:
 		std::string domain{};
 		std::weak_ptr<Realm> realm{};
 		std::shared_ptr<flexiapi::FlexiApi> flexiApiClient{};
+		std::shared_ptr<flexiapi::FlexiStats> flexiStatsClient{};
 		std::optional<AccountsStore> accountsStore{};
 	};
 
@@ -95,6 +99,7 @@ public:
 
 	std::optional<std::reference_wrapper<AccountsStore>> getAccountsStore(const std::string& domain);
 	std::weak_ptr<flexiapi::FlexiApi> getFlexiApiClient(const std::string& domain);
+	std::weak_ptr<flexiapi::FlexiStats> getFlexiStatsClient(const std::string& domain);
 
 	std::shared_ptr<Http2Client> getGlobalFlexiApiClient() const {
 		return mGlobalFlexiApiClient;

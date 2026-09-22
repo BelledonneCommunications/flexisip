@@ -24,6 +24,7 @@
 #include "fork-context/message-kind.hh"
 #include "sofia-sip/sip.h"
 
+#include "eventlogs/events/domain.hh"
 #include "eventlogs/events/eventlogs.hh"
 #include "eventlogs/events/identified.hh"
 #include "eventlogs/events/messages/with-message-kind.hh"
@@ -31,7 +32,10 @@
 
 namespace flexisip {
 
-class MessageResponseFromRecipientEventLog : public MessageLog, public Identified, public WithMessageKind {
+class MessageResponseFromRecipientEventLog : public MessageLog,
+                                             public Identified,
+                                             public WithMessageKind,
+                                             public WithDomain {
 public:
 	MessageResponseFromRecipientEventLog(const sip_t&,
 	                                     const ExtendedContact&,

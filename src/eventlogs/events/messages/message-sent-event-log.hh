@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "eventlogs/events/domain.hh"
 #include "eventlogs/events/message-or-call-started.hh"
 #include "eventlogs/events/messages/with-message-kind.hh"
 #include "fork-context/message-kind.hh"
@@ -26,7 +27,7 @@ namespace flexisip {
 
 // Note that as the proxy has no notion of group chats, this event can only have one destination (which would be the
 // chatroom in case of a group message)
-class MessageSentEventLog : public MessageOrCallStarted, public WithMessageKind {
+class MessageSentEventLog : public MessageOrCallStarted, public WithMessageKind, public WithDomain {
 public:
 	MessageSentEventLog(const sip_t&, const std::list<std::shared_ptr<BranchInfo>>&, const MessageKind&);
 

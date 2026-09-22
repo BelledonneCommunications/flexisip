@@ -19,11 +19,12 @@
 #pragma once
 
 #include "eventlogs/events/calls/invite-kind.hh"
+#include "eventlogs/events/domain.hh"
 #include "eventlogs/events/message-or-call-started.hh"
 
 namespace flexisip {
 
-class CallStartedEventLog : public MessageOrCallStarted, public WithInviteKind {
+class CallStartedEventLog : public MessageOrCallStarted, public WithInviteKind, public WithDomain {
 public:
 	CallStartedEventLog(const sip_t&, const std::list<std::shared_ptr<BranchInfo>>&);
 

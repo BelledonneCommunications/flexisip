@@ -41,10 +41,14 @@ namespace {
 FlexiApiConfig getFlexiApiConfig(const std::shared_ptr<ConfigManager>& cfg) {
 	const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
 
-	const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
+	const auto* flexiApiUrlParam = flexiApiConfigSection->get<ConfigString>("url");
+	const auto flexiApiUrl = flexiApiUrlParam->read();
+	if (flexiApiUrl.empty()) throw BadConfigurationEmpty{flexiApiUrlParam};
+
 	const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
 	const auto flexiApiKey = flexiApiKeyParam->read();
 	if (flexiApiKeyParam->read().empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
+
 	const auto accountsCacheTimeout =
 	    flexiApiConfigSection->get<ConfigDuration<chrono::seconds>>("accounts-cache-timeout")->read();
 	const auto unknownAccountsCacheTimeout =
@@ -54,6 +58,32 @@ FlexiApiConfig getFlexiApiConfig(const std::shared_ptr<ConfigManager>& cfg) {
 	        .apiKey = flexiApiKey,
 	        .accountsCacheTimeout = accountsCacheTimeout,
 	        .unknownAccountsCacheTimeout = unknownAccountsCacheTimeout};
+}
+
+std::shared_ptr<Http2Client> createClientForSpace(sofiasip::SuRoot& root, const HttpUrl& url) {
+	// Create the HTTP Client that should be used for the FlexiAPI
+	if (url.getType() != url_https) {
+		throw HttpUrlError{"URL scheme MUST be 'HTTPS' (" + url.str() + ")"};
+	}
+
+	return Http2Client::make(root, url.getHost(), std::string{url.getPortWithFallback()});
+}
+
+RestClient createRestClientForSpace(const std::shared_ptr<Http2Client>& http2Client,
+                                    const HttpUrl& url,
+                                    const std::string& apiKey) {
+	// Create the HTTP Client that should be used for the FlexiAPI
+	if (url.getType() != url_https) {
+		throw HttpUrlError{"URL scheme MUST be 'HTTPS' (" + url.str() + ")"};
+	}
+
+	const auto pathPrefix = url.getPath();
+
+	HttpHeaders httpHeaders{};
+	httpHeaders.add("accept", "application/json");
+	if (!apiKey.empty()) httpHeaders.add("x-api-key", apiKey);
+
+	return {http2Client, httpHeaders, !pathPrefix.empty() ? "/" + pathPrefix : ""};
 }
 } // namespace
 
@@ -328,7 +358,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 	auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
 
 	if (mode == "legacy" && !flexiApiClient) {
-		spacesStore->mSpaces.emplace(kLegacyDomainName, Space{"Legacy", kLegacyDomainName, nullptr, nullopt});
+		spacesStore->mSpaces.emplace(kLegacyDomainName, Space{"Legacy", kLegacyDomainName, nullptr, nullptr, nullopt});
 		return spacesStore;
 	}
 
@@ -372,11 +402,12 @@ SpacesStore::SpacesStore(const std::string& advancedAccountData,
                          const std::shared_ptr<Http2Client>& http2Client,
                          const std::shared_ptr<sofiasip::SuRoot>& root) {
 	if (advancedAccountData == "flexiapi") {
-		auto flexiApiClient = flexiapi::FlexiApi::make(flexiapi::createRestClient(*cfg, http2Client));
+		auto flexiApiClient = std::make_shared<flexiapi::FlexiApi>(flexiapi::createRestClient(*cfg, http2Client));
 		mSpaces.emplace(kLegacyDomainName, Space{
 		                                       "Legacy",
 		                                       kLegacyDomainName,
 		                                       flexiApiClient,
+		                                       nullptr,
 		                                       optional{AccountsStore{flexiApiClient, root, 30s, 10min}},
 		                                   });
 		mGlobalFlexiApiClient = http2Client;
@@ -384,6 +415,7 @@ SpacesStore::SpacesStore(const std::string& advancedAccountData,
 		mSpaces.emplace(kLegacyDomainName, Space{
 		                                       "Legacy",
 		                                       kLegacyDomainName,
+		                                       nullptr,
 		                                       nullptr,
 		                                       optional{AccountsStore{advancedAccountData}},
 		                                   });
@@ -412,6 +444,15 @@ std::weak_ptr<flexiapi::FlexiApi> SpacesStore::getFlexiApiClient(const std::stri
 	}
 
 	return hasDomain(domain) ? mSpaces[domain].flexiApiClient : std::weak_ptr<flexiapi::FlexiApi>();
+}
+
+std::weak_ptr<flexiapi::FlexiStats> SpacesStore::getFlexiStatsClient(const std::string& domain) {
+	// If we are in legacy mode, then return the FlexiApi from the Legacy space.
+	if (hasDomain(kLegacyDomainName)) {
+		return mSpaces[kLegacyDomainName].flexiStatsClient;
+	}
+
+	return hasDomain(domain) ? mSpaces[domain].flexiStatsClient : std::weak_ptr<flexiapi::FlexiStats>();
 }
 
 std::vector<std::pair<std::vector<std::string>, const SpacesStore::Bearer>> SpacesStore::getBearerParams() const {
@@ -450,10 +491,21 @@ void SpacesStore::onSpacesChanged(const std::vector<flexiapi::Space>& spaces) {
 void SpacesStore::createSpace(const flexiapi::Space& space) {
 	optional<AccountsStore> accountsStore{};
 	shared_ptr<flexiapi::FlexiApi> flexiApiClient{};
+	shared_ptr<flexiapi::FlexiStats> flexiStatsClient{};
 	if (space.host.has_value() && !space.host.value().empty() && mFlexiApiConfig.has_value()) {
 		try {
 			auto url = mFlexiApiConfig->url.replaceHost(space.host.value());
-			flexiApiClient = flexiapi::FlexiApi::make(url, mFlexiApiConfig->apiKey, mRoot);
+			auto http2Client = createClientForSpace(*mRoot, url);
+
+			// Create the FlexiApi client
+			flexiApiClient = std::make_shared<flexiapi::FlexiApi>(
+			    createRestClientForSpace(http2Client, url, mFlexiApiConfig->apiKey));
+
+			// Create the FlexiStats client
+			flexiStatsClient = std::make_shared<flexiapi::FlexiStats>(
+			    createRestClientForSpace(http2Client, url, mFlexiApiConfig->apiKey));
+
+			// Create the AccountsStore
 			accountsStore.emplace(flexiApiClient, mRoot, mFlexiApiConfig->accountsCacheTimeout,
 			                      mFlexiApiConfig->unknownAccountsCacheTimeout);
 		} catch (exception& e) {
@@ -465,7 +517,8 @@ void SpacesStore::createSpace(const flexiapi::Space& space) {
 
 	shared_ptr<Realm> realm = createRealm(space);
 
-	mSpaces.emplace(space.domain, Space{space.name, space.domain, flexiApiClient, std::move(accountsStore), realm});
+	mSpaces.emplace(space.domain,
+	                Space{space.name, space.domain, flexiApiClient, flexiStatsClient, std::move(accountsStore), realm});
 }
 
 std::shared_ptr<SpacesStore::Realm> SpacesStore::createRealm(const flexiapi::Space& space) {

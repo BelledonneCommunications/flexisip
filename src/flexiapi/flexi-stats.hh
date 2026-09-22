@@ -34,7 +34,9 @@ namespace flexisip::flexiapi {
 
 class FlexiStats {
 public:
-	FlexiStats(RestClient&& restClient, const std::string& apiPrefix);
+	static constexpr auto kFlexiStatsApiPath = "/api/statistics/";
+
+	explicit FlexiStats(RestClient&& restClient, const std::string& apiPrefix = kFlexiStatsApiPath);
 
 	/********** MESSAGES **********/
 	void postMessage(const Message& message);

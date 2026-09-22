@@ -49,12 +49,8 @@ VoicemailServer::VoicemailServer(const std::shared_ptr<sofiasip::SuRoot>& root,
                                  const std::shared_ptr<ConfigManager>& cfg,
                                  const std::shared_ptr<SpacesStore>& spacesStore)
     : ServiceServer(root), mConfigManager(cfg), mSpacesStore(spacesStore) {
-	const auto* flexiApiConfigSection = mConfigManager->getRoot()->get<GenericStruct>("global::flexiapi");
-	const auto* flexiApiUrlParam = flexiApiConfigSection->get<ConfigString>("url");
-	if (flexiApiUrlParam->read().empty())
+	if (!mSpacesStore->getGlobalFlexiApiClient())
 		throw BadConfiguration{"Voicemail server cannot start without 'global::flexiapi' configured"};
-	const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
-	if (flexiApiKeyParam->read().empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
 }
 
 void VoicemailServer::_init() {

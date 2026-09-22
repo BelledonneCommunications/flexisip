@@ -41,9 +41,4 @@ std::shared_ptr<Http2Client> createClient(const std::shared_ptr<ConfigManager>& 
  */
 RestClient createRestClient(const ConfigManager& cfg, const std::shared_ptr<Http2Client>& http2Client);
 
-/**
- * Create a RestClient for the flexiapi with dynamic options.
- */
-RestClient createRestClient(sofiasip::SuRoot& root, const HttpUrl& url, const std::string& apiKey);
-
 } // namespace flexisip::flexiapi

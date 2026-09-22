@@ -20,6 +20,7 @@
 
 #include "sofia-sip/sip.h"
 
+#include "eventlogs/events/domain.hh"
 #include "eventlogs/events/event-log-write-dispatcher.hh"
 #include "eventlogs/events/identified.hh"
 #include "eventlogs/events/timestamped.hh"
@@ -29,7 +30,7 @@ namespace flexisip {
 
 class BranchInfo;
 
-class CallRingingEventLog : public EventLogWriteDispatcher, public Identified, public Timestamped {
+class CallRingingEventLog : public EventLogWriteDispatcher, public Identified, public Timestamped, public WithDomain {
 public:
 	CallRingingEventLog(const sip_t&, const BranchInfo*);
 
