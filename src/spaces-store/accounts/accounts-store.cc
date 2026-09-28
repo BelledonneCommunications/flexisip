@@ -35,8 +35,10 @@ AccountsStore::AccountsStore(const std::string& advancedAccountOptions) {
 }
 
 AccountsStore::AccountsStore(const std::shared_ptr<FlexiApi>& flexiApiClient,
-                             const std::shared_ptr<sofiasip::SuRoot>& root) {
-	mDataManager = FAMData::make(flexiApiClient, root, 30s, 10min);
+                             const std::shared_ptr<sofiasip::SuRoot>& root,
+                             std::chrono::milliseconds cacheTimeout,
+                             std::chrono::milliseconds unknownTimeout) {
+	mDataManager = FAMData::make(flexiApiClient, root, cacheTimeout, unknownTimeout);
 }
 
 void AccountsStore::resolveCallTarget(

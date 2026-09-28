@@ -52,7 +52,9 @@ public:
 
 	explicit AccountsStore(const std::string& advancedAccountOptions);
 	AccountsStore(const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
-	              const std::shared_ptr<sofiasip::SuRoot>& root);
+	              const std::shared_ptr<sofiasip::SuRoot>& root,
+	              std::chrono::milliseconds cacheTimeout,
+	              std::chrono::milliseconds unknownTimeout);
 
 	/**
 	 * Resolve the call diversions until a valid uri is found or the maximum depth is reached.

@@ -422,6 +422,23 @@ void cacheResetTest() {
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 3);
 }
 
+void cacheDisabledTest() {
+	const auto [famMock, httpPort] = setupFamMock();
+	auto commons = TestCommons{httpPort, 0s};
+
+	for (int i = 1; i <= 3; i++) {
+		bool callbackCalled{false};
+		commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+		                                 flexiapi::CallForwarding::ForwardType::SipUri,
+		                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+			                                 assertDiversionsEqual(diversions, expectedInitialDiversions);
+			                                 callbackCalled = true;
+		                                 });
+		commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
+		BC_ASSERT_CPP_EQUAL(numberOfCalls, i);
+	}
+}
+
 void unknownHitTest() {
 	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {{
 	    accountInitialApiUri,
@@ -510,6 +527,31 @@ void unknownResetTest() {
 	BC_ASSERT_CPP_EQUAL(numberOfCalls, 3);
 }
 
+void unknownDisabledTest() {
+	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {{
+	    accountInitialApiUri,
+	    [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response& res) {
+		    numberOfCalls++;
+		    res.writeHead(404);
+		    res.send();
+	    },
+	}};
+	const auto [famMock, httpPort] = setupFamMock(customHandlers);
+	auto commons = TestCommons{httpPort, 30s, 0s};
+
+	for (int i = 1; i <= 3; i++) {
+		bool callbackCalled{false};
+		commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+		                                 flexiapi::CallForwarding::ForwardType::SipUri,
+		                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+			                                 BC_ASSERT_CPP_EQUAL(diversions.size(), 0);
+			                                 callbackCalled = true;
+		                                 });
+		commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
+		BC_ASSERT_CPP_EQUAL(numberOfCalls, i);
+	}
+}
+
 TestSuite kSuite{
     "FamAccountsData",
     {
@@ -524,8 +566,10 @@ TestSuite kSuite{
         CLASSY_TEST(findCallDiversions_badJsonSipUri),
         CLASSY_TEST(cacheHitTest),
         CLASSY_TEST(cacheResetTest),
+        CLASSY_TEST(cacheDisabledTest),
         CLASSY_TEST(unknownHitTest),
         CLASSY_TEST(unknownResetTest),
+        CLASSY_TEST(unknownDisabledTest),
     },
     Hooks()
         .beforeSuite([] {

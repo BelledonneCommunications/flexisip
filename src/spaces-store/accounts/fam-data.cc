@@ -117,8 +117,10 @@ void FAMData::onResponseCallback(const std::shared_ptr<HttpRequest>&,
 	if (response->getStatusCode() != 200) {
 		if (response->getStatusCode() == 404) {
 			LOGI << "Account unknown calling resolve[" << string_view{apiUri} << "] from FlexiAPI.";
-			mUnknownAccounts.insert(apiUri);
-			startUnknownTimer(apiUri);
+			if (mUnknownTimeout > 0s) {
+				mUnknownAccounts.insert(apiUri);
+				startUnknownTimer(apiUri);
+			}
 		} else {
 			LOGW << "Error while calling resolve[" << string_view{apiUri}
 			     << "] from FlexiAPI: " << response->getStatusCode();
@@ -152,9 +154,12 @@ void FAMData::onResponseCallback(const std::shared_ptr<HttpRequest>&,
 		return;
 	}
 
-	mAccounts.try_emplace(apiUri, account);
 	notifyWaitingCallbacks(apiUri, account.call_forwardings);
-	startCacheTimer(apiUri);
+
+	if (mCacheTimeout > 0s) {
+		mAccounts.try_emplace(apiUri, account);
+		startCacheTimer(apiUri);
+	}
 }
 
 void FAMData::onErrorCallback(const std::shared_ptr<HttpRequest>&, const ApiFormattedUri& apiUri) {

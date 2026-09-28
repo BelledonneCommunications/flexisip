@@ -51,6 +51,25 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "API key for the FlexiAPI.",
 	        "",
 	    },
+	    {
+	        DurationS,
+	        "accounts-cache-timeout",
+	        "Duration for which successful FlexiAPI account lookup results are cached locally per SIP URI.\n"
+	        "Account changes will not take effect until the cache entry expires. After expiry, the next lookup fetches "
+	        "fresh data from FlexiAPI.\n"
+	        "Set to 0 to disable successful-result caching.",
+	        "30",
+	    },
+	    {
+	        DurationS,
+	        "unknown-accounts-cache-timeout",
+	        "Duration for which 'unknown' (404 User not found) FlexiAPI account lookup results are cached locally per "
+	        "SIP URI.\n"
+	        "Accounts will not be looked up again until the cache entry expires. After expiry, the next lookup fetches "
+	        "fresh data from FlexiAPI.\n"
+	        "Set to 0 to disable unknown-result caching.",
+	        "10min",
+	    },
 	    config_item_end,
 	};
 

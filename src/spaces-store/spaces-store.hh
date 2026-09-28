@@ -38,6 +38,13 @@
 
 namespace flexisip {
 
+struct FlexiApiConfig {
+	HttpUrl url;
+	std::string apiKey;
+	std::chrono::milliseconds accountsCacheTimeout;
+	std::chrono::milliseconds unknownAccountsCacheTimeout;
+};
+
 class SpacesStore {
 public:
 	struct Bearer {
@@ -104,11 +111,6 @@ public:
 	std::vector<std::pair<std::vector<std::string>, const Bearer>> getBearerParams() const;
 
 private:
-	struct FlexiApiConfig {
-		HttpUrl url;
-		std::string apiKey;
-	};
-
 	SpacesStore(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot(root) {}
 	SpacesStore(const std::string& advancedAccountData,
 	            const std::shared_ptr<ConfigManager>& cfg,

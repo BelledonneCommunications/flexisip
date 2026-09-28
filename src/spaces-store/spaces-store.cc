@@ -37,6 +37,26 @@ namespace flexisip {
 
 const string SpacesStore::kLegacyDomainName{"legacy"};
 
+namespace {
+FlexiApiConfig getFlexiApiConfig(const std::shared_ptr<ConfigManager>& cfg) {
+	const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
+
+	const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
+	const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
+	const auto flexiApiKey = flexiApiKeyParam->read();
+	if (flexiApiKeyParam->read().empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
+	const auto accountsCacheTimeout =
+	    flexiApiConfigSection->get<ConfigDuration<chrono::seconds>>("accounts-cache-timeout")->read();
+	const auto unknownAccountsCacheTimeout =
+	    flexiApiConfigSection->get<ConfigDuration<chrono::seconds>>("unknown-accounts-cache-timeout")->read();
+
+	return {.url = HttpUrl(flexiApiUrl),
+	        .apiKey = flexiApiKey,
+	        .accountsCacheTimeout = accountsCacheTimeout,
+	        .unknownAccountsCacheTimeout = unknownAccountsCacheTimeout};
+}
+} // namespace
+
 namespace legacy {
 
 /**
@@ -298,15 +318,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 				    }
 			    });
 
-			if (authDomainsMode == "flexiapi") {
-				const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
-				const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
-				const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
-				const auto flexiApiKey = flexiApiKeyParam->read();
-				if (flexiApiKey.empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
-
-				spacesStore->mFlexiApiConfig = FlexiApiConfig{.url = HttpUrl(flexiApiUrl), .apiKey = flexiApiKey};
-			}
+			if (authDomainsMode == "flexiapi") spacesStore->mFlexiApiConfig = getFlexiApiConfig(cfg);
 			spacesStore->mSpacesDataManager = std::move(dataManager);
 			return spacesStore;
 		}
@@ -325,14 +337,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 			LOGW << "global::domains/domains-configuration was set as 'legacy' but global::flexiapi is set, using it "
 			        "as 'flexiapi'";
 
-		const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
-		const auto flexiApiUrl = flexiApiConfigSection->get<ConfigString>("url")->read();
-		const auto* flexiApiKeyParam = flexiApiConfigSection->get<ConfigString>("api-key");
-		const auto flexiApiKey = flexiApiKeyParam->read();
-		if (flexiApiKey.empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
-
-		spacesStore->mFlexiApiConfig = FlexiApiConfig{.url = HttpUrl(flexiApiUrl), .apiKey = flexiApiKey};
-
+		spacesStore->mFlexiApiConfig = getFlexiApiConfig(cfg);
 		spacesStore->mGlobalFlexiApiClient = flexiApiClient;
 
 		const auto refreshDelay = domainsConfigSection->get<ConfigDuration<chrono::minutes>>("refresh-delay")->read();
@@ -372,7 +377,7 @@ SpacesStore::SpacesStore(const std::string& advancedAccountData,
 		                                       "Legacy",
 		                                       kLegacyDomainName,
 		                                       flexiApiClient,
-		                                       optional{AccountsStore{flexiApiClient, root}},
+		                                       optional{AccountsStore{flexiApiClient, root, 30s, 10min}},
 		                                   });
 		mGlobalFlexiApiClient = http2Client;
 	} else {
@@ -449,7 +454,8 @@ void SpacesStore::createSpace(const flexiapi::Space& space) {
 		try {
 			auto url = mFlexiApiConfig->url.replaceHost(space.host.value());
 			flexiApiClient = flexiapi::FlexiApi::make(url, mFlexiApiConfig->apiKey, mRoot);
-			accountsStore.emplace(flexiApiClient, mRoot);
+			accountsStore.emplace(flexiApiClient, mRoot, mFlexiApiConfig->accountsCacheTimeout,
+			                      mFlexiApiConfig->unknownAccountsCacheTimeout);
 		} catch (exception& e) {
 			LOGD << "Failed to create FlexiApiClient: " << e.what();
 		}
