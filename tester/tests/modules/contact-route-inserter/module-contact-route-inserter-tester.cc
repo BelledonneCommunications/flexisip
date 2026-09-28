@@ -161,11 +161,72 @@ void masqueradeContactHeaderFieldSipsOutgoingTransport() {
 	    expectedCtRtParameter);
 }
 
+/**
+ * Test restoring the Contact-Route parameter in the Contact header field.
+ * Values read in the parameter are used to restore the original request URI.
+ */
+void restoreContactRouteParameter() {
+	Server proxy{{{"module::ContactRouteInserter/enabled", "true"}}};
+	proxy.start();
+
+	const auto agent = proxy.getAgent();
+	const auto module = dynamic_pointer_cast<ContactRouteInserter>(agent->findModuleByRole("ContactRouteInserter"));
+	BC_HARD_ASSERT(module != nullptr);
+	const auto ctrtParamName = module->getContactRouteParamName();
+
+	const auto testRestore = [&](const string& protocol, const string& host, const string& port = "") {
+		stringstream request{};
+		const auto param = protocol + ":" + host + (port.empty() ? "" : (":" + port));
+
+		request << "INVITE sip:callee@localhost;" << ctrtParamName << "=" << param << " SIP/2.0\r\n"
+		        << "From: <sip:caller@localhost>;tag=stub-tag\r\n"
+		        << "To: <sip:callee@localhost>\r\n"
+		        << "Call-ID: stub-call-id\r\n"
+		        << "CSeq: 20 INVITE\r\n"
+		        << "Contact: <sip:caller@127.0.0.1:12345>\r\n"
+		        << "Content-Length: 0\r\n\r\n";
+		const auto msg = make_shared<MsgSip>(0, request.str());
+
+		RequestSipEvent event{make_shared<IncomingTransaction>(agent), msg};
+		module->onRequest(event);
+
+		SLOGD << "After:\n" << *msg;
+
+		const SipUri requestUri{event.getSip()->sip_request->rq_url};
+
+		// Make sure the Contact-Route parameter has been removed from the request URI.
+		BC_ASSERT(requestUri.hasParam(ctrtParamName) == false);
+		// Test expected request URI.
+		BC_ASSERT_CPP_EQUAL(requestUri.getScheme(), "sip");
+		BC_ASSERT_CPP_EQUAL(requestUri.getUser(), "callee");
+		BC_ASSERT_CPP_EQUAL(requestUri.getHost(), host);
+		if (!port.empty()) {
+			BC_ASSERT_CPP_EQUAL(requestUri.getPort(), port);
+		} else {
+			BC_ASSERT_CPP_EQUAL(requestUri.getPort(), "");
+		}
+		if (protocol != "udp") {
+			BC_ASSERT_CPP_EQUAL(requestUri.getParam("transport"), protocol);
+		} else {
+			BC_ASSERT_CPP_EQUAL(requestUri.getParam("transport"), "");
+		}
+		BC_ASSERT(requestUri.hasParam("doroute"));
+	};
+
+	testRestore("udp", "a.test.example.org");
+	testRestore("tcp", "b.test.example.org");
+	testRestore("tls", "example.org");
+	testRestore("udp", "1.2.3.4", "5060");
+	testRestore("tcp", "100.100.100.100");
+	testRestore("tls", "example.org", "5061");
+}
+
 TestSuite _{
     "ModuleContactRouteInserter",
     {
         CLASSY_TEST(masqueradeContactHeaderFieldSipOutgoingTransport),
         CLASSY_TEST(masqueradeContactHeaderFieldSipsOutgoingTransport),
+        CLASSY_TEST(restoreContactRouteParameter),
     },
 };
 

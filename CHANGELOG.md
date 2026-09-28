@@ -20,6 +20,8 @@ Group changes to describe their impact on the project, as follows:
 - **RegistrationEvent**: Subscriptions are now matched by dialog identifier (Call-ID + From URI) instead of the From URI
   only. Previously, a new subscription from a subscriber whose URI was already subscribed could overwrite or remove
   another subscription from the same URI.
+- **Proxy:**
+  - **ContactRouteInserter**: Resolved restoring original request URI from CtRt parameters, fixing Push Gateway routing.
 
 ## [2.6.2] - Hotfix
 - **SDK version:** 5.5.16
