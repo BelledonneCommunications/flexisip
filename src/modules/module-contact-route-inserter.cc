@@ -104,7 +104,7 @@ void ContactRouteInserter::onRequest(RequestSipEvent& ev) {
 	}
 
 	LOGD << "Found a contact route parameter in the request URI: restoring";
-	contact_masquerader::restore(msg->getHome(), requestUri, uri.getParam(mCtRtParamName), "doroute");
+	contact_masquerader::restore(msg->getHome(), requestUri, mCtRtParamName, uri.getParam(mCtRtParamName), "doroute");
 }
 
 void ContactRouteInserter::onResponse(ResponseSipEvent& ev) {
