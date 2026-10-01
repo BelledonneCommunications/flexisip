@@ -81,22 +81,4 @@ inline std::string toString(RedirectingReason reason) {
 	}
 }
 
-/**
- * Translate a SIP status code received on a branch into the Redirecting Reason it matches.
- * Only some received codes have an explicit mapping: any other code falls back to 'Unconditional', as mandated
- * by RFC 4458 (§ 2.2) for values with no appropriate mapping. As a consequence, the reasons that are not bound
- * to a mapped code (Unknown, Unconditional, the Deflection reasons, MobileNotReachable) have no producer here.
- */
-constexpr RedirectingReason codeToRedirectingReason(int code) {
-	switch (code) {
-		case 408:
-		case 480:
-			return RedirectingReason::NoReply;
-		case 486:
-		case 603:
-			return RedirectingReason::UserBusy;
-		default:
-			return RedirectingReason::Unconditional;
-	}
-}
 } // namespace flexisip

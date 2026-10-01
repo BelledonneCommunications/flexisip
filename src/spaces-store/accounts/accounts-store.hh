@@ -35,16 +35,11 @@ class AccountsStore {
 public:
 	static constexpr std::string_view mLogPrefix{"AccountsStore"};
 
-	enum class TargetType {
-		Account,
-		// Group,
-		Voicemail,
-	};
 	struct CallTarget {
-		TargetType type;
+		flexiapi::UriType type;
 		SipUri uri;
 	};
-	using CallDiversionMap = std::unordered_map<int, CallTarget>;
+	using CallDiversionMap = std::unordered_map<flexiapi::CallForwarding::Type, CallTarget>;
 	struct ResolvedCallTarget {
 		CallTarget target{};
 		CallDiversionMap divertedMap{};
@@ -57,21 +52,21 @@ public:
 	              std::chrono::milliseconds unknownTimeout);
 
 	/**
-	 * Resolve the call diversions until a valid uri is found or the maximum depth is reached.
+	 * Resolve the call diversions until a valid URI is found or the maximum depth is reached.
 	 * This function may suspend the call processing until all call data is available.
 	 *
-	 * @param uri SipUri of initial target
+	 * @param target type and URI of initial target
 	 * @param maxDepth maximum depth to resolve diversions
 	 * @param callback function to resume call processing
 	 */
-	void resolveCallTarget(SipUri uri,
+	void resolveCallTarget(const CallTarget& target,
 	                       int maxDepth,
 	                       stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&,
 	                                                              const int& divertedCnt)>&& callback);
 
 private:
-	// Fetch the call diversions declared for `uri`, then resolve them.
-	void resolveCallTarget(const SipUri& uri,
+	// Fetch the call diversions declared for `target`, then resolve them.
+	void resolveCallTarget(const CallTarget& target,
 	                       int maxDepth,
 	                       const std::vector<flexiapi::CallForwarding>& callDiversions,
 	                       int divertedCnt,

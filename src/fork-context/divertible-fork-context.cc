@@ -109,12 +109,9 @@ DivertibleForkContext::DivertibleForkContext(AgentInterface* agent,
 	} catch (sofiasip::InvalidUrlError&) {
 		// ignore error, the call can still be processed
 	}
-
-	// Set the default diversion map with all codes configured for the voicemail.
-	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
-	for (int code : config->mStatusCodes) {
-		mVoicemailDefaultMap.emplace(code, AccountsStore::CallTarget{.type = AccountsStore::TargetType::Voicemail});
-	}
+	if (!static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri.empty())
+		mVoicemailDefaultMap.emplace(flexiapi::CallForwarding::Type::NoAnswer,
+		                             AccountsStore::CallTarget{.type = flexiapi::UriType::Voicemail});
 
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrStart();
 }
@@ -275,17 +272,18 @@ std::unique_ptr<ResponseSipEvent> DivertibleForkContext::sendResponse(std::uniqu
 	return std::move(event);
 }
 
-void DivertibleForkContext::fetchTarget(const SipUri& targetUri, stl_backports::move_only_function<void()>&& fallback) {
-	const auto accountStore = mAgent->getSpacesStore()->getAccountsStore(targetUri.getHost());
+void DivertibleForkContext::fetchTarget(const AccountsStore::CallTarget& target,
+                                        stl_backports::move_only_function<void()>&& fallback) {
+	const auto accountStore = mAgent->getSpacesStore()->getAccountsStore(target.uri.getHost());
 	if (!accountStore.has_value()) {
-		LOGE << "Failed to trigger call diversion (AccountsStore is nullptr for " << targetUri.getHost() << ")";
+		LOGE << "Failed to trigger call diversion (AccountsStore is nullptr for " << target.uri.getHost() << ")";
 		// try to continue call
-		return forkToAccount(targetUri, {}, std::move(fallback));
+		return forkToAccount(target.uri, {}, std::move(fallback));
 	}
 
-	LOGD << "Checking target '" << targetUri.str() << "' call diversions";
+	LOGD << "Checking target '" << target.uri.str() << "' call diversions";
 	accountStore->get().resolveCallTarget(
-	    targetUri, mMaxCallDiversions - mDivertedCount,
+	    target, mMaxCallDiversions - mDivertedCount,
 	    [ctx = weak_from_this(), fallback = std::move(fallback)](
 	        optional<AccountsStore::ResolvedCallTarget>&& resolvedTarget, const int& divertedCnt) mutable {
 		    const auto& context = ctx.lock();
@@ -299,11 +297,11 @@ void DivertibleForkContext::fetchTarget(const SipUri& targetUri, stl_backports::
 		    }
 
 		    switch (resolvedTarget->target.type) {
-			    case AccountsStore::TargetType::Account:
+			    case flexiapi::UriType::Account:
 				    context->forkToAccount(resolvedTarget->target.uri, resolvedTarget->divertedMap,
 				                           std::move(fallback));
 				    break;
-			    case AccountsStore::TargetType::Voicemail:
+			    case flexiapi::UriType::Voicemail:
 				    context->forkToVoicemail(RedirectingReason::Unconditional);
 				    break;
 			    default:
@@ -322,16 +320,10 @@ void DivertibleForkContext::forkToAccount(const SipUri& sipUri,
 	}
 
 	// Set the configured diversions for this target.
-	mDiversionMap = mVoicemailDefaultMap;
-	for (const auto& [code, result] : divertedMap) {
-		mDiversionMap.insert_or_assign(code, result);
-	}
-
-	std::unordered_set<int> filteredCodes{};
-	for (auto key : mDiversionMap | std::views::keys) {
-		filteredCodes.insert(key);
-	}
-	const auto fork = addForkUnit(filteredCodes);
+	// Voicemail map is empty when voicemail is deactivated.
+	mDiversionMap = divertedMap.empty() ? mVoicemailDefaultMap : divertedMap;
+	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+	const auto fork = addForkUnit(config->mStatusCodes);
 	addForkToManager(fork, sipUri, std::move(fallback));
 }
 
@@ -379,32 +371,36 @@ void DivertibleForkContext::divert(int code, stl_backports::move_only_function<v
 	++mDivertedCount;
 	const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
 
-	// mDiversionMap contains all codes for diversion retrieved from AccountsStore and completed with those for the
+	// mDiversionMap contains all diversion type retrieved from AccountsStore and completed with those for the
 	// voicemail. If we can't find it, we should divert to the voicemail if configured.
-	if (!mDiversionMap.contains(code)) {
+	const auto type = flexiapi::CallForwarding::Type::NoAnswer;
+	if (!mDiversionMap.contains(type)) {
 		LOGE << "Failed to trigger call diversion (no diversions configured for code: " << code << ")";
 		if (config->mVoicemailServerUri.empty()) return fallback();
-		return forkToVoicemail(codeToRedirectingReason(code));
+		return forkToVoicemail(RedirectingReason::NoReply);
 	}
 
-	auto [targetType, target] = mDiversionMap.at(code);
-	const auto diversionTarget = targetType == AccountsStore::TargetType::Voicemail ? "voicemail" : target.str();
-	LOGD << "Diversion to '" << diversionTarget << "'found with status '" << code << "'";
+	const auto target = mDiversionMap.at(type);
+	const auto diversionTarget = target.type == flexiapi::UriType::Voicemail ? "voicemail" : target.uri.str();
+	LOGD << "Diversion to '" << diversionTarget << "' found with status '" << code << "'";
 
-	switch (targetType) {
-		using TargetType = AccountsStore::TargetType;
-		case TargetType::Account:
-			fetchTarget(target, [ctx = weak_from_this(), code, fallback = std::move(fallback)]() mutable {
+	switch (target.type) {
+		case flexiapi::UriType::Account:
+		case flexiapi::UriType::Unknown:
+			fetchTarget(target, [ctx = weak_from_this(), fallback = std::move(fallback)]() mutable {
 				const auto context = ctx.lock();
 				if (!context) return fallback();
 				const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
 				if (config->mVoicemailServerUri.empty()) return fallback();
-				context->forkToVoicemail(codeToRedirectingReason(code));
+				context->forkToVoicemail(RedirectingReason::NoReply);
 			});
 			break;
-		case TargetType::Voicemail:
-			forkToVoicemail(codeToRedirectingReason(code));
+		case flexiapi::UriType::Voicemail:
+			forkToVoicemail(RedirectingReason::NoReply);
 			break;
+		default:
+			LOGE << "Cannot divert to " << target.uri << " of type " << flexiapi::toString(target.type);
+			fallback();
 	}
 }
 } // namespace flexisip

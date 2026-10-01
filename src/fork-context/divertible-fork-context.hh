@@ -74,7 +74,7 @@ public:
 			return {};
 		}
 
-		context->fetchTarget(context->mInitialTarget, [ctx = std::weak_ptr(context)]() {
+		context->fetchTarget({flexiapi::UriType::Unknown, context->mInitialTarget}, [ctx = std::weak_ptr(context)]() {
 			auto context = ctx.lock();
 			if (!context) return;
 
@@ -173,7 +173,7 @@ private:
 	 * @param targetUri the sip URI of the target.
 	 * @param fallback the callback when a fork shouldn't be started after the fetch result.
 	 */
-	void fetchTarget(const SipUri& targetUri, stl_backports::move_only_function<void()>&& fallback);
+	void fetchTarget(const AccountsStore::CallTarget& target, stl_backports::move_only_function<void()>&& fallback);
 	/**
 	 * Create a new fork to a specific account.
 	 * @param sipUri the AOR of the account.

@@ -41,9 +41,7 @@ public:
 		return std::shared_ptr<FAMData>{new FAMData{std::forward<Args>(args)...}};
 	}
 
-	void findCallDiversions(const SipUri& uri,
-	                        flexiapi::CallForwarding::ForwardType forwardType,
-	                        CallDiversionsCallback&& callback) override;
+	void findCallDiversions(const SipUri& uri, flexiapi::UriType uriType, CallDiversionsCallback&& callback) override;
 
 private:
 	static constexpr std::string_view mLogPrefix{"AccountsStore::FAMData"};

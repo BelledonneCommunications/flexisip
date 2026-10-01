@@ -36,9 +36,8 @@ public:
 	using Accounts = std::unordered_map<flexiapi::ApiFormattedUri, flexiapi::Account>;
 
 	virtual ~IDataManager() = default;
-	virtual void findCallDiversions(const SipUri& uri,
-	                                flexiapi::CallForwarding::ForwardType forwardType,
-	                                CallDiversionsCallback&& callback) = 0;
+	virtual void
+	findCallDiversions(const SipUri& uri, flexiapi::UriType uriType, CallDiversionsCallback&& callback) = 0;
 };
 
 } // namespace flexisip

@@ -33,9 +33,7 @@ public:
 		return std::shared_ptr<FileData>{new FileData{std::forward<Args>(args)...}};
 	}
 
-	void findCallDiversions(const SipUri& uri,
-	                        flexiapi::CallForwarding::ForwardType forwardType,
-	                        CallDiversionsCallback&& callback) override;
+	void findCallDiversions(const SipUri& uri, flexiapi::UriType uriType, CallDiversionsCallback&& callback) override;
 
 private:
 	explicit FileData(const std::filesystem::path& filePath);

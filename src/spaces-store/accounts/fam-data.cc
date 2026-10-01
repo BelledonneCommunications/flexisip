@@ -33,9 +33,7 @@ FAMData::FAMData(const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
                  std::chrono::milliseconds unknownTimeout)
     : mFlexiApiClient{flexiApiClient}, mRoot{root}, mCacheTimeout(cacheTimeout), mUnknownTimeout(unknownTimeout) {}
 
-void FAMData::findCallDiversions(const SipUri& uri,
-                                 CallForwarding::ForwardType forwardType,
-                                 CallDiversionsCallback&& callback) {
+void FAMData::findCallDiversions(const SipUri& uri, UriType uriType, CallDiversionsCallback&& callback) {
 	const auto apiUri = ApiFormattedUri{uri};
 
 	// If already present use local cache
@@ -59,7 +57,7 @@ void FAMData::findCallDiversions(const SipUri& uri,
 	std::queue<CallDiversionsCallback> q;
 	q.push(std::move(callback));
 	mWaitingAccounts.try_emplace(apiUri, std::move(q));
-	if (forwardType == CallForwarding::ForwardType::Contact) {
+	if (uriType == UriType::Account) {
 		mFlexiApiClient.accountSearchByUri(
 		    apiUri,
 		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,

@@ -40,7 +40,11 @@ FileData::FileData(const std::filesystem::path& filePath) {
 	}
 }
 
-void FileData::findCallDiversions(const SipUri& uri, CallForwarding::ForwardType, CallDiversionsCallback&& callback) {
+void FileData::findCallDiversions(const SipUri& uri, UriType uriType, CallDiversionsCallback&& callback) {
+	if (uriType != UriType::Account && uriType != UriType::Unknown) {
+		LOGE << "Unexpected URI type " << toString(uriType);
+		return callback({});
+	}
 	const auto account = mAccounts.find(uri);
 	if (account == mAccounts.cend()) {
 		LOGD << "Unknown account '" << uri.str() << "'";

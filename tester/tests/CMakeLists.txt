@@ -44,6 +44,7 @@ add_executable(flexisip_tester
 	eventlogs/events/auth-log-tester.cc
 	eventlogs/events/event-id-tester.cc
 	eventlogs/events/event-log-stats-tester.cc
+	flexiapi/schemas/account-schema-tester.cc
 	flexiapi/schemas/iso-8601-date-tester.cc
 	flexiapi/schemas/space-schema-tester.cc
 	integration/call-tester.cc

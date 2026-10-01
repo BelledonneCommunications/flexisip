@@ -37,21 +37,20 @@ const auto kAccountInitial = R"({
 		        "sip_uri": "sip:initial-callee@sip.example.org",
 		        "call_forwardings": [
 			        {
-				        "type": "busy",
-				        "contact_sip_uri": "sip:busy-callee@sip.example.org",
-				        "forward_to": "contact",
+				        "type": "no_answer",
+				        "sip_uri": "sip:no-answer-callee@sip.example.org",
+				        "contact_account_id": "1234",
 						"enabled": true
 			        },
 					{
 				        "type": "always",
 				        "sip_uri": "sip:fail_if_returned@sip.example.org",
-				        "forward_to": "sip_uri",
 						"enabled": false
 			        },
 			        {
 				        "type": "always",
-				        "contact_sip_uri": "sip:intermediate-callee@sip.example.org",
-				        "forward_to": "contact",
+				        "sip_uri": "sip:intermediate-callee@sip.example.org",
+				        "contact_account_id": "1235",
 						"enabled": true
 			        }
 		        ]
@@ -66,7 +65,7 @@ const auto kAccountIntermediate = R"({
 			        {
 				        "type": "always",
 				        "sip_uri": "sip:final-callee@sip.example.org",
-				        "forward_to": "sip_uri",
+						"sip_account_id": "5123",
 						"enabled": true
 			        }
 		        ]
@@ -79,9 +78,9 @@ const auto kAccountFinal = R"({
 				"sip_uri": "sip:final-callee@sip.example.org",
 		        "call_forwardings": [
 			        {
-				        "type": "busy",
-				        "contact_sip_uri": "sip:busy-callee@sip.example.org",
-				        "forward_to": "contact",
+				        "type": "no_answer",
+				        "sip_uri": "sip:no-answer-callee@sip.example.org",
+				        "contact_account_id": "1236",
 						"enabled": true
 			        }
 		        ]
@@ -95,8 +94,8 @@ const auto kAccountToVoicemail = R"({
 		        "call_forwardings": [
 			        {
 				        "type": "always",
-				        "contact_sip_uri": "",
-				        "forward_to": "voicemail",
+				        "sip_uri": "",
+				        "voicemail_account_id": "3333",
 						"enabled": true
 			        }
 		        ]
@@ -118,7 +117,7 @@ public:
 		std::optional<AccountsStore::ResolvedCallTarget> resolvedTarget{};
 		bool callbackCalled{};
 
-		mStore->resolveCallTarget(uri, maxDepth,
+		mStore->resolveCallTarget({flexiapi::UriType::Unknown, uri}, maxDepth,
 		                          [&expectedDivertedCnt, &resolvedTarget, &callbackCalled](
 		                              optional<AccountsStore::ResolvedCallTarget>&& result, const int& divertedCnt) {
 			                          BC_ASSERT_CPP_EQUAL(divertedCnt, expectedDivertedCnt);
@@ -141,7 +140,7 @@ void permanentDiversionToVoicemail() {
 	const auto result =
 	    store.resolveCallTarget(SipUri("sip:to-voicemail-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
 	BC_HARD_ASSERT(result.has_value());
-	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Voicemail);
+	BC_ASSERT_CPP_EQUAL(result->target.type, flexiapi::UriType::Voicemail);
 }
 
 void noPermanentDiversion() {
@@ -151,13 +150,13 @@ void noPermanentDiversion() {
 	const auto expectedDivertedCnt = 0;
 	const auto result = store.resolveCallTarget(uri, maxDepth, expectedDivertedCnt);
 	BC_HARD_ASSERT(result.has_value());
-	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(result->target.type, flexiapi::UriType::Account);
 	BC_ASSERT_CPP_EQUAL(result->target.uri.str(), uri.str());
 	BC_HARD_ASSERT(result->divertedMap.size() == 1);
-	const auto [code, target] = *result->divertedMap.cbegin();
-	BC_ASSERT_CPP_EQUAL(code, 486);
-	BC_ASSERT_CPP_EQUAL(target.type, AccountsStore::TargetType::Account);
-	BC_ASSERT_CPP_EQUAL(target.uri.str(), "sip:busy-callee@sip.example.org");
+	const auto [type, target] = *result->divertedMap.cbegin();
+	BC_ASSERT_CPP_EQUAL(type, flexiapi::CallForwarding::Type::NoAnswer);
+	BC_ASSERT_CPP_EQUAL(target.type, flexiapi::UriType::Account);
+	BC_ASSERT_CPP_EQUAL(target.uri.str(), "sip:no-answer-callee@sip.example.org");
 }
 
 // Check that a target is invalid when maxDepth is reached and the recursion is not finished.
@@ -171,20 +170,20 @@ void maximumDepthExceeded() {
 }
 
 // Check the target and its associated call diversion map.
-void permanentAndBusyDiversions() {
+void permanentAndNoAnswerDiversions() {
 	AccountsStoreTest store{kAccounts};
 	const auto maxDepth = 5;
 	const auto expectedDivertedCnt = 2;
 	const auto result =
 	    store.resolveCallTarget(SipUri("sip:initial-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
 	BC_HARD_ASSERT(result.has_value());
-	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(result->target.type, flexiapi::UriType::Account);
 	BC_ASSERT_CPP_EQUAL(result->target.uri.str(), "sip:final-callee@sip.example.org");
 	BC_HARD_ASSERT(result->divertedMap.size() == 1);
-	const auto& [code, target] = *result->divertedMap.cbegin();
-	BC_ASSERT_CPP_EQUAL(code, 486);
-	BC_ASSERT_CPP_EQUAL(target.type, AccountsStore::TargetType::Account);
-	BC_ASSERT_CPP_EQUAL(target.uri.str(), "sip:busy-callee@sip.example.org");
+	const auto& [type, target] = *result->divertedMap.cbegin();
+	BC_ASSERT_CPP_EQUAL(type, flexiapi::CallForwarding::Type::NoAnswer);
+	BC_ASSERT_CPP_EQUAL(target.type, flexiapi::UriType::Account);
+	BC_ASSERT_CPP_EQUAL(target.uri.str(), "sip:no-answer-callee@sip.example.org");
 }
 
 // Check that the target is found but its associated call diversion map is empty.
@@ -195,7 +194,7 @@ void divertedMapResetOnMaxDiversion() {
 	const auto result =
 	    store.resolveCallTarget(SipUri("sip:initial-callee@sip.example.org"), maxDepth, expectedDivertedCnt);
 	BC_HARD_ASSERT(result.has_value());
-	BC_ASSERT_CPP_EQUAL(result->target.type, AccountsStore::TargetType::Account);
+	BC_ASSERT_CPP_EQUAL(result->target.type, flexiapi::UriType::Account);
 	BC_ASSERT_CPP_EQUAL(result->target.uri.str(), "sip:final-callee@sip.example.org");
 	BC_HARD_ASSERT(result->divertedMap.size() == 0);
 }
@@ -206,7 +205,7 @@ TestSuite kSuite{
         CLASSY_TEST(permanentDiversionToVoicemail),
         CLASSY_TEST(noPermanentDiversion),
         CLASSY_TEST(maximumDepthExceeded),
-        CLASSY_TEST(permanentAndBusyDiversions),
+        CLASSY_TEST(permanentAndNoAnswerDiversions),
         CLASSY_TEST(divertedMapResetOnMaxDiversion),
     },
     Hooks()

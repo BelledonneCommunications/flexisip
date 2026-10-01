@@ -19,49 +19,27 @@
 #pragma once
 
 #include "flexisip/utils/sip-uri.hh"
+#include "uri-type.hh"
 
 namespace flexisip::flexiapi {
 
 struct CallForwarding {
 	enum class Type {
 		Always,
-		Busy,
 		NoAnswer,
 	};
 
-	enum class ForwardType {
-		Voicemail,
-		SipUri,
-		Contact,
-	};
-
 	Type type;
-	ForwardType forward_to;
+	UriType uriType;
 	SipUri sip_uri{};
 	bool enabled;
 };
-
-inline std::string toString(CallForwarding::ForwardType type) {
-	switch (type) {
-		using enum CallForwarding::ForwardType;
-		case Voicemail:
-			return "voicemail";
-		case SipUri:
-			return "sip_uri";
-		case Contact:
-			return "contact";
-		default:
-			return "Invalid ForwardType";
-	}
-}
 
 inline std::string toString(CallForwarding::Type type) {
 	switch (type) {
 		using enum CallForwarding::Type;
 		case Always:
 			return "always";
-		case Busy:
-			return "busy";
 		case NoAnswer:
 			return "no_answer";
 		default:

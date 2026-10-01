@@ -171,23 +171,25 @@ void ForkContextFactory::setVoicemailConfiguration(const GenericStruct* config) 
 
 	if (!mCallForkCfg->mVoicemailServerUri.empty()) {
 		LOGI << "Voicemail server is [" << mCallForkCfg->mVoicemailServerUri.str() << "]";
+	}
 
-		const auto* statusCodesParameter = config->get<ConfigStringList>("forwarding-status-codes");
-		for (const auto& value : statusCodesParameter->read()) {
-			try {
-				const auto status = stoi(value);
-				if (status < 400 || status > 699)
-					throw BadConfigurationValue{statusCodesParameter, "unsupported code '" + value +
-					                                                      "': the code must be between 400 and 699"};
+	const auto* statusCodesParameter = config->get<ConfigStringList>("forwarding-status-codes");
+	for (const auto& value : statusCodesParameter->read()) {
+		try {
+			const auto status = stoi(value);
+			if (status < 400 || status > 699)
+				throw BadConfigurationValue{statusCodesParameter,
+				                            "unsupported code '" + value + "': the code must be between 400 and 699"};
 
-				mCallForkCfg->mStatusCodes.emplace(status);
-			} catch (const exception& exception) {
-				throw BadConfigurationValue{statusCodesParameter, "unsupported forwarding status code '" + value +
-				                                                      "' (error: " + exception.what() + ")"};
-			}
+			mCallForkCfg->mStatusCodes.emplace(status);
+		} catch (const exception& exception) {
+			throw BadConfigurationValue{statusCodesParameter, "unsupported forwarding status code '" + value +
+			                                                      "' (error: " + exception.what() + ")"};
 		}
+	}
 
-		LOGI << "Call forwarding enabled to the voicemail server for status codes: "
+	if (!mCallForkCfg->mVoicemailServerUri.empty() || mCallForkCfg->mCallDiversionEnabled) {
+		LOGI << "Call forwarding enabled for status codes: "
 		     << string_utils::join(statusCodesParameter->read(), 0, ", ");
 	}
 }

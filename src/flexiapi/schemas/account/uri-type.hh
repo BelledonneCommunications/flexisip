@@ -21,20 +21,23 @@
 namespace flexisip::flexiapi {
 
 enum class UriType {
+	Unknown,
 	Account,
 	Group,
-	Unknown,
+	Voicemail,
 };
 
 inline std::string toString(UriType type) {
 	switch (type) {
 		using enum UriType;
+		case Unknown:
+			return "unknown";
 		case Account:
 			return "account";
 		case Group:
 			return "group";
-		case Unknown:
-			return "unknown";
+		case Voicemail:
+			return "voicemail";
 		default:
 			return "Invalid UriType";
 	}

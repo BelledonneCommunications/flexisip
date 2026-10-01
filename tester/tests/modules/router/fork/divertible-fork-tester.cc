@@ -70,7 +70,7 @@ constexpr string_view kAccounts = R"(
 					{
 						"type": "always",
 						"sip_uri": "sip:final-callee@sip.example.org",
-						"forward_to": "sip_uri",
+						"contact_account_id": "9999",
 						"enabled": true
 					}
 				]
@@ -256,7 +256,7 @@ void exceededMaxDivertedCall() {
 					{
 						"type": "always",
 						"sip_uri": "sip:intermediate-callee@sip.example.org",
-						"forward_to": "sip_uri",
+						"sip_account_id": "5500",
 						"enabled": true
 					}
 				]
@@ -270,8 +270,8 @@ void exceededMaxDivertedCall() {
 				"call_forwardings": [
 					{
 						"type": "always",
-						"contact_sip_uri": "sip:final-callee@sip.example.org",
-						"forward_to": "contact",
+						"sip_uri": "sip:final-callee@sip.example.org",
+						"contact_account_id": "1234",
 						"enabled": true
 					}
 				]
@@ -309,8 +309,8 @@ void divertToInitialVoicemailAfterPermanentDiversion() {
 	// Verify the content of the request URI.
 	const SipUri requestUri{callFromCallerToVoicemail->getRequestAddress()->asStringUriOnly()};
 	BC_ASSERT_CPP_EQUAL(uri_utils::unescape(requestUri.getParam("target")), DivertedCallTester::initialCalleeAor);
-	// 'final-callee' declines with Busy (486 -> UserBusy).
-	BC_ASSERT_CPP_EQUAL(requestUri.getParam("cause"), "486");
+	// 'final-callee' declines with Busy.
+	BC_ASSERT_CPP_EQUAL(requestUri.getParam("cause"), "408");
 }
 
 struct ConditionalDivertedCallTester {
@@ -365,9 +365,8 @@ constexpr string_view kBusyAccounts = R"([
             "sip_uri": "sip:initial-callee@sip.example.org",
             "call_forwardings": [
                 {
-                    "type": "busy",
+                    "type": "no_answer",
                     "sip_uri": "sip:final-callee@sip.example.org",
-                    "forward_to": "sip_uri",
                     "enabled": true
                 }
             ]
@@ -391,9 +390,8 @@ void divertCallToTargetWhenBusy() {
 	tester.assertDivertedToFinalTarget();
 }
 
-// Does NOT divert when the received code matches no configured diversion: the account only has a 'busy'
-// diversion, but 'callee' declines (603 -> 'no_answer'), so the response is forwarded to 'caller' and 'final-callee'
-// is never reached. Also the voicemail is configured here not to divert on 603.
+// Does NOT divert when the received code matches no configured diversion: the account has a 'no_answer'
+// diversion, but 'callee' declines 603 and the forwarding status codes are configured here not to divert on 603.
 void doNotDivertWhenNoMatchingDiversion() {
 	ConditionalDivertedCallTester tester{kBusyAccounts};
 	tester.declineInitialCallee(linphone::Reason::Declined);
@@ -418,7 +416,7 @@ const auto kNoAnswerAccountInitial = R"(
 			{
 				"type": "no_answer",
 				"sip_uri": "sip:final-callee@sip.example.org",
-				"forward_to": "sip_uri",
+				"sip_account_id": "9999",
 				"enabled": true
 			}
 		]
@@ -479,21 +477,6 @@ void divertCallToTargetWhenNoAnswerAway_FAM() {
 	tester.assertDivertedToFinalTarget();
 }
 
-// Diverts to 'final-callee' when 'initial-callee' declines (603).
-void divertCallToTargetWhenNoAnswerDeclined_File() {
-	ConditionalDivertedCallTester tester{kNoAnswerAccounts};
-	tester.declineInitialCallee(linphone::Reason::Declined);
-	tester.assertDivertedToFinalTarget();
-}
-
-// Diverts to 'final-callee' when 'initial-callee' declines (603).
-void divertCallToTargetWhenNoAnswerDeclined_FAM() {
-	const auto [famMock, httpPort] = setupFamMock();
-	ConditionalDivertedCallTester tester{httpPort};
-	tester.declineInitialCallee(linphone::Reason::Declined);
-	tester.assertDivertedToFinalTarget();
-}
-
 void divertCallToInitialVoicemail() {
 	constexpr string_view kVoicemailAccounts = R"([
     {
@@ -503,9 +486,9 @@ void divertCallToInitialVoicemail() {
             "sip_uri": "sip:initial-callee@sip.example.org",
             "call_forwardings": [
                 {
-                    "type": "busy",
+                    "type": "no_answer",
                     "sip_uri": "sip:final-callee@sip.example.org",
-                    "forward_to": "sip_uri",
+                    "sip_account_id": "8888",
                     "enabled": true
                 }
             ]
@@ -519,7 +502,7 @@ void divertCallToInitialVoicemail() {
             "call_forwardings": [
                 {
                     "type": "always",
-                    "forward_to": "voicemail",
+                    "voicemail_account_id": "5555",
                     "enabled": true
                 }
             ]
@@ -527,18 +510,11 @@ void divertCallToInitialVoicemail() {
     }
 ])";
 
-	{
-		ConditionalDivertedCallTester tester{kVoicemailAccounts};
-		tester.divertedCallTester.initialCallee->disconnect();
-		// 'initial-callee' does not answer (408 -> NoReply).
-		tester.assertDivertedToVoicemail(DivertedCallTester::initialCalleeAor, "408");
-	}
 	// We want to be redirected to the initial callee voicemail, even if call has been diverted to another account.
 	{
 		ConditionalDivertedCallTester tester{kVoicemailAccounts};
 		tester.declineInitialCallee(linphone::Reason::Busy);
-		// 'initial-callee' declines with Busy (486 -> UserBusy) and 'final-callee' forwards to the voicemail.
-		tester.assertDivertedToVoicemail(DivertedCallTester::initialCalleeAor, "486");
+		tester.assertDivertedToVoicemail(DivertedCallTester::initialCalleeAor, "408");
 	}
 }
 
@@ -555,7 +531,6 @@ void divertToVoicemailOnAlwaysToCaller() {
                 {
                     "type": "always",
                     "sip_uri": "sip:caller@sip.example.org",
-                    "forward_to": "sip_uri",
                     "enabled": true
                 }
             ]
@@ -581,7 +556,6 @@ void divertToVoicemailOnNoAnswerToCaller() {
                 {
                     "type": "no_answer",
                     "sip_uri": "sip:caller@sip.example.org",
-                    "forward_to": "sip_uri",
                     "enabled": true
                 }
             ]
@@ -590,7 +564,7 @@ void divertToVoicemailOnNoAnswerToCaller() {
 ])";
 
 	ConditionalDivertedCallTester tester{kForwardToCallerOnNoAnswerAccount};
-	tester.declineInitialCallee(linphone::Reason::Declined);
+	tester.declineInitialCallee(linphone::Reason::Busy);
 	tester.assertDivertedToVoicemail(DivertedCallTester::initialCalleeAor, "302");
 }
 
@@ -605,7 +579,7 @@ void noDiversionOnLoopedAccounts() {
                 {
                     "type": "no_answer",
                     "sip_uri": "sip:intermediate-callee@sip.example.org",
-                    "forward_to": "sip_uri",
+					"sip_account_id": "1212",
                     "enabled": true
                 }
             ]
@@ -620,7 +594,7 @@ void noDiversionOnLoopedAccounts() {
                 {
                     "type": "always",
                     "sip_uri": "sip:final-callee@sip.example.org",
-                    "forward_to": "sip_uri",
+					"sip_account_id": "2121",
                     "enabled": true
                 }
             ]
@@ -635,7 +609,7 @@ void noDiversionOnLoopedAccounts() {
                 {
                     "type": "always",
                     "sip_uri": "sip:initial-callee@sip.example.org",
-                    "forward_to": "sip_uri",
+					"contact_account_id": "3333",
                     "enabled": true
                 }
             ]
@@ -657,9 +631,8 @@ void noDiversionToAlreadyCalledAccount() {
             "sip_uri": "sip:initial-callee@sip.example.org",
             "call_forwardings": [
                 {
-                    "type": "busy",
+                    "type": "no_answer",
                     "sip_uri": "sip:initial-callee@sip.example.org",
-                    "forward_to": "sip_uri",
                     "enabled": true
                 }
             ]
@@ -678,6 +651,56 @@ void noDiversionToAlreadyCalledAccount() {
 	               })
 	    .hard_assert_passed();
 	BC_ASSERT_TRUE(hasReceivedCall(tester.divertedCallTester.voicemail));
+}
+
+void divertedCallOnChoosenCode() {
+	const auto accountsFilePath = kSuiteDir->path() / "conditional-diverted-call-accounts";
+	std::ofstream(accountsFilePath) << kNoAnswerAccounts;
+	const auto domainsConfigFilePath = kSuiteDir->path() / "conditional-diverted-call-domains-configuration";
+	std::ofstream(domainsConfigFilePath) << nlohmann::json::array({nlohmann::json{
+	    {"name", "example"},
+	    {"domain", "sip.example.org"},
+	    {"accounts", accountsFilePath.string()},
+	}});
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"global::domains/domains-configuration", domainsConfigFilePath.string()},
+	    {"module::Registrar/reg-domains", "sip.example.org"},
+	    {"module::Router/enable-call-diversions", "true"},
+	    {"module::Router/fork-late", "true"},
+	    {"module::Router/call-fork-timeout", "2s"},
+	    {"module::Router/forwarding-status-codes", "501"},
+	}};
+	proxy.start();
+	auto builder = make_unique<ClientBuilder>(proxy.getAgent());
+	auto caller = builder->make("sip:caller@sip.example.org");
+	auto initialCallee = builder->make("sip:initial-callee@sip.example.org");
+	auto finalCallee = builder->make("sip:final-callee@sip.example.org");
+
+	struct FakeB2bua : public CoreListener {
+		// simulate 501 from a B2bua
+		void onCallStateChanged(const shared_ptr<linphone::Core>&,
+		                        const shared_ptr<linphone::Call>& call,
+		                        linphone::Call::State state,
+		                        const string&) {
+			if (state == linphone::Call::State::IncomingReceived) call->decline(linphone::Reason::NotImplemented);
+		}
+	};
+	initialCallee->addListener(make_shared<FakeB2bua>());
+	// Caller invites callee.
+	auto call = ClientCall::tryFrom(caller->invite("sip:initial-callee@sip.example.org"));
+	BC_HARD_ASSERT(call.has_value());
+	BC_HARD_ASSERT(!hasNoRunningCall(caller));
+
+	CoreAssert{proxy, caller, initialCallee, finalCallee}
+	    .waitUntil(2s,
+	               [&] {
+		               FAIL_IF(hasNoRunningCall(caller));
+		               FAIL_IF(hasNoRunningCall(finalCallee));
+		               return ASSERTION_PASSED();
+	               })
+	    .hard_assert_passed();
+	BC_ASSERT_TRUE(hasReceivedCall(finalCallee));
 }
 
 // CANCEL a call just after a fetch to the FAM and check that no diversion occurs on the FAM response.
@@ -797,13 +820,12 @@ TestSuite kSuite{
         CLASSY_TEST(doNotDivertWhenNoMatchingDiversion),
         CLASSY_TEST(divertCallToTargetWhenNoAnswerAway_File),
         CLASSY_TEST(divertCallToTargetWhenNoAnswerAway_FAM),
-        CLASSY_TEST(divertCallToTargetWhenNoAnswerDeclined_File),
-        CLASSY_TEST(divertCallToTargetWhenNoAnswerDeclined_FAM),
         CLASSY_TEST(divertCallToInitialVoicemail),
         CLASSY_TEST(divertToVoicemailOnAlwaysToCaller),
         CLASSY_TEST(divertToVoicemailOnNoAnswerToCaller),
         CLASSY_TEST(noDiversionOnLoopedAccounts),
         CLASSY_TEST(noDiversionToAlreadyCalledAccount),
+        CLASSY_TEST(divertedCallOnChoosenCode),
         CLASSY_TEST(noDiversionAfterCancel),
         CLASSY_TEST(callContinuesWhenFamRequestTimesOut),
     },

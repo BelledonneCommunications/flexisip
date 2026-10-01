@@ -51,7 +51,7 @@ Group changes to describe their impact on the project, as follows:
   - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
   - **Router:** Parameter `forwarding-status-codes` now accepts any SIP status code between 400 and 699 (previously
-    limited to 408, 486 and 603), and its default value now also diverts to the voicemail on 480: `408 480 486 603`.
+    limited to 408, 486 and 603), and its default value now also diverts on 480: `408 480 486 603`.
   - **Authorization:**
     - Parameter `auth-domains` is now empty (instead of `localhost`).
   - **Registrar:** 

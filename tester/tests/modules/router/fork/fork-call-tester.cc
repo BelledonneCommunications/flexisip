@@ -748,15 +748,11 @@ namespace voicemail {
 std::string reasonToString(Reason reason) {
 	// RFC 4458 § 2.2
 	switch (reason) {
+		// A call is diverted to the voicemail as 'No reply'.
 		case Reason::Declined:
-			// A 603 decline is diverted to the voicemail as 'User busy'.
-			return "486";
 		case Reason::Busy:
-			return "486";
 		case Reason::NotAnswered:
-			return "408";
 		case Reason::TemporarilyUnavailable:
-			// A 480 is diverted to the voicemail as 'No reply'.
 			return "408";
 		case Reason::NotFound:
 			return "404";

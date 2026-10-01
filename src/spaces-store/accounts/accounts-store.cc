@@ -20,10 +20,8 @@
 
 #include "fam-data.hh"
 #include "file-data.hh"
-#include "flexiapi/config.hh"
 #include "flexiapi/schemas/account/call-forwarding.hh"
 #include "flexisip/logmanager.hh"
-#include "utils/uri-utils.hh"
 
 using namespace std::chrono_literals;
 using namespace flexisip::flexiapi;
@@ -42,7 +40,7 @@ AccountsStore::AccountsStore(const std::shared_ptr<FlexiApi>& flexiApiClient,
 }
 
 void AccountsStore::resolveCallTarget(
-    SipUri uri,
+    const CallTarget& target,
     int maxDepth,
     stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&, const int& divertedCnt)>&& callback) {
 	if (maxDepth < 0) {
@@ -51,22 +49,24 @@ void AccountsStore::resolveCallTarget(
 	}
 	// Ask the mDataManager which call diversions are declared for this uri.
 	mDataManager->findCallDiversions(
-	    uri, CallForwarding::ForwardType::SipUri,
-	    [this, uri, maxDepth, cb = std::move(callback)](const std::vector<CallForwarding>& diversions) mutable {
-		    resolveCallTarget(uri, maxDepth, diversions, 0, std::move(cb));
+	    target.uri, target.type,
+	    [this, target, maxDepth, cb = std::move(callback)](const std::vector<CallForwarding>& diversions) mutable {
+		    resolveCallTarget(target, maxDepth, diversions, 0, std::move(cb));
 	    });
 }
 
-void AccountsStore::resolveCallTarget(const SipUri& uri,
+void AccountsStore::resolveCallTarget(const CallTarget& target,
                                       int maxDepth,
                                       const std::vector<CallForwarding>& callDiversions,
                                       int divertedCnt,
                                       stl_backports::move_only_function<void(std::optional<ResolvedCallTarget>&&,
                                                                              const int& divertedCnt)>&& finalCallback) {
-	ResolvedCallTarget result;
+	ResolvedCallTarget result{};
 
 	for (const auto& d : callDiversions) {
 		if (!d.enabled) continue;
+		CallTarget divertedTarget = {d.uriType, d.sip_uri};
+
 		switch (d.type) {
 			case CallForwarding::Type::Always: {
 				++divertedCnt;
@@ -75,27 +75,20 @@ void AccountsStore::resolveCallTarget(const SipUri& uri,
 					     << ") and no candidate is available";
 					return finalCallback(std::nullopt, divertedCnt);
 				}
-				if (d.forward_to == CallForwarding::ForwardType::Voicemail) {
-					return finalCallback(ResolvedCallTarget{.target = {TargetType::Voicemail}}, divertedCnt);
+				if (divertedTarget.type == UriType::Voicemail) {
+					return finalCallback(ResolvedCallTarget{.target = divertedTarget}, divertedCnt);
 				}
-				// Ask the mDataManager which call diversions are declared for this uri.
+				// Ask the mDataManager which call diversions are declared for this target.
 				mDataManager->findCallDiversions(
-				    d.sip_uri, d.forward_to,
-				    [this, uri = d.sip_uri, maxDepth, divertedCnt,
+				    divertedTarget.uri, divertedTarget.type,
+				    [this, divertedTarget, maxDepth, divertedCnt,
 				     cb = std::move(finalCallback)](const std::vector<CallForwarding>& diversions) mutable {
-					    resolveCallTarget(uri, maxDepth, diversions, divertedCnt, std::move(cb));
+					    resolveCallTarget(divertedTarget, maxDepth, diversions, divertedCnt, std::move(cb));
 				    });
 				return;
 			}
 			case CallForwarding::Type::NoAnswer: {
-				CallTarget noAnswerTarget{TargetType::Account, d.sip_uri};
-				result.divertedMap.emplace(408, noAnswerTarget);
-				result.divertedMap.emplace(603, noAnswerTarget);
-				break;
-			}
-			case CallForwarding::Type::Busy: {
-				CallTarget busyTarget{TargetType::Account, d.sip_uri};
-				result.divertedMap.emplace(486, busyTarget);
+				result.divertedMap.emplace(d.type, divertedTarget);
 				break;
 			}
 		}
@@ -104,8 +97,8 @@ void AccountsStore::resolveCallTarget(const SipUri& uri,
 	if (divertedCnt == maxDepth) {
 		result.divertedMap.clear();
 	}
-	result.target.type = TargetType::Account;
-	result.target.uri = uri;
+	result.target.type = UriType::Account;
+	result.target.uri = target.uri;
 	return finalCallback(std::move(result), divertedCnt);
 }
 

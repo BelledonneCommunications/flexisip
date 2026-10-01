@@ -40,24 +40,16 @@ NLOHMANN_JSON_SERIALIZE_ENUM(CallForwarding::Type,
                              {
                                  {CallForwarding::Type::Always, toString(CallForwarding::Type::Always)},
                                  {CallForwarding::Type::NoAnswer, toString(CallForwarding::Type::NoAnswer)},
-                                 {CallForwarding::Type::Busy, toString(CallForwarding::Type::Busy)},
-                             })
-
-NLOHMANN_JSON_SERIALIZE_ENUM(CallForwarding::ForwardType,
-                             {
-                                 {CallForwarding::ForwardType::Contact, toString(CallForwarding::ForwardType::Contact)},
-                                 {CallForwarding::ForwardType::SipUri, toString(CallForwarding::ForwardType::SipUri)},
-                                 {CallForwarding::ForwardType::Voicemail,
-                                  toString(CallForwarding::ForwardType::Voicemail)},
                              })
 
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Group, sip_uri)
 
 NLOHMANN_JSON_SERIALIZE_ENUM(UriType,
                              {
+                                 {UriType::Unknown, toString(UriType::Unknown)},
                                  {UriType::Account, toString(UriType::Account)},
                                  {UriType::Group, toString(UriType::Group)},
-                                 {UriType::Unknown, toString(UriType::Unknown)},
+                                 {UriType::Voicemail, toString(UriType::Voicemail)},
                              })
 } // namespace flexisip::flexiapi
 

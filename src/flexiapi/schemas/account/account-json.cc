@@ -19,6 +19,27 @@
 #include "account-json.hh"
 
 namespace flexisip::flexiapi {
+namespace {
+UriType parseUriType(const nlohmann::json& j) {
+	auto uriType = UriType::Unknown;
+	int typeCnt{};
+	if ((j.contains("contact_account_id") && !j.at("contact_account_id").empty()) ||
+	    (j.contains("sip_account_id") && !j.at("sip_account_id").empty())) {
+		uriType = UriType::Account;
+		++typeCnt;
+	}
+	if (j.contains("voicemail_account_id") && !j.at("voicemail_account_id").empty()) {
+		uriType = UriType::Voicemail;
+		++typeCnt;
+	}
+
+	// An unknown type is valid.
+	if (typeCnt > 1)
+		throw nlohmann::json::parse_error::create(101, 0, "Invalid CallForwarding parsing: cannot deduce URI type.",
+		                                          &j);
+	return uriType;
+}
+} // namespace
 
 void ResolvedUri::JsonDeserializer::fromJson(const nlohmann::json& j, ResolvedUri& r) {
 	r.type = j.at("type").get<UriType>();
@@ -47,20 +68,14 @@ void to_json(nlohmann::json& nlohmann_json_j, const Account& nlohmann_json_t) {
 
 void from_json(const nlohmann::json& j, CallForwarding& c) {
 	c.type = j.at("type").get<CallForwarding::Type>();
-	c.forward_to = j.at("forward_to").get<CallForwarding::ForwardType>();
 	c.enabled = j.at("enabled").get<bool>();
+	c.uriType = parseUriType(j);
+	if (c.uriType == UriType::Voicemail) return;
 
 	try {
-		switch (c.forward_to) {
-			using enum CallForwarding::ForwardType;
-			case Contact:
-				c.sip_uri = j.at("contact_sip_uri").get<flexisip::SipUri>();
-				break;
-			case SipUri:
-				c.sip_uri = j.at("sip_uri").get<flexisip::SipUri>();
-				break;
-			case Voicemail:
-				break;
+		c.sip_uri = j.at("sip_uri").get<flexisip::SipUri>();
+		if (c.sip_uri.empty()) {
+			throw nlohmann::json::parse_error::create(101, 0, "Invalid SIP URI format in JSON: empty URI", &j);
 		}
 	} catch (const sofiasip::InvalidUrlError& e) {
 		throw nlohmann::json::parse_error::create(101, 0, "Invalid SIP URI format in JSON: " + std::string(e.what()),
