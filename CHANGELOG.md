@@ -69,7 +69,7 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - **ContactRouteInserter**: Resolved restoring original request URI from CtRt parameters, fixing Push Gateway routing.
 
-## [2.6.2] - Hotfix
+## [2.6.2] - 2026-10-01
 - **SDK version:** 5.5.16
 
 ### [Added]
