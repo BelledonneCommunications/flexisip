@@ -18,6 +18,8 @@
 
 #include "branch-info.hh"
 
+#include <cassert>
+
 #include "modules/module-pushnotification.hh"
 
 using namespace std;
@@ -85,6 +87,7 @@ void BranchInfo::processResponse(ResponseSipEvent& event) {
 	mLastResponseEvent->suspendProcessing();
 
 	auto forkCtx = mForkCtx.lock();
+	assert(forkCtx);
 	forkCtx->onResponse(shared_from_this(), *mLastResponseEvent);
 
 	// The event may go through, but it will not be sent.
