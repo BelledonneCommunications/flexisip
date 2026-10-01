@@ -165,7 +165,9 @@ void OutgoingTransaction::send(const shared_ptr<MsgSip>& msg,
 	    .before_send = mBeforeSendCallbacks.empty() ? nullptr : beforeSendCallback,
 	    .before_send_magic = mBeforeSendCallbacks.empty() ? nullptr : magic,
 	};
-	mOutgoing = owned(nta_outgoing_mcreate_2(mAgent.lock()->mAgent, sofiaCallbacks, u, msgRef, ta_tags(ta), TAG_END()));
+	const auto agent = mAgent.lock();
+	mOutgoing = agent ? owned(nta_outgoing_mcreate_2(agent->mAgent, sofiaCallbacks, u, msgRef, ta_tags(ta), TAG_END()))
+	                  : nullptr;
 
 	ta_end(ta);
 
@@ -187,7 +189,7 @@ void OutgoingTransaction::queueFree() {
 	// notified to the 'INVITE' transaction (because the 'CANCEL' and the 'INVITE' use the same transport) with an
 	// internal 503 response, which goes to flexisip, and would reset mSelfRef, which would call nta_outgoing_destroy().
 	// nta_outgoing_tcancel() is then left with the 'INVITE' transaction freed (full of 0xaaaaaaaa), which crashes.
-	mAgent.lock()->getRoot()->addToMainLoop([self = std::move(mSofiaRef)] {});
+	if (const auto agent = mAgent.lock()) agent->getRoot()->addToMainLoop([self = std::move(mSofiaRef)] {});
 	if (!mOutgoing) return;
 
 	// Prevent later responses to trigger the callback.

@@ -46,7 +46,8 @@ void IncomingTransaction::_customDeinit(nta_incoming_t* incoming, nta_incoming_m
 void IncomingTransaction::handle(const shared_ptr<MsgSip>& ms) {
 	msg_t* msg = ms->getMsg();
 	msg = msg_ref_create(msg);
-	mIncoming = nta_incoming_create(mAgent.lock()->mAgent, nullptr, msg, sip_object(msg), TAG_END());
+	const auto agent = mAgent.lock();
+	mIncoming = agent ? nta_incoming_create(agent->mAgent, nullptr, msg, sip_object(msg), TAG_END()) : nullptr;
 	if (mIncoming != nullptr) {
 		nta_incoming_bind(mIncoming, IncomingTransaction::_callback, reinterpret_cast<nta_incoming_magic_t*>(this));
 		nta_incoming_add_custom_deinit(mIncoming, IncomingTransaction::_customDeinit,
@@ -113,7 +114,7 @@ int IncomingTransaction::_callback(nta_incoming_magic_t* magic, nta_incoming_t*,
 		auto ev = make_unique<RequestSipEvent>(
 		    it->shared_from_this(),
 		    make_shared<MsgSip>(ownership::owned(nta_incoming_getrequest_ackcancel(it->mIncoming))));
-		it->mAgent.lock()->processRequest(std::move(ev));
+		if (auto agent = it->mAgent.lock()) agent->processRequest(std::move(ev));
 	} else {
 		it->destroy();
 	}

@@ -65,7 +65,7 @@ void PushNotificationContext::cancel() {
 
 void PushNotificationContext::onTimeout() noexcept {
 	LOGI << "PNR " << mPInfo.get() << ": timeout";
-	if (auto sharedFork = mForkContext.lock(); sharedFork->isFinished()) {
+	if (auto sharedFork = mForkContext.lock(); sharedFork && sharedFork->isFinished()) {
 		LOGI << "Call is already established or canceled, so push notification is not sent but cleared";
 		return;
 	}
