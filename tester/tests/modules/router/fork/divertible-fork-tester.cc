@@ -22,6 +22,7 @@
 
 #include "linphone++/enums.hh"
 
+#include "flexiapi-builder.hh"
 #include "flexisip/module-router.hh"
 #include "http-mock/http-mock.hh"
 
@@ -30,6 +31,7 @@
 #include <memory>
 #include <string_view>
 
+#include "lib/nlohmann-json-3-11-2/json.hpp"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"
 #include "utils/client-core.hh"
@@ -46,6 +48,16 @@ using namespace linphone;
 namespace flexisip::tester {
 namespace {
 std::optional<TmpDir> kSuiteDir;
+
+void enableCallDiversionMisconfiguration() {
+	// Starting a proxy with 'enable-call-diversions' without 'global::domains/domains-configuration' other than
+	// 'legacy' should throw an exception.
+	Server proxy{{
+	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+	    {"module::Router/enable-call-diversions", "true"},
+	}};
+	BC_ASSERT_THROWN(proxy.start(), BadConfigurationWithHelp);
+}
 
 constexpr string_view kAccounts = R"(
     [
@@ -130,31 +142,47 @@ auto hasNoRunningCall(shared_ptr<CoreClient>& core) {
 }
 
 struct DivertedCallTester {
-	static std::map<string, string> makeConfig(int httpPort, string_view accounts) {
-		string accountsParameter = accounts.data();
-		if (accountsParameter != "flexiapi")
-			accountsParameter = kSuiteDir->path() / "conditional-diverted-call-accounts";
+	// Build a configuration using a static 'global::domains/domains-configuration' file: the space 'sip.example.org'
+	// declares the given accounts data as its accounts store.
+	static std::map<string, string> makeConfig(string_view accounts) {
+		const auto accountsFilePath = kSuiteDir->path() / "conditional-diverted-call-accounts";
+		std::ofstream(accountsFilePath) << accounts;
 
-		std::ofstream(accountsParameter) << accounts;
-		std::map<string, string> config{{"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-		                                {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(httpPort)},
-		                                {"global::flexiapi/api-key", "aRandomToken"},
-		                                {"global/advanced-account-data", accountsParameter},
+		const auto domainsConfigFilePath = kSuiteDir->path() / "conditional-diverted-call-domains-configuration";
+		std::ofstream(domainsConfigFilePath) << nlohmann::json::array({nlohmann::json{
+		    {"name", "example"},
+		    {"domain", "sip.example.org"},
+		    {"accounts", accountsFilePath.string()},
+		}});
+
+		return std::map<string, string>{{"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+		                                {"global::domains/domains-configuration", domainsConfigFilePath.string()},
 		                                {"module::Registrar/reg-domains", "sip.example.org"},
 		                                {"module::Router/enable-call-diversions", "true"},
 		                                {"module::Router/fork-late", "true"},
 		                                {"module::Router/call-fork-timeout", "2s"},
 		                                {"module::Router/forwarding-status-codes", "408 486"}};
-		return config;
+	}
+
+	// Build a configuration fetching the accounts data from the FlexiAPI server (mock) listening on 'httpPort'.
+	static std::map<string, string> makeConfig(int httpPort) {
+		return std::map<string, string>{{"global/transports", "sip:127.0.0.1:0;transport=tcp"},
+		                                {"global::domains/domains-configuration", "flexiapi"},
+		                                {"global::flexiapi/url", "https://127.0.0.1:"s + to_string(httpPort)},
+		                                {"global::flexiapi/api-key", "aRandomToken"},
+		                                {"module::Registrar/reg-domains", "sip.example.org"},
+		                                {"module::Router/enable-call-diversions", "true"},
+		                                {"module::Router/fork-late", "true"},
+		                                {"module::Router/call-fork-timeout", "2s"},
+		                                {"module::Router/forwarding-status-codes", "408 486"}};
 	}
 
 	explicit DivertedCallTester(string_view accounts, bool disableVoicemail = false)
-	    : DivertedCallTester(0, accounts, disableVoicemail) {}
+	    : DivertedCallTester(makeConfig(accounts), disableVoicemail) {}
 	explicit DivertedCallTester(int httpPort, bool disableVoicemail = false)
-	    : DivertedCallTester(httpPort, "flexiapi", disableVoicemail) {}
+	    : DivertedCallTester(makeConfig(httpPort), disableVoicemail) {}
 
-	DivertedCallTester(int httpPort, string_view accounts, bool disableVoicemail)
-	    : proxy(makeConfig(httpPort, accounts)) {
+	DivertedCallTester(std::map<string, string> config, bool disableVoicemail) : proxy(std::move(config)) {
 		proxy.start();
 
 		builder = make_unique<ClientBuilder>(proxy.getAgent());
@@ -166,9 +194,9 @@ struct DivertedCallTester {
 		voicemail = make_unique<CoreClient>(
 		    ClientBuilder(proxy.getAgent()).setRegistration(OnOff::Off).build("sip:voicemail@127.0.0.2"));
 		if (!disableVoicemail) {
-			const auto& config = *proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Router");
+			const auto& routerConfig = *proxy.getConfigManager()->getRoot()->get<GenericStruct>("module::Router");
 			const auto voicemailAddress = "sip:127.0.0.2:" + to_string(voicemail->getTcpPort()) + ";transport=tcp";
-			config.get<ConfigString>("voicemail-server")->set(voicemailAddress);
+			routerConfig.get<ConfigString>("voicemail-server")->set(voicemailAddress);
 			const auto router = dynamic_pointer_cast<ModuleRouter>(proxy.getAgent()->findModuleByRole("Router"));
 			router->reload();
 		}
@@ -423,10 +451,13 @@ const std::map<std::string, http_mock::HttpMockHandler> basicHandlers = {
     },
 };
 
-std::pair<std::unique_ptr<http_mock::HttpMock>, int>
-setupFamMock(const std::map<std::string, http_mock::HttpMockHandler>& customHandlers = {}) {
-	auto famMock = std::make_unique<http_mock::HttpMock>(customHandlers.empty() ? basicHandlers : customHandlers);
-	return {std::move(famMock), famMock->serveAsync()};
+std::pair<std::unique_ptr<http_mock::HttpMock>, int> setupFamMock() {
+	// The FlexiapiBuilder serves the default space 'sip.example.org' on '/api/spaces', so the proxy fetches the
+	// accounts data from the custom '/api/resolve' handlers.
+	FlexiapiBuilder builder{};
+	auto famMock = builder.setHandlers(basicHandlers).build();
+	const auto httpPort = famMock->getFirstPort();
+	return {std::move(famMock), httpPort};
 }
 
 // Diverts to 'final-callee' when 'initial-callee' does not answer.
@@ -595,7 +626,7 @@ void noDiversionToAlreadyCalledAccount() {
 // REGISTER an iOS device and disconnect it to avoid Fork destruction on CANCEL.
 void noDiversionAfterCancel() {
 	const auto [famMock, httpPort] = setupFamMock();
-	Server proxy(DivertedCallTester::makeConfig(httpPort, "flexiapi"));
+	Server proxy(DivertedCallTester::makeConfig(httpPort));
 	proxy.start();
 
 	auto builder = make_unique<ClientBuilder>(proxy.getAgent());
@@ -657,6 +688,7 @@ void noDiversionAfterCancel() {
 TestSuite kSuite{
     "DivertibleFork",
     {
+        CLASSY_TEST(enableCallDiversionMisconfiguration),
         CLASSY_TEST(cancelCallAfterDiversion),
         CLASSY_TEST(divertedCall),
         CLASSY_TEST(exceededMaxDivertedCall),

@@ -239,10 +239,6 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 }
 
 std::shared_ptr<Bearer> ModuleAuthOpenIDConnect::getAuthScheme(const std::string& domain) const {
-	// Note: if legacy configuration is used, there is only one domain in this struct.
-	const auto legacyAuthSchemeIt = mDomainAuthSchemes.find(SpacesStore::kLegacyDomainName);
-	if (legacyAuthSchemeIt != mDomainAuthSchemes.end()) return legacyAuthSchemeIt->second.lock();
-
 	const auto authSchemeIt = mDomainAuthSchemes.find(domain);
 	if (authSchemeIt == mDomainAuthSchemes.end()) {
 		return nullptr;

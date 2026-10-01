@@ -1221,7 +1221,8 @@ ConfigManager::ConfigManager()
 	    ->setDeprecated({
 	        "2026-06-17",
 	        "2.7.0",
-	        "Use 'global/domains-configuration' instead",
+	        "This parameter was experimental and has currently no effect, please use "
+	        "'global::domains/domains-configuration' instead",
 	    });
 	global->get<ConfigBoolean>("auto-respawn")
 	    ->setDeprecated("2026-03-24", "2.6.0",

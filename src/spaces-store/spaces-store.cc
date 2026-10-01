@@ -35,9 +35,9 @@ using namespace std;
 
 namespace flexisip {
 
-const string SpacesStore::kLegacyDomainName{"legacy"};
-
 namespace {
+const std::string kLegacyDomainName{"legacy"};
+
 FlexiApiConfig getFlexiApiConfig(const std::shared_ptr<ConfigManager>& cfg) {
 	const auto* flexiApiConfigSection = cfg->getRoot()->get<GenericStruct>("global::flexiapi");
 
@@ -90,7 +90,6 @@ RestClient createRestClientForSpace(const std::shared_ptr<Http2Client>& http2Cli
 namespace legacy {
 
 /**
- * @throw BadConfiguration if 'global/advanced-account-data' is set.
  * @throw BadConfiguration if legacy configuration parameters are used together with the new
  * 'global::domains/domains-configuration' parameter.
  */
@@ -98,15 +97,7 @@ void checkBearerConfigConflict(const std::shared_ptr<ConfigManager>& cfg) {
 
 	const auto domainsConfigParam =
 	    cfg->getRoot()->get<GenericStruct>("global::domains")->get<ConfigString>("domains-configuration");
-	if (domainsConfigParam->read() == "legacy") {
-		const auto advancedAccountDataParam = cfg->getGlobal()->get<ConfigString>("advanced-account-data");
-		if (advancedAccountDataParam->read().empty()) return;
-
-		throw BadConfiguration{
-		    "the AuthOpenIDConnect module is enabled, but the " + advancedAccountDataParam->getCompleteName() +
-		        " parameter is also set (this is not supported)",
-		};
-	}
+	if (domainsConfigParam->read() == "legacy") return;
 
 	const auto throwConflictDetected = [&] {
 		throw BadConfiguration{
@@ -197,10 +188,8 @@ makeSpacesDataManager(const std::shared_ptr<sofiasip::SuRoot>& root,
                       const ISpacesDataManager::NotifySpacesChangedCb& onSpacesChanged) {
 	const auto* authzCfg = cfg->getRoot()->getModuleSectionByRole("Authorization");
 	if (authzCfg->get<ConfigBoolean>("enabled")->read() == false) {
-		LOGD_CTX(SpacesStore::mLogPrefix)
-		    << "Trying to create the SpacesDataManager using legacy parameters but the '" + authzCfg->getName() +
-		           "' is disabled: returning nullptr";
-		return nullptr;
+		throw BadConfiguration{"Trying to create the SpacesDataManager using legacy parameters but the '" +
+		                       authzCfg->getName() + "' is disabled"};
 	}
 
 	const auto refresh = authzCfg->get<ConfigDuration<chrono::minutes>>("accounts-refresh-delay")->read();
@@ -275,22 +264,17 @@ bool SpacesStore::Realm::operator==(const flexiapi::Realm& other) const {
 std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::SuRoot>& root,
                                                const std::shared_ptr<ConfigManager>& cfg,
                                                const std::shared_ptr<Http2Client>& flexiApiClient) {
-	const auto* global = cfg->getGlobal();
-
 	const auto* domainsConfigSection = cfg->getRoot()->get<GenericStruct>("global::domains");
 	const auto* modeParam = domainsConfigSection->get<ConfigString>("domains-configuration");
 	const auto& mode = modeParam->read();
 
 	// Legacy options management for backward compatibility
 	{
-		const auto* advancedAccountDataParam = global->get<ConfigString>("advanced-account-data");
-		const auto& advancedAccountData = advancedAccountDataParam->read();
 		const auto* authzCfg = cfg->getRoot()->getModuleSectionByRole("Authorization");
 		const auto authzModuleEnabled = authzCfg->get<ConfigBoolean>("enabled")->read();
 		const auto* authDomainsModeParam = authzCfg->get<ConfigString>("auth-domains-mode");
 		const auto& authDomainsMode = authDomainsModeParam->read();
 
-		const bool hasAccountsStore = !advancedAccountData.empty();
 		const bool hasSpacesData = [&] {
 			if (!authzModuleEnabled) return false;
 			if (authDomainsMode.empty()) return false;
@@ -304,19 +288,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 			return authDomainsMode == "static" || authDomainsMode == "flexiapi";
 		}();
 
-		// Case: accounts store and module::Authorization are not supported together.
-		if (hasAccountsStore && authzModuleEnabled) {
-			throw BadConfiguration{
-			    advancedAccountDataParam->getCompleteName() + " is set and " + authzCfg->getCompleteName() +
-			        " is enabled but they are not compatible together",
-			};
-		}
-
-		if (mode != "legacy" && (hasAccountsStore || hasSpacesData)) {
-			if (hasAccountsStore) {
-				LOGE << "Legacy '" + advancedAccountDataParam->getCompleteName() + "' option is set to "
-				     << advancedAccountData;
-			}
+		if (mode != "legacy" && hasSpacesData) {
 			if (hasSpacesData) {
 				LOGE << "Legacy '" + authDomainsModeParam->getCompleteName() + "' option is set to " << authDomainsMode;
 			}
@@ -326,9 +298,7 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 			        " but legacy configuration is also enabled (please remove legacy configuration)",
 			};
 		}
-		if (hasAccountsStore) {
-			return shared_ptr<SpacesStore>{new SpacesStore(advancedAccountData, cfg, flexiApiClient, root)};
-		}
+
 		if (hasSpacesData) {
 			auto spacesStore = shared_ptr<SpacesStore>{new SpacesStore(root)};
 			spacesStore->mGlobalFlexiApiClient = flexiApiClient;
@@ -351,6 +321,13 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 			if (authDomainsMode == "flexiapi") spacesStore->mFlexiApiConfig = getFlexiApiConfig(cfg);
 			spacesStore->mSpacesDataManager = std::move(dataManager);
 			return spacesStore;
+		}
+
+		// We should not be able to start in legacy mode if Authorization is enabled and no domains are configured.
+		if (mode == "legacy" && authzModuleEnabled && !hasSpacesData) {
+			throw BadConfiguration{
+			    "the parameter '" + authzCfg->getCompleteName() + "' is enabled but no domains are configured",
+			};
 		}
 	}
 
@@ -396,39 +373,12 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 	throw BadConfigurationValue{modeParam, "expected 'flexiapi' or a valid path to a configuration file"};
 }
 
-// Legacy (use of "advanced-account-data"), no information on domains
-SpacesStore::SpacesStore(const std::string& advancedAccountData,
-                         const std::shared_ptr<ConfigManager>& cfg,
-                         const std::shared_ptr<Http2Client>& http2Client,
-                         const std::shared_ptr<sofiasip::SuRoot>& root) {
-	if (advancedAccountData == "flexiapi") {
-		auto flexiApiClient = std::make_shared<flexiapi::FlexiApi>(flexiapi::createRestClient(*cfg, http2Client));
-		mSpaces.emplace(kLegacyDomainName, Space{
-		                                       "Legacy",
-		                                       kLegacyDomainName,
-		                                       flexiApiClient,
-		                                       nullptr,
-		                                       optional{AccountsStore{flexiApiClient, root, 30s, 10min}},
-		                                   });
-		mGlobalFlexiApiClient = http2Client;
-	} else {
-		mSpaces.emplace(kLegacyDomainName, Space{
-		                                       "Legacy",
-		                                       kLegacyDomainName,
-		                                       nullptr,
-		                                       nullptr,
-		                                       optional{AccountsStore{advancedAccountData}},
-		                                   });
-	}
+bool SpacesStore::hasDomain(const std::string& domain) const {
+	if (mSpaces.contains(kLegacyDomainName)) return true;
+	return mSpaces.contains(domain);
 }
 
 std::optional<std::reference_wrapper<AccountsStore>> SpacesStore::getAccountsStore(const std::string& domain) {
-	// Note: there is always only one domain when using legacy accounts store, so we check for it first.
-	if (hasDomain(kLegacyDomainName)) {
-		auto& store = mSpaces.at(kLegacyDomainName).accountsStore;
-		if (store.has_value()) return std::ref(store.value());
-	}
-
 	if (!hasDomain(domain)) return nullopt;
 
 	auto& store = mSpaces[domain].accountsStore;
@@ -438,20 +388,10 @@ std::optional<std::reference_wrapper<AccountsStore>> SpacesStore::getAccountsSto
 }
 
 std::weak_ptr<flexiapi::FlexiApi> SpacesStore::getFlexiApiClient(const std::string& domain) {
-	// If we are in legacy mode, then return the FlexiApi from the Legacy space.
-	if (hasDomain(kLegacyDomainName)) {
-		return mSpaces[kLegacyDomainName].flexiApiClient;
-	}
-
 	return hasDomain(domain) ? mSpaces[domain].flexiApiClient : std::weak_ptr<flexiapi::FlexiApi>();
 }
 
 std::weak_ptr<flexiapi::FlexiStats> SpacesStore::getFlexiStatsClient(const std::string& domain) {
-	// If we are in legacy mode, then return the FlexiApi from the Legacy space.
-	if (hasDomain(kLegacyDomainName)) {
-		return mSpaces[kLegacyDomainName].flexiStatsClient;
-	}
-
 	return hasDomain(domain) ? mSpaces[domain].flexiStatsClient : std::weak_ptr<flexiapi::FlexiStats>();
 }
 

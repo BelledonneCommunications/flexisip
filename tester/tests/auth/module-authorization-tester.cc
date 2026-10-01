@@ -50,6 +50,7 @@ void rejectUnexpectedDomain() {
 	Server proxy({
 	    {"module::Registrar/reg-domains", "*.example.org"},
 	    {"module::Authorization/enabled", "true"},
+	    {"module::Authorization/auth-domains", domainB},
 	});
 
 	proxy.start();
@@ -75,6 +76,7 @@ void acceptTrustedHostOfUnexpectedDomain() {
 	    {
 	        {"module::Registrar/reg-domains", "*.example.org"},
 	        {"module::Authorization/enabled", "true"},
+	        {"module::Authorization/auth-domains", domainB},
 	    },
 	    &forceTrustedHost);
 
@@ -320,6 +322,20 @@ void rejectIdentityFraudMessage() {
 	checkResponse(transaction, {SIP_407_PROXY_AUTH_REQUIRED});
 }
 
+void startProxyWithAuthorizationWithoutDomains() {
+	Server proxy({
+	    {"module::Registrar/reg-domains", "*.example.org"},
+	    {"module::Authorization/enabled", "true"},
+	});
+
+	proxy.start();
+}
+
+// Check that enabling Authorization without configuring domains throws an exception.
+void enableAuthorizationWithoutDomains() {
+	BC_ASSERT_THROWN(startProxyWithAuthorizationWithoutDomains(), BadConfiguration);
+}
+
 const TestSuite kSuite{"Authorization",
                        {
                            CLASSY_TEST(rejectUnexpectedDomain),
@@ -329,5 +345,6 @@ const TestSuite kSuite{"Authorization",
                            CLASSY_TEST(rejectInterDomainRequest),
                            CLASSY_TEST(acceptAnonymousMessage),
                            CLASSY_TEST(rejectIdentityFraudMessage),
+                           CLASSY_TEST(enableAuthorizationWithoutDomains),
                        }};
 } // namespace

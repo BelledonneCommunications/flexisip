@@ -22,6 +22,8 @@
 #include <fstream>
 #include <string_view>
 
+#include "lib/nlohmann-json-3-11-2/json.hpp"
+
 #include "flexisip/module-router.hh"
 
 #include "utils/client-builder.hh"
@@ -61,9 +63,19 @@ void forwardCallOnDeviceRegistration() {
 )";
 	auto accounts = kSuiteDir->path() / "conditional-diverted-call-account";
 	std::ofstream(accounts) << accountNoDiversion;
+
+	// Build the static 'global::domains/domains-configuration' file: the space 'sip.example.org' declares the
+	// accounts data file as its accounts store.
+	auto domainsConfig = kSuiteDir->path() / "conditional-diverted-call-domains-configuration";
+	std::ofstream(domainsConfig) << nlohmann::json::array({nlohmann::json{
+	    {"name", "example"},
+	    {"domain", "sip.example.org"},
+	    {"accounts", accounts.string()},
+	}});
+
 	Server proxy{{
 	    {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	    {"global/advanced-account-data", accounts},
+	    {"global::domains/domains-configuration", domainsConfig.string()},
 	    {"module::Router/fork-late", "true"},
 	    {"module::Router/call-fork-timeout", "2s"},
 	    {"module::Router/message-database-enabled", "true"}, // active SchedulorInjector

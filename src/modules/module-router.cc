@@ -257,7 +257,7 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        Boolean,
 	        "enable-call-diversions",
 	        "Consideration of user-defined call diversion settings when processing a call.\n"
-	        "Activating this option requires to set the 'advanced-account-data' option in 'global' section.",
+	        "Activating this option requires to set the 'global::domains/domains-configuration' parameter.",
 	        "false",
 	    },
 	    {
@@ -346,6 +346,13 @@ void ModuleRouter::onLoad(const GenericStruct* mc) {
 		routingConfig.mStaticTargets.emplace_back(uri);
 
 	const auto* enableCallDiversionsParam = mc->get<ConfigBoolean>("enable-call-diversions");
+	const auto* domainsConfigSection = cr->get<GenericStruct>("global::domains");
+	const auto modeParam = domainsConfigSection->get<ConfigString>("domains-configuration");
+	if (enableCallDiversionsParam->read() && modeParam->read() == "legacy") {
+		throw BadConfigurationWithHelp{enableCallDiversionsParam,
+		                               "'global::domains/domains-configuration' must be set."};
+	}
+
 	routingConfig.mEnableCallDiversions = enableCallDiversionsParam->read();
 	routingConfig.mVoicemailServerUri = SipUri{mc->get<ConfigString>("voicemail-server")->read()};
 

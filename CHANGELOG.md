@@ -37,14 +37,12 @@ Group changes to describe their impact on the project, as follows:
   - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
   - **Authorization:**
-    - Parameter `global/advanced-account-data` is not compatible with this module (it cannot be used together).
-      Therefore, the proxy will not start if both `module::Authorization` and `global/advanced-account-data`
-      are enabled/set.
     - Parameter `auth-domains` is now empty (instead of `localhost`).
 
 ### [Deprecated]
 - **Proxy:**
-  - Parameter `global/advanced-account-data` is deprecated. Use `global::domains/domains-configuration` instead.
+  - Parameter `global/advanced-account-data` was experimental and is now deprecated. It has no effect.
+    Use `global::domains/domains-configuration` instead.
   - Parameter `module::Router/max-call-diversions` was experimental and is now deprecated.
   - **Authorization:**
     - Parameters `auth-domains-mode` and `auth-domains` are deprecated. Use `global::domains/domains-configuration`

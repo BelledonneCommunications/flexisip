@@ -49,7 +49,7 @@ HttpMock::HttpMock(const std::initializer_list<std::string> endpoints) : HttpMoc
 }
 
 void HttpMock::addHandler(const std::string& path, const HttpMockHandler& handler) {
-	mServer.handle(path, [this, &handler](const server::Request& req, const server::Response& res) {
+	mServer.handle(path, [this, handler](const server::Request& req, const server::Response& res) {
 		++mRequestReceivedCount;
 		handler(*this, req, res);
 	});

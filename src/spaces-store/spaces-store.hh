@@ -90,7 +90,6 @@ public:
 		std::optional<AccountsStore> accountsStore{};
 	};
 
-	static const std::string kLegacyDomainName;
 	static constexpr std::string_view mLogPrefix{"SpacesStore"};
 
 	static std::shared_ptr<SpacesStore> make(const std::shared_ptr<sofiasip::SuRoot>& root,
@@ -105,9 +104,7 @@ public:
 		return mGlobalFlexiApiClient;
 	}
 
-	bool hasDomain(const std::string& domain) const {
-		return mSpaces.contains(domain);
-	}
+	bool hasDomain(const std::string& domain) const;
 
 	bool isReady() const {
 		return !mSpaces.empty();
@@ -117,10 +114,6 @@ public:
 
 private:
 	SpacesStore(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot(root) {}
-	SpacesStore(const std::string& advancedAccountData,
-	            const std::shared_ptr<ConfigManager>& cfg,
-	            const std::shared_ptr<Http2Client>& flexiApiClient,
-	            const std::shared_ptr<sofiasip::SuRoot>& root);
 
 	void onSpacesChanged(const std::vector<flexiapi::Space>& spaces);
 	void createSpace(const flexiapi::Space& space);

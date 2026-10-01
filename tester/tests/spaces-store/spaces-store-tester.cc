@@ -90,19 +90,6 @@ const auto makeSpace = [](const string& domain,
 
 namespace legacy {
 
-void setAccountsStoreConfiguration(const std::shared_ptr<ConfigManager>& cfg,
-                                   const std::filesystem::path& filePath,
-                                   const std::string& domain) {
-	ofstream ofs(filePath);
-	ofs << makeAccountsData(domain);
-	cfg->getGlobal()->get<ConfigString>("advanced-account-data")->set(filePath.string());
-}
-
-void testAccountsStore(SpacesStore& store, const string& expectedDomain) {
-	const auto accountsStore = store.getAccountsStore(expectedDomain);
-	BC_ASSERT_TRUE(accountsStore.has_value());
-}
-
 void setSpacesDataConfiguration(const std::shared_ptr<ConfigManager>& cfg, const std::vector<std::string>& domains) {
 	const auto authzCfg = cfg->getRoot()->getModuleSectionByRole("Authorization");
 	authzCfg->get<ConfigBoolean>("enabled")->set("true");
@@ -117,20 +104,6 @@ void testSpacesData(const SpacesStore& store, const vector<string>& expectedDoma
 }
 
 /*
- * Test legacy configuration with only static (file) AccountsStore.
- */
-void accountsStoreOnly() {
-	TmpDir dir("legacy-accounts-data");
-	const auto cfg = make_shared<ConfigManager>();
-	setAccountsStoreConfiguration(cfg, dir.path() / "accounts.json", kTestDomains.front());
-
-	const auto spacesStore = SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr);
-	BC_ASSERT_TRUE(spacesStore != nullptr);
-
-	testAccountsStore(*spacesStore, kTestDomains.front());
-}
-
-/*
  * Test legacy configuration with only static (file) SpacesData.
  */
 void spacesDataOnly() {
@@ -141,32 +114,6 @@ void spacesDataOnly() {
 	BC_ASSERT_TRUE(spacesStore != nullptr);
 
 	testSpacesData(*spacesStore, kTestDomains);
-}
-
-/*
- * Test legacy configuration with both static SpacesData and AccountsStore is not supported.
- */
-void accountsStoreAndSpacesData() {
-	const auto cfg = make_shared<ConfigManager>();
-	setAccountsStoreConfiguration(cfg, "some/path/to/file.json", kTestDomains.front());
-	setSpacesDataConfiguration(cfg, kTestDomains);
-
-	BC_ASSERT_THROWN(SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr), BadConfiguration);
-}
-
-/*
- * Test that legacy configuration cannot be used together with new 'global::domains/domains-configuration' for
- * AccountsStore.
- */
-void accountsStoreConfigConflict() {
-	const auto cfg = make_shared<ConfigManager>();
-	cfg->getGlobal()->get<ConfigString>("advanced-account-data")->set("legacy-options");
-	cfg->getRoot()
-	    ->get<GenericStruct>("global::domains")
-	    ->get<ConfigString>("domains-configuration")
-	    ->set("/some/path");
-
-	BC_ASSERT_THROWN(SpacesStore::make(make_shared<sofiasip::SuRoot>(), cfg, nullptr), BadConfiguration);
 }
 
 /**
@@ -340,10 +287,7 @@ void createSpacesStoreWithFlexiapi() {
 const TestSuite kSuite = {
     "SpacesStore",
     {
-        CLASSY_TEST(legacy::accountsStoreOnly),
         CLASSY_TEST(legacy::spacesDataOnly),
-        CLASSY_TEST(legacy::accountsStoreAndSpacesData),
-        CLASSY_TEST(legacy::accountsStoreConfigConflict),
         CLASSY_TEST(legacy::spacesDataConfigConflict),
         CLASSY_TEST(createSpacesStoreWithFile),
         CLASSY_TEST(createSpacesStoreInvalidJson),
