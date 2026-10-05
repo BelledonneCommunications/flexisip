@@ -68,6 +68,7 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).
 
 ## [2.6.3] - Hotfix
+- **SDK version:** 5.5.16
 
 ### [Fixed]
 - **RegistrationEvent:** Subscriptions are now matched by dialog identifier (Call-ID + From URI) instead of the From URI
@@ -77,6 +78,9 @@ Group changes to describe their impact on the project, as follows:
   - **ContactRouteInserter:** Resolved restoring original request URI from CtRt parameters, fixing Push Gateway routing.
   - **PushNotification:** With push retransmissions enabled, a crash could occur if a call was answered or canceled.
   - **Registrar:** Requests coming from an unmanaged domain (not present in `reg-domains`) are not silently dropped anymore.
+  - **MediaRelay:** Ignore non-initial INVITE requests (those with a non-empty 'To' header tag) when no associated
+    RelayedCall is found. This prevents incorrect media packet routing during call updates, which could otherwise cause
+    call failures (e.g., unexpected one-way media flow even though both parties had agreed to bidirectional media).
 
 ## [2.6.2] - 2026-10-01
 - **SDK version:** 5.5.16

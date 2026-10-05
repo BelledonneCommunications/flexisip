@@ -413,13 +413,21 @@ unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& 
 		return std::move(ev);
 	}
 
+	auto newContext = false;
+	// If the transaction has no RelayedCall associated, then look for an established dialog (case of reINVITE)
+	if (relayedCall == nullptr) relayedCall = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, false));
+
+	// Initial INVITE check: if the 'To' header contains a tag, it is not an initial INVITE.
+	if (relayedCall == nullptr && sip->sip_to != nullptr && sip->sip_to->a_tag != nullptr) {
+		LOGD << "No existing RelayedCall found and 'To' header contains a tag: skipping request as it is not an "
+		        "initial INVITE";
+		return std::move(ev);
+	}
+
 	// Force stateful mode to store the RelayedCall context.
 	incomingTransaction = ev->createIncomingTransaction();
 	auto outgoingTransaction = ev->createOutgoingTransaction();
 
-	auto newContext = false;
-	// If the transaction has no RelayedCall associated, then look for an established dialog (case of reINVITE)
-	if (relayedCall == nullptr) relayedCall = dynamic_pointer_cast<RelayedCall>(mCalls->find(getAgent(), sip, false));
 	if (relayedCall == nullptr) {
 		if (mMaxCalls > 0 && mCalls->size() >= mMaxCalls) {
 			LOGW << "Maximum number of relayed calls reached (" << mMaxCalls << "), call is rejected";
@@ -435,6 +443,7 @@ unique_ptr<RequestSipEvent> MediaRelay::onRequest(unique_ptr<RequestSipEvent>&& 
 		incomingTransaction->setProperty(getModuleName(), weak_ptr<RelayedCall>{relayedCall});
 		configureContext(relayedCall);
 	}
+
 	if (processNewInvite(relayedCall, outgoingTransaction, *ev)) {
 		// Be in the record-route
 		module_toolbox::addRecordRouteIncoming(getAgent(), *ev);

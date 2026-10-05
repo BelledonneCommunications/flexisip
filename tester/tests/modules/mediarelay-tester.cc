@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "bctoolbox/tester.h"
+#include "flexisip/logmanager.hh"
 #include "linphone++/call.hh"
 #include "ortp/rtp.h"
 
@@ -600,6 +601,58 @@ void updateIpFamilyOnReInvite() {
 	    .assert_passed();
 }
 
+void noSdpAlterationOnEstablishedDialog() {
+	Server proxy{CONFIG};
+	proxy.start();
+
+	const auto module = dynamic_pointer_cast<MediaRelay>(proxy.getAgent()->findModuleByRole("MediaRelay"));
+	BC_HARD_ASSERT(module != nullptr);
+
+	stringstream body{};
+	body << "v=0\r\n"
+	     << "o=caller 3102 279 IN IP4 127.0.0.1\r\n"
+	     << "s=Talk\r\n"
+	     << "c=IN IP4 127.0.0.1\r\n"
+	     << "t=0 0\r\n"
+	     << "m=audio 7078 RTP/AVP 111 110 3 0 8 101\r\n"
+	     << "a=rtpmap:111 speex/16000\r\n"
+	     << "a=fmtp:111 vbr=on\r\n"
+	     << "a=rtpmap:110 speex/8000\r\n"
+	     << "a=fmtp:110 vbr=on\r\n"
+	     << "a=rtpmap:101 telephone-event/8000\r\n"
+	     << "a=fmtp:101 0-11\r\n"
+	     << "m=video 8078 RTP/AVP 99 97 98\r\n"
+	     << "c=IN IP4 192.168.0.18\r\n"
+	     << "b=AS:380\r\n"
+	     << "a=rtpmap:99 MP4V-ES/90000\r\n"
+	     << "a=fmtp:99 profile-level-id=3\r\n";
+
+	const auto expectedBody = body.str();
+
+	stringstream request{};
+	request << "INVITE sip:callee@sip.example.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:"s + proxy.getFirstPort() + ";branch=z9hG4bKQFeeH7Syv10rD\r\n"
+	        << "From: <sip:caller@sip.example.org>;tag=stub-from-tag\r\n"
+	        << "To: <sip:callee@sip.example.org>;tag=stub-to-tag\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 22 INVITE\r\n"
+	        << "Contact: <sip:caller@sip.example.org>\r\n"
+	        << "Expires: 600\r\n"
+	        << "Content-Type: application/sdp\r\n"
+	        << "Content-Length: " << body.str().size() << "\r\n\r\n"
+	        << body.str();
+
+	auto* pri = proxy.getFirstTransport(AF_INET);
+	auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), tport_ref(pri));
+
+	LOGD_CTX("Before") << '\n' << request.str();
+	ev = module->onRequest(std::move(ev));
+	LOGD_CTX("After") << '\n' << *ev->getMsgSip();
+
+	const auto processedBody = string(ev->getSip()->sip_payload->pl_data, ev->getSip()->sip_payload->pl_len);
+	BC_HARD_ASSERT(processedBody == expectedBody);
+}
+
 TestSuite _{
     "MediaRelay",
     {
@@ -612,6 +665,7 @@ TestSuite _{
         CLASSY_TEST(updateIpFamilyOnReInvite),
         CLASSY_TEST(serverDoesNotStartIfInvalidRtpPortRange),
         CLASSY_TEST(checkPossibleRtpPorts),
+        CLASSY_TEST(noSdpAlterationOnEstablishedDialog),
     },
 };
 
