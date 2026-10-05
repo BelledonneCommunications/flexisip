@@ -23,6 +23,7 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - **ContactRouteInserter:** Resolved restoring original request URI from CtRt parameters, fixing Push Gateway routing.
   - **PushNotification:** With push retransmissions enabled, a crash could occur if a call was answered or canceled.
+  - **Registrar:** Requests coming from an unmanaged domain (not present in `reg-domains`) are not silently dropped anymore.
 
 ## [2.6.2] - 2026-10-01
 - **SDK version:** 5.5.16
