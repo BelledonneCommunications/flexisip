@@ -27,20 +27,23 @@ Group changes to describe their impact on the project, as follows:
       other than the one specified in `global::flexiapi`. If an HTTPS proxy is configured in the
       `module::PushNotification` section, it will be used be used to join the remote server.
   - **Router:** Added support for conditional call diversions. `enable-call-diversions` must be set.
+  - **AuthOpenIdConnect:** New parameter `well-known-retry-delay` which enables to choose the delay between two
+    connexion attempts when the authorization server is unavailable.
 - **Voicemail:**
   - New parameter `delay-before-announce` which configure the delay before playing an announce after the call 
     establishement.
 - **Global:**
   - New parameter `global::domains/domains-configuration`: consolidates the configuration of all SIP domains and
-    associated user data through a Flexisip Account Manager or a provided JSON file (previously spread across several modules).
+    associated user data through a Flexisip Account Manager or a provided JSON file (previously spread across several
+    modules).
   - New parameter `global::flexiapi/spaces-refresh-delay`: configures the delay before refreshing the spaces information
     when `global::domains/domains-configuration` is set to `flexiapi`.
   - New parameter `global::flexiapi/accounts-cache-timeout`: configures the duration for which successful FlexiAPI
     account lookup results are cached locally per SIP URI.
-  - New parameter `global::flexiapi/unknown-accounts-cache-timeout`: configures the duration for which 'unknown' (404 User not found)
-    FlexiAPI account lookup results are cached locally per SIP URI.
-  - New parameter `global::flexiapi/critical-timeout`: configures the timeout duration for critical FlexiAPI requests (example:
-    requests made during call establishments).
+  - New parameter `global::flexiapi/unknown-accounts-cache-timeout`: configures the duration for which 'unknown' (404
+    User not found) FlexiAPI account lookup results are cached locally per SIP URI.
+  - New parameter `global::flexiapi/critical-timeout`: configures the timeout duration for critical FlexiAPI requests
+    (example: requests made during call establishments).
 
 ### [Changed]
 - **Proxy:**
@@ -50,7 +53,8 @@ Group changes to describe their impact on the project, as follows:
     limited to 408, 486 and 603), and its default value now also diverts to the voicemail on 480: `408 480 486 603`.
   - **Authorization:**
     - Parameter `auth-domains` is now empty (instead of `localhost`).
-  - **Registrar:** Parameters defined in `unique-id-parameters` are not removed anymore from the contact URI if `reg-on-response=true`
+  - **Registrar:** Parameters defined in `unique-id-parameters` are not removed anymore from the contact URI if
+    `reg-on-response=true`
     and `enable-gruu=false`.
 
 ### [Deprecated]

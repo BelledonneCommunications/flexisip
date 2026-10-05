@@ -404,12 +404,12 @@ void Bearer::KeyStore::askForWellKnown() {
 void Bearer::KeyStore::onWellKnownResponse(string_view response) {
 	auto quickRetry = [this] {
 		checkKeysValidity();
-		const auto timeout = 5min;
-		mWellKnownTimer.set([this] { askForWellKnown(); }, timeout);
+		mWellKnownTimer.set([this] { askForWellKnown(); }, mWellKnownRetryDelay);
 	};
 
 	if (response.empty()) {
-		LOGW_CTX(kOpenIDConnect) << "Failed to get the .well-known content from the authority server, retry in 5min";
+		LOGW_CTX(kOpenIDConnect) << "Failed to get the .well-known content from the authority server, retry in "
+		                         << mWellKnownRetryDelay << " miliseconds";
 		quickRetry();
 		return;
 	}

@@ -57,6 +57,7 @@ public:
 		std::string keyPath;
 		std::chrono::milliseconds wellKnownRefreshDelay;
 		std::chrono::milliseconds jwksRefreshDelay;
+		std::chrono::milliseconds wellKnownRetryDelay;
 	};
 
 	struct KeyInfo {
@@ -114,6 +115,7 @@ private:
 		Http1Client mHttpClient;
 		sofiasip::Timer mWellKnownTimer;
 		sofiasip::Timer mJWKSTimer;
+		std::chrono::milliseconds mWellKnownRetryDelay;
 		std::function<void()> mProcessPendingToken;
 	};
 	struct PendingToken {

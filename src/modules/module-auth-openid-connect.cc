@@ -56,6 +56,12 @@ const auto sOpenIDConnectInfo = ModuleInfo<ModuleAuthOpenIDConnect>(
 	            "day.",
 	            "1440",
 	        },
+	        {
+	            DurationMS,
+	            "well-known-retry-delay",
+	            "The duration between two connexion attempts when the server is unavailable.",
+	            "500",
+	        },
 
 	        // Deprecated parameters.
 	        {
@@ -168,6 +174,7 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 		    .keyPath = bearer.keyStoreParams.keyPath,
 		    .wellKnownRefreshDelay = mc->get<ConfigDuration<chrono::minutes>>("well-known-refresh-delay")->read(),
 		    .jwksRefreshDelay = mc->get<ConfigDuration<chrono::minutes>>("jwks-refresh-delay")->read(),
+		    .wellKnownRetryDelay = mc->get<ConfigDuration<chrono::minutes>>("well-known-retry-delay")->read(),
 		};
 		mAuthSchemes.push_back(make_shared<Bearer>(getAgent()->getRoot(), bearer.params, keyStoreParams));
 
