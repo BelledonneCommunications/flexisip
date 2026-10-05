@@ -825,7 +825,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	}
 
 	// From managed domains
-	if (!isManagedDomain(sipurl.get())) return {};
+	if (!isManagedDomain(sipurl.get())) return std::move(ev);
 
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {

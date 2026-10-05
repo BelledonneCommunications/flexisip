@@ -153,11 +153,48 @@ void regOnResponseContactCleaningNoGruu() {
 	}
 }
 
+/**
+ * Check that a REGISTER request whose 'From' domain is not listed in module::Registrar/reg-domains
+ * is passed to the next module instead of being silently dropped.
+ */
+void registerFromUnmanagedDomainIsPassedThrough() {
+	const string managedDomain = "sip.example.org";
+	const string unmanagedDomain = "sip.unmanaged.org";
+
+	Server proxy{{{"module::Registrar/reg-domains", managedDomain}}};
+	proxy.start();
+	const auto moduleRegistrar = dynamic_pointer_cast<ModuleRegistrar>(proxy.getAgent()->findModuleByRole("Registrar"));
+
+	const auto proxyPort = proxy.getFirstPort();
+	const string sipUri("sip:user@" + unmanagedDomain);
+	ostringstream rawSipRegister{};
+	rawSipRegister << "REGISTER sip:" + unmanagedDomain + " SIP/2.0\r\n"
+	               << "Via: SIP/2.0/UDP 127.0.0.1:"s + proxyPort + ";branch=z9hG4bKQFeeH7Syv10r;rport=" + proxyPort +
+	                      "\r\n"
+	               << "From: <" + sipUri + ">;tag=465687829\r\n"
+	               << "To: <" + sipUri + ">\r\n"
+	               << "Call-ID: 1053183492\r\n"
+	               << "CSeq: 20 REGISTER\r\n"
+	               << "Contact: <sip:user@127.0.0.1>\r\n"
+	               << "Expires: 600\r\n"
+	               << "Content-Length: 0\r\n\r\n"s;
+	{
+		auto pri = proxy.getFirstTransport(AF_INET);
+		auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipRegister.str()),
+		                                       tport_ref(pri));
+		ev = moduleRegistrar->onRequest(std::move(ev));
+
+		BC_ASSERT_PTR_NOT_NULL(ev);
+		BC_ASSERT_FALSE(ev->isTerminated());
+	}
+}
+
 TestSuite _("RegistrarModule",
             {
                 CLASSY_TEST(static_records_file_is_read_on_SIGUSR1),
                 CLASSY_TEST(maxContactsPerRegistrationParameter),
                 CLASSY_TEST(regOnResponseContactCleaningNoGruu),
+                CLASSY_TEST(registerFromUnmanagedDomainIsPassedThrough),
             });
 
 } // namespace
