@@ -164,7 +164,6 @@ private:
 	bool mUpdateOnResponse;
 	bool mAllowDomainRegistrations;
 	std::list<std::string> mDomains;
-	std::list<std::string> mUniqueIdParams;
 	std::string mServiceRoute;
 	static std::list<std::string> mPushNotifParams;
 	std::string mRoutingParam;

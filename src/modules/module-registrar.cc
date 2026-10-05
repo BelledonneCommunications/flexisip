@@ -576,7 +576,6 @@ void ModuleRegistrar::onLoad(const GenericStruct* mc) {
 	for (auto it = mDomains.begin(); it != mDomains.end(); ++it) {
 		LOGI << "Found registrar domain: " << *it;
 	}
-	mUniqueIdParams = mc->get<ConfigStringList>("unique-id-parameters")->read();
 	mServiceRoute = mc->get<ConfigString>("service-route")->read();
 	// replace space-separated to comma-separated since sofia-sip is expecting this way
 	std::replace(mServiceRoute.begin(), mServiceRoute.end(), ' ', ',');
@@ -970,9 +969,8 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::createUpstreamRequest(unique_ptr<Re
 		                  (msg_header_t*)sip_contact_create(home, (url_string_t*)gruuAddress, nullptr));
 	} else {
 		// Legacy code: just cleaner contacts
-		ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mUniqueIdParams);
 		ModuleToolbox::removeParamsFromContacts(home, sip->sip_contact, mParamsToRemove);
-		LOGD << "Removed instance and push params:\n" << sip->sip_contact;
+		LOGD << "Removed push params:\n" << sip->sip_contact;
 	}
 
 	return upstreamEv;

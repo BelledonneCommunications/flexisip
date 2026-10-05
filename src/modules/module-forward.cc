@@ -209,10 +209,10 @@ ModuleInfo<ForwardModule> ForwardModule::sInfo{
 	        {
 	            StringList,
 	            "params-to-remove",
-	            "List of URL and contact params to remove",
+	            "List of URI parameters to remove from request URI and 'Contact' header field.\n"
+	            "Outgoing requests from Flexisip are guaranteed not to contain any of the listed parameters.",
 	            "pn-tok pn-type app-id pn-msg-str pn-call-str pn-call-snd pn-msg-snd pn-timeout pn-silent pn-provider "
-	            "pn-prid "
-	            "pn-param",
+	            "pn-prid pn-param",
 	        },
 	        config_item_end,
 	    };

@@ -41,6 +41,8 @@ Group changes to describe their impact on the project, as follows:
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
   - **Authorization:**
     - Parameter `auth-domains` is now empty (instead of `localhost`).
+  - **Registrar:** Parameters defined in `unique-id-parameters` are not removed anymore from the contact URI if `reg-on-response=true`
+    and `enable-gruu=false`.
 
 ### [Deprecated]
 - **Proxy:**

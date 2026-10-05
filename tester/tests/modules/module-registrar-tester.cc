@@ -189,12 +189,69 @@ void registerFromUnmanagedDomainIsPassedThrough() {
 	}
 }
 
+/*
+ * Check that the module::Forward/params-to-remove are removed from the Contact header of a REGISTER
+ * forwarded to the upstream server when module::Registrar/reg-on-response is enabled and
+ * module::Registrar/enable-gruu is disabled.
+ */
+void regOnResponseUniqueIdParamsAreKept() {
+	const string domain = "sip.example.org";
+
+	Server proxy{
+	    {
+	        {"inter-domain-connections/accept-domain-registrations", "true"},
+	        {"inter-domain-connections/relay-reg-to-domains", "true"},
+	        {"inter-domain-connections/relay-reg-to-domains-regex", domain},
+	        {"module::Registrar/reg-domains", "*"},
+	        {"module::Forward/params-to-remove", "pn-test-remove"},
+	        {"module::Registrar/enable-gruu", "false"},
+	        {"module::Registrar/reg-on-response", "true"},
+	        {"module::DoSProtection/enabled", "false"},
+	    },
+	};
+	proxy.start();
+	const auto moduleRegistrar = dynamic_pointer_cast<ModuleRegistrar>(proxy.getAgent()->findModuleByRole("Registrar"));
+
+	const auto proxyPort = proxy.getFirstPort();
+	const string sipUri("sip:user@" + domain);
+	ostringstream rawSipRegister{};
+	rawSipRegister << "REGISTER sip:" + domain + " SIP/2.0\r\n"
+	               << "Via: SIP/2.0/UDP 127.0.0.1:"s + proxyPort + ";branch=z9hG4bKQFeeH7Syv10rD;rport=" + proxyPort +
+	                      "\r\n"
+	               << "From: <" + sipUri + ">;tag=465687829\r\n"
+	               << "To: <" + sipUri + ">\r\n"
+	               << "Call-ID: 1053183493\r\n"
+	               << "CSeq: 20 REGISTER\r\n"
+	               << "Contact: <sip:user@127.0.0.1;pn-tok=Tok3n;line=a1b2c3;pn-test-remove=gone>;"
+	                  "+sip.instance=\"<urn:uuid:9fa2a1c8-7cbb-4c0e-9f0d-6a3f2f1e5d44>\"\r\n"
+	               << "Expires: 600\r\n"
+	               << "Content-Length: 0\r\n\r\n";
+	{
+		auto pri = proxy.getFirstTransport(AF_INET);
+		auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, rawSipRegister.str()),
+		                                       tport_ref(pri));
+		ev = moduleRegistrar->onRequest(std::move(ev));
+		BC_ASSERT_CPP_EQUAL(ev->isTerminated(), false);
+		const auto* contact = ev->getSip()->sip_contact;
+		BC_ASSERT_PTR_NOT_NULL(contact);
+		// Unique-id URI parameters must be kept.
+		const string params = SipUri(contact->m_url).getParams();
+		BC_ASSERT_CPP_NOT_EQUAL(string::npos, params.find("pn-tok=Tok3n"));
+		BC_ASSERT_CPP_NOT_EQUAL(string::npos, params.find("line=a1b2c3"));
+		// Unique-id contact header parameter must be kept too.
+		BC_ASSERT_PTR_NOT_NULL(msg_header_find_param((msg_common_t*)contact, "+sip.instance"));
+		// module::Forward/params-to-remove parameters must still be removed.
+		BC_ASSERT_CPP_EQUAL(string::npos, params.find("pn-test-remove"));
+	}
+}
+
 TestSuite _("RegistrarModule",
             {
                 CLASSY_TEST(static_records_file_is_read_on_SIGUSR1),
                 CLASSY_TEST(maxContactsPerRegistrationParameter),
                 CLASSY_TEST(regOnResponseContactCleaningNoGruu),
                 CLASSY_TEST(registerFromUnmanagedDomainIsPassedThrough),
+                CLASSY_TEST(regOnResponseUniqueIdParamsAreKept),
             });
 
 } // namespace
