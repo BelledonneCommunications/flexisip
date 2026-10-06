@@ -79,6 +79,7 @@ Group changes to describe their impact on the project, as follows:
   - **MediaRelay:** Ignore non-initial INVITE requests (those with a non-empty 'To' header tag) when no associated
     RelayedCall is found. This prevents incorrect media packet routing during call updates, which could otherwise cause
     call failures (e.g., unexpected one-way media flow even though both parties had agreed to bidirectional media).
+  - **TlsConnection:** Fixed a race condition that could crash the HTTP/2 client in high usage scenarios.
 
 ## [2.6.2] - 2026-10-01
 - **SDK version:** 5.5.16

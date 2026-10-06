@@ -39,15 +39,14 @@ std::unique_ptr<GenericHttpClient> GenericHttpClient::makeUnique(
 		throw UnauthorizedHttpMethod{method};
 	}
 
-	unique_ptr<TlsConnection> conn{};
+	shared_ptr<TlsConnection> conn{};
 	if (url.getType() == url_https) {
-		conn = make_unique<TlsConnection>(url.getHost(), url.getPortWithFallback());
+		conn = TlsConnection::make(url.getHost(), url.getPortWithFallback());
 	} else {
-		conn = make_unique<TlsConnection>(url.getHost(), url.getPortWithFallback(), "", "");
+		conn = TlsConnection::make(url.getHost(), url.getPortWithFallback(), "", "");
 	}
 
-	return make_unique<GenericHttpClient>(make_unique<TlsTransport>(std::move(conn), method, url), name, maxQueueSize,
-	                                      service);
+	return make_unique<GenericHttpClient>(make_unique<TlsTransport>(conn, method, url), name, maxQueueSize, service);
 }
 
 std::shared_ptr<Request> GenericHttpClient::makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo) {

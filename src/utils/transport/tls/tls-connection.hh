@@ -20,8 +20,11 @@
 
 #include <chrono>
 #include <filesystem>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 #include "flexisip/sofia-wrapper/su-root.hh"
@@ -33,8 +36,12 @@ namespace flexisip {
 
 /**
  * A complete c++ implementation of a TLS connection over the OpenSSL library.
+ *
+ * Instances using connectAsync() MUST be owned by a std::shared_ptr: the connection thread
+ * keeps a reference on the connection during the blocking establishment, and the completion
+ * posted to the main loop accesses it through a weak reference.
  */
-class TlsConnection {
+class TlsConnection : public std::enable_shared_from_this<TlsConnection> {
 public:
 	class CreationError : public std::runtime_error {
 	public:
@@ -43,32 +50,18 @@ public:
 	};
 
 	/**
-	 * @brief Instantiate a new TLS connection.
+	 * @brief Instantiate a new TLS connection as a shared pointer.
 	 *
-	 * @param host other end IP address
-	 * @param port other end port
-	 * @param mustBeHttp2 whether or not to force use of HTTP/2
+	 * @note This is the only way to create a TlsConnection. The class extends
+	 * std::enable_shared_from_this, so instances must be owned through a std::shared_ptr.
+	 *
+	 * @note std::make_shared cannot be used here because the constructors are private,
+	 * and make_shared requires a public constructor.
 	 */
-	TlsConnection(const std::string& host,
-	              std::string_view port,
-	              bool mustBeHttp2 = false,
-	              const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
-	/** Instantiate a new TLS or TCP connection.
-	 *
-	 * @note You can leave trustStorePath and certPath empty in order to create a simple TCP connection.
-	 *
-	 * @param host other end IP address
-	 * @param port other end port
-	 * @param trustStorePath path to the truststore (cacert file)
-	 * @param certPath path to the certificate
-	 * @param mustBeHttp2 whether or not to force use of HTTP/2
-	 */
-	TlsConnection(const std::string& host,
-	              std::string_view port,
-	              const std::string& trustStorePath,
-	              const std::string& certPath,
-	              bool mustBeHttp2 = false,
-	              const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
+	template <typename... Args>
+	static std::shared_ptr<TlsConnection> make(Args&&... args) {
+		return std::shared_ptr<TlsConnection>{new TlsConnection{std::forward<Args>(args)...}};
+	}
 
 	TlsConnection(const TlsConnection&) = delete;
 	TlsConnection(TlsConnection&&) = delete;
@@ -94,13 +87,17 @@ public:
 	 * @brief Establish connection with the other end.
 	 *
 	 * @note You can customize the connection timeout using setTimeout().
-	 * @details This method runs asynchronously and adds a callback to the sofia-sip loop on connection success/error.
-	 * The connection is established with all furthers I/O set as non-blocking.
-	 * If called when the connection is already establishing, this method has no effect and the callback is __not__
-	 * called.
+	 * @details This method runs asynchronously: the blocking connection establishment
+	 * (DNS, TCP, TLS) runs on a dedicated thread, and the resulting connection is applied
+	 * on the main loop, which then invokes `onConnectCb` whether the establishment
+	 * succeeded or failed (unless the connection was destroyed in the meantime, in which
+	 * case the fresh socket is discarded). The main loop is the only thread to ever touch
+	 * the connected state of this object.
+	 * If the connection is already established, no connection attempt is made and
+	 * `onConnectCb` is still invoked on the main loop.
 	 *
 	 * @param root sofia-sip loop root object
-	 * @param onConnectCb callback to call after connection success/error
+	 * @param onConnectCb callback to call after connection success/error, on the main loop
 	 */
 	void connectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb) noexcept;
 
@@ -114,7 +111,6 @@ public:
 	void resetConnection() noexcept;
 
 	bool isConnected() const noexcept {
-		const std::lock_guard<std::mutex> lock(mBioMutex);
 		return mBio != nullptr;
 	}
 	bool isSecured() const noexcept {
@@ -271,14 +267,57 @@ public:
 
 private:
 	/**
+	 * @brief Instantiate a new TLS connection.
+	 *
+	 * @param host other end IP address
+	 * @param port other end port
+	 * @param mustBeHttp2 whether or not to force use of HTTP/2
+	 * @param httpsProxyCfg configuration of the HTTPS proxy to use for tunneling, or nullopt to
+	 * connect directly
+	 */
+	TlsConnection(const std::string& host,
+	              std::string_view port,
+	              bool mustBeHttp2 = false,
+	              const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
+	/**
+	 * Instantiate a new TLS or TCP connection.
+	 *
+	 * @note You can leave trustStorePath and certPath empty in order to create a simple TCP connection.
+	 *
+	 * @param host other end IP address
+	 * @param port other end port
+	 * @param trustStorePath path to the truststore (cacert file)
+	 * @param certPath path to the certificate
+	 * @param mustBeHttp2 whether or not to force use of HTTP/2
+	 * @param httpsProxyCfg configuration of the HTTPS proxy to use for tunneling, or nullopt to
+	 * connect directly
+	 */
+	TlsConnection(const std::string& host,
+	              std::string_view port,
+	              const std::string& trustStorePath,
+	              const std::string& certPath,
+	              bool mustBeHttp2 = false,
+	              const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
+
+	/**
 	 * Utility function to convert ASN1_TIME to a printable string in a buffer.
 	 */
 	static int ASN1_TIME_toString(const ASN1_TIME* time, char* buffer, uint32_t buff_length);
 	static SSLCtxUniquePtr makeDefaultCtx();
 	std::string loadCertificate();
 
+	/**
+	 * Result of a connection establishment: the connected BIO with its SSL, or nullopt if
+	 * it failed.
+	 */
+	using ConnectResult = std::optional<std::pair<BIOUniquePtr, SSLUniquePtr>>;
+	/**
+	 * Blocking connection establishment: reloads the client certificate if any and runs the
+	 * establishment strategy. Does NOT modify mBio/mSsl.
+	 */
+	ConnectResult establishConnection();
+
 	static int handleVerifyCallback(X509_STORE_CTX* ctx, void* ud);
-	void doConnectAsync(sofiasip::SuRoot& root, const std::function<void()>& onConnectCb);
 
 	int getFd(BIO& bio) const;
 
@@ -286,7 +325,6 @@ private:
 
 	BIOUniquePtr mBio{nullptr};
 	SSLUniquePtr mSsl{nullptr};
-	mutable std::mutex mBioMutex{}; // Protect async set of mBio and mSsl.
 	SSLCtxUniquePtr mCtx{nullptr};
 	std::unique_ptr<TlsConnectionEstablishmentStrategy> mConnectionEstablishmentStrategy{nullptr};
 	std::string mHost{}, mPort{};
@@ -294,6 +332,13 @@ private:
 	bool mMustBeHttp2 = false;
 	std::chrono::milliseconds mTimeout{20000};
 	std::string mLogPrefix{};
+
+	/**
+	 * Serializes establishConnection(). It is only needed to protect against connect() and
+	 * connectAsync() being called at the same time, which should never happen: connect() is only
+	 * used by the legacy client. Remove this mutex along with connect().
+	 */
+	std::mutex mEstablishConnectionMutex{};
 
 	/* Must be the last field to be deleted first and guarantee all previous fields will be available to the thread on
 	 * destruction

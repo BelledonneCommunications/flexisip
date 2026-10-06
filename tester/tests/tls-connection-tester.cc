@@ -43,15 +43,14 @@ optional<HttpsProxyCfg> sHttpsProxyCfg{};
 shared_ptr<SquidServer> sSquid{};
 
 template <typename ServerT, typename HostStr, typename PortStr>
-std::unique_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
+std::shared_ptr<TlsConnection> makeClientFor(HostStr&& host, PortStr&& port) {
 	constexpr auto needTls = is_same<typename decay<ServerT>::type, TlsServer>::value;
 	if (needTls) {
-		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), false,
-		                                  sHttpsProxyCfg);
+		return TlsConnection::make(std::forward<HostStr>(host), std::forward<PortStr>(port), false, sHttpsProxyCfg);
 	} else {
 		// Using an empty certPath cause TlsConnection to behave as a raw TCP connection.
-		return make_unique<TlsConnection>(std::forward<HostStr>(host), std::forward<PortStr>(port), "", "", false,
-		                                  sHttpsProxyCfg);
+		return TlsConnection::make(std::forward<HostStr>(host), std::forward<PortStr>(port), "", "", false,
+		                          sHttpsProxyCfg);
 	}
 }
 
@@ -156,12 +155,12 @@ void readAllWithTimeoutLateResponse() {
 }
 
 void createTlsConnectionWrongCertPath() {
-	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", "wrong/path/to/file", true}), TlsConnection::CreationError);
+	BC_ASSERT_THROWN((TlsConnection::make("host", "port", "", "wrong/path/to/file", true)), TlsConnection::CreationError);
 }
 
 void createTlsConnectionUnreadableCertFile() {
 	const auto certPath = bcTesterResourceDir() / "config/unreadable_file.pem";
-	BC_ASSERT_THROWN((TlsConnection{"host", "port", "", certPath, true}), TlsConnection::CreationError);
+	BC_ASSERT_THROWN((TlsConnection::make("host", "port", "", certPath, true)), TlsConnection::CreationError);
 }
 
 void checkConnectAndDisconnect(TlsConnection& tlsConnection) {
@@ -180,7 +179,7 @@ void checkCertificateValidationOnReconnection() {
 	filesystem::copy_file(validCertPath, certPath);
 
 	TlsServer server{};
-	TlsConnection tlsConnection{"127.0.0.1", to_string(server.getPort()), "", certPath};
+	auto tlsConnection = TlsConnection::make("127.0.0.1", to_string(server.getPort()), "", certPath);
 
 	const auto acceptThenReset = [&server]() {
 		server.accept();
@@ -189,7 +188,7 @@ void checkCertificateValidationOnReconnection() {
 	auto asyncServeRequest = async(launch::async, acceptThenReset);
 
 	// Check that the connection can be made
-	checkConnectAndDisconnect(tlsConnection);
+	checkConnectAndDisconnect(*tlsConnection);
 	asyncServeRequest.get();
 
 	// Check that the certificate is reloaded and checked on reconnection
@@ -197,12 +196,12 @@ void checkCertificateValidationOnReconnection() {
 	asyncServeRequest = async(launch::async, acceptThenReset);
 	const auto tmpPath = certDir.path() / "tmpFile";
 	filesystem::rename(certPath, tmpPath);
-	tlsConnection.connect();
-	BC_ASSERT_FALSE(tlsConnection.isConnected());
+	tlsConnection->connect();
+	BC_ASSERT_FALSE(tlsConnection->isConnected());
 
 	// Certificate becomes valid again
 	filesystem::rename(tmpPath, certPath);
-	checkConnectAndDisconnect(tlsConnection);
+	checkConnectAndDisconnect(*tlsConnection);
 	asyncServeRequest.get();
 }
 

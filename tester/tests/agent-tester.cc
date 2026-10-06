@@ -136,7 +136,7 @@ public:
 	/**
 	 * Create and configure the TlsConnection object.
 	 */
-	virtual unique_ptr<TlsConnection> makeConnection() = 0;
+	virtual shared_ptr<TlsConnection> makeConnection() = 0;
 	/**
 	 * Configure the agent. It is usually used to populate the 'transport=' line.
 	 */
@@ -163,8 +163,8 @@ class TcpConfig : public TransportConfig {
 public:
 	TcpConfig() : TransportConfig("TCP") {}
 
-	unique_ptr<TlsConnection> makeConnection() override {
-		return make_unique<TlsConnection>(mHost, mPort, "", "");
+	shared_ptr<TlsConnection> makeConnection() override {
+		return TlsConnection::make(mHost, mPort, "", "");
 	}
 	void configureAgent(ConfigManager& cfg) override {
 		TransportConfig::configureAgent(cfg);
@@ -182,8 +182,8 @@ class TlsConfig : public TransportConfig {
 public:
 	TlsConfig() : TransportConfig("TLS") {}
 
-	unique_ptr<TlsConnection> makeConnection() override {
-		return make_unique<TlsConnection>(mHost, mPort);
+	shared_ptr<TlsConnection> makeConnection() override {
+		return TlsConnection::make(mHost, mPort);
 	}
 	void configureAgent(ConfigManager& cfg) override {
 		TransportConfig::configureAgent(cfg);
@@ -208,8 +208,8 @@ class InternalTransportConfig : public TransportConfig {
 public:
 	InternalTransportConfig() : TransportConfig("TCP") {}
 
-	unique_ptr<TlsConnection> makeConnection() override {
-		return make_unique<TlsConnection>(mHost, mPort, "", "");
+	shared_ptr<TlsConnection> makeConnection() override {
+		return TlsConnection::make(mHost, mPort, "", "");
 	}
 	void configureAgent(ConfigManager& cfg) override {
 		TransportConfig::configureAgent(cfg);
@@ -241,7 +241,7 @@ protected:
 
 	TransportTest(unique_ptr<TransportConfig>&& config) : mConfig(std::move(config)) {}
 
-	unique_ptr<TlsConnection> connect() {
+	shared_ptr<TlsConnection> connect() {
 		auto conn = mConfig->makeConnection();
 		SLOGD << "Connecting on " << mConfig->getHost() << ":" << mConfig->getPort() << " using "
 		      << mConfig->getProtoName();

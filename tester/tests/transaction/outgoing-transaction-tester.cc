@@ -203,14 +203,14 @@ void resilienceToNetworkErrorOnCancel() {
 	Server proxy{{{"global/transports", "sip:127.0.0.1:0;transport=tcp"}}};
 	proxy.start();
 
-	TlsConnection unstableConnection{"127.0.0.1", proxy.getFirstPort(), "", ""};
-	unstableConnection.connect();
-	BC_HARD_ASSERT_TRUE(unstableConnection.isConnected());
+	auto unstableConnection = TlsConnection::make("127.0.0.1", proxy.getFirstPort(), "", "");
+	unstableConnection->connect();
+	BC_HARD_ASSERT_TRUE(unstableConnection->isConnected());
 
 	// Iterate on the proxy to accept the incoming connection.
 	proxy.getRoot()->step(10ms);
 
-	const auto unstableUri = "sip:callee@127.0.0.1:" + to_string(unstableConnection.getLocalPort()) + ";transport=tcp";
+	const auto unstableUri = "sip:callee@127.0.0.1:" + to_string(unstableConnection->getLocalPort()) + ";transport=tcp";
 
 	stringstream request{};
 	request << "INVITE " << unstableUri << " SIP/2.0\r\n"
@@ -228,10 +228,10 @@ void resilienceToNetworkErrorOnCancel() {
 	event->send(message, nullptr);
 
 	// Iterate until receiving the INVITE request on the unstable connection.
-	CoreAssert{proxy}.wait([&] { return LOOP_ASSERTION(unstableConnection.hasData()); }).hard_assert_passed();
+	CoreAssert{proxy}.wait([&] { return LOOP_ASSERTION(unstableConnection->hasData()); }).hard_assert_passed();
 
 	// Disconnect the unstable connection to simulate a network error.
-	unstableConnection.disconnect();
+	unstableConnection->disconnect();
 
 	// Iterate the proxy so it takes into account the network error.
 	proxy.getRoot()->step(10ms);

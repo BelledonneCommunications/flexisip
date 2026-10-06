@@ -60,10 +60,10 @@ public:
 
 class TlsTransport : public Transport {
 public:
-	TlsTransport(std::unique_ptr<TlsConnection>&& connection,
+	TlsTransport(const std::shared_ptr<TlsConnection>& connection,
 	             Method method = Method::Raw,
 	             const sofiasip::Url& url = sofiasip::Url{}) noexcept
-	    : Transport{}, mConn{std::move(connection)}, mMethod{method}, mUrl{url},
+	    : Transport{}, mConn{connection}, mMethod{method}, mUrl{url},
 	      mLogPrefix{LogManager::makeLogPrefixForInstance(this, "TlsTransport")} {
 	}
 	int sendPush(LegacyRequest& req, bool hurryUp, const OnSuccessCb& onSuccess, const OnErrorCb& onError) override;
@@ -76,7 +76,7 @@ private:
 	};
 	using BIOUniquePtr = std::unique_ptr<BIO, BIODeleter>;
 
-	std::unique_ptr<TlsConnection> mConn{};
+	std::shared_ptr<TlsConnection> mConn{};
 	Method mMethod{Method::Raw};
 	sofiasip::Url mUrl{};
 	time_t mLastUse{0};
