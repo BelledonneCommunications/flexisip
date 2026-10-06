@@ -40,10 +40,10 @@ string Http2Client::BadStateError::formatWhatArg(State state) noexcept {
 }
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
-                         decltype(mConn)&& connection,
-                         decltype(mAuthManager)&& authManager,
+                         const std::shared_ptr<TlsConnection>& connection,
+                         const std::shared_ptr<AuthenticationManager>& authManager,
                          SessionSettings&& sessionSettings)
-    : mConn(std::move(connection)), mAuthManager(std::move(authManager)), mRoot(root), mIdleTimer(root, mIdleTimeout),
+    : mConn(connection), mAuthManager(authManager), mRoot(root), mIdleTimer(root, mIdleTimeout),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "Http2Client")),
       mSessionSettings(std::move(sessionSettings)) {
 
@@ -54,16 +54,16 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
                          SessionSettings&& sessionSettings)
-    : Http2Client(root, make_unique<TlsConnection>(host, port, true), nullptr, std::move(sessionSettings)) {}
+    : Http2Client(root, TlsConnection::make(host, port, true), nullptr, std::move(sessionSettings)) {}
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const string& host,
                          const string& port,
-                         std::shared_ptr<AuthenticationManager>&& authManager,
+                         const std::shared_ptr<AuthenticationManager>& authManager,
                          const std::optional<HttpsProxyCfg>& httpsProxyCfg)
     : Http2Client(root,
-                  make_unique<TlsConnection>(host, port, true, httpsProxyCfg),
-                  std::move(authManager),
+                  TlsConnection::make(host, port, true, httpsProxyCfg),
+                  authManager,
                   SessionSettings()) {}
 
 Http2Client::Http2Client(sofiasip::SuRoot& root,
@@ -74,7 +74,7 @@ Http2Client::Http2Client(sofiasip::SuRoot& root,
                          const std::optional<HttpsProxyCfg>& httpsProxyCfg,
                          SessionSettings&& sessionSettings)
     : Http2Client(root,
-                  make_unique<TlsConnection>(host, port, trustStorePath, certPath, true, httpsProxyCfg),
+                  TlsConnection::make(host, port, trustStorePath, certPath, true, httpsProxyCfg),
                   nullptr,
                   std::move(sessionSettings)) {}
 
@@ -444,6 +444,7 @@ void Http2Client::disconnect() {
 	mConn->disconnect();
 	mLastSID = -1;
 	mTimeoutTimers.clear();
+	mIdleTimer.stop();
 	setState(State::Disconnected);
 }
 

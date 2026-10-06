@@ -132,33 +132,49 @@ string TlsConnection::loadCertificate() {
 }
 
 void TlsConnection::connectAsync(sofiasip::SuRoot& root, const function<void()>& onConnectCb) noexcept {
-	// SAFETY: The thread MUST NOT outlive `this`;
-	mThread = thread{[this, &root, onConnectCb]() { this->doConnectAsync(root, onConnectCb); }};
+	if (isConnected()) {
+		onConnectCb();
+		return;
+	}
+	const auto thiz = shared_from_this();
+	mThread = thread{[thiz, &root, onConnectCb] {
+		// The connection is established here, but only the main loop may change the state of
+		// this object: the result is applied below, not on this thread.
+		auto result = std::make_shared<ConnectResult>(thiz->establishConnection());
+		root.addToMainLoop([weakThiz = thiz->weak_from_this(), result, onConnectCb]() mutable {
+			if (const auto thisConn = weakThiz.lock(); thisConn && result->has_value()) {
+				auto& [bio, ssl] = **result;
+				thisConn->mBio = std::move(bio);
+				thisConn->mSsl = std::move(ssl);
+				LOGD_CTX(thisConn->mLogPrefix, "connectAsync") << "Connected";
+			}
+			onConnectCb();
+		});
+	}};
 }
 
-void TlsConnection::doConnectAsync(sofiasip::SuRoot& root, const function<void()>& onConnectCb) {
-	connect();
-	root.addToMainLoop(onConnectCb);
+TlsConnection::ConnectResult TlsConnection::establishConnection() {
+	// This mutex only exists to guard against connect() and connectAsync() being called at the same
+	// time, which should never happen: connect() is only used by the legacy client. If connect()
+	// is ever removed, this mutex is useless and must be removed as well.
+	const lock_guard lock{mEstablishConnectionMutex};
+	LOGD << "Connecting...";
+	if (!mCertPath.empty()) {
+		if (const auto errMsg = loadCertificate(); !errMsg.empty()) {
+			LOGE << "Certificate reload error: " << errMsg;
+			return std::nullopt;
+		}
+	}
+	return mConnectionEstablishmentStrategy->connect(mCtx, mHost, mPort, mMustBeHttp2, mTimeout);
 }
 
 void TlsConnection::connect() noexcept {
 	if (isConnected()) return;
 
-	LOGD << "Connecting...";
-
-	if (!mCertPath.empty()) {
-		const auto errMsg = loadCertificate();
-		if (!errMsg.empty()) {
-			LOGE << "Certificate reload error: " << errMsg;
-			return;
-		}
-	}
-
-	if (auto result = mConnectionEstablishmentStrategy->connect(mCtx, mHost, mPort, mMustBeHttp2, mTimeout);
-	    result.has_value()) {
-		const lock_guard<mutex> lock(mBioMutex);
-		mBio = std::move(result->first);
-		mSsl = std::move(result->second);
+	if (auto result = establishConnection(); result.has_value()) {
+		auto& [bio, ssl] = *result;
+		mBio = std::move(bio);
+		mSsl = std::move(ssl);
 		LOGD << "Connected";
 	}
 }

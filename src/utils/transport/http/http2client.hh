@@ -162,8 +162,8 @@ private:
 
 	// Constructors must be private because Http2Client extends enable_shared_from_this. Use make instead.
 	Http2Client(sofiasip::SuRoot& root,
-	            std::unique_ptr<TlsConnection>&& connection,
-	            std::shared_ptr<AuthenticationManager>&& authManager,
+	            const std::shared_ptr<TlsConnection>& connection,
+	            const std::shared_ptr<AuthenticationManager>& authManager,
 	            SessionSettings&& sessionSettings);
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
@@ -172,7 +172,7 @@ private:
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
 	            const std::string& port,
-	            std::shared_ptr<AuthenticationManager>&& authManager,
+	            const std::shared_ptr<AuthenticationManager>& authManager,
 	            const std::optional<HttpsProxyCfg>& httpsProxyCfg);
 	Http2Client(sofiasip::SuRoot& root,
 	            const std::string& host,
@@ -231,7 +231,9 @@ private:
 
 	// Private attributes
 	State mState{State::Disconnected};
-	std::unique_ptr<TlsConnection> mConn{};
+	// Shared ownership: the connection thread of TlsConnection::connectAsync() keeps the
+	// TlsConnection alive during the establishment.
+	std::shared_ptr<TlsConnection> mConn{};
 	std::shared_ptr<AuthenticationManager> mAuthManager{};
 	sofiasip::SuRoot& mRoot;
 	su_wait_t mPollInWait{0};

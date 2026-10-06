@@ -31,7 +31,7 @@ std::string FirebaseV1Client::FIREBASE_ADDRESS{"fcm.googleapis.com"};
 std::string FirebaseV1Client::FIREBASE_PORT{"443"};
 
 FirebaseV1Client::FirebaseV1Client(sofiasip::SuRoot& root,
-                                   std::shared_ptr<FirebaseV1AuthenticationManager>&& authenticationManager,
+                                   const std::shared_ptr<FirebaseV1AuthenticationManager>& authenticationManager,
                                    const Service* service,
                                    const std::optional<HttpsProxyCfg>& httpsProxyCfg)
     : Client{service}, mLogPrefix(LogManager::makeLogPrefixForInstance(this, "FirebaseV1Client")),
@@ -39,7 +39,7 @@ FirebaseV1Client::FirebaseV1Client(sofiasip::SuRoot& root,
 	LOGD << "Constructing client";
 
 	mHttp2Client =
-	    Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT, std::move(authenticationManager), httpsProxyCfg);
+	    Http2Client::make(root, FIREBASE_ADDRESS, FIREBASE_PORT, authenticationManager, httpsProxyCfg);
 }
 
 std::shared_ptr<Request> FirebaseV1Client::makeRequest(PushType pType, const shared_ptr<const PushInfo>& pInfo) {

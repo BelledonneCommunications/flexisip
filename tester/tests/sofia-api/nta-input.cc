@@ -224,9 +224,9 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	proxy.start();
 
 	// Create connection to server.
-	TlsConnection connection{"127.0.0.1", proxy.getFirstPort(), "", ""};
-	connection.connect();
-	BC_ASSERT(connection.isConnected());
+	auto connection = TlsConnection::make("127.0.0.1", proxy.getFirstPort(), "", "");
+	connection->connect();
+	BC_ASSERT(connection->isConnected());
 
 	// Verify it is now disconnected, closed from the server because of inactivity.
 	vector<char> data{};
@@ -234,8 +234,8 @@ void connectionToServerIsRemovedAfterIdleTimeoutTriggers() {
 	    .iterateUpTo(
 	        0x20,
 	        [&]() {
-		        std::ignore = connection.read(data, 32);
-		        FAIL_IF(connection.isConnected());
+		        std::ignore = connection->read(data, 32);
+		        FAIL_IF(connection->isConnected());
 		        return ASSERTION_PASSED();
 	        },
 	        2s)

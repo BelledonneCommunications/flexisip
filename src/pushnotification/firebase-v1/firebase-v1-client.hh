@@ -36,7 +36,7 @@ namespace flexisip::pushnotification {
 class FirebaseV1Client : public Client {
 public:
 	FirebaseV1Client(sofiasip::SuRoot& root,
-	                 std::shared_ptr<FirebaseV1AuthenticationManager>&& authenticationManager,
+	                 const std::shared_ptr<FirebaseV1AuthenticationManager>& authenticationManager,
 	                 const Service* service = nullptr,
 	                 const std::optional<HttpsProxyCfg>& httpsProxyCfg = std::nullopt);
 
