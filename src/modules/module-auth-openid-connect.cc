@@ -174,7 +174,7 @@ void ModuleAuthOpenIDConnect::onLoad(const GenericStruct* mc) {
 		    .keyPath = bearer.keyStoreParams.keyPath,
 		    .wellKnownRefreshDelay = mc->get<ConfigDuration<chrono::minutes>>("well-known-refresh-delay")->read(),
 		    .jwksRefreshDelay = mc->get<ConfigDuration<chrono::minutes>>("jwks-refresh-delay")->read(),
-		    .wellKnownRetryDelay = mc->get<ConfigDuration<chrono::minutes>>("well-known-retry-delay")->read(),
+		    .wellKnownRetryDelay = mc->get<ConfigDuration<chrono::milliseconds>>("well-known-retry-delay")->read(),
 		};
 		mAuthSchemes.push_back(make_shared<Bearer>(getAgent()->getRoot(), bearer.params, keyStoreParams));
 
@@ -235,6 +235,8 @@ unique_ptr<RequestSipEvent> ModuleAuthOpenIDConnect::onRequest(unique_ptr<Reques
 			}
 
 			if (result == AuthScheme::State::Pending) {
+				ev->createIncomingTransaction();
+				ev->reply(SIP_100_TRYING, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 				ev->suspendProcessing();
 				mSuspendedEvents[ev.get()] = std::move(ev);
 			}

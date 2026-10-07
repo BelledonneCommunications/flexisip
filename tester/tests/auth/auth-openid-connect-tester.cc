@@ -20,6 +20,8 @@
 #include <string>
 #include <string_view>
 
+#include "sofia-sip/su_time.h"
+
 #include "lib/nlohmann-json-3-11-2/json.hpp"
 
 #include <jwt/jwt.hpp>
@@ -27,6 +29,9 @@
 #include "auth-utils.hh"
 #include "rsa-keys.hh"
 #include "sofia-wrapper/nta-agent.hh"
+#include "utils/core-assert.hh"
+#include "utils/http-mock/http1-mock.hh"
+#include "utils/override-static.hh"
 #include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
@@ -38,6 +43,9 @@ using namespace sofiasip;
 using namespace flexisip;
 using namespace flexisip::tester;
 using namespace flexisip::tester::authentication;
+
+extern void (*_su_time)(su_time_t* tv);
+extern su_time64_t (*_su_nanotime)(su_time64_t*);
 
 namespace {
 constexpr auto domainA = "a.example.org";
@@ -347,6 +355,82 @@ void bearerMsgOfAToB() {
 	BC_ASSERT_CPP_EQUAL(expectedProxyAuth, 0);
 }
 
+// Simulate an unresponding authorization server and check that a request with an unknown kid is replied in 30s maximum.
+void rejectRequestOnTimeout() {
+	auto root = std::make_shared<sofiasip::SuRoot>();
+	// mock an authorization server
+	http_mock::Http1Srv httpSvr(root);
+
+	// Simulate an authorization server without providing a page for downloading certificates.
+	const auto issuer = httpSvr.getUrl() + "/TEST";
+	nlohmann::json wellknownBody = {{"issuer", issuer}, {"jwks_uri", issuer + "/jwks"}};
+	httpSvr.addPage("/TEST/.well-known/openid-configuration", wellknownBody.dump());
+
+	const auto realm = "testRealm";
+	const auto domainsConfigPath = sSuiteScope->dir.path() / "domains-config.json";
+	{
+		nlohmann::json domainsConfig = nlohmann::json::array({{
+		    {"name", "domain-a"},
+		    {"domain", domainA},
+		    {"realm",
+		     {
+		         {"realm", realm},
+		         {
+		             "bearer",
+		             {
+		                 {"authz_server", issuer},
+		                 {"audience", audienceA},
+		                 {"sip_id_claim", "sip_identity"},
+		             },
+		         },
+		     }},
+		}});
+		ofstream(domainsConfigPath) << domainsConfig;
+	}
+
+	Server proxy(
+	    {
+	        {"global::domains/domains-configuration", domainsConfigPath.string()},
+	        {"module::Registrar/reg-domains", "*"},
+	        {"module::AuthOpenIDConnect/enabled", "true"},
+	        {"module::Authorization/enabled", "true"},
+	    },
+	    root);
+
+	proxy.start();
+	NtaAgent UAClient(root, "sip:127.0.0.1:0");
+
+	const auto token = generateToken(issuer, sipUri, "default", audienceA);
+	const auto authorization = string("Authorization: Bearer "s + token + "\r\n");
+
+	const auto request = registerRequest(sipUri, "2", authorization);
+	const auto transaction =
+	    UAClient.createOutgoingTransaction(request, std::string("sip:127.0.0.1:") + proxy.getFirstPort());
+
+	CoreAssert asserter{root};
+	// Wait for the request to be received.
+	asserter
+	    .iterateUpTo(
+	        16, [&transaction] { return LOOP_ASSERTION(transaction->getStatus() == 100); }, 1s)
+	    .assert_passed();
+
+	// Fast-forward 30s.
+	constexpr int offset = 30;
+	StaticOverride<void (*)(su_time_t*)> overriddenSuTime{_su_time, [](su_time_t* tv) { tv->tv_sec += offset; }};
+	StaticOverride<su_time64_t (*)(su_time64_t*)> overriddenNanoTime{
+	    _su_nanotime, [](su_time64_t* t) { return *t = *t + uint64_t(offset) * 1e9; }};
+	asserter
+	    .iterateUpTo(
+	        16,
+	        [&transaction] {
+		        FAIL_IF(!transaction->isCompleted());
+		        FAIL_IF(transaction->getStatus() != 504);
+		        return ASSERTION_PASSED();
+	        },
+	        1s)
+	    .assert_passed();
+}
+
 namespace multidomain {
 
 void bearerAuthWithDomainsConfiguration() {
@@ -482,6 +566,7 @@ const TestSuite kSuite{
         CLASSY_TEST(rejectDigestAuthReq),
         CLASSY_TEST(bearerAuth),
         CLASSY_TEST(bearerMsgOfAToB),
+        CLASSY_TEST(rejectRequestOnTimeout),
         CLASSY_TEST(multidomain::bearerAuthWithDomainsConfiguration),
     },
     Hooks()

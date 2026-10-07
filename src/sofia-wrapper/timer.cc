@@ -41,8 +41,7 @@ Timer::Timer(const sofiasip::SuRoot& root, NativeDuration intervalMs) {
 	if (mTimer == nullptr) throw logic_error("fail to instantiate the timer");
 }
 
-Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root) : Timer{root, std::chrono::milliseconds(0)} {
-}
+Timer::Timer(const shared_ptr<sofiasip::SuRoot>& root) : Timer{root, std::chrono::milliseconds(0)} {}
 
 Timer::Timer(const shared_ptr<SuRoot>& root, NativeDuration interval) {
 	if (mTimer = su_timer_create(root->getTask(), interval.count()); !mTimer) {
@@ -67,6 +66,11 @@ void Timer::set(const Func& func, su_duration_t intervalMs) {
 		throw logic_error("failed to set the timer");
 	mFunc = func;
 	mOneShotTimerHasExpired = false;
+}
+
+void Timer::setIfIdle(const Func& func) {
+	if (mFunc) return;
+	set(func);
 }
 
 void Timer::run(const Func& func) {

@@ -89,6 +89,14 @@ public:
 		set(func, interval.count());
 	}
 	/**
+	 * @brief Start the timer with the default expiration time if the timer is not already running.
+	 *
+	 * @param[in] func The function to call when the timer expires. The context of the function is copied and
+	 * automatically destroyed on timer expiration.
+	 * @throw std::logic_error if the timer could not be set.
+	 */
+	void setIfIdle(const Func& func);
+	/**
 	 * @brief Start the timer with a specific expiration time.
 	 *
 	 * @param[in] func The function to call when the timer expires. The context of the function is copied and

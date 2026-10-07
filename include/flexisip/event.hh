@@ -195,7 +195,7 @@ public:
 
 	struct AuthResult {
 		enum class Type { Bearer, Digest, TLS };
-		enum class Result { Invalid, Valid };
+		enum class Result { Invalid, Valid, Timeout };
 		class ChallengeResult {
 		public:
 			explicit ChallengeResult(Type type) : mType(type) {}
@@ -205,6 +205,9 @@ public:
 			}
 			void accept() {
 				mResult = Result::Valid;
+			}
+			void abort() {
+				mResult = Result::Timeout;
 			}
 			Type getType() const {
 				return mType;

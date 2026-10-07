@@ -264,7 +264,8 @@ unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
 Bearer::Bearer(const shared_ptr<sofiasip::SuRoot>& root,
                const BearerParams& params,
                const KeyStoreParams& keyStoreParams)
-    : mParams(params), mKeyStore(root, params.issuer, keyStoreParams, [this] { processPendingTokens(); }) {}
+    : mParams(params), mPendingTokensTimer(root, mMaxPendingDuration),
+      mKeyStore(root, params.issuer, keyStoreParams, [this] { processPendingTokens(); }) {}
 
 string Bearer::schemeType() const {
 	return kSchemeType;
@@ -338,12 +339,9 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 
 		const auto PubKey = mKeyStore.getPubKey(kid);
 		if (PubKey.key.empty()) {
-			mPendingTokens.push_back({.token = token,
-			                          .kid = kid,
-			                          .retry = mKeyStore.keyCachePending(),
-			                          .result = result,
-			                          .callback = std::move(onResult)});
+			mPendingTokens.push_back({.token = token, .kid = kid, .result = result, .callback = std::move(onResult)});
 			mKeyStore.askForJWKS();
+			startPendingTokensTimer();
 			return AuthScheme::State::Pending;
 		}
 		verifySignature(token, PubKey, result);
@@ -356,14 +354,11 @@ AuthScheme::State Bearer::check(const msg_auth_t* credentials, std::function<voi
 }
 
 void Bearer::processPendingTokens() {
+	mPendingTokensTimer.stop();
+
 	for (auto pendingToken = mPendingTokens.begin(); pendingToken != mPendingTokens.end();) {
 		const auto pubKey = mKeyStore.getPubKey(pendingToken->kid);
 		if (pubKey.key.empty()) {
-			if (pendingToken->retry) {
-				pendingToken->retry = false;
-				++pendingToken;
-				continue;
-			}
 			LOGI_CTX(kOpenIDConnect) << "Bearer authentication rejected: unknown kid";
 		} else {
 			verifySignature(pendingToken->token, pubKey, pendingToken->result);
@@ -371,7 +366,19 @@ void Bearer::processPendingTokens() {
 		pendingToken->callback(std::move(pendingToken->result));
 		pendingToken = mPendingTokens.erase(pendingToken);
 	}
-	if (!mPendingTokens.empty()) mKeyStore.askForJWKS();
+}
+
+void Bearer::startPendingTokensTimer() {
+	// start Timer if not already done, to ensure waiting requests will be answered
+	mPendingTokensTimer.setIfIdle([this] {
+		for (auto& pendingToken : mPendingTokens) {
+			LOGI_CTX(kOpenIDConnect)
+			    << "Bearer authentication rejected: unknown kid and authorization server unavailable";
+			pendingToken.result.abort();
+			pendingToken.callback(std::move(pendingToken.result));
+		}
+		mPendingTokens.clear();
+	});
 }
 
 // KeyStore
@@ -379,8 +386,9 @@ Bearer::KeyStore::KeyStore(const shared_ptr<sofiasip::SuRoot>& root,
                            const sofiasip::Url& issuer,
                            const KeyStoreParams& params,
                            function<void()>&& refreshCallback)
-    : mKeyType{params.keyType}, mIssuer{issuer}, mHttpClient{root}, mWellKnownTimer{root, params.wellKnownRefreshDelay},
-      mJWKSTimer{root, params.jwksRefreshDelay}, mProcessPendingToken{std::move(refreshCallback)} {
+    : mKeyType{params.keyType}, mIssuer{issuer}, mHttpClient{root},
+      mWellKnownRefreshTimer{root, params.wellKnownRefreshDelay}, mJWKSRefreshTimer{root, params.jwksRefreshDelay},
+      mProcessPendingTokens{std::move(refreshCallback)} {
 	switch (mKeyType) {
 		case Bearer::PubKeyType::file: {
 			updateKeys({{kDefaultKid, {.key = loadPemKey(params.keyPath), .algo = kRS256}}});
@@ -404,7 +412,7 @@ void Bearer::KeyStore::askForWellKnown() {
 void Bearer::KeyStore::onWellKnownResponse(string_view response) {
 	auto quickRetry = [this] {
 		checkKeysValidity();
-		mWellKnownTimer.set([this] { askForWellKnown(); }, mWellKnownRetryDelay);
+		mWellKnownRefreshTimer.set([this] { askForWellKnown(); }, mWellKnownRetryDelay);
 	};
 
 	if (response.empty()) {
@@ -415,7 +423,7 @@ void Bearer::KeyStore::onWellKnownResponse(string_view response) {
 	}
 
 	LOGD_CTX(kOpenIDConnect) << "A .well-known response has been received from the authority server";
-	mWellKnownTimer.set([this] { askForWellKnown(); });
+	mWellKnownRefreshTimer.set([this] { askForWellKnown(); });
 	try {
 		auto payload = JsonWrapper(nlohmann::json::parse(response));
 		constexpr auto issuer = "issuer"sv;
@@ -462,7 +470,7 @@ void Bearer::KeyStore::askForJWKS() {
 }
 
 void Bearer::KeyStore::onJWKSResponse(string_view response) {
-	mJWKSTimer.set([this] { askForJWKS(); });
+	mJWKSRefreshTimer.set([this] { askForJWKS(); });
 
 	try {
 		if (response.empty()) {
@@ -473,7 +481,6 @@ void Bearer::KeyStore::onJWKSResponse(string_view response) {
 			mKeyCacheUpdate = KeyCache::Required;
 			return;
 		}
-
 		auto keys = parseJWKSResponse(response);
 		updateKeys(keys);
 
@@ -485,7 +492,7 @@ void Bearer::KeyStore::onJWKSResponse(string_view response) {
 void Bearer::KeyStore::updateKeys(const unordered_map<std::string, KeyInfo>& pubKeys) {
 	mPubKeys = pubKeys;
 	mKeyCacheUpdate = KeyCache::Done;
-	mProcessPendingToken();
+	mProcessPendingTokens();
 }
 
 void Bearer::KeyStore::checkKeysValidity() {
@@ -497,8 +504,6 @@ void Bearer::KeyStore::checkKeysValidity() {
 		LOGI_CTX(kOpenIDConnect) << "Remove expired key with kid '" << pubKey->first << "'";
 		pubKey = mPubKeys.erase(pubKey);
 	}
-	// ensure pendingToken are not kept indefinitely
-	mProcessPendingToken();
 }
 
 Bearer::KeyInfo Bearer::KeyStore::getPubKey(const string& kid) const {

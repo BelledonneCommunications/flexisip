@@ -82,6 +82,7 @@ public:
 
 private:
 	void processPendingTokens();
+	void startPendingTokensTimer();
 
 	/**
 	 * Class that downloads keys and cache them.
@@ -94,9 +95,6 @@ private:
 		         const KeyStoreParams& params,
 		         std::function<void()>&& refreshCallback);
 		void askForJWKS();
-		bool keyCachePending() {
-			return mKeyCacheUpdate == KeyCache::Pending;
-		}
 		KeyInfo getPubKey(const std::string& kid) const;
 
 	private:
@@ -113,21 +111,23 @@ private:
 		std::string mWellKnownUrl;
 		std::string mKeyPath;
 		Http1Client mHttpClient;
-		sofiasip::Timer mWellKnownTimer;
-		sofiasip::Timer mJWKSTimer;
+		sofiasip::Timer mWellKnownRefreshTimer;
+		sofiasip::Timer mJWKSRefreshTimer;
 		std::chrono::milliseconds mWellKnownRetryDelay;
-		std::function<void()> mProcessPendingToken;
+		std::function<void()> mProcessPendingTokens;
 	};
 	struct PendingToken {
 		std::string token;
 		std::string kid;
-		bool retry;
 		ChallengeResult result;
 		stl_backports::move_only_function<void(ChallengeResult&&)> callback;
 	};
 
 	BearerParams mParams;
 	std::list<PendingToken> mPendingTokens;
+	// Ensure a result status is done in 30s maximum even if Authz server is unresponding.
+	std::chrono::milliseconds mMaxPendingDuration{30000};
+	sofiasip::Timer mPendingTokensTimer;
 	KeyStore mKeyStore;
 };
 } // namespace flexisip

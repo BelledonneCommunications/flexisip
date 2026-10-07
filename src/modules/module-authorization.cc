@@ -190,8 +190,13 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 
 	LOGD << "Checking asserted identities";
 
+	bool hasTimeoutResult{};
 	for (const auto& challenge : authResult.challenges) {
-		if (challenge.getResult() == RequestSipEvent::AuthResult::Result::Invalid) continue;
+		const auto result = challenge.getResult();
+		if (result == RequestSipEvent::AuthResult::Result::Timeout) {
+			hasTimeoutResult = true;
+		}
+		if (result != RequestSipEvent::AuthResult::Result::Valid) continue;
 		if (challenge.getType() == RequestSipEvent::AuthResult::Type::Bearer) {
 			if (!challenge.getIdentity().rfc3261Compare(userUri.get())) {
 				LOGI << "Asserted identity '" << challenge.getIdentity().str() << "' does not match user identity '"
@@ -201,6 +206,10 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 			LOGI << "Accept authorization";
 			return std::move(ev); // on first valid
 		}
+	}
+	if (hasTimeoutResult) {
+		ev->reply(504, "Authorization Server Time-out", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+		return {};
 	}
 
 	std::shared_ptr<AuthStatus> as{};
@@ -216,7 +225,7 @@ unique_ptr<RequestSipEvent> ModuleAuthorization::onRequest(unique_ptr<RequestSip
 		return {};
 	}
 	// when no challenge available
-	ev->reply(403, "Forbidden", SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
+	ev->reply(SIP_403_FORBIDDEN, SIPTAG_SERVER_STR(getAgent()->getServerString()), TAG_END());
 	return {};
 }
 
