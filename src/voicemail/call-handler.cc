@@ -79,6 +79,15 @@ void CallHandler::playAnnounce(const std::filesystem::path& announcePath) {
 	player->start();
 }
 
+void CallHandler::playDelayedAnnounce(const std::filesystem::path& announcePath,
+                                      const std::chrono::milliseconds delay) {
+	mTimer.set(
+	    [maybe_thiz = weak_from_this(), announcePath] {
+		    if (const auto thiz = maybe_thiz.lock(); thiz) thiz->playAnnounce(announcePath);
+	    },
+	    delay);
+}
+
 void CallHandler::terminateCall() {
 	if (const auto player = mCall->getPlayer(); player) player->removeListener(shared_from_this());
 
@@ -99,7 +108,7 @@ void CallHandler::onEofReached(const std::shared_ptr<linphone::Player>& player) 
 			if (mHandlerMode == HandlerMode::voicemailRecording) {
 				mPlaybackPhase = PlaybackPhase::beeping;
 
-				player->open(mAnnouncementsPaths.beepSound);
+				player->open(mAnnouncementsConfig.beepSoundPath);
 				player->start();
 			} else {
 				LOGD << "Announce finished, ending call";
@@ -137,10 +146,10 @@ void CallHandler::onAckProcessing(const std::shared_ptr<linphone::Call>&,
 	LOGD << "Received ACK, starting to play announce";
 	switch (mHandlerMode) {
 		case HandlerMode::simpleAnnounce:
-			playAnnounce(mAnnouncementsPaths.defaultAnnounce);
+			playDelayedAnnounce(mAnnouncementsConfig.defaultAnnouncePath, mAnnouncementsConfig.delayBeforeAnnounce);
 			break;
 		case HandlerMode::voicemailRecording:
-			playAnnounce(mAnnouncementsPaths.voicemailAnnounce);
+			playDelayedAnnounce(mAnnouncementsConfig.voicemailAnnouncePath, mAnnouncementsConfig.delayBeforeAnnounce);
 			break;
 		case HandlerMode::unknown:
 		default:

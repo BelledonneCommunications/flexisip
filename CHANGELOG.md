@@ -22,6 +22,9 @@ Group changes to describe their impact on the project, as follows:
   - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
     that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
   - **Router:** Added support for conditional call diversions. `enable-call-diversions` must be set.
+- **Voicemail:**
+  - New parameter `delay-before-announce` which configure the delay before playing an announce after the call 
+    establishement.
 - **Global:**
   - New parameter `global::domains/domains-configuration`: consolidates the configuration of all SIP domains and
     associated user data through a Flexisip Account Manager or a provided JSON file (previously spread across several modules).

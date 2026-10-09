@@ -55,25 +55,27 @@ public:
 		std::filesystem::path voicemailStoragePath{};
 		sofiasip::Url slotUrl{};
 	};
-	struct AnnouncementPaths {
-		std::filesystem::path defaultAnnounce;
-		std::filesystem::path voicemailAnnounce;
-		std::filesystem::path beepSound;
+	struct AnnouncementsConfig {
+		std::filesystem::path defaultAnnouncePath;
+		std::filesystem::path voicemailAnnouncePath;
+		std::filesystem::path beepSoundPath;
+		std::chrono::milliseconds delayBeforeAnnounce;
 	};
 
 	CallHandler(const std::shared_ptr<linphone::Call>& call,
 	            const std::shared_ptr<linphone::Core>& core,
 	            const std::shared_ptr<sofiasip::SuRoot>& root,
 	            const std::shared_ptr<flexiapi::FlexiApi>& flexiApiClient,
-	            const AnnouncementPaths& announcementsPaths,
+	            const AnnouncementsConfig& announcementsConfig,
 	            const RecordingParameters& params)
 	    : mLogPrefix(LogManager::makeLogPrefixForInstance(this, "CallHandler")), mCore(core), mCall(call),
-	      mFlexiApiClient(flexiApiClient), mTimer(root), mAnnouncementsPaths(announcementsPaths),
+	      mFlexiApiClient(flexiApiClient), mTimer(root), mAnnouncementsConfig(announcementsConfig),
 	      mRecordingParameters(params),
 	      mMaxRecordSize(mRecordingParameters.callMaxDuration.count() * kBytesPerSecondOfRecord) {}
 	~CallHandler() override = default;
 
 	void playAnnounce(const std::filesystem::path& announcePath);
+	void playDelayedAnnounce(const std::filesystem::path& announcePath, const std::chrono::milliseconds delay);
 	void terminateCall();
 
 	// Player listener
@@ -129,7 +131,7 @@ private:
 	std::shared_ptr<flexiapi::FlexiApi> mFlexiApiClient;
 	sofiasip::Timer mTimer;
 
-	const AnnouncementPaths& mAnnouncementsPaths;
+	const AnnouncementsConfig& mAnnouncementsConfig;
 	RecordingParameters mRecordingParameters;
 	std::filesystem::path mRecordPath{};
 	const int mMaxRecordSize;

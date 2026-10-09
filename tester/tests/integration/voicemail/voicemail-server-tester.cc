@@ -209,6 +209,7 @@ void answerCallRecordVoicemail() {
 	    {"voicemail-server/default-announcement-path", audioFile},
 	    {"voicemail-server/voicemail-announcement-path", audioFile},
 	    {"voicemail-server/beep-sound-path", beepFile},
+	    {"voicemail-server/delay-before-announce", "500ms"},
 	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
 	    {"global::flexiapi/url", "https://127.0.0.1:" + to_string(httpPort)},
 	    {"global::flexiapi/api-key", "aRandomToken"},
@@ -249,7 +250,7 @@ void answerCallRecordVoicemail() {
 		                      // Wait until announce is finished
 		                      return LOOP_ASSERTION(call->getAudioStats()->getDownloadBandwidth() < 23);
 	                      },
-	                      4s)
+	                      5s)
 	                  .assert_passed();
 	BC_ASSERT_CPP_EQUAL(wasAnswered, true);
 	call->terminate();

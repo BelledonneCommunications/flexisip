@@ -72,7 +72,7 @@ private:
 	std::shared_ptr<ConfigManager> mConfigManager{};
 	std::shared_ptr<SpacesStore> mSpacesStore{};
 	voicemail::CallHandler::RecordingParameters mRecordingParameters;
-	voicemail::CallHandler::AnnouncementPaths mAnnouncementsPaths{};
+	voicemail::CallHandler::AnnouncementsConfig mAnnouncementsConfig{};
 
 	std::map<std::string, const std::shared_ptr<voicemail::CallHandler>> mCallHandlers{};
 };

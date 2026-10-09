@@ -57,19 +57,22 @@ void VoicemailServer::_init() {
 	const auto* config = mConfigManager->getRoot()->get<GenericStruct>("voicemail-server");
 
 	const auto* defaultAnnouncementParam = config->get<ConfigString>("default-announcement-path");
-	mAnnouncementsPaths.defaultAnnounce = defaultAnnouncementParam->read();
-	if (!filesystem::exists(mAnnouncementsPaths.defaultAnnounce))
+	mAnnouncementsConfig.defaultAnnouncePath = defaultAnnouncementParam->read();
+	if (!filesystem::exists(mAnnouncementsConfig.defaultAnnouncePath))
 		throw BadConfigurationValue{defaultAnnouncementParam, "The file does not exist"};
 
 	const auto* voicemailAnnouncementParam = config->get<ConfigString>("voicemail-announcement-path");
-	mAnnouncementsPaths.voicemailAnnounce = voicemailAnnouncementParam->read();
-	if (!filesystem::exists(mAnnouncementsPaths.voicemailAnnounce))
+	mAnnouncementsConfig.voicemailAnnouncePath = voicemailAnnouncementParam->read();
+	if (!filesystem::exists(mAnnouncementsConfig.voicemailAnnouncePath))
 		throw BadConfigurationValue{voicemailAnnouncementParam, "The file does not exist"};
 
 	const auto* beepSoundParam = config->get<ConfigString>("beep-sound-path");
-	mAnnouncementsPaths.beepSound = beepSoundParam->read();
-	if (!filesystem::exists(mAnnouncementsPaths.beepSound))
+	mAnnouncementsConfig.beepSoundPath = beepSoundParam->read();
+	if (!filesystem::exists(mAnnouncementsConfig.beepSoundPath))
 		throw BadConfigurationValue{beepSoundParam, "The file does not exist"};
+
+	mAnnouncementsConfig.delayBeforeAnnounce =
+	    config->get<ConfigDuration<chrono::milliseconds>>("delay-before-announce")->readAndCast();
 
 	const auto* voicemailStorageParam = config->get<ConfigString>("voicemail-storage-path");
 	mRecordingParameters.voicemailStoragePath = voicemailStorageParam->read();
@@ -252,7 +255,7 @@ void VoicemailServer::onCallStateIncomingReceived(const std::shared_ptr<linphone
 	auto callHandlerInserted =
 	    mCallHandlers
 	        .emplace(callKey, make_shared<voicemail::CallHandler>(call, mCore, mRoot, flexiApiClient,
-	                                                              mAnnouncementsPaths, mRecordingParameters))
+	                                                              mAnnouncementsConfig, mRecordingParameters))
 	        .second;
 
 	if (!callHandlerInserted) {
@@ -340,6 +343,13 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Path to the folder where the voicemail recordings will be stored before being uploaded.\n"
 	        "Warning: All remaining voicemails are deleted when restarting the server.",
 	        DEFAULT_VOICEMAIL_DIR,
+	    },
+	    {
+	        DurationMS,
+	        "delay-before-announce",
+	        "Delay after the call is established before starting to play an announce.\n"
+	        "This prevents truncating the start of the announce in case of networking latency.",
+	        "500ms",
 	    },
 	    {
 	        DurationS,
