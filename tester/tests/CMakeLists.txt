@@ -47,6 +47,7 @@ add_executable(flexisip_tester
 	flexiapi/schemas/account-schema-tester.cc
 	flexiapi/schemas/iso-8601-date-tester.cc
 	flexiapi/schemas/space-schema-tester.cc
+	integration/b2bua/mwi-tester.cc
 	integration/call-tester.cc
 	integration/domotic-tester.cc
 	main-tester.cc
@@ -191,7 +192,6 @@ if(ENABLE_B2BUA)
 		b2bua/sip-bridge/accounts/loaders/sql-loader-tester.cc
 		b2bua/sip-bridge/accounts/selection-strategy/find-in-pool-tester.cc
 		b2bua/sip-bridge/configuration/v2-tester.cc
-		b2bua/sip-bridge/listeners/mwi-listener.cc
 		b2bua/sip-bridge/call-transfer-tester.cc
 		b2bua/sip-bridge/invite-tweaker-tester.cc
 		b2bua/sip-bridge/sip-bridge-tester.cc

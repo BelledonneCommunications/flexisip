@@ -105,6 +105,7 @@ endif()
 
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester_utils PRIVATE
+		listeners/mwi-listener.cc listeners/mwi-listener.hh
 		server/b2bua-and-proxy-server.cc server/b2bua-and-proxy-server.hh
 	)
 endif()

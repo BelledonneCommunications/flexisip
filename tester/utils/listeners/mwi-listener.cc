@@ -16,8 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <sstream>
+
 #include "mwi-listener.hh"
-#include "flexisip/logmanager.hh"
 
 namespace flexisip::tester {
 
