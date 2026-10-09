@@ -47,9 +47,6 @@ add_executable(flexisip_tester
 	flexiapi/schemas/account-schema-tester.cc
 	flexiapi/schemas/iso-8601-date-tester.cc
 	flexiapi/schemas/space-schema-tester.cc
-	integration/b2bua/mwi-tester.cc
-	integration/call-tester.cc
-	integration/domotic-tester.cc
 	main-tester.cc
 	modules/contact-route-inserter/contact-masquerader-tester.cc
 	modules/contact-route-inserter/module-contact-route-inserter-tester.cc
@@ -219,11 +216,7 @@ if(ENABLE_TRANSCODER)
 	)
 endif()
 
-if(ENABLE_VOICEMAIL)
-	target_sources(flexisip_tester PRIVATE
-			integration/voicemail/voicemail-server-tester.cc
-	)
-endif()
+add_subdirectory(integration)
 
 # C++ 20 adds the support for char8_t which adds a lot of backward compatibility problems.
 # See: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1423r3.html

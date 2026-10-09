@@ -18,6 +18,7 @@
 
 #include "b2bua-and-proxy-server.hh"
 
+#include "utils/core-assert.hh"
 #include "utils/socket-address.hh"
 
 using namespace std;
@@ -107,6 +108,18 @@ B2buaAndProxyServer::configureExternalProviderBridge(std::initializer_list<V1Pro
 	                                                    config::v2::fromV1(vector<V1ProviderDesc>(provDescs)),
 	                                                    getAgent()->getConfigManager().getRoot());
 	return dynamic_cast<SipBridge&>(*mB2buaServer->mApplication);
+}
+
+AssertionResult B2buaAndProxyServer::waitForB2buaAccountsToBeAvailable(const Server& externalServer) {
+	return CoreAssert{getRoot(), externalServer}.wait(
+	    [&providers = dynamic_cast<const b2bua::bridge::SipBridge&>(getModule()).getProviders()] {
+		    for (const auto& provider : providers) {
+			    for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+				    FAIL_IF(!account->isAvailable());
+			    }
+		    }
+		    return ASSERTION_PASSED();
+	    });
 }
 
 flexisip::b2bua::Application& B2buaAndProxyServer::getModule() {

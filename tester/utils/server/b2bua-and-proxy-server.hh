@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "asserts.hh"
 #include "b2bua/b2bua-server.hh"
 #include "b2bua/sip-bridge/configuration/v1.hh"
 #include "b2bua/sip-bridge/sip-bridge.hh"
@@ -48,6 +49,11 @@ public:
 	void start() override;
 
 	b2bua::bridge::SipBridge& configureExternalProviderBridge(std::initializer_list<V1ProviderDesc>&& provDescs);
+
+	/**
+	 * Iterate on proxy, B2BUA and external servers so B2BUA managed accounts can register to the external server.
+	 */
+	[[nodiscard]] AssertionResult waitForB2buaAccountsToBeAvailable(const Server& externalServer);
 
 	flexisip::b2bua::Application& getModule();
 	std::shared_ptr<b2bua::B2buaCore>& getCore() const;
