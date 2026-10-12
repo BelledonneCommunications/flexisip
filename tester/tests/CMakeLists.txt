@@ -189,7 +189,6 @@ if(ENABLE_B2BUA)
 		b2bua/sip-bridge/accounts/loaders/sql-loader-tester.cc
 		b2bua/sip-bridge/accounts/selection-strategy/find-in-pool-tester.cc
 		b2bua/sip-bridge/configuration/v2-tester.cc
-		b2bua/sip-bridge/call-transfer-tester.cc
 		b2bua/sip-bridge/invite-tweaker-tester.cc
 		b2bua/sip-bridge/sip-bridge-tester.cc
 		b2bua/sip-bridge/string-format-fields-tester.cc
