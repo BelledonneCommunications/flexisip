@@ -27,8 +27,10 @@ target_sources(flexisip_tester PRIVATE
 
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
+		b2bua/attended-call-transfer-tester.cc
+		b2bua/blind-call-transfer-tester.cc
 		b2bua/call-bridging-tester.cc
-		b2bua/call-transfer-tester.cc
+		b2bua/call-transfer-tester.hh
 		b2bua/mwi-tester.cc
 	)
 endif()
