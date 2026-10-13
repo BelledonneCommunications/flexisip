@@ -31,9 +31,6 @@ namespace flexisip {
 
 namespace {
 
-// List of supported status codes to consider for forwarding calls to the voicemail server.
-constexpr std::array<int, 3> kStatusCodes{408, 486, 603};
-
 bool isCallDivertible(const ForkCallContextConfig& cfg, const RequestSipEvent& event) {
 	// feature disabled
 	if (!cfg.mCallDiversionEnabled && cfg.mVoicemailServerUri.empty()) return false;
@@ -179,10 +176,9 @@ void ForkContextFactory::setVoicemailConfiguration(const GenericStruct* config) 
 		for (const auto& value : statusCodesParameter->read()) {
 			try {
 				const auto status = stoi(value);
-				const auto predicate = [&status](const auto& code) { return code == status; };
-				if (find_if(kStatusCodes.cbegin(), kStatusCodes.cend(), predicate) == kStatusCodes.cend())
-					throw BadConfigurationValue{statusCodesParameter,
-					                            "unsupported forwarding status code '" + value + "'"};
+				if (status < 400 || status > 699)
+					throw BadConfigurationValue{statusCodesParameter, "unsupported code '" + value +
+					                                                      "': the code must be between 400 and 699"};
 
 				mCallForkCfg->mStatusCodes.emplace(status);
 			} catch (const exception& exception) {

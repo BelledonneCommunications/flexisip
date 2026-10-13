@@ -249,9 +249,10 @@ void ModuleRouter::declareConfig(GenericStruct& moduleConfig) {
 	        StringList,
 	        "forwarding-status-codes",
 	        "List of whitespace separated status codes to consider for forwarding calls to the voicemail server. "
-	        "Please refer to RFC4458 (§ 2.2) to see all forwarding reasons and their status code.\n"
-	        "Available values: 408, 486, 603",
-	        "408 486 603",
+	        "Please refer to RFC4458 (§ 2.2) to see how those codes are translated into the Redirecting Reason "
+	        "sent to the voicemail server.\n"
+	        "Available values: any code between 400 and 699",
+	        "408 480 486 603",
 	    },
 	    {
 	        Boolean,

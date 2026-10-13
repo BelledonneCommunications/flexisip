@@ -32,6 +32,7 @@
 #include "flexisip/utils/stl-backports.hh"
 #include "fork-context.hh"
 #include "fork.hh"
+#include "redirecting-reason.hh"
 #include "router/injector.hh"
 #include "spaces-store/accounts/accounts-store.hh"
 #include "transaction/incoming-transaction.hh"
@@ -64,7 +65,7 @@ public:
 				if (!context) return;
 				const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
 				if (!config->mVoicemailServerUri.empty()) {
-					context->forkToVoicemail(404);
+					context->forkToVoicemail(RedirectingReason::Unknown);
 					return;
 				}
 				context->getEvent().reply(SIP_404_NOT_FOUND, TAG_END());
@@ -81,7 +82,7 @@ public:
 			const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
 			// always try to reach voicemail of initial target
 			if (!config->mVoicemailServerUri.empty()) {
-				context->forkToVoicemail(excededMax ? 302 : 404);
+				context->forkToVoicemail(excededMax ? RedirectingReason::Unconditional : RedirectingReason::Unknown);
 				return;
 			}
 			if (excededMax) context->getEvent().reply(SIP_482_LOOP_DETECTED, TAG_END());
@@ -186,7 +187,7 @@ private:
 	 * Create a new fork to divert the call to the voicemail.
 	 * @param code the 'cause' code to insert into the request URI.
 	 */
-	void forkToVoicemail(int code);
+	void forkToVoicemail(RedirectingReason reason);
 	/**
 	 * If a response to the incoming transaction has been filtered, try to divert the call.
 	 * @param fork the fork to consider

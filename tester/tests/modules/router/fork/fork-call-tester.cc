@@ -746,12 +746,17 @@ void cancelStatusOnResponse() {
 namespace voicemail {
 
 std::string reasonToString(Reason reason) {
+	// RFC 4458 § 2.2
 	switch (reason) {
 		case Reason::Declined:
-			return "603";
+			// A 603 decline is diverted to the voicemail as 'User busy'.
+			return "486";
 		case Reason::Busy:
 			return "486";
 		case Reason::NotAnswered:
+			return "408";
+		case Reason::TemporarilyUnavailable:
+			// A 480 is diverted to the voicemail as 'No reply'.
 			return "408";
 		case Reason::NotFound:
 			return "404";
@@ -829,6 +834,14 @@ struct CallForwardingHelper {
 					// Decline the call from 'Caller' with "486 Busy here".
 					BC_HARD_ASSERT(call.has_value());
 					std::ignore = call->decline(Reason::Busy);
+				}
+			} break;
+			case Reason::TemporarilyUnavailable: {
+				for (const auto& call :
+				     {callee1->getCurrentCall(), callee2->getCurrentCall(), callee3->getCurrentCall()}) {
+					// Decline the call from 'Caller' with "480 Temporarily unavailable".
+					BC_HARD_ASSERT(call.has_value());
+					std::ignore = call->decline(Reason::TemporarilyUnavailable);
 				}
 			} break;
 			case Reason::NotAnswered:
@@ -1144,9 +1157,11 @@ const std::vector<test_t> sTestList = {
     CLASSY_TEST(cancelStatusOnResponse),
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::Declined>),
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotAnswered>),
+    CLASSY_TEST(voicemail::callForwardingAccepted<Reason::TemporarilyUnavailable>),
     CLASSY_TEST(voicemail::callForwardingAccepted<Reason::NotFound>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::Declined>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotAnswered>),
+    CLASSY_TEST(voicemail::callForwardingRejected<Reason::TemporarilyUnavailable>),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::NotFound>),
     CLASSY_TEST(voicemail::callWithEarlyCancel),
     CLASSY_TEST(voicemail::callForwardingRejected<Reason::Busy>),

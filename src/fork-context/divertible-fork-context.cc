@@ -298,7 +298,7 @@ void DivertibleForkContext::fetchTarget(const SipUri& targetUri, stl_backports::
 				                           std::move(fallback));
 				    break;
 			    case AccountsStore::TargetType::Voicemail:
-				    context->forkToVoicemail(302);
+				    context->forkToVoicemail(RedirectingReason::Unconditional);
 				    break;
 			    default:
 				    fallback();
@@ -329,16 +329,16 @@ void DivertibleForkContext::forkToAccount(const SipUri& sipUri,
 	addForkToManager(fork, sipUri, std::move(fallback));
 }
 
-void DivertibleForkContext::forkToVoicemail(int code) {
+void DivertibleForkContext::forkToVoicemail(RedirectingReason reason) {
 	const auto voicemailServerUri = static_pointer_cast<ForkCallContextConfig>(mCfg)->mVoicemailServerUri;
 	const auto target = uri_utils::escape(mInitialTarget.str(), uri_utils::sipUriParamValueReserved);
-	const auto cause = to_string(code);
+	const auto cause = to_string(toValue(reason));
 	const auto requestUri = voicemailServerUri.setParameter("target", target).setParameter("cause", cause);
 
 	const auto contact = make_shared<ExtendedContact>(requestUri, "", "");
 	contact->mKey = ContactKey{}.str();
 
-	LOGD << "Starting call diversion with status '" << code << "'";
+	LOGD << "Starting call diversion to voicemail for reason '" << toString(reason) << "'";
 	auto fork = addForkUnit({});
 	addForkToManager(fork, requestUri, [ctx = weak_from_this()]() {
 		const auto context = ctx.lock();
@@ -378,7 +378,7 @@ void DivertibleForkContext::divert(int code, stl_backports::move_only_function<v
 	if (!mDiversionMap.contains(code)) {
 		LOGE << "Failed to trigger call diversion (no diversions configured for code: " << code << ")";
 		if (config->mVoicemailServerUri.empty()) return fallback();
-		return forkToVoicemail(code);
+		return forkToVoicemail(codeToRedirectingReason(code));
 	}
 
 	auto [targetType, target] = mDiversionMap.at(code);
@@ -392,11 +392,11 @@ void DivertibleForkContext::divert(int code, stl_backports::move_only_function<v
 				const auto context = ctx.lock();
 				const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
 				if (config->mVoicemailServerUri.empty()) return fallback();
-				context->forkToVoicemail(code);
+				context->forkToVoicemail(codeToRedirectingReason(code));
 			});
 			break;
 		case TargetType::Voicemail:
-			forkToVoicemail(code);
+			forkToVoicemail(codeToRedirectingReason(code));
 			break;
 	}
 }

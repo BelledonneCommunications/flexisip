@@ -62,6 +62,7 @@ add_executable(flexisip_tester
 	modules/router/fork/divertible-fork-tester.cc
 	modules/router/fork/fork-call-tester.cc
 	modules/router/fork/fork-context-tester.cc
+	modules/router/fork/redirecting-reason-tester.cc
 	modules/router/module-router-message-shared-tests.cc modules/router/module-router-message-shared-tests.hh
 	modules/router/module-router-tester.cc
 	nat/contact-correction-strategy-helper-tester.cc

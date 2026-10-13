@@ -39,6 +39,8 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - During request processing, a hostname from `global/aliases` that matches a `global/transports` hostname is only
     considered if the URI's port (the URI in the header being compared) matches that transport's port.
+  - **Router:** Parameter `forwarding-status-codes` now accepts any SIP status code between 400 and 699 (previously
+    limited to 408, 486 and 603), and its default value now also diverts to the voicemail on 480: `408 480 486 603`.
   - **Authorization:**
     - Parameter `auth-domains` is now empty (instead of `localhost`).
   - **Registrar:** Parameters defined in `unique-id-parameters` are not removed anymore from the contact URI if `reg-on-response=true`
@@ -66,6 +68,8 @@ Group changes to describe their impact on the project, as follows:
 ### [Fixed]
 - **B2BUA - Regevent - Voicemail:** The servers will only listen to the IP address specified in the "transport" field
   defined in the configuration of each server instead of "*".
+- **Router:** The 'cause' URI parameter sent to the voicemail server now complies with RFC 4458 (§ 2.2). Status codes
+  received from the forked branches are translated into Redirecting Reasons instead of being forwarded as-is.
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

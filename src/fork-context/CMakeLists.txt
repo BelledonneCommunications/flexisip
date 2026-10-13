@@ -31,6 +31,7 @@ target_sources(flexisip PRIVATE
     fork-message-context.cc fork-message-context.hh
     fork-status.hh
     message-kind.cc message-kind.hh
+    redirecting-reason.hh
     fork-message-db/branch-info-db.hh
     fork-message-db/fork-message-context-db.hh
     fork-strategy/basic-fork-strategy.cc fork-strategy/basic-fork-strategy.hh
