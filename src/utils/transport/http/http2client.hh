@@ -92,9 +92,12 @@ public:
 	 * @param request A std::shared_ptr pointing to a HttpMessage object, the message to send.
 	 * @param onResponseCb The callback called when a complete answer is received.
 	 * @param onErrorCb The callback called when an unexpected error occurred.
+	 * @param requestTimeout The timeout to set for this request, if not set the default will be used.
 	 */
-	void
-	send(const std::shared_ptr<HttpRequest>& request, const OnResponseCb& onResponseCb, const OnErrorCb& onErrorCb);
+	void send(const std::shared_ptr<HttpRequest>& request,
+	          const OnResponseCb& onResponseCb,
+	          const OnErrorCb& onErrorCb,
+	          std::optional<std::chrono::milliseconds> requestTimeout = std::nullopt);
 
 	void onTlsConnectCb();
 

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <optional>
 
 #include "lib/nlohmann-json-3-11-2/json.hpp"
@@ -47,23 +48,28 @@ public:
 		if (!mHttp) throw BadConfiguration{"no Http2Client"};
 	}
 
-	void get(const std::string& path, const OnResponseCb& onResponseCb, const OnErrorCb& onErrorCb);
+	void get(const std::string& path,
+	         const OnResponseCb& onResponseCb,
+	         const OnErrorCb& onErrorCb,
+	         std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
 
 	template <class JsonObject>
 	void post(const std::string& path,
 	          const JsonObject& jsonObject,
 	          const OnResponseCb& onResponseCb,
-	          const OnErrorCb& onErrorCb) {
-		httpCallWithJson(path, "POST", jsonObject, onResponseCb, onErrorCb);
+	          const OnErrorCb& onErrorCb,
+	          std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
+		httpCallWithJson(path, "POST", jsonObject, onResponseCb, onErrorCb, criticalTimeout);
 	}
 	template <class JsonObject>
 	void post(const std::string& path,
 	          const JsonObject& jsonObject,
 	          const std::string& responseLog,
-	          const std::string& errorLog) {
+	          const std::string& errorLog,
+	          std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
 		post(
 		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "post") << responseLog; },
-		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "post") << errorLog; });
+		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "post") << errorLog; }, criticalTimeout);
 	}
 	template <class JsonObject>
 	void post(const std::string& path,
@@ -71,7 +77,8 @@ public:
 	          const OnResponseCb& customSuccessCallback,
 	          const OnErrorCb& customErrorCallback,
 	          const std::string& responseLog,
-	          const std::string& errorLog) {
+	          const std::string& errorLog,
+	          std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
 		post(
 		    path, jsonObject,
 		    [responseLog, customSuccessCallback](const auto& req, const auto& resp) {
@@ -81,53 +88,60 @@ public:
 		    [errorLog, customErrorCallback](const auto& req) {
 			    LOGE_CTX(mLogPrefix, "post") << errorLog;
 			    customErrorCallback(req);
-		    });
+		    },
+		    criticalTimeout);
 	}
 	void post(const std::string& path,
 	          const std::string& body,
 	          const std::string& contentType,
 	          const OnResponseCb& onResponseCb,
-	          const OnErrorCb& onErrorCb) {
-		httpCall(path, "POST", body, contentType, onResponseCb, onErrorCb);
+	          const OnErrorCb& onErrorCb,
+	          std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
+		httpCall(path, "POST", body, contentType, onResponseCb, onErrorCb, criticalTimeout);
 	}
 
 	void post(const std::string& path,
 	          const http::MultiPartForm& form,
 	          const OnResponseCb& onResponseCb,
-	          const OnErrorCb& onErrorCb);
+	          const OnErrorCb& onErrorCb,
+	          std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
 
 	template <class JsonObject>
 	void put(const std::string& path,
 	         const JsonObject& jsonObject,
 	         const OnResponseCb& onResponseCb,
-	         const OnErrorCb& onErrorCb) {
-		httpCallWithJson(path, "PUT", jsonObject, onResponseCb, onErrorCb);
+	         const OnErrorCb& onErrorCb,
+	         std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
+		httpCallWithJson(path, "PUT", jsonObject, onResponseCb, onErrorCb, criticalTimeout);
 	}
 	template <class JsonObject>
 	void put(const std::string& path,
 	         const JsonObject& jsonObject,
 	         const std::string& responseLog,
-	         const std::string& errorLog) {
+	         const std::string& errorLog,
+	         std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
 		put(
 		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "put") << responseLog; },
-		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "put") << errorLog; });
+		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "put") << errorLog; }, criticalTimeout);
 	}
 
 	template <class JsonObject>
 	void patch(const std::string& path,
 	           const JsonObject& jsonObject,
 	           const OnResponseCb& onResponseCb,
-	           const OnErrorCb& onErrorCb) {
-		httpCallWithJson(path, "PATCH", jsonObject, onResponseCb, onErrorCb);
+	           const OnErrorCb& onErrorCb,
+	           std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
+		httpCallWithJson(path, "PATCH", jsonObject, onResponseCb, onErrorCb, criticalTimeout);
 	}
 	template <class JsonObject>
 	void patch(const std::string& path,
 	           const JsonObject& jsonObject,
 	           const std::string& responseLog,
-	           const std::string& errorLog) {
+	           const std::string& errorLog,
+	           std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
 		patch(
 		    path, jsonObject, [responseLog](const auto&, const auto&) { LOGI_CTX(mLogPrefix, "patch") << responseLog; },
-		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "patch") << errorLog; });
+		    [errorLog](const auto&) { LOGE_CTX(mLogPrefix, "patch") << errorLog; }, criticalTimeout);
 	}
 	template <class JsonObject>
 	void patch(const std::string& path,
@@ -135,7 +149,8 @@ public:
 	           const OnResponseCb& customSuccessCallback,
 	           const OnErrorCb& customErrorCallback,
 	           const std::string& responseLog,
-	           const std::string& errorLog) {
+	           const std::string& errorLog,
+	           std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt) {
 		patch(
 		    path, jsonObject,
 		    [responseLog, customSuccessCallback](const auto& req, const auto& resp) {
@@ -145,7 +160,8 @@ public:
 		    [errorLog, customErrorCallback](const auto& req) {
 			    LOGE_CTX(mLogPrefix, "patch") << errorLog;
 			    customErrorCallback(req);
-		    });
+		    },
+		    criticalTimeout);
 	}
 
 private:
@@ -155,13 +171,15 @@ private:
 	                      const std::string& method,
 	                      const std::optional<nlohmann::json>& jsonObject,
 	                      const OnResponseCb& onResponseCb,
-	                      const OnErrorCb& onErrorCb);
+	                      const OnErrorCb& onErrorCb,
+	                      std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
 	void httpCall(const std::string& path,
 	              const std::string& method,
 	              const std::string& body,
 	              const std::string& contentType,
 	              const OnResponseCb& onResponseCb,
-	              const OnErrorCb& onErrorCb);
+	              const OnErrorCb& onErrorCb,
+	              std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
 
 	std::string mApiPathPrefix{};
 	std::shared_ptr<Http2Client> mHttp;

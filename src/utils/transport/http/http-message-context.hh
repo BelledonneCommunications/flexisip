@@ -38,8 +38,8 @@ public:
 	                   const OnErrorCb& onErrorCb,
 	                   sofiasip::SuRoot& root,
 	                   const std::chrono::milliseconds timeout)
-	    : mRequest{request}, mResponse{std::make_shared<HttpResponse>()}, mTimeoutTimer{root, timeout},
-	      mOnResponseCb{onResponseCb}, mOnErrorCb{onErrorCb} {};
+	    : mRequest{request}, mResponse{std::make_shared<HttpResponse>()}, mTimeout{timeout},
+	      mTimeoutTimer{root, timeout}, mOnResponseCb{onResponseCb}, mOnErrorCb{onErrorCb} {};
 
 	const OnErrorCb& getOnErrorCb() const {
 		return mOnErrorCb;
@@ -57,6 +57,10 @@ public:
 		return mResponse;
 	}
 
+	const std::chrono::milliseconds& getTimeout() const {
+		return mTimeout;
+	}
+
 	const sofiasip::Timer& getTimeoutTimer() const {
 		return mTimeoutTimer;
 	}
@@ -68,6 +72,7 @@ public:
 private:
 	std::shared_ptr<HttpRequest> mRequest;
 	std::shared_ptr<HttpResponse> mResponse;
+	std::chrono::milliseconds mTimeout;
 	sofiasip::Timer mTimeoutTimer;
 	OnResponseCb mOnResponseCb;
 	OnErrorCb mOnErrorCb;

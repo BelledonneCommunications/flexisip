@@ -18,7 +18,9 @@
 
 #pragma once
 
+#include <chrono>
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "flexiapi/schemas/api-formatted-uri.hh"
@@ -30,26 +32,42 @@ namespace flexisip::flexiapi {
 
 class FlexiApi {
 public:
+	static constexpr std::string_view kFlexiApiPath{"/api/"};
+
 	using OnErrorCb = HttpMessageContext::OnErrorCb;
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
 
-	explicit FlexiApi(RestClient&& restClient, const std::string& apiPrefix = "/api/");
+	enum class Criticality {
+		kNonCritical,
+		kCritical,
+	};
+
+	explicit FlexiApi(RestClient&& restClient,
+	                  const std::string& apiPrefix = kFlexiApiPath.data(),
+	                  std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
 
 	/********** Account/Group **********/
-	void resolveByUri(const ApiFormattedUri& sipUri, const OnResponseCb& onResponseCb, const OnErrorCb& onErrorCb);
-	void
-	accountSearchByUri(const ApiFormattedUri& sipUri, const OnResponseCb& onResponseCb, const OnErrorCb& onErrorCb);
+	void resolveByUri(const ApiFormattedUri& sipUri,
+	                  const OnResponseCb& onResponseCb,
+	                  const OnErrorCb& onErrorCb,
+	                  Criticality criticality = Criticality::kNonCritical);
+	void accountSearchByUri(const ApiFormattedUri& sipUri,
+	                        const OnResponseCb& onResponseCb,
+	                        const OnErrorCb& onErrorCb,
+	                        Criticality criticality = Criticality::kNonCritical);
 
 	/********** Voicemail **********/
 	void slotCreationByAccountId(int accountId,
 	                             const SlotCreation& slotCreation,
 	                             const OnResponseCb& onResponseCb,
-	                             const OnErrorCb& onErrorCb);
+	                             const OnErrorCb& onErrorCb,
+	                             Criticality criticality = Criticality::kNonCritical);
 	void uploadVoicemail(const sofiasip::Url& uploadUrl,
 	                     const std::string& filePath,
 	                     const std::string& fileContent,
 	                     const OnResponseCb& onResponseCb,
-	                     const OnErrorCb& onErrorCb);
+	                     const OnErrorCb& onErrorCb,
+	                     Criticality criticality = Criticality::kNonCritical);
 
 private:
 	static constexpr std::string_view mLogPrefix{"FlexiApi"};
@@ -58,6 +76,29 @@ private:
 
 	RestClient mRestClient;
 	std::string mApiPrefix;
+	std::optional<std::chrono::milliseconds> mCriticalTimeout;
+};
+
+class TimeCriticFlexiApi {
+public:
+	explicit TimeCriticFlexiApi(const std::shared_ptr<FlexiApi>& flexiApi) : mFlexiApi(flexiApi) {}
+
+	void resolveByUri(const ApiFormattedUri& sipUri,
+	                  const FlexiApi::OnResponseCb& onResponseCb,
+	                  const FlexiApi::OnErrorCb& onErrorCb) const {
+		mFlexiApi->resolveByUri(sipUri, onResponseCb, onErrorCb, FlexiApi::Criticality::kCritical);
+	}
+
+	void accountSearchByUri(const ApiFormattedUri& sipUri,
+	                        const FlexiApi::OnResponseCb& onResponseCb,
+	                        const FlexiApi::OnErrorCb& onErrorCb) const {
+		mFlexiApi->accountSearchByUri(sipUri, onResponseCb, onErrorCb, FlexiApi::Criticality::kCritical);
+	}
+
+private:
+	static constexpr std::string_view mLogPrefix{"TimeCriticFlexiApi"};
+
+	std::shared_ptr<FlexiApi> mFlexiApi;
 };
 
 } // namespace flexisip::flexiapi

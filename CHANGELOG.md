@@ -34,6 +34,8 @@ Group changes to describe their impact on the project, as follows:
     account lookup results are cached locally per SIP URI.
   - New parameter `global::flexiapi/unknown-accounts-cache-timeout`: configures the duration for which 'unknown' (404 User not found)
     FlexiAPI account lookup results are cached locally per SIP URI.
+  - New parameter `global::flexiapi/critical-timeout`: configures the timeout duration for critical FlexiAPI requests (example:
+    requests made during call establishments).
 
 ### [Changed]
 - **Proxy:**

@@ -49,6 +49,8 @@ FlexiApiConfig getFlexiApiConfig(const std::shared_ptr<ConfigManager>& cfg) {
 	const auto flexiApiKey = flexiApiKeyParam->read();
 	if (flexiApiKeyParam->read().empty()) throw BadConfigurationEmpty{flexiApiKeyParam};
 
+	const auto criticalTimeout =
+	    flexiApiConfigSection->get<ConfigDuration<chrono::seconds>>("critical-timeout")->read();
 	const auto accountsCacheTimeout =
 	    flexiApiConfigSection->get<ConfigDuration<chrono::seconds>>("accounts-cache-timeout")->read();
 	const auto unknownAccountsCacheTimeout =
@@ -56,6 +58,7 @@ FlexiApiConfig getFlexiApiConfig(const std::shared_ptr<ConfigManager>& cfg) {
 
 	return {.url = HttpUrl(flexiApiUrl),
 	        .apiKey = flexiApiKey,
+	        .criticalTimeout = criticalTimeout == 0s ? std::nullopt : std::optional{criticalTimeout},
 	        .accountsCacheTimeout = accountsCacheTimeout,
 	        .unknownAccountsCacheTimeout = unknownAccountsCacheTimeout};
 }
@@ -439,7 +442,8 @@ void SpacesStore::createSpace(const flexiapi::Space& space) {
 
 			// Create the FlexiApi client
 			flexiApiClient = std::make_shared<flexiapi::FlexiApi>(
-			    createRestClientForSpace(http2Client, url, mFlexiApiConfig->apiKey));
+			    createRestClientForSpace(http2Client, url, mFlexiApiConfig->apiKey),
+			    flexiapi::FlexiApi::kFlexiApiPath.data(), mFlexiApiConfig->criticalTimeout);
 
 			// Create the FlexiStats client
 			flexiStatsClient = std::make_shared<flexiapi::FlexiStats>(

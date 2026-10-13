@@ -685,6 +685,48 @@ void noDiversionAfterCancel() {
 	    .assert_passed();
 }
 
+// The FAM never answers the resolve request. Once 'global::flexiapi/critical-timeout' is reached, no diversion is
+// returned and the call continues as normal towards the initial callee.
+void callContinuesWhenFamRequestTimesOut() {
+	const std::map<std::string, http_mock::HttpMockHandler> hangingHandlers = {
+	    {
+	        "/api/resolve/initial-callee@sip.example.org",
+	        [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response&) {
+		        // We deliberately do not use `response.send()` here, so the request to this handler times out.
+	        },
+	    },
+	};
+	FlexiapiBuilder builder{};
+	auto famMock = builder.setHandlers(hangingHandlers).build();
+	const auto httpPort = famMock->getFirstPort();
+
+	auto config = DivertedCallTester::makeConfig(httpPort);
+	config.emplace("global::flexiapi/critical-timeout", "1s");
+
+	DivertedCallTester tester{std::move(config), false};
+
+	// Without any diversion, the call is received by the initial callee as if no diversion was configured.
+	tester.initialCallee->hasReceivedCallFrom(*tester.caller, tester.asserter).hard_assert_passed();
+
+	BC_ASSERT_FALSE(hasReceivedCall(tester.finalCallee));
+	BC_ASSERT_FALSE(hasReceivedCall(tester.voicemail));
+
+	// The call runs normally until the end.
+	const auto call = tester.initialCallee->getCurrentCall();
+	BC_HARD_ASSERT(call.has_value());
+	std::ignore = call->accept();
+	tester.asserter
+	    .waitUntil(2s,
+	               [&] {
+		               FAIL_IF(!tester.callerCall.has_value());
+		               FAIL_IF(tester.callerCall->getState() != Call::State::StreamsRunning);
+		               return ASSERTION_PASSED();
+	               })
+	    .hard_assert_passed();
+
+	tester.caller->endCurrentCall(*tester.initialCallee);
+}
+
 TestSuite kSuite{
     "DivertibleFork",
     {
@@ -703,6 +745,7 @@ TestSuite kSuite{
         CLASSY_TEST(noDiversionOnLoopedAccounts),
         CLASSY_TEST(noDiversionToAlreadyCalledAccount),
         CLASSY_TEST(noDiversionAfterCancel),
+        CLASSY_TEST(callContinuesWhenFamRequestTimesOut),
     },
     Hooks()
         .beforeSuite([] {

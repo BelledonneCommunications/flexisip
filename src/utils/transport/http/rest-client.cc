@@ -28,9 +28,10 @@ void RestClient::httpCallWithJson(const string& path,
                                   const string& method,
                                   const optional<json>& jsonObject,
                                   const OnResponseCb& onResponseCb,
-                                  const OnErrorCb& onErrorCb) {
+                                  const OnErrorCb& onErrorCb,
+                                  const std::optional<std::chrono::milliseconds> criticalTimeout) {
 	const auto body = jsonObject ? to_string(jsonObject.value()) : "";
-	httpCall(path, method, body, "application/json", onResponseCb, onErrorCb);
+	httpCall(path, method, body, "application/json", onResponseCb, onErrorCb, criticalTimeout);
 }
 
 void RestClient::httpCall(const string& path,
@@ -38,7 +39,8 @@ void RestClient::httpCall(const string& path,
                           const string& body,
                           const string& contentType,
                           const OnResponseCb& onResponseCb,
-                          const OnErrorCb& onErrorCb) {
+                          const OnErrorCb& onErrorCb,
+                          const std::optional<std::chrono::milliseconds> criticalTimeout) {
 	const auto bodySize = to_string(body.size());
 
 	// RFC 7540 https://www.rfc-editor.org/rfc/rfc7540#section-8.1.2.3
@@ -53,20 +55,22 @@ void RestClient::httpCall(const string& path,
 
 	auto request = make_shared<Http2Client::HttpRequest>(headers, body);
 
-	mHttp->send(request, onResponseCb, onErrorCb);
+	mHttp->send(request, onResponseCb, onErrorCb, criticalTimeout);
 }
 
 void RestClient::get(const string& path,
                      const RestClient::OnResponseCb& onResponseCb,
-                     const RestClient::OnErrorCb& onErrorCb) {
-	httpCallWithJson(path, "GET", nullopt, onResponseCb, onErrorCb);
+                     const RestClient::OnErrorCb& onErrorCb,
+                     const std::optional<std::chrono::milliseconds> criticalTimeout) {
+	httpCallWithJson(path, "GET", nullopt, onResponseCb, onErrorCb, criticalTimeout);
 }
 
 void RestClient::post(const std::string& path,
                       const http::MultiPartForm& form,
                       const OnResponseCb& onResponseCb,
-                      const OnErrorCb& onErrorCb) {
+                      const OnErrorCb& onErrorCb,
+                      const std::optional<std::chrono::milliseconds> criticalTimeout) {
 	const string body = http::constructMultipartBody(form, http::kSimpleBoundary);
 	httpCall(path, "POST", body, "multipart/form-data; boundary=\""s + http::kSimpleBoundary + "\"", onResponseCb,
-	         onErrorCb);
+	         onErrorCb, criticalTimeout);
 }

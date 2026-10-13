@@ -60,7 +60,7 @@ void FAMData::findCallDiversions(const SipUri& uri,
 	q.push(std::move(callback));
 	mWaitingAccounts.try_emplace(apiUri, std::move(q));
 	if (forwardType == CallForwarding::ForwardType::Contact) {
-		mFlexiApiClient->accountSearchByUri(
+		mFlexiApiClient.accountSearchByUri(
 		    apiUri,
 		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,
 		                                           const std::shared_ptr<HttpResponse>& res) {
@@ -74,7 +74,7 @@ void FAMData::findCallDiversions(const SipUri& uri,
 			    thiz->onErrorCallback(req, apiUri);
 		    });
 	} else {
-		mFlexiApiClient->resolveByUri(
+		mFlexiApiClient.resolveByUri(
 		    apiUri,
 		    [weak_thiz = weak_from_this(), apiUri](const std::shared_ptr<HttpRequest>& req,
 		                                           const std::shared_ptr<HttpResponse>& res) {

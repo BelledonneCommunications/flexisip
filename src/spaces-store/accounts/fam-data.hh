@@ -64,7 +64,7 @@ private:
 	void startCacheTimer(const flexiapi::ApiFormattedUri& apiUri);
 	void startUnknownTimer(const flexiapi::ApiFormattedUri& apiUri);
 
-	std::shared_ptr<flexiapi::FlexiApi> mFlexiApiClient;
+	flexiapi::TimeCriticFlexiApi mFlexiApiClient;
 	Accounts mAccounts;
 	std::shared_ptr<sofiasip::SuRoot> mRoot;
 	std::unordered_map<flexiapi::ApiFormattedUri, std::queue<CallDiversionsCallback>> mWaitingAccounts;

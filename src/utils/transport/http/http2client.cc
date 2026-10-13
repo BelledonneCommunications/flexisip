@@ -90,7 +90,8 @@ void Http2Client::sendAllPendingRequests() {
 			return;
 		}
 
-		send(it->get()->getRequest(), it->get()->getOnResponseCb(), it->get()->getOnErrorCb());
+		send(it->get()->getRequest(), it->get()->getOnResponseCb(), it->get()->getOnErrorCb(),
+		     it->get()->getTimeout());
 	}
 }
 
@@ -110,10 +111,12 @@ void Http2Client::discardAllActiveRequests() {
 
 void Http2Client::send(const shared_ptr<HttpRequest>& request,
                        const OnResponseCb& onResponseCb,
-                       const OnErrorCb& onErrorCb) {
+                       const OnErrorCb& onErrorCb,
+                       std::optional<std::chrono::milliseconds> requestTimeout) {
 
 	auto logPrefix = mLogPrefix;
-	auto context = make_shared<HttpMessageContext>(request, onResponseCb, onErrorCb, mRoot, mRequestTimeout);
+	auto context = make_shared<HttpMessageContext>(
+	    request, onResponseCb, onErrorCb, mRoot, requestTimeout.has_value() ? requestTimeout.value() : mRequestTimeout);
 
 	if (mAuthManager) {
 		if (!mAuthManager->addAuthentication(request)) {

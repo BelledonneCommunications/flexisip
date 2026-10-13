@@ -140,6 +140,7 @@ setupFamMock(const std::map<std::string, http_mock::HttpMockHandler>& customHand
 
 struct TestCommons {
 	explicit TestCommons(const int httpPort,
+	                     const chrono::milliseconds criticalTimeout = 2s,
 	                     const chrono::milliseconds cacheTimeout = 30s,
 	                     const chrono::milliseconds unknownTimeout = 10min)
 	    : proxy{{
@@ -147,8 +148,11 @@ struct TestCommons {
 	          {"global::flexiapi/api-key", "aRandomApiToken"},
 	      }},
 	      data{FAMData::make(
-	          std::make_shared<flexiapi::FlexiApi>(flexiapi::createRestClient(
-	              *proxy.getConfigManager(), flexiapi::createClient(proxy.getConfigManager(), *proxy.getRoot()))),
+	          std::make_shared<flexiapi::FlexiApi>(
+	              flexiapi::createRestClient(*proxy.getConfigManager(),
+	                                         flexiapi::createClient(proxy.getConfigManager(), *proxy.getRoot())),
+	              flexiapi::FlexiApi::kFlexiApiPath.data(),
+	              criticalTimeout),
 	          proxy.getRoot(),
 	          cacheTimeout,
 	          unknownTimeout)} {}
@@ -393,7 +397,7 @@ void cacheHitTest() {
 
 void cacheResetTest() {
 	const auto [famMock, httpPort] = setupFamMock();
-	auto commons = TestCommons{httpPort, 1ms};
+	auto commons = TestCommons{httpPort, 2s, 1ms};
 
 	bool callbackCalled{false};
 	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
@@ -430,7 +434,7 @@ void cacheResetTest() {
 
 void cacheDisabledTest() {
 	const auto [famMock, httpPort] = setupFamMock();
-	auto commons = TestCommons{httpPort, 0s};
+	auto commons = TestCommons{httpPort, 2s, 0s};
 
 	for (int i = 1; i <= 3; i++) {
 		bool callbackCalled{false};
@@ -498,7 +502,7 @@ void unknownResetTest() {
 	    },
 	}};
 	const auto [famMock, httpPort] = setupFamMock(customHandlers);
-	auto commons = TestCommons{httpPort, 30s, 1ms};
+	auto commons = TestCommons{httpPort, 2s, 30s, 1ms};
 
 	bool callbackCalled{false};
 	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
@@ -543,7 +547,7 @@ void unknownDisabledTest() {
 	    },
 	}};
 	const auto [famMock, httpPort] = setupFamMock(customHandlers);
-	auto commons = TestCommons{httpPort, 30s, 0s};
+	auto commons = TestCommons{httpPort, 2s, 30s, 0s};
 
 	for (int i = 1; i <= 3; i++) {
 		bool callbackCalled{false};
@@ -556,6 +560,28 @@ void unknownDisabledTest() {
 		commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
 		BC_ASSERT_CPP_EQUAL(numberOfCalls, i);
 	}
+}
+
+void requestTimeoutTest() {
+	const std::map<std::string, http_mock::HttpMockHandler> customHandlers = {{
+	    accountInitialApiUri,
+	    [](http_mock::HttpMock&, const http_mock::server::Request&, const http_mock::server::Response&) {
+		    numberOfCalls++;
+		    // We deliberately do not use `response.send()` here, so the request to this handler times out.
+	    },
+	}};
+	const auto [famMock, httpPort] = setupFamMock(customHandlers);
+	auto commons = TestCommons{httpPort, 200ms};
+
+	bool callbackCalled{false};
+	commons.data->findCallDiversions(SipUri("sip:initial-callee@sip.example.org"),
+	                                 flexiapi::CallForwarding::ForwardType::SipUri,
+	                                 [&callbackCalled](const std::vector<flexiapi::CallForwarding>& diversions) {
+		                                 assertDiversionsEqual(diversions, {});
+		                                 callbackCalled = true;
+	                                 });
+	commons.asserter.wait([&callbackCalled] { return callbackCalled; }).hard_assert_passed();
+	BC_ASSERT_CPP_EQUAL(numberOfCalls, 1);
 }
 
 TestSuite kSuite{
@@ -576,6 +602,7 @@ TestSuite kSuite{
         CLASSY_TEST(unknownHitTest),
         CLASSY_TEST(unknownResetTest),
         CLASSY_TEST(unknownDisabledTest),
+        CLASSY_TEST(requestTimeoutTest),
     },
     Hooks()
         .beforeSuite([] {

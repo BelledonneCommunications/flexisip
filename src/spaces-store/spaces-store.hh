@@ -42,6 +42,7 @@ namespace flexisip {
 struct FlexiApiConfig {
 	HttpUrl url;
 	std::string apiKey;
+	std::optional<std::chrono::milliseconds> criticalTimeout;
 	std::chrono::milliseconds accountsCacheTimeout;
 	std::chrono::milliseconds unknownAccountsCacheTimeout;
 };

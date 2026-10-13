@@ -28,9 +28,12 @@ using namespace flexisip;
 using namespace flexiapi;
 using namespace nlohmann;
 
-FlexiApi::FlexiApi(RestClient&& restClient, const std::string& apiPrefix)
+FlexiApi::FlexiApi(RestClient&& restClient,
+                   const std::string& apiPrefix,
+                   const std::optional<std::chrono::milliseconds> criticalTimeout)
     : mRestClient(std::move(restClient)),
-      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()} {}
+      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()},
+      mCriticalTimeout(criticalTimeout) {}
 
 std::string FlexiApi::toApiPath(const string& methodPath) const {
 	return mApiPrefix + methodPath;
@@ -38,29 +41,35 @@ std::string FlexiApi::toApiPath(const string& methodPath) const {
 
 void FlexiApi::resolveByUri(const ApiFormattedUri& sipUri,
                             const OnResponseCb& onResponseCb,
-                            const OnErrorCb& onErrorCb) {
-	mRestClient.get(toApiPath("resolve/"s + string{sipUri}), onResponseCb, onErrorCb);
+                            const OnErrorCb& onErrorCb,
+                            const Criticality criticality) {
+	mRestClient.get(toApiPath("resolve/"s + string{sipUri}), onResponseCb, onErrorCb,
+	                criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }
 
 void FlexiApi::accountSearchByUri(const ApiFormattedUri& sipUri,
                                   const OnResponseCb& onResponseCb,
-                                  const OnErrorCb& onErrorCb) {
-	mRestClient.get(toApiPath("accounts/"s + string{sipUri} + "/search"), onResponseCb, onErrorCb);
+                                  const OnErrorCb& onErrorCb,
+                                  const Criticality criticality) {
+	mRestClient.get(toApiPath("accounts/"s + string{sipUri} + "/search"), onResponseCb, onErrorCb,
+	                criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }
 
 void FlexiApi::slotCreationByAccountId(int accountId,
                                        const SlotCreation& slotCreation,
                                        const OnResponseCb& onResponseCb,
-                                       const OnErrorCb& onErrorCb) {
+                                       const OnErrorCb& onErrorCb,
+                                       const Criticality criticality) {
 	mRestClient.post(toApiPath("accounts/"s + to_string(accountId) + "/voicemails"), slotCreation, onResponseCb,
-	                 onErrorCb);
+	                 onErrorCb, criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }
 
 void FlexiApi::uploadVoicemail(const sofiasip::Url& uploadUrl,
                                const std::string& filePath,
                                const std::string& fileContent,
                                const OnResponseCb& onResponseCb,
-                               const OnErrorCb& onErrorCb) {
+                               const OnErrorCb& onErrorCb,
+                               const Criticality criticality) {
 	const HttpHeaders partHeader{
 	    {"Content-Disposition", R"(form-data; name="file"; filename=")" + filePath + "\""},
 	    {"Content-Type", "audio/wav"},
@@ -68,5 +77,6 @@ void FlexiApi::uploadVoicemail(const sofiasip::Url& uploadUrl,
 	const http::MultiPartForm form{{partHeader, fileContent}};
 
 	const auto path = uploadUrl.getPath();
-	mRestClient.post(!path.empty() ? "/" + path : "", form, onResponseCb, onErrorCb);
+	mRestClient.post(!path.empty() ? "/" + path : "", form, onResponseCb, onErrorCb,
+	                 criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }

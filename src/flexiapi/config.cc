@@ -53,6 +53,15 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	    },
 	    {
 	        DurationS,
+	        "critical-timeout",
+	        "Timeout duration for critical FlexiAPI requests.\n"
+	        "Some API calls are made during time-critical operations, such as call establishment. This timeout helps "
+	        "prevent an unavailable API from significantly delaying request processing.\n"
+	        "If 0, this timeout is disabled and critical FlexiAPI requests will use the default timeout.",
+	        "2",
+	    },
+	    {
+	        DurationS,
 	        "accounts-cache-timeout",
 	        "Duration for which successful FlexiAPI account lookup results are cached locally per SIP URI.\n"
 	        "Account changes will not take effect until the cache entry expires. After expiry, the next lookup fetches "
