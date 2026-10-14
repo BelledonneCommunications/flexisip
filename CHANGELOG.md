@@ -66,6 +66,7 @@ Group changes to describe their impact on the project, as follows:
   - Parameter `flexiapi-prefix` (deprecated in 2.6.2)
 
 ### [Fixed]
+- **Global:** Logging in syslog of errors occuring at startup 
 - **B2BUA - Regevent - Voicemail:** The servers will only listen to the IP address specified in the "transport" field
   defined in the configuration of each server instead of "*".
 - **Router:** The 'cause' URI parameter sent to the voicemail server now complies with RFC 4458 (§ 2.2). Status codes

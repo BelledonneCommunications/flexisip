@@ -539,7 +539,7 @@ int flexisip::main(int argc, const char* argv[]) {
 	    .level = rewriteConf ? BCTBX_LOG_ERROR
 	             : useDebug  ? BCTBX_LOG_DEBUG
 	                         : BCTBX_LOG_WARNING,
-	    .enableSyslog = disableStdout,
+	    .enableSyslog = useSyslog,
 	    .syslogLevel = BCTBX_LOG_ERROR,
 	    .enableUserErrors = useDebug,
 	});
