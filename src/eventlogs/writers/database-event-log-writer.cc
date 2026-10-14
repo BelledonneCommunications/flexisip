@@ -322,7 +322,7 @@ DataBaseEventLogWriter::DataBaseEventLogWriter(const std::string& backendString,
 		    "INSERT INTO event_auth_log VALUES (" + lastIdFunction + ", :method, :origin, :userExists)";
 
 		mInsertReq[SqlCallQualityEventLogId] =
-		    "INSERT INTO event_call_quality_log VALUES (" + lastIdFunction + ", :report)";
+		    "INSERT INTO event_call_quality_statistics_log VALUES (" + lastIdFunction + ", :report)";
 
 		mIsReady = true;
 	} catch (exception const& e) {
