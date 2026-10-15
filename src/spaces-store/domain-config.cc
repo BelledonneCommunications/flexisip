@@ -39,13 +39,6 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "value is handled as if it were 'flexiapi'.\n",
 	        "legacy",
 	    },
-	    {
-	        DurationMIN,
-	        "refresh-delay",
-	        "The duration in minutes between two refreshes of the dynamic domain cache.\n"
-	        "This is only useful when the parameter \"domains-configuration\" is set to 'flexiapi'.",
-	        "5",
-	    },
 	    config_item_end,
 	};
 

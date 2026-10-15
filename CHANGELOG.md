@@ -33,8 +33,8 @@ Group changes to describe their impact on the project, as follows:
 - **Global:**
   - New parameter `global::domains/domains-configuration`: consolidates the configuration of all SIP domains and
     associated user data through a Flexisip Account Manager or a provided JSON file (previously spread across several modules).
-  - New parameter `global::domains/refresh-delay`: configures the delay before refreshing the domains information when
-    using `global::domains/domains-configuration` is set with `flexiapi`.
+  - New parameter `global::flexiapi/spaces-refresh-delay`: configures the delay before refreshing the spaces information
+    when `global::domains/domains-configuration` is set to `flexiapi`.
   - New parameter `global::flexiapi/accounts-cache-timeout`: configures the duration for which successful FlexiAPI
     account lookup results are cached locally per SIP URI.
   - New parameter `global::flexiapi/unknown-accounts-cache-timeout`: configures the duration for which 'unknown' (404 User not found)

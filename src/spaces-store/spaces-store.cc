@@ -350,10 +350,14 @@ std::shared_ptr<SpacesStore> SpacesStore::make(const std::shared_ptr<sofiasip::S
 		spacesStore->mFlexiApiConfig = getFlexiApiConfig(cfg);
 		spacesStore->mGlobalFlexiApiClient = flexiApiClient;
 
-		const auto refreshDelay = domainsConfigSection->get<ConfigDuration<chrono::minutes>>("refresh-delay")->read();
+		const auto spacesRefreshDelay = cfg->getRoot()
+		                                    ->get<GenericStruct>("global::flexiapi")
+		                                    ->get<ConfigDuration<chrono::minutes>>("spaces-refresh-delay")
+		                                    ->read();
+
 		auto client = flexiapi::createRestClient(*cfg, flexiApiClient);
 		spacesStore->mSpacesDataManager = make_unique<FAMSpacesData>(
-		    root, std::move(client), refreshDelay,
+		    root, std::move(client), spacesRefreshDelay,
 		    [maybeSpacesStore = weak_ptr(spacesStore)](const std::vector<flexiapi::Space>& spaces) {
 			    if (const auto store = maybeSpacesStore.lock()) store->onSpacesChanged(spaces);
 		    });

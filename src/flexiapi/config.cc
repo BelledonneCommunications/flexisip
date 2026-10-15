@@ -79,6 +79,13 @@ auto& defineConfig = ConfigManager::defaultInit().emplace_back([](GenericStruct&
 	        "Set to 0 to disable unknown-result caching.",
 	        "10min",
 	    },
+	    {
+	        DurationMIN,
+	        "spaces-refresh-delay",
+	        "The duration in minutes between two refreshes of the dynamic domain cache.\n"
+	        "This is only useful when the parameter \"domains-configuration\" is set to 'flexiapi'.",
+	        "5",
+	    },
 	    config_item_end,
 	};
 
