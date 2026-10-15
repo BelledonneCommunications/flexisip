@@ -17,6 +17,7 @@
 */
 
 #include <csignal>
+#include <fstream>
 #include <sstream>
 #include <string>
 
@@ -35,6 +36,8 @@
 #include "utils/asserts.hh"
 #include "utils/bc-utils.hh"
 #include "utils/belle-sip/agent.hh"
+#include "utils/client-builder.hh"
+#include "utils/client-core.hh"
 #include "utils/contact-inserter.hh"
 #include "utils/core-assert.hh"
 #include "utils/listeners.hh"
@@ -42,6 +45,7 @@
 #include "utils/server/redis-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
+#include "utils/tmp-dir.hh"
 
 using namespace std;
 using namespace std::chrono;
@@ -1130,6 +1134,55 @@ void portHijackingProtection() {
 	asserter.waitUntil(500ms, [&]() { return LOOP_ASSERTION(inviteAnswerStatus == 503); }).assert_passed();
 }
 
+/*
+ * An AoR may be bound to aliased AoRs through the static-records file. A call towards the main AoR must be forked
+ * towards the devices registered against the aliased AoRs.
+ */
+void staticRecordsAliasesForkingWithBackend(const map<string, string>& backendConfig) {
+	const string domain = "sip.example.org";
+	const string aliasAor = "sip:home@" + domain;
+	const string indoorAor = "sip:indoor@" + domain;
+	const TmpDir tmpDir{"static-records"};
+	const auto staticRecordsFile = tmpDir.path() / "static-records";
+	ofstream(staticRecordsFile) << "<" << aliasAor << "> <" << indoorAor << ">,<sip:phone@" << domain << ">";
+
+	auto config = backendConfig;
+	config["module::Registrar/static-records-file"] = staticRecordsFile.string();
+	config["module::MediaRelay/enabled"] = "false";
+	Server proxy{config};
+	proxy.start();
+
+	ClientBuilder builder{proxy.getAgent()};
+	const auto callerClient = builder.make("sip:caller@" + domain);
+	const auto indoorClient = builder.make(indoorAor);
+
+	CoreAssert asserter{proxy, callerClient, indoorClient};
+	BC_HARD_ASSERT_TRUE(callerClient->isRegistered(asserter));
+	BC_HARD_ASSERT_TRUE(indoorClient->isRegistered(asserter));
+
+	// The caller invites the aliased AoR, the INVITE must reach the device registered on one of the aliases.
+	// CoreClient::call() asserts that the call is established and running with media exchanged on both ends.
+	const auto aliasAddress = linphone::Factory::get()->createAddress(aliasAor);
+	BC_HARD_ASSERT_NOT_NULL(aliasAddress);
+	const auto call = callerClient->call(*indoorClient, aliasAddress);
+	BC_HARD_ASSERT_NOT_NULL(call);
+
+	BC_ASSERT(callerClient->endCurrentCall(*indoorClient));
+}
+
+void staticRecordsAliasesForkingInternalDbTest() {
+	staticRecordsAliasesForkingWithBackend({});
+}
+
+void staticRecordsAliasesForkingRedisTest() {
+	RedisServer redis{};
+	staticRecordsAliasesForkingWithBackend({
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", to_string(redis.port())},
+	});
+}
+
 TestSuite _{
     "Register",
     {
@@ -1147,6 +1200,8 @@ TestSuite _{
         CLASSY_TEST(registerWithoutExpiryValueInRequest),
         CLASSY_TEST(uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance),
         CLASSY_TEST(portHijackingProtection),
+        CLASSY_TEST(staticRecordsAliasesForkingInternalDbTest),
+        CLASSY_TEST(staticRecordsAliasesForkingRedisTest),
     },
     Hooks().beforeEach([] {
 	    responseReceived = 0;

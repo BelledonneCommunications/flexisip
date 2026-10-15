@@ -85,6 +85,7 @@ Group changes to describe their impact on the project, as follows:
   received from the forked branches are translated into Redirecting Reasons instead of being forwarded as-is.
 - **Service:** The servers will not be restarted multiple times when a failure occurs during startup.
 - **Sofia-sip:** Do not allow '<' inside the brackets when parsing a URI.
+- **Registrar:** Resolved a crash when resolving static-record aliases.
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

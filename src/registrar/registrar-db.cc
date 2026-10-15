@@ -309,7 +309,6 @@ public:
 	      mRecord(make_shared<Record>(url, mDatabase->getRecordConfig())), mUrl(url), mStep(step) {}
 
 	void onRecordFound(const shared_ptr<Record>& r) override {
-		mPendingRequests--;
 		if (r != nullptr) {
 			auto& extlist = r->getExtendedContacts();
 			list<shared_ptr<ExtendedContact>> vectToRecurseOn;
@@ -343,6 +342,7 @@ public:
 			}
 		}
 
+		mPendingRequests--;
 		if (waitPullUpOrFail()) {
 			LOGI << "No contact found for " << mUrl << " (step " << mStep << ")";
 			mOriginalListener->onRecordFound(nullptr);
@@ -351,6 +351,7 @@ public:
 
 	void onError(const SipStatus& response) override {
 		LOGE << "Error during recursive fetch of " << mUrl << " (step " << mStep << ")";
+		mPendingRequests--;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onError(response);
 		}
@@ -358,6 +359,7 @@ public:
 
 	void onInvalid(const SipStatus& response) override {
 		LOGE << "Invalid during recursive fetch of " << mUrl << " (step " << mStep << ")";
+		mPendingRequests--;
 		if (waitPullUpOrFail()) {
 			mOriginalListener->onInvalid(response);
 		}
