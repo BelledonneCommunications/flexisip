@@ -9,8 +9,8 @@ UMask=0027
 Type=notify
 ExecStart=@service_execstart@
 Restart=on-failure
+RestartPreventExitStatus=78
 WatchdogSec=10s
-RestartForceExitStatus=5
 RestartSec=1s
 
 [Install]

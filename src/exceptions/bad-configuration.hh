@@ -31,8 +31,7 @@ namespace flexisip {
 class BadConfiguration : public ExitFailure {
 public:
 	template <typename... Args>
-	explicit BadConfiguration(Args&&... args) : ExitFailure{-1, std::forward<Args>(args)...} {
-	}
+	explicit BadConfiguration(Args&&... args) : ExitFailure{ExitCodes::BadConfiguration, std::forward<Args>(args)...} {}
 };
 
 /*
@@ -43,8 +42,7 @@ class BadConfigurationWithHelp : public BadConfiguration {
 public:
 	template <typename ConfigType>
 	explicit BadConfigurationWithHelp(const ConfigType* configField, const std::string& message)
-	    : BadConfiguration{message + "\n\n" + configField->getCompleteName() + ":\n" + configField->getHelp() + "\n"} {
-	}
+	    : BadConfiguration{message + "\n\n" + configField->getCompleteName() + ":\n" + configField->getHelp() + "\n"} {}
 };
 
 /*
@@ -57,14 +55,12 @@ public:
 	template <typename ConfigType>
 	explicit BadConfigurationValue(const ConfigType* configField)
 	    : BadConfigurationWithHelp{configField, "invalid value for parameter '" + configField->getCompleteName() +
-	                                                "' (" + configField->get() + ")"} {
-	}
+	                                                "' (" + configField->get() + ")"} {}
 
 	template <typename ConfigType>
 	BadConfigurationValue(const ConfigType* configField, const std::string& additionalMessage)
 	    : BadConfigurationWithHelp{configField, "invalid value for parameter '" + configField->getCompleteName() +
-	                                                "' (" + configField->get() + "): " + additionalMessage} {
-	}
+	                                                "' (" + configField->get() + "): " + additionalMessage} {}
 };
 
 /*
@@ -76,8 +72,7 @@ class BadConfigurationEmpty : public BadConfigurationWithHelp {
 public:
 	template <typename ConfigType>
 	explicit BadConfigurationEmpty(const ConfigType* configField)
-	    : BadConfigurationWithHelp{configField, "parameter '" + configField->getCompleteName() + "' must be set"} {
-	}
+	    : BadConfigurationWithHelp{configField, "parameter '" + configField->getCompleteName() + "' must be set"} {}
 };
 
 } // namespace flexisip

@@ -71,6 +71,7 @@ Group changes to describe their impact on the project, as follows:
   defined in the configuration of each server instead of "*".
 - **Router:** The 'cause' URI parameter sent to the voicemail server now complies with RFC 4458 (§ 2.2). Status codes
   received from the forked branches are translated into Redirecting Reasons instead of being forwarded as-is.
+- **Service:** The servers will not be restarted multiple times when a failure occurs during startup.
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

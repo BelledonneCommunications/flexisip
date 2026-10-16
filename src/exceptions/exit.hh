@@ -19,8 +19,15 @@
 #pragma once
 
 #include <stdexcept>
+#include <sysexits.h>
 
 namespace flexisip {
+
+enum class ExitCodes {
+	Success = EXIT_SUCCESS,
+	Failure = EXIT_FAILURE,
+	BadConfiguration = EX_CONFIG,
+};
 
 /*
  * Report an event that requires the program to be stopped.
@@ -28,37 +35,32 @@ namespace flexisip {
  */
 class Exit : public std::runtime_error {
 public:
-	explicit Exit(int code) : std::runtime_error{""}, mCode(code) {
-	}
+	explicit Exit(const ExitCodes code) : std::runtime_error{""}, mCode(code) {}
 	template <typename... Args>
-	explicit Exit(int code, Args&&... args) : std::runtime_error{std::forward<Args>(args)...}, mCode(code) {
-	}
+	explicit Exit(const ExitCodes code, Args&&... args)
+	    : std::runtime_error{std::forward<Args>(args)...}, mCode(code) {}
 
 	int code() const {
-		return mCode;
+		return static_cast<int>(mCode);
 	}
 
 private:
-	int mCode;
+	ExitCodes mCode;
 };
 
 class ExitFailure : public Exit {
 public:
 	template <typename... Args>
-	explicit ExitFailure(int code, Args&&... args) : Exit{code, std::forward<Args>(args)...} {
-	}
+	explicit ExitFailure(ExitCodes code, Args&&... args) : Exit{code, std::forward<Args>(args)...} {}
 	template <typename... Args>
-	explicit ExitFailure(Args&&... args) : ExitFailure{EXIT_FAILURE, std::forward<Args>(args)...} {
-	}
+	explicit ExitFailure(Args&&... args) : ExitFailure{ExitCodes::Failure, std::forward<Args>(args)...} {}
 };
 
 class ExitSuccess : public Exit {
 public:
-	explicit ExitSuccess() : Exit{EXIT_SUCCESS} {
-	}
+	explicit ExitSuccess() : Exit{ExitCodes::Success} {}
 	template <typename... Args>
-	explicit ExitSuccess(Args&&... args) : Exit{EXIT_SUCCESS, std::forward<Args>(args)...} {
-	}
+	explicit ExitSuccess(Args&&... args) : Exit{ExitCodes::Success, std::forward<Args>(args)...} {}
 };
 
 } // namespace flexisip

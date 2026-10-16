@@ -305,7 +305,7 @@ static void dump_config(ConfigManager& cfg,
 		smatch m;
 		rootStruct = dynamic_cast<GenericStruct*>(rootStruct->find(dump_cfg_part));
 		if (rootStruct == nullptr) {
-			throw ExitFailure{"couldn't find node " + dump_cfg_part};
+			throw ExitFailure{ExitCodes::BadConfiguration, "couldn't find node " + dump_cfg_part};
 		}
 		if (regex_match(dump_cfg_part, m, regex("^module::(.*)$"))) {
 			const auto& moduleName = m[1];
@@ -316,6 +316,7 @@ static void dump_config(ConfigManager& cfg,
 			if (moduleIt != moduleInfoChain.cend() && (*moduleIt)->getClass() == ModuleClass::Experimental &&
 			    !with_experimental) {
 				throw ExitFailure{
+				    ExitCodes::BadConfiguration,
 				    "module "s + moduleName.str() +
 				        " is experimental, not returning anything. To override, specify '--show-experimental'.",
 				};
@@ -338,7 +339,7 @@ static void dump_config(ConfigManager& cfg,
 	} else if (format == "xwiki") {
 		dumper = make_unique<XWikiConfigDumper>(rootStruct);
 	} else {
-		throw ExitFailure{"invalid output format '" + format + "'"};
+		throw ExitFailure{ExitCodes::BadConfiguration, "invalid output format '" + format + "'"};
 	}
 	dumper->setDumpExperimentalEnabled(with_experimental);
 	dumper->setRemoveDeprecated(removeAllDeprecated);
@@ -636,22 +637,22 @@ int flexisip::main(int argc, const char* argv[]) {
 	} else if (functionName.getValue() == "presence") {
 		startPresence = true;
 #ifndef ENABLE_PRESENCE
-		throw ExitFailure{"Flexisip was compiled without presence server extension"};
+		throw ExitFailure{ExitCodes::BadConfiguration, "Flexisip was compiled without presence server extension"};
 #endif
 	} else if (functionName.getValue() == "regevent") {
 		startRegEvent = true;
 #ifndef ENABLE_REGEVENT
-		throw ExitFailure{"Flexisip was compiled without regevent server extension"};
+		throw ExitFailure{ExitCodes::BadConfiguration, "Flexisip was compiled without regevent server extension"};
 #endif
 	} else if (functionName.getValue() == "b2bua") {
 		startB2bua = true;
 #ifndef ENABLE_B2BUA
-		throw ExitFailure{"Flexisip was compiled without B2BUA server extension"};
+		throw ExitFailure{ExitCodes::BadConfiguration, "Flexisip was compiled without B2BUA server extension"};
 #endif
 	} else if (functionName.getValue() == "voicemail") {
 		startVoicemail = true;
 #ifndef ENABLE_VOICEMAIL
-		throw ExitFailure{"Flexisip was compiled without Voicemail server extension"};
+		throw ExitFailure{ExitCodes::BadConfiguration, "Flexisip was compiled without Voicemail server extension"};
 #endif
 	} else if (functionName.getValue() == "all") {
 		startPresence = true;
@@ -782,6 +783,7 @@ int flexisip::main(int argc, const char* argv[]) {
 		while (!spacesStore->isReady()) {
 			if (chrono::system_clock::now() > deadline) {
 				throw ExitFailure{
+				    ExitCodes::BadConfiguration,
 				    "Could not retrieve spaces from Flexisip Account Manager, please check your configuration."};
 			}
 			root->step(10ms);

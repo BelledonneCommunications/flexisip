@@ -464,7 +464,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 		}
 		// This should never happen
 		if (flexiApiClient == nullptr)
-			throw ExitFailure{"a FlexiAPI client is mandatory to use `" + externalPushFlexiApiCfg->getCompleteName() +
+			throw ExitFailure{ExitCodes::BadConfiguration, "a FlexiAPI client is mandatory to use `" + externalPushFlexiApiCfg->getCompleteName() +
 			                  "`"};
 		try {
 			// Append push notification endpoint to the generic api path

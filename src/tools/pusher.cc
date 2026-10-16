@@ -213,7 +213,7 @@ Environment Variables:
 					applePushType = PushType::Background;
 				} else {
 					usage(*argv);
-					throw ExitFailure{-1};
+					throw ExitFailure{ExitCodes::BadConfiguration};
 				}
 			} else if (EQ1(i, "--pntok")) {
 				found_Legacy_Params = true;
@@ -228,7 +228,7 @@ Environment Variables:
 				if (res) {
 					cerr << "? raw " << res << endl;
 					usage(*argv);
-					throw ExitFailure{-1};
+					throw ExitFailure{ExitCodes::BadConfiguration};
 				}
 			} else if (EQ1(i, "--pn-provider")) {
 				found_RFC_8599_Params = true;
@@ -252,14 +252,14 @@ Environment Variables:
 			} else {
 				cerr << "? arg" << i << " " << argv[i] << endl;
 				usage(*argv);
-				throw ExitFailure{-1};
+				throw ExitFailure{ExitCodes::BadConfiguration};
 			}
 		}
 
 		if (found_Legacy_Params && found_RFC_8599_Params) {
 			cerr << "Error: found both legacy and standard parameters, choose one way or the other!" << endl;
 			usage(*argv);
-			throw ExitFailure{-1};
+			throw ExitFailure{ExitCodes::BadConfiguration};
 		}
 
 		legacyPush = found_Legacy_Params;
@@ -267,11 +267,11 @@ Environment Variables:
 		if (legacyPush && pntok.empty()) {
 			cerr << "Error: trying to use legacy push notifications but couldn't find any pntok" << endl;
 			usage(*argv);
-			throw ExitFailure{-1};
+			throw ExitFailure{ExitCodes::BadConfiguration};
 		} else if (!legacyPush && pnPrids.empty()) {
 			cerr << "Error: trying to use standard push notifications but couldn't find any pn-prid" << endl;
 			usage(*argv);
-			throw ExitFailure{-1};
+			throw ExitFailure{ExitCodes::BadConfiguration};
 		}
 	}
 };

@@ -168,7 +168,9 @@ void VoicemailServer::_init() {
 	mCore->addListener(shared_from_this());
 
 	linphone::Status err = mCore->start();
-	if (err < 0) throw ExitFailure{"the Linphone core failed to start (please check the logs)"};
+	if (err < 0) {
+		throw ExitFailure{ExitCodes::BadConfiguration, "the Linphone core failed to start (please check the logs)"};
+	}
 }
 
 void VoicemailServer::_run() {
