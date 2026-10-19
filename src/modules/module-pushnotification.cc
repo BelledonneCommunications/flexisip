@@ -248,9 +248,24 @@ ModuleInfo<PushNotification> PushNotification::sInfo{
 	            Boolean,
 	            "external-push-flexiapi",
 	            "If enabled, use flexiapi for external pusher.\n"
-	            "`global::flexiapi/url` and `global::flexiapi/api-key` MUST be set to use this feature.\n"
+	            "`global::flexiapi/url` and `global::flexiapi/api-key` will be used unless `flexiapi-url` and "
+	            "`flexiapi-key` are set.\n"
+	            "At least one of the two set of above mentionned parameters MUST be set to use this feature."
 	            "Cannot be used at the same time as `external-push-uri`.",
 	            "false",
+	        },
+	        {
+	            String,
+	            "flexiapi-url",
+	            "HTTPS URL of the server used to send the push notifications.\n"
+	            "Example: https://flexiapi.org",
+	            "",
+	        },
+	        {
+	            String,
+	            "flexiapi-key",
+	            "API key for the server used to send the push notifications.",
+	            "",
 	        },
 	        {
 	            String,
@@ -439,7 +454,8 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 		httpsProxyCfg = HttpsProxyCfg{httpsProxyHost, httpsProxyPort, httpsProxyUsername, httpsProxyPassword};
 	}
 
-	mPNS = make_unique<pushnotification::Service>(getAgent()->getRoot(), maxQueueSize, httpsProxyCfg);
+	auto root = mAgent->getRoot();
+	mPNS = make_unique<pushnotification::Service>(root, maxQueueSize, httpsProxyCfg);
 
 	const auto* addToTagFilterCfg = mc->get<ConfigBooleanExpression>("add-to-tag-filter");
 	const auto& addToTagFilterStr = addToTagFilterCfg->get();
@@ -449,31 +465,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	auto* externalPushFlexiApiCfg = mc->get<ConfigBoolean>("external-push-flexiapi");
 	if (externalPushFlexiApiCfg->read()) {
-		auto* flexiApiCfg = getAgent()->getConfigManager().getRoot()->get<GenericStruct>("global::flexiapi");
-		auto* flexiApiUrlCfg = flexiApiCfg->get<ConfigString>("url");
-		auto* flexiApiKeyCfg = flexiApiCfg->get<ConfigString>("api-key");
-		auto flexiApiUrl = flexiApiUrlCfg->read();
-		auto flexiApiKey = flexiApiKeyCfg->read();
-
-		auto flexiApiClient = mAgent->getSpacesStore()->getGlobalFlexiApiClient();
-
-		if (flexiApiUrl.empty() || flexiApiKey.empty()) {
-			throw BadConfiguration{"`" + flexiApiUrlCfg->getCompleteName() + "` and `" +
-			                       flexiApiKeyCfg->getCompleteName() + "` MUST be configured to use " +
-			                       externalPushFlexiApiCfg->getCompleteName()};
-		}
-		// This should never happen
-		if (flexiApiClient == nullptr)
-			throw ExitFailure{ExitCodes::BadConfiguration, "a FlexiAPI client is mandatory to use `" + externalPushFlexiApiCfg->getCompleteName() +
-			                  "`"};
-		try {
-			// Append push notification endpoint to the generic api path
-			auto pnUrl = HttpUrl(flexiApiUrl).appendPath(kFlexiApiPushNotificationPath);
-			mPNS->setupGenericJsonClient(pnUrl, flexiApiKey, FlexiApiBodyGenerationFunc, flexiApiClient);
-		} catch (const HttpUrlError& e) {
-			throw BadConfiguration{"invalid value for parameter '" + flexiApiUrlCfg->getCompleteName() + "' (" +
-			                       e.what() + +")"};
-		}
+		configureFlexiApiExternalPush(mc, externalPushFlexiApiCfg);
 	} else if (!externalUri.empty()) {
 		auto const* externalPushMethodCfg = mc->get<ConfigString>("external-push-method");
 		auto const* externalPushProtocolCfg = mc->get<ConfigString>("external-push-protocol");
@@ -498,8 +490,7 @@ void PushNotification::onLoad(const GenericStruct* mc) {
 
 	if (firebaseEnabled) mPNS->setupFirebaseClients(mc);
 
-	mExpirationNotifier =
-	    ContactExpirationNotifier::make_unique(*mc, mAgent->getRoot(), getService(), mAgent->getRegistrarDb());
+	mExpirationNotifier = ContactExpirationNotifier::make_unique(*mc, root, getService(), mAgent->getRegistrarDb());
 
 	mCallTtl = chrono::duration_cast<chrono::seconds>(
 	    routerSection->get<ConfigDuration<chrono::seconds>>("call-fork-timeout")->read());
@@ -695,6 +686,58 @@ void PushNotification::onResponse(ResponseSipEvent& ev) {
 			pnr->cancel();
 			removePushNotification(pnr.get());
 		}
+	}
+}
+
+void PushNotification::configureFlexiApiExternalPush(const GenericStruct* mc,
+                                                     const ConfigBoolean* externalPushFlexiApiParam) const {
+	const auto* flexiapiUrlParam = mc->get<ConfigString>("flexiapi-url");
+	const auto* flexiapiKeyParam = mc->get<ConfigString>("flexiapi-key");
+	auto flexiApiUrl = flexiapiUrlParam->read();
+	auto flexiApiKey = flexiapiKeyParam->read();
+
+	// When using
+	shared_ptr<Http2Client> flexiApiClient{};
+	if (flexiApiUrl.empty() || flexiApiKey.empty()) {
+		const auto* globalFlexiApiCfg =
+		    getAgent()->getConfigManager().getRoot()->get<GenericStruct>("global::flexiapi");
+		const auto* globalFlexiApiUrlCfg = globalFlexiApiCfg->get<ConfigString>("url");
+		const auto* globalFlexiApiKeyCfg = globalFlexiApiCfg->get<ConfigString>("api-key");
+		flexiApiUrl = globalFlexiApiUrlCfg->read();
+		flexiApiKey = globalFlexiApiKeyCfg->read();
+
+		if (flexiApiUrl.empty() || flexiApiKey.empty()) {
+			throw BadConfiguration{"either `" + flexiapiUrlParam->getCompleteName() + "` and `" +
+			                       flexiapiKeyParam->getCompleteName() + "` or `" +
+			                       globalFlexiApiUrlCfg->getCompleteName() + "` and `" +
+			                       globalFlexiApiKeyCfg->getCompleteName() + "` MUST be configured to use " +
+			                       externalPushFlexiApiParam->getCompleteName()};
+		}
+		flexiapiUrlParam = globalFlexiApiUrlCfg;
+
+		// Get the global client to avoid Http2Client duplication
+		flexiApiClient = mAgent->getSpacesStore()->getGlobalFlexiApiClient();
+		// This should never happen
+		if (flexiApiClient == nullptr) {
+			throw ExitFailure{ExitCodes::BadConfiguration, "a FlexiAPI client is mandatory to use `" +
+			                                                   externalPushFlexiApiParam->getCompleteName() + "`"};
+		}
+	} else {
+		// When using the local flexiapi parameters, it is not needed to create the Http2Client since it will be created
+		// further in the generic client creation and will use the https proxy configuration if any.
+		const auto url = HttpUrl(flexiApiUrl);
+		if (url.getSchemeType() != HttpUrl::Scheme::https) {
+			throw BadConfigurationValue{flexiapiUrlParam, "URL scheme MUST be 'HTTPS'"};
+		}
+	}
+
+	try {
+		// Append push notification endpoint to the generic api path
+		auto pnUrl = HttpUrl(flexiApiUrl).appendPath(kFlexiApiPushNotificationPath);
+		mPNS->setupGenericJsonClient(pnUrl, flexiApiKey, FlexiApiBodyGenerationFunc, flexiApiClient);
+	} catch (const HttpUrlError& e) {
+		throw BadConfiguration{"invalid value for parameter '" + flexiapiUrlParam->getCompleteName() + "' (" +
+		                       e.what() + ")"};
 	}
 }
 

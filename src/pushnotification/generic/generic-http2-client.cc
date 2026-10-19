@@ -46,7 +46,10 @@ GenericHttp2Client::GenericHttp2Client(const HttpUrl& url,
 	} else {
 		LOGD << "Constructing client";
 
-		mHttp2Client = Http2Client::make(root, mUrl.getHost(), mUrl.getPortWithFallback().data());
+		optional<HttpsProxyCfg> proxyConfig{};
+		if (pushService) proxyConfig = pushService->getHttpsProxyCfg();
+
+		mHttp2Client = Http2Client::make(root, mUrl.getHost(), mUrl.getPortWithFallback().data(), nullptr, proxyConfig);
 	}
 }
 

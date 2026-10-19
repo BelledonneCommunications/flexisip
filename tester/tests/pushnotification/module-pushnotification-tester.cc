@@ -19,6 +19,7 @@
 #include <map>
 #include <string>
 
+#include "flexiapi-builder.hh"
 #include "modules/module-pushnotification.hh"
 #include "pushnotification/client.hh"
 #include "pushnotification/rfc8599-push-params.hh"
@@ -65,8 +66,7 @@ public:
 	 * Make a dummy push client running on the given main loop.
 	 * @param root The main loop.
 	 */
-	DummyPushClient(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {
-	}
+	DummyPushClient(const std::shared_ptr<sofiasip::SuRoot>& root) : mRoot{root} {}
 
 	/**
 	 * Return a counter that holds the number of PN requests the dummy client has sent.
@@ -157,8 +157,7 @@ protected:
 	 * Construct a PushNotificationTest by specifying a custom PN client.
 	 */
 	template <typename PushClientPtr>
-	PushNotificationTest(PushClientPtr&& aPushClient) : mPushClient{std::forward<PushClientPtr>(aPushClient)} {
-	}
+	PushNotificationTest(PushClientPtr&& aPushClient) : mPushClient{std::forward<PushClientPtr>(aPushClient)} {}
 
 	// Protected methods
 	void onAgentConfiguration(ConfigManager& cfg) override {
@@ -556,8 +555,7 @@ public:
 class PNHandler {
 public:
 	template <typename T>
-	PNHandler(T&& aPlatform) : mPlatform{std::forward<T>(aPlatform)} {
-	}
+	PNHandler(T&& aPlatform) : mPlatform{std::forward<T>(aPlatform)} {}
 	virtual ~PNHandler() = default;
 
 	/**
@@ -693,8 +691,7 @@ protected:
  */
 class CallRemotePNCancelation : public PushNotificationTest {
 public:
-	CallRemotePNCancelation() : PushNotificationTest{make_shared<_DummyPushClient>()} {
-	}
+	CallRemotePNCancelation() : PushNotificationTest{make_shared<_DummyPushClient>()} {}
 
 	void onAgentConfiguration(ConfigManager& cfg) override {
 		PushNotificationTest::onAgentConfiguration(cfg);
@@ -828,6 +825,52 @@ protected:
 	// Protected attributes
 	std::shared_ptr<ClientPlatform> mPlatform{std::make_shared<IOS>()};
 	std::shared_ptr<PNHandler> mPNHandler{std::make_shared<DefaultPNHandler>(mPlatform)};
+};
+
+/**
+ * Use external push notifications with the flexiapi set in both 'global::flexiapi' and 'module::PushNotification'.
+ * Ensure that the HTTP request is sent to the flexiapi server specified in 'module::PushNotification'.
+ */
+class ExternalPushServerSelection : public PushNotificationTest {
+public:
+	void testExec() override {
+		ClientBuilder builder{mAgent};
+		auto core1 = builder.build("sip:user1@sip.example.org");
+		auto platform = std::make_shared<IOS>();
+		auto core2 = builder.setPushParams(platform->getContactPushParams()).build("sip:user2@sip.example.org");
+
+		SLOGI << "Send INVITE to the callee and wait for the first ringing PN sending";
+		auto call = core1.invite(core2);
+		CoreAssert{mAgent, core1}
+		    .wait([this]() { return LOOP_ASSERTION(mLocalServer->getRequestReceivedCount() == 1); })
+		    .assert_passed();
+		BC_ASSERT_CPP_EQUAL(mGlobalServer->getRequestReceivedCount(), 0);
+
+		call->terminate();
+	}
+
+protected:
+	void onAgentConfiguration(ConfigManager& cfg) override {
+		PushNotificationTest::onAgentConfiguration(cfg);
+
+		FlexiapiBuilder builder{};
+		mGlobalServer = builder.addEndpoint("/api/push_notification").build("127.0.0.1");
+		const auto globalFlexiapiPort = mGlobalServer->getFirstPort();
+		mLocalServer = builder.addEndpoint("/api/push_notification").build("127.0.0.2");
+		const auto localFlexiapiPort = mLocalServer->getFirstPort();
+
+		auto pushConfigSection = cfg.getRoot()->get<GenericStruct>("module::PushNotification");
+		pushConfigSection->get<ConfigValue>("external-push-flexiapi")->set("true");
+		pushConfigSection->get<ConfigValue>("flexiapi-url")->set("https://127.0.0.2:" + to_string(localFlexiapiPort));
+		pushConfigSection->get<ConfigValue>("flexiapi-key")->set("someApiKey");
+
+		auto flexiapiConfigSection = cfg.getRoot()->get<GenericStruct>("global::flexiapi");
+		flexiapiConfigSection->get<ConfigValue>("url")->set("https://127.0.0.1:" + to_string(globalFlexiapiPort));
+		flexiapiConfigSection->get<ConfigValue>("api-key")->set("anotherApiKey");
+	}
+
+private:
+	std::unique_ptr<http_mock::HttpMock> mLocalServer{}, mGlobalServer{};
 };
 
 /*********** CoreClient based tests **********************************************************************************/
@@ -980,6 +1023,7 @@ TestSuite
           makeTest<CallRemotePNCancelation>("Cancel a call notified by ringing remote push notifications"),
 #endif
           makeTest<CallInviteOnOfflineDeviceWithSamePushParams>("Push module use provider to compare push params"),
+          makeTest<ExternalPushServerSelection>("ExternalPushServerSelection"),
           makeTest<OnPushSentToTagParameterAdded>("To tag parameter added when OnPushSent is triggered"),
           makeTest<OnPushSentToTagParameterNotAdded>("To tag parameter not added when OnPushSent is triggered"),
       });

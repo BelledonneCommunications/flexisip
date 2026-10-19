@@ -65,6 +65,10 @@ public:
 		return mClients;
 	}
 
+	std::optional<HttpsProxyCfg> getHttpsProxyCfg() const {
+		return mHttpsProxyCfg;
+	}
+
 	std::shared_ptr<Request> makeRequest(PushType pType, const std::shared_ptr<const PushInfo>& pInfo);
 	void sendPush(const std::shared_ptr<Request>& pn);
 	void setupGenericJsonClient(const HttpUrl& url,

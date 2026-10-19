@@ -39,7 +39,7 @@ public:
 	GenericHttp2Client(const HttpUrl& url, Method method, sofiasip::SuRoot& root, Service* pushService = nullptr);
 
 	/**
-	 * Create a HTTP client to send push notification through an API that requires a JSON body.
+	 * Create a HTTP2 client to send push notification through an API that requires a JSON body.
 	 */
 	GenericHttp2Client(const HttpUrl& url,
 	                   const std::string& apiKey,
