@@ -592,7 +592,7 @@ void SdpModifier::changeRtcpAttr(sdp_media_t* mline, const string& relayAddr, in
 		string ip_version, network_family, protocol, rtcp_addr;
 		ostringstream ost;
 		ost << port;
-		istringstream ist(string(rtcp_attribute->a_value));
+		istringstream ist(string(rtcp_attribute->a_value ? rtcp_attribute->a_value : ""));
 		ist >> previous_port;
 		if (!ist.eof()) ist >> network_family;
 		if (!ist.fail() && !ist.eof()) ist >> protocol;
@@ -688,7 +688,11 @@ void SdpModifier::removeMediaAttributes(sdp_media_t* mline, std::string_view nam
 bool SdpModifier::hasIceCandidate(sdp_media_t* mline, const string& addr, int port) {
 	sdp_attribute_t* candidate = mline->m_attributes;
 
-	while ((candidate = sdp_attribute_find(candidate, "candidate")) != NULL) {
+	while ((candidate = sdp_attribute_find(candidate, "candidate")) != nullptr) {
+		if (candidate->a_value == nullptr) {
+			candidate = candidate->a_next;
+			continue;
+		}
 		string foundation, protocol, candidate_addr, type;
 		int componentID, candidate_port;
 		uint32_t priority;

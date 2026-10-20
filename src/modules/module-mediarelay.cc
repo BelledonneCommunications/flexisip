@@ -491,7 +491,7 @@ void MediaRelay::processResponseWithSDP(const shared_ptr<RelayedCall>& c,
 	string to_tag;
 	if (sip->sip_to != NULL && sip->sip_to->a_tag != NULL) to_tag = sip->sip_to->a_tag;
 
-	const auto& from_tag = string(sip->sip_from->a_tag);
+	string from_tag{sip->sip_from->a_tag != nullptr ? sip->sip_from->a_tag : ""};
 	const auto getMasqueradeContexts = [&c = *c, &from_tag, &to_tag,
 	                                    &branchId = transaction->getBranchId()](int lineNo) {
 		return c.getMasqueradeContexts(lineNo, from_tag, to_tag, branchId);

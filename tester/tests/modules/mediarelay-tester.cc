@@ -32,6 +32,7 @@
 #include "mediarelay.hh"
 #include "ortp/rtpsession.h"
 #include "sdp-modifier.hh"
+#include "transaction/outgoing-transaction.hh"
 #include "utils/asserts.hh"
 #include "utils/call-builder.hh"
 #include "utils/client-builder.hh"
@@ -645,6 +646,136 @@ void noSdpAlterationOnEstablishedDialog() {
 	BC_HARD_ASSERT(processedBody == expectedBody);
 }
 
+/**
+ * A 200 OK response whose 'From' header contains no tag must not crash the MediaRelay module.
+ */
+void responseWithoutFromTag() {
+	Server proxy{CONFIG};
+	proxy.start();
+
+	const auto module = dynamic_pointer_cast<MediaRelay>(proxy.getAgent()->findModuleByRole("MediaRelay"));
+	BC_HARD_ASSERT(module != nullptr);
+
+	stringstream body{};
+	body << "v=0\r\n"
+	     << "o=caller 3102 279 IN IP4 127.0.0.1\r\n"
+	     << "s=Talk\r\n"
+	     << "c=IN IP4 127.0.0.1\r\n"
+	     << "t=0 0\r\n"
+	     << "m=audio 7078 RTP/AVP 111 110 3 0 8 101\r\n"
+	     << "a=rtpmap:111 speex/16000\r\n"
+	     << "a=rtpmap:110 speex/8000\r\n";
+
+	stringstream request{};
+	request << "INVITE sip:callee@sip.example.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:"s + proxy.getFirstPort() + ";branch=z9hG4bKQFeeH7Syv10rD\r\n"
+	        << "From: <sip:caller@sip.example.org>;tag=stub-from-tag\r\n"
+	        << "To: <sip:callee@sip.example.org>\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 22 INVITE\r\n"
+	        << "Contact: <sip:caller@sip.example.org>\r\n"
+	        << "Content-Type: application/sdp\r\n"
+	        << "Content-Length: " << body.str().size() << "\r\n\r\n"
+	        << body.str();
+
+	auto* pri = proxy.getFirstTransport(AF_INET);
+	auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), tport_ref(pri));
+	ev = module->onRequest(std::move(ev));
+	BC_HARD_ASSERT(ev != nullptr);
+
+	stringstream response{};
+	response << "SIP/2.0 200 OK\r\n"
+	         << "Via: SIP/2.0/TCP 127.0.0.1:"s + proxy.getFirstPort() + ";branch=z9hG4bKQFeeH7Syv10rD\r\n"
+	         << "From: <sip:caller@sip.example.org>\r\n"
+	         << "To: <sip:callee@sip.example.org>;tag=stub-to-tag\r\n"
+	         << "Call-ID: stub-call-id\r\n"
+	         << "CSeq: 22 INVITE\r\n"
+	         << "Content-Type: application/sdp\r\n"
+	         << "Content-Length: " << body.str().size() << "\r\n\r\n"
+	         << body.str();
+
+	const auto outgoingTransaction = ev->getOutgoingTransaction();
+	BC_HARD_ASSERT(outgoingTransaction != nullptr);
+
+	auto responseEvent = ResponseSipEvent(outgoingTransaction, make_shared<MsgSip>(0, response.str()), nullptr);
+	module->onResponse(responseEvent);
+}
+
+/**
+ * A 200 OK response whose SDP answer contains media attributes without value ('a=rtcp', 'a=candidate') must not
+ * crash the MediaRelay module.
+ */
+void answerWithEmptyRtcpAttribute() {
+	auto config = CONFIG;
+	config.emplace("module::MediaRelay/force-relay-for-non-ice-targets", "true");
+	Server proxy{config};
+	proxy.start();
+
+	const auto module = dynamic_pointer_cast<MediaRelay>(proxy.getAgent()->findModuleByRole("MediaRelay"));
+	BC_HARD_ASSERT(module != nullptr);
+
+	stringstream offerBody{};
+	offerBody << "v=0\r\n"
+	          << "o=caller 3102 279 IN IP4 127.0.0.1\r\n"
+	          << "s=Talk\r\n"
+	          << "c=IN IP4 127.0.0.1\r\n"
+	          << "t=0 0\r\n"
+	          << "a=ice-ufrag:8hHY\r\n"
+	          << "a=ice-pwd:asdfghjk\r\n"
+	          << "m=audio 7078 RTP/AVP 111 110 3 0 8 101\r\n"
+	          << "a=rtpmap:111 speex/16000\r\n"
+	          << "a=rtcp:7079\r\n"
+	          << "a=candidate:1 1 UDP 2130706431 127.0.0.1 7078 typ host\r\n";
+
+	stringstream request{};
+	request << "INVITE sip:callee@sip.example.org SIP/2.0\r\n"
+	        << "Via: SIP/2.0/TCP 127.0.0.1:"s + proxy.getFirstPort() + ";branch=z9hG4bKQFeeH7Syv10rD\r\n"
+	        << "From: <sip:caller@sip.example.org>;tag=stub-from-tag\r\n"
+	        << "To: <sip:callee@sip.example.org>\r\n"
+	        << "Call-ID: stub-call-id\r\n"
+	        << "CSeq: 22 INVITE\r\n"
+	        << "Contact: <sip:caller@sip.example.org>\r\n"
+	        << "Content-Type: application/sdp\r\n"
+	        << "Content-Length: " << offerBody.str().size() << "\r\n\r\n"
+	        << offerBody.str();
+
+	auto* pri = proxy.getFirstTransport(AF_INET);
+	auto ev = make_unique<RequestSipEvent>(proxy.getAgent(), make_shared<MsgSip>(0, request.str()), tport_ref(pri));
+	ev = module->onRequest(std::move(ev));
+	BC_HARD_ASSERT(ev != nullptr);
+
+	stringstream answerBody{};
+	answerBody << "v=0\r\n"
+	           << "o=callee 2380 519 IN IP4 127.0.0.1\r\n"
+	           << "s=Talk\r\n"
+	           << "c=IN IP4 127.0.0.1\r\n"
+	           << "t=0 0\r\n"
+	           << "a=ice-ufrag:9aBC\r\n"
+	           << "a=ice-pwd:qwertyui\r\n"
+	           << "m=audio 9078 RTP/AVP 111 110 3 0 8 101\r\n"
+	           << "a=rtpmap:111 speex/16000\r\n"
+	           << "a=candidate:1 1 UDP 2130706431 127.0.0.1 9078 typ host\r\n"
+	           << "a=rtcp\r\n"
+	           << "a=candidate\r\n";
+
+	stringstream response{};
+	response << "SIP/2.0 200 OK\r\n"
+	         << "Via: SIP/2.0/TCP 127.0.0.1:"s + proxy.getFirstPort() + ";branch=z9hG4bKQFeeH7Syv10rD\r\n"
+	         << "From: <sip:caller@sip.example.org>;tag=stub-from-tag\r\n"
+	         << "To: <sip:callee@sip.example.org>;tag=stub-to-tag\r\n"
+	         << "Call-ID: stub-call-id\r\n"
+	         << "CSeq: 22 INVITE\r\n"
+	         << "Content-Type: application/sdp\r\n"
+	         << "Content-Length: " << answerBody.str().size() << "\r\n\r\n"
+	         << answerBody.str();
+
+	const auto outgoingTransaction = ev->getOutgoingTransaction();
+	BC_HARD_ASSERT(outgoingTransaction != nullptr);
+
+	auto responseEvent = ResponseSipEvent(outgoingTransaction, make_shared<MsgSip>(0, response.str()), nullptr);
+	module->onResponse(responseEvent);
+}
+
 TestSuite _{
     "MediaRelay",
     {
@@ -658,6 +789,8 @@ TestSuite _{
         CLASSY_TEST(serverDoesNotStartIfInvalidRtpPortRange),
         CLASSY_TEST(checkPossibleRtpPorts),
         CLASSY_TEST(noSdpAlterationOnEstablishedDialog),
+        CLASSY_TEST(responseWithoutFromTag),
+        CLASSY_TEST(answerWithEmptyRtcpAttribute),
     },
 };
 
