@@ -183,14 +183,18 @@ endif()
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
 		b2bua/b2bua-tester.cc
+		b2bua/sip-bridge/accounts/accounts-tester.cc
 		b2bua/sip-bridge/accounts/account-pool-tester.cc
 		b2bua/sip-bridge/accounts/account-pool-performance-tester.cc
+		b2bua/sip-bridge/accounts/lifecycle-tester.cc
 		b2bua/sip-bridge/accounts/loaders/static-loader-tester.cc
 		b2bua/sip-bridge/accounts/loaders/sql-loader-tester.cc
 		b2bua/sip-bridge/accounts/selection-strategy/find-in-pool-tester.cc
+		b2bua/sip-bridge/bridging-tester.cc
+		b2bua/sip-bridge/cli-tester.cc
 		b2bua/sip-bridge/configuration/v2-tester.cc
 		b2bua/sip-bridge/invite-tweaker-tester.cc
-		b2bua/sip-bridge/sip-bridge-tester.cc
+		b2bua/sip-bridge/media-tester.cc
 		b2bua/sip-bridge/string-format-fields-tester.cc
 		b2bua/trenscrypter/trenscrypter-tester.cc
 	)
