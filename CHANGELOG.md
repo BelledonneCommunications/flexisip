@@ -99,9 +99,11 @@ Group changes to describe their impact on the project, as follows:
   - **ContactRouteInserter:** Resolved restoring original request URI from CtRt parameters, fixing Push Gateway routing.
   - **PushNotification:** With push retransmissions enabled, a crash could occur if a call was answered or canceled.
   - **Registrar:** Requests coming from an unmanaged domain (not present in `reg-domains`) are not silently dropped anymore.
-  - **MediaRelay:** Ignore non-initial INVITE requests (those with a non-empty 'To' header tag) when no associated
-    RelayedCall is found. This prevents incorrect media packet routing during call updates, which could otherwise cause
-    call failures (e.g., unexpected one-way media flow even though both parties had agreed to bidirectional media).
+  - **MediaRelay:**
+    - Ignore non-initial INVITE requests (those with a non-empty 'To' header tag) when no associated
+      RelayedCall is found. This prevents incorrect media packet routing during call updates, which could otherwise cause
+      call failures (e.g., unexpected one-way media flow even though both parties had agreed to bidirectional media).
+    - Prevent potential crashes on missing or empty SDP attributes and SIP header field values.
   - **TlsConnection:** Fixed a race condition that could crash the HTTP/2 client in high usage scenarios.
 
 ## [2.6.2] - 2026-10-01
