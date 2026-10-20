@@ -274,7 +274,7 @@ void DivertibleForkContext::fetchTarget(const SipUri& targetUri, stl_backports::
 	if (!accountStore.has_value()) {
 		LOGE << "Failed to trigger call diversion (AccountsStore is nullptr for " << targetUri.getHost() << ")";
 		// try to continue call
-		forkToAccount(targetUri, {}, std::move(fallback));
+		return forkToAccount(targetUri, {}, std::move(fallback));
 	}
 
 	LOGD << "Checking target '" << targetUri.str() << "' call diversions";
@@ -390,6 +390,7 @@ void DivertibleForkContext::divert(int code, stl_backports::move_only_function<v
 		case TargetType::Account:
 			fetchTarget(target, [ctx = weak_from_this(), code, fallback = std::move(fallback)]() mutable {
 				const auto context = ctx.lock();
+				if (!context) return fallback();
 				const auto config = static_pointer_cast<ForkCallContextConfig>(context->mCfg);
 				if (config->mVoicemailServerUri.empty()) return fallback();
 				context->forkToVoicemail(codeToRedirectingReason(code));
