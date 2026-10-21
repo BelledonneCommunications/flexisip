@@ -785,6 +785,43 @@ void missingExpiresHeaderWithWildcardContactHeader() {
 	const auto& contacts = records.begin()->second->getExtendedContacts();
 	BC_ASSERT_CPP_EQUAL(contacts.size(), 2);
 }
+/**
+ * Test the usage of the wildcard '*' 'Contact' header field in case no previous binding exists.
+ */
+void wildcardContactHeaderWithoutBinding() {
+	RedisServer redis{};
+
+	auto proxy = Server({
+	    {"global/transports", "sip:127.0.0.1:0"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::Registrar/db-implementation", "redis"},
+	    {"module::Registrar/redis-server-domain", "localhost"},
+	    {"module::Registrar/redis-server-port", to_string(redis.port())},
+	    {"module::DoSProtection/enabled", "false"},
+	});
+	proxy.start();
+	auto asserter = CoreAssert(proxy);
+	const auto& clientSipIdentity = "sip:user@localhost"s;
+	const auto& proxyUri = "sip:127.0.0.1:"s + proxy.getFirstPort();
+
+	// Create a REGISTER request that deletes the existing bindings
+	auto request = make_unique<MsgSip>();
+	request->makeAndInsert<SipHeaderRequest>(sip_method_register, "sip:localhost");
+	request->makeAndInsert<SipHeaderFrom>(clientSipIdentity, "stub-from-tag");
+	request->makeAndInsert<SipHeaderTo>(clientSipIdentity);
+	request->makeAndInsert<SipHeaderCallID>("stub-call-id");
+	request->makeAndInsert<SipHeaderCSeq>(20u, sip_method_register);
+	request->makeAndInsert<SipHeaderContact>("<*>");
+	request->makeAndInsert<SipHeaderExpires>(0);
+
+	// Instantiate the client and send the request through an outgoing transaction
+	auto client = NtaAgent{proxy.getRoot(), "sip:127.0.0.1:0"};
+	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
+
+	asserter.iterateUpTo(16, [&transaction]() { return transaction->isCompleted(); }, 200ms).assert_passed();
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 500);
+}
 
 /*
  * Test correct usage of the wildcard '*' 'Contact' header field.
@@ -943,8 +980,8 @@ void uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance() {
 		    contactRegistered = true;
 	    });
 
-	// Send the first REGISTER request and stop the proxy, so the client will be able to register again using the same
-	// host:port but through a different tport_t instance (see test description).
+	// Send the first REGISTER request and stop the proxy, so the client will be able to register again using the
+	// same host:port but through a different tport_t instance (see test description).
 	{
 		Server proxy{config};
 		proxy.start();
@@ -1105,6 +1142,7 @@ TestSuite _{
         CLASSY_TEST(clientCanDeleteExistingBindingWhenRegistering),
         CLASSY_TEST(registerSeveralContactsAtOnce),
         CLASSY_TEST(missingExpiresHeaderWithWildcardContactHeader),
+        CLASSY_TEST(wildcardContactHeaderWithoutBinding),
         CLASSY_TEST(correctWildcardContactHeaderUsage),
         CLASSY_TEST(registerWithoutExpiryValueInRequest),
         CLASSY_TEST(uniqueEntryForSubsequentExactSameRegistrationsWithoutSipInstance),

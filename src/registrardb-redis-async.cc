@@ -382,9 +382,19 @@ void RegistrarDbRedisAsync::doBind(const MsgSip& msg,
 void RegistrarDbRedisAsync::handleClear(Reply reply, const RedisRegisterContext& context) {
 	const auto recordName = context.mRecord->getKey().toRedisKey() + " [" + std::to_string(context.token) + "]";
 	if (const auto* keysDeleted = std::get_if<reply::Integer>(&reply)) {
+		if (*keysDeleted == 0) {
+			LOGD << "No record to clear for " << recordName;
+			if (context.listener) context.listener->onRecordFound(nullptr);
+			return;
+		}
 		if (*keysDeleted == 1) {
-			LOGI << "Record " << recordName << " successfully cleared";
+			LOGD << "Record " << recordName << " successfully cleared";
 			if (context.listener) context.listener->onRecordFound(context.mRecord);
+			return;
+		}
+		if (*keysDeleted > 1) {
+			LOGW << "Unexpectedly cleared multiple records for " << recordName;
+			if (context.listener) context.listener->onError(SipStatus(SIP_500_INTERNAL_SERVER_ERROR));
 			return;
 		}
 	}
