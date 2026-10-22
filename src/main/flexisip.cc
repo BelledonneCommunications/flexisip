@@ -773,20 +773,25 @@ int flexisip::main(int argc, const char* argv[]) {
 	const auto authDb = std::make_shared<AuthDb>(cfg);
 	const auto registrarDb = std::make_shared<RegistrarDb>(root, cfg);
 
-	auto flexiApiClient = flexiapi::createClient(cfg, *root);
-	auto spacesStore = SpacesStore::make(root, cfg, flexiApiClient);
+	std::shared_ptr<SpacesStore> spacesStore{};
 
-	// Wait for the spaces to be created if we are using the FAM.
-	if (flexiApiClient && spacesStore) {
-		constexpr auto waitTimeout = 30s;
-		const auto deadline = chrono::system_clock::now() + waitTimeout;
-		while (!spacesStore->isReady()) {
-			if (chrono::system_clock::now() > deadline) {
-				throw ExitFailure{
-				    ExitCodes::BadConfiguration,
-				    "Could not retrieve spaces from Flexisip Account Manager, please check your configuration."};
+	// Only initialize the SpacesStore when we actually need it.
+	if (startProxy || startVoicemail) {
+		auto flexiApiClient = flexiapi::createClient(cfg, *root);
+		spacesStore = SpacesStore::make(root, cfg, flexiApiClient);
+
+		// Wait for the spaces to be created if we are using the FAM.
+		if (flexiApiClient && spacesStore) {
+			constexpr auto waitTimeout = 30s;
+			const auto deadline = chrono::system_clock::now() + waitTimeout;
+			while (!spacesStore->isReady()) {
+				if (chrono::system_clock::now() > deadline) {
+					throw ExitFailure{
+					    ExitCodes::BadConfiguration,
+					    "Could not retrieve spaces from Flexisip Account Manager, please check your configuration."};
+				}
+				root->step(10ms);
 			}
-			root->step(10ms);
 		}
 	}
 
