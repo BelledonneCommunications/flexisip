@@ -183,6 +183,10 @@ static ExpressionRules<sip_t> rules = {
             "is_response",
             [](const sip_t& sip) -> bool { return sip.sip_request == nullptr; },
         },
+        {
+            "is_first_hop",
+            [](const sip_t& sip) { return sip.sip_via && sip.sip_via->v_next == nullptr; },
+        },
     },
 };
 

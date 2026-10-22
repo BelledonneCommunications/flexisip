@@ -21,6 +21,7 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy:**
   - New parameter `connection-establishment-timeout` which enables to cancel connection establishment for connections
     that may be considered to take too much time to establish. This parameter only affects connections for SIP requests.
+  - New module filter keyword `is_first_hop` to test if the proxy currently processing this message is the first-hop.
   - **PushNotification:**
     - New parameters `module::PushNotification/flexiapi-url` and `module::PushNotification/flexiapi-key` can be used
       with `module::PushNotification/external-push-flexiapi` to send push notifications through a remote server
