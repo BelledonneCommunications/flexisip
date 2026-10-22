@@ -70,11 +70,12 @@ Group changes to describe their impact on the project, as follows:
     `audience`, `sip-id-claim`, and `scope` are deprecated. Use `global::domains/domains-configuration` instead.
 
 ## [Removed]
-- **EventLogs**:
+- **EventLogs:**
   - Parameter `flexiapi-host`: use `[global::flexiapi]` instead. (deprecated in 2.6.0)
   - Parameter `flexiapi-port`: use `[global::flexiapi]` instead. (deprecated in 2.6.0)
   - Parameter `flexiapi-api-key`: use `[global::flexiapi]` instead. (deprecated in 2.6.0)
   - Parameter `flexiapi-prefix` (deprecated in 2.6.2)
+- **API:** Remove `ModuleRegistrar::processUpdateRequest` from Flexisip API.
 
 ### [Fixed]
 - **Global:** Logging in syslog of errors occuring at startup 

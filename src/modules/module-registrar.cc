@@ -781,27 +781,6 @@ inline static bool containsNonZeroExpire(const sip_expires_t* main, const sip_co
 	return false;
 }
 
-template <typename SipEventT, typename ListenerT>
-void ModuleRegistrar::processUpdateRequest(shared_ptr<SipEventT>& ev, const sip_t* sip) {
-	const sip_expires_t* expires = sip->sip_expires;
-	const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
-	if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
-		auto listener = make_shared<ListenerT>(this, ev);
-		mStats.mCountClear->incrStart();
-		LOGD << "Clearing bindings";
-		listener->addStatCounter(mStats.mCountClear->finish);
-		mAgent->getRegistrarDb().clear(sip, listener);
-		return;
-	} else {
-		auto listener = make_shared<ListenerT>(this, ev, sip->sip_from, sip->sip_contact);
-		mStats.mCountBind->incrStart();
-		LOGD << "Updating binding";
-		listener->addStatCounter(mStats.mCountBind->finish);
-		mAgent->getRegistrarDb().bind(sip, maindelta, false, 0, listener);
-		return;
-	}
-}
-
 bool ModuleRegistrar::isAdjacentRegistration(const sip_t* sip) {
 	/* in the context of execution of Flexisip, we should always have a Path header inserted by onRequest().
 	 * More than one path header means that we are facing a non-adjacent registration */

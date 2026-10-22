@@ -123,8 +123,7 @@ class ModuleRegistrar : public Module {
 	friend class OnResponseBindListener;
 
 public:
-	~ModuleRegistrar() {
-	}
+	~ModuleRegistrar() {}
 
 	void onLoad(const GenericStruct* mc) override;
 
@@ -133,9 +132,6 @@ public:
 	std::unique_ptr<RequestSipEvent> onRequest(std::unique_ptr<RequestSipEvent>&& ev) override;
 
 	std::unique_ptr<ResponseSipEvent> onResponse(std::unique_ptr<ResponseSipEvent>&& ev) override;
-
-	template <typename SipEventT, typename ListenerT>
-	void processUpdateRequest(std::shared_ptr<SipEventT>& ev, const sip_t* sip);
 
 	void idle();
 
