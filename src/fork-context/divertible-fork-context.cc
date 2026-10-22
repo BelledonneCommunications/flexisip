@@ -164,7 +164,13 @@ void DivertibleForkContext::addForkToManager(const shared_ptr<ForkContext>& fork
 	const auto forkManager = mForkManager.lock();
 	assert(forkManager != nullptr);
 	if (mDoNotForkUris.contains(sipUri)) {
-		// Do not fork to an already called AOR.
+		// Do not fork to an already called AOR or to the caller. Divert the call to the voicemail of the initial target
+		// if configured, otherwise run the fallback.
+		const auto config = static_pointer_cast<ForkCallContextConfig>(mCfg);
+		if (mCallState == CallState::Processing && !config->mVoicemailServerUri.empty()) {
+			forkToVoicemail(RedirectingReason::Unconditional);
+			return;
+		}
 		return onEmptyContacts();
 	}
 	forkManager->addFork(fork, sipUri, true,
