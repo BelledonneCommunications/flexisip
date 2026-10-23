@@ -16,6 +16,9 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <arpa/inet.h>
+#include <cstring>
+
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
 #include "flexisip/logmanager.hh"
@@ -239,10 +242,56 @@ public:
 	}
 };
 
+class MsgSipCopyAddressTest : public Test {
+public:
+	void operator()() override {
+		constexpr auto kIpv4Port = 5061;
+		MsgSip ipv4Original{0, rawRegister};
+		su_sockaddr_t ipv4Source{};
+		ipv4Source.su_sin.sin_family = AF_INET;
+		ipv4Source.su_sin.sin_port = htons(kIpv4Port);
+		BC_HARD_ASSERT(inet_pton(AF_INET, "192.0.2.10", &ipv4Source.su_sin.sin_addr) == 1);
+		BC_HARD_ASSERT(msg_set_address(ipv4Original.getMsg(), &ipv4Source, sizeof(ipv4Source.su_sin)) == 0);
+
+		MsgSip ipv4Copy{ipv4Original};
+		su_sockaddr_t ipv4Actual{};
+		socklen_t ipv4Length = sizeof(ipv4Actual);
+		BC_HARD_ASSERT(msg_get_address(ipv4Copy.getMsg(), &ipv4Actual, &ipv4Length) == 0);
+		BC_ASSERT_CPP_EQUAL(ipv4Actual.su_sa.sa_family, AF_INET);
+		BC_ASSERT_CPP_EQUAL(ipv4Actual.su_sin.sin_port, ipv4Source.su_sin.sin_port);
+		BC_ASSERT_TRUE(ipv4Actual.su_sin.sin_addr.s_addr == ipv4Source.su_sin.sin_addr.s_addr);
+
+		constexpr auto kIpv6Port = 5062;
+		MsgSip ipv6Original{0, rawRegister};
+		su_sockaddr_t ipv6Source{};
+		ipv6Source.su_sin6.sin6_family = AF_INET6;
+		ipv6Source.su_sin6.sin6_port = htons(kIpv6Port);
+		BC_HARD_ASSERT(inet_pton(AF_INET6, "2001:db8::10", &ipv6Source.su_sin6.sin6_addr) == 1);
+		BC_HARD_ASSERT(msg_set_address(ipv6Original.getMsg(), &ipv6Source, sizeof(ipv6Source.su_sin6)) == 0);
+
+		MsgSip ipv6Copy{ipv6Original};
+		su_sockaddr_t ipv6Actual{};
+		socklen_t ipv6Length = sizeof(ipv6Actual);
+		BC_HARD_ASSERT(msg_get_address(ipv6Copy.getMsg(), &ipv6Actual, &ipv6Length) == 0);
+		BC_ASSERT_CPP_EQUAL(ipv6Actual.su_sa.sa_family, AF_INET6);
+		BC_ASSERT_CPP_EQUAL(ipv6Actual.su_sin6.sin6_port, ipv6Source.su_sin6.sin6_port);
+		BC_ASSERT_TRUE(std::memcmp(&ipv6Actual.su_sin6.sin6_addr, &ipv6Source.su_sin6.sin6_addr, sizeof(in6_addr)) ==
+		               0);
+
+		MsgSip unsetOriginal{0, rawRegister};
+		MsgSip unsetCopy{unsetOriginal};
+		su_sockaddr_t unsetActual{};
+		socklen_t unsetLength = sizeof(unsetActual);
+		BC_HARD_ASSERT(msg_get_address(unsetCopy.getMsg(), &unsetActual, &unsetLength) == 0);
+		BC_ASSERT_CPP_EQUAL(unsetActual.su_sa.sa_family, AF_UNSPEC);
+	}
+};
+
 namespace {
 TestSuite _("MsgSip unit tests",
             {
                 TEST_NO_TAG("Test the MsgSip stream insertion operator.", run<MsgSipLogTest>),
+                TEST_NO_TAG("Copying MsgSip preserves its source address.", run<MsgSipCopyAddressTest>),
             });
 }
 } // namespace tester

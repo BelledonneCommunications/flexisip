@@ -33,6 +33,7 @@ namespace sofiasip {
 shared_ptr<SipBooleanExpression> MsgSip::sShowBodyFor{};
 
 MsgSip::MsgSip(const MsgSip& msgSip) : mMsg(msg_dup(msgSip.mMsg)) {
+	msg_addr_copy(mMsg.borrow(), msgSip.mMsg);
 	serialize();
 	mLogPrefix = LogManager::makeLogPrefixForInstance(this, "MsgSip");
 	LOGD << "Copied from MsgSip " << &msgSip;
