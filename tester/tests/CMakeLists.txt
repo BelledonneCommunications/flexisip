@@ -22,7 +22,7 @@
 
 add_executable(flexisip_tester
 	agent-tester.cc
-	boolean-expressions.cc
+	boolean-expressions-tester.cc
 	cli-tester.cc
 	domain-registration-tester.cc
 	http-url-tester.cc
