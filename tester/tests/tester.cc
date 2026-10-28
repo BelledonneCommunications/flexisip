@@ -21,6 +21,7 @@
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 
 #include "bctoolbox/logging.h"
@@ -47,6 +48,8 @@ LoggerParameters params{
     .enableUserErrors = true,
 };
 
+std::filesystem::path logFilePath{};
+
 } // namespace
 
 static int verbose_arg_func(const char*) {
@@ -62,25 +65,44 @@ static int silent_arg_func([[maybe_unused]] const char* arg) {
 	return 0;
 }
 
+/**
+ * Write logs to the log-file ignoring log levels and without formatting.
+ */
+static void logTofile(const char* fmt, va_list args) {
+	auto logFile = fopen(logFilePath.c_str(), "a");
+	if (logFile != nullptr) {
+		vfprintf(logFile, fmt, args);
+		fprintf(logFile, "\n");
+		fflush(logFile);
+		fclose(logFile);
+	}
+}
+
+/**
+ * Log handler enabling to ignore log levels and log formatting.
+ */
 static void log_handler(int lev, const char* fmt, va_list args) {
-	// We still need this part for the CI to show BCUnit logs when
-	// "--disable-stdout" is used.
-	if (!params.enableStandardOutput) {
 #ifdef _WIN32
-		vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, args);
-		fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
+	vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, args);
+	fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
+#else
+	va_list cap;
+	va_copy(cap, args);
+	vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, cap);
+	fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
+	va_end(cap);
+#endif
+
+	if (!logFilePath.empty()) {
+#ifdef _WIN32
+		logTofile(fmt, args);
 #else
 		va_list cap;
 		va_copy(cap, args);
-		/* Otherwise, we must use stdio to avoid log formatting (for autocompletion etc.) */
-		vfprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, fmt, cap);
-		fprintf(lev == BCTBX_LOG_ERROR ? stderr : stdout, "\n");
+		logTofile(fmt, cap);
 		va_end(cap);
 #endif
 	}
-
-	// Route through bctbx logging so the file handler (--log-file) captures it.
-	bctbx_logv("bc-tester", static_cast<BctbxLogLevel>(lev), fmt, args);
 }
 
 void flexisip_tester_add_grammar_loader_path(const std::string& path) {
@@ -151,10 +173,15 @@ int main(int argc, char* argv[]) {
 		// Parse bctoolbox command line arguments.
 		const auto ret = bc_tester_parse_args(argc, argv, i);
 		if (ret > 0) {
+			if (strcmp(argv[i], "--log-file") == 0) {
+				// bc_tester_parse_args already checked if the log file argument is present
+				std::filesystem::path filePath{argv[i + 1]};
+				logFilePath = filePath.parent_path().empty() ? std::filesystem::current_path() / filePath : filePath;
+			}
 			i += ret - 1;
 			continue;
 		}
-		if (ret < 0) bc_tester_helper(argv[0], "\t\t\t--disable-stdout (disable all logs in the standard output)");
+		if (ret < 0) bc_tester_helper(argv[0], "\t\t\t--disable-stdout (disable test logs in the standard output)");
 		return ret;
 	}
 
