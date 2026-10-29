@@ -28,6 +28,7 @@
 
 namespace flexisip::tester {
 
+std::shared_ptr<linphone::Config> emptyCoreConfig();
 std::shared_ptr<linphone::Core> minimalCore();
 
 class Server;
@@ -375,8 +376,7 @@ private:
 	           std::shared_ptr<linphone::Account>&& account,
 	           std::shared_ptr<const linphone::Address>&& me,
 	           const std::shared_ptr<Agent>& agent)
-	    : mCore(std::move(core)), mAccount(std::move(account)), mMe(std::move(me)), mAgent(agent) {
-	}
+	    : mCore(std::move(core)), mAccount(std::move(account)), mMe(std::move(me)), mAgent(agent) {}
 
 	std::shared_ptr<linphone::Core> mCore;
 	std::shared_ptr<linphone::Account> mAccount;

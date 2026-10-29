@@ -237,7 +237,7 @@ void getTransportUriWithInvalidUri() {
 }
 
 void bindAddressInvalidUri() {
-	const auto config = linphone::Factory::get()->createConfig("");
+	const auto config = emptyCoreConfig();
 
 	const ConfigString emptyParam{"transport", "", "", 0};
 	BC_ASSERT_THROWN(configuration_utils::setBindAddress(config, &emptyParam), BadConfigurationEmpty)
@@ -247,7 +247,7 @@ void bindAddressInvalidUri() {
 }
 
 void setBindaddress() {
-	const auto config = linphone::Factory::get()->createConfig("");
+	const auto config = emptyCoreConfig();
 
 	const ConfigString parameter{"transport", "", "sip:127.0.0.2", 0};
 	configuration_utils::setBindAddress(config, &parameter);

@@ -43,6 +43,12 @@ using namespace linphone;
 
 namespace flexisip::tester {
 
+std::shared_ptr<Config> emptyCoreConfig() {
+	auto linphoneConfig = Factory::get()->createConfig("");
+	linphoneConfig->setBool("logging", "disable_stdout", true);
+	return linphoneConfig;
+}
+
 std::shared_ptr<linphone::Core> minimalCore() {
 	const auto factory = linphone::Factory::get();
 	const auto dataDir = std::string(bc_tester_get_writable_dir_prefix());

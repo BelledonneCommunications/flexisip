@@ -36,7 +36,7 @@ using namespace configuration_utils;
 
 void configureAudioEngineMode() {
 	{
-		const auto configuration = linphone::Factory::get()->createConfig("");
+		const auto configuration = emptyCoreConfig();
 		const ConfigString parameter{"audio-engine-mode", "", "mixer", 0};
 
 		configureMediaEngineMode(configuration, MediaEngine::AUDIO, &parameter);
@@ -44,7 +44,7 @@ void configureAudioEngineMode() {
 		BC_ASSERT_CPP_EQUAL(configuration->getInt("sound", "conference_mode", -1), 0);
 	}
 	{
-		const auto configuration = linphone::Factory::get()->createConfig("");
+		const auto configuration = emptyCoreConfig();
 		const ConfigString parameter{"audio-engine-mode", "", "semi-sfu", 0};
 
 		configureMediaEngineMode(configuration, MediaEngine::AUDIO, &parameter);
@@ -52,7 +52,7 @@ void configureAudioEngineMode() {
 		BC_ASSERT_CPP_EQUAL(configuration->getInt("sound", "conference_mode", -1), 1);
 	}
 	{
-		const auto configuration = linphone::Factory::get()->createConfig("");
+		const auto configuration = emptyCoreConfig();
 		const ConfigString parameter{"audio-engine-mode", "", "sfu", 0};
 
 		configureMediaEngineMode(configuration, MediaEngine::AUDIO, &parameter);
@@ -63,7 +63,7 @@ void configureAudioEngineMode() {
 
 void configureVideoEngineMode() {
 	{
-		const auto configuration = linphone::Factory::get()->createConfig("");
+		const auto configuration = emptyCoreConfig();
 		const ConfigString parameter{"video-engine-mode", "", "semi-sfu", 0};
 
 		configureMediaEngineMode(configuration, MediaEngine::VIDEO, &parameter);
@@ -71,7 +71,7 @@ void configureVideoEngineMode() {
 		BC_ASSERT_CPP_EQUAL(configuration->getInt("video", "conference_mode", -1), 1);
 	}
 	{
-		const auto configuration = linphone::Factory::get()->createConfig("");
+		const auto configuration = emptyCoreConfig();
 		const ConfigString parameter{"video-engine-mode", "", "sfu", 0};
 
 		configureMediaEngineMode(configuration, MediaEngine::VIDEO, &parameter);
@@ -81,14 +81,14 @@ void configureVideoEngineMode() {
 }
 
 void configureMediaEngineModeWithUnknownMediaEngine() {
-	const auto configuration = linphone::Factory::get()->createConfig("");
+	const auto configuration = emptyCoreConfig();
 	const ConfigString parameter{"audio-engine-mode", "", "mixer", 0};
 	BC_ASSERT_THROWN(configureMediaEngineMode(configuration, static_cast<MediaEngine>(-1), &parameter),
 	                 BadConfiguration);
 }
 
 void configureMediaEngineModeWithUnknownMode() {
-	const auto configuration = linphone::Factory::get()->createConfig("");
+	const auto configuration = emptyCoreConfig();
 	const ConfigString parameter{"audio-engine-mode", "", "unknown", 0};
 	BC_ASSERT_THROWN(configureMediaEngineMode(configuration, MediaEngine::VIDEO, &parameter), BadConfiguration);
 }
