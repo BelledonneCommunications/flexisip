@@ -40,7 +40,7 @@ constexpr auto step = 100ms;
 
 class ProcessusHandler {
 public:
-	explicit ProcessusHandler(pid_t pid) : mPid(pid){};
+	explicit ProcessusHandler(pid_t pid) : mPid(pid) {};
 
 	~ProcessusHandler() {
 		kill();
@@ -110,6 +110,7 @@ void callAndStopMain() {
 	    "-c",
 	    confFilePath.c_str(),
 	    "--server all",
+	    LogManager::get().standardOutputIsEnabled() ? "" : "--disable-stdout",
 	};
 
 	auto childPid = ::fork();
