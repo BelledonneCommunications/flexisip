@@ -22,6 +22,7 @@
 
 target_sources(flexisip PRIVATE
 	config.cc config.hh
+	endpoints.cc endpoints.hh
 	flexi-stats.cc flexi-stats.hh
 	flexiapi.cc flexiapi.hh
 	schemas/account/account.hh

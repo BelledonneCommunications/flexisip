@@ -16,18 +16,18 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "flexi-stats.hh"
+
 #include <filesystem>
 
-#include "flexi-stats.hh"
+#include "endpoints.hh"
 
 using namespace std;
 using namespace flexisip;
 using namespace flexiapi;
 using namespace nlohmann;
 
-FlexiStats::FlexiStats(RestClient&& restClient, const std::string& apiPrefix)
-    : mRestClient(std::move(restClient)),
-      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()} {}
+FlexiStats::FlexiStats(RestClient&& restClient) : mRestClient(std::move(restClient)) {}
 
 void FlexiStats::successCallback(const std::string& id) {
 	mOngoingIds.erase(id);
@@ -60,7 +60,8 @@ void FlexiStats::postMessage(const Message& message) {
 	mOngoingIds.emplace(message.id);
 
 	mRestClient.post(
-	    toApiPath("messages"), message, [this, id = message.id](const auto&, const auto&) { successCallback(id); },
+	    endpoints::messagesStatistics(), message,
+	    [this, id = message.id](const auto&, const auto&) { successCallback(id); },
 	    [this, id = message.id](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + message.id + "]",
 	    getLogPrefix(__func__) + " request error for id["s + message.id + "]");
@@ -86,7 +87,7 @@ void FlexiStats::notifyMessageDeviceResponsePatch(const string& messageId,
                                                   const MessageDeviceResponse& messageDeviceResponse) {
 	mOngoingIds.emplace(messageId);
 	mRestClient.patch(
-	    toApiPath("messages/" + messageId + "/to/" + string(sipUri) + "/devices/" + deviceId), messageDeviceResponse,
+	    endpoints::messagesStatistics(messageId, sipUri, deviceId), messageDeviceResponse,
 	    [this, id = messageId](const auto&, const auto&) { successCallback(id); },
 	    [this, id = messageId](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + messageId + "]",
@@ -97,7 +98,7 @@ void FlexiStats::postCall(const Call& call) {
 	mOngoingIds.emplace(call.id);
 
 	mRestClient.post(
-	    toApiPath("calls"), call, [this, id = call.id](const auto&, const auto&) { successCallback(id); },
+	    endpoints::callsStatistics(), call, [this, id = call.id](const auto&, const auto&) { successCallback(id); },
 	    [this, id = call.id](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + call.id + "]",
 	    getLogPrefix(__func__) + " request error for id["s + call.id + "]");
@@ -121,7 +122,7 @@ void FlexiStats::updateCallDeviceStatePatch(const std::string& callId,
                                             const CallDeviceState& callDeviceState) {
 	mOngoingIds.emplace(callId);
 	mRestClient.patch(
-	    toApiPath("calls/" + callId + "/devices/" + deviceId), callDeviceState,
+	    endpoints::callsStatistics(callId, deviceId), callDeviceState,
 	    [this, id = callId](const auto&, const auto&) { successCallback(id); },
 	    [this, id = callId](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + callId + "]",
@@ -140,7 +141,7 @@ void FlexiStats::updateCallState(const string& callId, const ISO8601Date& endedA
 void FlexiStats::updateCallStatePatch(const string& callId, const ISO8601Date& endedAt) {
 	mOngoingIds.emplace(callId);
 	mRestClient.patch(
-	    toApiPath("calls/" + callId), optional{json{{"ended_at", endedAt}}},
+	    endpoints::callsStatistics(callId), optional{json{{"ended_at", endedAt}}},
 	    [this, id = callId](const auto&, const auto&) { successCallback(id); },
 	    [this, id = callId](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + callId + "]",
@@ -151,7 +152,7 @@ void FlexiStats::postConference(const Conference& conference) {
 	mOngoingIds.emplace(conference.id);
 
 	mRestClient.post(
-	    toApiPath("conferences"), conference,
+	    endpoints::conferencesStatistics(), conference,
 	    [this, id = conference.id](const auto&, const auto&) { successCallback(id); },
 	    [this, id = conference.id](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + conference.id + "]",
@@ -170,7 +171,7 @@ void FlexiStats::notifyConferenceEnded(const string& conferenceId, const ISO8601
 void FlexiStats::notifyConferenceEndedPatch(const string& conferenceId, const ISO8601Date& endedAt) {
 	mOngoingIds.emplace(conferenceId);
 	mRestClient.patch(
-	    toApiPath("conferences/" + conferenceId), optional{json{{"ended_at", endedAt}}},
+	    endpoints::conferencesStatistics(conferenceId), optional{json{{"ended_at", endedAt}}},
 	    [this, id = conferenceId](const auto&, const auto&) { successCallback(id); },
 	    [this, id = conferenceId](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + conferenceId + "]",
@@ -195,7 +196,7 @@ void FlexiStats::conferenceAddParticipantEventPatch(const string& conferenceId,
                                                     const ParticipantEvent& participantEvent) {
 	mOngoingIds.emplace(conferenceId);
 	mRestClient.post(
-	    toApiPath("conferences/" + conferenceId + "/participants/" + string(sipUri) + "/events"), participantEvent,
+	    endpoints::conferencesStatistics(conferenceId, sipUri), participantEvent,
 	    [this, id = conferenceId](const auto&, const auto&) { successCallback(id); },
 	    [this, id = conferenceId](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + conferenceId + "]",
@@ -222,14 +223,9 @@ void FlexiStats::conferenceAddParticipantDeviceEventPatch(const string& conferen
                                                           const ParticipantDeviceEvent& participantDeviceEvent) {
 	mOngoingIds.emplace(conferenceId);
 	mRestClient.post(
-	    toApiPath("conferences/" + conferenceId + "/participants/" + string(sipUri) + "/devices/" + deviceId +
-	              "/events"),
-	    participantDeviceEvent, [this, id = conferenceId](const auto&, const auto&) { successCallback(id); },
+	    endpoints::conferencesStatistics(conferenceId, sipUri, deviceId), participantDeviceEvent,
+	    [this, id = conferenceId](const auto&, const auto&) { successCallback(id); },
 	    [this, id = conferenceId](const auto&) { errorCallback(id); },
 	    getLogPrefix(__func__) + " request successful for id["s + conferenceId + "]",
 	    getLogPrefix(__func__) + " request error for id["s + conferenceId + "]");
-}
-
-std::string FlexiStats::toApiPath(const string& methodPath) const {
-	return mApiPrefix + methodPath;
 }

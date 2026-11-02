@@ -22,6 +22,7 @@
 
 #include "agent.hh"
 #include "exceptions/bad-configuration.hh"
+#include "flexiapi/endpoints.hh"
 #include "fork-context/branch-info.hh"
 #include "fork-context/fork-context.hh"
 #include "pushnotification/flexiapi/flexiapi-request.hh"
@@ -733,7 +734,7 @@ void PushNotification::configureFlexiApiExternalPush(const GenericStruct* mc,
 
 	try {
 		// Append push notification endpoint to the generic api path
-		auto pnUrl = HttpUrl(flexiApiUrl).appendPath(kFlexiApiPushNotificationPath);
+		auto pnUrl = HttpUrl(flexiApiUrl).appendPath(flexiapi::endpoints::remotePushNotifications());
 		mPNS->setupGenericJsonClient(pnUrl, flexiApiKey, FlexiApiBodyGenerationFunc, flexiApiClient);
 	} catch (const HttpUrlError& e) {
 		throw BadConfiguration{"invalid value for parameter '" + flexiapiUrlParam->getCompleteName() + "' (" +

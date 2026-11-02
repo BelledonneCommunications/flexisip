@@ -446,8 +446,7 @@ void SpacesStore::createSpace(const flexiapi::Space& space) {
 
 			// Create the FlexiApi client
 			flexiApiClient = std::make_shared<flexiapi::FlexiApi>(
-			    createRestClientForSpace(http2Client, url, mFlexiApiConfig->apiKey),
-			    flexiapi::FlexiApi::kFlexiApiPath.data(), mFlexiApiConfig->criticalTimeout);
+			    createRestClientForSpace(http2Client, url, mFlexiApiConfig->apiKey), mFlexiApiConfig->criticalTimeout);
 
 			// Create the FlexiStats client
 			flexiStatsClient = std::make_shared<flexiapi::FlexiStats>(

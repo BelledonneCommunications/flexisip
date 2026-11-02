@@ -32,8 +32,6 @@ namespace flexisip::flexiapi {
 
 class FlexiApi {
 public:
-	static constexpr std::string_view kFlexiApiPath{"/api/"};
-
 	using OnErrorCb = HttpMessageContext::OnErrorCb;
 	using OnResponseCb = HttpMessageContext::OnResponseCb;
 
@@ -42,9 +40,7 @@ public:
 		kCritical,
 	};
 
-	explicit FlexiApi(RestClient&& restClient,
-	                  const std::string& apiPrefix = kFlexiApiPath.data(),
-	                  std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
+	explicit FlexiApi(RestClient&& restClient, std::optional<std::chrono::milliseconds> criticalTimeout = std::nullopt);
 
 	/********** Account/Group **********/
 	void resolveByUri(const ApiFormattedUri& sipUri,
@@ -72,10 +68,7 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"FlexiApi"};
 
-	std::string toApiPath(const std::string& methodPath) const;
-
 	RestClient mRestClient;
-	std::string mApiPrefix;
 	std::optional<std::chrono::milliseconds> mCriticalTimeout;
 };
 

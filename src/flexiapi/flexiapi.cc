@@ -21,6 +21,7 @@
 #include <filesystem>
 
 #include "config.hh"
+#include "endpoints.hh"
 #include "flexiapi/schemas/voicemail/slot-creation-json.hh"
 
 using namespace std;
@@ -28,22 +29,14 @@ using namespace flexisip;
 using namespace flexiapi;
 using namespace nlohmann;
 
-FlexiApi::FlexiApi(RestClient&& restClient,
-                   const std::string& apiPrefix,
-                   const std::optional<std::chrono::milliseconds> criticalTimeout)
-    : mRestClient(std::move(restClient)),
-      mApiPrefix{filesystem::path{"/" + apiPrefix + "/."}.lexically_normal().string()},
-      mCriticalTimeout(criticalTimeout) {}
-
-std::string FlexiApi::toApiPath(const string& methodPath) const {
-	return mApiPrefix + methodPath;
-}
+FlexiApi::FlexiApi(RestClient&& restClient, const std::optional<std::chrono::milliseconds> criticalTimeout)
+    : mRestClient(std::move(restClient)), mCriticalTimeout(criticalTimeout) {}
 
 void FlexiApi::resolveByUri(const ApiFormattedUri& sipUri,
                             const OnResponseCb& onResponseCb,
                             const OnErrorCb& onErrorCb,
                             const Criticality criticality) {
-	mRestClient.get(toApiPath("resolve/"s + string{sipUri}), onResponseCb, onErrorCb,
+	mRestClient.get(endpoints::resolveUri(sipUri), onResponseCb, onErrorCb,
 	                criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }
 
@@ -51,7 +44,7 @@ void FlexiApi::accountSearchByUri(const ApiFormattedUri& sipUri,
                                   const OnResponseCb& onResponseCb,
                                   const OnErrorCb& onErrorCb,
                                   const Criticality criticality) {
-	mRestClient.get(toApiPath("accounts/"s + string{sipUri} + "/search"), onResponseCb, onErrorCb,
+	mRestClient.get(endpoints::accountSearch(sipUri), onResponseCb, onErrorCb,
 	                criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }
 
@@ -60,8 +53,8 @@ void FlexiApi::slotCreationByAccountId(int accountId,
                                        const OnResponseCb& onResponseCb,
                                        const OnErrorCb& onErrorCb,
                                        const Criticality criticality) {
-	mRestClient.post(toApiPath("accounts/"s + to_string(accountId) + "/voicemails"), slotCreation, onResponseCb,
-	                 onErrorCb, criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
+	mRestClient.post(endpoints::voicemailSlotCreation(accountId), slotCreation, onResponseCb, onErrorCb,
+	                 criticality == Criticality::kCritical ? mCriticalTimeout : nullopt);
 }
 
 void FlexiApi::uploadVoicemail(const sofiasip::Url& uploadUrl,

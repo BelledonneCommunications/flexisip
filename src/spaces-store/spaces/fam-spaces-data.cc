@@ -17,6 +17,8 @@
 */
 
 #include "fam-spaces-data.hh"
+
+#include "flexiapi/endpoints.hh"
 #include "flexiapi/schemas/space/space-json.hh"
 #include "flexiapi/schemas/space/space.hh"
 
@@ -25,12 +27,6 @@
 using namespace std;
 
 namespace flexisip {
-
-namespace {
-
-constexpr auto kDynamicSpacesPath = "/api/spaces";
-
-} // namespace
 
 FAMSpacesData::FAMSpacesData(const shared_ptr<sofiasip::SuRoot>& root,
                              RestClient&& restClient,
@@ -43,7 +39,7 @@ FAMSpacesData::FAMSpacesData(const shared_ptr<sofiasip::SuRoot>& root,
 
 void FAMSpacesData::askAccountManager() {
 	mFAMClient.get(
-	    kDynamicSpacesPath,
+	    flexiapi::endpoints::spaces(),
 	    [this](const std::shared_ptr<HttpMessage>&, const std::shared_ptr<HttpResponse>& rep) {
 		    onAccountManagerResponse(rep);
 	    },

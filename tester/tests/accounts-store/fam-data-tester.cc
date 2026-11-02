@@ -151,7 +151,6 @@ struct TestCommons {
 	          std::make_shared<flexiapi::FlexiApi>(
 	              flexiapi::createRestClient(*proxy.getConfigManager(),
 	                                         flexiapi::createClient(proxy.getConfigManager(), *proxy.getRoot())),
-	              flexiapi::FlexiApi::kFlexiApiPath.data(),
 	              criticalTimeout),
 	          proxy.getRoot(),
 	          cacheTimeout,

@@ -79,12 +79,13 @@ void flexiStatTestFunc(const SendReqFunc& sendRequest,
 	BC_HARD_ASSERT_TRUE(port > -1);
 
 	const auto http2Client = Http2Client::make(mRoot, "127.0.0.1", to_string(port));
-	FlexiStats flexiStats{RestClient{http2Client,
-	                                 HttpHeaders{
-	                                     {"accept", "application/json"},
-	                                     {"x-api-key"s, "aRandomApiToken"},
-	                                 }},
-	                      "api////statistics//"};
+	FlexiStats flexiStats{
+	    RestClient{http2Client,
+	               HttpHeaders{
+	                   {"accept", "application/json"},
+	                   {"x-api-key"s, "aRandomApiToken"},
+	               }},
+	};
 
 	sendRequest(flexiStats);
 

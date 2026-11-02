@@ -34,9 +34,7 @@ namespace flexisip::flexiapi {
 
 class FlexiStats {
 public:
-	static constexpr auto kFlexiStatsApiPath = "/api/statistics/";
-
-	explicit FlexiStats(RestClient&& restClient, const std::string& apiPrefix = kFlexiStatsApiPath);
+	explicit FlexiStats(RestClient&& restClient);
 
 	/********** MESSAGES **********/
 	void postMessage(const Message& message);
@@ -66,7 +64,6 @@ public:
 private:
 	static constexpr std::string_view mLogPrefix{"FlexiStats"};
 
-	std::string toApiPath(const std::string& methodPath) const;
 	static std::string getLogPrefix(const std::string& func) {
 		return std::string{mLogPrefix} + "::" + func;
 	}
@@ -110,7 +107,6 @@ private:
 	std::unordered_set<std::string> mOngoingIds;
 
 	RestClient mRestClient;
-	std::string mApiPrefix;
 };
 
 } // namespace flexisip::flexiapi
