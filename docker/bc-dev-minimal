@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20260619_remove_nghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-minimal:20261109_ccache_update
 ###############################################################################
 
 FROM debian:12
@@ -12,7 +12,6 @@ RUN apt-get -y update \
       wget \
       software-properties-common \
     # Install build deps
-      ccache \
       clang-19 \
       cmake \
       curl \
@@ -30,6 +29,11 @@ RUN apt-get -y update \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Install more recent ccache from source
+ARG CCACHE_VERSION=4.14.3
+COPY install-ccache.sh /tmp/install-ccache.sh
+RUN CC=clang-19 CXX=clang++-19 sh /tmp/install-ccache.sh && rm -f /tmp/install-ccache.sh
 
 # Update gcc and clang alternatives
 RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 10 \

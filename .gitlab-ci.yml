@@ -6,7 +6,13 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   GIT_SUBMODULE_UPDATE_FLAGS: --jobs 8
 
-  CCACHE_SIZE: 2G
+  CCACHE_SIZE: 1G
+  # CCACHE_REMOTE_STORAGE (bazel-remote endpoint, e.g.
+  # "http://<host>:8080|layout=bazel") is NOT defined here but at project
+  # level in Settings > CI/CD > Variables, so the endpoint can be changed
+  # without a commit. It is exported to every job.
+  # job-check-ccache-remote stops the pipeline if it is missing (see
+  # .gitlab-ci-files/job-linux.yml).
 
   # For build and test on Linux
   DEFAULT_CMAKE_OPTIONS: '-DCMAKE_BUILD_TYPE=Debug -DENABLE_G729=ON'
@@ -17,13 +23,13 @@ variables:
 
   # Docker image version
   ARCHLINUX_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  ROCKY_8_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  ROCKY_9_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  DEBIAN_12_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  DEBIAN_13_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  MINIMAL_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  UBUNTU_24_04_IMAGE_VERSION: 20260619_remove_nghttp2_asio
-  UBUNTU_26_04_IMAGE_VERSION: 20260430_add_squid_proxy
+  ROCKY_8_IMAGE_VERSION: 20261109_ccache_update
+  ROCKY_9_IMAGE_VERSION: 20261109_ccache_update
+  DEBIAN_12_IMAGE_VERSION: 20261109_ccache_update
+  DEBIAN_13_IMAGE_VERSION: 20261109_ccache_update
+  MINIMAL_IMAGE_VERSION: 20261109_ccache_update
+  UBUNTU_24_04_IMAGE_VERSION: 20261109_ccache_update
+  UBUNTU_26_04_IMAGE_VERSION: 20261109_ccache_update
 
 #https://docs.gitlab.com/ee/ci/yaml/index.html#workflow
 workflow:
@@ -45,7 +51,7 @@ workflow:
       fi
 
 before_script:
-    - !reference [".todo_before_script", "before_script"]
+  - !reference [ ".todo_before_script", "before_script" ]
 
 #################################################
 # Platforms to test
@@ -66,6 +72,7 @@ include:
   - '.gitlab-ci-files/job-macosx.yml'
 
 stages:
+  - prepare 🛠️
   - build 🏗
   - test 🧪
   - coverage 📑

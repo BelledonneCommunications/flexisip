@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20260619_remove_nghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky8:20261109_ccache_update
 ###############################################################################
 
 FROM rockylinux/rockylinux:8
@@ -20,7 +20,6 @@ RUN sudo dnf makecache --refresh && dnf -y update
 # Install development tools
 RUN sudo dnf -y install \
                    bzip2 \
-                   ccache \
                    clang-20.1.8 \
                    cmake \
                    c-ares-devel \
@@ -73,6 +72,11 @@ RUN sudo dnf -y install \
                    squid \
                &&  dnf -y module install redis:6 \
                &&  dnf -y clean all
+
+# Install more recent ccache from source
+ARG CCACHE_VERSION=4.14.3
+COPY install-ccache.sh /tmp/install-ccache.sh
+RUN . /opt/rh/gcc-toolset-14/enable && CC=gcc CXX=g++ sh /tmp/install-ccache.sh && rm -f /tmp/install-ccache.sh
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \

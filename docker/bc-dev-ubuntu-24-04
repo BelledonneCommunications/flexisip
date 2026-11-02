@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20260619_remove_nghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-24-04:20261109_ccache_update
 ###############################################################################
 
 FROM ubuntu:24.04
@@ -17,7 +17,6 @@ RUN apt-get -y update \
                        curl \
                        software-properties-common \
                      # Install development tools
-                       ccache \
                        clang-20 \
                        cmake \
                        doxygen \
@@ -73,6 +72,11 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 10 \
     && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 10 \
     &&update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 10 \
     && update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 10
+
+# Install more recent ccache from source
+ARG CCACHE_VERSION=4.14.3
+COPY install-ccache.sh /tmp/install-ccache.sh
+RUN CC=gcc CXX=g++ sh /tmp/install-ccache.sh && rm -f /tmp/install-ccache.sh
 
 # Configure user bc
 RUN useradd -ms /bin/bash bc && \

@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20260619_remove_nghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-rocky9:20261109_ccache_update
 ###############################################################################
 
 FROM rockylinux:9
@@ -22,7 +22,6 @@ RUN dnf makecache --refresh \
  # Install development tools
  && dnf -y install \
         bzip2 \
-        ccache \
         clang \
         cmake \
         c-ares-devel \
@@ -73,6 +72,11 @@ RUN dnf makecache --refresh \
         squid \
  && dnf -y module install redis \
  && dnf -y clean all
+
+# Install more recent ccache from source
+ARG CCACHE_VERSION=4.14.3
+COPY install-ccache.sh /tmp/install-ccache.sh
+RUN . /opt/rh/gcc-toolset-15/enable && CC=gcc CXX=g++ sh /tmp/install-ccache.sh && rm -f /tmp/install-ccache.sh
 
 # Install boost 1.81 (version available from repo is only 1.75, which is not compatible with GCC 15).
 RUN wget -O boost_1_81_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.81.0/boost_1_81_0.tar.gz/download \

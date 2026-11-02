@@ -38,11 +38,12 @@
   before_script:
     - *enable-gcc-toolset
 
+# ccache >= 4.10: per-job ephemeral local cache layer + shared remote storage
+# (bazel-remote, see CCACHE_REMOTE_STORAGE in the project CI/CD variables). Objects are
+# fetched/pushed one by one, so there is no whole-directory cache snapshot to
+# save and no pull-push policy to manage. GitLab CI/CD variables are already
+# exported to the job environment.
 .linux-ccache:
-  cache:
-    key: $CI_JOB_NAME
-    paths:
-      - ccache/
   before_script:
     - !reference [ ".todo_before_script", "before_script" ]
     - *enable-gcc-toolset
@@ -55,6 +56,45 @@
     - export CCACHE_DIR=${PWD}/ccache
     - ccache -s
 
+# Health check of the shared ccache remote storage (CCACHE_REMOTE_STORAGE,
+# defined as a project CI/CD variable). Tri-state:
+# - variable not set -> exit 2 -> red, blocks the pipeline: build jobs would
+#   silently fall back to local-only compilation, so this must be caught hard;
+# - server down or misconfigured (curl failures) -> exit 1 -> orange warning,
+#   the pipeline continues with degraded (local-only) caching;
+# - everything green -> cache sharing is operational.
+job-check-ccache-remote:
+  stage: prepare 🛠️
+  tags: [ "docker-flat" ]
+  image: curlimages/curl:latest
+  extends: .rules-default  # ⚠ See `rules.yml`
+  allow_failure:
+    exit_codes: 1 # warning (orange) only for these, other exit codes block
+  variables:
+    GIT_STRATEGY: none # No repository needed, only network calls.
+  before_script: [] # Override the global before_script, which requires git.
+  script:
+    - |
+      if [ -z "${CCACHE_REMOTE_STORAGE:-}" ]; then
+        echo "CCACHE_REMOTE_STORAGE is not set: define it in the project CI/CD variables (Settings > CI/CD > Variables)."
+        exit 2
+      fi
+      url="${CCACHE_REMOTE_STORAGE%%|*}"
+      echo "Checking ccache remote storage at $url"
+      echo -n flexisip-ccache-remote-healthcheck > /tmp/hc
+      key=$(sha256sum /tmp/hc | cut -d' ' -f1)
+      # /status must answer: catches server down and wrong IP.
+      if ! curl -fsS -m 10 "$url/status" | grep -q MaxSize; then
+        echo "$url/status did not answer: server down or wrong address."
+        exit 1
+      fi
+      # Action cache round-trip: catches a server recreated without
+      # --disable_http_ac_validation (PUT would be rejected with 400).
+      if ! curl -fsS -m 10 -X PUT --data-binary @/tmp/hc "$url/ac/$key" \
+      || ! curl -fsS -m 10 "$url/ac/$key" | grep -q flexisip-ccache-remote-healthcheck; then
+        echo "Action cache round-trip failed: check --disable_http_ac_validation on bazel-remote."
+        exit 1
+      fi
 
 .job-linux-build:
   stage: build 🏗
@@ -92,6 +132,7 @@
   tags: [ "docker-flat" ]
   extends:
     - .rules-default  # ⚠ See `rules.yml`
+    - .linux-ccache
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:
@@ -123,6 +164,7 @@
   tags: [ "docker-flat" ]
   extends:
     - .rules-default  # ⚠ See `rules.yml`
+    - .linux-ccache
   variables:
     CMAKE_GENERATOR: 'Ninja'
   script:

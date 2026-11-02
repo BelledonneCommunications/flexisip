@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20260619_remove_nghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-debian13:20261109_ccache_update
 ###############################################################################
 
 FROM debian:trixie
@@ -16,7 +16,6 @@ RUN apt-get -y update \
       file \
       curl \
     # Install development tools
-      ccache \
       clang \
       cmake \
       doxygen \
@@ -70,7 +69,12 @@ RUN apt-get -y update \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
-	
+
+# Install more recent ccache from source
+ARG CCACHE_VERSION=4.14.3
+COPY install-ccache.sh /tmp/install-ccache.sh
+RUN CC=gcc CXX=g++ sh /tmp/install-ccache.sh && rm -f /tmp/install-ccache.sh
+
 RUN apt-get -y install python3-pip \
   # Dependency of clang test coverage (converts lcov format to cobertura so Gitlab can display code coverage for files in diff view)
  && pip install --break-system-packages lcov_cobertura \

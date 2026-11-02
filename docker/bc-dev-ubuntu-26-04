@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-26-04:20260430_add_squid_proxy
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-ubuntu-26-04:20261109_ccache_update
 ###############################################################################
 
 FROM ubuntu:26.04
@@ -17,7 +17,6 @@ RUN apt-get -y update \
       file \
       curl \
     # Install development tools
-      ccache \
       clang \
       cmake \
       doxygen \
@@ -64,6 +63,11 @@ RUN apt-get -y update \
   # Clean up
  && apt-get -y autoremove \
  && apt-get -y clean
+
+# Install more recent ccache from source
+ARG CCACHE_VERSION=4.14.3
+COPY install-ccache.sh /tmp/install-ccache.sh
+RUN CC=gcc CXX=g++ sh /tmp/install-ccache.sh && rm -f /tmp/install-ccache.sh
 
 # Configure user 'bc'
 RUN useradd -ms /bin/bash bc && \
