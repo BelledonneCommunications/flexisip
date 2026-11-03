@@ -90,8 +90,7 @@ bool callIsInPausedByRemoteState(const std::shared_ptr<linphone::Call>& call) {
 } // namespace
 
 B2buaServer::B2buaServer(const shared_ptr<sofiasip::SuRoot>& root, const std::shared_ptr<ConfigManager>& cfg)
-    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {
-}
+    : ServiceServer(root), mConfigManager(cfg), mCli("b2bua", cfg, root) {}
 
 void B2buaServer::onCallStateChanged(const shared_ptr<linphone::Core>&,
                                      const shared_ptr<linphone::Call>& call,
@@ -188,7 +187,7 @@ void B2buaServer::onCallStateIncomingReceived(const std::shared_ptr<linphone::Ca
 		outgoingCallParams->addCustomHeader("Referred-By", referredByAddress->asString());
 	}
 	// Add "Replaces" header if present (for call transfers).
-	if (auto replacesHeader = b2bua::ReplacesHeader::fromStr(call->getRemoteParams()->getCustomHeader("Replaces"))) {
+	if (auto replacesHeader = b2bua::ReplacesHeader::fromStr(call->getReplaces())) {
 		const auto replacingCall = findPeerReplacingCall(*replacesHeader);
 		if (replacingCall) {
 			replacesHeader->update(replacingCall);
@@ -295,7 +294,7 @@ void B2buaServer::onCallStateReferred(const std::shared_ptr<linphone::Call>& cal
 	}
 
 	auto referToAddress = mApplication->onTransfer(*call);
-	auto replacesHeader = b2bua::ReplacesHeader::fromStr(originalReferToAddress->getHeader("Replaces"));
+	auto replacesHeader = b2bua::ReplacesHeader::fromStr(call->getReplaces());
 
 	if (replacesHeader != nullopt) /* Case: attended call transfer */ {
 		const auto replacingCall = findPeerReplacingCall(*replacesHeader);

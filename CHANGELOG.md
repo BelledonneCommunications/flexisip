@@ -15,7 +15,7 @@ Group changes to describe their impact on the project, as follows:
 | Known Issues   | Issues whose fix has not been tested and cannot be included in this release |
 
 ## [2.7.0] - Alpha
-- **SDK version:** 5.5.20
+- **SDK version:** 5.5.41
 
 ### [Added]
 - **Proxy:**
@@ -95,7 +95,7 @@ Group changes to describe their impact on the project, as follows:
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).
 
 ## [2.6.3] - Hotfix
-- **SDK version:** 5.5.16
+- **SDK version:** 5.5.41
 
 ### [Fixed]
 - **RegistrationEvent:** Subscriptions are now matched by dialog identifier (Call-ID + From URI) instead of the From URI
@@ -269,7 +269,7 @@ Group changes to describe their impact on the project, as follows:
   watchdog.
 
 ## [2.5.4] - Hotfix
-- **SDK version:** 5.4.125
+- **SDK version:** 5.4.129
 
 ### [Fixed]
 - **HTTP2**: Resolved an edge case where the HTTP2 client enters an infinite loop.
