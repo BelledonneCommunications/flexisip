@@ -43,6 +43,10 @@ private:
 	void sendNotify(const std::string& body);
 
 	std::weak_ptr<linphone::Call> mPeerCall;
+
+	// Event carrying the REFER subscription of the peer call, reused for every NOTIFY request sent to the peer
+	// call and terminated once the final request has been sent.
+	std::shared_ptr<linphone::Event> mNotifyEvent;
 };
 
 } // namespace flexisip::b2bua

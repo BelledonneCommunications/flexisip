@@ -46,6 +46,11 @@ void b2bua::CallTransferListener::onTransferStateChanged(const std::shared_ptr<l
 			return;
 	}
 	sendNotify(body);
+
+	if (state == linphone::Call::State::Connected or state == linphone::Call::State::Error) {
+		// Terminate the REFER subscription once the final NOTIFY has been sent.
+		if (mNotifyEvent) mNotifyEvent->terminate();
+	}
 }
 
 void b2bua::CallTransferListener::sendNotify(const std::string& body) {
@@ -53,6 +58,14 @@ void b2bua::CallTransferListener::sendNotify(const std::string& body) {
 	if (!peerCall) {
 		LOGW << "Unable to forward NOTIFY request with body \"(" << body << "\", peer call has been freed";
 		return;
+	}
+
+	if (!mNotifyEvent) {
+		mNotifyEvent = peerCall->createNotify("refer");
+		if (!mNotifyEvent) {
+			LOGE << "Error while forwarding NOTIFY request, could not create request";
+			return;
+		}
 	}
 
 	const auto content = linphone::Factory::get()->createContent();
@@ -63,12 +76,12 @@ void b2bua::CallTransferListener::sendNotify(const std::string& body) {
 	content->setType("message");
 	content->setSubtype("sipfrag");
 	content->setUtf8Text(body);
-	const auto event = peerCall->createNotify("refer");
-	if (!event) {
-		LOGE << "Error while forwarding NOTIFY request, could not create request";
-		return;
+
+	if (mNotifyEvent->notify(content) != 0) {
+		// Drop the event: the subscription can no longer be used, a new one is created for the next request.
+		LOGE << "Error while forwarding NOTIFY request, could not send request";
+		mNotifyEvent.reset();
 	}
-	event->notify(content);
 }
 
 } // namespace flexisip::b2bua
