@@ -24,14 +24,9 @@ namespace flexisip::b2bua::bridge::account_strat {
 
 class PickRandomInPool : public AccountSelectionStrategy {
 public:
-	PickRandomInPool(const std::shared_ptr<AccountPool>& accountPool) : AccountSelectionStrategy(accountPool) {
-	}
+	PickRandomInPool(const std::shared_ptr<AccountPool>& accountPool) : AccountSelectionStrategy(accountPool) {}
 
-	std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const override {
-		return getAccountPool().getAccountRandomly();
-	}
-	std::shared_ptr<Account> chooseAccountForThisTransfer(const linphone::Call&) const override {
-		LOGW << "Strategy is not implemented for call transfers yet: undefined behavior";
+	std::shared_ptr<Account> chooseAccountForThisCall(const LinphoneCallContext&) const override {
 		return getAccountPool().getAccountRandomly();
 	}
 	std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const override {

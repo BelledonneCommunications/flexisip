@@ -498,22 +498,10 @@ void externalAccountUsingCustomRegistrarAndOutboundProxy() {
 	});
 
 	b2buaAndProxy.startB2bua();
+	b2buaAndProxy.waitForB2buaAccountsToBeAvailable(externalProxy).hard_assert_passed();
 
 	// Verify B2BUA accounts are registered on Jabiru proxy.
 	CoreAssert asserter{b2buaAndProxy, outboundProxyServer, externalProxy, internalUser, externalUser};
-	asserter
-	    .iterateUpTo(
-	        0x20,
-	        [&sipProviders = dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaAndProxy.getModule()).getProviders()] {
-		        for (const auto& provider : sipProviders) {
-			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
-				        FAIL_IF(!account->isAvailable());
-			        }
-		        }
-		        return ASSERTION_PASSED();
-	        },
-	        2s)
-	    .hard_assert_passed();
 
 	// Assert that the outbound proxy received the INVITE request.
 	std::ignore = internalUser.invite(externalUser);

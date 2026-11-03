@@ -19,19 +19,20 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 # ###########################################################################
-    
+
 target_sources(flexisip_tester PRIVATE
-    call-tester.cc
-    domotic-tester.cc
+	call-tester.cc
+	domotic-tester.cc
 )
 
 if(ENABLE_B2BUA)
 	target_sources(flexisip_tester PRIVATE
-		b2bua/attended-call-transfer-tester.cc
-		b2bua/blind-call-transfer-tester.cc
 		b2bua/call-bridging-tester.cc
-		b2bua/call-transfer-tester.hh
+		b2bua/call-transfer/attended-call-transfer-tester.cc
+		b2bua/call-transfer/blind-call-transfer-tester.cc
+		b2bua/call-transfer/call-transfer-commons.cc b2bua/call-transfer/call-transfer-commons.hh
 		b2bua/mwi-tester.cc
+		b2bua/utils.hh
 	)
 endif()
 

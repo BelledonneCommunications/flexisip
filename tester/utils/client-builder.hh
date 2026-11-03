@@ -116,6 +116,7 @@ public:
 
 	ClientBuilder& setMwiServerAddress(const std::shared_ptr<linphone::Address>& address);
 	ClientBuilder& setAutoAnswerReplacingCalls(OnOff);
+	ClientBuilder& setReferToUsesAor(OnOff);
 	/** Set a different expiration time for messages. Lets contacts linger in the RegistrarDB beyond the standard
 	 * expiration time to keep receiving MESSAGEs. Any other type of SIP request will trigger a 404 as if the contact
 	 * were expired.
@@ -139,6 +140,7 @@ private:
 	OnOff mRegister{OnOff::On};
 	OnOff mSetAudioInactiveOnPause{OnOff::Off};
 	OnOff mAutoAnswerReplacingCalls{OnOff::On};
+	OnOff mReferToUsesAor{OnOff::Off};
 	AudioCodec mAudioCodec = AudioCodec::AllSupported;
 	port::PortSetting mAudioPort = port::Auto();
 	port::PortSetting mVideoPort = port::Auto();

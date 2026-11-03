@@ -87,11 +87,14 @@ Group changes to describe their impact on the project, as follows:
 - **Presence:**
   - ETag generation now checks if the ETag is already used to avoid collisions.
   - A crash could occur due to a conflict between ETag values generated while the initial PUBLISH requests processing.
-- **Router:** The 'cause' URI parameter sent to the voicemail server now complies with RFC 4458 (§ 2.2). Status codes
-  received from the forked branches are translated into Redirecting Reasons instead of being forwarded as-is.
 - **Service:** The servers will not be restarted multiple times when a failure occurs during startup.
-- **Sofia-sip:** Do not allow '<' inside the brackets when parsing a URI.
-- **Registrar:** Resolved a crash when resolving static-record aliases.
+- **Proxy:**
+  - **Router:** The 'cause' URI parameter sent to the voicemail server now complies with RFC 4458 (§ 2.2). Status codes
+    received from the forked branches are translated into Redirecting Reasons instead of being forwarded as-is.
+  - **Sofia-sip:** Do not allow '<' inside the brackets when parsing a URI.
+  - **Registrar:** Resolved a crash when resolving static-record aliases.
+- **B2BUA/SIP-Bridge:** In some situations, REFER requests could not be correctly translated from the internal domain
+  to the external domain and vice-versa.
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

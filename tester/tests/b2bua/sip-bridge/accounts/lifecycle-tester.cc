@@ -104,7 +104,7 @@ void disableAccountsUnregistrationOnServerShutdown() {
 	        [&sipProviders =
 	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
 		        for (const auto& provider : sipProviders) {
-			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+			        for (const auto& [_, account] : provider.getAccountPool()) {
 				        FAIL_IF(!account->isAvailable());
 			        }
 		        }

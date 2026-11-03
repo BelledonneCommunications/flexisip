@@ -125,7 +125,7 @@ void loadAccountsFromSQL() {
 	const auto& sipProviders =
 	    dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders();
 	BC_HARD_ASSERT_CPP_EQUAL(sipProviders.size(), 1);
-	const auto& accountPool = sipProviders[0].getAccountSelectionStrategy().getAccountPool();
+	const auto& accountPool = sipProviders[0].getAccountPool();
 	const auto& accountsByUri = accountPool.getDefaultView().view;
 	// Leave it time to connect to Redis, then load accounts
 	asserter
@@ -323,7 +323,7 @@ void authenticatedAccounts() {
 	        [&sipProviders =
 	             dynamic_cast<const b2bua::bridge::SipBridge&>(b2buaServer->getApplication()).getProviders()] {
 		        for (const auto& provider : sipProviders) {
-			        for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+			        for (const auto& [_, account] : provider.getAccountPool()) {
 				        FAIL_IF(!account->isAvailable());
 			        }
 		        }

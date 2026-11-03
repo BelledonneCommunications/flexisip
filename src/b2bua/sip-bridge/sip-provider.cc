@@ -40,11 +40,13 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
                           linphone::CallParams& outgoingCallParams,
                           std::unordered_map<std::string, std::weak_ptr<Account>>& occupiedSlots) {
 	try {
-		if (!mTriggerStrat->shouldHandleThisCall(incomingCall)) {
+		if (!shouldHandle(incomingCall)) {
 			return std::nullopt;
 		}
 
-		const auto account = mAccountStrat->chooseAccountForThisCall(incomingCall);
+		const auto callContext = LinphoneCallContext::fromCall(incomingCall);
+
+		const auto account = mAccountStrat->chooseAccountForThisCall(callContext);
 		if (!account) {
 			switch (mOnAccountNotFound) {
 				case config::v2::OnAccountNotFound::NextProvider:
@@ -66,7 +68,7 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 		occupiedSlots[incomingCall.getCallLog()->getCallId()] = account;
 		account->takeASlot();
 
-		return mInviteTweaker.tweakInvite(incomingCall, *account, outgoingCallParams);
+		return mInviteTweaker.tweakInvite(callContext, *account, outgoingCallParams);
 	} catch (const std::exception& err) {
 		LOGE << "Exception occurred while trying to bridge a call to " << incomingCall.getToAddress()->asString()
 		     << ": declining legA (exception: " << err.what() << ")";
@@ -75,18 +77,66 @@ SipProvider::onCallCreate(const linphone::Call& incomingCall,
 }
 
 std::shared_ptr<linphone::Address> SipProvider::onTransfer(const linphone::Call& call) {
+	using MatchedField = account_strat::AccountSelectionStrategy::MatchedField;
+
 	try {
-		if (!mTriggerStrat->shouldHandleThisCall(call)) {
+		if (!shouldHandle(call)) {
 			return nullptr;
 		}
 
-		const auto account = mAccountStrat->chooseAccountForThisTransfer(call);
-		if (!account) return nullptr;
+		const auto callContext = LinphoneCallContext::fromCall(call);
 
-		return mReferTweaker.tweakRefer(call, *account);
+		// Trying to match an account using the usual call matching strategy to determine the fallback account.
+		const auto fallbackAccount = mAccountStrat->chooseAccountForThisCall(callContext);
+		if (!fallbackAccount) {
+			// We must ensure the fallback account exists to handle the REFER request. If it doesn't, this means the
+			// current provider is not the one that matched the original call.
+			return nullptr;
+		}
+
+		// An account is looked up from the Refer-To data with the same rule.
+		const auto referContext = LinphoneCallContext::fromCallForRefer(call);
+		const auto referToAccount = mAccountStrat->chooseAccountForThisCall(referContext);
+
+		const auto renderReferTo =
+		    [&](const Account& account,
+		        ReferTweaker::HeaderTranslation headerTranslation) -> shared_ptr<linphone::Address> {
+			auto referToAddress = mReferTweaker.tweakRefer(referContext, account, headerTranslation);
+			if (!referToAddress) {
+				LOGD << "Failed to render the \"Refer-To\" header of call transfer";
+				return nullptr;
+			}
+
+			return referToAddress;
+		};
+
+		switch (mAccountStrat->matchedField()) {
+			case MatchedField::Uri: {
+				// Incoming call: a Refer-To match translates the transfer target as the To header of an outgoing
+				// call, otherwise the Refer-To is translated as the From header of the fallback account.
+				return renderReferTo(referToAccount ? *referToAccount : *fallbackAccount,
+				                     referToAccount ? ReferTweaker::HeaderTranslation::To
+				                                    : ReferTweaker::HeaderTranslation::From);
+			}
+			case MatchedField::Alias: {
+				// Outgoing call: a Refer-To match translates the transfer target as the From header of an outgoing
+				// call, otherwise the Refer-To is translated as the To header of the fallback account.
+				return renderReferTo(referToAccount ? *referToAccount : *fallbackAccount,
+				                     referToAccount ? ReferTweaker::HeaderTranslation::From
+				                                    : ReferTweaker::HeaderTranslation::To);
+			}
+			case MatchedField::None: {
+				// Rule with no direction (e.g. Random): any account translates the Refer-To with the To rule (legacy).
+				return renderReferTo(referToAccount ? *referToAccount : *fallbackAccount,
+				                     ReferTweaker::HeaderTranslation::To);
+			}
+			default: {
+				LOGD << "Unexpected matched field in call transfer";
+				return nullptr;
+			}
+		}
 	} catch (const std::exception& err) {
-		LOGE << "Exception occurred while trying to bridge a REFER request to " << call.getReferTo()
-		     << " (exception: " << err.what() << ")";
+		LOGE << "Exception occurred on handling call transfer: " << err.what();
 		return nullptr;
 	}
 }
@@ -94,7 +144,7 @@ std::shared_ptr<linphone::Address> SipProvider::onTransfer(const linphone::Call&
 std::optional<b2bua::Application::ActionToTake> SipProvider::onSubscribeCreate(const linphone::Event& incomingEvent,
                                                                                const std::string& subscribeEvent) {
 	try {
-		if (!mTriggerStrat->shouldHandleThisEvent(incomingEvent)) {
+		if (!shouldHandle(incomingEvent)) {
 			return std::nullopt;
 		}
 
@@ -128,7 +178,7 @@ std::optional<b2bua::Application::ActionToTake> SipProvider::onSubscribeCreate(c
 std::optional<b2bua::Application::NotifyDestination>
 SipProvider::onNotifyToBeSent(const linphone::Event& incomingEvent) {
 	try {
-		if (!mTriggerStrat->shouldHandleThisEvent(incomingEvent)) {
+		if (!shouldHandle(incomingEvent)) {
 			return nullopt;
 		}
 
@@ -159,8 +209,22 @@ SipProvider::onNotifyToBeSent(const linphone::Event& incomingEvent) {
 	}
 }
 
-const account_strat::AccountSelectionStrategy& SipProvider::getAccountSelectionStrategy() const {
-	return *mAccountStrat;
+bool SipProvider::shouldHandle(const linphone::Call& call) const {
+	try {
+		return mTriggerStrat->shouldHandleThisCall(call);
+	} catch (const std::exception& err) {
+		LOGE << "Exception occurred while evaluating the trigger condition" << " (exception: " << err.what() << ")";
+		return false;
+	}
+}
+
+bool SipProvider::shouldHandle(const linphone::Event& event) const {
+	try {
+		return mTriggerStrat->shouldHandleThisEvent(event);
+	} catch (const std::exception& err) {
+		LOGE << "Exception occurred while evaluating the trigger condition" << " (exception: " << err.what() << ")";
+		return false;
+	}
 }
 
 } // namespace flexisip::b2bua::bridge

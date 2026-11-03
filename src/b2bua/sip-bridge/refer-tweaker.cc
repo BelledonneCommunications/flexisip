@@ -18,7 +18,6 @@
 
 #include "refer-tweaker.hh"
 
-#include "flexisip/logmanager.hh"
 #include "string-format-fields.hh"
 
 using namespace std;
@@ -27,10 +26,10 @@ namespace flexisip::b2bua::bridge {
 
 namespace {
 
-const auto kReferTweakerFields = FieldsOf<linphone::Call const&, Account const&>{
+const auto kReferTweakerFields = FieldsOf<LinphoneCallContext const&, Account const&>{
     {
         "incoming",
-        resolve(kLinphoneCallTransferFields, [](const auto& call, const auto&) -> const auto& { return call; }),
+        resolve(kLinphoneCallContextFields, [](const auto& context, const auto&) -> const auto& { return context; }),
     },
     {
         "account",
@@ -40,11 +39,15 @@ const auto kReferTweakerFields = FieldsOf<linphone::Call const&, Account const&>
 
 } // namespace
 
-ReferTweaker::ReferTweaker(const config::v2::OutgoingInvite& config) : mReferToHeader(config.to, kReferTweakerFields) {
-}
+ReferTweaker::ReferTweaker(const config::v2::OutgoingInvite& config)
+    : mToHeader(config.to, kReferTweakerFields),
+      mFromHeader(config.from.empty() ? "{account.uri}" : config.from, kReferTweakerFields) {}
 
-std::shared_ptr<linphone::Address> ReferTweaker::tweakRefer(const linphone::Call& call, const Account& account) const {
-	const auto referTo = mReferToHeader.format(call, account);
+std::shared_ptr<linphone::Address> ReferTweaker::tweakRefer(const LinphoneCallContext& context,
+                                                            const Account& account,
+                                                            HeaderTranslation headerTranslation) const {
+	const auto& headerTemplate = headerTranslation == HeaderTranslation::To ? mToHeader : mFromHeader;
+	const auto referTo = formatHeader(headerTemplate, context, account, "Refer-To");
 	return linphone::Factory::get()->createAddress(referTo);
 }
 

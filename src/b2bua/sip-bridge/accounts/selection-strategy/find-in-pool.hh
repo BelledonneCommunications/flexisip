@@ -19,7 +19,7 @@
 #pragma once
 
 #include "account-selection-strategy.hh"
-#include "b2bua/sip-bridge/configuration/v2/v2.hh"
+#include "b2bua/sip-bridge/linphone-call-context.hh"
 #include "utils/string-interpolation/template-formatter.hh"
 
 namespace flexisip::b2bua::bridge::account_strat {
@@ -28,9 +28,12 @@ class FindInPool : public AccountSelectionStrategy {
 public:
 	explicit FindInPool(const std::shared_ptr<AccountPool>&, const config::v2::account_selection::FindInPool&);
 
-	std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const override;
-	std::shared_ptr<Account> chooseAccountForThisTransfer(const linphone::Call&) const override;
+	std::shared_ptr<Account> chooseAccountForThisCall(const LinphoneCallContext&) const override;
 	std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const override;
+
+	MatchedField matchedField() const override {
+		return mMatchedField;
+	}
 
 private:
 	static constexpr std::string_view mLogPrefix{"FindInPool"};
@@ -38,9 +41,9 @@ private:
 	std::shared_ptr<Account> findAccountMatching(const std::string& source, std::string_view event) const;
 
 	const AccountPool::IndexedView& mAccountView;
-	utils::string_interpolation::TemplateFormatter<const linphone::Call&> mSourceTemplate;
-	utils::string_interpolation::TemplateFormatter<const linphone::Call&> mTransferSourceTemplate;
+	utils::string_interpolation::TemplateFormatter<const LinphoneCallContext&> mSourceTemplate;
 	utils::string_interpolation::TemplateFormatter<const linphone::Event&> mEventSourceTemplate;
+	MatchedField mMatchedField;
 };
 
 } // namespace flexisip::b2bua::bridge::account_strat

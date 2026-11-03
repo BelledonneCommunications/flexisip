@@ -20,27 +20,34 @@
 
 #include "accounts/account.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
+#include "b2bua/sip-bridge/linphone-call-context.hh"
 #include "linphone++/account.hh"
-#include "linphone++/call.hh"
 #include "utils/string-interpolation/template-formatter.hh"
 
 namespace flexisip::b2bua::bridge {
 
 class InviteTweaker {
 public:
-	using StringTemplate = utils::string_interpolation::TemplateFormatter<const linphone::Call&, const Account&>;
+	using StringTemplate = utils::string_interpolation::TemplateFormatter<const LinphoneCallContext&, const Account&>;
 
 	explicit InviteTweaker(const config::v2::OutgoingInvite&, linphone::Core&);
 
-	/* @throws InvalidAddress if the mToHeader or mFromHeader templates resolve to an invalid URI */
-	std::shared_ptr<linphone::Address> tweakInvite(const linphone::Call&, const Account&, linphone::CallParams&) const;
+	/**
+	 * Renders the To and From headers with the account selected for the outgoing call.
+	 *
+	 * @throws InvalidAddress if the To or From templates resolve to an invalid URI
+	 *
+	 * @returns the tweaked To address.
+	 */
+	std::shared_ptr<linphone::Address>
+	tweakInvite(const LinphoneCallContext&, const Account&, linphone::CallParams&) const;
 
 private:
-	/// The address to send the INVITE to
+	// The address to send the INVITE to.
 	StringTemplate mToHeader;
 	StringTemplate mFromHeader;
-	/// Workaround: As of 2024-05-21 and SDK 5.3.44, linphone::CalParams do not allow to override the route(s) used in
-	/// an invite, so we use a surrogate account instead
+	// Workaround: As of 2024-05-21 and SDK 5.3.44, linphone::CallParams do not allow to override the route(s) used in
+	// an INVITE request, so we use a surrogate account instead.
 	std::shared_ptr<linphone::Account> mOutboundProxyOverride;
 	std::optional<bool> mAvpfOverride;
 	std::optional<linphone::MediaEncryption> mEncryptionOverride;

@@ -20,20 +20,31 @@
 
 #include "accounts/account.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
+#include "b2bua/sip-bridge/linphone-call-context.hh"
 #include "utils/string-interpolation/template-formatter.hh"
 
 namespace flexisip::b2bua::bridge {
 
 class ReferTweaker {
 public:
-	using StringTemplate = utils::string_interpolation::TemplateFormatter<const linphone::Call&, const Account&>;
+	// The outgoing-header translation rule the Refer-To header is rendered with.
+	enum class HeaderTranslation { To, From };
+
+	using StringTemplate = utils::string_interpolation::TemplateFormatter<const LinphoneCallContext&, const Account&>;
 
 	explicit ReferTweaker(const config::v2::OutgoingInvite&);
 
-	std::shared_ptr<linphone::Address> tweakRefer(const linphone::Call&, const Account&) const;
+	/**
+	 * Renders the Refer-To header with the translation rule of either the To or the From outgoing header,
+	 * using the given account.
+	 *
+	 * @return the tweaked Refer-To address.
+	 */
+	std::shared_ptr<linphone::Address> tweakRefer(const LinphoneCallContext&, const Account&, HeaderTranslation) const;
 
 private:
-	StringTemplate mReferToHeader;
+	StringTemplate mToHeader;
+	StringTemplate mFromHeader;
 };
 
 } // namespace flexisip::b2bua::bridge

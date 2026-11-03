@@ -21,7 +21,7 @@
 #include <optional>
 #include <unordered_map>
 
-#include "b2bua/b2bua-server.hh"
+#include "b2bua/application.hh"
 #include "b2bua/sip-bridge/accounts/account.hh"
 #include "b2bua/sip-bridge/accounts/selection-strategy/account-selection-strategy.hh"
 #include "b2bua/sip-bridge/configuration/v2/v2.hh"
@@ -49,7 +49,18 @@ public:
 	                                                                  const std::string& subscribeEvent);
 	std::optional<b2bua::Application::NotifyDestination> onNotifyToBeSent(const linphone::Event& incomingEvent);
 
-	const account_strat::AccountSelectionStrategy& getAccountSelectionStrategy() const;
+	const AccountPool& getAccountPool() const {
+		return mAccountStrat->getAccountPool();
+	}
+
+	/**
+	 * Tells whether the trigger condition of this provider matches the given call.
+	 */
+	bool shouldHandle(const linphone::Call& call) const;
+	/**
+	 * Tells whether the trigger condition of this provider matches the given event.
+	 */
+	bool shouldHandle(const linphone::Event& event) const;
 
 private:
 	SipProvider(std::unique_ptr<trigger_strat::TriggerStrategy>&& triggerStrat,

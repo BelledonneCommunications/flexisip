@@ -18,12 +18,23 @@
 
 #include "find-in-pool.hh"
 
+#include "b2bua/sip-bridge/configuration/v2/v2.hh"
 #include "b2bua/sip-bridge/string-format-fields.hh"
 
 namespace flexisip::b2bua::bridge::account_strat {
 using namespace std;
 using namespace utils::string_interpolation;
 using namespace std::string_literals;
+
+namespace {
+
+FindInPool::MatchedField matchedFieldFromByTemplate(const std::string& by) {
+	if (by == "uri" || by.find("{uri") != std::string::npos) return FindInPool::MatchedField::Uri;
+	if (by == "alias" || by.find("{alias") != std::string::npos) return FindInPool::MatchedField::Alias;
+	return FindInPool::MatchedField::None;
+}
+
+} // namespace
 
 FindInPool::FindInPool(const std::shared_ptr<AccountPool>& accountPool,
                        const config::v2::account_selection::FindInPool& config)
@@ -33,19 +44,11 @@ FindInPool::FindInPool(const std::shared_ptr<AccountPool>& accountPool,
 	      else if (config.by == "alias") return "{alias}"s;
 	      else return config.by;
       }())),
-      mSourceTemplate(config.source, kLinphoneCallFields),
-      mTransferSourceTemplate(config.source, kLinphoneCallTransferFields),
-      mEventSourceTemplate(config.source, kLinphoneEventFields) {
-}
+      mSourceTemplate(config.source, kLinphoneCallContextFields),
+      mEventSourceTemplate(config.source, kLinphoneEventFields), mMatchedField(matchedFieldFromByTemplate(config.by)) {}
 
-std::shared_ptr<Account> FindInPool::chooseAccountForThisCall(const linphone::Call& incomingCall) const {
-	const string event{"call (" + incomingCall.getCallLog()->getCallId() + ")"};
-	return findAccountMatching(mSourceTemplate.format(incomingCall), event);
-}
-
-std::shared_ptr<Account> FindInPool::chooseAccountForThisTransfer(const linphone::Call& call) const {
-	const string event{"call (" + call.getCallLog()->getCallId() + ") transfer"};
-	return findAccountMatching(mTransferSourceTemplate.format(call), event);
+std::shared_ptr<Account> FindInPool::chooseAccountForThisCall(const LinphoneCallContext& call) const {
+	return findAccountMatching(mSourceTemplate.format(call), "call (" + call.callId + ")");
 }
 
 std::shared_ptr<Account> FindInPool::chooseAccountForThisEvent(const linphone::Event& incomingEvent) const {

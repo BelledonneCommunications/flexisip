@@ -139,13 +139,16 @@ void test(Settings settings,
 	const string user2UriOnFlexisip{"sip:"s + user2Account.usernameOnFlexisip + "@" + settings.flexisipDomain};
 	const string user2UriOnExternal{"sip:"s + user2Account.usernameOnExternal + "@" + settings.externalDomain};
 	const string user3UriOnExternal{"sip:"s + user3Account.username + "@" + settings.externalDomain};
+	const string user3UriOnFlexisip{"sip:"s + user3Account.username + "@" + settings.flexisipDomain};
 
 	ofstream providersConfigFile{providersConfigPath};
 	providersConfigFile << settings.providersConfig.format({
 	    {"flexisipPort", flexisipServer.getFirstPort()},
 	    {"flexisipTransport", settings.flexisipTransport},
+	    {"flexisipDomain", settings.flexisipDomain},
 	    {"externalPort", externalServer.getFirstPort()},
 	    {"externalTransport", settings.externalTransport},
+	    {"externalDomain", settings.externalDomain},
 	    {"user1UriOnExternal", user1UriOnExternal},
 	    {"user1UriOnFlexisip", user1UriOnFlexisip},
 	    {"user2UriOnExternal", user2UriOnExternal},
@@ -172,7 +175,7 @@ void test(Settings settings,
 
 	// Test outgoing call: user1 (internal) -> user3 (external).
 	{
-		BC_HARD_ASSERT(user1.call(user3, factory->createAddress(user3UriOnExternal)) != nullptr);
+		BC_HARD_ASSERT(user1.call(user3, factory->createAddress(user3UriOnFlexisip)) != nullptr);
 		const auto& user3Call = user3.getCurrentCall();
 
 		// Verify "To" and "From" headers in INVITE request received by external proxy from B2BUA.
@@ -192,14 +195,16 @@ void test(Settings settings,
 
 	// Test outgoing/incoming (bounce-back on external proxy) call: user1 (internal) -> user2 (internal).
 	{
-		BC_HARD_ASSERT(user1.call(user2, factory->createAddress(user2UriOnFlexisip), nullptr, nullptr, {},
-		                          externalAgent) != nullptr);
+		const auto calleeUri = "sip:"s + user2Account.usernameOnExternal + "@" + settings.flexisipDomain;
+		BC_HARD_ASSERT(user1.call(user2, factory->createAddress(calleeUri), nullptr, nullptr, {}, externalAgent) !=
+		               nullptr);
 		const auto& user2Call = user2.getCurrentCall();
 
 		// Verify "To" and "From" headers in INVITE request received by external proxy from B2BUA.
 		BC_ASSERT_CPP_EQUAL(toUriOnExternal, user2UriOnExternal);
 		BC_ASSERT_CPP_EQUAL(fromUriOnExternal, user1UriOnExternal);
-		BC_ASSERT_CPP_EQUAL(user2Call->getRemoteAddress()->asStringUriOnly(), user1UriOnFlexisip);
+		const string expectedRemoteAddress{"sip:"s + user1Account.usernameOnExternal + "@" + settings.flexisipDomain};
+		BC_ASSERT_CPP_EQUAL(user2Call->getRemoteAddress()->asStringUriOnly(), expectedRemoteAddress);
 		BC_ASSERT_CPP_EQUAL(user2Call->getRemoteAddress()->getDisplayName(), user1Account.displayName);
 
 		// Verify that external proxy actually created a ForkCallContext for this call.
@@ -323,7 +328,7 @@ void bridgingUDPFlexisipTCPExternal() {
 
 BridgingAccount kUser1{R"("User1")"s, "user1", "1resu"};
 BridgingAccount kUser2{R"("User2")"s, "user2", "2resu"};
-ExternalAccount kUser3{R"("User3")"s, "user3"};
+ExternalAccount kUser3{R"("User3")"s, "3resu"};
 
 void bridgingTCP() {
 	Settings settings{kProvidersConfig, TCP, "flexisip.example.org", TCP, "external.example.org"};
@@ -353,10 +358,10 @@ TestSuite _{
         CLASSY_TEST(shared_usernames::bridgingTCPFlexisipUDPExternal),
         CLASSY_TEST(shared_usernames::bridgingUDPFlexisipTCPExternal),
 
-        CLASSY_TEST(bridgingTCP).tag("Skip"),
-        CLASSY_TEST(bridgingUDP).tag("Skip"),
-        CLASSY_TEST(bridgingTCPFlexisipUDPExternal).tag("Skip"),
-        CLASSY_TEST(bridgingUDPFlexisipTCPExternal).tag("Skip"),
+        CLASSY_TEST(bridgingTCP),
+        CLASSY_TEST(bridgingUDP),
+        CLASSY_TEST(bridgingTCPFlexisipUDPExternal),
+        CLASSY_TEST(bridgingUDPFlexisipTCPExternal),
     },
 };
 

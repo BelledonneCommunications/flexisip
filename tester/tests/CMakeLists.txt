@@ -195,7 +195,9 @@ if(ENABLE_B2BUA)
 		b2bua/sip-bridge/configuration/v2-tester.cc
 		b2bua/sip-bridge/invite-tweaker-tester.cc
 		b2bua/sip-bridge/media-tester.cc
+		b2bua/sip-bridge/refer-tweaker-tester.cc
 		b2bua/sip-bridge/string-format-fields-tester.cc
+		b2bua/sip-bridge/tweaker-tester.hh
 		b2bua/trenscrypter/trenscrypter-tester.cc
 	)
 

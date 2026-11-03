@@ -19,18 +19,24 @@
 #pragma once
 
 #include "b2bua/sip-bridge/accounts/account-pool.hh"
+#include "b2bua/sip-bridge/linphone-call-context.hh"
 
 namespace flexisip::b2bua::bridge::account_strat {
 
 class AccountSelectionStrategy {
 public:
-	explicit AccountSelectionStrategy(const std::shared_ptr<AccountPool>& accountPool) : mAccountPool(accountPool) {
-	}
+	// The account field a strategy matches a request against, when its rule can tell.
+	enum class MatchedField { None, Uri, Alias };
+
+	explicit AccountSelectionStrategy(const std::shared_ptr<AccountPool>& accountPool) : mAccountPool(accountPool) {}
 	virtual ~AccountSelectionStrategy() = default;
 
-	virtual std::shared_ptr<Account> chooseAccountForThisCall(const linphone::Call&) const = 0;
-	virtual std::shared_ptr<Account> chooseAccountForThisTransfer(const linphone::Call&) const = 0;
+	virtual std::shared_ptr<Account> chooseAccountForThisCall(const LinphoneCallContext&) const = 0;
 	virtual std::shared_ptr<Account> chooseAccountForThisEvent(const linphone::Event&) const = 0;
+
+	virtual MatchedField matchedField() const {
+		return MatchedField::None;
+	}
 
 	const AccountPool& getAccountPool() const {
 		return *mAccountPool;

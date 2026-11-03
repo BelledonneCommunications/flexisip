@@ -110,6 +110,7 @@ CoreClient ClientBuilder::build(const std::string& baseAddress, const std::strin
 		config->setBool("sip", "inactive_audio_on_pause", static_cast<bool>(mSetAudioInactiveOnPause));
 		config->setBool("sip", "auto_answer_replacing_calls", static_cast<bool>(mAutoAnswerReplacingCalls));
 		config->setBool("logging", "disable_stdout", !LogManager::get().standardOutputIsEnabled());
+		config->setBool("sip", "refer_to_uses_aor", static_cast<bool>(mReferToUsesAor));
 	}
 
 	Match(mAudioPort)
@@ -312,6 +313,11 @@ ClientBuilder& ClientBuilder::setMwiServerAddress(const std::shared_ptr<linphone
 
 ClientBuilder& ClientBuilder::setAutoAnswerReplacingCalls(OnOff value) {
 	mAutoAnswerReplacingCalls = value;
+	return *this;
+}
+
+ClientBuilder& ClientBuilder::setReferToUsesAor(OnOff value) {
+	mReferToUsesAor = value;
 	return *this;
 }
 

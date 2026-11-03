@@ -114,7 +114,7 @@ AssertionResult B2buaAndProxyServer::waitForB2buaAccountsToBeAvailable(const Ser
 	return CoreAssert{getRoot(), externalServer}.wait(
 	    [&providers = dynamic_cast<const b2bua::bridge::SipBridge&>(getModule()).getProviders()] {
 		    for (const auto& provider : providers) {
-			    for (const auto& [_, account] : provider.getAccountSelectionStrategy().getAccountPool()) {
+			    for (const auto& [_, account] : provider.getAccountPool()) {
 				    FAIL_IF(!account->isAvailable());
 			    }
 		    }

@@ -30,10 +30,10 @@ using namespace utils::string_interpolation;
 
 namespace {
 
-const auto kInviteTweakerFields = FieldsOf<linphone::Call const&, Account const&>{
+const auto kInviteTweakerFields = FieldsOf<LinphoneCallContext const&, Account const&>{
     {
         "incoming",
-        resolve(kLinphoneCallFields, [](const auto& call, const auto&) -> const auto& { return call; }),
+        resolve(kLinphoneCallContextFields, [](const auto& context, const auto&) -> const auto& { return context; }),
     },
     {
         "account",
@@ -49,27 +49,29 @@ InviteTweaker::InviteTweaker(const config::v2::OutgoingInvite& config, linphone:
       mOutboundProxyOverride([&]() -> decltype(mOutboundProxyOverride) {
 	      if (!config.outboundProxy) return nullptr;
 
-	      const auto& accountParams = core.createAccountParams();
+	      const auto factory = linphone::Factory::get();
+	      const auto accountParams = core.createAccountParams();
 	      accountParams->enableRegister(false);
-	      const auto& route = linphone::Factory::get()->createAddress(*config.outboundProxy);
-	      if (!route)
+
+	      const auto route = factory->createAddress(*config.outboundProxy);
+	      if (!route) {
 		      throw BadConfiguration{
-		          "invalid outbound proxy SIP URI set in provider configuration for outgoing INVITE requests: " +
-		          *config.outboundProxy};
+		          "invalid outbound proxy SIP URI set in provider for outgoing INVITE requests: " +
+		              *config.outboundProxy,
+		      };
+	      }
 
 	      accountParams->setServerAddress(route);
 	      accountParams->setRoutesAddresses({route});
 
-	      accountParams->setIdentityAddress(
-	          linphone::Factory::get()->createAddress("sip:flexisip-b2bua-invite-tweaker@localhost"));
+	      accountParams->setIdentityAddress(factory->createAddress("sip:flexisip-b2bua-invite-tweaker@localhost"));
 	      const auto account = core.createAccount(accountParams);
 	      core.addAccount(account);
 	      return account;
       }()),
-      mAvpfOverride(config.enableAvpf), mEncryptionOverride(config.mediaEncryption) {
-}
+      mAvpfOverride(config.enableAvpf), mEncryptionOverride(config.mediaEncryption) {}
 
-std::shared_ptr<linphone::Address> InviteTweaker::tweakInvite(const linphone::Call& incomingCall,
+std::shared_ptr<linphone::Address> InviteTweaker::tweakInvite(const LinphoneCallContext& context,
                                                               const Account& account,
                                                               linphone::CallParams& outgoingCallParams) const {
 	outgoingCallParams.setAccount(mOutboundProxyOverride ? mOutboundProxyOverride : account.getLinphoneAccount());
@@ -81,12 +83,12 @@ std::shared_ptr<linphone::Address> InviteTweaker::tweakInvite(const linphone::Ca
 		outgoingCallParams.enableAvpf(*enableAvpf);
 	}
 
-	const auto fromAddress = mFromHeader.format(incomingCall, account);
+	const auto fromAddress = formatHeader(mFromHeader, context, account, "From");
 	if (!linphone::Factory::get()->createAddress(fromAddress)) throw InvalidAddress("From", fromAddress);
 
 	outgoingCallParams.setFromHeader(fromAddress);
 
-	const auto toAddressStr = mToHeader.format(incomingCall, account);
+	const auto toAddressStr = formatHeader(mToHeader, context, account, "To");
 	const auto toAddress = linphone::Factory::get()->createAddress(toAddressStr);
 	if (!toAddress) throw InvalidAddress("To", toAddressStr);
 

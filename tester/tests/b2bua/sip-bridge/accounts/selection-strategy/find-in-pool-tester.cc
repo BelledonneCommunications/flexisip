@@ -19,13 +19,9 @@
 #include "b2bua/sip-bridge/accounts/selection-strategy/find-in-pool.hh"
 
 #include "b2bua/sip-bridge/accounts/loaders/static-account-loader.hh"
-#include "linphone/misc.h"
-#include "utils/client-builder.hh"
-#include "utils/client-call.hh"
+#include "b2bua/sip-bridge/accounts/selection-strategy/pick-random-in-pool.hh"
+#include "tests/b2bua/sip-bridge/tweaker-tester.hh"
 #include "utils/client-core.hh"
-#include "utils/core-assert.hh"
-#include "utils/server/injected-module-info.hh"
-#include "utils/server/proxy-server.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -37,39 +33,8 @@ using namespace flexisip::b2bua;
 using namespace flexisip::b2bua::bridge;
 using namespace flexisip::b2bua::bridge::account_strat;
 
-/** Spin up a proxy and some clients to forge a linphone::Call, then set up a pool of a few static accounts.
- *  Test how a few basic FindInPool strategies choose accounts with different configs
- */
-void chooseAccountForThisCall() {
-	const std::string incomingFrom{"sip:expected-from@sip.example.org"};
-	const SipUri incomingTo{"sip:expected-to@sip.example.org"};
-	InjectedHooks hooks{
-	    .onRequest =
-	        [&incomingTo](std::unique_ptr<RequestSipEvent>&& requestEvent) {
-		        const auto* sip = requestEvent->getSip();
-		        // Mangle To header
-		        sip->sip_to->a_url[0] = *incomingTo.get();
-		        return std::move(requestEvent);
-	        },
-	};
-	Server proxy{
-	    {
-	        // Requesting bind on port 0 to let the kernel find any available port
-	        {"global/transports", "sip:127.0.0.1:0;transport=tcp"},
-	        {"module::Registrar/enabled", "true"},
-	        {"module::Registrar/reg-domains", "sip.example.org"},
-	    },
-	    &hooks,
-	};
-	proxy.start();
-	const auto& builder = ClientBuilder(proxy.getAgent());
-	const auto& caller = builder.build(incomingFrom);
-	const auto& b2buaStub = builder.build("stub@sip.example.org");
-	caller.invite(b2buaStub);
-	BC_HARD_ASSERT_TRUE(b2buaStub.hasReceivedCallFrom(caller, CoreAssert{proxy, caller, b2buaStub}));
-	const auto forgedCall = ClientCall::getLinphoneCall(*b2buaStub.getCurrentCall());
-	// For this test, it's okay that this client core isn't configured exactly as that of a B2buaServer
-	const auto& b2buaStubCore = reinterpret_pointer_cast<B2buaCore>(b2buaStub.getCore());
+// A pool of a few static accounts, loaded synchronously over a minimal Linphone core: no SIP traffic involved.
+auto poolWithStaticAccounts() {
 	auto poolConfig = R"({
 		"outboundProxy": "<sip:some.provider.example.com;transport=tls>",
 		"registrationRequired": false,
@@ -88,36 +53,102 @@ void chooseAccountForThisCall() {
 			}
 		]
 	})"_json.get<config::v2::AccountPool>();
-	const auto templateParams = b2buaStubCore->createAccountParams();
 	auto& staticLoader = get<config::v2::StaticLoader>(poolConfig.loader);
-	const auto pool = make_shared<AccountPool>(proxy.getRoot(), b2buaStubCore, "test account pool", poolConfig,
-	                                           make_unique<StaticAccountLoader>(std::move(staticLoader)));
+	return make_shared<AccountPool>(make_shared<sofiasip::SuRoot>(), reinterpret_pointer_cast<B2buaCore>(minimalCore()),
+	                                "test account pool", poolConfig,
+	                                make_unique<StaticAccountLoader>(std::move(staticLoader)));
+}
+
+// A call context hand-built from plain SIP URIs: no Linphone call is needed to exercise the strategies.
+auto callContext(const string& from, const string& to) {
+	const auto factory = linphone::Factory::get();
+	return LinphoneCallContext{
+	    .to = factory->createAddress(to),
+	    .from = factory->createAddress(from),
+	    .requestUri = factory->createAddress(to),
+	};
+}
+
+/**
+ * Test how a few basic FindInPool strategies choose accounts with different configs.
+ */
+void chooseAccountForThisCall() {
+	const string incomingFrom{"sip:expected-from@sip.example.org"};
+	const string incomingTo{"sip:expected-to@sip.example.org"};
+	const auto pool = poolWithStaticAccounts();
 
 	{
-		const auto account =
-		    FindInPool(pool,
-		               R"({"by": "alias", "source": "{from}"})"_json.get<config::v2::account_selection::FindInPool>())
-		        .chooseAccountForThisCall(*forgedCall);
+		auto config = R"({"by": "alias", "source": "{from}"})"_json.get<config::v2::account_selection::FindInPool>();
+		const auto account = FindInPool(pool, config).chooseAccountForThisCall(callContext(incomingFrom, incomingTo));
+
 		BC_HARD_ASSERT(account != nullptr);
 		BC_ASSERT_CPP_EQUAL(account->getAlias().str(), incomingFrom);
 	}
 
 	{
-		const auto account =
-		    FindInPool(pool, R"({"by": "uri", "source": "{to}"})"_json.get<config::v2::account_selection::FindInPool>())
-		        .chooseAccountForThisCall(*forgedCall);
+		auto config = R"({"by": "uri", "source": "{to}"})"_json.get<config::v2::account_selection::FindInPool>();
+		const auto account = FindInPool(pool, config).chooseAccountForThisCall(callContext(incomingFrom, incomingTo));
+
 		BC_HARD_ASSERT(account != nullptr);
 		BC_ASSERT_CPP_EQUAL(account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly(),
-		                    incomingTo.str());
+		                    incomingTo);
 	}
 
 	{
-		const auto account =
-		    FindInPool(pool, R"({"by": "alias", "source": "sip:no-placeholder@static.example.com"})"_json
-		                         .get<config::v2::account_selection::FindInPool>())
-		        .chooseAccountForThisCall(*forgedCall);
+		auto config = R"({"by": "alias", "source": "sip:no-placeholder@static.example.com"})"_json
+		                  .get<config::v2::account_selection::FindInPool>();
+		const auto account = FindInPool(pool, config).chooseAccountForThisCall(callContext(incomingFrom, incomingTo));
+
 		BC_HARD_ASSERT(account != nullptr);
 		BC_ASSERT_CPP_EQUAL(account->getAlias().str(), "sip:no-placeholder@static.example.com");
+	}
+
+	{
+		auto config = R"({"by": "uri", "source": "{from}"})"_json.get<config::v2::account_selection::FindInPool>();
+		const auto account =
+		    FindInPool(pool, config).chooseAccountForThisCall(callContext("sip:unknown@sip.example.org", incomingTo));
+
+		BC_ASSERT(account == nullptr);
+	}
+}
+
+// A SUBSCRIBE event as the B2BUA would receive it, placed by the given subscriber on a minimal core: no SIP traffic
+// is involved.
+auto makeSubscribeEvent(const string& subscriberUri) {
+	const auto core = minimalCore();
+	const auto subscriber = makeAccount(core, subscriberUri, "sip:subscriber-alias@sip.example.org");
+	core->setDefaultAccount(subscriber->getLinphoneAccount());
+
+	const auto resource = linphone::Factory::get()->createAddress("sip:mwi@sip.example.org");
+	return core->createSubscribe(resource, "message-summary", 600);
+}
+
+/**
+ * The event strategy resolves the subscriber account of an incoming SUBSCRIBE event, or nothing when the pool does
+ * not contain it.
+ */
+void chooseAccountForThisEvent() {
+	const auto pool = poolWithStaticAccounts();
+
+	auto config =
+	    R"({"by": "{uri.user}", "source": "{from.user}"})"_json.get<config::v2::account_selection::FindInPool>();
+
+	{
+		// The subscriber is searched by the event From user, which the pool contains.
+		const auto account =
+		    FindInPool(pool, config).chooseAccountForThisEvent(*makeSubscribeEvent("sip:expected-to@sip.example.org"));
+
+		BC_HARD_ASSERT(account != nullptr);
+		BC_ASSERT_CPP_EQUAL(account->getLinphoneAccount()->getParams()->getIdentityAddress()->asStringUriOnly(),
+		                    "sip:expected-to@sip.example.org");
+	}
+
+	{
+		// The subscriber is searched by the event From user, which the pool does not contain.
+		const auto account =
+		    FindInPool(pool, config).chooseAccountForThisEvent(*makeSubscribeEvent("sip:unknown@sip.example.org"));
+
+		BC_ASSERT(account == nullptr);
 	}
 }
 
@@ -130,14 +161,17 @@ auto stubPool() {
 void allValidTokensInSourceTemplate() {
 	auto allSupportedSubstitutions = ""
 	                                 "{from}"
+	                                 "{from.displayName}"
 	                                 "{from.user}"
 	                                 "{from.hostport}"
 	                                 "{from.uriParameters}"
 	                                 "{to}"
+	                                 "{to.displayName}"
 	                                 "{to.user}"
 	                                 "{to.hostport}"
 	                                 "{to.uriParameters}"
 	                                 "{requestUri}"
+	                                 "{requestUri.displayName}"
 	                                 "{requestUri.user}"
 	                                 "{requestUri.hostport}"
 	                                 "{requestUri.uriParameters}"
@@ -148,12 +182,7 @@ void allValidTokensInSourceTemplate() {
 
 void invalidTokenInSource() {
 	try {
-		std::ignore = FindInPool{
-		    stubPool(),
-
-		    {.source = "{from.uriParameters} is valid, but {from.invalid} is not"},
-
-		};
+		std::ignore = FindInPool{stubPool(), {.source = "{from.uriParameters} is valid, but {from.invalid} is not"}};
 		BC_FAIL("expected exception");
 	} catch (const utils::string_interpolation::ResolutionError& err) {
 		BC_ASSERT_CPP_EQUAL(err.offendingToken.cast(err.invalidTemplate), "invalid");
@@ -161,10 +190,34 @@ void invalidTokenInSource() {
 	}
 }
 
+/**
+ * The account field a FindInPool rule matches against is told by its 'by' template: the account uri, the
+ * account alias, or nothing when the template indexes other data.
+ */
+void matchedFieldIsToldByTheByTemplate() {
+	const auto pool = poolWithStaticAccounts();
+
+	const auto matchedField = [&](std::string_view by) {
+		return FindInPool(pool, config::v2::account_selection::FindInPool{.by = std::string{by}, .source = "{to}"})
+		    .matchedField();
+	};
+
+	BC_ASSERT_CPP_EQUAL(matchedField("uri"), AccountSelectionStrategy::MatchedField::Uri);
+	BC_ASSERT_CPP_EQUAL(matchedField("{uri}"), AccountSelectionStrategy::MatchedField::Uri);
+	BC_ASSERT_CPP_EQUAL(matchedField("{uri.user}"), AccountSelectionStrategy::MatchedField::Uri);
+	BC_ASSERT_CPP_EQUAL(matchedField("alias"), AccountSelectionStrategy::MatchedField::Alias);
+	BC_ASSERT_CPP_EQUAL(matchedField("{alias.user}"), AccountSelectionStrategy::MatchedField::Alias);
+	BC_ASSERT_CPP_EQUAL(matchedField("{alias.hostport}"), AccountSelectionStrategy::MatchedField::Alias);
+	BC_ASSERT_CPP_EQUAL(matchedField("static-value"), AccountSelectionStrategy::MatchedField::None);
+	BC_ASSERT_CPP_EQUAL(PickRandomInPool(pool).matchedField(), AccountSelectionStrategy::MatchedField::None);
+}
+
 TestSuite _{
     "b2bua::sip-bridge::account_strat::FindInPool",
     {
         CLASSY_TEST(chooseAccountForThisCall),
+        CLASSY_TEST(chooseAccountForThisEvent),
+        CLASSY_TEST(matchedFieldIsToldByTheByTemplate),
         CLASSY_TEST(allValidTokensInSourceTemplate),
         CLASSY_TEST(invalidTokenInSource),
     },

@@ -19,12 +19,14 @@
 #pragma once
 
 #include <map>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 
 #include "linphone++/address.hh"
-#include "linphone++/call.hh"
 
 #include "b2bua/sip-bridge/accounts/account.hh"
+#include "b2bua/sip-bridge/linphone-call-context.hh"
 #include "flexisip/utils/sip-uri.hh"
 #include "utils/string-interpolation/variable-substitution.hh"
 #include "utils/string-utils.hh"
@@ -35,6 +37,24 @@ namespace flexisip::b2bua::bridge {
 using utils::string_interpolation::FieldsOf;
 using utils::string_interpolation::leaf;
 using utils::string_interpolation::resolve;
+
+/**
+ *  Wraps template rendering errors so that they name the offending header and template.
+ */
+template <typename TemplateT>
+std::string formatHeader(const TemplateT& headerTemplate,
+                         const LinphoneCallContext& context,
+                         const Account& account,
+                         std::string_view headerName) {
+	try {
+		return headerTemplate.format(context, account);
+	} catch (const std::exception& err) {
+		throw std::runtime_error{
+		    "failed to render '" + std::string{headerName} + "' header (template '" + headerTemplate.getTemplate() +
+		        "': " + err.what() + ")",
+		};
+	}
+}
 
 const auto kLinphoneAddressFields = FieldsOf<std::shared_ptr<const linphone::Address>>{
     {"", leaf([](const auto& address) { return address->asStringUriOnly(); })},
@@ -63,21 +83,11 @@ const auto kLinphoneAddressFields = FieldsOf<std::shared_ptr<const linphone::Add
      })},
 };
 
-const auto kLinphoneCallFields = FieldsOf<linphone::Call>{
-    {"to", resolve(kLinphoneAddressFields,
-                   [](const auto& call) {
-	                   // FIXME: when a REFER requests is received, call.getToAddress() == call.getRemoteAddress().
-	                   return linphone::Factory::get()->createAddress(call.getRemoteParams()->getCustomHeader("To"));
-                   })},
-    {"from", resolve(kLinphoneAddressFields, [](const auto& call) { return call.getRemoteAddress(); })},
-    {"requestUri", resolve(kLinphoneAddressFields, [](const auto& call) { return call.getRequestAddress(); })},
+const auto kLinphoneCallContextFields = FieldsOf<LinphoneCallContext>{
+    {"to", resolve(kLinphoneAddressFields, [](const auto& context) { return context.to; })},
+    {"from", resolve(kLinphoneAddressFields, [](const auto& context) { return context.from; })},
+    {"requestUri", resolve(kLinphoneAddressFields, [](const auto& context) { return context.requestUri; })},
 };
-
-const auto kLinphoneCallTransferFields = []() {
-	auto copy = kLinphoneCallFields;
-	copy["to"] = resolve(kLinphoneAddressFields, [](const auto& call) { return call.getReferToAddress(); });
-	return copy;
-}();
 
 const auto kLinphoneEventFields = FieldsOf<linphone::Event>{
     {"to", resolve(kLinphoneAddressFields, [](const auto& event) { return event.getToAddress(); })},
