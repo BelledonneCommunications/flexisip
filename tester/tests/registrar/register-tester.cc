@@ -789,6 +789,7 @@ void missingExpiresHeaderWithWildcardContactHeader() {
 	const auto& contacts = records.begin()->second->getExtendedContacts();
 	BC_ASSERT_CPP_EQUAL(contacts.size(), 2);
 }
+
 /**
  * Test the usage of the wildcard '*' 'Contact' header field in case no previous binding exists.
  */
@@ -824,7 +825,7 @@ void wildcardContactHeaderWithoutBinding() {
 	auto transaction = client.createOutgoingTransaction(std::move(request), proxyUri);
 
 	asserter.iterateUpTo(16, [&transaction]() { return transaction->isCompleted(); }, 200ms).assert_passed();
-	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 500);
+	BC_ASSERT_CPP_EQUAL(transaction->getStatus(), 404);
 }
 
 /*

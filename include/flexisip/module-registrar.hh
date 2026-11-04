@@ -37,47 +37,55 @@ class ModuleRegistrar;
 class Agent;
 class ResponseContext;
 
-class OnRequestBindListener : public ContactUpdateListener {
-	static constexpr std::string_view mLogPrefix{"OnRequestBindListener"};
+enum class RegistrarCommand { Bind, Clear };
 
-	ModuleRegistrar* mModule;
-	std::unique_ptr<RequestSipEvent> mEv;
-	sip_from_t* mSipFrom;
-	su_home_t mHome;
-	sip_contact_t* mContact;
-	sip_path_t* mPath;
-
+class OnRequestListener : public ContactUpdateListener {
 public:
-	OnRequestBindListener(ModuleRegistrar* module,
-	                      std::unique_ptr<RequestSipEvent>&& ev,
-	                      const sip_from_t* sipuri = NULL,
-	                      sip_contact_t* contact = NULL,
-	                      sip_path_t* path = NULL);
-	~OnRequestBindListener();
+	OnRequestListener(ModuleRegistrar* module,
+	                  std::unique_ptr<RequestSipEvent>&& ev,
+	                  const RegistrarCommand& registrarCommand,
+	                  const sip_from_t* sipuri = nullptr,
+	                  sip_contact_t* contact = nullptr,
+	                  sip_path_t* path = nullptr);
+	~OnRequestListener() override;
 
 	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
 	void onRecordFound(const std::shared_ptr<Record>& r) override;
 	void onError(const SipStatus& response) override;
 	void onInvalid(const SipStatus& response) override;
+
+private:
+	static constexpr std::string_view mLogPrefix{"OnRequestListener"};
+
+	ModuleRegistrar* mModule;
+	std::unique_ptr<RequestSipEvent> mEv;
+	const RegistrarCommand mRegistrarCommand;
+	sip_from_t* mSipFrom;
+	su_home_t mHome;
+	sip_contact_t* mContact;
+	sip_path_t* mPath;
 };
 
-class OnResponseBindListener : public ContactUpdateListener {
-	static constexpr std::string_view mLogPrefix{"OnResponseBindListener"};
+class OnResponseListener : public ContactUpdateListener {
+public:
+	OnResponseListener(ModuleRegistrar* module,
+	                   std::unique_ptr<ResponseSipEvent>&& ev,
+	                   std::shared_ptr<OutgoingTransaction> tr,
+	                   std::shared_ptr<ResponseContext> ctx,
+	                   const RegistrarCommand& registrarCommand);
+	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
+	void onRecordFound(const std::shared_ptr<Record>& r) override;
+	void onError(const SipStatus& response) override;
+	void onInvalid(const SipStatus& response) override;
+
+private:
+	static constexpr std::string_view mLogPrefix{"OnResponseListener"};
 
 	ModuleRegistrar* mModule;
 	std::unique_ptr<ResponseSipEvent> mEv;
 	std::shared_ptr<OutgoingTransaction> mTr;
 	std::shared_ptr<ResponseContext> mCtx;
-
-public:
-	OnResponseBindListener(ModuleRegistrar* module,
-	                       std::unique_ptr<ResponseSipEvent>&& ev,
-	                       std::shared_ptr<OutgoingTransaction> tr,
-	                       std::shared_ptr<ResponseContext> ctx);
-	void onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) override;
-	void onRecordFound(const std::shared_ptr<Record>& r) override;
-	void onError(const SipStatus& response) override;
-	void onInvalid(const SipStatus& response) override;
+	const RegistrarCommand mRegistrarCommand;
 };
 
 class OnStaticBindListener : public ContactUpdateListener {
@@ -119,8 +127,8 @@ public:
 class ModuleRegistrar : public Module {
 
 	friend std::shared_ptr<Module> ModuleInfo<ModuleRegistrar>::create(Agent*);
-	friend class OnRequestBindListener;
-	friend class OnResponseBindListener;
+	friend class OnRequestListener;
+	friend class OnResponseListener;
 
 public:
 	~ModuleRegistrar() {}

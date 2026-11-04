@@ -54,9 +54,11 @@ Group changes to describe their impact on the project, as follows:
     limited to 408, 486 and 603), and its default value now also diverts to the voicemail on 480: `408 480 486 603`.
   - **Authorization:**
     - Parameter `auth-domains` is now empty (instead of `localhost`).
-  - **Registrar:** Parameters defined in `unique-id-parameters` are not removed anymore from the contact URI if
-    `reg-on-response=true`
-    and `enable-gruu=false`.
+  - **Registrar:** 
+    - Parameters defined in `unique-id-parameters` are not removed anymore from the contact URI if
+      `reg-on-response=true` and `enable-gruu=false`.
+    - Answer `404 Not Found` instead of `500 Internal Error` if no contacts are found in the database when receiving a 
+      request to remove all contacts (REGISTER request with 'Contact' field containing '*').
 
 ### [Deprecated]
 - **Proxy:**

@@ -85,12 +85,14 @@ static void _onContactUpdated(ModuleRegistrar* module, tport_t* new_tport, const
 	}
 }
 
-OnRequestBindListener::OnRequestBindListener(ModuleRegistrar* module,
-                                             unique_ptr<RequestSipEvent>&& ev,
-                                             const sip_from_t* sipuri,
-                                             sip_contact_t* contact,
-                                             sip_path_t* path)
-    : mModule(module), mEv(std::move(ev)), mSipFrom(nullptr), mContact(nullptr), mPath(nullptr) {
+OnRequestListener::OnRequestListener(ModuleRegistrar* module,
+                                     unique_ptr<RequestSipEvent>&& ev,
+                                     const RegistrarCommand& registrarCommand,
+                                     const sip_from_t* sipuri,
+                                     sip_contact_t* contact,
+                                     sip_path_t* path)
+    : mModule(module), mEv(std::move(ev)), mRegistrarCommand(registrarCommand), mSipFrom(nullptr), mContact(nullptr),
+      mPath(nullptr) {
 	mEv->suspendProcessing();
 	su_home_init(&mHome);
 	if (contact) mContact = sip_contact_copy(&mHome, contact);
@@ -99,15 +101,15 @@ OnRequestBindListener::OnRequestBindListener(ModuleRegistrar* module,
 		mSipFrom = sip_from_dup(&mHome, sipuri);
 	}
 }
-OnRequestBindListener::~OnRequestBindListener() {
+OnRequestListener::~OnRequestListener() {
 	su_home_deinit(&mHome);
 }
 
-void OnRequestBindListener::onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) {
+void OnRequestListener::onContactUpdated(const std::shared_ptr<ExtendedContact>& ec) {
 	_onContactUpdated(this->mModule, this->mEv->getIncomingTport().get(), ec);
 }
 
-void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
+void OnRequestListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 	if (r) {
 		addEventLogRecordFound(mEv, r, mContact);
@@ -128,34 +130,44 @@ void OnRequestBindListener::onRecordFound(const shared_ptr<Record>& r) {
 			tport_set_params(tport.get(), TPTAG_PONG2PING(1), TAG_END());
 		}
 	} else {
-		LOGE << "Record is null";
-		mModule->reply(*mEv, SIP_500_INTERNAL_SERVER_ERROR);
+		if (mRegistrarCommand == RegistrarCommand::Bind) {
+			LOGE << "Unexpected null record after trying to bind a user to the registrar";
+			mModule->reply(*mEv, SIP_500_INTERNAL_SERVER_ERROR);
+		} else {
+			mModule->reply(*mEv, SIP_404_NOT_FOUND);
+		}
 	}
 }
-void OnRequestBindListener::onError(const SipStatus& response) {
+
+void OnRequestListener::onError(const SipStatus& response) {
 	LOGE << "Reply " << response.getReason();
 	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
-void OnRequestBindListener::onInvalid(const SipStatus& response) {
+void OnRequestListener::onInvalid(const SipStatus& response) {
 	LOGE << "Reply " << response.getReason();
 	mModule->reply(*mEv, response.getCode(), response.getReason());
 }
 
-OnResponseBindListener::OnResponseBindListener(ModuleRegistrar* module,
-                                               unique_ptr<ResponseSipEvent>&& ev,
-                                               shared_ptr<OutgoingTransaction> tr,
-                                               shared_ptr<ResponseContext> ctx)
-    : mModule(module), mEv(std::move(ev)), mTr(tr), mCtx(ctx) {
+OnResponseListener::OnResponseListener(ModuleRegistrar* module,
+                                       unique_ptr<ResponseSipEvent>&& ev,
+                                       shared_ptr<OutgoingTransaction> tr,
+                                       shared_ptr<ResponseContext> ctx,
+                                       const RegistrarCommand& registrarCommand)
+    : mModule(module), mEv(std::move(ev)), mTr(tr), mCtx(ctx), mRegistrarCommand(registrarCommand) {
 	mEv->suspendProcessing();
 }
 
-void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
+void OnResponseListener::onRecordFound(const shared_ptr<Record>& r) {
 	const shared_ptr<MsgSip>& ms = mEv->getMsgSip();
 
 	if (r == nullptr) {
-		LOGE << "Record is null";
-		mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		if (mRegistrarCommand == RegistrarCommand::Bind) {
+			LOGE << "Unexpected null record after trying to bind a user to the registrar";
+			mCtx->mRequestSipEvent->reply(SIP_500_INTERNAL_SERVER_ERROR, TAG_END());
+		} else {
+			mCtx->mRequestSipEvent->reply(SIP_404_NOT_FOUND, TAG_END());
+		}
 		mEv->terminateProcessing();
 		return;
 	}
@@ -177,19 +189,20 @@ void OnResponseBindListener::onRecordFound(const shared_ptr<Record>& r) {
 	addEventLogRecordFound(mEv, r, dbContacts);
 	mModule->getAgent()->injectResponse(std::move(mEv));
 }
-void OnResponseBindListener::onError(const SipStatus& response) {
+
+void OnResponseListener::onError(const SipStatus& response) {
 	LOGE << "Reply " << response.getReason();
 	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
 
-void OnResponseBindListener::onInvalid(const SipStatus& response) {
+void OnResponseListener::onInvalid(const SipStatus& response) {
 	LOGE << "Reply " << response.getReason();
 	mCtx->mRequestSipEvent->reply(response.getCode(), response.getReason(), TAG_END());
 	mEv->terminateProcessing();
 }
 
-void OnResponseBindListener::onContactUpdated(const shared_ptr<ExtendedContact>& ec) {
+void OnResponseListener::onContactUpdated(const shared_ptr<ExtendedContact>& ec) {
 	_onContactUpdated(this->mModule, this->mCtx->mRequestSipEvent->getIncomingTport().get(), ec);
 }
 
@@ -808,7 +821,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	// Handle fetching
 	if (sip->sip_contact == nullptr) {
 		LOGI << "No SIP contact, it is a fetch only request for " << sipurl.str();
-		auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
+		auto listener = make_shared<OnRequestListener>(this, std::move(ev), RegistrarCommand::Bind);
 		mAgent->getRegistrarDb().fetch(sipurl, listener);
 		return {};
 	}
@@ -893,7 +906,7 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 	if (!updateOnResponse) {
 		// Main case: the module directly answers to the REGISTER.
 		if ('*' == sip->sip_contact->m_url[0].url_scheme[0]) {
-			auto listener = make_shared<OnRequestBindListener>(this, std::move(ev));
+			auto listener = make_shared<OnRequestListener>(this, std::move(ev), RegistrarCommand::Clear);
 			mStats.mCountClear->incrStart();
 			LOGD << "Clearing bindings";
 			listener->addStatCounter(mStats.mCountClear->finish);
@@ -904,8 +917,8 @@ unique_ptr<RequestSipEvent> ModuleRegistrar::onRequest(unique_ptr<RequestSipEven
 				mAgent->getRegistrarDb().clear(*ms, make_shared<FakeFetchListener>());
 			}
 			BindingParameters parameter;
-			auto listener =
-			    make_shared<OnRequestBindListener>(this, std::move(ev), sip->sip_from, sip->sip_contact, sip->sip_path);
+			auto listener = make_shared<OnRequestListener>(this, std::move(ev), RegistrarCommand::Bind, sip->sip_from,
+			                                               sip->sip_contact, sip->sip_path);
 			mStats.mCountBind->incrStart();
 			LOGD << "Updating binding";
 			listener->addStatCounter(mStats.mCountBind->finish);
@@ -988,14 +1001,17 @@ unique_ptr<ResponseSipEvent> ModuleRegistrar::onResponse(unique_ptr<ResponseSipE
 			expires = reSip->sip_expires;
 		}
 		const int maindelta = normalizeMainDelta(expires, mMinExpires, mMaxExpires);
-		auto listener = make_shared<OnResponseBindListener>(this, std::move(ev), transaction, context);
 
 		if ('*' == request->getSip()->sip_contact->m_url[0].url_scheme[0]) {
+			auto listener =
+			    make_shared<OnResponseListener>(this, std::move(ev), transaction, context, RegistrarCommand::Clear);
 			mStats.mCountClear->incrStart();
 			LOGD << "Clearing bindings";
 			listener->addStatCounter(mStats.mCountClear->finish);
 			mAgent->getRegistrarDb().clear(*request, listener);
 		} else {
+			auto listener =
+			    make_shared<OnResponseListener>(this, std::move(ev), transaction, context, RegistrarCommand::Bind);
 			BindingParameters parameter;
 			mStats.mCountBind->incrStart();
 			LOGD << "Updating binding";
