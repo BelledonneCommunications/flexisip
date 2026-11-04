@@ -58,33 +58,6 @@ RestClient getRestClient(sofiasip::SuRoot& root, const string& host, int port, c
 	                               }};
 }
 
-void startCallAndCheckAuthority(const shared_ptr<flexisip::tester::Server>& proxy,
-                                HttpMock& flexiapiServer,
-                                const string& expectedAuthority) {
-	// Pop the /api/spaces request
-	std::ignore = flexiapiServer.popRequestReceived();
-	flexiapiServer.resetRequestReceivedCount();
-	const ClientBuilder builder{proxy->getAgent()};
-	const string expectedFrom = "tony@sip.example.org";
-	const string expectedTo = "mike@sip.example.org";
-	auto tony = builder.build(expectedFrom);
-	auto mike = builder.build(expectedTo);
-	const auto expectedDeviceId = mike.getGruu();
-
-	const auto expectedCallId = tony.call(mike)->getCallLog()->getCallId();
-	// expect to received 3 event logs: INVITE, 180 Ringing, 200 OK
-
-	BcAssert asserter{[&proxy] { proxy->getRoot()->step(10ms); }};
-	BC_HARD_ASSERT_TRUE(
-	    asserter.iterateUpTo(5, [&flexiapiServer] { return flexiapiServer.getRequestReceivedCount() == 3; }));
-
-	const auto startedEvent = flexiapiServer.popRequestReceived();
-	BC_HARD_ASSERT(startedEvent != nullptr);
-	BC_ASSERT_CPP_EQUAL(startedEvent->method, "POST");
-	BC_ASSERT_CPP_EQUAL(startedEvent->path, "/api/statistics/calls");
-	BC_ASSERT_CPP_EQUAL(startedEvent->authority, expectedAuthority);
-}
-
 void startLogWriter() {
 	FlexiapiBuilder builder{};
 	auto flexiapiServer = builder.addEndpoint("/").build();
