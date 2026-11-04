@@ -56,6 +56,12 @@ struct PusherArgs {
 	string prefix{};
 	PushType applePushType{PushType::Background};
 
+	/* HTTPS proxy options */
+	string httpsProxyHost{};
+	int httpsProxyPort{443};
+	string httpsProxyUsername{};
+	string httpsProxyPassword{};
+
 	/* Pusher internal parameters */
 	string pntype{};
 	string appid{};
@@ -122,6 +128,21 @@ iOS specific options:
                                        * RemoteWithMutableContent: a message is displayed to the user;
                                        * PushKit: require the application to use CallKit API to display the incoming
                                          call view.
+
+HTTPS proxy options:
+--------------------
+  --https-proxy-host <host>          Host of the HTTPS proxy to use to send push notifications.
+
+  --https-proxy-port <port>          Port of the HTTPS proxy to use to send push notifications, defaults to 443.
+		                             This is ignored if '--https-proxy-host' is not used.
+
+  --https-proxy-username <username>  Username for the authentication to the HTTPS proxy to use to send push
+                                     notifications.
+		                             This is ignored if '--https-proxy-host' is not used.
+
+  -https-proxy-password <password>   Password for the authentication to the HTTPS proxy to use to send push
+                                     notifications.
+		                             This is ignored if '--https-proxy-host' is not used.
 
 Examples:
 ---------
@@ -249,6 +270,15 @@ Environment Variables:
 				customPayload = argv[++i];
 			} else if (EQ1(i, "--call-id")) {
 				callID = argv[++i];
+			} else if (EQ1(i, "--https-proxy-host")) {
+				httpsProxyHost = argv[++i];
+			} else if (EQ1(i, "--https-proxy-port")) {
+				httpsProxyPort = atoi(argv[++i]);
+				if (httpsProxyPort == 0) throw ExitFailure{"invalid https-proxy-port ("s + argv[i] + ")"};
+			} else if (EQ1(i, "--https-proxy-username")) {
+				httpsProxyUsername = argv[++i];
+			} else if (EQ1(i, "--https-proxy-password")) {
+				httpsProxyPassword = argv[++i];
 			} else {
 				cerr << "? arg" << i << " " << argv[i] << endl;
 				usage(*argv);
@@ -347,7 +377,12 @@ int pusher(int argc, const char* argv[]) {
 	});
 
 	const auto root = make_shared<sofiasip::SuRoot>();
-	Service service{root, MAX_QUEUE_SIZE};
+	std::optional<HttpsProxyCfg> httpsProxyCfg = std::nullopt;
+	if (!args.httpsProxyHost.empty()) {
+		httpsProxyCfg =
+		    HttpsProxyCfg{args.httpsProxyHost, args.httpsProxyPort, args.httpsProxyUsername, args.httpsProxyPassword};
+	}
+	Service service{root, MAX_QUEUE_SIZE, httpsProxyCfg};
 	auto pushInfos = createPushInfosFromArgs(args);
 
 	// Cannot be empty, or the program would have exited while parsing parameters.
