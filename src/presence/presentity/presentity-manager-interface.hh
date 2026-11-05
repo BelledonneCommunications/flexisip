@@ -32,7 +32,7 @@ class Presence;
 
 class PresentityManagerInterface {
 public:
-	explicit PresentityManagerInterface(belle_sip_stack_t* stack) : mStack(stack){};
+	explicit PresentityManagerInterface(belle_sip_stack_t* stack) : mStack(stack) {};
 	virtual ~PresentityManagerInterface() = default;
 
 	virtual std::string handlePublishFor(const belle_sip_uri_t* entityUri,
@@ -60,6 +60,7 @@ public:
 	virtual void invalidateETag(const std::string& eTag) = 0;
 	virtual void modifyEtag(const std::string& oldEtag, const std::string& newEtag) = 0;
 	virtual void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info, const std::string& etag) = 0;
+	virtual bool isETagAvailable(const std::string& eTag) const = 0;
 
 	//////// Presentities listeners
 	// fixme splitting into function add and function update will avoid to iterate on subscriber list

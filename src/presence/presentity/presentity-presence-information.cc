@@ -36,7 +36,7 @@
 #include "xml/pidf+xml.hh"
 #include "xml/rpid.hh"
 
-#define ETAG_SIZE 8
+#define ETAG_SIZE 16
 using namespace std;
 using namespace std::chrono;
 
@@ -161,8 +161,13 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 
 	// generate new etag
 	char generatedETag_char[ETAG_SIZE];
-	belle_sip_random_token(generatedETag_char, sizeof(generatedETag_char));
-	string generatedETag = generatedETag_char;
+	string generatedETag;
+	int retryCount = 0;
+	do {
+		belle_sip_random_token(generatedETag_char, sizeof(generatedETag_char));
+		generatedETag = generatedETag_char;
+		if (++retryCount > 4) throw PresenceServerException{"failed to generate an ETag that is not already used"};
+	} while (!mPresentityManager.isETagAvailable(generatedETag));
 
 	// cb function to invalidate an unrefreshed etag;
 	auto func = [this, generatedETag](unsigned int) {

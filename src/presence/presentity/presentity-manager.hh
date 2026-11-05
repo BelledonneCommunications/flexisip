@@ -39,8 +39,7 @@ public:
 
 	PresentityManager(belle_sip_stack_t* stack, const PresenceStats& presenceStats, size_t maxElementsByEntity)
 	    : PresentityManagerInterface(stack), mPresenceStats(presenceStats), mMaxElementsByEntity(maxElementsByEntity),
-	      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresentityManager")) {
-	}
+	      mLogPrefix(LogManager::makeLogPrefixForInstance(this, "PresentityManager")) {}
 
 	std::string handlePublishFor(const belle_sip_uri_t* entityUri,
 	                             const std::string& eTag,
@@ -63,6 +62,7 @@ public:
 	void invalidateETag(const std::string& eTag) override;
 	void modifyEtag(const std::string& oldEtag, const std::string& newEtag) override;
 	void addEtag(const std::shared_ptr<PresentityPresenceInformation>& info, const std::string& etag) override;
+	bool isETagAvailable(const std::string& eTag) const override;
 
 	void addOrUpdateListener(std::shared_ptr<PresentityPresenceInformationListener>& listener, int expires) override;
 	void addOrUpdateListeners(std::list<std::shared_ptr<PresentityPresenceInformationListener>>& listener,

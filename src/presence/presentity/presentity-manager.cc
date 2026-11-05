@@ -82,6 +82,10 @@ void PresentityManager::addEtag(const shared_ptr<PresentityPresenceInformation>&
 	LOGD << "ETag manager size [" << mPresenceInformationsByEtag.size() << "]";
 }
 
+bool PresentityManager::isETagAvailable(const std::string& eTag) const {
+	return !mPresenceInformationsByEtag.contains(eTag);
+}
+
 void PresentityManager::addOrUpdateListener(shared_ptr<PresentityPresenceInformationListener>& listener, int expires) {
 	auto presenceInfo = getPresenceInfo(listener->getPresentityUri());
 
