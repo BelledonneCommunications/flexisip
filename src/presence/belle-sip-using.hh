@@ -36,10 +36,15 @@ using belle_sip_transaction_terminated_event_t = struct belle_sip_transaction_te
  */
 struct BelleSipSourceCancelingDeleter {
 	constexpr BelleSipSourceCancelingDeleter() noexcept = default;
-	constexpr BelleSipSourceCancelingDeleter(BelleSipObjectDeleter<belle_sip_source_t>&&) noexcept {
-	}
+	constexpr BelleSipSourceCancelingDeleter(BelleSipObjectDeleter<belle_sip_source_t>&&) noexcept {}
+
 	void operator()(belle_sip_source_t* source) const noexcept {
 		belle_sip_source_cancel(source);
 		belle_sip_object_unref(source);
 	}
 };
+
+/**
+ * Unique pointer type for belle_sip_source_t objects that automatically cancels the timer when destroyed.
+ */
+using BelleSipSourceCancelingPtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;

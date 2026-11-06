@@ -24,9 +24,8 @@
 
 #include <belle-sip/belle-sip.h>
 
-#include "flexisip/flexisip-exception.hh"
+#include "bellesip-timer.hh"
 #include "flexisip/logmanager.hh"
-
 #include "presence/presentity/presence-information-element.hh"
 #include "presence/presentity/presentity-manager-interface.hh"
 #include "presence/presentity/presentity-presence-information-listener.hh"
@@ -181,7 +180,8 @@ string PresentityPresenceInformation::setOrUpdate(Xsd::Pidf::Presence::TupleSequ
 	unsigned int expiresMs = (static_cast<unsigned int>(expires) > valMax) ? numeric_limits<unsigned int>::max()
 	                                                                       : static_cast<unsigned int>(expires) * 1000U;
 	// create timer
-	auto timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop, func, expiresMs, "timer for presence Info");
+	BelleSipSourceCancelingPtr timer =
+	    belle_sip::createTimer(mBelleSipMainloop, func, expiresMs, "timer for presence Info");
 
 	if (etagAlreadyPresent) {
 		mPresentityManager.modifyEtag(*eTag, generatedETag);
@@ -276,12 +276,9 @@ void PresentityPresenceInformation::addOrUpdateListener(
 			return BELLE_SIP_STOP;
 		};
 
-		// create timer
-		auto timer = belle_sip_main_loop_create_cpp_timeout(mBelleSipMainloop, func, expiresMs,
-		                                                    "timer for presence info listener");
-
 		// set expiration timer
-		listener->setExpiresTimer(mBelleSipMainloop, std::move(timer));
+		listener->setExpiresTimer(mBelleSipMainloop, belle_sip::createTimer(mBelleSipMainloop, func, expiresMs,
+		                                                                    "timer for presence info listener"));
 	} else {
 		listener->setExpiresTimer(mBelleSipMainloop, nullptr);
 	}

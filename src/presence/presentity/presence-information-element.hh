@@ -31,9 +31,6 @@ namespace flexisip {
 
 class PresenceInformationElement {
 public:
-	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
-	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
-
 	PresenceInformationElement(Xsd::Pidf::Presence::TupleSequence* tuples,
 	                           Xsd::DataModel::Person* person,
 	                           const std::weak_ptr<StatPair>& countPresenceElement);
@@ -70,9 +67,9 @@ private:
 	const std::weak_ptr<StatPair> mCountPresenceElement;
 	std::list<std::unique_ptr<Xsd::Pidf::Tuple>> mTuples;
 	Xsd::DataModel::Person mPerson{""};
-	BelleSipSourcePtr mTimer;
+	BelleSipSourceCancelingPtr mTimer;
 	std::string mEtag;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 } /* namespace flexisip */

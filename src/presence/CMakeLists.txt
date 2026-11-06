@@ -23,6 +23,7 @@
 target_sources(flexisip PRIVATE
         belle-sip-using.hh
         bellesip-signaling-exception.cc bellesip-signaling-exception.hh
+        bellesip-timer.cc bellesip-timer.hh
         observers/presence-auth-db-listener.cc observers/presence-auth-db-listener.hh
         observers/presence-info-observer.hh
         observers/presence-longterm.cc observers/presence-longterm.hh

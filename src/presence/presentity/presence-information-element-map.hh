@@ -104,11 +104,11 @@ private:
 	ElementMapType mInformationElements;
 	std::vector<std::weak_ptr<ElementMapListener>> mListeners{};
 	std::optional<std::chrono::system_clock::time_point> mLastActivity = std::nullopt;
-	BelleSipSourcePtr mLastActivityTimer = nullptr;
+	BelleSipSourceCancelingPtr mLastActivityTimer = nullptr;
 
 	mutable std::list<std::weak_ptr<PresentityPresenceInformation>> mParents;
 	const std::weak_ptr<StatPair> mCountPresenceElementMap;
-    std::string mLogPrefix;
+	std::string mLogPrefix;
 };
 
 } /* namespace flexisip */

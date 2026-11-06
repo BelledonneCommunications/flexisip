@@ -16,7 +16,6 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <algorithm>
 #include <chrono>
 
 #include <belle-sip/belle-sip.h>
@@ -25,7 +24,7 @@
 
 #include <flexisip/logmanager.hh>
 
-#include "bellesip-signaling-exception.hh"
+#include "bellesip-timer.hh"
 #include "list-subscription.hh"
 #include "presence/presentity/presentity-presence-information.hh"
 
@@ -47,8 +46,7 @@ ListSubscription::ListSubscription(const CompatibilityMode& compatibilityMode,
                    countListSubscription),
       mMaxPresenceInfoNotifiedAtATime(maxPresenceInfoNotifiedAtATime), mListAvailable(listAvailable),
       mLogPrefix(LogManager::makeLogPrefixForInstance(this, "ListSubscription")),
-      mCompatibilityMode{compatibilityMode} {
-}
+      mCompatibilityMode{compatibilityMode} {}
 
 list<shared_ptr<PresentityPresenceInformationListener>>& ListSubscription::getListeners() {
 	return mListeners;
@@ -209,9 +207,8 @@ void ListSubscription::notify(bool isFullState) {
 				LOGD_CTX(mLogPrefix, "notify") << "Deferred notify";
 				return BELLE_SIP_STOP;
 			};
-			mTimer = belle_sip_main_loop_create_cpp_timeout(
-			    belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)), func, 500,
-			    "timer for list notify");
+			mTimer = belle_sip::createTimer(belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+			                                func, 500, "timer for list notify");
 		}
 	} catch (const Xsd::XmlSchema::Serialization& e) {
 		stringstream message{};
@@ -243,9 +240,8 @@ void ListSubscription::onInformationChanged(PresentityPresenceInformation& prese
 				chrono::milliseconds timeout{chrono::duration_cast<chrono::milliseconds>(
 				    mMinNotifyInterval - (chrono::system_clock::now() - mLastNotify))};
 
-				mTimer = belle_sip_main_loop_create_cpp_timeout(
-				    belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)), func, timeout.count(),
-				    "timer for list notify");
+				mTimer = belle_sip::createTimer(belle_sip_stack_get_main_loop(belle_sip_provider_get_sip_stack(mProv)),
+				                                func, timeout.count(), "timer for list notify");
 			}
 
 			if (mVersion > 0) {

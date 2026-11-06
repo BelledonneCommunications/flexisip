@@ -18,6 +18,7 @@
 
 #include "presence-information-element-map.hh"
 
+#include "bellesip-timer.hh"
 #include "presence/presence-server.hh"
 #include "presentity-presence-information.hh"
 
@@ -38,7 +39,7 @@ PresenceInformationElementMap::PresenceInformationElementMap(
 	if (auto sharedCounter = mCountPresenceElementMap.lock()) {
 		sharedCounter->incrStart();
 	} else {
-        LOGE << "Failed to increment counter 'presence-element-map' (std::weak_ptr is empty)";
+		LOGE << "Failed to increment counter 'presence-element-map' (std::weak_ptr is empty)";
 	}
 };
 
@@ -46,7 +47,7 @@ PresenceInformationElementMap::~PresenceInformationElementMap() {
 	if (auto sharedCounter = mCountPresenceElementMap.lock()) {
 		sharedCounter->incrFinish();
 	} else {
-        LOGE << "Failed to increment counter 'presence-element-map-finished' (std::weak_ptr is empty)";
+		LOGE << "Failed to increment counter 'presence-element-map-finished' (std::weak_ptr is empty)";
 	}
 }
 
@@ -63,7 +64,7 @@ void PresenceInformationElementMap::removeByEtag(const std::string& eTag, bool n
 
 void PresenceInformationElementMap::setupLastActivity() {
 	mLastActivity = std::chrono::system_clock::now();
-	mLastActivityTimer = belle_sip_main_loop_create_cpp_timeout(
+	mLastActivityTimer = belle_sip::createTimer(
 	    mBelleSipMainloop,
 	    [weakThis = weak_from_this()](unsigned int) {
 		    if (auto sharedThis = weakThis.lock()) {

@@ -36,9 +36,6 @@ class PresentityPresenceInformation;
 
 class PresentityPresenceInformationListener {
 public:
-	/* Re-definition of BelleSipSourcePtr in order to use BelleSipSourceCancelingDeleter as deleter */
-	using BelleSipSourcePtr = std::unique_ptr<belle_sip_source_t, BelleSipSourceCancelingDeleter>;
-
 	PresentityPresenceInformationListener() = default;
 	virtual ~PresentityPresenceInformationListener() = default;
 
@@ -66,7 +63,7 @@ public:
 
 private:
 	belle_sip_main_loop_t* mBelleSipMainloop = nullptr;
-	BelleSipSourcePtr mTimer;
+	BelleSipSourceCancelingPtr mTimer;
 	bool mExtendedNotify = false;
 	bool mBypassEnabled = false;
 };
