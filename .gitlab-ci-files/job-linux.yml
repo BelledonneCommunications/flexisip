@@ -98,7 +98,7 @@
     - *enable-gcc-toolset
     - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=RPM ..
+    - cmake --preset rpm-packaging -G $CMAKE_GENERATOR $CMAKE_OPTIONS ..
     - cmake --build . --target package
   artifacts:
     paths:
@@ -128,7 +128,7 @@
   script:
     - *set-max-jobs
     - mkdir build && cd build
-    - cmake -G $CMAKE_GENERATOR $DEFAULT_PACKAGING_CMAKE_OPTIONS $CMAKE_OPTIONS -DCPACK_GENERATOR=DEB ..
+    - cmake --preset deb-packaging -G $CMAKE_GENERATOR $CMAKE_OPTIONS ..
     - cmake --build . --target package
   artifacts:
     paths:

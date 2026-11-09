@@ -1,0 +1,102 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "packaging",
+      "description": "Base for packaging presets",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_INSTALL_PREFIX": "/opt/belledonne-communications",
+        "FLEXISIP_SYSTEMD_INSTALL_DIR": "/usr/lib/systemd/system",
+        "SYSCONF_INSTALL_DIR": "/etc",
+        "ENABLE_G729":"ON"
+      }
+    },
+    {
+      "name": "rpm-packaging",
+      "displayName": "RPM packaging",
+      "description": "Default RPM packaging",
+      "inherits": "packaging",
+      "cacheVariables": {
+        "CPACK_GENERATOR": "RPM"
+      }
+    },
+    {
+      "name": "deb-packaging",
+      "displayName": "DEB packaging",
+      "description": "Default DEB packaging",
+      "inherits": "packaging",
+      "cacheVariables": {
+        "CPACK_GENERATOR": "DEB"
+      }
+    },
+    {
+      "name": "minimal",
+      "displayName": "Minimal build",
+      "description": "Minimal build for Flexisip proxy",
+      "cacheVariables": {
+        "ENABLE_B2BUA": "OFF",
+        "ENABLE_REGEVENT": "OFF",
+        "ENABLE_EXTERNAL_AUTH_PLUGIN": "OFF",
+        "ENABLE_G729": "OFF",
+        "ENABLE_MDNS": "OFF",
+        "ENABLE_OPENID_CONNECT": "OFF",
+        "ENABLE_PRESENCE": "OFF",
+        "ENABLE_REDIS": "OFF",
+        "ENABLE_SNMP": "OFF",
+        "ENABLE_SOCI_POSTGRESQL_BACKEND": "OFF",
+        "ENABLE_SOCI": "OFF",
+        "ENABLE_TRANSCODER": "OFF",
+        "ENABLE_UNIT_TESTS": "OFF",
+        "ENABLE_VOICEMAIL": "OFF"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug with all features",
+      "description": "Debug build with all features enabled",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ENABLE_B2BUA": "ON",
+        "ENABLE_REGEVENT": "ON",
+        "ENABLE_EXTERNAL_AUTH_PLUGIN": "ON",
+        "ENABLE_G729": "ON",
+        "ENABLE_MDNS": "ON",
+        "ENABLE_OPENID_CONNECT": "ON",
+        "ENABLE_PRESENCE": "ON",
+        "ENABLE_REDIS": "ON",
+        "ENABLE_SNMP": "ON",
+        "ENABLE_SOCI": "ON",
+        "ENABLE_SOCI_POSTGRESQL_BACKEND": "ON",
+        "ENABLE_TRANSCODER": "ON",
+        "ENABLE_VOICEMAIL": "ON"
+      }
+    },
+    {
+      "name": "tests-without-sanitizer",
+      "displayName": "Build for tests wihtout sanitizer",
+      "description": "Configuration to run Flexisip tests",
+      "inherits": "debug",
+      "cacheVariables": {
+        "ENABLE_SANITIZERS": "OFF",
+        "ENABLE_UNIT_TESTS": "ON"
+      }
+    },
+    {
+      "name": "tests-with-sanitizer",
+      "displayName": "Build for tests with sanitizer",
+      "description": "Configuration to run Flexisip tests with sanitizer",
+      "inherits": "debug",
+      "cacheVariables": {
+        "ENABLE_SANITIZERS": "ON",
+        "ENABLE_UNIT_TESTS": "ON"
+      }
+    }
+  ]
+}

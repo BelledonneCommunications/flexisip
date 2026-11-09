@@ -104,6 +104,12 @@ ccmake ./build
 make -C ./build -j<njobs>
 ```
 
+Some CMakePresets are available for ease of use:
+
+```bash
+cmake --list-presets
+```
+
 ## Building RPM or DEB packages
 
 This procedure will help you generate a unique RPM package containing Flexisip, all its dependencies and the
