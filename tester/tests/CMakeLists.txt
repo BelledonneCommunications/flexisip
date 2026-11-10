@@ -26,7 +26,6 @@ add_executable(flexisip_tester
 	cli-tester.cc
 	domain-registration-tester.cc
 	http-url-tester.cc
-	msg-sip-tester.cc
 	sip-uri-tester.cc
 	schedule-injector-tester.cc
 	accounts-store/accounts-store-tester.cc
@@ -90,6 +89,7 @@ add_executable(flexisip_tester
 	sofia-api/nth.cc
 	sofia-api/sofia-driven-signal-handler-tester.cc
 	sofia-wrapper/home-tester.cc
+	sofia-wrapper/msg-sip-tester.cc
 	sofia-wrapper/su/home-tester.cc
 	sofia-wrapper/sip-header-tester.cc
 	sofia-wrapper/su-root-tester.cc
