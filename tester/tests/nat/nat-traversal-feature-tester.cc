@@ -37,6 +37,41 @@ using namespace sofiasip;
 
 namespace flexisip::tester {
 namespace {
+constexpr auto kProxyHost = "127.0.0.1";
+/**
+ * Test call establishment when module::NatHelper is used.
+ */
+void makeCall(const std::map<std::string, std::string>& config) {
+	InjectedHooks injectedModuleHooks{
+	    .injectAfterModule = "GarbageIn",
+	    .onRequest =
+	        [](std::unique_ptr<RequestSipEvent>&& ev) {
+		        const auto* sip = ev->getSip();
+		        const auto sipm = ev->getMsgSip()->getSipMethod();
+		        if (sipm == sip_method_register or (sipm == sip_method_invite and sip->sip_to->a_tag == nullptr)) {
+			        // Modify the "Contact" header field "host:port", so it triggers "Contact" header correction.
+			        auto* contact = sip->sip_contact;
+			        contact->m_url->url_host = "1.2.3.4";
+			        contact->m_url->url_port = "1234";
+		        }
+		        return std::move(ev);
+	        },
+	};
+	Server proxy{
+	    config,
+	    &injectedModuleHooks,
+	};
+	proxy.start();
+
+	auto builder = ClientBuilder(proxy.getAgent());
+	builder.setIce(OnOff::Off);
+	auto callee = builder.build("sip:callee@localhost");
+	auto caller = builder.setRegistration(OnOff::Off).build("sip:caller@localhost");
+
+	const auto call = caller.call(callee);
+	BC_HARD_ASSERT(call != nullptr);
+	call->terminate();
+}
 
 namespace ContactCorrection {
 
@@ -48,7 +83,6 @@ namespace ContactCorrection {
  * contact "ip:port" to values found in the "VIA" header field.
  */
 void registerUser() {
-	const string proxyHost = "127.0.0.1";
 	const string expectedContactPort = "5678";
 	const string expectedContactHost = "5.6.7.8";
 	InjectedHooks injectedModuleHooks{
@@ -65,7 +99,7 @@ void registerUser() {
 	Server proxy{
 	    {
 	        {"global/aliases", "localhost"},
-	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	        {"global/transports", "sip:"s + kProxyHost + ":0;transport=tcp"},
 	        {"module::Registrar/enabled", "true"},
 	        {"module::Registrar/reg-domains", "localhost"},
 	        {"module::NatHelper/enabled", "true"},
@@ -75,10 +109,10 @@ void registerUser() {
 	    &injectedModuleHooks,
 	};
 	proxy.start();
-	const auto proxyHostPort = proxyHost + ":"s + string(proxy.getFirstPort());
+	const auto proxyHostPort = kProxyHost + ":"s + string(proxy.getFirstPort());
 	const string proxyUri{"sip:" + proxyHostPort + ";transport=tcp"};
 
-	NtaAgent client{proxy.getRoot(), "sip:" + proxyHost + ":0;transport=tcp"};
+	NtaAgent client{proxy.getRoot(), "sip:"s + kProxyHost + ":0;transport=tcp"};
 
 	ostringstream request{};
 	request << "REGISTER sip:user@localhost SIP/2.0\r\n"
@@ -106,47 +140,18 @@ void registerUser() {
  * Test call establishment when the contact-correction feature is enabled in module::NatHelper.
  */
 void makeCall() {
-	const string proxyHost = "127.0.0.1";
-	InjectedHooks injectedModuleHooks{
-	    .injectAfterModule = "GarbageIn",
-	    .onRequest =
-	        [](std::unique_ptr<RequestSipEvent>&& ev) {
-		        const auto* sip = ev->getSip();
-		        const auto sipm = ev->getMsgSip()->getSipMethod();
-		        if (sipm == sip_method_register or (sipm == sip_method_invite and sip->sip_to->a_tag == nullptr)) {
-			        // Modify the "Contact" header field "host:port", so it triggers "Contact" header correction.
-			        auto* contact = sip->sip_contact;
-			        contact->m_url->url_host = "1.2.3.4";
-			        contact->m_url->url_port = "1234";
-		        }
-		        return std::move(ev);
-	        },
-	};
-	Server proxy{
-	    {
-	        {"global/aliases", "localhost"},
-	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
-	        {"module::MediaRelay/enabled", "false"},
-	        {"module::Registrar/enabled", "true"},
-	        {"module::Registrar/reg-domains", "localhost"},
-	        {"module::NatHelper/enabled", "true"},
-	        {"module::NatHelper/nat-traversal-strategy", "contact-correction"},
-	        {"module::NatHelper/contact-correction-param", "verified"},
-	    },
-	    &injectedModuleHooks,
-	};
-	proxy.start();
+	tester::makeCall({
+	    {"global/aliases", "localhost"},
+	    {"global/transports", "sip:"s + kProxyHost + ":0;transport=tcp"},
+	    {"module::MediaRelay/enabled", "false"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::NatHelper/enabled", "true"},
+	    {"module::NatHelper/nat-traversal-strategy", "contact-correction"},
+	    {"module::NatHelper/contact-correction-param", "verified"},
 
-	auto builder = ClientBuilder(proxy.getAgent());
-	builder.setIce(OnOff::Off);
-	auto caller = builder.build("sip:caller@localhost");
-	auto callee = builder.build("sip:callee@localhost");
-
-	const auto call = caller.call(callee);
-	BC_HARD_ASSERT(call != nullptr);
-	call->terminate();
+	});
 }
-
 } // namespace ContactCorrection
 
 namespace FlowToken {
@@ -161,7 +166,6 @@ namespace FlowToken {
  */
 void registerUser() {
 	string clientPort{};
-	const string proxyHost = "127.0.0.1";
 	InjectedHooks injectedModuleHooks{
 	    .onRequest =
 	        [&clientPort](std::unique_ptr<RequestSipEvent>&& ev) {
@@ -173,7 +177,7 @@ void registerUser() {
 	Server proxy{
 	    {
 	        {"global/aliases", "localhost"},
-	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	        {"global/transports", "sip:"s + kProxyHost + ":0;transport=tcp"},
 	        {"module::Registrar/enabled", "true"},
 	        {"module::Registrar/reg-domains", "localhost"},
 	        {"module::NatHelper/enabled", "true"},
@@ -184,7 +188,7 @@ void registerUser() {
 	    &injectedModuleHooks,
 	};
 	proxy.start();
-	const auto proxyHostPort = proxyHost + ":"s + string(proxy.getFirstPort());
+	const auto proxyHostPort = kProxyHost + ":"s + string(proxy.getFirstPort());
 	const string proxyUri{"sip:" + proxyHostPort + ";transport=tcp"};
 
 	class ContactInfoGetter : public ContactUpdateListener {
@@ -203,7 +207,7 @@ void registerUser() {
 
 	const FlowFactory flowFactory{bcTesterWriteDir().append("var/lib/flexisip/flow-token-hash-key")};
 	const auto contactInfoGetter = make_shared<ContactInfoGetter>();
-	NtaAgent client{proxy.getRoot(), "sip:" + proxyHost + ":0;transport=tcp"};
+	NtaAgent client{proxy.getRoot(), "sip:"s + kProxyHost + ":0;transport=tcp"};
 
 	ostringstream request{};
 	request << "REGISTER sip:user@localhost SIP/2.0\r\n"
@@ -228,7 +232,7 @@ void registerUser() {
 	const auto flow = flowFactory.create(contactInfoGetter->mPath.substr(4, 32));
 	BC_ASSERT(flow.isFalsified() == false);
 	BC_ASSERT_CPP_EQUAL(flow.getData().getLocalAddress()->str(), proxyHostPort);
-	BC_ASSERT_CPP_EQUAL(flow.getData().getRemoteAddress()->str(), proxyHost + ":" + clientPort);
+	BC_ASSERT_CPP_EQUAL(flow.getData().getRemoteAddress()->str(), kProxyHost + ":"s + clientPort);
 	BC_ASSERT(flow.getData().getTransportProtocol() == FlowData::Transport::Protocol::tcp);
 }
 
@@ -236,12 +240,11 @@ void registerUser() {
  * Test call establishment when the flow-token feature is enabled in module::NatHelper.
  * Hint: we force the use of a flow-token to simulate the need of processing from the NatHelper module.
  */
-void makeCall() {
+void natHelperOnCall() {
 	url_t recordRoute{};
 	string callerTcpPort{"unexpected"};
 
 	bool firstInvite{true};
-	const string proxyHost = "127.0.0.1";
 	// Inject a custom module to get information from processed requests.
 	// Here, we want to make sure the NatHelper module correctly added the record-route.
 	InjectedHooks injectedModuleHooks{
@@ -261,7 +264,7 @@ void makeCall() {
 	Server proxy{
 	    {
 	        {"global/aliases", "localhost"},
-	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	        {"global/transports", "sip:"s + kProxyHost + ":0;transport=tcp"},
 	        {"module::MediaRelay/enabled", "false"},
 	        {"module::Registrar/enabled", "true"},
 	        {"module::Registrar/reg-domains", "localhost"},
@@ -293,11 +296,10 @@ void makeCall() {
  * Hint: here we do not force to use flow-tokens, and the "Contact" header field does not contain the "ob" parameter, so
  * it will fall back on the case where we do not need the NatHelper module to do something special.
  */
-void makeCallNoNeedForNatHelper() {
+void noNeedForNatHelperOnCall() {
 	string recordRouteUrl{};
 
 	bool firstInvite{true};
-	const string proxyHost = "127.0.0.1";
 	// Inject a custom module to get information from processed requests.
 	// Here, we want to make sure the NatHelper module correctly added the record-route.
 	InjectedHooks injectedModuleHooks{
@@ -315,7 +317,7 @@ void makeCallNoNeedForNatHelper() {
 	Server proxy{
 	    {
 	        {"global/aliases", "localhost"},
-	        {"global/transports", "sip:" + proxyHost + ":0;transport=tcp"},
+	        {"global/transports", "sip:"s + kProxyHost + ":0;transport=tcp"},
 	        {"module::MediaRelay/enabled", "false"},
 	        {"module::Registrar/enabled", "true"},
 	        {"module::Registrar/reg-domains", "localhost"},
@@ -339,6 +341,22 @@ void makeCallNoNeedForNatHelper() {
 	BC_ASSERT_CPP_EQUAL(recordRouteUrl, "sip:127.0.0.1:"s + proxy.getFirstPort() + ";transport=tcp;lr");
 }
 
+/**
+ * Test call establishment when the flow-token feature is enabled in module::NatHelper.
+ */
+void makeCall() {
+	tester::makeCall({
+	    {"global/aliases", "localhost"},
+	    {"global/transports", "sip:"s + kProxyHost + ":0;transport=tcp"},
+	    {"module::MediaRelay/enabled", "false"},
+	    {"module::Registrar/enabled", "true"},
+	    {"module::Registrar/reg-domains", "localhost"},
+	    {"module::NatHelper/enabled", "true"},
+	    {"module::NatHelper/nat-traversal-strategy", "flow-token"},
+	    {"module::NatHelper/force-flow-token", "true"},
+	    {"module::NatHelper/flow-token-path", bcTesterWriteDir().append("var/lib/flexisip/flow-token-hash-key")},
+	});
+}
 } // namespace FlowToken
 
 TestSuite _{
@@ -347,8 +365,9 @@ TestSuite _{
         CLASSY_TEST(ContactCorrection::registerUser),
         CLASSY_TEST(ContactCorrection::makeCall),
         CLASSY_TEST(FlowToken::registerUser),
+        CLASSY_TEST(FlowToken::natHelperOnCall),
+        CLASSY_TEST(FlowToken::noNeedForNatHelperOnCall),
         CLASSY_TEST(FlowToken::makeCall),
-        CLASSY_TEST(FlowToken::makeCallNoNeedForNatHelper),
     },
 };
 
