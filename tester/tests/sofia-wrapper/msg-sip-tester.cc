@@ -19,6 +19,7 @@
 #include "flexisip/sofia-wrapper/msg-sip.hh"
 
 #include "flexisip/logmanager.hh"
+#include "utils/socket-address.hh"
 #include "utils/test-patterns/test.hh"
 #include "utils/test-suite.hh"
 
@@ -242,6 +243,46 @@ void msgComplexWithContentTypeAndMethod() {
 	}
 }
 
+void msgCopyPreserveAddress() {
+	// IPv4
+	{
+		sockaddr_in suSockAddr{};
+		suSockAddr.sin_family = AF_INET;
+		suSockAddr.sin_addr.s_addr = htonl(0x01020304); // 1.2.3.4
+		suSockAddr.sin_port = htons(5678);
+
+		MsgSip msg{0, rawRegister};
+		msg_set_address(msg.getMsg(), reinterpret_cast<const su_sockaddr_t*>(&suSockAddr), sizeof(suSockAddr));
+		const auto msgAddr = msg.getAddress();
+		BC_HARD_ASSERT_NOT_NULL(msgAddr);
+
+		auto msgCopy = msg;
+		const auto msgCopyAddr = msgCopy.getAddress();
+		BC_HARD_ASSERT_NOT_NULL(msgCopyAddr);
+		BC_ASSERT_CPP_EQUAL(msgAddr->str(), msgCopyAddr->str());
+		BC_ASSERT_CPP_EQUAL(msgCopyAddr->getAddressFamily(), AF_INET);
+	}
+
+	// IPv6
+	{
+		sockaddr_in6 suSockAddr{};
+		suSockAddr.sin6_family = AF_INET6;
+		suSockAddr.sin6_addr = {{{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}}};
+		suSockAddr.sin6_port = htons(5678);
+
+		MsgSip msg{0, rawRegister};
+		msg_set_address(msg.getMsg(), reinterpret_cast<const su_sockaddr_t*>(&suSockAddr), sizeof(suSockAddr));
+		const auto msgAddr = msg.getAddress();
+		BC_HARD_ASSERT_NOT_NULL(msgAddr);
+
+		auto msgCopy = msg;
+		const auto msgCopyAddr = msgCopy.getAddress();
+		BC_HARD_ASSERT_NOT_NULL(msgCopyAddr);
+		BC_ASSERT_CPP_EQUAL(msgAddr->str(), msgCopyAddr->str());
+		BC_ASSERT_CPP_EQUAL(msgCopyAddr->getAddressFamily(), AF_INET6);
+	}
+}
+
 TestSuite _("MsgSipWrapper",
             {
                 CLASSY_TEST(msgNotInShowBodyFor),
@@ -250,6 +291,7 @@ TestSuite _("MsgSipWrapper",
                 CLASSY_TEST(msgComplexWithMultipleSipMethod),
                 CLASSY_TEST(msgFilterOnContentType),
                 CLASSY_TEST(msgComplexWithContentTypeAndMethod),
+                CLASSY_TEST(msgCopyPreserveAddress),
             });
 } // namespace
 } // namespace flexisip::tester

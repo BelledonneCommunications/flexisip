@@ -31,6 +31,7 @@ Group changes to describe their impact on the project, as follows:
       call failures (e.g., unexpected one-way media flow even though both parties had agreed to bidirectional media).
     - Prevent potential crashes on missing or empty SDP attributes and SIP header field values.
   - **TlsConnection:** Fixed a race condition that could crash the HTTP/2 client in high usage scenarios.
+  - **NatHelper** Resolve flow-token path, if any, on INVITE requests.
 - **Pusher:** New command line arguments to use an HTTPS proxy (`--https-proxy-host`, `--https-proxy-port`,
   `--https-proxy-username`, `--https-proxy-password`).
 
