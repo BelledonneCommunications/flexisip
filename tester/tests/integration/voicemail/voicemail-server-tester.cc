@@ -74,7 +74,6 @@ void answerCallThenHangUp() {
 	}};
 	const auto& agent = server.getAgent();
 
-	// Wait for the spaces store to be ready.
 	server.waitForSpacesStore();
 
 	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(), agent->getSpacesStore());
@@ -216,7 +215,6 @@ void answerCallRecordVoicemail() {
 	}};
 	const auto& agent = proxy.getAgent();
 
-	// Wait for the spaces store to be ready.
 	proxy.waitForSpacesStore();
 
 	LOGD_CTX("answerCallRecordVoicemail") << "Root address" << agent->getRoot().get();
@@ -260,6 +258,98 @@ void answerCallRecordVoicemail() {
 	std::ignore = voicemail->stop();
 	httpServer->forceCloseServer();
 	agent->getRoot()->step(10ms); // needed to acknowledge mock server closing
+}
+
+class CallHandlerObserverForTest : public voicemail::CallHandlerObserver,
+                                   public enable_shared_from_this<CallHandlerObserverForTest> {
+public:
+	void observeCallHandler(shared_ptr<voicemail::CallHandler> callHandler) {
+		if (callHandler) callHandler->addObserver(shared_from_this());
+	}
+
+	void onCallHandled(const std::shared_ptr<linphone::Call>&) noexcept override {
+		mCallHandled = true;
+	}
+
+	bool isCallHandled() const {
+		return mCallHandled;
+	}
+
+private:
+	std::atomic_bool mCallHandled{};
+};
+
+void answerCallThenHangUpBeforeAnnounce() {
+	const TmpDir tmpDir{"voicemail"};
+	const auto audioFile = createShortAudioFile(tmpDir);
+	const auto beepFile = bcTesterRes("../share/voicemail/beep.wav");
+	const TmpDir tmpStorageDir{"voicemail-storage"};
+	std::map<std::string, http_mock::HttpMockHandler> handlers;
+	handlers["/api/accounts/target@sip.test.org/search"] = getAccountIdHandler;
+	handlers["/api/accounts/1234/voicemails"] = getSlotHandler;
+
+	FlexiapiBuilder builder{};
+	auto httpServer = builder
+	                      .setSpaces({{
+	                          {"domain", "sip.test.org"},
+	                          {"name", "test"},
+	                          {"host", "127.0.0.1"},
+	                      }})
+	                      .setHandlers(handlers)
+	                      .build();
+	const auto httpPort = httpServer->getFirstPort();
+
+	Server server{{
+	    {"global/transports", "sip:127.0.0.1"},
+	    {"voicemail-server/transport", "sip:flexisip-voicemail@localhost:0;maddr=127.0.0.1;transport=tcp"},
+	    {"voicemail-server/default-announcement-path", audioFile},
+	    {"voicemail-server/voicemail-announcement-path", audioFile},
+	    {"voicemail-server/beep-sound-path", beepFile},
+	    {"voicemail-server/delay-before-announce", "1s"},
+	    {"voicemail-server/voicemail-storage-path", tmpStorageDir.path()},
+	    {"global::flexiapi/url", "https://127.0.0.1:" + to_string(httpPort)},
+	    {"global::flexiapi/api-key", "aRandomToken"},
+	}};
+	const auto& agent = server.getAgent();
+
+	server.waitForSpacesStore();
+
+	auto voicemail = make_shared<VoicemailServer>(agent->getRoot(), server.getConfigManager(), agent->getSpacesStore());
+	voicemail->init();
+
+	ClientBuilder clientBuilder{"sip:flexisip-voicemail@localhost:" + to_string(voicemail->getTcpPort()) +
+	                            ";maddr=127.0.0.1;transport=tcp"};
+	clientBuilder.setRegistration(OnOff::Off);
+	const auto caller = clientBuilder.build("caller@sip.example.org");
+	const auto callParams = caller.getCore()->createCallParams(nullptr);
+
+	CoreAssert asserter{caller, voicemail, agent->getRoot()};
+	const auto call = caller.invite("sip:flexisip-voicemail@localhost;target=sip:target%40sip.test.org", callParams);
+	BC_HARD_ASSERT(call != nullptr);
+	auto observer = make_shared<CallHandlerObserverForTest>();
+
+	asserter
+	    .iterateUpTo(
+	        10, [&call] { return LOOP_ASSERTION(call->getState() == linphone::Call::State::StreamsRunning); }, 500ms)
+	    .assert_passed();
+	auto handler = voicemail->getCallHandlers().begin()->second;
+	BC_HARD_ASSERT_CPP_NOT_EQUAL(handler, nullptr);
+	observer->observeCallHandler(handler);
+
+	call->terminate();
+	asserter
+	    .iterateUpTo(
+	        10,
+	        [&call, &observer] {
+		        const auto state = call->getState();
+
+		        FAIL_IF(state != linphone::Call::State::End && state != linphone::Call::State::Released);
+		        return LOOP_ASSERTION(observer->isCallHandled());
+	        },
+	        4s)
+	    .assert_passed();
+
+	std::ignore = voicemail->stop();
 }
 
 void transportInitialization() {
@@ -334,6 +424,7 @@ TestSuite _{
         CLASSY_TEST(answerCallThenHangUp),
         CLASSY_TEST(answerCallRecordVoicemail),
         CLASSY_TEST(transportInitialization),
+        CLASSY_TEST(answerCallThenHangUpBeforeAnnounce),
     },
 };
 } // namespace

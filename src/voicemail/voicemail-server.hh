@@ -62,6 +62,10 @@ public:
 		return mCore->getTransportsUsed()->getTcpPort();
 	}
 
+	std::map<std::string, const std::shared_ptr<voicemail::CallHandler>> getCallHandlers() const {
+		return mCallHandlers;
+	}
+
 private:
 	static constexpr std::string_view mLogPrefix{"VoicemailServer"};
 

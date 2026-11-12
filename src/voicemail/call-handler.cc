@@ -66,6 +66,21 @@ std::filesystem::path generateRecordName(const std::shared_ptr<linphone::Call>& 
 	return flexisip::Sha256{}.compute<string>(target + caller + randomFiller) + ".wav";
 }
 
+bool isHttpResponseAcceptable(const std::shared_ptr<flexisip::HttpResponse>& rep,
+                                        const std::pair<string, string>& logContext) {
+	if (rep->getStatusCode() < 200 || rep->getStatusCode() >= 400) {
+		LOGE_CTX(logContext.first, logContext.second) << "Received an unexpected status code (" << rep->getStatusCode()
+		                                              << "): " << string(rep->getBody().data(), rep->getBody().size());
+		return false;
+	}
+	if (rep->getStatusCode() >= 300) {
+		LOGE_CTX(logContext.first, logContext.second) << "Status code not handled (" << rep->getStatusCode()
+		                                              << "): " << string(rep->getBody().data(), rep->getBody().size());
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 namespace flexisip::voicemail {
@@ -73,10 +88,16 @@ namespace flexisip::voicemail {
 void CallHandler::playAnnounce(const std::filesystem::path& announcePath) {
 	mPlaybackPhase = PlaybackPhase::announcing;
 
-	const auto player = mCall->getPlayer();
-	player->addListener(shared_from_this());
-	player->open(announcePath);
-	player->start();
+	if (const auto player = mCall->getPlayer(); player) {
+		player->addListener(shared_from_this());
+		player->open(announcePath);
+		player->start();
+	} else {
+		// There should always be a player at this point unless the call has ended, in which case this method should not
+		// be called
+		LOGE << "No player available, ending call";
+		terminateCall();
+	}
 }
 
 void CallHandler::playDelayedAnnounce(const std::filesystem::path& announcePath,
@@ -120,7 +141,7 @@ void CallHandler::onEofReached(const std::shared_ptr<linphone::Player>& player) 
 			}
 			break;
 		case PlaybackPhase::beeping:
-			mPlaybackPhase = PlaybackPhase::idle;
+			mPlaybackPhase = PlaybackPhase::ended;
 
 			player->close();
 			player->removeListener(shared_from_this());
@@ -180,7 +201,8 @@ void CallHandler::onCallStateStreamsRunning() {
 void CallHandler::onCallStateEnd() {
 	LOGD << "Call ended";
 
-	if (mHandlerMode != HandlerMode::voicemailRecording) {
+	mTimer.stop();
+	if (mHandlerMode != HandlerMode::voicemailRecording || mPlaybackPhase != PlaybackPhase::ended) {
 		mCall->removeListener(shared_from_this());
 		notifyCallHandled();
 		return;
@@ -230,6 +252,10 @@ void CallHandler::reserveSlot() {
 			    LOGD_CTX(logPrefix, "reserveSlot") << "Answer received but Call handler is already gone, doing nothing";
 			    return;
 		    }
+		    if (!isHttpResponseAcceptable(rep, make_pair(thiz->mLogPrefix, "reserveSlot"))) {
+			    thiz->handleCallWithoutRecording();
+			    return;
+		    }
 		    try {
 			    const auto body = nlohmann::json::parse(rep->getBodyAsString());
 			    const auto account = body.get<flexiapi::Account>();
@@ -277,15 +303,7 @@ void CallHandler::sendSlotRequest(const int accountId) {
 }
 
 void CallHandler::onSlotReserved(const std::shared_ptr<HttpResponse>& rep) {
-	if (rep->getStatusCode() < 200 || rep->getStatusCode() >= 400) {
-		LOGE << "Received an unexpected status code (" << rep->getStatusCode()
-		     << "): " << string(rep->getBody().data(), rep->getBody().size());
-		handleCallWithoutRecording();
-		return;
-	}
-	if (rep->getStatusCode() >= 300) {
-		LOGE << "Status code not handled (" << rep->getStatusCode()
-		     << "): " << string(rep->getBody().data(), rep->getBody().size());
+	if (!isHttpResponseAcceptable(rep, make_pair(mLogPrefix, __FUNCTION__))) {
 		handleCallWithoutRecording();
 		return;
 	}
@@ -345,6 +363,7 @@ void CallHandler::uploadVoicemail(const sofiasip::Url& url) {
 	} catch (exception& e) {
 		LOGE << "Failed to read voicemail at " << mRecordPath << " (" << e.what()
 		     << "): voicemail will not be uploaded";
+		notifyCallHandled();
 		return;
 	}
 

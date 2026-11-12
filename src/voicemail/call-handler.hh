@@ -31,7 +31,6 @@
 
 namespace flexisip::voicemail {
 
-class CallHandler;
 /**
  * @brief Be notified when a call handler has finished to handle a call.
  */
@@ -103,9 +102,10 @@ private:
 		voicemailRecording,
 	};
 	enum class PlaybackPhase {
-		idle,
+		waiting,
 		announcing,
 		beeping,
+		ended,
 	};
 
 	// Bytes per second of recording (approximately 0.1MB/s with uncompressed WAV)
