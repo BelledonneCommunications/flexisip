@@ -71,7 +71,7 @@ add_library(flexisip
 	exceptions/invalid-address.hh
 	h264iframefilter.cc h264iframefilter.hh
 	i-supervisor-notifier.hh
-	lib/nlohmann-json-3-11-2/json.hpp
+	lib/nlohmann-json/json.hpp
 	log/logmanager.cc
 	lpconfig.cc
 	main/flexisip.cc main/flexisip.hh

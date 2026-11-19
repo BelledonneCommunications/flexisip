@@ -24,7 +24,7 @@ Flexisip, a flexible SIP proxy server with media capabilities.
 #include "flexiapi/schemas/account/resolved-uri.hh"
 #include "flexiapi/schemas/account/uri-type.hh"
 #include "flexiapi/schemas/schemas-json.hh"
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 
 namespace flexisip::flexiapi {
 

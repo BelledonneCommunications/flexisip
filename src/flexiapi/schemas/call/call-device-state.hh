@@ -16,15 +16,15 @@
     along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
 #include <optional>
 #include <string>
 
 #include "flexiapi/schemas/iso-8601-date.hh"
 #include "flexiapi/schemas/optional-json.hh"
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 #include "terminated.hh"
-
-#pragma once
 
 namespace flexisip {
 namespace flexiapi {

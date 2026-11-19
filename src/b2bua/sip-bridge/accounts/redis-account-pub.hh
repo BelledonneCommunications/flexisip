@@ -19,7 +19,7 @@
 #pragma once
 
 #include "flexisip/utils/sip-uri.hh"
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 
 namespace flexisip::b2bua::bridge {
 

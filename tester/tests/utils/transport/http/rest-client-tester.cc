@@ -18,7 +18,7 @@
 
 #include <regex>
 
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 
 #include "utils/asserts.hh"
 #include "utils/bc-utils.hh"

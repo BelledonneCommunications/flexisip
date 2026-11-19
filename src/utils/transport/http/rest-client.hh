@@ -21,7 +21,7 @@
 #include <chrono>
 #include <optional>
 
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 
 #include "exceptions/bad-configuration.hh"
 #include "flexisip/logmanager.hh"

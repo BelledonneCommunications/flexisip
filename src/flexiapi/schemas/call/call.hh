@@ -27,7 +27,7 @@
 #include "flexiapi/schemas/iso-8601-date.hh"
 #include "flexiapi/schemas/optional-json.hh"
 #include "flexiapi/schemas/schemas-json.hh"
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 
 #undef sip_call_id
 

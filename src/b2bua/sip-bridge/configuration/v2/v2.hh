@@ -30,7 +30,7 @@
 #include "b2bua/sip-bridge/configuration/v1.hh"
 #include "b2bua/sip-bridge/configuration/v2/account.hh"
 #include "flexiapi/schemas/optional-json.hh"
-#include "lib/nlohmann-json-3-11-2/json.hpp"
+#include "lib/nlohmann-json/json.hpp"
 
 namespace flexisip::b2bua::bridge::config::v2 {
 namespace account_selection {

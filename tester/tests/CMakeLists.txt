@@ -117,6 +117,11 @@ add_executable(flexisip_tester
 	tls-connection-tester.cc
 )
 
+# C++ 20 adds the support for char8_t which adds a lot of backward compatibility problems.
+# See: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1423r3.html
+# So for now disable it where it poses a problem.
+set_source_files_properties(utf8-string-tester.cc PROPERTIES COMPILE_OPTIONS "-fno-char8_t")
+
 if(ENABLE_REGEVENT OR ENABLE_B2BUA OR ENABLE_VOICEMAIL)
 	target_sources(flexisip_tester PRIVATE
 		utils/configuration/media.cc
@@ -222,11 +227,6 @@ if(ENABLE_TRANSCODER)
 endif()
 
 add_subdirectory(integration)
-
-# C++ 20 adds the support for char8_t which adds a lot of backward compatibility problems.
-# See: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1423r3.html
-# So for now disable it until we need it.
-list(APPEND CXX_BUILD_FLAGS "-fno-char8_t")
 
 target_compile_options(flexisip_tester PRIVATE ${CPP_BUILD_FLAGS} ${CXX_BUILD_FLAGS})
 target_link_libraries(flexisip_tester PRIVATE
