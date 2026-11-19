@@ -41,7 +41,6 @@ target_sources(flexisip PRIVATE
 	schemas/iso-8601-date.hh
 	schemas/message/message.hh
 	schemas/message/message-device-response.hh
-	schemas/optional-json.hh
 	schemas/pushnotification/pushnotification.hh
 	schemas/schemas-json.cc schemas/schemas-json.hh
 	schemas/space/realm.hh

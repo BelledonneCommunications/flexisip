@@ -25,7 +25,6 @@
 #include "call-device-state.hh"
 #include "flexiapi/schemas/api-formatted-uri.hh"
 #include "flexiapi/schemas/iso-8601-date.hh"
-#include "flexiapi/schemas/optional-json.hh"
 #include "flexiapi/schemas/schemas-json.hh"
 #include "lib/nlohmann-json/json.hpp"
 

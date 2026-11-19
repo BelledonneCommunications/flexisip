@@ -21,7 +21,6 @@
 #include <optional>
 #include <string>
 
-#include "flexiapi/schemas/optional-json.hh"
 #include "lib/nlohmann-json/json.hpp"
 #include "pushnotification/push-type.hh"
 

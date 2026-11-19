@@ -20,7 +20,6 @@
 
 #include <string>
 
-#include "flexiapi/schemas/optional-json.hh"
 #include "lib/nlohmann-json/json.hpp"
 
 #include "realm-json.hh"

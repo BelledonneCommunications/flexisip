@@ -29,7 +29,6 @@
 #include "b2bua/sip-bridge/configuration/media-encryption.hh"
 #include "b2bua/sip-bridge/configuration/v1.hh"
 #include "b2bua/sip-bridge/configuration/v2/account.hh"
-#include "flexiapi/schemas/optional-json.hh"
 #include "lib/nlohmann-json/json.hpp"
 
 namespace flexisip::b2bua::bridge::config::v2 {

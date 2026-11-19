@@ -25,7 +25,6 @@
 #include <string>
 #include <vector>
 
-#include "flexiapi/schemas/optional-json.hh"
 #include "lib/nlohmann-json/json.hpp"
 
 namespace flexisip::b2bua::bridge::config::v1 {
