@@ -1,6 +1,8 @@
 .job-macosx:
   stage: build 🏗
   tags: [ "macosx-min-xcode12.2-flat" ]
+  # Do not download the artifacts of previous stages.
+  dependencies: [ ]
   script:
     - ccache -s
     - export OPENSSL_ROOT_DIR=/usr/local/opt/openssl

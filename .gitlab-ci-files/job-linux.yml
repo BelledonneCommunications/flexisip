@@ -100,6 +100,8 @@ job-check-ccache-remote:
   stage: build 🏗
   tags: [ "docker-flat" ]
   extends: .linux-ccache
+  # Do not download the artifacts of previous stages.
+  dependencies: [ ]
   variables:
     LSAN_SUPPRESSIONS_FILE_PATH: "" # Empty to disable suppressions by default.
   script:
@@ -110,8 +112,12 @@ job-check-ccache-remote:
     - cmake -G "$CMAKE_GENERATOR" $DEFAULT_CMAKE_OPTIONS -DCMAKE_INSTALL_PREFIX="$PWD/../OUTPUT" $CMAKE_OPTIONS ..
     - cmake --build .
 
-# Files required by the flexisip_tester bin
+# Files required by the flexisip_tester bin.
+# Producing these artifacts makes the job a test prerequisite: it runs in an
+# earlier stage than regular builds, so the unit tests can start on the test
+# machines as soon as possible, while the remaining builds are still running.
 .tester-artifacts:
+  stage: build for test 🏗
   artifacts:
     paths:
       - work/bin/flexisip_tester
