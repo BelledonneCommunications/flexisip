@@ -63,7 +63,9 @@ public:
 	struct KeyInfo {
 		std::string key;
 		std::string algo;
-		ASN1_TIME notAfter{};
+		// Use seconds resolution: the nanosecond-resolution system_clock::time_point overflows past year 2262, which
+		// some long-lived (test) certificates exceed.
+		std::chrono::sys_seconds notAfter{};
 	};
 
 	Bearer(const std::shared_ptr<sofiasip::SuRoot>& root,

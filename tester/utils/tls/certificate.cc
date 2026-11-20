@@ -37,11 +37,15 @@ TlsCertificate::TlsCertificate(const TlsPrivateKey& pKey, const long validitySec
 	X509_gmtime_adj(X509_get_notBefore(mX509), certificateValidityStartOffset);
 	X509_gmtime_adj(X509_get_notAfter(mX509), validitySeconds);
 	X509_set_pubkey(mX509, key);
-	X509_NAME* name = X509_get_subject_name(mX509);
+	// X509_get_subject_name() returns a const pointer since OpenSSL 4.0:
+	// build the name explicitly and assign it to both subject and issuer.
+	auto* name = X509_NAME_new();
 	X509_NAME_add_entry_by_txt(name, "C", MBSTRING_ASC, (unsigned char*)"FR", -1, -1, 0);
 	X509_NAME_add_entry_by_txt(name, "O", MBSTRING_ASC, (unsigned char*)"BC", -1, -1, 0);
 	X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC, (unsigned char*)"localhost", -1, -1, 0);
+	X509_set_subject_name(mX509, name);
 	X509_set_issuer_name(mX509, name);
+	X509_NAME_free(name);
 	X509_sign(mX509, key, EVP_sha256());
 }
 

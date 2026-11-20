@@ -189,7 +189,7 @@ string loadPemKey(string_view pubKeyFile) {
 	return {buf, static_cast<size_t>(size)};
 }
 
-std::pair<string, ASN1_TIME> extractKey(string_view certificate) {
+std::pair<string, std::chrono::sys_seconds> extractKey(string_view certificate) {
 	uniqueBioPtr certbio{BIO_new_mem_buf(certificate.data(), static_cast<int>(certificate.size()))};
 
 	std::unique_ptr<X509, decltype(&X509_free)> x509Cert{PEM_read_bio_X509(certbio.get(), nullptr, nullptr, nullptr),
@@ -202,6 +202,11 @@ std::pair<string, ASN1_TIME> extractKey(string_view certificate) {
 	const auto* notAfter = X509_get0_notAfter(x509Cert.get());
 	if (!notAfter) {
 		LOGW_CTX(kOpenIDConnect) << "No certificate validity found";
+		return {};
+	}
+	tm notAfterTm{};
+	if (!ASN1_TIME_to_tm(notAfter, &notAfterTm)) {
+		LOGW_CTX(kOpenIDConnect) << "Failed to parse certificate validity";
 		return {};
 	}
 	auto* pkey = X509_get0_pubkey(x509Cert.get()); // get pointer, no allocation
@@ -217,11 +222,12 @@ std::pair<string, ASN1_TIME> extractKey(string_view certificate) {
 
 	char* buf{};
 	const auto size = BIO_get_mem_data(outbio.get(), &buf);
-	return {{buf, static_cast<size_t>(size)}, *notAfter};
+	return {{buf, static_cast<size_t>(size)},
+	        std::chrono::sys_seconds{std::chrono::seconds{timegm(&notAfterTm)}}};
 }
 
-bool isKeyValid(const ASN1_TIME& notAfter) {
-	return X509_cmp_current_time(&notAfter) <= 0;
+bool isKeyValid(const std::chrono::sys_seconds& notAfter) {
+	return notAfter <= std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
 }
 
 unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {
