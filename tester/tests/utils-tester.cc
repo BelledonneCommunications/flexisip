@@ -19,6 +19,7 @@
 #include "utils/string-utils.hh"
 #include "utils/uri-utils.hh"
 
+#include <limits>
 #include <list>
 
 #include "bctoolbox/tester.h"
@@ -199,12 +200,35 @@ void integer() {
 }
 
 void real() {
+	// The exact output of std::uniform_real_distribution is implementation-defined:
+	// the values differ between libstdc++ versions (e.g. GCC 13 and GCC 16).
+	// Only the range, the reproducibility of a seed and the diversity between
+	// seeds are asserted.
 	Random random{0x5EED};
+	Random sameSeed{0x5EED};
+	Random otherSeed{0x5EEE};
 
 	auto vFloat = random.real<float>().generate();
-	BC_ASSERT_CPP_EQUAL(vFloat, 6.47178224e+37f);
+	auto vFloatSameSeed = sameSeed.real<float>().generate();
+	BC_ASSERT_TRUE(vFloat > 0.f);
+	BC_ASSERT_TRUE(vFloat <= numeric_limits<float>::max());
+	BC_ASSERT_CPP_EQUAL(vFloat, vFloatSameSeed);
+
 	auto vDouble = random.real<double>().generate();
-	BC_ASSERT_CPP_EQUAL(vDouble, 1.7346564169626818e+308);
+	auto vDoubleSameSeed = sameSeed.real<double>().generate();
+	BC_ASSERT_TRUE(vDouble > 0.);
+	BC_ASSERT_TRUE(vDouble <= numeric_limits<double>::max());
+	BC_ASSERT_CPP_EQUAL(vDouble, vDoubleSameSeed);
+
+	auto vFloatOtherSeed = otherSeed.real<float>().generate();
+	BC_ASSERT_TRUE(vFloatOtherSeed > 0.f);
+	BC_ASSERT_TRUE(vFloatOtherSeed <= numeric_limits<float>::max());
+	BC_ASSERT_TRUE(vFloatOtherSeed != vFloat);
+
+	// a restricted range is respected (upper bound excluded)
+	auto vRange = otherSeed.real<float>(3.f, 4.f).generate();
+	BC_ASSERT_TRUE(vRange >= 3.f);
+	BC_ASSERT_TRUE(vRange < 4.f);
 	// Note: the type 'long double' is not tested as its precision may vary (implementation-defined).
 }
 

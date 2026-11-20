@@ -1,5 +1,5 @@
 ###############################################################################
-# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20260619_remove_nghttp2_asio
+# Dockerfile used to make gitlab.linphone.org:4567/bc/public/flexisip/bc-dev-archlinux:20261119_redis_72
 ###############################################################################
 
 FROM archlinux:base
@@ -53,10 +53,20 @@ RUN pacman --noconfirm --noprogressbar --sync --refresh --sysupgrade \
         libvpx \
       # Test dependencies
         boost \
-        redis \
         squid \
   # Clean package cache
  && pacman --noconfirm -Scc
+
+# Arch only ships valkey (which replaced the redis package): build the real
+# Redis server from source instead, so the tests run against the same server
+# major version as the other distro images. Redis 7.2 is BSD-3-Clause licensed.
+ARG REDIS_VERSION=7.2.17
+RUN curl -fsSL -o /tmp/redis.tar.gz https://download.redis.io/releases/redis-${REDIS_VERSION}.tar.gz \
+ && echo "07c679c013fd82513299733bddf91999bbbc830351ec9ea985a533b09a595d76  /tmp/redis.tar.gz" | sha256sum -c - \
+ && tar -xzf /tmp/redis.tar.gz -C /tmp \
+ && make -C /tmp/redis-${REDIS_VERSION} -j"$(nproc)" BUILD_TLS=yes \
+ && make -C /tmp/redis-${REDIS_VERSION} install \
+ && rm -rf /tmp/redis*
 
 # Configure user bc
 RUN useradd -m -s /bin/bash bc && \
@@ -72,7 +82,6 @@ RUN sudo pacman --noconfirm --noprogressbar --sync \
     # Build-time dependencies of AUR packages
       fakeroot \
       debugedit \
-      patch \
   # Install AUR packages
  && aurinstall() { \
     # https://wiki.archlinux.org/title/AUR_helpers
@@ -82,14 +91,7 @@ RUN sudo pacman --noconfirm --noprogressbar --sync \
       && curl --remote-name --fail --silent "${AURL}" \
       && tar --extract --file "${1}.tar.gz" \
       && cd "${WDIR}/${1}" \
-      # TODO: Remove the patch when it's fixed upstream
-      # https://github.com/arun11299/cpp-jwt/issues/104
-      # https://wiki.archlinux.org/title/Patching_packages#Creating_patches
       && makepkg --noconfirm --syncdeps --nobuild \
-      && pushd src/cpp-jwt-1.5 \
-      && curl https://github.com/arun11299/cpp-jwt/commit/20086d7198a3636280ebb90b11b5a18495831c8a.patch \
-       | git apply - \
-      && popd \
       && makepkg --noconfirm --noextract --install --clean \
       && rm -rf "${WDIR}" ; \
     } \
@@ -98,7 +100,6 @@ RUN sudo pacman --noconfirm --noprogressbar --sync \
  && sudo pacman --noconfirm --remove --nosave --recursive \
       fakeroot \
       debugedit \
-      patch \
   # Clean package cache
  && sudo pacman --noconfirm -Scc
 
