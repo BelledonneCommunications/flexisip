@@ -174,4 +174,39 @@ constexpr auto kRsaCert = "-----BEGIN CERTIFICATE-----\n"
                           "kqsm5JjLEH4FlHAtFvovXD99n+w5wPWuDg=="
                           "\n-----END CERTIFICATE-----";
 
+// X509 certificate carrying the same public key as kRsaPrivKey, but expired
+// (validity 2024-01-01 -> 2025-01-01). Used for testing the rejection of
+// expired certificates in the JWKS response.
+constexpr auto kExpiredRsaCert = "-----BEGIN CERTIFICATE-----\n"
+                                 "MIIF9TCCA92gAwIBAgIUH9c9+AksgQQwfE4uxxhNdPKiXnUwDQYJKoZIhvcNAQELBQAwgYk"
+                                 "xCzAJBgNVBAYTAktBMRIwEAYDVQQIDAlDYXJtZWxpZGUxEzARBgNVBAcMCkthYWFtZWxvdH"
+                                 "QxEzARBgNVBAoMClJvdW5kVGFibGUxDzANBgNVBAMMBkFydGh1cjErMCkGCSqGSIb3DQEJA"
+                                 "RYcYXJ0aHVyLnBlbmRyYWdvbkBleGFtcGxlLm9yZzAeFw0yNDAxMDEwMDAwMDBaFw0yNTAx"
+                                 "MDEwMDAwMDBaMIGJMQswCQYDVQQGEwJLQTESMBAGA1UECAwJQ2FybWVsaWRlMRMwEQYDVQQ"
+                                 "HDApLYWFhbWVsb3R0MRMwEQYDVQQKDApSb3VuZFRhYmxlMQ8wDQYDVQQDDAZBcnRodXIxKz"
+                                 "ApBgkqhkiG9w0BCQEWHGFydGh1ci5wZW5kcmFnb25AZXhhbXBsZS5vcmcwggIiMA0GCSqGS"
+                                 "Ib3DQEBAQUAA4ICDwAwggIKAoICAQCM6oOmSRmaAZMq88GF1omDoKumZ4iU8LToA1inFanK"
+                                 "qSF1SmmnXvZt2PwXv3RPLmGJmlYA0alE2//nAJ9L6gJblseH53y8YOOremeITvLGyW56DXj"
+                                 "CRc4s7UrFo2CcjQy+0Mc3e8gUxNvPFwI99W77Ngr/biedwRBElsn5CeX/i17urShWgI+F+r"
+                                 "AJvcxm24KpVWC/xAyjp4lKAHUZCcby8R5UkZWn9mHmN5O+P0EBPZ+EI2gnlS9ui1WZV1Xqn"
+                                 "mhPzFyH7ncRYHNNLrWB6zmrqljsjydzWPGLO86h8rq30/hHfhkk8zhwaDX1zXL6J7c1VoXo"
+                                 "kSj87nwBtO5xNKzSLY8SrSklslfrr21JZQDGbf6qCQQ+Qo5mknOq6g0oDJOZLLj9+3Ldk4k"
+                                 "BWJOOyBaeV3nI/ru3O4RsniburFWG+PJL186XCGFE3aU8tXWaaF7D5U8Z2p35F0BN0g9DBv"
+                                 "aD2TI7PO8hBRS/HC1iNSDFnSTCmL7riVF4w+8PM6zAA4qzfrySMWQowKtQ9VaTkYWbbLexZ"
+                                 "jvKWKhp2Y1LiLbVYatiqdj4pF2hwMU022CDCuG0NfcEQC5ZRJW7GRoYkcJ0Mrc18rpQOfj/"
+                                 "/LkwjOcc9liDkS5Zke+uI7oMwrDqn9dZ9BA2yqcmtLY3xb4upHDUnztCyTDG60YmrwexU5u"
+                                 "i8QIDAQABo1MwUTAdBgNVHQ4EFgQU6bYHr1o3moHTmw2Xmysl4IPjtoIwHwYDVR0jBBgwFo"
+                                 "AU6bYHr1o3moHTmw2Xmysl4IPjtoIwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFA"
+                                 "AOCAgEAKOjMD8nfNkhhtnsUokORVRKO/oT2KoE4Xsod9VsVOuzpbuteCWtV/J5AwxFOPJhI"
+                                 "xq/v2Tc0qz4S/OHfK2vtPhet7TlEwfK/rj/JJAEPuc+nK08prPx2MIqPKl2alrQ5B8FcXdz"
+                                 "9m5NCzkoK/Y8sl5kOcJ362nZb5mMJqkgsPQtGmR3cci5/PGyyAWXtec4pzMGyAlpv6Jh1jP"
+                                 "Uixy9lNS8N4YRUIFJPHiBdK06R1q1nBSMdIcvMXM4njKFWysWv+jVIswSZKsqJ8r4RJuL4K"
+                                 "kwVX+k8vowjOBOPtbZC9sgM9O86iW21TqtoNMDI9b5z6xs6WL+DXHd12JO1fQRdcyQG0ZuF"
+                                 "wSPa/frceDRxGZJjGB1mX6S6EFJgIipKwyoIHSF3P7kAkN1QifhB6MInnzicLXHqy3JU39K"
+                                 "uPhrC9NLJdn2dEcmZK/YsKdGBgvvMqOWq8O8kSiAB00UyZLjsTfKMKW81V/gHStYvEsdpww"
+                                 "pzW0qWUuXYhIJeOE/fParcvDTUuedPe7QnJ4FxvNxFy8wnxz4RR9GggQ60MxX9xfWzmtQcm"
+                                 "dE52ydO+iOzJz7Nx0bnhXz8jS1PneP/tre8r+BJOVIKPRiFq74wecZ2RM5RynE7+ByGDh63"
+                                 "j5nG44hRO2qoYp+Lzd2Xei1lXU7RG+LIi4NJxMLVT54Xw/nciAA="
+                                 "\n-----END CERTIFICATE-----";
+
 } // namespace flexisip::tester

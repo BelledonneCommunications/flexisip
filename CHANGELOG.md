@@ -95,6 +95,8 @@ Group changes to describe their impact on the project, as follows:
   - **Registrar:** Resolved a crash when resolving static-record aliases.
 - **B2BUA/SIP-Bridge:** In some situations, REFER requests could not be correctly translated from the internal domain
   to the external domain and vice-versa.
+- **AuthOpenIdConnect:** Expired certificates provided by the authorization server were not rejected.
+  They now are.
 
 ### [Removed]
 - **Proxy**: Modules parameters `from-domains` and `to-domains` (deprecated in 0.5.0).

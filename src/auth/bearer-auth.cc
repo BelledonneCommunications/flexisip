@@ -227,7 +227,7 @@ std::pair<string, std::chrono::sys_seconds> extractKey(string_view certificate) 
 }
 
 bool isKeyValid(const std::chrono::sys_seconds& notAfter) {
-	return notAfter <= std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
+	return notAfter > std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
 }
 
 unordered_map<string, Bearer::KeyInfo> parseJWKSResponse(string_view response) {

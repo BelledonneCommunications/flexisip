@@ -367,6 +367,84 @@ void bearerAuthWithWellknown() {
 	    .assert_passed();
 }
 
+// create a mock authorization server serving an expired certificate
+// check that a correctly signed token is rejected anyway, because the only
+// available certificate is expired
+void bearerAuthWithExpiredCert() {
+	auto root = std::make_shared<sofiasip::SuRoot>();
+
+	// mock an authorization server
+	http_mock::Http1Srv httpSvr(root);
+	const auto realm = "testRealm";
+	const auto issuer = httpSvr.getUrl() + "/TEST";
+
+	auto expiredCert = removePemMarker(kExpiredRsaCert);
+	nlohmann::json jwksBody = {{"keys",
+	                            {{
+	                                {"kid", "expiredCert"},
+	                                {"alg", "RS256"},
+	                                {"use", "sig"},
+	                                {"x5c", {expiredCert}},
+	                            }}}};
+	nlohmann::json wellknownBody = {{"issuer", issuer}, {"jwks_uri", issuer + "/jwks"}};
+	httpSvr.addPage("/TEST/jwks", jwksBody.dump());
+	httpSvr.addPage("/TEST/.well-known/openid-configuration", wellknownBody.dump());
+
+	// create BearerScheme with default well-known behavior
+	const Bearer::BearerParams params{
+	    .issuer = sofiasip::Url(issuer),
+	    .realm = realm,
+	    .idClaimer = "sip-identity",
+	};
+	const Bearer::KeyStoreParams keyStoreParams{
+	    .keyType = Bearer::PubKeyType::wellKnown,
+	    .keyPath = "",
+	    .wellKnownRefreshDelay = 2s,
+	    .jwksRefreshDelay = 1s,
+	};
+
+	Bearer bearerScheme(root, params, keyStoreParams);
+
+	// generate a token signed with the private key matching the expired
+	// certificate: if the key were accepted, verification would succeed,
+	// so the rejection can only come from the certificate validity check
+	jwt::jwt_object obj{jwt::params::algorithm("RS256"), jwt::params::secret(kRsaPrivKey)};
+	obj.header().add_header("kid", "expiredCert");
+	obj.add_claim("iss", params.issuer.str());
+	obj.add_claim("sub", "25863444a27");
+	obj.add_claim("aud", params.audience);
+	obj.add_claim(params.idClaimer, "sip:toto@example.org");
+	obj.add_claim("iat", std::chrono::system_clock::now());
+	obj.add_claim("exp", std::chrono::system_clock::now() + 60s);
+	const auto token = obj.signature();
+
+	bool receivedResult{};
+	auto onResult = [&receivedResult](RequestSipEvent::AuthResult::ChallengeResult&& challResult) {
+		BC_ASSERT(challResult.getType() == RequestSipEvent::AuthResult::Type::Bearer);
+		BC_ASSERT(challResult.getResult() == RequestSipEvent::AuthResult::Result::Invalid);
+		BC_ASSERT(!SipUri::hasParsingError(challResult.getIdentity()));
+		receivedResult = true;
+	};
+	msg_param_t msgData[] = {token.data(), nullptr};
+	msg_auth_t msg{};
+	msg.au_scheme = "Bearer";
+	msg.au_params = msgData;
+	BC_ASSERT(bearerScheme.check(&msg, onResult) == AuthScheme::State::Pending);
+
+	// iterate to get the well-known response, then the jwks response and
+	// the rejection of the pending token (unknown kid: expired keys are not kept)
+	CoreAssert asserter(*root);
+	asserter
+	    .iterateUpTo(
+	        16,
+	        [&receivedResult] {
+		        FAIL_IF(!receivedResult);
+		        return ASSERTION_PASSED();
+	        },
+	        2s)
+	    .assert_passed();
+}
+
 const TestSuite kSuite = {
     "AuthBearerScheme",
     {
@@ -381,6 +459,7 @@ const TestSuite kSuite = {
         CLASSY_TEST(tokenExpiration),
         CLASSY_TEST(verifySignature),
         CLASSY_TEST(bearerAuthWithWellknown),
+        CLASSY_TEST(bearerAuthWithExpiredCert),
     },
     Hooks()
         .beforeSuite([]() {
