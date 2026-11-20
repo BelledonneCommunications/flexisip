@@ -59,16 +59,13 @@
 
 #include <tclap/CmdLine.h>
 
-#include <flexisip/flexisip-version.h>
 #include <flexisip/logmanager.hh>
 #include <flexisip/module.hh>
 #include <flexisip/sofia-wrapper/su-root.hh>
+#include <flexisip/version.hh>
 
 #ifndef CONFIG_DIR
 #define CONFIG_DIR
-#endif
-#ifndef FLEXISIP_GIT_VERSION
-#define FLEXISIP_GIT_VERSION "undefined"
 #endif
 
 #include "agent.hh"
@@ -369,7 +366,7 @@ static const string getFunctionName(bool startProxy, bool startPresence, bool re
 static string version() {
 	stringstream version{};
 	vector<string_view> options{};
-	version << FLEXISIP_GIT_VERSION << " (sofia-sip: " << SOFIA_SIP_VERSION << ")";
+	version << flexisip::gitVersion() << " (sofia-sip: " << SOFIA_SIP_VERSION << ")";
 
 #if ENABLE_SNMP
 	options.emplace_back("SNMP");
@@ -743,7 +740,7 @@ int flexisip::main(int argc, const char* argv[]) {
 	    .root = root,
 	});
 
-	logger.message(kLogPrefix, __func__, "Starting Flexisip-" + fName + " server [version: " FLEXISIP_GIT_VERSION "]");
+	logger.message(kLogPrefix, __func__, "Starting Flexisip-" + fName + " server [version: " + std::string(flexisip::gitVersion()) + "]");
 
 	logger.setContextualFilter(globalCfg->get<ConfigString>("contextual-log-filter")->read());
 	logger.setContextualLevel(

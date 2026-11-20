@@ -22,7 +22,7 @@
 
 #include "bctoolbox/logging.h"
 #include "exceptions/bad-configuration.hh"
-#include "flexisip/flexisip-version.h"
+#include "flexisip/version.hh"
 #include "mediastreamer2/msconference.h"
 #include "utils/configuration/media.hh"
 #include "utils/configuration/transport.hh"
@@ -209,7 +209,7 @@ shared_ptr<B2buaCore> B2buaCore::create(linphone::Factory& factory, const Generi
 pair<string, string> parseUserAgentFromConfig(const string& value) {
 	smatch res{};
 	if (regex_match(value, res, regex(R"(^([a-zA-Z0-9-.!%*_+`'~]+)(?:\/([a-zA-Z0-9-.!%*_+`'~]+|\{version\}))?$)"))) {
-		return {res[1], res[2] == "{version}" ? FLEXISIP_GIT_VERSION : res[2].str()};
+		return {res[1], res[2] == "{version}" ? string(flexisip::gitVersion()) : res[2].str()};
 	}
 
 	throw BadConfiguration{"user-agent parameter is ill-formed, use the following syntax: <name>[/<version>]"};

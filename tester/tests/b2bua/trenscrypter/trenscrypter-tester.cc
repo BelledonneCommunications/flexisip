@@ -24,9 +24,6 @@
 #include "linphone/core.h"
 #include <linphone++/linphone.hh>
 
-#include "flexisip/flexisip-version.h"
-
-#include "modules/module-toolbox.hh"
 #include "utils/asserts.hh"
 #include "utils/client-builder.hh"
 #include "utils/client-call.hh"

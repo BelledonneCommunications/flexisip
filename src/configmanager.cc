@@ -29,10 +29,10 @@
 
 #include <sofia-sip/su_md5.h>
 
-#include "flexisip/flexisip-version.h"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
 #include "flexisip/sip-boolean-expressions.hh"
+#include "flexisip/version.hh"
 
 #include "agent.hh"
 #include "configdumper.hh"
@@ -742,7 +742,7 @@ const GenericStruct* RootConfigStruct::getModuleSectionByRole(const std::string&
 
 ConfigManager::ConfigManager()
     : mConfigRoot("flexisip",
-                  "This is the default Flexisip (v" FLEXISIP_GIT_VERSION ") configuration file",
+                  "This is the default Flexisip (v" + std::string(flexisip::gitVersion()) + ") configuration file",
                   {1, 3, 6, 1, 4, 1, SNMP_COMPANY_OID},
                   mConfigFile),
       mReader(&mConfigRoot) {
@@ -1229,7 +1229,7 @@ ConfigManager::ConfigManager()
 	                    "This parameter has no effect anymore. Configure the flexisip-proxy service to restart on "
 	                    "failure with the watchdog of systemd (default) instead.");
 
-	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", FLEXISIP_GIT_VERSION, 999);
+	auto version = make_unique<ConfigString>("version-number", "Flexisip version.", std::string(flexisip::gitVersion()), 999);
 	version->setReadOnly(true);
 	version->setExportable(false);
 	global->addChild(std::move(version));

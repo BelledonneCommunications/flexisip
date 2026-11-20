@@ -40,9 +40,9 @@
 #include "domain-registrations.hh"
 #include "etchosts.hh"
 #include "exceptions/bad-configuration.hh"
-#include "flexisip/flexisip-version.h"
 #include "flexisip/logmanager.hh"
 #include "flexisip/module.hh"
+#include "flexisip/version.hh"
 #include "modules/module-toolbox.hh"
 #include "nat/contact-correction-strategy.hh"
 #include "nat/flow-token-strategy.hh"
@@ -767,7 +767,7 @@ Agent::Agent(const std::shared_ptr<sofiasip::SuRoot>& root,
 		mModules.push_back(moduleInfo->create(this));
 	}
 
-	mServerString = "Flexisip/" FLEXISIP_GIT_VERSION " (sofia-sip-nta/" NTA_VERSION ")";
+	mServerString = "Flexisip/" + std::string(flexisip::gitVersion()) + " (sofia-sip-nta/" NTA_VERSION ")";
 
 	onDeclare(*cr);
 

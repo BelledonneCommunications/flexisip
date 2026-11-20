@@ -27,6 +27,7 @@
 add_library(flexisip
 	agent.cc agent.hh
 	agent-startlogwriter.cc
+	git-version.cc
 	auth/auth-challenger.cc auth/auth-challenger.hh
 	auth/auth-scheme.hh
 	auth/db/authdb-file.cc

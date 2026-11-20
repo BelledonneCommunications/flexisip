@@ -21,8 +21,8 @@
 #include <fstream>
 
 #include "exceptions/bad-configuration.hh"
-#include "flexisip/flexisip-version.h"
 #include "flexisip/logmanager.hh"
+#include "flexisip/version.hh"
 
 using namespace std;
 
@@ -62,7 +62,7 @@ MemoryWatcher::MemoryWatcher(const std::shared_ptr<sofiasip::SuRoot>& root, cons
 }
 
 void MemoryWatcher::logMemoryUsed() {
-	static constexpr string_view flexisipNameAndVersion{"Flexisip-" FLEXISIP_GIT_VERSION};
+	static const string flexisipNameAndVersion = "Flexisip-" + string(flexisip::gitVersion());
 	auto usedMemory = getUsedMemory();
 	if (usedMemory.has_value()) LOGD << flexisipNameAndVersion << ": RAM=" << usedMemory.value();
 }

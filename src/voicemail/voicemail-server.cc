@@ -23,10 +23,9 @@
 #include "call-handler.hh"
 #include "exceptions/bad-configuration.hh"
 #include "flexiapi/config.hh"
-#include "flexiapi/schemas/voicemail/slot-creation.hh"
 #include "flexisip/configmanager.hh"
-#include "flexisip/flexisip-version.h"
 #include "flexisip/utils/sip-uri.hh"
+#include "flexisip/version.hh"
 #include "utils/configuration/media.hh"
 #include "utils/configuration/transport.hh"
 #include "utils/digest.hh"
@@ -162,7 +161,7 @@ void VoicemailServer::_init() {
 	natPolicy->enableIce(config->get<ConfigBoolean>("enable-ice")->read());
 	mCore->setNatPolicy(natPolicy);
 
-	mCore->setUserAgent("Flexisip-voicemail", FLEXISIP_GIT_VERSION);
+	mCore->setUserAgent("Flexisip-voicemail", std::string(flexisip::gitVersion()));
 	mCore->setTransports(transport);
 
 	mCore->addListener(shared_from_this());

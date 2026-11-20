@@ -19,8 +19,8 @@
 #include <cctype>
 #include <regex>
 
-#include <flexisip/flexisip-version.h>
 #include <flexisip/module.hh>
+#include <flexisip/version.hh>
 
 #include "configdumper.hh"
 #include "flexisip/common.hh"
@@ -342,7 +342,7 @@ ostream& MibDumper::dump(ostream& ostr) const {
 	     << "		email:    contact@belledonne-communications.com\"" << endl
 	     << "	DESCRIPTION  \"A Flexisip management tree.\"" << endl
 	     << "	REVISION     \"" << mbstr << "\"" << endl
-	     << "    DESCRIPTION  \"" FLEXISIP_GIT_VERSION << "\"" << endl
+	     << "    DESCRIPTION  \"" << flexisip::gitVersion() << "\"" << endl
 	     << "::={ enterprises " << SNMP_COMPANY_OID << " }" << endl
 	     << endl;
 

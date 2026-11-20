@@ -33,6 +33,7 @@
 #include "flexisip/event.hh"
 #include "flexisip/sofia-wrapper/su-root.hh"
 #include "flexisip/utils/sip-uri.hh"
+#include "flexisip/version.hh"
 #include "modules/module-toolbox.hh"
 #include "registrardb-internal.hh"
 #include "sofia-wrapper/nta-agent.hh"
@@ -430,7 +431,7 @@ void userAgentParameterConfiguration() {
 
 		b2bua.startB2bua();
 
-		BC_ASSERT_CPP_EQUAL(b2bua.getCore()->getUserAgent(), expected + string(FLEXISIP_GIT_VERSION));
+		BC_ASSERT_CPP_EQUAL(b2bua.getCore()->getUserAgent(), expected + string(flexisip::gitVersion()));
 	}
 
 	// Test exception is thrown when parameter is ill-formed: <wrong_name>/<version>|{version}.
