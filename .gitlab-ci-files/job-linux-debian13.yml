@@ -27,7 +27,7 @@ job-debian13-ninja-gcc:
   extends:
     - .job-ninja-gcc
     - .debian13-image
-    - .rules-dev
+    - .rules-manual
   variables:
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
 

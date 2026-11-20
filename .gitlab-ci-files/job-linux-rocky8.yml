@@ -43,7 +43,7 @@ job-rocky8-ninja-clang:
   extends:
     - .job-ninja-clang
     - .rocky8-image-variables
-    - .rules-dev
+    - .rules-manual
     - .tester-artifacts
   variables:
     CMAKE_OPTIONS: ${ROCKY8_CMAKE_OPTIONS_UNIT_TESTS}
@@ -56,6 +56,7 @@ job-rocky8-unit-test:
   extends:
     - .unit-test
     - .rocky8-image-variables
+    - .rules-manual
   needs:
     - job-rocky8-ninja-clang
   variables:

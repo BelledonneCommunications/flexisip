@@ -34,7 +34,7 @@ job-ubuntu-24-04-ninja-clang:
   extends:
     - .job-ninja-clang
     - .ubuntu-24-04-image
-    - .rules-dev
+    - .rules-manual
     - .tester-artifacts
   variables:
     CMAKE_OPTIONS: -DENABLE_UNIT_TESTS=ON
@@ -47,6 +47,7 @@ job-ubuntu-24-04-unit-test:
   extends:
     - .unit-test
     - .ubuntu-24-04-image
+    - .rules-manual
   needs:
     - job-ubuntu-24-04-ninja-clang
 
