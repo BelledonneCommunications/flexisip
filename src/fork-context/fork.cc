@@ -469,8 +469,9 @@ void Fork::sendAndLogResponse(const std::shared_ptr<BranchInfo>& branch) {
 	if (mIncomingReplier->hasReceivedFinalAnswer()) return;
 
 	auto responseEvent = branch->transferLastResponse();
-	responseEvent = sendResponse(std::move(responseEvent));
-	if (responseEvent) mStrategy->logSentResponse(responseEvent, branch.get(), getEvent());
+	if (!responseEvent) return;
+	mStrategy->logSentResponse(responseEvent, branch.get(), getEvent());
+	sendResponse(std::move(responseEvent));
 }
 
 std::unique_ptr<ResponseSipEvent> Fork::sendResponse(std::unique_ptr<ResponseSipEvent>&& event) {

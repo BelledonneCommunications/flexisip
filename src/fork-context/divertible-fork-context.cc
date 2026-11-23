@@ -120,6 +120,7 @@ DivertibleForkContext::~DivertibleForkContext() {
 	LOGD << "Destroy instance";
 	if (const auto statCounter = mStatCounter.lock()) statCounter->incrFinish();
 	else LOGD << "Failed to increment counter (std::weak_ptr is empty)";
+	mEvent->terminateProcessing();
 }
 
 std::shared_ptr<ForkContextListener> DivertibleForkContext::getForkContextListener() const {
